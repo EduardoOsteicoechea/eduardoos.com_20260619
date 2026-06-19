@@ -26,4 +26,6 @@ certbot/
 *.log
 
 secrets/
-*secrets*
+.env
+.env.*
+!.env.example
