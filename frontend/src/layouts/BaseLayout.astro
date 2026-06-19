@@ -1,32 +1,68 @@
 ---
 /**
- * BaseLayout.astro — Root HTML shell shared by every page.
- * Imports global styles and renders the site header.
+ * BaseLayout.astro — Root HTML shell (Eduardo OS chrome + theme bootstrap).
  */
 import "../styles/global.css";
-import "./BaseLayout.css";
-import Header from "../components/Header.astro";
+import PageBackground from "../components/PageBackground/PageBackground.astro";
+import { isHomePath } from "../config/homeLayout";
+import { Header } from "../components/Header/Header";
 
 interface Props {
-  title: string;
-  description?: string;
+  title?: string;
+  activityBarMode?: "default" | "article" | "editor";
 }
 
-const { title, description = "Eduardo OS — Zero Trust Microservices" } =
+const { title = "Eduardo Osteicoechea", activityBarMode = "default" } =
   Astro.props;
+
+const pathname = Astro.url.pathname;
+const pageHome = isHomePath(pathname);
+const pageEditor = activityBarMode === "editor";
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" class:list={{ "page-home": pageHome }}>
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content={description} />
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Raleway:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <meta
+      name="description"
+      content="Licensed Architect & Software Developer focusing on full-stack AEC solutions, cloud applications, AI integration, BIM collaboration, and problem solving."
+    />
+    <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
+    <script is:inline>
+      (function () {
+        try {
+          var stored = localStorage.getItem("eduardoos-theme");
+          var dark =
+            stored === "dark" ||
+            (!stored &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var root = document.documentElement;
+          root.classList.toggle("dark", dark);
+          root.dataset.theme = dark ? "dark" : "light";
+          root.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body>
-    <Header />
-    <main class="layout-main">
+  <body
+    class:list={{
+      "page-editor": pageEditor,
+      "has-page-background": true,
+    }}
+  >
+    <PageBackground />
+    <Header client:load pathname={pathname} />
+    <main>
       <slot />
     </main>
   </body>

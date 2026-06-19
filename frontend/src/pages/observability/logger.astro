@@ -1,0 +1,11 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import LoggerPanel from "../../components/LoggerPanel/LoggerPanel";
+import "./observability.css";
+---
+
+<BaseLayout title="Flight Logger — Eduardo Osteicoechea">
+  <div class="page-shell">
+    <LoggerPanel client:load />
+  </div>
+</BaseLayout>

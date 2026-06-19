@@ -1,8 +1,11 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import AuthForm from "../../components/AuthForm";
+import "../observability/observability.css";
 ---
 
-<BaseLayout title="Register — Eduardo OS">
-  <AuthForm client:load mode="register" />
+<BaseLayout title="Register — Eduardo Osteicoechea">
+  <div class="page-shell">
+    <AuthForm client:load mode="register" />
+  </div>
 </BaseLayout>

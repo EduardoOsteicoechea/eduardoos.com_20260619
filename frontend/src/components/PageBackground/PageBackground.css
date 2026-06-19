@@ -1,0 +1,23 @@
+.page-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.page-background__gradient {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(0, 17, 255, 0.12), transparent 45%),
+    radial-gradient(circle at 85% 10%, rgba(77, 92, 255, 0.1), transparent 40%),
+    radial-gradient(circle at 50% 90%, rgba(0, 17, 255, 0.08), transparent 50%);
+}
+
+html[data-theme="dark"] .page-background__gradient {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(77, 92, 255, 0.18), transparent 45%),
+    radial-gradient(circle at 85% 10%, rgba(0, 17, 255, 0.12), transparent 40%),
+    radial-gradient(circle at 50% 90%, rgba(77, 92, 255, 0.1), transparent 50%);
+}

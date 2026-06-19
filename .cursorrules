@@ -19,6 +19,16 @@
 - Component Styling: Every Astro or React component MUST have its own dedicated `.css` file imported directly into it. Keep the HTML/JSX as clean and minimal as possible.
 - Routing: Nginx serves the Astro build. Errors fallback via `try_files $uri $uri/ /index.html`.
 
+### Eduardo OS Theming (Mandatory)
+- **Fonts**: Load Montserrat, Raleway, and Roboto from Google Fonts in `BaseLayout.astro`.
+- **Theme tokens**: Define all colors, borders, and chrome variables in `src/styles/theme.css` using `--site-*` naming (`--site-body-bg`, `--site-body-fg`, `--site-accent`, `--site-border`, `--glassed_background`, etc.).
+- **Global shell**: `src/styles/global.css` imports `theme.css`, `buttons.css`, `headings.css`, `chrome.css`, and `pages.css`. It sets `--header_height: 60px`, `--control_min_height`, `--border_radius_001`, and `--max_desktop_width`.
+- **Dark mode**: Bootstrap theme in an inline `<script>` reading `localStorage` key `eduardoos-theme`, falling back to `prefers-color-scheme`. Toggle sets `html[data-theme]` and `html.dark`.
+- **Layout**: Use `BaseLayout.astro` with `PageBackground`, React `Header`, and `main` offset by `--header_height`. Home pages add `html.page-home`.
+- **Favicon**: Serve `/favicon.svg` from `public/`; keep head metadata minimal and relevant.
+- **Observability UI**: Provide Astro pages at `/observability/logger` and `/observability/tester` that call public gateway routes `/api/logger` and `/api/tester`.
+- **Validation**: Client-side validators live in `src/lib/validation.ts` and MUST run before auth/observability form submission.
+
 ## 4. Network & Gateway Architecture
 - Nginx & Certbot: Nginx acts as the primary reverse proxy and entry point. Port 80 redirects to HTTPS (Port 443).
 - Backend (API Gateway): The `backend` is the only public-facing API. 

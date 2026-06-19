@@ -1,49 +1,90 @@
-/*
- * global.css — Minimal reset and base typography for the entire Astro app.
- */
 @import "./theme.css";
+@import "./buttons.css";
+@import "./headings.css";
+@import "./chrome.css";
+@import "./pages.css";
 
-*,
-*::before,
-*::after {
+:root {
+  font-family: Raleway, Montserrat, Roboto, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Oxygen, Ubuntu, Cantarell, "Open Sans",
+    "Helvetica Neue", sans-serif;
+  --control_min_height: 40px;
+  --control_min_width: 40px;
+  --border_radius_001: 4px;
+  --border_001: solid 1px var(--site-border);
+  --max_desktop_width: 1920px;
+  --header_height: 60px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --control_min_height: 35px;
+    --control_min_width: 35px;
+  }
+}
+
+* {
+  position: relative;
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
-html {
-  font-family: var(--font-sans);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+body {
+  background-color: var(--site-body-bg);
+  color: var(--site-body-fg);
+  min-height: 100vh;
+  height: fit-content;
+  max-width: 1920px;
+  width: 100vw;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin: auto;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: var(--color-bg);
-  color: var(--color-text);
+html.page-home body {
+  overflow: hidden;
+}
+
+body.page-editor {
+  overflow-y: auto;
+}
+
+body.has-page-background {
+  background-color: transparent;
+}
+
+main {
+  position: relative;
+  z-index: 1;
+  margin-top: var(--header_height);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not(
+    [type="file"]
+  ):not([type="range"]):not([type="color"]),
+select,
+textarea {
+  min-height: var(--ui-control-min-height);
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+input,
+button,
+a {
+  min-height: var(--control_min_height);
+  min-width: var(--control_min_width);
+  font-family: inherit;
+}
+
+select {
+  color-scheme: light dark;
+  background-color: var(--site-body-bg);
+  color: var(--site-body-fg);
 }
 
 a {
-  color: var(--color-primary);
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
-}
-
-button,
-input {
-  font: inherit;
-}
-
-img {
-  max-width: 100%;
-  display: block;
-}
-
-h1,
-h2,
-h3,
-p {
-  margin: 0;
+  color: var(--site-accent);
 }

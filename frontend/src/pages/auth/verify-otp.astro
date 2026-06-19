@@ -1,8 +1,11 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import AuthForm from "../../components/AuthForm";
+import "../observability/observability.css";
 ---
 
-<BaseLayout title="Verify OTP — Eduardo OS">
-  <AuthForm client:load mode="verify-otp" />
+<BaseLayout title="Verify OTP — Eduardo Osteicoechea">
+  <div class="page-shell">
+    <AuthForm client:load mode="verify-otp" />
+  </div>
 </BaseLayout>

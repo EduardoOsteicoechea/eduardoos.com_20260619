@@ -1,0 +1,26 @@
+h1,
+h2,
+h3 {
+  font-family: Montserrat, Raleway, Roboto, sans-serif;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--site-body-fg);
+}
+
+h1 {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+}
+
+h2 {
+  font-size: clamp(1.25rem, 3vw, 1.5rem);
+}
+
+h3 {
+  font-size: 1.125rem;
+}
+
+.page-lead {
+  color: var(--site-muted-fg);
+  max-width: 42rem;
+  line-height: 1.6;
+}

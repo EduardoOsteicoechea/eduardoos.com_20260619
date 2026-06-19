@@ -68,6 +68,17 @@ docker compose up -d --build
 | POST | `/api/tester` | Public | QA engine proxy |
 | GET | `/health` | Public | Gateway health (internal) |
 
+## Frontend Pages
+
+| Page | Path |
+|------|------|
+| Home | `/` |
+| Register | `/auth/register` |
+| Login | `/auth/login` |
+| Verify OTP | `/auth/verify-otp` |
+| Flight Logger UI | `/observability/logger` |
+| QA Tester UI | `/observability/tester` |
+
 ## Development Tests
 
 ```bash
@@ -98,7 +109,7 @@ Nine independent GitHub Actions workflows monitor path-scoped changes:
 
 ## Test Outcomes (Latest)
 
-- Frontend: Vitest — telemetry, API client, auth route tests
+- Frontend: Vitest — 20 tests (telemetry, API, auth, validation, observability)
 - Rust: `cargo test --workspace` — common token/PDF/flight-log unit tests per service
 
 ## GitHub Repository
