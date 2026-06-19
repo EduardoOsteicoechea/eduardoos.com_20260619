@@ -1,0 +1,24 @@
+name: CI — Documents
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "microservices/documents/**"
+      - "crates/**"
+      - "Cargo.toml"
+      - ".github/workflows/documents.yml"
+  pull_request:
+    paths:
+      - "microservices/documents/**"
+      - "crates/**"
+      - "Cargo.toml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p documents -p common

@@ -1,0 +1,24 @@
+name: CI — Telemetry
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "microservices/telemetry/**"
+      - "crates/**"
+      - "Cargo.toml"
+      - ".github/workflows/telemetry.yml"
+  pull_request:
+    paths:
+      - "microservices/telemetry/**"
+      - "crates/**"
+      - "Cargo.toml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p telemetry -p common

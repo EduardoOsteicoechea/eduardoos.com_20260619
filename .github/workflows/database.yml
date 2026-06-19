@@ -1,0 +1,24 @@
+name: CI — Database
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "microservices/database/**"
+      - "crates/**"
+      - "Cargo.toml"
+      - ".github/workflows/database.yml"
+  pull_request:
+    paths:
+      - "microservices/database/**"
+      - "crates/**"
+      - "Cargo.toml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p database -p common

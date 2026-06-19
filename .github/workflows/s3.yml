@@ -1,0 +1,24 @@
+name: CI — S3
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "microservices/s3/**"
+      - "crates/**"
+      - "Cargo.toml"
+      - ".github/workflows/s3.yml"
+  pull_request:
+    paths:
+      - "microservices/s3/**"
+      - "crates/**"
+      - "Cargo.toml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p s3 -p common

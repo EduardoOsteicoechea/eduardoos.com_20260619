@@ -1,0 +1,68 @@
+# Project Architecture, Orchestration, Security & Tracing Rules
+
+## 1. General Principles
+- This is a fully decoupled, multi-container microservices architecture orchestrated entirely via Docker Compose.
+- The project must run flawlessly on both Docker Desktop (local) and an AWS EC2 instance using a single `docker-compose up -d` command.
+- ALL services run inside dedicated Docker containers. Maintain strict network isolation.
+
+## 2. Code Style & Non-Rust Developer Documentation
+- Language Standard: Strictly safe, idiomatic Rust using the Axum web framework and Tokio async runtime for all backend nodes.
+- Extensive Narrative Documentation: EVERY file must include extensive, plain-English comments outlining exactly what the code is doing step-by-step. Complex Rust mechanics must be clearly explained so a non-Rust developer can read the file like a technical playbook.
+- Tiny Files & Modular Design: Break code down into highly localized modules. Functions must serve a single responsibility and remain small. Avoid monolithic `main.rs` files; split routing, handlers, middleware, and business logic.
+- Reusability: Common shared structures, error handling enums, and telemetry log contract wrappers must be abstracted cleanly.
+
+## 3. Frontend Development (Astro + React & Plain CSS)
+- Framework: Astro with React integrations for dynamic components.
+- Official Docs Only: When writing, debugging, or scaffolding Astro code, the AI MUST consult and strictly follow the official Astro documentation.
+- Styling Standard (Plain CSS): Strictly use plain CSS. NO Tailwind, NO CSS-in-JS.
+- CSS Architecture: You MUST create a `theme.css` (defining CSS variables for system light/dark modes) and a `global.css` (for reset and global app styles).
+- Component Styling: Every Astro or React component MUST have its own dedicated `.css` file imported directly into it. Keep the HTML/JSX as clean and minimal as possible.
+- Routing: Nginx serves the Astro build. Errors fallback via `try_files $uri $uri/ /index.html`.
+
+## 4. Network & Gateway Architecture
+- Nginx & Certbot: Nginx acts as the primary reverse proxy and entry point. Port 80 redirects to HTTPS (Port 443).
+- Backend (API Gateway): The `backend` is the only public-facing API. 
+- Public Endpoints: The gateway MUST explicitly bypass authentication for `/api/auth/login`, `/api/auth/register`, `/api/auth/verify-otp`, service `/health`, and the observability endpoints `/api/tester` and `/api/logger`.
+- Observability Proxy: `/api/tester` proxies to the internal `tester` microservice. `/api/logger` proxies to the `telemetry` microservice.
+
+## 5. Zero Trust Internal Security Matrix
+- Environment Secrets: Read dynamically from Docker Compose environment variables.
+- Internal Token Verification: The API Gateway signs a short-lived internal payload header (`X-Internal-Token`). Every private service must implement middleware to validate this signature.
+- Email Validation System: The `authenticator` handles OTP generation and sends via SMTP configured for `eduardooost@gmail.com`.
+
+## 6. The Microservice Ecosystem (Internal Port 3000)
+- `database`: Abstracts persistence; verifies internal gateway tokens.
+- `documents`: A raw, from-scratch PDF byte-stream generator. NO EXTERNAL PDF CRATES (no printpdf/genpdf). It must manually construct PDF standard objects, xref tables, and use exact mm-to-point math (`mm * (72.0 / 25.4)`) for precise text and geometry placement using raw PDF stream operators.
+- `authenticator`: Validates auth state, issues SMTP validation traffic.
+- `telemetry`: Central observability engine. Feeds data to `/api/logger`.
+- `s3`: Interface proxy handling object storage.
+- `chatbot`: Context-isolated conversational routing engine.
+- `tester`: Internal QA automation engine. Executes test scripts, logs outcomes, submits to `telemetry`, and feeds data to `/api/tester`.
+
+## 7. Distributed Telemetry & Flight Tracing Rules
+- Distributed Flight Logging: Every transaction passing through the backend injects a unique correlation token (`X-Correlation-ID`). 
+- Every network hop reports its state to `telemetry`. The `tester` service appends its execution steps.
+
+## 8. Multi-Stage Docker Execution
+- Stage 1 (Build): Compile using `rust:latest`.
+- Stage 2 (Runtime): Copy binary into `debian:bookworm-slim`.
+
+## 9. STRICT AGENT DEVELOPMENT WORKFLOW (Fully Autonomous TDD Pipeline)
+The AI MUST execute the following two-phase workflow with ZERO human intervention. Passing tests are the ONLY review required.
+
+**PHASE 1: THE MASTER PLAN**
+1. Analyze the request and break the entire implementation down into strictly atomic, logically decoupled steps.
+2. Output this plan as a markdown checklist.
+3. Proceed immediately to Phase 2. Do NOT stop for human approval.
+
+**PHASE 2: ATOMIC EXECUTION LOOP**
+For EACH atomic step, execute this exact loop autonomously:
+1. Generate the Request Log: Define the expected telemetry payload, flight workflow, and correlation structure.
+2. Generate the Tests: Write the unit test, integration test, and assertions for internal/workflow logs.
+3. Write the Production Code: Implement the isolated handler, middleware, component, or CSS file.
+4. Wire the Logs: Integrate the `tracing` spans and ensure `telemetry` hooks match expectations.
+5. The Autonomous Test Loop: Execute tests (`cargo test` for Rust, or the respective frontend test command). Check unit tests, integration tests, and log tests.
+6. Auto-Refactor Check: IF ANY TEST FAILS, autonomously refactor the code and re-run step 5. Repeat this loop endlessly until all tests pass.
+7. Update README.md: Document the architectural changes and test outcomes.
+8. Commit and Push: Execute `git add`, `git commit -m "feat/test: [description of atomic step]"`, and `git push`.
+9. Loop: Move immediately to the next atomic step and start at Phase 2, Step 1. Do NOT stop until the entire implementation is complete.
