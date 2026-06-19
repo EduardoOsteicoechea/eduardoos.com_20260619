@@ -34,11 +34,20 @@ export interface TesterRunResult {
   passed: boolean;
   steps: TestStep[];
   durationMs: number;
+  source?: string;
+  buildId?: string;
 }
 
 export interface TestRunRecord extends TesterRunResult {
   startedAt: string;
   finishedAt: string;
+  source?: string;
+  buildId?: string;
+}
+
+export interface BuildRunsSummary {
+  passed: number;
+  failed: number;
 }
 
 export interface RunsSummary {
@@ -47,6 +56,8 @@ export interface RunsSummary {
   failed: number;
   passRatePercent: number;
   runs: TestRunRecord[];
+  buildRuns?: BuildRunsSummary;
+  latestBuild?: TestRunRecord;
 }
 
 export interface LogAnalytics {
@@ -94,11 +105,32 @@ export async function fetchLogs(
   fetchFn?: typeof fetch
 ): Promise<FlightLogEntry[]> {
   const correlationId = createCorrelationId();
+  const merged = { limit: 2000, ...filters };
   const response = await apiRequest<FlightLogEntry[]>(
-    `${OBSERVABILITY_ROUTES.logs}${buildQuery(filters)}`,
+    `${OBSERVABILITY_ROUTES.logs}${buildQuery(merged)}`,
     { correlationId, fetchFn }
   );
   return response.data ?? [];
+}
+
+/** Opens a live SSE stream of flight logs (EC2 + local). */
+export function subscribeLogStream(
+  onLog: (entry: FlightLogEntry) => void,
+  onError?: (err: Event) => void
+): () => void {
+  const source = new EventSource(OBSERVABILITY_ROUTES.stream);
+  source.addEventListener("log", (event) => {
+    try {
+      const entry = JSON.parse((event as MessageEvent).data) as FlightLogEntry;
+      onLog(entry);
+    } catch {
+      /* ignore malformed events */
+    }
+  });
+  source.onerror = (err) => {
+    onError?.(err);
+  };
+  return () => source.close();
 }
 
 export async function fetchTrace(

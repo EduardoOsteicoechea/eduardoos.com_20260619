@@ -32,7 +32,10 @@
         "dynamodb:Scan",
         "dynamodb:BatchGetItem",
         "dynamodb:BatchWriteItem",
-        "dynamodb:ConditionCheckItem"
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:CreateTable",
+        "dynamodb:UpdateTimeToLive",
+        "dynamodb:DescribeTimeToLive"
       ],
       "Resource": [
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_catalog",
@@ -42,7 +45,11 @@
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_refresh_tokens",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_refresh_tokens/index/*",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_users",
-        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_users/index/*"
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_users/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_flight_logs",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_flight_logs/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_test_runs",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_test_runs/index/*"
       ]
     }
   ]

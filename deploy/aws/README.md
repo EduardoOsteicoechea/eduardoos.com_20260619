@@ -9,8 +9,32 @@ This stack runs on **Graviton (arm64)** EC2 instances in **us-east-1** and uses:
 | DynamoDB | `eduardoos_users` | Keys prefixed `user:` |
 | DynamoDB | `eduardoos_posts` | Keys prefixed `post:` |
 | DynamoDB | `eduardoos_refresh_tokens` | Keys prefixed `refresh:` |
+| DynamoDB | `eduardoos_flight_logs` | Flight logs (7-day TTL on `expiresAt`) |
+| DynamoDB | `eduardoos_test_runs` | QA + build test runs (7-day TTL) |
 
-## 1. Create the IAM policy
+## Observability tables (flight logs + test runs)
+
+Telemetry and tester use **separate DynamoDB tables** on EC2 (not the generic
+`database` service KV). Each row includes `expiresAt` (Unix epoch seconds);
+DynamoDB TTL deletes items automatically after **7 days**.
+
+| Table | PK | SK | GSI | TTL attribute |
+|-------|----|----|-----|---------------|
+| `eduardoos_flight_logs` | `LOG` | `{millis}#{uuid}` | `correlation-index` (correlationId + timestamp) | `expiresAt` |
+| `eduardoos_test_runs` | `RUN` | `{millis}#{runId}` | `runId-index` | `expiresAt` |
+
+**Create once** (from a machine with AWS CLI + permissions):
+
+```bash
+bash deploy/aws/create-observability-tables.sh
+```
+
+Deploy on EC2 also runs this script when the instance role includes
+`CreateTable` / `UpdateTimeToLive` (see [`ec2-iam-policy.json`](./ec2-iam-policy.json)).
+
+Local Docker keeps in-memory stores (`TELEMETRY_BACKEND=memory`,
+`TESTER_BACKEND=memory`).
+
 
 In **IAM → Policies → Create policy → JSON**, paste the contents of
 [`ec2-iam-policy.json`](./ec2-iam-policy.json), then name it e.g.
@@ -48,7 +72,8 @@ docker compose -f docker-compose.yml -f docker-compose.ec2.yml up -d --build
 The `docker-compose.ec2.yml` overlay:
 
 - Sets `platform: linux/arm64` for every service (native on Graviton)
-- Sets `DATABASE_BACKEND=dynamodb` and `S3_BACKEND=aws`
+- Sets `DATABASE_BACKEND=dynamodb`, `TELEMETRY_BACKEND=dynamodb`, and `TESTER_BACKEND=dynamodb`
+- Sets `S3_BACKEND=aws`
 
 ## 5. Local Docker (unchanged)
 

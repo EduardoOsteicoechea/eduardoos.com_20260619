@@ -9,6 +9,7 @@ import {
 describe("observability routes config", () => {
   it("maps dashboard API endpoints", () => {
     expect(OBSERVABILITY_ROUTES.logs).toBe("/api/logger/logs");
+    expect(OBSERVABILITY_ROUTES.stream).toBe("/api/logger/stream");
     expect(OBSERVABILITY_ROUTES.analytics).toBe("/api/logger/analytics");
     expect(OBSERVABILITY_ROUTES.trace).toBe("/api/logger/trace");
     expect(OBSERVABILITY_ROUTES.testerRuns).toBe("/api/tester/runs");

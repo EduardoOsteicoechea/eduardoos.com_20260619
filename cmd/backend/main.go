@@ -27,8 +27,8 @@ type config struct {
 var publicPaths = []string{
 	"/health",
 	"/api/auth/login", "/api/auth/register", "/api/auth/verify-otp",
-	"/api/logger", "/api/logger/logs", "/api/logger/analytics", "/api/logger/trace",
-	"/api/tester", "/api/tester/runs",
+	"/api/logger", "/api/logger/logs", "/api/logger/analytics", "/api/logger/trace", "/api/logger/stream",
+	"/api/tester", "/api/tester/runs", "/api/tester/report",
 	"/api/payments/intents", "/api/payments/webhook/paypal", "/api/payments/status",
 }
 
@@ -65,8 +65,10 @@ func main() {
 	r.Get("/api/logger/logs", cfg.proxyGetQuery("/logs", cfg.TelemetryURL))
 	r.Get("/api/logger/analytics", cfg.proxyGet("/analytics", cfg.TelemetryURL))
 	r.Get("/api/logger/trace/{id}", cfg.proxyGetPath("/trace", cfg.TelemetryURL, "id"))
+	r.Get("/api/logger/stream", cfg.proxyStream(cfg.TelemetryURL+"/stream"))
 	r.Post("/api/tester", cfg.proxyPost("/run", cfg.TesterURL, ""))
 	r.Post("/api/tester/", cfg.proxyPost("/run", cfg.TesterURL, ""))
+	r.Post("/api/tester/report", cfg.proxyPost("/report", cfg.TesterURL, "tester.report"))
 	r.Get("/api/tester/runs", cfg.proxyGet("/runs", cfg.TesterURL))
 	r.Get("/api/tester/runs/{runID}", cfg.proxyGetPath("/runs", cfg.TesterURL, "runID"))
 	r.Post("/api/payments/intents", cfg.proxyPost("/intents", cfg.PaymentsURL, "payments.intent.proxy"))
@@ -158,6 +160,46 @@ func (c config) proxyPayPalWebhook() http.HandlerFunc {
 		out, _ := io.ReadAll(resp.Body)
 		w.WriteHeader(resp.StatusCode)
 		_, _ = w.Write(out)
+	}
+}
+
+func (c config) proxyStream(url string) http.HandlerFunc {
+	client := &http.Client{Timeout: 0}
+	return func(w http.ResponseWriter, r *http.Request) {
+		cid := common.CorrelationFromRequest(r)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			common.WriteError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		req.Header.Set(common.CorrelationHeader, cid)
+		req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(c.InternalSecret, cid))
+		resp, err := client.Do(req)
+		if err != nil {
+			common.WriteError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		defer resp.Body.Close()
+		for k, vals := range resp.Header {
+			for _, v := range vals {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(resp.StatusCode)
+		buf := make([]byte, 4096)
+		flusher, _ := w.(http.Flusher)
+		for {
+			n, readErr := resp.Body.Read(buf)
+			if n > 0 {
+				_, _ = w.Write(buf[:n])
+				if flusher != nil {
+					flusher.Flush()
+				}
+			}
+			if readErr != nil {
+				break
+			}
+		}
 	}
 }
 

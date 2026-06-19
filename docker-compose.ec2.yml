@@ -28,6 +28,10 @@ services:
 
   telemetry:
     platform: linux/arm64
+    environment:
+      TELEMETRY_BACKEND: dynamodb
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      DYNAMODB_TABLE_PREFIX: ${DYNAMODB_TABLE_PREFIX:-eduardoos}
 
   s3:
     platform: linux/arm64
@@ -42,6 +46,10 @@ services:
 
   tester:
     platform: linux/arm64
+    environment:
+      TESTER_BACKEND: dynamodb
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      DYNAMODB_TABLE_PREFIX: ${DYNAMODB_TABLE_PREFIX:-eduardoos}
 
   payments:
     platform: linux/arm64

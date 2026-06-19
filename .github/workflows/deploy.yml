@@ -123,6 +123,8 @@ jobs:
           scp -i ~/.ssh/deploy_key $SSH_OPTS \
             deploy/ec2/deploy-remote.sh \
             deploy/ec2/issue-cert.sh \
+            deploy/ec2/report-build-tests.sh \
+            deploy/aws/create-observability-tables.sh \
             "${EC2_USER}@${EC2_HOST}:/tmp/"
 
       - name: Run remote deploy
@@ -132,7 +134,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
-            "chmod +x /tmp/deploy-remote.sh /tmp/issue-cert.sh && APP_DIR=~/eduardoos.com_20260619 /tmp/deploy-remote.sh"
+            "chmod +x /tmp/deploy-remote.sh /tmp/issue-cert.sh /tmp/report-build-tests.sh /tmp/create-observability-tables.sh && APP_DIR=~/eduardoos.com_20260619 /tmp/deploy-remote.sh"
 
       - name: Smoke check
         env:

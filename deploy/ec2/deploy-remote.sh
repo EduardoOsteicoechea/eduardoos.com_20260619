@@ -135,5 +135,14 @@ done
 
 issue_letsencrypt_cert || true
 
+if [ -x deploy/aws/create-observability-tables.sh ]; then
+  echo "==> Ensuring DynamoDB observability tables exist"
+  bash deploy/aws/create-observability-tables.sh || echo "WARNING: could not create observability tables (check IAM)"
+fi
+
+if [ -x deploy/ec2/report-build-tests.sh ]; then
+  bash deploy/ec2/report-build-tests.sh || true
+fi
+
 echo "==> Deploy complete"
 "${COMPOSE[@]}" ps

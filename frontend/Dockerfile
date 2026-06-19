@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 COPY . .
+RUN npm test
 RUN npm run build
 
 # Stage 2: Serve artifacts via nginx volume mount (compose copies dist)

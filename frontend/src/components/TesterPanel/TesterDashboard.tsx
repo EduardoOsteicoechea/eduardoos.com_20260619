@@ -16,7 +16,7 @@ import { validateTesterScript } from "../../lib/validation";
 import "../LoggerPanel/LoggerDashboard.css";
 import "./TesterDashboard.css";
 
-const REFRESH_MS = 5000;
+const REFRESH_MS = 3000;
 
 export default function TesterDashboard() {
   const [summary, setSummary] = useState<RunsSummary | null>(null);
@@ -110,8 +110,9 @@ export default function TesterDashboard() {
         <div>
           <h1 className="panel__title">QA Tester — Automation Console</h1>
           <p className="page-lead">
-            Execute scripts, inspect step-level timing, correlate tester hops
-            with telemetry flight logs, and track pass rates over time.
+            Build-time tests (Docker image build) and manual scripts are stored
+            in DynamoDB for 7 days. Latest deploy build regime is highlighted
+            below.
           </p>
         </div>
         <div className="panel__actions">
@@ -131,6 +132,38 @@ export default function TesterDashboard() {
           </button>
         </div>
       </header>
+
+      {summary?.latestBuild && (
+        <section className="panel tester-build-panel">
+          <h2>Latest build test regime</h2>
+          <dl className="tester-detail__meta">
+            <dt>Build ID</dt>
+            <dd className="obs-mono">{summary.latestBuild.buildId ?? "—"}</dd>
+            <dt>Script</dt>
+            <dd>{summary.latestBuild.script}</dd>
+            <dt>Result</dt>
+            <dd>
+              <span
+                className={`obs-badge obs-badge--${summary.latestBuild.passed ? "success" : "error"}`}
+              >
+                {summary.latestBuild.passed ? "passed" : "failed"}
+              </span>
+            </dd>
+            <dt>Finished</dt>
+            <dd>{new Date(summary.latestBuild.finishedAt).toLocaleString()}</dd>
+          </dl>
+          <ul className="tester-steps">
+            {summary.latestBuild.steps.map((step, i) => (
+              <li key={i}>
+                <span className={`obs-badge obs-badge--${step.status}`}>
+                  {step.status}
+                </span>
+                <span>{step.name}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {summary && (
         <section className="obs-dashboard__stats">
@@ -188,6 +221,8 @@ export default function TesterDashboard() {
                   <th>Result</th>
                   <th>Duration</th>
                   <th>Steps</th>
+                  <th>Source</th>
+                  <th>Build</th>
                 </tr>
               </thead>
               <tbody>
@@ -212,11 +247,13 @@ export default function TesterDashboard() {
                     </td>
                     <td>{run.durationMs}ms</td>
                     <td>{run.steps.length}</td>
+                    <td>{run.source ?? "manual"}</td>
+                    <td className="obs-mono">{run.buildId?.slice(0, 8) ?? "—"}</td>
                   </tr>
                 ))}
                 {(!summary || summary.runs.length === 0) && (
                   <tr>
-                    <td colSpan={5}>No runs yet — execute a script above.</td>
+                    <td colSpan={7}>No runs yet — deploy or execute a script.</td>
                   </tr>
                 )}
               </tbody>

@@ -8,13 +8,35 @@ import {
   fetchLogs,
   fetchTrace,
   submitFlightLog,
+  subscribeLogStream,
   type LogAnalytics,
   type LogFilters,
 } from "../../lib/observability";
 import { validateLoggerEvent } from "../../lib/validation";
 import "./LoggerDashboard.css";
 
-const REFRESH_MS = 5000;
+const REFRESH_MS = 15000;
+const LIVE_LOG_CAP = 3000;
+
+function logKey(log: FlightLogEntry, index: number) {
+  return `${log.correlationId}-${log.timestamp}-${index}`;
+}
+
+function matchesFilters(log: FlightLogEntry, filters: LogFilters) {
+  if (filters.service && !log.service.toLowerCase().includes(filters.service.toLowerCase())) {
+    return false;
+  }
+  if (filters.status && log.status.toLowerCase() !== filters.status.toLowerCase()) {
+    return false;
+  }
+  if (filters.correlationId && !log.correlationId.includes(filters.correlationId)) {
+    return false;
+  }
+  if (filters.event && !log.event.toLowerCase().includes(filters.event.toLowerCase())) {
+    return false;
+  }
+  return true;
+}
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -59,7 +81,8 @@ export default function LoggerDashboard() {
   const [logs, setLogs] = useState<FlightLogEntry[]>([]);
   const [trace, setTrace] = useState<FlightLogEntry[]>([]);
   const [selectedCorrelation, setSelectedCorrelation] = useState("");
-  const [filters, setFilters] = useState<LogFilters>({ limit: 200 });
+  const [filters, setFilters] = useState<LogFilters>({ limit: 2000 });
+  const [liveMode, setLiveMode] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -89,6 +112,20 @@ export default function LoggerDashboard() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!liveMode) return;
+    return subscribeLogStream((entry) => {
+      setLogs((prev) => {
+        if (!matchesFilters(entry, filters)) return prev;
+        const next = [entry, ...prev];
+        if (next.length > LIVE_LOG_CAP) {
+          return next.slice(0, LIVE_LOG_CAP);
+        }
+        return next;
+      });
+    });
+  }, [liveMode, filters]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -129,19 +166,27 @@ export default function LoggerDashboard() {
         <div>
           <h1 className="panel__title">Flight Logger — Observability Console</h1>
           <p className="page-lead">
-            Live telemetry ingestion, distributed trace analysis, error rates,
-            and full flight-log export. Data sourced from the telemetry
-            microservice via <code>/api/logger</code>.
+            Live telemetry from EC2 (DynamoDB, 7-day TTL) via SSE at{" "}
+            <code>/api/logger/stream</code>. Actions on the server appear
+            immediately — no manual refresh required.
           </p>
         </div>
         <div className="panel__actions">
           <label className="obs-toggle">
             <input
               type="checkbox"
+              checked={liveMode}
+              onChange={(e) => setLiveMode(e.target.checked)}
+            />
+            Live stream
+          </label>
+          <label className="obs-toggle">
+            <input
+              type="checkbox"
               checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
             />
-            Auto-refresh ({REFRESH_MS / 1000}s)
+            Analytics refresh ({REFRESH_MS / 1000}s)
           </label>
           <button className="btn" type="button" onClick={refresh} disabled={loading}>
             {loading ? "Loading…" : "Refresh"}
@@ -276,12 +321,13 @@ export default function LoggerDashboard() {
                   <th>Event</th>
                   <th>Status</th>
                   <th>Correlation</th>
+                  <th>Metadata</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log, i) => (
                   <tr
-                    key={`${log.correlationId}-${log.timestamp}-${i}`}
+                    key={logKey(log, i)}
                     className={
                       log.correlationId === selectedCorrelation
                         ? "obs-table__row--active"
@@ -298,11 +344,14 @@ export default function LoggerDashboard() {
                       </span>
                     </td>
                     <td className="obs-mono">{log.correlationId.slice(0, 12)}…</td>
+                    <td className="obs-mono obs-meta">
+                      {log.metadata ? JSON.stringify(log.metadata) : "—"}
+                    </td>
                   </tr>
                 ))}
                 {logs.length === 0 && (
                   <tr>
-                    <td colSpan={5}>No logs yet — trigger auth or run tester.</td>
+                    <td colSpan={6}>Waiting for live logs…</td>
                   </tr>
                 )}
               </tbody>
