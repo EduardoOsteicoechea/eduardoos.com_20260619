@@ -55,7 +55,28 @@ if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
 fi
 
 echo "==> Building and starting stack (arm64 + AWS backends)"
-docker compose -f docker-compose.yml -f docker-compose.ec2.yml up -d --build
+export COMPOSE_PARALLEL_LIMIT=1
+export DOCKER_BUILDKIT=1
+
+# t4g.micro (1 GB RAM) OOMs when building all Rust images in parallel.
+BUILD_SERVICES=(
+  frontend
+  database
+  documents
+  telemetry
+  s3
+  chatbot
+  authenticator
+  tester
+  payments
+  backend
+)
+for svc in "${BUILD_SERVICES[@]}"; do
+  echo "==> Building ${svc}"
+  docker compose -f docker-compose.yml -f docker-compose.ec2.yml build "${svc}"
+done
+
+docker compose -f docker-compose.yml -f docker-compose.ec2.yml up -d
 
 echo "==> Deploy complete"
 docker compose -f docker-compose.yml -f docker-compose.ec2.yml ps

@@ -73,7 +73,7 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts" >> "$GITHUB_ENV"
+          echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o ServerAliveInterval=30 -o ServerAliveCountMax=120" >> "$GITHUB_ENV"
 
       - name: Build production .env
         env:

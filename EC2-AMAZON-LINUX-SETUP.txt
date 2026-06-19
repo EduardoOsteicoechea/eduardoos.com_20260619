@@ -149,7 +149,16 @@ sudo curl -SL https://github.com/docker/compose/releases/download/v2.29.2/docker
   -o /usr/local/lib/docker/cli-plugins/docker-compose
 sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
---- F6. Log out and back in (required for docker group) ---
+--- F7. Add swap (required on t4g.micro for Docker Rust builds) ---
+
+sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+free -h
+
+--- F8. Log out and back in (required for docker group) ---
 
 exit
 
@@ -157,18 +166,18 @@ Then SSH again:
 
 ssh -i /path/to/your-key.pem ec2-user@52.55.235.150
 
---- F7. Verify Docker and Compose ---
+--- F9. Verify Docker and Compose ---
 
 docker --version
 docker compose version
 docker info | head -5
 
---- F8. Verify IAM role is visible to the instance ---
+--- F10. Verify IAM role is visible to the instance ---
 
 curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/
 # Expected: your role name (e.g. eduardoos-ec2-role)
 
---- F9. Create application directory ---
+--- F11. Create application directory ---
 
 mkdir -p ~/eduardoos.com_20260619
 
