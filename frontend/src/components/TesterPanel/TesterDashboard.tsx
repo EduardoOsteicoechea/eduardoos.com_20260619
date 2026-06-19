@@ -226,7 +226,7 @@ export default function TesterDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {summary?.runs.map((run) => (
+                {summary?.runs?.map((run) => (
                   <tr
                     key={run.runId}
                     className={
@@ -251,7 +251,7 @@ export default function TesterDashboard() {
                     <td className="obs-mono">{run.buildId?.slice(0, 8) ?? "—"}</td>
                   </tr>
                 ))}
-                {(!summary || summary.runs.length === 0) && (
+                {(!summary || (summary.runs?.length ?? 0) === 0) && (
                   <tr>
                     <td colSpan={7}>No runs yet — deploy or execute a script.</td>
                   </tr>

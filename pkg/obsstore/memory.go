@@ -128,6 +128,9 @@ func (m *memoryTestStore) ListRuns(_ context.Context, limit int) ([]TestRun, err
 	if len(runs) > limit {
 		runs = runs[:limit]
 	}
+	if runs == nil {
+		runs = []TestRun{}
+	}
 	return runs, nil
 }
 

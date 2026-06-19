@@ -266,6 +266,9 @@ func (d *dynamoTestStore) ListRuns(ctx context.Context, limit int) ([]TestRun, e
 			runs = append(runs, run)
 		}
 	}
+	if runs == nil {
+		runs = []TestRun{}
+	}
 	return runs, nil
 }
 

@@ -160,6 +160,9 @@ func (s *state) listRuns(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	total := len(runs)
+	if runs == nil {
+		runs = []obsstore.TestRun{}
+	}
 	rate := 0.0
 	if total > 0 {
 		rate = float64(passed) / float64(total) * 100

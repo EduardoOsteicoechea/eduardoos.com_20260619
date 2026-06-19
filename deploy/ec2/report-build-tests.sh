@@ -26,9 +26,13 @@ EOF
 )
 
 echo "==> Reporting build test regime (buildId=${BUILD_ID})"
-curl -sS -X POST "https://${DOMAIN}/api/tester/report" \
+report_resp=$(curl -sS -w "\nHTTP:%{http_code}" -X POST "https://${DOMAIN}/api/tester/report" \
   -H "Content-Type: application/json" \
-  -d "${payload}" >/dev/null || echo "WARNING: build report POST failed"
+  -d "${payload}")
+echo "${report_resp}"
+if ! echo "${report_resp}" | grep -q "HTTP:200"; then
+  echo "WARNING: build report POST did not return 200"
+fi
 
 curl -sS -X POST "https://${DOMAIN}/api/logger" \
   -H "Content-Type: application/json" \
