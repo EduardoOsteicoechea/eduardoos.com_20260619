@@ -89,6 +89,16 @@ function buildQuery(filters: LogFilters): string {
   return qs ? `?${qs}` : "";
 }
 
+function normalizeAnalytics(stats: LogAnalytics): LogAnalytics {
+  return {
+    ...stats,
+    byService: stats.byService ?? {},
+    byStatus: stats.byStatus ?? {},
+    byEvent: stats.byEvent ?? {},
+    recentErrors: stats.recentErrors ?? [],
+  };
+}
+
 export async function fetchLogAnalytics(
   fetchFn?: typeof fetch
 ): Promise<LogAnalytics | null> {
@@ -97,7 +107,7 @@ export async function fetchLogAnalytics(
     OBSERVABILITY_ROUTES.analytics,
     { correlationId, fetchFn }
   );
-  return response.data ?? null;
+  return response.data ? normalizeAnalytics(response.data) : null;
 }
 
 export async function fetchLogs(
@@ -152,7 +162,8 @@ export async function fetchTesterRuns(
     correlationId,
     fetchFn,
   });
-  return response.data ?? null;
+  if (!response.data) return null;
+  return { ...response.data, runs: response.data.runs ?? [] };
 }
 
 export async function fetchTesterRun(

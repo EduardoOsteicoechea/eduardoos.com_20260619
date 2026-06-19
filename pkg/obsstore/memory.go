@@ -90,6 +90,9 @@ func computeAnalytics(logs []common.FlightLogEntry) LogAnalytics {
 	if total > 0 {
 		rate = float64(errors) / float64(total) * 100
 	}
+	if recent == nil {
+		recent = []common.FlightLogEntry{}
+	}
 	return LogAnalytics{
 		Total: total, UniqueCorrelations: len(corrs),
 		ByService: byService, ByStatus: byStatus, ByEvent: byEvent,

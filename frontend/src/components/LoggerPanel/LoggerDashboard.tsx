@@ -392,11 +392,11 @@ export default function LoggerDashboard() {
         </div>
       </section>
 
-      {analytics && analytics.recentErrors.length > 0 && (
+      {analytics && (analytics.recentErrors?.length ?? 0) > 0 && (
         <section className="panel obs-errors">
           <h2>Recent errors</h2>
           <ul>
-            {analytics.recentErrors.map((err, i) => (
+            {analytics.recentErrors?.map((err, i) => (
               <li key={i}>
                 <button
                   type="button"
