@@ -76,24 +76,32 @@ jobs:
           echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts" >> "$GITHUB_ENV"
 
       - name: Build production .env
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          INTERNAL_SERVICE_SECRET: ${{ secrets.INTERNAL_SERVICE_SECRET }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+          CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
+          PAYPAL_HOSTED_BUTTON_ID: ${{ secrets.PAYPAL_HOSTED_BUTTON_ID != '' && secrets.PAYPAL_HOSTED_BUTTON_ID || 'QEVGD66SG7LXN' }}
+          PAYPAL_IPN_VERIFY_URL: ${{ secrets.PAYPAL_IPN_VERIFY_URL != '' && secrets.PAYPAL_IPN_VERIFY_URL || 'https://ipnpb.paypal.com/cgi-bin/webscr' }}
         run: |
-          cat > .env.production << EOF
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          INTERNAL_SERVICE_SECRET=${{ secrets.INTERNAL_SERVICE_SECRET }}
-          SMTP_USER=${{ secrets.SMTP_USER }}
-          SMTP_PASS=${{ secrets.SMTP_PASS }}
-          DOMAIN=${{ secrets.DOMAIN }}
-          CERTBOT_EMAIL=${{ secrets.CERTBOT_EMAIL }}
-          PAYPAL_HOSTED_BUTTON_ID=${{ secrets.PAYPAL_HOSTED_BUTTON_ID != '' && secrets.PAYPAL_HOSTED_BUTTON_ID || 'QEVGD66SG7LXN' }}
-          PAYPAL_IPN_VERIFY_URL=${{ secrets.PAYPAL_IPN_VERIFY_URL != '' && secrets.PAYPAL_IPN_VERIFY_URL || 'https://ipnpb.paypal.com/cgi-bin/webscr' }}
-          AWS_REGION=us-east-1
-          S3_BUCKET=eduardoos20260607
-          S3_PREFIX=media
-          S3_BACKEND=aws
-          DATABASE_BACKEND=dynamodb
-          DYNAMODB_TABLE_PREFIX=eduardoos
-          EOF
-          sed -i 's/^[[:space:]]*//' .env.production
+          {
+            printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+            printf 'INTERNAL_SERVICE_SECRET=%s\n' "$INTERNAL_SERVICE_SECRET"
+            printf 'SMTP_USER=%s\n' "$SMTP_USER"
+            printf 'SMTP_PASS=%s\n' "$SMTP_PASS"
+            printf 'DOMAIN=%s\n' "$DOMAIN"
+            printf 'CERTBOT_EMAIL=%s\n' "$CERTBOT_EMAIL"
+            printf 'PAYPAL_HOSTED_BUTTON_ID=%s\n' "$PAYPAL_HOSTED_BUTTON_ID"
+            printf 'PAYPAL_IPN_VERIFY_URL=%s\n' "$PAYPAL_IPN_VERIFY_URL"
+            printf 'AWS_REGION=us-east-1\n'
+            printf 'S3_BUCKET=eduardoos20260607\n'
+            printf 'S3_PREFIX=media\n'
+            printf 'S3_BACKEND=aws\n'
+            printf 'DATABASE_BACKEND=dynamodb\n'
+            printf 'DYNAMODB_TABLE_PREFIX=eduardoos\n'
+          } > .env.production
 
       - name: Prepare EC2 app directory
         env:

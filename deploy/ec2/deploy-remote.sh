@@ -30,12 +30,8 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1091
-source .env
-set +a
-
-if [ -z "${DOMAIN:-}" ]; then
+DOMAIN=$(grep -E '^DOMAIN=' .env | head -n1 | cut -d= -f2- | tr -d '\r' | sed 's/^["'\'']//; s/["'\'']$//')
+if [ -z "${DOMAIN}" ]; then
   echo "ERROR: DOMAIN is not set in .env"
   exit 1
 fi
