@@ -65,11 +65,15 @@ jobs:
           CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
 
       - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts" >> "$GITHUB_ENV"
 
       - name: Build production .env
         run: |
@@ -96,7 +100,7 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+          ssh -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
             "mkdir -p ~/eduardoos.com_20260619"
 
@@ -105,10 +109,10 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+          scp -i ~/.ssh/deploy_key $SSH_OPTS \
             .env.production \
             "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/.env"
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+          scp -i ~/.ssh/deploy_key $SSH_OPTS \
             deploy/ec2/deploy-remote.sh \
             "${EC2_USER}@${EC2_HOST}:/tmp/eduardoos-deploy.sh"
 
@@ -117,7 +121,7 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+          ssh -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
             "chmod +x /tmp/eduardoos-deploy.sh && APP_DIR=~/eduardoos.com_20260619 /tmp/eduardoos-deploy.sh"
 

@@ -1,0 +1,257 @@
+ssh -i "eduardoos20260619.pem" ec2-user@ec2-52-55-235-150.compute-1.amazonaws.com
+
+================================================================================
+EDUARDO OS — EC2 AMAZON LINUX 2023 (ARM64) SETUP
+Instance example: eduardoos.com_20260619 (t4g.micro, us-east-1)
+================================================================================
+
+Run sections in order. Commands marked [LOCAL] run on your laptop/PC.
+Commands marked [EC2] run after SSH into the instance as ec2-user.
+
+
+--------------------------------------------------------------------------------
+SECTION A — GENERATE APPLICATION SECRETS [LOCAL]
+--------------------------------------------------------------------------------
+
+Prerequisites on your machine: Node.js 18+ (https://nodejs.org)
+
+1. Clone or open the project folder:
+
+   cd /path/to/eduardoos.com_20260619
+
+2. Generate JWT_SECRET and INTERNAL_SERVICE_SECRET:
+
+   npm run secrets:generate
+
+   This runs: node scripts/generate-secrets.mjs
+   Output example:
+     JWT_SECRET=<random-base64url-string>
+     INTERNAL_SERVICE_SECRET=<random-base64url-string>
+
+3. Copy both lines. You will paste them into:
+   - GitHub → Repository → Settings → Secrets and variables → Actions
+   - (optional) your local .env file for development
+
+Alternative without npm (same result, needs Node once):
+
+   node scripts/generate-secrets.mjs
+
+
+--------------------------------------------------------------------------------
+SECTION B — GITHUB REPOSITORY SECRETS [LOCAL / BROWSER]
+--------------------------------------------------------------------------------
+
+GitHub → EduardoOsteicoechea/eduardoos.com_20260619 → Settings → Secrets → Actions
+
+Add or verify ALL of these:
+
+   EC2_HOST                  = 52.55.235.150   (or your public DNS)
+   EC2_USER                  = ec2-user
+   EC2_SSH_PRIVATE_KEY       = full .pem private key contents
+   JWT_SECRET                = from npm run secrets:generate
+   INTERNAL_SERVICE_SECRET   = from npm run secrets:generate
+   SMTP_USER                 = eduardooost@gmail.com
+   SMTP_PASS                 = Gmail app password
+   DOMAIN                    = your production domain (DNS → EC2 IP)
+   CERTBOT_EMAIL             = eduardooost@gmail.com
+
+Optional:
+   PAYPAL_HOSTED_BUTTON_ID   = QEVGD66SG7LXN
+   PAYPAL_IPN_VERIFY_URL     = https://ipnpb.paypal.com/cgi-bin/webscr
+
+
+--------------------------------------------------------------------------------
+SECTION C — AWS IAM ROLE (S3 + DYNAMODB) [BROWSER]
+--------------------------------------------------------------------------------
+
+1. IAM → Policies → Create policy → JSON
+   Paste file: deploy/aws/ec2-iam-policy.json
+   Name: EduardoOS-EC2-S3-DynamoDB
+
+2. IAM → Roles → Create role
+   Trusted entity: AWS service → EC2
+   Attach policy: EduardoOS-EC2-S3-DynamoDB
+   Name: eduardoos-ec2-role (or your choice)
+
+3. EC2 → Instances → select instance → Actions → Security → Modify IAM role
+   Choose: eduardoos-ec2-role → Update IAM role
+
+No AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY needed in .env when using the role.
+
+
+--------------------------------------------------------------------------------
+SECTION D — SECURITY GROUP [BROWSER]
+--------------------------------------------------------------------------------
+
+EC2 → Security Groups → inbound rules for this instance:
+
+   Type        Port    Source
+   SSH         22      Your IP + GitHub Actions (see note below)
+   HTTP        80      0.0.0.0/0
+   HTTPS       443     0.0.0.0/0
+
+NOTE: CI/CD deploys over SSH from GitHub Actions runners. Either:
+  - Temporarily allow SSH (22) from 0.0.0.0/0 while testing, OR
+  - Add GitHub Actions IP ranges: https://api.github.com/meta (actions key)
+  Your home IP alone is NOT enough for automated deploy.
+
+
+--------------------------------------------------------------------------------
+SECTION E — CONNECT TO EC2 [LOCAL]
+--------------------------------------------------------------------------------
+
+1. Fix key permissions (Linux/macOS/Git Bash):
+
+   chmod 400 /path/to/your-key.pem
+
+2. SSH in:
+
+   ssh -i /path/to/your-key.pem ec2-user@52.55.235.150
+
+   (Replace IP with EC2_HOST / public DNS)
+
+
+--------------------------------------------------------------------------------
+SECTION F — PREPARE AMAZON LINUX 2023 ON EC2 [EC2]
+--------------------------------------------------------------------------------
+
+Run each command in order. Log in as ec2-user.
+
+--- F1. Confirm ARM64 architecture ---
+
+uname -m
+# Expected: aarch64
+
+--- F2. Update system packages ---
+
+sudo dnf update -y
+
+--- F3. Install git and openssl ---
+
+sudo dnf install -y git openssl
+
+--- F4. Install Docker ---
+
+sudo dnf install -y docker
+sudo systemctl enable --now docker
+sudo usermod -aG docker ec2-user
+
+--- F5. Install Docker Compose v2 plugin (ARM64) ---
+
+mkdir -p ~/.docker/cli-plugins
+curl -SL https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-linux-aarch64 \
+  -o ~/.docker/cli-plugins/docker-compose
+chmod +x ~/.docker/cli-plugins/docker-compose
+
+# Also install for root (deploy scripts may use sudo docker)
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -SL https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-linux-aarch64 \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+--- F6. Log out and back in (required for docker group) ---
+
+exit
+
+Then SSH again:
+
+ssh -i /path/to/your-key.pem ec2-user@52.55.235.150
+
+--- F7. Verify Docker and Compose ---
+
+docker --version
+docker compose version
+docker info | head -5
+
+--- F8. Verify IAM role is visible to the instance ---
+
+curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/
+# Expected: your role name (e.g. eduardoos-ec2-role)
+
+--- F9. Create application directory ---
+
+mkdir -p ~/eduardoos.com_20260619
+
+
+--------------------------------------------------------------------------------
+SECTION G — FIRST DEPLOY (CI/CD OR MANUAL) [EC2 / LOCAL]
+--------------------------------------------------------------------------------
+
+OPTION 1 — Automatic (recommended after Section B secrets are set):
+
+   Push to master on GitHub. Workflow .github/workflows/deploy.yml will:
+   - run tests
+   - upload .env built from GitHub secrets
+   - SSH and run deploy/ec2/deploy-remote.sh
+
+   Watch: GitHub → Actions → "CI/CD — Test and Deploy to EC2"
+
+
+OPTION 2 — Manual first deploy [LOCAL then EC2]:
+
+   [LOCAL] Create .env on your machine from .env.example, fill secrets, then:
+
+   scp -i /path/to/your-key.pem .env ec2-user@52.55.235.150:~/eduardoos.com_20260619/.env
+
+   scp -i /path/to/your-key.pem deploy/ec2/deploy-remote.sh ec2-user@52.55.235.150:/tmp/
+
+   [EC2]
+
+   chmod +x /tmp/deploy-remote.sh
+   APP_DIR=~/eduardoos.com_20260619 /tmp/deploy-remote.sh
+
+
+--------------------------------------------------------------------------------
+SECTION H — POST-DEPLOY CHECKS [EC2]
+--------------------------------------------------------------------------------
+
+cd ~/eduardoos.com_20260619
+
+docker compose -f docker-compose.yml -f docker-compose.ec2.yml ps
+
+docker compose -f docker-compose.yml -f docker-compose.ec2.yml exec database \
+  curl -s http://localhost:3000/health
+# Expected: "backend":"dynamodb"
+
+docker compose -f docker-compose.yml -f docker-compose.ec2.yml exec s3 \
+  curl -s http://localhost:3000/health
+# Expected: "backend":"aws","bucket":"eduardoos20260607"
+
+curl -sk -o /dev/null -w "%{http_code}\n" https://localhost/
+# Expected: 200 (self-signed cert until Let's Encrypt is configured)
+
+
+--------------------------------------------------------------------------------
+SECTION I — REAL TLS WITH LET'S ENCRYPT (after DNS points to EC2) [EC2]
+--------------------------------------------------------------------------------
+
+1. Ensure DOMAIN in .env matches DNS A record → EC2 public IP.
+
+2. After stack is running on port 80/443, obtain certificate:
+
+   cd ~/eduardoos.com_20260619
+   docker compose -f docker-compose.yml -f docker-compose.ec2.yml run --rm certbot \
+     certonly --webroot -w /var/www/certbot \
+     -d YOUR_DOMAIN --email YOUR_EMAIL --agree-tos --no-eff-email
+
+3. Restart nginx:
+
+   docker compose -f docker-compose.yml -f docker-compose.ec2.yml restart nginx
+
+
+--------------------------------------------------------------------------------
+SECTION J — SUBSEQUENT UPDATES [AUTOMATIC OR MANUAL]
+--------------------------------------------------------------------------------
+
+Automatic: git push origin master → GitHub Actions redeploys.
+
+Manual on EC2:
+
+   cd ~/eduardoos.com_20260619
+   git pull origin master
+   docker compose -f docker-compose.yml -f docker-compose.ec2.yml up -d --build
+
+
+================================================================================
+END OF SETUP GUIDE
+================================================================================
