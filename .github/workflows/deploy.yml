@@ -48,6 +48,10 @@ jobs:
               missing=1
             fi
           done
+          if echo "${DOMAIN:-}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::DOMAIN must be your hostname (e.g. eduardoos.com), not an IP. Use EC2_HOST for the server IP."
+            missing=1
+          fi
           exit "${missing}"
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
@@ -132,8 +136,11 @@ jobs:
 
       - name: Smoke check
         env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
+          DOMAIN: ${{ secrets.DOMAIN }}
         run: |
           sleep 15
-          code=$(curl -sk -o /dev/null -w "%{http_code}" "https://${EC2_HOST}/" || true)
-          echo "HTTPS status: ${code}"
+          code=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/" || true)
+          echo "HTTPS status for https://${DOMAIN}/: ${code}"
+          if [ "${code}" != "200" ]; then
+            echo "::warning::HTTPS smoke check did not return 200 (cert may still be self-signed)"
+          fi

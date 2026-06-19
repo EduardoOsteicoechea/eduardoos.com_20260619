@@ -118,14 +118,14 @@ On every push to `master`:
 
 | Secret | Description |
 |--------|-------------|
-| `EC2_HOST` | Public IP or DNS (e.g. `52.55.235.150` or `eduardoos.com`) |
+| `EC2_HOST` | Public IP for SSH (e.g. `52.55.235.150`) — **not** the TLS domain |
 | `EC2_USER` | SSH user (`ubuntu` or `ec2-user`) |
 | `EC2_SSH_PRIVATE_KEY` | Full private key (PEM), including `-----BEGIN...` lines |
 | `JWT_SECRET` | From `npm run secrets:generate` |
 | `INTERNAL_SERVICE_SECRET` | From `npm run secrets:generate` |
 | `SMTP_USER` | Gmail address |
 | `SMTP_PASS` | Gmail app password |
-| `DOMAIN` | Production domain (must match DNS → EC2) |
+| `DOMAIN` | **Hostname only** (e.g. `eduardoos.com`) — DNS A record → EC2 IP; used for TLS |
 | `CERTBOT_EMAIL` | Let's Encrypt contact email |
 
 Optional: `PAYPAL_HOSTED_BUTTON_ID`, `PAYPAL_IPN_VERIFY_URL`

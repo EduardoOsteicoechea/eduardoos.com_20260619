@@ -37,6 +37,12 @@ if [ -z "${DOMAIN}" ]; then
   exit 1
 fi
 
+if echo "${DOMAIN}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "ERROR: DOMAIN must be your hostname (e.g. eduardoos.com), not an IP address."
+  echo "       Set GitHub secret DOMAIN=eduardoos.com — EC2_HOST stays the IP for SSH."
+  exit 1
+fi
+
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.ec2.yml)
 
 echo "==> Pulling latest ${BRANCH}"
