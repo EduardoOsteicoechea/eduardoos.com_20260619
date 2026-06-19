@@ -1,0 +1,11 @@
+---
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+import PayPalSubscriptionForm from "../../../../components/PayPalSubscriptionForm/PayPalSubscriptionForm";
+import "../../../observability/observability.css";
+---
+
+<BaseLayout title="Monthly Basic Subscription — Eduardo Osteicoechea">
+  <div class="page-shell">
+    <PayPalSubscriptionForm client:load />
+  </div>
+</BaseLayout>

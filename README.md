@@ -66,7 +66,9 @@ docker compose up -d --build
 | POST | `/api/auth/verify-otp` | Public | Verify email OTP |
 | POST | `/api/logger` | Public | Flight log ingestion proxy |
 | POST | `/api/tester` | Public | QA engine proxy |
-| GET | `/health` | Public | Gateway health (internal) |
+| POST | `/api/payments/intents` | Public | Create PayPal payment intent (verified user) |
+| GET | `/api/payments/status/:id` | Public | Poll payment intent status |
+| POST | `/api/payments/webhook/paypal` | Public | PayPal IPN webhook |
 
 ## Frontend Pages
 
@@ -78,6 +80,7 @@ docker compose up -d --build
 | Verify OTP | `/auth/verify-otp` |
 | Flight Logger UI | `/observability/logger` |
 | QA Tester UI | `/observability/tester` |
+| Monthly Basic Subscription | `/payments/subscription/montly/basic` |
 
 ## Development Tests
 
@@ -109,7 +112,7 @@ Nine independent GitHub Actions workflows monitor path-scoped changes:
 
 ## Test Outcomes (Latest)
 
-- Frontend: Vitest — 20 tests (telemetry, API, auth, validation, observability)
+- Frontend: Vitest — 23 tests (telemetry, API, auth, validation, observability, payments)
 - Rust: `cargo test --workspace` — common token/PDF/flight-log unit tests per service
 
 ## GitHub Repository

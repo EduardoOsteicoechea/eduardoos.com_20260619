@@ -13,6 +13,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/register", post(handlers::register))
         .route("/login", post(handlers::login))
         .route("/verify-otp", post(handlers::verify_otp))
+        .route("/user-exists", post(handlers::user_exists))
         .layer(from_fn_with_state(state.clone(), middleware::internal_auth));
 
     Router::new()

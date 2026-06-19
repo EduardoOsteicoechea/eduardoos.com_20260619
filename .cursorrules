@@ -27,13 +27,15 @@
 - **Layout**: Use `BaseLayout.astro` with `PageBackground`, React `Header`, and `main` offset by `--header_height`. Home pages add `html.page-home`.
 - **Favicon**: Serve `/favicon.svg` from `public/`; keep head metadata minimal and relevant.
 - **Observability UI**: Provide Astro pages at `/observability/logger` and `/observability/tester` that call public gateway routes `/api/logger` and `/api/tester`.
+- **Payments UI**: Provide Astro page at `/payments/subscription/montly/basic` with PayPal hosted button; intents created via `/api/payments/intents` and linked to verified user email.
 - **Validation**: Client-side validators live in `src/lib/validation.ts` and MUST run before auth/observability form submission.
 
 ## 4. Network & Gateway Architecture
 - Nginx & Certbot: Nginx acts as the primary reverse proxy and entry point. Port 80 redirects to HTTPS (Port 443).
 - Backend (API Gateway): The `backend` is the only public-facing API. 
-- Public Endpoints: The gateway MUST explicitly bypass authentication for `/api/auth/login`, `/api/auth/register`, `/api/auth/verify-otp`, service `/health`, and the observability endpoints `/api/tester` and `/api/logger`.
+- Public Endpoints: The gateway MUST explicitly bypass authentication for `/api/auth/login`, `/api/auth/register`, `/api/auth/verify-otp`, service `/health`, the observability endpoints `/api/tester` and `/api/logger`, and payment routes `/api/payments/intents`, `/api/payments/status/*`, and `/api/payments/webhook/paypal`.
 - Observability Proxy: `/api/tester` proxies to the internal `tester` microservice. `/api/logger` proxies to the `telemetry` microservice.
+- Payments Proxy: `/api/payments/*` proxies to the internal `payments` microservice. PayPal IPN hits `/api/payments/webhook/paypal`.
 
 ## 5. Zero Trust Internal Security Matrix
 - Environment Secrets: Read dynamically from Docker Compose environment variables.
@@ -48,6 +50,7 @@
 - `s3`: Interface proxy handling object storage.
 - `chatbot`: Context-isolated conversational routing engine.
 - `tester`: Internal QA automation engine. Executes test scripts, logs outcomes, submits to `telemetry`, and feeds data to `/api/tester`.
+- `payments`: PayPal subscription intents, IPN webhook processing, and user-linked payment records via `database`.
 
 ## 7. Distributed Telemetry & Flight Tracing Rules
 - Distributed Flight Logging: Every transaction passing through the backend injects a unique correlation token (`X-Correlation-ID`). 

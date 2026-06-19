@@ -72,6 +72,12 @@ export function Header({ pathname }: HeaderProps) {
         <a className={navClass(APP_ROUTES.tester)} href={APP_ROUTES.tester}>
           Tester
         </a>
+        <a
+          className={navClass(APP_ROUTES.subscriptionMonthlyBasic)}
+          href={APP_ROUTES.subscriptionMonthlyBasic}
+        >
+          Subscribe
+        </a>
         <button
           type="button"
           className="site-header__theme"

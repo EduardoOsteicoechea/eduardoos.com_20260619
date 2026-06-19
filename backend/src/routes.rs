@@ -17,7 +17,16 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/verify-otp", post(handlers::auth_verify_otp))
         .route("/api/logger", post(handlers::logger_proxy))
         .route("/api/tester", post(handlers::tester_proxy))
-        .route("/api/tester/", post(handlers::tester_proxy));
+        .route("/api/tester/", post(handlers::tester_proxy))
+        .route("/api/payments/intents", post(handlers::payments_create_intent))
+        .route(
+            "/api/payments/webhook/paypal",
+            post(handlers::payments_paypal_webhook),
+        )
+        .route(
+            "/api/payments/status/:intent_id",
+            get(handlers::payments_get_status),
+        );
 
     public
         .layer(TraceLayer::new_for_http())

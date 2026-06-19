@@ -73,6 +73,97 @@ pub async fn tester_proxy(
     signed_post(&state, &url, &correlation_id, body).await
 }
 
+/// Creates a PayPal payment intent linked to a verified user email.
+pub async fn payments_create_intent(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<impl IntoResponse, AppError> {
+    let correlation_id = extract_correlation(&headers);
+    emit_gateway_log(
+        &state.telemetry,
+        &correlation_id,
+        "payments.intent.proxy",
+        "started",
+    )
+    .await;
+    let url = format!("{}/intents", state.payments_url.trim_end_matches('/'));
+    let response = signed_post(&state, &url, &correlation_id, body).await?;
+    emit_gateway_log(
+        &state.telemetry,
+        &correlation_id,
+        "payments.intent.proxy",
+        "success",
+    )
+    .await;
+    Ok(response)
+}
+
+/// Returns payment intent status for polling after PayPal checkout.
+pub async fn payments_get_status(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    axum::extract::Path(intent_id): axum::extract::Path<String>,
+) -> Result<impl IntoResponse, AppError> {
+    let correlation_id = extract_correlation(&headers);
+    let url = format!(
+        "{}/status/{}",
+        state.payments_url.trim_end_matches('/'),
+        intent_id
+    );
+    let token = sign_internal_token(&state.internal_secret, &correlation_id);
+    let response = state
+        .http
+        .get(&url)
+        .header(CORRELATION_HEADER, &correlation_id)
+        .header(INTERNAL_TOKEN_HEADER, token)
+        .send()
+        .await
+        .map_err(|e| AppError::Upstream(e.to_string()))?;
+
+    let status = StatusCode::from_u16(response.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| AppError::Upstream(e.to_string()))?;
+    Ok((status, bytes))
+}
+
+/// Public PayPal IPN webhook proxy (no JWT, PayPal server-to-server).
+pub async fn payments_paypal_webhook(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<impl IntoResponse, AppError> {
+    let correlation_id = extract_correlation(&headers);
+    let url = format!(
+        "{}/webhook/paypal",
+        state.payments_url.trim_end_matches('/')
+    );
+    let response = state
+        .http
+        .post(&url)
+        .header(CORRELATION_HEADER, &correlation_id)
+        .header(
+            "content-type",
+            headers
+                .get("content-type")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("application/x-www-form-urlencoded"),
+        )
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Upstream(e.to_string()))?;
+
+    let status = StatusCode::from_u16(response.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| AppError::Upstream(e.to_string()))?;
+    Ok((status, bytes))
+}
+
 async fn proxy_auth(
     state: &AppState,
     path: &str,

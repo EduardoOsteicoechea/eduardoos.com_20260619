@@ -17,6 +17,7 @@ pub struct AppState {
     pub documents_url: String,
     pub s3_url: String,
     pub chatbot_url: String,
+    pub payments_url: String,
 }
 
 impl AppState {
@@ -43,6 +44,8 @@ impl AppState {
             s3_url: std::env::var("S3_URL").unwrap_or_else(|_| "http://s3:3000".into()),
             chatbot_url: std::env::var("CHATBOT_URL")
                 .unwrap_or_else(|_| "http://chatbot:3000".into()),
+            payments_url: std::env::var("PAYMENTS_URL")
+                .unwrap_or_else(|_| "http://payments:3000".into()),
         }
     }
 }

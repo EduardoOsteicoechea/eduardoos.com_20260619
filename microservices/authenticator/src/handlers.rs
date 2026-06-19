@@ -23,6 +23,17 @@ pub struct OtpRequest {
     pub otp: String,
 }
 
+#[derive(Deserialize)]
+pub struct UserLookupRequest {
+    pub email: String,
+}
+
+#[derive(Serialize)]
+pub struct UserLookupResponse {
+    pub exists: bool,
+    pub verified: bool,
+}
+
 #[derive(Serialize)]
 pub struct AuthResponse {
     pub message: String,
@@ -134,6 +145,20 @@ pub async fn verify_otp(
 
 pub async fn health() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "status": "ok", "service": "authenticator" }))
+}
+
+/// Internal lookup used by the payments service to confirm a verified account.
+pub async fn user_exists(
+    State(state): State<AppState>,
+    Json(body): Json<UserLookupRequest>,
+) -> Result<Json<UserLookupResponse>, AppError> {
+    let email = body.email.trim().to_lowercase();
+    let users = state.users.read().await;
+    let record = users.get(&email);
+    Ok(Json(UserLookupResponse {
+        exists: record.is_some(),
+        verified: record.map(|u| u.verified).unwrap_or(false),
+    }))
 }
 
 fn generate_otp() -> String {

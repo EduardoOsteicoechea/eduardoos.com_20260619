@@ -1,0 +1,24 @@
+.paypal-subscription__checkout {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: var(--border_001);
+}
+
+.paypal-subscription__image-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  min-height: auto;
+  min-width: auto;
+}
+
+.paypal-subscription__image-btn img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.paypal-subscription__prepare {
+  margin-top: 1rem;
+}

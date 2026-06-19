@@ -18,6 +18,9 @@ pub const PUBLIC_PATHS: &[&str] = &[
     "/api/auth/verify-otp",
     "/api/tester",
     "/api/logger",
+    "/api/payments/intents",
+    "/api/payments/webhook/paypal",
+    "/api/payments/status",
 ];
 
 /// Returns true when the request path is on the public allow-list.
@@ -68,6 +71,7 @@ mod tests {
         assert!(is_public_path("/api/auth/register"));
         assert!(is_public_path("/api/auth/verify-otp"));
         assert!(is_public_path("/api/logger"));
+        assert!(is_public_path("/api/payments/intents"));
         assert!(!is_public_path("/api/private"));
     }
 }
