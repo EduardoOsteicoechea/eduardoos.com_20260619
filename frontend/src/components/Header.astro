@@ -1,0 +1,13 @@
+---
+import ThemeToggle from "./ThemeToggle";
+import "./Header.css";
+---
+
+<header class="site-header">
+  <a class="site-header__brand" href="/">Eduardo OS</a>
+  <nav class="site-header__nav">
+    <a href="/auth/login">Login</a>
+    <a href="/auth/register">Register</a>
+    <ThemeToggle client:load />
+  </nav>
+</header>

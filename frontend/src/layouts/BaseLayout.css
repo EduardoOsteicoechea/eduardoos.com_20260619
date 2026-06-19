@@ -1,0 +1,5 @@
+.layout-main {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md) var(--space-xl);
+}

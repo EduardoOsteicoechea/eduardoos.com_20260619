@@ -1,0 +1,33 @@
+---
+/**
+ * BaseLayout.astro — Root HTML shell shared by every page.
+ * Imports global styles and renders the site header.
+ */
+import "../styles/global.css";
+import "./BaseLayout.css";
+import Header from "../components/Header.astro";
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Eduardo OS — Zero Trust Microservices" } =
+  Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <Header />
+    <main class="layout-main">
+      <slot />
+    </main>
+  </body>
+</html>
