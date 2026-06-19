@@ -1,5 +1,11 @@
+//! HTTP handlers for flight log ingestion, listing, analytics, and trace views.
+
+use crate::analytics::{compute_analytics, filter_logs, LogQuery};
 use crate::state::AppState;
-use axum::{extract::State, Json};
+use axum::{
+    extract::{Path, Query, State},
+    Json,
+};
 use common::{AppError, FlightLogEntry};
 
 pub async fn health() -> Json<serde_json::Value> {
@@ -22,15 +28,39 @@ pub async fn ingest(
     Ok(Json(serde_json::json!({ "ingested": true })))
 }
 
-pub async fn list_logs(State(state): State<AppState>) -> Json<Vec<FlightLogEntry>> {
+/// Lists flight logs with optional filters (service, status, correlation, event).
+pub async fn list_logs(
+    State(state): State<AppState>,
+    Query(query): Query<LogQuery>,
+) -> Json<Vec<FlightLogEntry>> {
     let logs = state.logs.read().await;
-    Json(logs.clone())
+    Json(filter_logs(&logs, &query))
+}
+
+/// Returns aggregated metrics for observability dashboards.
+pub async fn analytics(State(state): State<AppState>) -> Json<crate::analytics::LogAnalytics> {
+    let logs = state.logs.read().await;
+    Json(compute_analytics(&logs))
+}
+
+/// Returns every hop in a distributed trace keyed by correlation ID.
+pub async fn trace_by_correlation(
+    State(state): State<AppState>,
+    Path(correlation_id): Path<String>,
+) -> Json<Vec<FlightLogEntry>> {
+    let logs = state.logs.read().await;
+    let mut trace: Vec<FlightLogEntry> = logs
+        .iter()
+        .filter(|e| e.correlation_id == correlation_id)
+        .cloned()
+        .collect();
+    trace.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    Json(trace)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::AppState;
     use chrono::Utc;
 
     #[tokio::test]
@@ -45,7 +75,7 @@ mod tests {
             metadata: None,
         };
         let _ = ingest(State(state.clone()), Json(entry)).await.unwrap();
-        let listed = list_logs(State(state)).await;
+        let listed = list_logs(State(state), Query(LogQuery::default())).await;
         assert_eq!(listed.0.len(), 1);
     }
 }

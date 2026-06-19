@@ -4,6 +4,7 @@ mod handlers;
 mod middleware;
 mod routes;
 mod state;
+mod storage;
 
 use state::AppState;
 use std::net::SocketAddr;
@@ -16,7 +17,7 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer().json())
         .init();
 
-    let state = AppState::from_env();
+    let state = AppState::from_env().await;
     let app = routes::create_router(state);
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::info!(%addr, "database service listening");

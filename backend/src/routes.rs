@@ -16,8 +16,19 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/login", post(handlers::auth_login))
         .route("/api/auth/verify-otp", post(handlers::auth_verify_otp))
         .route("/api/logger", post(handlers::logger_proxy))
+        .route("/api/logger/logs", get(handlers::logger_logs_proxy))
+        .route("/api/logger/analytics", get(handlers::logger_analytics_proxy))
+        .route(
+            "/api/logger/trace/:correlation_id",
+            get(handlers::logger_trace_proxy),
+        )
         .route("/api/tester", post(handlers::tester_proxy))
         .route("/api/tester/", post(handlers::tester_proxy))
+        .route("/api/tester/runs", get(handlers::tester_runs_proxy))
+        .route(
+            "/api/tester/runs/:run_id",
+            get(handlers::tester_run_detail_proxy),
+        )
         .route("/api/payments/intents", post(handlers::payments_create_intent))
         .route(
             "/api/payments/webhook/paypal",

@@ -37,3 +37,7 @@ thiserror = "2"
 jsonwebtoken = "9"
 lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1-rustls-tls"] }
 common = { path = "crates/common" }
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+aws-sdk-dynamodb = "1"
+aws-sdk-s3 = "1"
+base64 = "0.22"

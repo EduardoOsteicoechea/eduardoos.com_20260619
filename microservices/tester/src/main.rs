@@ -2,6 +2,7 @@
 
 mod handlers;
 mod middleware;
+mod models;
 mod routes;
 mod state;
 

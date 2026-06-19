@@ -12,7 +12,11 @@ export const APP_ROUTES = {
 /** Public gateway observability API endpoints. */
 export const OBSERVABILITY_ROUTES = {
   logger: "/api/logger",
+  logs: "/api/logger/logs",
+  analytics: "/api/logger/analytics",
+  trace: "/api/logger/trace",
   tester: "/api/tester",
+  testerRuns: "/api/tester/runs",
 } as const;
 
 /** Public gateway payment API endpoints. */

@@ -57,6 +57,23 @@ docker compose up -d --build
 # https://localhost  (accept self-signed cert warning)
 ```
 
+## EC2 Deploy (ARM64 / Graviton)
+
+On an **arm64** EC2 instance with Docker and an IAM instance role (see
+[`deploy/aws/README.md`](deploy/aws/README.md)):
+
+```bash
+cp .env.example .env
+# Set DOMAIN, CERTBOT_EMAIL, secrets
+
+docker compose -f docker-compose.yml -f docker-compose.ec2.yml up -d --build
+```
+
+The EC2 overlay enables `linux/arm64` builds and switches to real **DynamoDB**
+and **S3** backends. Local Docker Desktop keeps in-memory DB + stub S3.
+
+IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-policy.json)
+
 ## Public API Endpoints (via Nginx → Gateway)
 
 | Method | Path | Auth | Description |
@@ -69,6 +86,11 @@ docker compose up -d --build
 | POST | `/api/payments/intents` | Public | Create PayPal payment intent (verified user) |
 | GET | `/api/payments/status/:id` | Public | Poll payment intent status |
 | POST | `/api/payments/webhook/paypal` | Public | PayPal IPN webhook |
+| GET | `/api/logger/logs` | Public | Filtered flight logs |
+| GET | `/api/logger/analytics` | Public | Log aggregates |
+| GET | `/api/logger/trace/:id` | Public | Distributed trace |
+| GET | `/api/tester/runs` | Public | QA run history |
+| GET | `/api/tester/runs/:run_id` | Public | Single QA run detail |
 
 ## Frontend Pages
 
@@ -102,6 +124,12 @@ cargo test --workspace
 | `SMTP_PASS` | Gmail app password for OTP delivery |
 | `DOMAIN` | Production domain for Certbot |
 | `CERTBOT_EMAIL` | Let's Encrypt contact email |
+| `AWS_REGION` | AWS region (`us-east-1`) |
+| `S3_BUCKET` | S3 bucket (`eduardoos20260607`) |
+| `S3_PREFIX` | Object prefix (`media`) |
+| `S3_BACKEND` | `stub` (local) or `aws` (EC2) |
+| `DATABASE_BACKEND` | `memory` (local) or `dynamodb` (EC2) |
+| `DYNAMODB_TABLE_PREFIX` | Table prefix (`eduardoos`) |
 
 ## CI/CD
 

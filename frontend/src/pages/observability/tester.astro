@@ -1,11 +1,11 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import TesterPanel from "../../components/TesterPanel/TesterPanel";
+import TesterDashboard from "../../components/TesterPanel/TesterDashboard";
 import "./observability.css";
 ---
 
-<BaseLayout title="QA Tester — Eduardo Osteicoechea">
-  <div class="page-shell">
-    <TesterPanel client:load />
+<BaseLayout title="QA Tester — Eduardo Osteicoechea" activityBarMode="editor">
+  <div class="page-shell page-shell--wide">
+    <TesterDashboard client:load />
   </div>
 </BaseLayout>

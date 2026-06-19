@@ -73,6 +73,72 @@ pub async fn tester_proxy(
     signed_post(&state, &url, &correlation_id, body).await
 }
 
+/// Lists ingested flight logs with optional query string passthrough.
+pub async fn logger_logs_proxy(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<impl IntoResponse, AppError> {
+    let correlation_id = extract_correlation(&headers);
+    let qs: String = query
+        .iter()
+        .map(|(k, v)| format!("{k}={}", urlencoding::encode(v)))
+        .collect::<Vec<_>>()
+        .join("&");
+    let url = if qs.is_empty() {
+        format!("{}/logs", state.telemetry_url.trim_end_matches('/'))
+    } else {
+        format!("{}/logs?{qs}", state.telemetry_url.trim_end_matches('/'))
+    };
+    signed_get(&state, &url, &correlation_id).await
+}
+
+/// Returns aggregated flight log analytics for dashboard KPIs.
+pub async fn logger_analytics_proxy(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    let correlation_id = extract_correlation(&headers);
+    let url = format!("{}/analytics", state.telemetry_url.trim_end_matches('/'));
+    signed_get(&state, &url, &correlation_id).await
+}
+
+/// Returns the full distributed trace for one correlation ID.
+pub async fn logger_trace_proxy(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    axum::extract::Path(correlation_id): axum::extract::Path<String>,
+) -> Result<impl IntoResponse, AppError> {
+    let corr = extract_correlation(&headers);
+    let url = format!(
+        "{}/trace/{}",
+        state.telemetry_url.trim_end_matches('/'),
+        correlation_id
+    );
+    signed_get(&state, &url, &corr).await
+}
+
+/// Lists all QA test runs with summary statistics.
+pub async fn tester_runs_proxy(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    let correlation_id = extract_correlation(&headers);
+    let url = format!("{}/runs", state.tester_url.trim_end_matches('/'));
+    signed_get(&state, &url, &correlation_id).await
+}
+
+/// Returns detailed step breakdown for a single test run.
+pub async fn tester_run_detail_proxy(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    axum::extract::Path(run_id): axum::extract::Path<String>,
+) -> Result<impl IntoResponse, AppError> {
+    let correlation_id = extract_correlation(&headers);
+    let url = format!("{}/runs/{}", state.tester_url.trim_end_matches('/'), run_id);
+    signed_get(&state, &url, &correlation_id).await
+}
+
 /// Creates a PayPal payment intent linked to a verified user email.
 pub async fn payments_create_intent(
     State(state): State<AppState>,
@@ -220,6 +286,29 @@ async fn signed_post(
         .await
         .map_err(|e| AppError::Upstream(e.to_string()))?;
 
+    Ok((status, bytes))
+}
+
+async fn signed_get(
+    state: &AppState,
+    url: &str,
+    correlation_id: &str,
+) -> Result<impl IntoResponse, AppError> {
+    let token = sign_internal_token(&state.internal_secret, correlation_id);
+    let response = state
+        .http
+        .get(url)
+        .header(CORRELATION_HEADER, correlation_id)
+        .header(INTERNAL_TOKEN_HEADER, token)
+        .send()
+        .await
+        .map_err(|e| AppError::Upstream(e.to_string()))?;
+
+    let status = StatusCode::from_u16(response.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| AppError::Upstream(e.to_string()))?;
     Ok((status, bytes))
 }
 

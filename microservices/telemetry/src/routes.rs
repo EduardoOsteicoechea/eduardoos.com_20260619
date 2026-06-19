@@ -10,6 +10,8 @@ pub fn create_router(state: AppState) -> Router {
     let protected = Router::new()
         .route("/ingest", post(handlers::ingest))
         .route("/logs", get(handlers::list_logs))
+        .route("/analytics", get(handlers::analytics))
+        .route("/trace/{correlation_id}", get(handlers::trace_by_correlation))
         .layer(from_fn_with_state(state.clone(), middleware::internal_auth));
 
     Router::new()

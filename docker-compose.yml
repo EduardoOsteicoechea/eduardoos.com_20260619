@@ -60,6 +60,9 @@ services:
       dockerfile: microservices/database/Dockerfile
     environment:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      DATABASE_BACKEND: ${DATABASE_BACKEND:-memory}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      DYNAMODB_TABLE_PREFIX: ${DYNAMODB_TABLE_PREFIX:-eduardoos}
     networks:
       - internal
 
@@ -87,7 +90,10 @@ services:
       dockerfile: microservices/s3/Dockerfile
     environment:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
-      S3_BUCKET: eduardoos-${DOMAIN}
+      S3_BUCKET: ${S3_BUCKET:-eduardoos20260607}
+      S3_PREFIX: ${S3_PREFIX:-media}
+      S3_BACKEND: ${S3_BACKEND:-stub}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
     networks:
       - internal
 

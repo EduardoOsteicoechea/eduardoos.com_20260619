@@ -2,6 +2,7 @@
 
 mod handlers;
 mod middleware;
+mod object_store;
 mod routes;
 mod state;
 
@@ -16,7 +17,7 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer().json())
         .init();
 
-    let state = AppState::from_env();
+    let state = AppState::from_env().await;
     let app = routes::create_router(state);
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::info!(%addr, "s3 service listening");

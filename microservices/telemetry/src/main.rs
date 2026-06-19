@@ -1,5 +1,6 @@
 //! # Telemetry Microservice — central flight log ingestion engine.
 
+mod analytics;
 mod handlers;
 mod middleware;
 mod routes;

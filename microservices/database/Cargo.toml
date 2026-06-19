@@ -16,6 +16,9 @@ serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 common = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-dynamodb = { workspace = true }
+async-trait = "0.1"
 
 [dev-dependencies]
 tokio = { workspace = true }

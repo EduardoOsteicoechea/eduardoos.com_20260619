@@ -1,0 +1,251 @@
+.obs-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 100%;
+}
+
+.obs-dashboard__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.obs-dashboard__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.obs-stat {
+  background: var(--glassed_background);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.obs-stat__label {
+  font-size: 0.75rem;
+  color: var(--site-muted-fg);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.obs-stat__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: Montserrat, sans-serif;
+}
+
+.obs-dashboard__charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.obs-chart {
+  background: var(--glassed_background);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  padding: 1rem;
+}
+
+.obs-chart h3 {
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+  color: var(--site-muted-fg);
+}
+
+.obs-chart__bars {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.obs-chart__bars li {
+  display: grid;
+  grid-template-columns: 5rem 1fr 2rem;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.obs-chart__key {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obs-chart__track {
+  height: 0.5rem;
+  background: var(--site-surface-muted);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.obs-chart__fill {
+  height: 100%;
+  background: var(--site-accent);
+  border-radius: 999px;
+}
+
+.obs-chart__count {
+  text-align: right;
+  color: var(--site-muted-fg);
+}
+
+.obs-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.obs-dashboard__grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .obs-dashboard__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.obs-table-scroll {
+  overflow-x: auto;
+  max-height: 28rem;
+  overflow-y: auto;
+  margin-top: 0.75rem;
+}
+
+.obs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.obs-table th,
+.obs-table td {
+  padding: 0.5rem 0.625rem;
+  text-align: left;
+  border-bottom: 1px solid var(--site-border);
+}
+
+.obs-table tbody tr {
+  cursor: pointer;
+}
+
+.obs-table tbody tr:hover {
+  background: var(--site-surface-muted);
+}
+
+.obs-table__row--active {
+  background: var(--site-surface-muted);
+}
+
+.obs-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+.obs-badge--success {
+  background: rgba(22, 163, 74, 0.15);
+  color: #16a34a;
+}
+
+.obs-badge--error {
+  background: rgba(220, 38, 38, 0.15);
+  color: #dc2626;
+}
+
+.obs-badge--started {
+  background: rgba(0, 17, 255, 0.12);
+  color: var(--site-accent);
+}
+
+.obs-mono {
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+}
+
+.obs-timeline {
+  list-style: none;
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 28rem;
+  overflow-y: auto;
+}
+
+.obs-timeline__item {
+  padding-left: 1rem;
+  border-left: 3px solid var(--site-accent);
+}
+
+.obs-timeline__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--site-muted-fg);
+}
+
+.obs-timeline__event {
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+.obs-timeline__meta-json {
+  font-size: 0.6875rem;
+  margin-top: 0.35rem;
+  overflow-x: auto;
+  background: var(--site-surface-muted);
+  padding: 0.5rem;
+  border-radius: var(--border_radius_001);
+}
+
+.obs-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  min-height: auto;
+}
+
+.obs-link {
+  background: none;
+  border: none;
+  color: var(--site-accent);
+  cursor: pointer;
+  text-align: left;
+  padding: 0.25rem 0;
+  min-height: auto;
+}
+
+.obs-errors ul {
+  list-style: none;
+  margin-top: 0.5rem;
+}
+
+.obs-emit h2 {
+  margin-bottom: 0.75rem;
+}
+
+.obs-dashboard code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.875em;
+}

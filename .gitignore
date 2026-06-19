@@ -24,3 +24,6 @@ certbot/
 
 # Logs
 *.log
+
+secrets/
+*secrets*
