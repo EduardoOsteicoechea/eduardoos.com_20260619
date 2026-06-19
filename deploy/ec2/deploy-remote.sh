@@ -10,7 +10,17 @@ echo "==> Deploying Eduardo OS to ${APP_DIR} (${BRANCH})"
 
 if [ ! -d "${APP_DIR}/.git" ]; then
   echo "==> Cloning repository"
+  ENV_BACKUP=""
+  if [ -f "${APP_DIR}/.env" ]; then
+    ENV_BACKUP="$(mktemp)"
+    cp "${APP_DIR}/.env" "${ENV_BACKUP}"
+  fi
+  rm -rf "${APP_DIR}"
   git clone --branch "${BRANCH}" "${REPO_URL}" "${APP_DIR}"
+  if [ -n "${ENV_BACKUP}" ] && [ -f "${ENV_BACKUP}" ]; then
+    cp "${ENV_BACKUP}" "${APP_DIR}/.env"
+    rm -f "${ENV_BACKUP}"
+  fi
 fi
 
 cd "${APP_DIR}"
