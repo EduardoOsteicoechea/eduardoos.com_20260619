@@ -92,3 +92,58 @@ Generic keys use single-table style within each table:
 | `data` | JSON string payload |
 
 S3 objects are stored at `{S3_PREFIX}/{key}` (default `media/...`).
+
+## 8. Generate application secrets (npm)
+
+From the repository root:
+
+```bash
+npm run secrets:generate
+```
+
+This prints `JWT_SECRET` and `INTERNAL_SERVICE_SECRET` — add them to **GitHub → Settings → Secrets and variables → Actions** and to your local `.env`.
+
+## 9. GitHub Actions CI/CD (deploy to EC2)
+
+Workflow: [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)
+
+On every push to `master`:
+
+1. Runs `cargo test --workspace` and frontend tests/build
+2. SSHs into EC2 using your configured secrets
+3. Uploads `.env` built from GitHub secrets
+4. Runs `deploy/ec2/deploy-remote.sh` (git pull + `docker compose` arm64)
+
+### Required GitHub repository secrets
+
+| Secret | Description |
+|--------|-------------|
+| `EC2_HOST` | Public IP or DNS (e.g. `52.55.235.150` or `eduardoos.com`) |
+| `EC2_USER` | SSH user (`ubuntu` or `ec2-user`) |
+| `EC2_SSH_PRIVATE_KEY` | Full private key (PEM), including `-----BEGIN...` lines |
+| `JWT_SECRET` | From `npm run secrets:generate` |
+| `INTERNAL_SERVICE_SECRET` | From `npm run secrets:generate` |
+| `SMTP_USER` | Gmail address |
+| `SMTP_PASS` | Gmail app password |
+| `DOMAIN` | Production domain (must match DNS → EC2) |
+| `CERTBOT_EMAIL` | Let's Encrypt contact email |
+
+Optional: `PAYPAL_HOSTED_BUTTON_ID`, `PAYPAL_IPN_VERIFY_URL`
+
+### EC2 host prerequisites (one-time)
+
+```bash
+# Docker + Compose v2
+sudo apt-get update && sudo apt-get install -y docker.io docker-compose-v2 git openssl
+sudo usermod -aG docker $USER
+# log out and back in
+
+# IAM instance role attached (S3 + DynamoDB) — see section 2
+```
+
+### Manual deploy (without CI)
+
+```bash
+scp .env user@ec2:~/eduardoos.com_20260619/.env
+ssh user@ec2 'APP_DIR=~/eduardoos.com_20260619 bash -s' < deploy/ec2/deploy-remote.sh
+```

@@ -1,0 +1,133 @@
+name: CI/CD — Test and Deploy to EC2
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test workspace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Rust tests
+        run: cargo test --workspace
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend tests and build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+  deploy:
+    name: Deploy to EC2 (arm64)
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        run: |
+          missing=0
+          for name in EC2_HOST EC2_USER EC2_SSH_PRIVATE_KEY JWT_SECRET INTERNAL_SERVICE_SECRET SMTP_USER SMTP_PASS DOMAIN CERTBOT_EMAIL; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing secret: ${name}"
+              missing=1
+            fi
+          done
+          exit "${missing}"
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          INTERNAL_SERVICE_SECRET: ${{ secrets.INTERNAL_SERVICE_SECRET }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+          CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Build production .env
+        run: |
+          cat > .env.production << EOF
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          INTERNAL_SERVICE_SECRET=${{ secrets.INTERNAL_SERVICE_SECRET }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          DOMAIN=${{ secrets.DOMAIN }}
+          CERTBOT_EMAIL=${{ secrets.CERTBOT_EMAIL }}
+          PAYPAL_HOSTED_BUTTON_ID=${{ secrets.PAYPAL_HOSTED_BUTTON_ID != '' && secrets.PAYPAL_HOSTED_BUTTON_ID || 'QEVGD66SG7LXN' }}
+          PAYPAL_IPN_VERIFY_URL=${{ secrets.PAYPAL_IPN_VERIFY_URL != '' && secrets.PAYPAL_IPN_VERIFY_URL || 'https://ipnpb.paypal.com/cgi-bin/webscr' }}
+          AWS_REGION=us-east-1
+          S3_BUCKET=eduardoos20260607
+          S3_PREFIX=media
+          S3_BACKEND=aws
+          DATABASE_BACKEND=dynamodb
+          DYNAMODB_TABLE_PREFIX=eduardoos
+          EOF
+          sed -i 's/^[[:space:]]*//' .env.production
+
+      - name: Prepare EC2 app directory
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "${EC2_USER}@${EC2_HOST}" \
+            "mkdir -p ~/eduardoos.com_20260619"
+
+      - name: Upload .env and deploy script
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            .env.production \
+            "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/.env"
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            deploy/ec2/deploy-remote.sh \
+            "${EC2_USER}@${EC2_HOST}:/tmp/eduardoos-deploy.sh"
+
+      - name: Run remote deploy
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "${EC2_USER}@${EC2_HOST}" \
+            "chmod +x /tmp/eduardoos-deploy.sh && APP_DIR=~/eduardoos.com_20260619 /tmp/eduardoos-deploy.sh"
+
+      - name: Smoke check
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          sleep 15
+          code=$(curl -sk -o /dev/null -w "%{http_code}" "https://${EC2_HOST}/" || true)
+          echo "HTTPS status: ${code}"
+          if [ "${code}" != "200" ] && [ "${code}" != "301" ] && [ "${code}" != "302" ]; then
+            echo "::warning::Site did not return 200/301/302 — check EC2 logs"
+          fi

@@ -1,0 +1,8 @@
+{
+  "name": "eduardoos-platform",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "secrets:generate": "node scripts/generate-secrets.mjs"
+  }
+}
