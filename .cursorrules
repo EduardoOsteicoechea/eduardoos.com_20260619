@@ -5,11 +5,11 @@
 - The project must run flawlessly on both Docker Desktop (local) and an AWS EC2 instance using a single `docker-compose up -d` command.
 - ALL services run inside dedicated Docker containers. Maintain strict network isolation.
 
-## 2. Code Style & Non-Rust Developer Documentation
-- Language Standard: Strictly safe, idiomatic Rust using the Axum web framework and Tokio async runtime for all backend nodes.
-- Extensive Narrative Documentation: EVERY file must include extensive, plain-English comments outlining exactly what the code is doing step-by-step. Complex Rust mechanics must be clearly explained so a non-Rust developer can read the file like a technical playbook.
-- Tiny Files & Modular Design: Break code down into highly localized modules. Functions must serve a single responsibility and remain small. Avoid monolithic `main.rs` files; split routing, handlers, middleware, and business logic.
-- Reusability: Common shared structures, error handling enums, and telemetry log contract wrappers must be abstracted cleanly.
+## 2. Code Style & Developer Documentation
+- Language Standard: Idiomatic Go using the standard library `net/http` and `github.com/go-chi/chi/v5` for routing on all backend nodes.
+- Extensive Narrative Documentation: EVERY file must include extensive, plain-English comments outlining exactly what the code is doing step-by-step. Complex Go mechanics (goroutines, context, interfaces) must be clearly explained so any developer can read the file like a technical playbook.
+- Tiny Files & Modular Design: Break code down into highly localized packages. Functions must serve a single responsibility and remain small. Avoid monolithic `main.go` files; split routing, handlers, middleware, and business logic under `cmd/<service>/` and `pkg/`.
+- Reusability: Common shared structures, error handling, and telemetry log contract wrappers live in `pkg/common/`.
 
 ## 3. Frontend Development (Astro + React & Plain CSS)
 - Framework: Astro with React integrations for dynamic components.
@@ -44,7 +44,7 @@
 
 ## 6. The Microservice Ecosystem (Internal Port 3000)
 - `database`: Abstracts persistence; verifies internal gateway tokens.
-- `documents`: A raw, from-scratch PDF byte-stream generator. NO EXTERNAL PDF CRATES (no printpdf/genpdf). It must manually construct PDF standard objects, xref tables, and use exact mm-to-point math (`mm * (72.0 / 25.4)`) for precise text and geometry placement using raw PDF stream operators.
+- `documents`: A raw, from-scratch PDF byte-stream generator. NO EXTERNAL PDF LIBRARIES. It must manually construct PDF standard objects, xref tables, and use exact mm-to-point math (`mm * (72.0 / 25.4)`) for precise text and geometry placement using raw PDF stream operators (`pkg/pdf/`).
 - `authenticator`: Validates auth state, issues SMTP validation traffic.
 - `telemetry`: Central observability engine. Feeds data to `/api/logger`.
 - `s3`: Interface proxy handling object storage.
@@ -57,8 +57,8 @@
 - Every network hop reports its state to `telemetry`. The `tester` service appends its execution steps.
 
 ## 8. Multi-Stage Docker Execution
-- Stage 1 (Build): Compile using `rust:latest`.
-- Stage 2 (Runtime): Copy binary into `debian:bookworm-slim`.
+- Stage 1 (Build): Compile using `golang:1.23-alpine` via `docker/golang-service.Dockerfile` with `SERVICE` build arg.
+- Stage 2 (Runtime): Copy static binary into `alpine:3.20`.
 
 ## 9. STRICT AGENT DEVELOPMENT WORKFLOW (Fully Autonomous TDD Pipeline)
 The AI MUST execute the following two-phase workflow with ZERO human intervention. Passing tests are the ONLY review required.
@@ -73,8 +73,8 @@ For EACH atomic step, execute this exact loop autonomously:
 1. Generate the Request Log: Define the expected telemetry payload, flight workflow, and correlation structure.
 2. Generate the Tests: Write the unit test, integration test, and assertions for internal/workflow logs.
 3. Write the Production Code: Implement the isolated handler, middleware, component, or CSS file.
-4. Wire the Logs: Integrate the `tracing` spans and ensure `telemetry` hooks match expectations.
-5. The Autonomous Test Loop: Execute tests (`cargo test` for Rust, or the respective frontend test command). Check unit tests, integration tests, and log tests.
+4. Wire the Logs: Integrate structured logging and ensure `telemetry` hooks match expectations.
+5. The Autonomous Test Loop: Execute tests (`go test ./...` for Go, or the respective frontend test command). Check unit tests, integration tests, and log tests.
 6. Auto-Refactor Check: IF ANY TEST FAILS, autonomously refactor the code and re-run step 5. Repeat this loop endlessly until all tests pass.
 7. Update README.md: Document the architectural changes and test outcomes.
 8. Commit and Push: Execute `git add`, `git commit -m "feat/test: [description of atomic step]"`, and `git push`.

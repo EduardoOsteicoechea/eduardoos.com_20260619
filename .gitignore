@@ -1,6 +1,7 @@
-# Rust
-target/
-**/*.rs.bk
+# Go
+bin/
+*.exe
+*.test
 
 # Node / Astro
 node_modules/

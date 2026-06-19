@@ -7,34 +7,38 @@ Fully decoupled, multi-container architecture orchestrated via Docker Compose. T
 | Layer | Technology | Role |
 |-------|-----------|------|
 | Edge | Nginx + Certbot | HTTPS termination, static Astro site, `/api/*` proxy |
-| Gateway | Rust/Axum `backend` | Correlation IDs, internal token signing, auth exemptions |
-| Services | 7 Rust microservices | Authenticator, database, documents, telemetry, s3, chatbot, tester |
+| Gateway | Go `backend` | Correlation IDs, internal token signing, auth exemptions |
+| Services | 8 Go microservices | Authenticator, database, documents, telemetry, s3, chatbot, tester, payments |
 | Frontend | Astro + React | Plain CSS, flight-log telemetry, auth UI |
 
 ## Directory Tree
 
 ```
 frontend/                  Astro + React client
-backend/                   API gateway
-microservices/
+cmd/
+  backend/                 API gateway
   authenticator/           OTP + SMTP + JWT
-  database/                Key-value persistence
-  documents/               Raw PDF generator (no external PDF crates)
+  database/                Key-value persistence (memory / DynamoDB)
+  documents/               Raw PDF generator (no external PDF libs)
   telemetry/               Flight log ingestion
-  s3/                      Object storage proxy
+  s3/                      Object storage proxy (stub / AWS S3)
   chatbot/                 Conversational routing
   tester/                  QA automation engine
+  payments/                PayPal subscription intents + IPN
+pkg/
+  common/                  Shared token, telemetry, HTTP helpers
+  pdf/                     Raw PDF byte-stream generator
+docker/                    golang-service.Dockerfile (multi-service build)
 nginx/                     Reverse proxy config + TLS certs
-crates/common/             Shared token, telemetry, error types
-.github/workflows/         9 path-scoped CI pipelines
+.github/workflows/         Path-scoped CI pipelines
 ```
 
 ## Prerequisites
 
 - Docker Desktop or Docker Engine + Compose v2
 - OpenSSL (for local TLS certificates)
-- Node.js 22+ (frontend development only)
-- Rust stable (backend development only)
+- Node.js 22+ (frontend development)
+- Go 1.23+ (backend development; optional — Docker builds compile Go inside containers)
 
 ## Local Run (Docker Compose)
 
@@ -112,8 +116,8 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 # Frontend (Vitest)
 cd frontend && npm test
 
-# Rust workspace
-cargo test --workspace
+# Go workspace
+go test ./...
 ```
 
 ## Environment Variables
@@ -135,15 +139,17 @@ cargo test --workspace
 
 ## CI/CD
 
-Nine independent GitHub Actions workflows monitor path-scoped changes:
+GitHub Actions workflows:
 
-- `frontend.yml`, `backend.yml`, `authenticator.yml`, `database.yml`
-- `documents.yml`, `telemetry.yml`, `tester.yml`, `s3.yml`, `chatbot.yml`
+- `frontend.yml` — Astro/Vitest build
+- `backend.yml` — gateway + shared packages
+- `microservices.yml` — all Go services
+- `deploy.yml` — full test suite + EC2 deploy on `master`
 
 ## Test Outcomes (Latest)
 
 - Frontend: Vitest — 23 tests (telemetry, API, auth, validation, observability, payments)
-- Rust: `cargo test --workspace` — common token/PDF/flight-log unit tests per service
+- Go: `go test ./...` — `pkg/common` (internal token, flight log) and `pkg/pdf` unit tests
 
 ## GitHub Repository
 

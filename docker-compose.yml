@@ -1,5 +1,10 @@
-# Eduardo OS — Zero Trust Microservices Stack
+# Eduardo OS — Zero Trust Microservices Stack (Go)
 # Run: cp .env.example .env && docker compose up -d
+
+x-go-service: &go-service
+  build:
+    context: .
+    dockerfile: docker/golang-service.Dockerfile
 
 services:
   frontend:
@@ -13,9 +18,12 @@ services:
       - internal
 
   backend:
+    <<: *go-service
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: docker/golang-service.Dockerfile
+      args:
+        SERVICE: backend
     environment:
       JWT_SECRET: ${JWT_SECRET}
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
@@ -40,9 +48,12 @@ services:
       retries: 3
 
   authenticator:
+    <<: *go-service
     build:
       context: .
-      dockerfile: microservices/authenticator/Dockerfile
+      dockerfile: docker/golang-service.Dockerfile
+      args:
+        SERVICE: authenticator
     environment:
       JWT_SECRET: ${JWT_SECRET}
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
@@ -55,9 +66,12 @@ services:
       - telemetry
 
   database:
+    <<: *go-service
     build:
       context: .
-      dockerfile: microservices/database/Dockerfile
+      dockerfile: docker/golang-service.Dockerfile
+      args:
+        SERVICE: database
     environment:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
       DATABASE_BACKEND: ${DATABASE_BACKEND:-memory}
@@ -67,27 +81,36 @@ services:
       - internal
 
   documents:
+    <<: *go-service
     build:
       context: .
-      dockerfile: microservices/documents/Dockerfile
+      dockerfile: docker/golang-service.Dockerfile
+      args:
+        SERVICE: documents
     environment:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
     networks:
       - internal
 
   telemetry:
+    <<: *go-service
     build:
       context: .
-      dockerfile: microservices/telemetry/Dockerfile
+      dockerfile: docker/golang-service.Dockerfile
+      args:
+        SERVICE: telemetry
     environment:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
     networks:
       - internal
 
   s3:
+    <<: *go-service
     build:
       context: .
-      dockerfile: microservices/s3/Dockerfile
+      dockerfile: docker/golang-service.Dockerfile
+      args:
+        SERVICE: s3
     environment:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
       S3_BUCKET: ${S3_BUCKET:-eduardoos20260607}
@@ -98,18 +121,24 @@ services:
       - internal
 
   chatbot:
+    <<: *go-service
     build:
       context: .
-      dockerfile: microservices/chatbot/Dockerfile
+      dockerfile: docker/golang-service.Dockerfile
+      args:
+        SERVICE: chatbot
     environment:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
     networks:
       - internal
 
   tester:
+    <<: *go-service
     build:
       context: .
-      dockerfile: microservices/tester/Dockerfile
+      dockerfile: docker/golang-service.Dockerfile
+      args:
+        SERVICE: tester
     environment:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
       TELEMETRY_URL: http://telemetry:3000
@@ -119,9 +148,12 @@ services:
       - telemetry
 
   payments:
+    <<: *go-service
     build:
       context: .
-      dockerfile: microservices/payments/Dockerfile
+      dockerfile: docker/golang-service.Dockerfile
+      args:
+        SERVICE: payments
     environment:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
       DATABASE_URL: http://database:3000

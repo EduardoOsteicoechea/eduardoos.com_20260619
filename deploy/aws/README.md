@@ -109,7 +109,7 @@ Workflow: [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)
 
 On every push to `master`:
 
-1. Runs `cargo test --workspace` and frontend tests/build
+1. Runs `go test ./...` and frontend tests/build
 2. SSHs into EC2 using your configured secrets
 3. Uploads `.env` built from GitHub secrets
 4. Runs `deploy/ec2/deploy-remote.sh` (git pull + `docker compose` arm64)
