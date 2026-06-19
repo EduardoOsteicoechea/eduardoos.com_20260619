@@ -234,18 +234,24 @@ curl -sk -o /dev/null -w "%{http_code}\n" https://localhost/
 SECTION I — REAL TLS WITH LET'S ENCRYPT (after DNS points to EC2) [EC2]
 --------------------------------------------------------------------------------
 
-1. Ensure DOMAIN in .env matches DNS A record → EC2 public IP.
+DNS for eduardoos.com must A-record to the EC2 public IP before a trusted cert works.
 
-2. After stack is running on port 80/443, obtain certificate:
+Automatic: deploy/ec2/deploy-remote.sh requests a Let's Encrypt cert after each deploy
+when DOMAIN and CERTBOT_EMAIL are set in .env.
+
+Manual (fix SSL immediately without full redeploy):
 
    cd ~/eduardoos.com_20260619
-   docker compose -f docker-compose.yml -f docker-compose.ec2.yml run --rm certbot \
+   bash deploy/ec2/issue-cert.sh
+
+Or step by step:
+
+   docker compose -f docker-compose.yml -f docker-compose.ec2.yml run --rm \
+     --entrypoint certbot certbot \
      certonly --webroot -w /var/www/certbot \
-     -d YOUR_DOMAIN --email YOUR_EMAIL --agree-tos --no-eff-email
+     -d YOUR_DOMAIN --email YOUR_EMAIL --agree-tos --non-interactive --no-eff-email
 
-3. Restart nginx:
-
-   docker compose -f docker-compose.yml -f docker-compose.ec2.yml restart nginx
+   docker compose -f docker-compose.yml -f docker-compose.ec2.yml exec nginx nginx -s reload
 
 
 --------------------------------------------------------------------------------

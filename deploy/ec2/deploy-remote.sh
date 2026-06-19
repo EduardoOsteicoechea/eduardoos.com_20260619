@@ -31,10 +31,13 @@ if [ ! -f .env ]; then
 fi
 
 DOMAIN=$(grep -E '^DOMAIN=' .env | head -n1 | cut -d= -f2- | tr -d '\r' | sed 's/^["'\'']//; s/["'\'']$//')
+CERTBOT_EMAIL=$(grep -E '^CERTBOT_EMAIL=' .env | head -n1 | cut -d= -f2- | tr -d '\r' | sed 's/^["'\'']//; s/["'\'']$//')
 if [ -z "${DOMAIN}" ]; then
   echo "ERROR: DOMAIN is not set in .env"
   exit 1
 fi
+
+COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.ec2.yml)
 
 echo "==> Pulling latest ${BRANCH}"
 git fetch origin "${BRANCH}"
@@ -54,11 +57,57 @@ if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
   echo "    Run certbot on the host after DNS points here for a real certificate."
 fi
 
+has_letsencrypt_cert() {
+  [ -f "${CERT_DIR}/fullchain.pem" ] && \
+    openssl x509 -in "${CERT_DIR}/fullchain.pem" -noout -issuer 2>/dev/null | grep -qi "Let's Encrypt"
+}
+
+issue_letsencrypt_cert() {
+  if has_letsencrypt_cert; then
+    echo "==> Let's Encrypt certificate already installed for ${DOMAIN}"
+    return 0
+  fi
+
+  if [ -z "${CERTBOT_EMAIL}" ]; then
+    echo "WARNING: CERTBOT_EMAIL not set — using self-signed cert (browsers will warn)"
+    return 1
+  fi
+
+  if [ "${DOMAIN}" = "localhost" ]; then
+    echo "==> DOMAIN=localhost — skipping Let's Encrypt"
+    return 1
+  fi
+
+  echo "==> Requesting Let's Encrypt certificate for ${DOMAIN}"
+  rm -rf "${CERT_DIR}" "nginx/certs/archive/${DOMAIN}" "nginx/certs/renewal/${DOMAIN}.conf" 2>/dev/null || true
+
+  if "${COMPOSE[@]}" run --rm --entrypoint certbot certbot \
+      certonly --webroot -w /var/www/certbot \
+      -d "${DOMAIN}" \
+      --email "${CERTBOT_EMAIL}" \
+      --agree-tos --non-interactive --no-eff-email; then
+    "${COMPOSE[@]}" exec nginx nginx -s reload 2>/dev/null || "${COMPOSE[@]}" restart nginx
+    echo "==> Let's Encrypt certificate installed"
+    return 0
+  fi
+
+  echo "WARNING: certbot failed — restoring self-signed bootstrap cert"
+  if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
+    mkdir -p "${CERT_DIR}"
+    openssl req -x509 -nodes -days 30 -newkey rsa:2048 \
+      -keyout "${CERT_DIR}/privkey.pem" \
+      -out "${CERT_DIR}/fullchain.pem" \
+      -subj "/CN=${DOMAIN}"
+    "${COMPOSE[@]}" restart nginx
+  fi
+  return 1
+}
+
 echo "==> Building and starting stack (arm64 + AWS backends)"
 export COMPOSE_PARALLEL_LIMIT=1
 export DOCKER_BUILDKIT=1
 
-# t4g.micro (1 GB RAM) OOMs when building all Rust images in parallel.
+# t4g.micro (1 GB RAM) may OOM when building all service images in parallel.
 BUILD_SERVICES=(
   frontend
   database
@@ -73,10 +122,12 @@ BUILD_SERVICES=(
 )
 for svc in "${BUILD_SERVICES[@]}"; do
   echo "==> Building ${svc}"
-  docker compose -f docker-compose.yml -f docker-compose.ec2.yml build "${svc}"
+  "${COMPOSE[@]}" build "${svc}"
 done
 
-docker compose -f docker-compose.yml -f docker-compose.ec2.yml up -d
+"${COMPOSE[@]}" up -d
+
+issue_letsencrypt_cert || true
 
 echo "==> Deploy complete"
-docker compose -f docker-compose.yml -f docker-compose.ec2.yml ps
+"${COMPOSE[@]}" ps

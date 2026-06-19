@@ -148,7 +148,7 @@ GitHub Actions workflows:
 
 ## Test Outcomes (Latest)
 
-- Frontend: Vitest — 23 tests (telemetry, API, auth, validation, observability, payments)
+- Frontend: Vitest — 24 tests (telemetry, API, auth, validation, observability, payments)
 - Go: `go test ./...` — `pkg/common` (internal token, flight log) and `pkg/pdf` unit tests
 
 ## GitHub Repository

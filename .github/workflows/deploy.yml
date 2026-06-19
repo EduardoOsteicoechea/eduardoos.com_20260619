@@ -118,7 +118,8 @@ jobs:
             "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/.env"
           scp -i ~/.ssh/deploy_key $SSH_OPTS \
             deploy/ec2/deploy-remote.sh \
-            "${EC2_USER}@${EC2_HOST}:/tmp/eduardoos-deploy.sh"
+            deploy/ec2/issue-cert.sh \
+            "${EC2_USER}@${EC2_HOST}:/tmp/"
 
       - name: Run remote deploy
         env:
@@ -127,7 +128,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
-            "chmod +x /tmp/eduardoos-deploy.sh && APP_DIR=~/eduardoos.com_20260619 /tmp/eduardoos-deploy.sh"
+            "chmod +x /tmp/deploy-remote.sh /tmp/issue-cert.sh && APP_DIR=~/eduardoos.com_20260619 /tmp/deploy-remote.sh"
 
       - name: Smoke check
         env:
