@@ -153,14 +153,12 @@ done
 
 issue_letsencrypt_cert || true
 
-if [ -x deploy/aws/create-observability-tables.sh ]; then
-  echo "==> Ensuring DynamoDB observability tables exist"
-  bash deploy/aws/create-observability-tables.sh || echo "WARNING: could not create observability tables (check IAM)"
-fi
+echo "==> Ensuring DynamoDB observability tables exist"
+bash deploy/aws/create-observability-tables.sh || echo "WARNING: could not create observability tables (check IAM)"
 
-if [ -x deploy/ec2/report-build-tests.sh ]; then
-  bash deploy/ec2/report-build-tests.sh || true
-fi
+echo "==> Waiting for gateway before build test report"
+sleep 15
+bash deploy/ec2/report-build-tests.sh || echo "WARNING: build test report failed"
 
 echo "==> Deploy complete"
 "${COMPOSE[@]}" ps
