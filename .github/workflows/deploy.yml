@@ -134,7 +134,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
-            "chmod +x /tmp/deploy-remote.sh /tmp/issue-cert.sh /tmp/report-build-tests.sh /tmp/create-observability-tables.sh && APP_DIR=~/eduardoos.com_20260619 /tmp/deploy-remote.sh"
+            "cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x deploy/ec2/*.sh deploy/aws/*.sh 2>/dev/null || true && APP_DIR=~/eduardoos.com_20260619 bash deploy/ec2/deploy-remote.sh"
 
       - name: Smoke check
         env:

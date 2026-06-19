@@ -53,20 +53,37 @@ echo "==> Rendering nginx config for DOMAIN=${DOMAIN}"
 sed "s/localhost/${DOMAIN}/g" nginx/default.conf > nginx/default.prod.conf
 
 CERT_DIR="nginx/certs/live/${DOMAIN}"
-if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
-  echo "==> No TLS cert for ${DOMAIN}; creating temporary self-signed cert"
-  mkdir -p "${CERT_DIR}"
-  openssl req -x509 -nodes -days 30 -newkey rsa:2048 \
-    -keyout "${CERT_DIR}/privkey.pem" \
-    -out "${CERT_DIR}/fullchain.pem" \
-    -subj "/CN=${DOMAIN}"
-  echo "    Run certbot on the host after DNS points here for a real certificate."
-fi
 
 has_letsencrypt_cert() {
   [ -f "${CERT_DIR}/fullchain.pem" ] && \
     openssl x509 -in "${CERT_DIR}/fullchain.pem" -noout -issuer 2>/dev/null | grep -qi "Let's Encrypt"
 }
+
+ensure_cert_bootstrap() {
+  if has_letsencrypt_cert; then
+    echo "==> Let's Encrypt certificate already on disk for ${DOMAIN}"
+    return 0
+  fi
+  if [ -f "${CERT_DIR}/fullchain.pem" ]; then
+    echo "==> TLS certificate files already present for ${DOMAIN}"
+    return 0
+  fi
+  echo "==> No TLS cert for ${DOMAIN}; creating temporary self-signed cert"
+  mkdir -p "${CERT_DIR}" 2>/dev/null || sudo mkdir -p "${CERT_DIR}"
+  if [ ! -w "${CERT_DIR}" ]; then
+    sudo chown -R "$(whoami):$(whoami)" nginx/certs 2>/dev/null || true
+  fi
+  if openssl req -x509 -nodes -days 30 -newkey rsa:2048 \
+      -keyout "${CERT_DIR}/privkey.pem" \
+      -out "${CERT_DIR}/fullchain.pem" \
+      -subj "/CN=${DOMAIN}" 2>/dev/null; then
+    echo "    Temporary self-signed cert created"
+  else
+    echo "WARNING: Could not write bootstrap cert (certbot may own nginx/certs) — continuing deploy"
+  fi
+}
+
+ensure_cert_bootstrap
 
 issue_letsencrypt_cert() {
   if has_letsencrypt_cert; then
@@ -99,11 +116,12 @@ issue_letsencrypt_cert() {
 
   echo "WARNING: certbot failed — restoring self-signed bootstrap cert"
   if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
-    mkdir -p "${CERT_DIR}"
+    mkdir -p "${CERT_DIR}" 2>/dev/null || sudo mkdir -p "${CERT_DIR}"
+    sudo chown -R "$(whoami):$(whoami)" nginx/certs 2>/dev/null || true
     openssl req -x509 -nodes -days 30 -newkey rsa:2048 \
       -keyout "${CERT_DIR}/privkey.pem" \
       -out "${CERT_DIR}/fullchain.pem" \
-      -subj "/CN=${DOMAIN}"
+      -subj "/CN=${DOMAIN}" 2>/dev/null || echo "WARNING: could not restore bootstrap cert"
     "${COMPOSE[@]}" restart nginx
   fi
   return 1

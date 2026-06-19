@@ -52,14 +52,15 @@ function BarChart({
   data,
 }: {
   title: string;
-  data: Record<string, number>;
+  data: Record<string, number> | null | undefined;
 }) {
-  const max = Math.max(...Object.values(data), 1);
+  const safe = data ?? {};
+  const max = Math.max(...Object.values(safe), 1);
   return (
     <div className="obs-chart">
       <h3>{title}</h3>
       <ul className="obs-chart__bars">
-        {Object.entries(data).map(([key, count]) => (
+        {Object.entries(safe).map(([key, count]) => (
           <li key={key}>
             <span className="obs-chart__key">{key}</span>
             <div className="obs-chart__track">
@@ -101,7 +102,7 @@ export default function LoggerDashboard() {
         fetchLogs(filters),
       ]);
       setAnalytics(stats);
-      setLogs(entries);
+      setLogs(Array.isArray(entries) ? entries : []);
     } catch {
       setError("Failed to load observability data");
     } finally {
@@ -216,7 +217,7 @@ export default function LoggerDashboard() {
           />
           <StatCard
             label="Services"
-            value={Object.keys(analytics.byService).length}
+            value={Object.keys(analytics.byService ?? {}).length}
           />
         </section>
       )}
