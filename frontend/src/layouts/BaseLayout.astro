@@ -25,6 +25,7 @@ const pageEditor = activityBarMode === "editor";
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -32,27 +33,34 @@ const pageEditor = activityBarMode === "editor";
       href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Raleway:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
       rel="stylesheet"
     />
+
     <meta
       name="description"
       content="Licensed Architect & Software Developer focusing on full-stack AEC solutions, cloud applications, AI integration, BIM collaboration, and problem solving."
     />
+    <link rel="icon" href="/media/favicon.ico" sizes="any" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/media/favicon-32x32.png"
+    />
+    <link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png" />
+    <link rel="icon" href="/favicon-96.png" sizes="96x96" type="image/png" />
+    <link rel="icon" href="/favicon-192.png" sizes="192x192" type="image/png" />
+    <link rel="apple-touch-icon" href="/favicon-180.png" sizes="180x180" />
+    <link
+      rel="shortcut icon"
+      href="/favicon-32.png"
+      sizes="32x32"
+      type="image/png"
+    />
+    <meta
+      name="google-site-verification"
+      content="RQdklgFawBo75p5tN7wranunENDjUu27gol9MENm-SM"
+    />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
-    <script is:inline>
-      (function () {
-        try {
-          var stored = localStorage.getItem("eduardoos-theme");
-          var dark =
-            stored === "dark" ||
-            (!stored &&
-              window.matchMedia("(prefers-color-scheme: dark)").matches);
-          var root = document.documentElement;
-          root.classList.toggle("dark", dark);
-          root.dataset.theme = dark ? "dark" : "light";
-          root.style.colorScheme = dark ? "dark" : "light";
-        } catch (e) {}
-      })();
-    </script>
   </head>
   <body
     class:list={{

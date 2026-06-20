@@ -1,7 +1,7 @@
 /**
- * Header.tsx — Fixed site chrome with nav links and theme toggle.
+ * Header.tsx — Fixed chrome: Home link, desktop nav, mobile expandable menu.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import "./Header.css";
 
@@ -9,83 +9,89 @@ interface HeaderProps {
   pathname: string;
 }
 
-type Theme = "light" | "dark";
-
-function applyTheme(dark: boolean) {
-  const root = document.documentElement;
-  root.classList.toggle("dark", dark);
-  root.dataset.theme = dark ? "dark" : "light";
-  root.style.colorScheme = dark ? "dark" : "light";
-}
+const NAV_LINKS = [
+  { href: APP_ROUTES.login, label: "Login" },
+  { href: APP_ROUTES.register, label: "Register" },
+  { href: APP_ROUTES.logger, label: "Logger" },
+  { href: APP_ROUTES.tester, label: "Tester" },
+  { href: APP_ROUTES.mediaGallery, label: "Media" },
+  { href: APP_ROUTES.subscriptionMonthlyBasic, label: "Subscribe" },
+] as const;
 
 export function Header({ pathname }: HeaderProps) {
-  const [dark, setDark] = useState(false);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("eduardoos-theme") as Theme | null;
-      const prefersDark =
-        stored === "dark" ||
-        (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches);
-      setDark(prefersDark);
-      applyTheme(prefersDark);
-    } catch {
-      /* localStorage unavailable */
-    }
-  }, []);
-
-  function toggleTheme() {
-    const next = !dark;
-    setDark(next);
-    applyTheme(next);
-    try {
-      localStorage.setItem("eduardoos-theme", next ? "dark" : "light");
-    } catch {
-      /* ignore */
-    }
-  }
+  const [menuOpen, setMenuOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
 
   function navClass(href: string) {
+    if (href === APP_ROUTES.home) {
+      return pathname === "/" ? "is-active" : "";
+    }
     return pathname === href || pathname.startsWith(`${href}/`)
       ? "is-active"
       : "";
   }
 
+  function closeMenu() {
+    setMenuOpen(false);
+  }
+
+  function toggleMenu() {
+    setMenuOpen((open) => !open);
+  }
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const syncHeaderHeight = () => {
+      const height = headerRef.current?.offsetHeight ?? 50;
+      document.documentElement.style.setProperty("--header_height", `${height}px`);
+    };
+    syncHeaderHeight();
+    window.addEventListener("resize", syncHeaderHeight);
+    return () => window.removeEventListener("resize", syncHeaderHeight);
+  }, [menuOpen, pathname]);
+
   return (
-    <header className="site-header">
-      <a className="site-header__brand" href={APP_ROUTES.home}>
-        Eduardo Osteicoechea
-      </a>
-      <nav className="site-header__nav" aria-label="Main">
-        <a className={navClass(APP_ROUTES.login)} href={APP_ROUTES.login}>
-          Login
-        </a>
+    <header
+      ref={headerRef}
+      className={`site-header${menuOpen ? " site-header--open" : ""}`}
+    >
+      <div className="site-header__bar">
         <a
-          className={navClass(APP_ROUTES.register)}
-          href={APP_ROUTES.register}
+          className={`site-header__home${navClass(APP_ROUTES.home)}`}
+          href={APP_ROUTES.home}
+          onClick={closeMenu}
         >
-          Register
-        </a>
-        <a className={navClass(APP_ROUTES.logger)} href={APP_ROUTES.logger}>
-          Logger
-        </a>
-        <a className={navClass(APP_ROUTES.tester)} href={APP_ROUTES.tester}>
-          Tester
-        </a>
-        <a
-          className={navClass(APP_ROUTES.subscriptionMonthlyBasic)}
-          href={APP_ROUTES.subscriptionMonthlyBasic}
-        >
-          Subscribe
+          Home
         </a>
         <button
           type="button"
-          className="site-header__theme"
-          onClick={toggleTheme}
-          aria-label="Toggle theme"
+          className="site-header__menu"
+          aria-expanded={menuOpen}
+          aria-controls="site-header-nav"
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          onClick={toggleMenu}
         >
-          {dark ? "Light" : "Dark"}
+          Menu
         </button>
+      </div>
+      <nav
+        id="site-header-nav"
+        className="site-header__nav"
+        aria-label="Main"
+      >
+        {NAV_LINKS.map(({ href, label }) => (
+          <a
+            key={href}
+            className={navClass(href)}
+            href={href}
+            onClick={closeMenu}
+          >
+            {label}
+          </a>
+        ))}
       </nav>
     </header>
   );

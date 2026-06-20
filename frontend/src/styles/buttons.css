@@ -11,6 +11,7 @@
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   font-family: inherit;
+  font-size: var(--font-base);
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
@@ -18,19 +19,21 @@
 }
 
 .btn:hover {
-  background: var(--site-surface-muted);
+  background: var(--site-body-bg);
+  border-color: var(--site-medium);
   text-decoration: none;
 }
 
 .btn--primary {
   background: var(--site-accent);
   border-color: var(--site-accent);
-  color: #ffffff;
+  color: var(--site-accent-fg);
 }
 
 .btn--primary:hover {
-  filter: brightness(1.08);
-  color: #ffffff;
+  background: var(--site-accent);
+  border-color: var(--site-medium);
+  color: var(--site-accent-fg);
 }
 
 .btn:disabled {

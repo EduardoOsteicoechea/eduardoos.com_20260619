@@ -20,24 +20,25 @@
 }
 
 .obs-stat {
-  background: var(--glassed_background);
+  background: var(--site-body-bg);
   border: var(--border_001);
   border-radius: var(--border_radius_001);
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  color: var(--site-body-fg);
 }
 
 .obs-stat__label {
-  font-size: 0.75rem;
-  color: var(--site-muted-fg);
+  font-size: var(--font-xs);
+  color: var(--site-body-fg);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .obs-stat__value {
-  font-size: 1.5rem;
+  font-size: var(--font-lg);
   font-weight: 700;
   font-family: Montserrat, sans-serif;
 }
@@ -49,16 +50,17 @@
 }
 
 .obs-chart {
-  background: var(--glassed_background);
+  background: var(--site-body-bg);
   border: var(--border_001);
   border-radius: var(--border_radius_001);
   padding: 1rem;
+  color: var(--site-body-fg);
 }
 
 .obs-chart h3 {
-  font-size: 0.875rem;
+  font-size: var(--font-md);
   margin-bottom: 0.75rem;
-  color: var(--site-muted-fg);
+  color: var(--site-body-fg);
 }
 
 .obs-chart__bars {
@@ -73,7 +75,7 @@
   grid-template-columns: 5rem 1fr 2rem;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.8125rem;
+  font-size: var(--font-sm);
 }
 
 .obs-chart__key {
@@ -84,20 +86,21 @@
 
 .obs-chart__track {
   height: 0.5rem;
-  background: var(--site-surface-muted);
-  border-radius: 999px;
+  background: var(--site-body-bg);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
   overflow: hidden;
 }
 
 .obs-chart__fill {
   height: 100%;
   background: var(--site-accent);
-  border-radius: 999px;
+  border-radius: var(--border_radius_001);
 }
 
 .obs-chart__count {
   text-align: right;
-  color: var(--site-muted-fg);
+  color: var(--site-body-fg);
 }
 
 .obs-filters {
@@ -124,60 +127,53 @@
   max-height: 28rem;
   overflow-y: auto;
   margin-top: 0.75rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
 }
 
 .obs-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.8125rem;
+  font-size: var(--font-sm);
 }
 
 .obs-table th,
 .obs-table td {
   padding: 0.5rem 0.625rem;
   text-align: left;
-  border-bottom: 1px solid var(--site-border);
+  border-bottom: var(--border_001);
 }
 
 .obs-table tbody tr {
   cursor: pointer;
+  background: var(--site-body-bg);
 }
 
-.obs-table tbody tr:hover {
-  background: var(--site-surface-muted);
-}
-
+.obs-table tbody tr:hover,
 .obs-table__row--active {
-  background: var(--site-surface-muted);
+  background: var(--site-body-bg);
+  box-shadow: inset 0 0 0 1px var(--site-medium);
 }
 
 .obs-badge {
   display: inline-block;
   padding: 0.125rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
+  border-radius: var(--border_radius_001);
+  font-size: var(--font-xs);
   font-weight: 600;
   text-transform: lowercase;
 }
 
-.obs-badge--success {
-  background: rgba(22, 163, 74, 0.15);
-  color: #16a34a;
-}
-
-.obs-badge--error {
-  background: rgba(220, 38, 38, 0.15);
-  color: #dc2626;
-}
-
+.obs-badge--success,
+.obs-badge--error,
 .obs-badge--started {
-  background: rgba(0, 17, 255, 0.12);
-  color: var(--site-accent);
+  background: var(--site-accent);
+  color: var(--site-accent-fg);
 }
 
 .obs-mono {
   font-family: ui-monospace, monospace;
-  font-size: 0.75rem;
+  font-size: var(--font-xs);
 }
 
 .obs-timeline {
@@ -200,21 +196,24 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
-  font-size: 0.75rem;
-  color: var(--site-muted-fg);
+  font-size: var(--font-xs);
+  color: var(--site-body-fg);
 }
 
 .obs-timeline__event {
   font-weight: 600;
   margin-top: 0.25rem;
+  font-size: var(--font-md);
 }
 
 .obs-timeline__meta-json {
-  font-size: 0.6875rem;
+  font-size: var(--font-xs);
   margin-top: 0.35rem;
   overflow-x: auto;
-  background: var(--site-surface-muted);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
   padding: 0.5rem;
+  border: var(--border_001);
   border-radius: var(--border_radius_001);
 }
 
@@ -222,18 +221,21 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.875rem;
+  font-size: var(--font-md);
   min-height: auto;
 }
 
 .obs-link {
   background: none;
   border: none;
-  color: var(--site-accent);
+  color: var(--site-body-fg);
   cursor: pointer;
   text-align: left;
   padding: 0.25rem 0;
   min-height: auto;
+  font-size: var(--font-sm);
+  text-decoration: underline;
+  text-decoration-color: var(--site-medium);
 }
 
 .obs-errors ul {
@@ -247,5 +249,5 @@
 
 .obs-dashboard code {
   font-family: ui-monospace, monospace;
-  font-size: 0.875em;
+  font-size: var(--font-sm);
 }

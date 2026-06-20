@@ -21,6 +21,7 @@ type config struct {
 	TelemetryURL     string
 	TesterURL        string
 	PaymentsURL      string
+	S3URL            string
 	Telemetry        *common.TelemetryClient
 }
 
@@ -30,6 +31,7 @@ var publicPaths = []string{
 	"/api/logger", "/api/logger/logs", "/api/logger/analytics", "/api/logger/trace", "/api/logger/stream",
 	"/api/tester", "/api/tester/runs", "/api/tester/report",
 	"/api/payments/intents", "/api/payments/webhook/paypal", "/api/payments/status",
+	"/api/media/upload", "/api/media/upload/multiple", "/api/media/objects", "/api/media/images", "/api/media/file",
 }
 
 func isPublic(path string) bool {
@@ -48,6 +50,7 @@ func main() {
 		TelemetryURL:     common.Env("TELEMETRY_URL", "http://telemetry:3000"),
 		TesterURL:        common.Env("TESTER_URL", "http://tester:3000"),
 		PaymentsURL:      common.Env("PAYMENTS_URL", "http://payments:3000"),
+		S3URL:            common.Env("S3_URL", "http://s3:3000"),
 	}
 	cfg.Telemetry = common.NewTelemetryClient(cfg.TelemetryURL, cfg.InternalSecret)
 
@@ -74,6 +77,11 @@ func main() {
 	r.Post("/api/payments/intents", cfg.proxyPost("/intents", cfg.PaymentsURL, "payments.intent.proxy"))
 	r.Get("/api/payments/status/{intentID}", cfg.proxyGetPath("/status", cfg.PaymentsURL, "intentID"))
 	r.Post("/api/payments/webhook/paypal", cfg.proxyPayPalWebhook())
+	r.Post("/api/media/upload", cfg.uploadMedia())
+	r.Post("/api/media/upload/multiple", cfg.uploadMediaMultiple())
+	r.Get("/api/media/objects", cfg.proxyGetQuery("/objects", cfg.S3URL))
+	r.Get("/api/media/images", cfg.listMediaImages())
+	r.Get("/api/media/file/*", cfg.proxyMediaFile())
 
 	log.Printf("backend listening on %s", common.ListenAddr())
 	log.Fatal(http.ListenAndServe(common.ListenAddr(), r))

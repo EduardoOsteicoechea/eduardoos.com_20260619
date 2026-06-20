@@ -33,6 +33,9 @@ services:
       DATABASE_URL: http://database:3000
       DOCUMENTS_URL: http://documents:3000
       S3_URL: http://s3:3000
+      S3_PREFIX: ${S3_PREFIX:-media}
+      S3_BUCKET: ${S3_BUCKET:-eduardoos20260607}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
       CHATBOT_URL: http://chatbot:3000
       PAYMENTS_URL: http://payments:3000
     networks:
@@ -41,6 +44,7 @@ services:
       - authenticator
       - telemetry
       - payments
+      - s3
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s

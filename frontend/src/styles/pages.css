@@ -5,11 +5,11 @@
 }
 
 .panel {
-  background: var(--glassed_background);
-  backdrop-filter: blur(10px);
+  background: var(--site-body-bg);
   border: var(--border_001);
-  border-radius: calc(var(--border_radius_001) * 2);
+  border-radius: var(--border_radius_001);
   padding: 1.5rem;
+  color: var(--site-body-fg);
 }
 
 .panel__title {
@@ -31,8 +31,8 @@
 }
 
 .form-field label {
-  font-size: 0.875rem;
-  color: var(--site-muted-fg);
+  font-size: var(--font-sm);
+  color: var(--site-body-fg);
 }
 
 .form-field input,
@@ -44,39 +44,45 @@
   border-radius: var(--border_radius_001);
   background: var(--site-body-bg);
   color: var(--site-body-fg);
+  font-size: var(--font-base);
 }
 
 .form-field input:focus,
 .form-field textarea:focus {
-  outline: 2px solid var(--site-accent);
+  outline: 2px solid var(--site-medium);
   outline-offset: 1px;
 }
 
 .form-field--error input,
 .form-field--error textarea {
-  border-color: #dc2626;
+  border-color: var(--site-accent);
 }
 
 .field-error {
-  color: #dc2626;
-  font-size: 0.8125rem;
+  color: var(--site-body-fg);
+  background: var(--site-body-bg);
+  border: var(--border_001);
+  font-size: var(--font-sm);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border_radius_001);
 }
 
 .status-message {
   margin-top: 1rem;
   padding: 0.75rem;
   border-radius: var(--border_radius_001);
-  background: var(--site-surface-muted);
-  font-size: 0.875rem;
+  background: var(--site-body-bg);
+  border: var(--border_001);
+  color: var(--site-body-fg);
+  font-size: var(--font-md);
   word-break: break-word;
 }
 
-.status-message--error {
-  color: #dc2626;
-}
-
+.status-message--error,
 .status-message--success {
-  color: #16a34a;
+  background: var(--site-accent);
+  border-color: var(--site-accent);
+  color: var(--site-accent-fg);
 }
 
 .hero {

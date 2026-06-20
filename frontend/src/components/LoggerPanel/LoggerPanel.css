@@ -1,4 +1,4 @@
 .logger-panel code {
   font-family: ui-monospace, monospace;
-  font-size: 0.875em;
+  font-size: var(--font-sm);
 }

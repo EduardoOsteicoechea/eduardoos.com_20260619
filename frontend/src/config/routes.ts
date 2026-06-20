@@ -7,6 +7,16 @@ export const APP_ROUTES = {
   logger: "/observability/logger",
   tester: "/observability/tester",
   subscriptionMonthlyBasic: "/payments/subscription/montly/basic",
+  mediaGallery: "/media/gallery",
+} as const;
+
+/** Public gateway media API endpoints. */
+export const MEDIA_ROUTES = {
+  upload: "/api/media/upload",
+  uploadMultiple: "/api/media/upload/multiple",
+  objects: "/api/media/objects",
+  images: "/api/media/images",
+  file: "/api/media/file",
 } as const;
 
 /** Public gateway observability API endpoints. */

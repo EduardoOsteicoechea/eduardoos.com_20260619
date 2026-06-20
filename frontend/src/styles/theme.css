@@ -1,33 +1,41 @@
-/* theme.css — Eduardo OS design tokens (light/dark + explicit toggle) */
+/* theme.css — system-only palette + fixed font-size scale */
 
 :root {
+  /* Colors: bg, fg, accent (fg surface / bg text), medium (50% mix / fg text) */
   --site-body-bg: #ffffff;
-  --site-body-fg: #111111;
-  --site-accent: #0011ff;
-  --site-border: #e2e8f0;
-  --glassed_background: rgba(255, 255, 255, 0.75);
-  --site-surface-muted: rgba(0, 0, 0, 0.06);
-  --site-muted-fg: rgba(0, 0, 0, 0.6);
+  --site-body-fg: #000000;
+  --site-accent: var(--site-body-fg);
+  --site-accent-fg: var(--site-body-bg);
+  --site-medium: color-mix(in srgb, var(--site-body-bg) 50%, var(--site-body-fg) 50%);
+  --site-medium-fg: var(--site-body-fg);
+
+  /* Legacy aliases — must resolve only to the four colors above */
+  --site-border: var(--site-medium);
+  --glassed_background: var(--site-body-bg);
+  --site-surface-muted: var(--site-body-bg);
+  --site-muted-fg: var(--site-body-fg);
   --site-chrome-bar-bg: var(--site-body-bg);
   --site-chrome-bar-fg: var(--site-body-fg);
   --site-chrome-bar-border: var(--site-border);
+
+  /* Font sizes — only these five values are permitted site-wide */
+  --font-xs: 0.65rem;
+  --font-sm: 0.77rem;
+  --font-md: 0.9rem;
+  --font-base: 1rem;
+  --font-lg: 1.25rem;
+
   --activity-bar-height: 56px;
   --ui-control-min-height: var(--control_min_height);
   --ui-control-size: var(--control_min_height);
   --vv-height: 100dvh;
-  color-scheme: light;
+  color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --site-body-bg: #121212;
-    --site-body-fg: #f8fafc;
-    --site-accent: #4d5cff;
-    --site-border: #334155;
-    --glassed_background: rgba(255, 255, 255, 0.1);
-    --site-surface-muted: rgba(255, 255, 255, 0.06);
-    --site-muted-fg: rgba(255, 255, 255, 0.6);
-    color-scheme: dark;
+    --site-body-bg: #000000;
+    --site-body-fg: #ffffff;
   }
 }
 
@@ -35,26 +43,4 @@
   :root {
     --activity-bar-height: 45px;
   }
-}
-
-html[data-theme="dark"] {
-  color-scheme: dark;
-  --site-body-bg: #121212;
-  --site-body-fg: #f8fafc;
-  --site-accent: #4d5cff;
-  --site-border: #334155;
-  --glassed_background: rgba(255, 255, 255, 0.1);
-  --site-surface-muted: rgba(255, 255, 255, 0.06);
-  --site-muted-fg: rgba(255, 255, 255, 0.6);
-}
-
-html[data-theme="light"] {
-  color-scheme: light;
-  --site-body-bg: #ffffff;
-  --site-body-fg: #111111;
-  --site-accent: #0011ff;
-  --site-border: #e2e8f0;
-  --glassed_background: rgba(255, 255, 255, 0.75);
-  --site-surface-muted: rgba(0, 0, 0, 0.06);
-  --site-muted-fg: rgba(0, 0, 0, 0.6);
 }
