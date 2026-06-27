@@ -1,0 +1,44 @@
+/* BaseLayout.css — shell-level PWA update toast (plain CSS, no utilities). */
+
+#pwa-toast {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(var(--global_player_height, 3.5rem) + 0.75rem);
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: 0.65rem 0.85rem;
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  font-size: var(--font-sm);
+}
+
+#pwa-toast.is-visible {
+  display: flex;
+}
+
+#pwa-toast button {
+  min-height: var(--control_min_height);
+  min-width: auto;
+  padding: 0.25rem 0.65rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-accent);
+  color: var(--site-accent-fg);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+body.has-global-player {
+  --global_player_height: 3.5rem;
+  padding-bottom: var(--global_player_height);
+}
+
+body.has-global-player main {
+  margin-bottom: 0;
+}

@@ -1,9 +1,12 @@
 ---
 /**
- * BaseLayout.astro — Root HTML shell (Eduardo OS chrome + theme bootstrap).
+ * BaseLayout.astro — Root HTML shell (Eduardo OS chrome, PWA hooks, global audio player).
  */
+import { ClientRouter } from "astro:transitions";
 import "../styles/global.css";
+import "./BaseLayout.css";
 import PageBackground from "../components/PageBackground/PageBackground.astro";
+import GlobalPlayer from "../components/GlobalPlayer/GlobalPlayer";
 import { isHomePath } from "../config/homeLayout";
 import { Header } from "../components/Header/Header";
 
@@ -27,6 +30,9 @@ const pageEditor = activityBarMode === "editor";
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <ClientRouter />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -66,12 +72,42 @@ const pageEditor = activityBarMode === "editor";
     class:list={{
       "page-editor": pageEditor,
       "has-page-background": true,
+      "has-global-player": true,
     }}
   >
     <PageBackground />
     <Header client:load pathname={pathname} />
+    <div transition:persist="audio-player">
+      <GlobalPlayer client:load />
+    </div>
     <main>
       <slot />
     </main>
+
+    <div id="pwa-toast" role="status" aria-live="polite">
+      <span>A new version of Eduardo OS is ready.</span>
+      <button type="button" id="pwa-refresh">Refresh</button>
+    </div>
+
+    <script>
+      /**
+       * Service worker lifecycle — prompt the user via #pwa-toast when an update is waiting.
+       * registerType is "prompt" in astro.config.mjs; updateSW(true) activates the worker.
+       */
+      import { registerSW } from "virtual:pwa-register";
+
+      const updateSW = registerSW({
+        onNeedRefresh() {
+          document.getElementById("pwa-toast")?.classList.add("is-visible");
+        },
+        onOfflineReady() {
+          /* Static shell precache completed; audio blobs use IndexedDB separately. */
+        },
+      });
+
+      document.getElementById("pwa-refresh")?.addEventListener("click", () => {
+        void updateSW(true);
+      });
+    </script>
   </body>
 </html>

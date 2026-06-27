@@ -15,18 +15,22 @@ type stubObject struct {
 }
 
 type stubStore struct {
-	mu     sync.RWMutex
-	bucket string
-	prefix string
-	objs   map[string]stubObject
+	mu      sync.RWMutex
+	bucket  string
+	prefix  string
+	dataDir string
+	objs    map[string]stubObject
 }
 
 func newStubStore(cfg Config) *stubStore {
-	return &stubStore{
-		bucket: cfg.Bucket,
-		prefix: cfg.Prefix,
-		objs:   map[string]stubObject{},
+	s := &stubStore{
+		bucket:  cfg.Bucket,
+		prefix:  cfg.Prefix,
+		dataDir: cfg.StubDataDir,
+		objs:    map[string]stubObject{},
 	}
+	s.loadFromDisk()
+	return s
 }
 
 func (s *stubStore) BackendName() string { return "stub" }
@@ -44,6 +48,7 @@ func (s *stubStore) Put(_ context.Context, key, contentType string, data []byte)
 		contentType:  contentType,
 		lastModified: now,
 	}
+	s.saveToDisk()
 	s.mu.Unlock()
 	return UploadResult{
 		Bucket: s.bucket, Key: objectKey, ContentType: contentType, Stored: true,

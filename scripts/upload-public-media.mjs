@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "..", "frontend", "public");
 const baseUrl = process.argv[2] ?? "https://localhost";
+const insecureTLS = process.argv.includes("--insecure") || baseUrl.includes("localhost");
 const skipExt = new Set([".xcf"]);
 
 const mime = {
@@ -27,10 +28,25 @@ async function uploadFile(name, data) {
   const blob = new Blob([data], { type: mime[ext] ?? "application/octet-stream" });
   form.append("file", blob, name);
   form.append("key", name);
-  const res = await fetch(`${baseUrl}/api/media/upload`, {
-    method: "POST",
-    body: form,
-  });
+  const prevReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+  if (insecureTLS) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  }
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/api/media/upload`, {
+      method: "POST",
+      body: form,
+    });
+  } finally {
+    if (insecureTLS) {
+      if (prevReject === undefined) {
+        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      } else {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevReject;
+      }
+    }
+  }
   const text = await res.text();
   if (!res.ok) {
     throw new Error(`${name}: HTTP ${res.status} ${text}`);

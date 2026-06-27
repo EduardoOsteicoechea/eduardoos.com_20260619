@@ -1,5 +1,5 @@
 /**
- * Header.tsx — Fixed chrome: Home link, desktop nav, mobile expandable menu.
+ * Header.tsx — Fixed chrome: nav links (incl. Home), mobile expandable menu.
  */
 import { useEffect, useRef, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
@@ -10,6 +10,7 @@ interface HeaderProps {
 }
 
 const NAV_LINKS = [
+  { href: APP_ROUTES.home, label: "Home" },
   { href: APP_ROUTES.login, label: "Login" },
   { href: APP_ROUTES.register, label: "Register" },
   { href: APP_ROUTES.logger, label: "Logger" },
@@ -59,13 +60,6 @@ export function Header({ pathname }: HeaderProps) {
       className={`site-header${menuOpen ? " site-header--open" : ""}`}
     >
       <div className="site-header__bar">
-        <a
-          className={`site-header__home${navClass(APP_ROUTES.home)}`}
-          href={APP_ROUTES.home}
-          onClick={closeMenu}
-        >
-          Home
-        </a>
         <button
           type="button"
           className="site-header__menu"

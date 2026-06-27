@@ -35,10 +35,11 @@ type MediaStore interface {
 
 // Config drives store construction.
 type Config struct {
-	Backend string
-	Bucket  string
-	Prefix  string
-	Region  string
+	Backend     string
+	Bucket      string
+	Prefix      string
+	Region      string
+	StubDataDir string
 }
 
 // ObjectKey applies the configured prefix to a relative media key.

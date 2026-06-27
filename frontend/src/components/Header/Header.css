@@ -14,35 +14,11 @@
 .site-header__bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.75rem;
   min-height: var(--header_bar_height);
   height: var(--header_bar_height);
   padding: 0 1rem;
-}
-
-.site-header__home {
-  color: var(--site-body-fg);
-  text-decoration: none;
-  font-size: var(--font-base);
-  font-weight: 700;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--border_radius_001);
-  border: 1px solid transparent;
-  min-height: auto;
-  min-width: auto;
-}
-
-.site-header__home:hover {
-  border-color: var(--site-medium);
-  text-decoration: none;
-}
-
-.site-header__home.is-active {
-  background: var(--site-accent);
-  border-color: var(--site-accent);
-  color: var(--site-accent-fg);
-  text-decoration: none;
 }
 
 .site-header__menu {
@@ -128,22 +104,19 @@
   }
 }
 
-/* Desktop: inline nav beside Home */
+/* Desktop: single row of nav links */
 @media (min-width: 1024px) {
   .site-header {
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     min-height: var(--header_bar_height);
     height: var(--header_bar_height);
     padding: 0 1.25rem;
   }
 
   .site-header__bar {
-    width: auto;
-    min-height: 0;
-    height: auto;
-    padding: 0;
+    display: none;
   }
 
   .site-header__nav {

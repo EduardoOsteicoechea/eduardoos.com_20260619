@@ -17,10 +17,11 @@ func main() {
 	ctx := context.Background()
 	secret := common.Env("INTERNAL_SERVICE_SECRET", "dev-internal-secret")
 	cfg := s3store.Config{
-		Backend: common.Env("S3_BACKEND", "stub"),
-		Bucket:  common.Env("S3_BUCKET", "eduardoos20260607"),
-		Prefix:  common.Env("S3_PREFIX", "media"),
-		Region:  common.Env("AWS_REGION", "us-east-1"),
+		Backend:     common.Env("S3_BACKEND", "stub"),
+		Bucket:      common.Env("S3_BUCKET", "eduardoos20260607"),
+		Prefix:      common.Env("S3_PREFIX", "media"),
+		Region:      common.Env("AWS_REGION", "us-east-1"),
+		StubDataDir: common.Env("S3_STUB_DATA_DIR", ""),
 	}
 	store, err := s3store.NewStore(ctx, cfg)
 	if err != nil {

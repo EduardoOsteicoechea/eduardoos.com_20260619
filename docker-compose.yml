@@ -120,7 +120,10 @@ services:
       S3_BUCKET: ${S3_BUCKET:-eduardoos20260607}
       S3_PREFIX: ${S3_PREFIX:-media}
       S3_BACKEND: ${S3_BACKEND:-stub}
+      S3_STUB_DATA_DIR: /data
       AWS_REGION: ${AWS_REGION:-us-east-1}
+    volumes:
+      - s3_stub_data:/data
     networks:
       - internal
 
@@ -205,3 +208,4 @@ networks:
 volumes:
   frontend_dist:
   certbot_www:
+  s3_stub_data:
