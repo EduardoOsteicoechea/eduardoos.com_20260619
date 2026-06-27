@@ -76,7 +76,7 @@ func ValidateKey(key string) error {
 	if key == "" {
 		return fmt.Errorf("key required")
 	}
-	if strings.Contains(key, "..") {
+	if hasPathTraversal(key) {
 		return fmt.Errorf("invalid key")
 	}
 	return nil

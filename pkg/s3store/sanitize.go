@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"unicode"
 )
 
 var (
@@ -45,10 +46,23 @@ var allowedExt = map[string]string{
 	".webm": "video/webm",
 }
 
-// SanitizeFilename returns a basename safe for object keys.
+// hasPathTraversal reports .. path segments or leading parent hops.
+func hasPathTraversal(key string) bool {
+	if strings.HasPrefix(key, "..") {
+		return true
+	}
+	for _, part := range strings.Split(key, "/") {
+		if part == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+// SanitizeFilename returns a basename safe for object keys (Unicode letters allowed).
 func SanitizeFilename(name string) (string, error) {
 	name = strings.TrimSpace(name)
-	if name == "" || strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) {
+	if name == "" || hasPathTraversal(name) || strings.ContainsAny(name, `/\`) {
 		return "", ErrInvalidFilename
 	}
 	base := path.Base(name)
@@ -56,12 +70,40 @@ func SanitizeFilename(name string) (string, error) {
 		return "", ErrInvalidFilename
 	}
 	for _, r := range base {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '.' || r == '-' || r == '_' {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '.' || r == '-' || r == '_' || r == ' ' || r == '(' || r == ')' || r == '\'' {
 			continue
 		}
 		return "", ErrInvalidFilename
 	}
 	return base, nil
+}
+
+// SanitizeObjectKey validates a slash-separated storage key (e.g. worship_playlists/song.mp3).
+func SanitizeObjectKey(key string) (string, error) {
+	key = strings.TrimSpace(key)
+	if key == "" || hasPathTraversal(key) {
+		return "", ErrInvalidFilename
+	}
+	key = strings.Trim(key, "/")
+	if key == "" {
+		return "", ErrInvalidFilename
+	}
+	parts := strings.Split(key, "/")
+	safe := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		name, err := SanitizeFilename(part)
+		if err != nil {
+			return "", err
+		}
+		safe = append(safe, name)
+	}
+	if len(safe) == 0 {
+		return "", ErrInvalidFilename
+	}
+	return strings.Join(safe, "/"), nil
 }
 
 // SanitizeAsset validates filename, size, extension whitelist, and magic-byte composition.
@@ -149,11 +191,11 @@ func isMP4Family(data []byte) bool {
 
 // PrepareUpload validates and returns the safe key and MIME type for storage.
 func PrepareUpload(filename string, data []byte) (key, contentType string, err error) {
-	key, err = SanitizeFilename(filename)
+	key, err = SanitizeObjectKey(filename)
 	if err != nil {
 		return "", "", err
 	}
-	contentType, err = SanitizeAsset(key, data)
+	contentType, err = SanitizeAsset(path.Base(key), data)
 	if err != nil {
 		return "", "", err
 	}

@@ -65,12 +65,40 @@ func TestSanitizeFilenameRejectsTraversal(t *testing.T) {
 	if err != ErrInvalidFilename {
 		t.Fatalf("expected ErrInvalidFilename, got %v", err)
 	}
+	_, err = SanitizeFilename("song..mp3")
+	if err != nil {
+		t.Fatalf("double dots in filename should be allowed: %v", err)
+	}
 }
 
 func TestPrepareUpload(t *testing.T) {
 	key, ct, err := PrepareUpload("test.png", pngBytes())
 	if err != nil || key != "test.png" || ct != "image/png" {
 		t.Fatalf("key=%s ct=%s err=%v", key, ct, err)
+	}
+}
+
+func mp3Bytes() []byte {
+	return []byte("ID3" + string(bytes.Repeat([]byte{0x00}, 8)))
+}
+
+func TestPrepareUploadPrefixedUnicodeKey(t *testing.T) {
+	key, ct, err := PrepareUpload("worship_playlists/Ayúdame. Cánticos espirituales..mp3", mp3Bytes())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if key != "worship_playlists/Ayúdame. Cánticos espirituales..mp3" {
+		t.Fatalf("unexpected key: %s", key)
+	}
+	if ct != "audio/mpeg" {
+		t.Fatalf("unexpected content type: %s", ct)
+	}
+}
+
+func TestSanitizeObjectKeyRejectsTraversal(t *testing.T) {
+	_, err := SanitizeObjectKey("worship_playlists/../secret.mp3")
+	if err != ErrInvalidFilename {
+		t.Fatalf("expected ErrInvalidFilename, got %v", err)
 	}
 }
 

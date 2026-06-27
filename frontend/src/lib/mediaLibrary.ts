@@ -1,42 +1,46 @@
 /**
- * mediaLibrary.ts — Fetches worship audio objects for the playlist builder library.
+ * mediaLibrary.ts — Fetches worship audio tracks for the playlist builder library.
  */
 
 import { apiRequest } from "./api";
-import { MEDIA_ROUTES } from "../config/routes";
 import { createCorrelationId } from "./telemetry";
 
 /** Worship playlist audio prefix inside the media/ S3 folder. */
 export const WORSHIP_AUDIO_PREFIX = "worship_playlists";
 
-export interface MediaObject {
+export interface AudioLibraryItem {
   key: string;
+  name: string;
   content_type: string;
   size: number;
+  size_human?: string;
   last_modified?: string;
+  url: string;
+  s3_url?: string;
 }
 
-export interface MediaObjectsResponse {
-  objects: MediaObject[];
+interface AudioListResponse {
+  prefix: string;
+  count: number;
+  tracks: AudioLibraryItem[];
 }
 
-/** Returns drag-and-drop library items from GET /api/media/objects. */
-export async function fetchAudioLibrary(): Promise<MediaObject[]> {
+/** Returns drag-and-drop library items from GET /api/media/audio. */
+export async function fetchAudioLibrary(): Promise<AudioLibraryItem[]> {
   const correlationId = createCorrelationId();
-  const path = `${MEDIA_ROUTES.objects}?prefix=${encodeURIComponent(WORSHIP_AUDIO_PREFIX)}`;
-  const result = await apiRequest<MediaObjectsResponse>(path, { correlationId });
+  const path = `/api/media/audio?prefix=${encodeURIComponent(WORSHIP_AUDIO_PREFIX)}`;
+  const result = await apiRequest<AudioListResponse>(path, { correlationId });
   if (result.error) {
     throw new Error(result.error.message);
   }
-  const objects = result.data?.objects ?? [];
-  return objects.filter((obj) => {
-    const ct = (obj.content_type || "").toLowerCase();
-    return ct.startsWith("audio/") || obj.key.toLowerCase().endsWith(".mp3");
-  });
+  return result.data?.tracks ?? [];
 }
 
 /** Builds the browser playback URL for a stored object key. */
-export function mediaObjectPlaybackUrl(objectKey: string): string {
+export function mediaObjectPlaybackUrl(objectKey: string, playbackUrl?: string): string {
+  if (playbackUrl) {
+    return playbackUrl;
+  }
   const mediaPrefix = "media/";
   const relative = objectKey.startsWith(mediaPrefix)
     ? objectKey.slice(mediaPrefix.length)

@@ -2,7 +2,7 @@
  * PlaylistBuilder.tsx — Drag-and-drop worship playlist editor with transport controls.
  *
  * Workflow:
- * 1. Load audio library from GET /api/media/objects?prefix=worship_playlists
+ * 1. Load audio library from GET /api/media/audio?prefix=worship_playlists
  * 2. Drag tracks into the active playlist column (HTML5 drag-and-drop)
  * 3. Save/load named playlists via authenticated /api/playlists routes
  * 4. PlaylistControls drives a hidden <audio> element for preview playback
@@ -14,7 +14,7 @@ import {
   fetchAudioLibrary,
   mediaObjectPlaybackUrl,
   trackDisplayName,
-  type MediaObject,
+  type AudioLibraryItem,
 } from "../../lib/mediaLibrary";
 import { fetchPlaylists, savePlaylist, type PlaylistRecord } from "../../lib/playlists";
 import PlaylistControls from "./PlaylistControls";
@@ -25,7 +25,8 @@ const DRAG_MIME = "application/x-eduardoos-track-key";
 export default function PlaylistBuilder() {
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const [library, setLibrary] = useState<MediaObject[]>([]);
+  const [library, setLibrary] = useState<AudioLibraryItem[]>([]);
+  const [urlByKey, setUrlByKey] = useState<Map<string, string>>(() => new Map());
   const [activeTracks, setActiveTracks] = useState<string[]>([]);
   const [playlistName, setPlaylistName] = useState("");
   const [loadedPlaylistId, setLoadedPlaylistId] = useState("");
@@ -43,8 +44,13 @@ export default function PlaylistBuilder() {
   const [dragReorderIndex, setDragReorderIndex] = useState<number | null>(null);
 
   const loadLibrary = useCallback(async () => {
-    const objects = await fetchAudioLibrary();
-    setLibrary(objects);
+    const tracks = await fetchAudioLibrary();
+    setLibrary(tracks);
+    const map = new Map<string, string>();
+    for (const track of tracks) {
+      map.set(track.key, track.url);
+    }
+    setUrlByKey(map);
   }, []);
 
   const loadSavedPlaylists = useCallback(async () => {
@@ -85,11 +91,11 @@ export default function PlaylistBuilder() {
       audio.removeAttribute("src");
       return;
     }
-    const nextSrc = mediaObjectPlaybackUrl(currentTrackKey);
+    const nextSrc = mediaObjectPlaybackUrl(currentTrackKey, urlByKey.get(currentTrackKey));
     if (audio.src !== new URL(nextSrc, window.location.origin).href) {
       audio.src = nextSrc;
     }
-  }, [currentTrackKey, playbackRate, volume]);
+  }, [currentTrackKey, playbackRate, urlByKey, volume]);
 
   useEffect(() => {
     syncAudioElement();
@@ -275,7 +281,11 @@ export default function PlaylistBuilder() {
           <h2>Audio library</h2>
           <ul className="playlist-builder__list">
             {library.length === 0 ? (
-              <li className="playlist-builder__empty">No audio objects in worship_playlists/.</li>
+              <li className="playlist-builder__empty">
+                No audio in worship_playlists/. On local Docker, run{" "}
+                <code>node scripts/upload-worship-playlists.mjs</code> to seed MP3s; on AWS, upload
+                files to <code>media/worship_playlists/</code>.
+              </li>
             ) : (
               library.map((item) => (
                 <li
