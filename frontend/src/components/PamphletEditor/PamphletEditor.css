@@ -199,17 +199,20 @@
   font-size: 1.15em;
 }
 
-.pamphlet-editor__sheets .editable-block {
+.pamphlet-editor__sheets .editable-block,
+.pamphlet-editor__sheets .editable-type-block {
   cursor: text;
   border-radius: 2px;
 }
 
-.pamphlet-editor__sheets .editable-block:hover {
+.pamphlet-editor__sheets .editable-block:hover,
+.pamphlet-editor__sheets .editable-type-block:hover {
   outline: 1px dashed #94a3b8;
   outline-offset: 2px;
 }
 
-.pamphlet-editor__sheets .editable-block.is-editing {
+.pamphlet-editor__sheets .editable-block.is-editing,
+.pamphlet-editor__sheets .editable-type-block.is-editing {
   outline: 2px solid #38bdf8;
   outline-offset: 2px;
   background: rgba(56, 189, 248, 0.06);
@@ -350,64 +353,69 @@
   }
 }
 
-/* Mobile stream: stack columns vertically (server should emit data-mobile-order on columns) */
-@media (max-width: 899px) {
-  .pamphlet-editor--mobile-stream .sheet-inner {
+/* Mobile + tablet: flatten sheets into ordered column cards (print still uses full sheets) */
+@media (max-width: 1023px) {
+  .pamphlet-editor--mobile-stream .pamphlet-editor__viewport {
+    overflow: auto;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-editor__canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets {
     display: flex;
     flex-direction: column;
+    gap: 0.85rem;
+    width: 100%;
+    max-width: 100%;
+    padding: 0.65rem 0.75rem 0.25rem;
+    transform: none !important;
+    align-items: stretch;
   }
 
-  .pamphlet-editor--mobile-stream .sheet-inner .block {
-    height: auto;
-    min-height: 0;
+  /* Unwrap sheet grid so all [data-mobile-order] nodes share one flex list */
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .sheet,
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .sheet-inner,
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .block,
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .zone-body {
+    display: contents;
   }
 
-  .pamphlet-editor--mobile-stream .sheet-inner .zone-body {
-    display: flex;
-    flex-direction: column;
-    grid-template-columns: none;
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .gutter,
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .zone-gap {
+    display: none !important;
   }
 
-  /* Server should emit data-mobile-order on columns for custom stack order.
-     When absent, columns stack in DOM order (generic column stack). */
-  .pamphlet-editor--mobile-stream .sheet-inner .column[data-mobile-order="1"] {
-    order: 1;
+  /* Each logical column / header / footer becomes a readable card */
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets [data-mobile-order] {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff;
+    color: #1e293b;
+    padding: 0.85rem 1rem;
+    border-radius: var(--border_radius_001, 6px);
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 6px rgba(15, 23, 42, 0.08);
+    box-sizing: border-box;
   }
 
-  .pamphlet-editor--mobile-stream .sheet-inner .column[data-mobile-order="2"] {
-    order: 2;
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .column {
+    padding: 0.85rem 1rem;
   }
 
-  .pamphlet-editor--mobile-stream .sheet-inner .column[data-mobile-order="3"] {
-    order: 3;
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .zone-header,
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .zone-footer {
+    padding: 0.85rem 1rem;
   }
 
-  .pamphlet-editor--mobile-stream .sheet-inner .column[data-mobile-order="4"] {
-    order: 4;
-  }
-
-  .pamphlet-editor--mobile-stream .sheet-inner .column[data-mobile-order="5"] {
-    order: 5;
-  }
-
-  .pamphlet-editor--mobile-stream .sheet-inner .column[data-mobile-order="6"] {
-    order: 6;
-  }
-
-  .pamphlet-editor--mobile-stream .sheet-inner .column[data-mobile-order="7"] {
-    order: 7;
-  }
-
-  .pamphlet-editor--mobile-stream .sheet-inner [data-mobile-order="99"] {
-    order: 99;
-  }
-
-  .pamphlet-editor--mobile-stream .sheet-inner [data-mobile-order="100"] {
-    order: 100;
-  }
-
-  .pamphlet-editor--mobile-stream .sheet-inner [data-mobile-order="101"] {
-    order: 101;
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .block-image {
+    max-height: 40vh;
   }
 }
 
@@ -462,6 +470,53 @@
     gap: 0 !important;
     transform: none !important;
     width: 100% !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Restore sheet layout for print (undo mobile stream display:contents) */
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .sheet {
+    display: block !important;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .sheet-inner {
+    display: grid !important;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .sheet1-grid {
+    grid-template-columns: 1fr var(--mid-gap) 1fr !important;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .sheet2-grid {
+    grid-template-columns: 1fr var(--mid-gap) 1fr !important;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .block {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .zone-body {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets [data-mobile-order] {
+    order: unset !important;
+    max-height: none !important;
+    height: auto !important;
+    padding: 2px !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .gutter,
+  .pamphlet-editor--mobile-stream .pamphlet-editor__sheets .zone-gap {
+    display: block !important;
   }
 
   .pamphlet-editor__sheets .sheet {

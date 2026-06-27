@@ -46,8 +46,18 @@ const LAYOUT_FIELDS: { key: keyof LayoutFields; label: string; step?: number }[]
 const SHEET_WIDTH_IN = 11;
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 1.5;
-const MOBILE_STREAM_MAX = 899;
+/** Mobile + tablet: column stream UI; desktop (1024+) shows scaled sheet preview. */
+const STREAM_BREAKPOINT = 1023;
 const DESKTOP_MIN = 1024;
+
+function applyMobileOrder(root: HTMLElement): void {
+  root.querySelectorAll<HTMLElement>("[data-mobile-order]").forEach((el) => {
+    const order = el.getAttribute("data-mobile-order");
+    if (order) {
+      el.style.order = order;
+    }
+  });
+}
 
 function clampZoom(value: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
@@ -65,11 +75,17 @@ export default function PamphletEditor() {
   const sheetsRef = useRef<HTMLDivElement>(null);
   const layoutRef = useRef<LayoutFields>(DEFAULT_LAYOUT);
   const editingRef = useRef<HTMLElement | null>(null);
+  const editOriginalRef = useRef("");
   const blurTimerRef = useRef<number | null>(null);
   const suppressBlurRef = useRef(false);
   const refreshTimerRef = useRef<number | null>(null);
   const saveLayoutTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sheetHandlersRef = useRef({
+    click: (_event: MouseEvent) => {},
+    keydown: (_event: KeyboardEvent) => {},
+    focusout: (_event: FocusEvent) => {},
+  });
 
   const [layout, setLayout] = useState<LayoutFields>(DEFAULT_LAYOUT);
   const [previewHtml, setPreviewHtml] = useState("");
@@ -91,7 +107,7 @@ export default function PamphletEditor() {
 
   useEffect(() => {
     setAuthed(Boolean(getAuthToken()));
-    setIsMobileStream(window.innerWidth <= MOBILE_STREAM_MAX);
+    setIsMobileStream(window.innerWidth <= STREAM_BREAKPOINT);
   }, []);
 
   layoutRef.current = layout;
@@ -140,6 +156,17 @@ export default function PamphletEditor() {
     if (!viewport || !sheets) return;
 
     const isDesktop = window.matchMedia(`(min-width: ${DESKTOP_MIN}px)`).matches;
+    const isStream = window.innerWidth <= STREAM_BREAKPOINT;
+
+    if (isStream) {
+      sheets.style.transform = "none";
+      if (canvas) {
+        canvas.style.width = "";
+        canvas.style.height = "";
+      }
+      return;
+    }
+
     sheets.style.transform = "none";
 
     const naturalW = sheets.offsetWidth;
@@ -289,7 +316,7 @@ export default function PamphletEditor() {
     suppressBlurRef.current = true;
     window.setTimeout(() => {
       suppressBlurRef.current = false;
-    }, 250);
+    }, 400);
 
     const ref = el.getAttribute("data-content-ref") ?? "";
     setActiveRef(ref);
@@ -298,16 +325,19 @@ export default function PamphletEditor() {
 
     pamphletDebug("edit_click", { ref, field: el.getAttribute("data-content-field") ?? undefined });
 
+    editOriginalRef.current = stripHighlightMarkup(el.innerHTML).trim();
     editingRef.current = el;
     el.classList.add("is-editing");
     el.contentEditable = "true";
-    el.focus();
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    range.collapse(false);
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
+    requestAnimationFrame(() => {
+      el.focus({ preventScroll: true });
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    });
   }, []);
 
   const selectImageWrap = useCallback((wrap: HTMLElement) => {
@@ -335,10 +365,18 @@ export default function PamphletEditor() {
     el.contentEditable = "false";
     el.classList.remove("is-editing");
     editingRef.current = null;
+
+    if (!ref) {
+      setActiveRef("");
+      return;
+    }
+
+    if (value === editOriginalRef.current) {
+      pamphletDebug("content_save_skipped", { ref, field, reason: "unchanged" });
+      return;
+    }
+
     setActiveRef("");
-
-    if (!ref) return;
-
     setRefreshing(true);
     pamphletDebug("content_save", { ref, field });
     try {
@@ -414,7 +452,9 @@ export default function PamphletEditor() {
         return;
       }
 
-      const block = target.closest<HTMLElement>(".editable-block[data-content-ref]");
+      const block = target.closest<HTMLElement>(
+        ".editable-block[data-content-ref], .editable-type-block[data-content-ref]",
+      );
       if (block) {
         enterEditMode(block);
       }
@@ -442,20 +482,6 @@ export default function PamphletEditor() {
     [refreshPreview],
   );
 
-  const handleSheetsMouseDown = useCallback((event: MouseEvent) => {
-    const target = event.target as HTMLElement;
-    const root = sheetsRef.current;
-    if (!root || !root.contains(target)) return;
-    if (target.closest("[data-image-clear]")) return;
-
-    const editable = target.closest<HTMLElement>(
-      ".editable-block[data-content-ref], .block-image-ref",
-    );
-    if (editable && !editable.classList.contains("is-editing")) {
-      event.preventDefault();
-    }
-  }, []);
-
   const handleSheetsFocusOut = useCallback(
     (event: FocusEvent) => {
       const root = sheetsRef.current;
@@ -473,10 +499,16 @@ export default function PamphletEditor() {
         const active = document.activeElement;
         if (active === target || target.contains(active)) return;
         void finishEditing(target);
-      }, 120);
+      }, 200);
     },
     [finishEditing],
   );
+
+  sheetHandlersRef.current = {
+    click: handleSheetsClick,
+    keydown: handleSheetsKeyDown,
+    focusout: handleSheetsFocusOut,
+  };
 
   const openImagePicker = useCallback(() => {
     fileInputRef.current?.click();
@@ -562,12 +594,16 @@ export default function PamphletEditor() {
 
   useEffect(() => {
     const syncMobileStream = () => {
-      setIsMobileStream(window.innerWidth <= MOBILE_STREAM_MAX);
+      setIsMobileStream(window.innerWidth <= STREAM_BREAKPOINT);
     };
     syncMobileStream();
     window.addEventListener("resize", syncMobileStream);
     return () => window.removeEventListener("resize", syncMobileStream);
   }, []);
+
+  useEffect(() => {
+    applySheetScale();
+  }, [isMobileStream, applySheetScale]);
 
   useEffect(() => {
     const root = sheetsRef.current;
@@ -579,25 +615,30 @@ export default function PamphletEditor() {
     }
 
     root.innerHTML = previewHtml;
+    applyMobileOrder(root);
     setPageCount(previewHtml ? root.querySelectorAll(".sheet").length : 0);
-  }, [previewHtml]);
+    requestAnimationFrame(() => applySheetScale());
+  }, [previewHtml, applySheetScale]);
 
   useEffect(() => {
+    if (!authed) return;
     const root = sheetsRef.current;
     if (!root) return;
 
-    root.addEventListener("mousedown", handleSheetsMouseDown);
-    root.addEventListener("click", handleSheetsClick);
-    root.addEventListener("keydown", handleSheetsKeyDown);
-    root.addEventListener("focusout", handleSheetsFocusOut);
+    const onClick = (event: MouseEvent) => sheetHandlersRef.current.click(event);
+    const onKeyDown = (event: KeyboardEvent) => sheetHandlersRef.current.keydown(event);
+    const onFocusOut = (event: FocusEvent) => sheetHandlersRef.current.focusout(event);
+
+    root.addEventListener("click", onClick);
+    root.addEventListener("keydown", onKeyDown);
+    root.addEventListener("focusout", onFocusOut);
 
     return () => {
-      root.removeEventListener("mousedown", handleSheetsMouseDown);
-      root.removeEventListener("click", handleSheetsClick);
-      root.removeEventListener("keydown", handleSheetsKeyDown);
-      root.removeEventListener("focusout", handleSheetsFocusOut);
+      root.removeEventListener("click", onClick);
+      root.removeEventListener("keydown", onKeyDown);
+      root.removeEventListener("focusout", onFocusOut);
     };
-  }, [previewHtml, handleSheetsMouseDown, handleSheetsClick, handleSheetsKeyDown, handleSheetsFocusOut]);
+  }, [authed]);
 
   useEffect(() => {
     return () => {

@@ -41,6 +41,7 @@ const NAV_LINKS = [
 export function Header({ pathname }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileInitial, setProfileInitial] = useState("");
+  const [clientReady, setClientReady] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
   function navClass(href: string) {
@@ -75,6 +76,7 @@ export function Header({ pathname }: HeaderProps) {
   }, [menuOpen, pathname]);
 
   useEffect(() => {
+    setClientReady(true);
     const token = getAuthToken();
     setProfileInitial(token ? profileInitialFromToken(token) : "");
   }, [pathname]);
@@ -92,7 +94,7 @@ export function Header({ pathname }: HeaderProps) {
         eduardoos
       </a>
       <div className="site-header__bar">
-        {profileInitial ? (
+        {clientReady && profileInitial ? (
           <a
             className="site-header__profile"
             href={APP_ROUTES.home}
@@ -129,7 +131,7 @@ export function Header({ pathname }: HeaderProps) {
             {label}
           </a>
         ))}
-        {profileInitial ? (
+        {clientReady && profileInitial ? (
           <a
             className={`site-header__profile site-header__profile--nav${pathname === APP_ROUTES.home ? " is-active" : ""}`}
             href={APP_ROUTES.home}

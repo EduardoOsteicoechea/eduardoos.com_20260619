@@ -47,4 +47,15 @@ export default defineConfig({
   build: {
     assets: "assets",
   },
+  server: {
+    port: 4321,
+    /** Proxy API to nginx when Docker stack is up (https://localhost). */
+    proxy: {
+      "/api": {
+        target: "https://localhost",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 });
