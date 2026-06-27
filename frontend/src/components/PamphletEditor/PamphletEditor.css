@@ -54,6 +54,22 @@
   background: var(--glassed_background, rgba(30, 41, 59, 0.95));
   border: 1px solid var(--site-border);
   border-radius: var(--border_radius_001, 6px);
+  width: fit-content;
+  max-width: calc(100% - 1rem);
+}
+
+/* Desktop: float toolbar above activity bar so it does not cover the sheet */
+@media (min-width: 1024px) {
+  .pamphlet-editor__block-toolbar {
+    position: fixed;
+    top: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(var(--pamphlet-activity-pad) + 0.75rem);
+    margin: 0;
+    z-index: 60;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.35);
+  }
 }
 
 .pamphlet-editor__block-toolbar button {

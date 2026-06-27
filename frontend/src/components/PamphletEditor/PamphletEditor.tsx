@@ -93,15 +93,6 @@ function describeClickTarget(target: HTMLElement): Record<string, unknown> {
   };
 }
 
-function applyMobileOrder(root: HTMLElement): void {
-  root.querySelectorAll<HTMLElement>("[data-mobile-order]").forEach((el) => {
-    const order = el.getAttribute("data-mobile-order");
-    if (order) {
-      el.style.order = order;
-    }
-  });
-}
-
 function clampZoom(value: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
 }
@@ -751,7 +742,6 @@ export default function PamphletEditor() {
 
     pamphletResetTrace();
     source.innerHTML = previewHtml;
-    applyMobileOrder(source);
     const sheetCount = previewHtml ? source.querySelectorAll(".sheet").length : 0;
     setPageCount(sheetCount);
     pamphletLogPrintSource(source);
