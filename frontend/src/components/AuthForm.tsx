@@ -2,11 +2,11 @@
  * AuthForm.tsx — Login, register, and OTP verification with client validation.
  *
  * Register sends an OTP email first; the form then reveals the code field on the same page.
- * Login for unverified accounts also prompts for the pending OTP.
+ * The OTP step is mirrored in the URL (?step=otp&email=…) so it survives hydration/remounts.
  */
 import { useEffect, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../config/routes";
-import { loginUser, registerUser, verifyOtp } from "../lib/auth";
+import { hasIssuedToken, loginUser, registerUser, verifyOtp } from "../lib/auth";
 import {
   validateEmail,
   validateOtp,
@@ -32,30 +32,65 @@ function needsOtpStep(mode: AuthMode): boolean {
   return mode === "verify-otp";
 }
 
+function readOtpStepFromUrl(): { step: FormStep; email: string } {
+  if (typeof window === "undefined") {
+    return { step: "credentials", email: "" };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get("email") ?? "";
+  if (params.get("step") === "otp") {
+    return { step: "otp", email };
+  }
+  return { step: "credentials", email };
+}
+
+function persistOtpStep(email: string) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("step", "otp");
+  url.searchParams.set("email", email);
+  window.history.replaceState({}, "", url);
+}
+
+function clearOtpStepFromUrl() {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("step");
+  url.searchParams.delete("email");
+  window.history.replaceState({}, "", url);
+}
+
 export default function AuthForm({ mode }: AuthFormProps) {
-  const [email, setEmail] = useState("");
+  const initialUrl = readOtpStepFromUrl();
+  const [email, setEmail] = useState(initialUrl.email);
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<FormStep>(
-    needsOtpStep(mode) ? "otp" : "credentials",
+    needsOtpStep(mode) ? "otp" : initialUrl.step,
   );
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [redirectTo, setRedirectTo] = useState(APP_ROUTES.home);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const next = params.get("next");
     if (next && next.startsWith("/")) {
       setRedirectTo(next);
     }
+    const fromUrl = readOtpStepFromUrl();
+    if (fromUrl.step === "otp") {
+      setStep("otp");
+      if (fromUrl.email) {
+        setEmail(fromUrl.email);
+      }
+    }
   }, []);
 
   function finishAuth(messageText: string, traceId: string) {
+    clearOtpStepFromUrl();
     setMessage(`${messageText} (trace: ${traceId})`);
     window.location.href = redirectTo;
   }
@@ -78,10 +113,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
   }
 
   function goToOtpStep(traceId: string, hint: string) {
+    persistOtpStep(email);
     setStep("otp");
     setError("");
     setMessage(`${hint} (trace: ${traceId})`);
     setFieldErrors({});
+    setOtp("");
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -90,17 +127,18 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
     setLoading(true);
     setError("");
-    setMessage("");
+    if (!showOtpField) {
+      setMessage("");
+    }
 
     try {
       if (showOtpField) {
         const { result, log } = await verifyOtp({ email, otp });
-        if (!result?.token) {
+        if (!hasIssuedToken(result)) {
           setError("OTP verification failed — check the code and try again");
           return;
         }
-        setMessage(`${result.message} (trace: ${log.correlationId})`);
-        finishAuth(result.message, log.correlationId);
+        finishAuth(result!.message, log.correlationId);
         return;
       }
 
@@ -113,14 +151,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
           setError(apiError?.message ?? "Registration failed");
           return;
         }
-        if (!result.token) {
+        if (!hasIssuedToken(result)) {
           goToOtpStep(
             log.correlationId,
             "We emailed you a 6-digit code. Enter it below to finish creating your account.",
           );
           return;
         }
-        setMessage(`${result.message} (trace: ${log.correlationId})`);
         finishAuth(result.message, log.correlationId);
         return;
       }
@@ -138,7 +175,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
         setError(apiMessage || "Login failed");
         return;
       }
-      setMessage(`${result.message} (trace: ${log.correlationId})`);
       finishAuth(result.message, log.correlationId);
     } catch {
       setError("Network error — is the gateway running?");
@@ -153,9 +189,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
     "verify-otp": "Verify email",
   };
 
-  const submitLabel = showOtpField
-    ? "Verify email"
-    : titles[mode];
+  const submitLabel = showOtpField ? "Verify email" : titles[mode];
 
   return (
     <form className="auth-form panel" onSubmit={handleSubmit}>
@@ -175,7 +209,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
-          readOnly={showOtpField && mode === "register"}
+          readOnly={showOtpField}
         />
         {fieldErrors.email && (
           <span className="field-error">{fieldErrors.email}</span>
@@ -204,9 +238,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
       {showOtpField && (
         <div
-          className={`form-field ${fieldErrors.otp ? "form-field--error" : ""}`}
+          className={`form-field auth-form__otp-field ${fieldErrors.otp ? "form-field--error" : ""}`}
         >
           <label htmlFor="auth-otp">One-time code</label>
+          <p className="auth-form__otp-hint">
+            Check your inbox for a 6-digit code. If SMTP is not configured on the server, ask the admin for the code in the authenticator logs.
+          </p>
           <input
             id="auth-otp"
             type="text"
@@ -240,6 +277,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
             className="btn"
             disabled={loading}
             onClick={() => {
+              clearOtpStepFromUrl();
               setStep("credentials");
               setOtp("");
               setMessage("");

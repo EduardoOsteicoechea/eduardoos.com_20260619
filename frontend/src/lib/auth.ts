@@ -27,7 +27,12 @@ export interface OtpVerification {
 
 export interface AuthSuccess {
   message: string;
-  token?: string;
+  token?: string | null;
+}
+
+/** True only when the gateway returned a non-empty JWT string. */
+export function hasIssuedToken(data?: AuthSuccess | null): boolean {
+  return typeof data?.token === "string" && data.token.trim().length > 0;
 }
 
 export const AUTH_ROUTES = {
@@ -82,8 +87,8 @@ export async function registerUser(
   );
   await emitFlightLog(log, fetchFn);
 
-  if (response.data?.token) {
-    saveAuthToken(response.data.token);
+  if (hasIssuedToken(response.data)) {
+    saveAuthToken(response.data!.token!.trim());
   }
 
   return { result: response.data ?? null, log, error: response.error };
@@ -115,8 +120,8 @@ export async function loginUser(
   );
   await emitFlightLog(log, fetchFn);
 
-  if (response.data?.token) {
-    saveAuthToken(response.data.token);
+  if (hasIssuedToken(response.data)) {
+    saveAuthToken(response.data!.token!.trim());
   }
 
   return { result: response.data ?? null, log, error: response.error };
@@ -148,8 +153,8 @@ export async function verifyOtp(
   );
   await emitFlightLog(log, fetchFn);
 
-  if (response.data?.token) {
-    saveAuthToken(response.data.token);
+  if (hasIssuedToken(response.data)) {
+    saveAuthToken(response.data!.token!.trim());
   }
 
   return { result: response.data ?? null, log };

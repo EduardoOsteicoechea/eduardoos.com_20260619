@@ -1,1 +1,17 @@
-/* Auth form uses shared panel + form tokens from src/styles/pages.css */
+.auth-form__otp-field {
+  margin-top: 0.25rem;
+}
+
+.auth-form__otp-hint {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--site-body-fg, #cbd5e1);
+  opacity: 0.9;
+}
+
+.auth-form__otp-field input {
+  font-size: 1.25rem;
+  letter-spacing: 0.2em;
+  text-align: center;
+}

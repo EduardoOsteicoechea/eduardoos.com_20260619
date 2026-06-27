@@ -1,12 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   AUTH_ROUTES,
+  hasIssuedToken,
   loginUser,
   registerUser,
   verifyOtp,
 } from "./auth";
 
 describe("auth routes", () => {
+  it("hasIssuedToken ignores null, empty, and missing tokens", () => {
+    expect(hasIssuedToken({ message: "ok", token: null })).toBe(false);
+    expect(hasIssuedToken({ message: "ok", token: "" })).toBe(false);
+    expect(hasIssuedToken({ message: "ok" })).toBe(false);
+    expect(hasIssuedToken({ message: "ok", token: "eyJhbGciOiJIUzI1NiJ9" })).toBe(true);
+  });
   it("exposes correct public gateway paths", () => {
     expect(AUTH_ROUTES.register).toBe("/api/auth/register");
     expect(AUTH_ROUTES.login).toBe("/api/auth/login");
