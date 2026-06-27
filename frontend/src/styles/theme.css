@@ -1,6 +1,9 @@
 /* theme.css — system-only palette + fixed font-size scale */
 
 :root {
+  /* Mobile-first UI scale — 1 = desktop size, 1.5 = 50% larger type/controls (< 1024px) */
+  --ui-scale: 1.5;
+
   /* Colors: bg, fg, accent (fg surface / bg text), medium (50% mix / fg text) */
   --site-body-bg: #ffffff;
   --site-body-fg: #000000;
@@ -25,7 +28,7 @@
   --font-base: 1rem;
   --font-lg: 1.25rem;
 
-  --activity-bar-height: 56px;
+  --activity-bar-height: calc(56px * var(--ui-scale));
   --ui-control-min-height: var(--control_min_height);
   --ui-control-size: var(--control_min_height);
   --vv-height: 100dvh;
@@ -41,6 +44,7 @@
 
 @media (min-width: 1024px) {
   :root {
+    --ui-scale: 1;
     --activity-bar-height: 45px;
   }
 }
