@@ -36,6 +36,37 @@ func newStubStore(cfg Config) *stubStore {
 func (s *stubStore) BackendName() string { return "stub" }
 func (s *stubStore) BucketName() string  { return s.bucket }
 
+func (s *stubStore) PutAbsolute(_ context.Context, objectKey, contentType string, data []byte) (UploadResult, error) {
+	if err := ValidateAbsoluteKey(objectKey); err != nil {
+		return UploadResult{}, err
+	}
+	now := time.Now().UTC()
+	s.mu.Lock()
+	s.objs[objectKey] = stubObject{
+		data:         append([]byte(nil), data...),
+		contentType:  contentType,
+		lastModified: now,
+	}
+	s.saveToDisk()
+	s.mu.Unlock()
+	return UploadResult{
+		Bucket: s.bucket, Key: objectKey, ContentType: contentType, Stored: true,
+	}, nil
+}
+
+func (s *stubStore) GetAbsolute(_ context.Context, objectKey string) ([]byte, string, error) {
+	if err := ValidateAbsoluteKey(objectKey); err != nil {
+		return nil, "", err
+	}
+	s.mu.RLock()
+	obj, ok := s.objs[objectKey]
+	s.mu.RUnlock()
+	if !ok {
+		return nil, "", fmt.Errorf("not found")
+	}
+	return append([]byte(nil), obj.data...), obj.contentType, nil
+}
+
 func (s *stubStore) Put(_ context.Context, key, contentType string, data []byte) (UploadResult, error) {
 	if err := ValidateKey(key); err != nil {
 		return UploadResult{}, err

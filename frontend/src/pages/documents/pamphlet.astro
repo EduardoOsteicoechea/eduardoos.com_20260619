@@ -1,0 +1,10 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PamphletEditor from "../../components/PamphletEditor/PamphletEditor";
+---
+
+<BaseLayout title="Pamphlet Generator — Eduardo Osteicoechea" activityBarMode="editor">
+  <div class="page-shell page-shell--wide">
+    <PamphletEditor client:load />
+  </div>
+</BaseLayout>

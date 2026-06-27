@@ -33,6 +33,48 @@ func newAWSStore(ctx context.Context, cfg Config) (*awsStore, error) {
 func (a *awsStore) BackendName() string { return "aws" }
 func (a *awsStore) BucketName() string  { return a.bucket }
 
+func (a *awsStore) PutAbsolute(ctx context.Context, objectKey, contentType string, data []byte) (UploadResult, error) {
+	if err := ValidateAbsoluteKey(objectKey); err != nil {
+		return UploadResult{}, err
+	}
+	ct := contentType
+	_, err := a.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(a.bucket),
+		Key:         aws.String(objectKey),
+		Body:        bytes.NewReader(data),
+		ContentType: &ct,
+	})
+	if err != nil {
+		return UploadResult{}, err
+	}
+	return UploadResult{
+		Bucket: a.bucket, Key: objectKey, ContentType: contentType, Stored: true,
+	}, nil
+}
+
+func (a *awsStore) GetAbsolute(ctx context.Context, objectKey string) ([]byte, string, error) {
+	if err := ValidateAbsoluteKey(objectKey); err != nil {
+		return nil, "", err
+	}
+	out, err := a.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(a.bucket),
+		Key:    aws.String(objectKey),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	defer out.Body.Close()
+	data, err := io.ReadAll(out.Body)
+	if err != nil {
+		return nil, "", err
+	}
+	ct := ""
+	if out.ContentType != nil {
+		ct = *out.ContentType
+	}
+	return data, ct, nil
+}
+
 func (a *awsStore) Put(ctx context.Context, key, contentType string, data []byte) (UploadResult, error) {
 	if err := ValidateKey(key); err != nil {
 		return UploadResult{}, err

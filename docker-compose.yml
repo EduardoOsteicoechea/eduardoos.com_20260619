@@ -65,12 +65,14 @@ services:
     environment:
       JWT_SECRET: ${JWT_SECRET}
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      DATABASE_URL: http://database:3000
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       TELEMETRY_URL: http://telemetry:3000
     networks:
       - internal
     depends_on:
+      - database
       - telemetry
 
   database:
@@ -97,6 +99,11 @@ services:
         SERVICE: documents
     environment:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      PAMPHLETS_BACKEND: ${PAMPHLETS_BACKEND:-memory}
+      PAMPHLET_HEADERS_TABLE: ${PAMPHLET_HEADERS_TABLE:-eduardoos_pamphlet_headers}
+      PAMPHLET_FOOTERS_TABLE: ${PAMPHLET_FOOTERS_TABLE:-eduardoos_pamphlet_footers}
+      PAMPHLET_CONTENTS_TABLE: ${PAMPHLET_CONTENTS_TABLE:-eduardoos_pamphlet_contents}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
     networks:
       - internal
 

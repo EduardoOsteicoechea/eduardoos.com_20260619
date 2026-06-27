@@ -9,6 +9,7 @@ export const APP_ROUTES = {
   subscriptionMonthlyBasic: "/payments/subscription/montly/basic",
   mediaGallery: "/media/gallery",
   mediaPlaylist: "/media/playlist",
+  pamphlet: "/documents/pamphlet",
 } as const;
 
 /** Public gateway media API endpoints. */

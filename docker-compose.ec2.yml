@@ -30,6 +30,12 @@ services:
 
   documents:
     platform: linux/arm64
+    environment:
+      PAMPHLETS_BACKEND: dynamodb
+      PAMPHLET_HEADERS_TABLE: ${PAMPHLET_HEADERS_TABLE:-eduardoos_pamphlet_headers}
+      PAMPHLET_FOOTERS_TABLE: ${PAMPHLET_FOOTERS_TABLE:-eduardoos_pamphlet_footers}
+      PAMPHLET_CONTENTS_TABLE: ${PAMPHLET_CONTENTS_TABLE:-eduardoos_pamphlet_contents}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
 
   telemetry:
     platform: linux/arm64

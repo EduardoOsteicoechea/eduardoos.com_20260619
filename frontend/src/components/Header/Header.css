@@ -11,6 +11,7 @@
   background: var(--site-body-bg);
   border-bottom: var(--border_001);
   color: var(--site-body-fg);
+  overflow: visible;
 }
 
 .site-header__brand {

@@ -8,6 +8,7 @@ import "./BaseLayout.css";
 import PageBackground from "../components/PageBackground/PageBackground.astro";
 import { isHomePath } from "../config/homeLayout";
 import { Header } from "../components/Header/Header";
+import { AuthGate } from "../components/AuthGate/AuthGate";
 
 interface Props {
   title?: string;
@@ -76,6 +77,7 @@ const pageEditor = activityBarMode === "editor";
     }}
   >
     <PageBackground />
+    <AuthGate client:load pathname={pathname} />
     <Header client:load pathname={pathname} />
     <main>
       <slot />

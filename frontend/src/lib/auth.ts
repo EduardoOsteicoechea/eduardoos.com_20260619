@@ -7,7 +7,7 @@
  *   POST /api/auth/verify-otp
  */
 
-import { apiRequest } from "./api";
+import { apiRequest, type ApiError } from "./api";
 import {
   buildFlightLog,
   createCorrelationId,
@@ -60,7 +60,7 @@ export function clearAuthToken(): void {
 export async function registerUser(
   credentials: AuthCredentials,
   fetchFn?: typeof fetch
-): Promise<{ result: AuthSuccess | null; log: FlightLogEntry }> {
+): Promise<{ result: AuthSuccess | null; log: FlightLogEntry; error?: ApiError }> {
   const correlationId = createCorrelationId();
   const started = buildFlightLog("auth.register", "started", correlationId, {
     email: credentials.email,
@@ -86,14 +86,14 @@ export async function registerUser(
     saveAuthToken(response.data.token);
   }
 
-  return { result: response.data ?? null, log };
+  return { result: response.data ?? null, log, error: response.error };
 }
 
 /** Logs in an existing user. */
 export async function loginUser(
   credentials: AuthCredentials,
   fetchFn?: typeof fetch
-): Promise<{ result: AuthSuccess | null; log: FlightLogEntry }> {
+): Promise<{ result: AuthSuccess | null; log: FlightLogEntry; error?: ApiError }> {
   const correlationId = createCorrelationId();
   const started = buildFlightLog("auth.login", "started", correlationId, {
     email: credentials.email,
@@ -119,7 +119,7 @@ export async function loginUser(
     saveAuthToken(response.data.token);
   }
 
-  return { result: response.data ?? null, log };
+  return { result: response.data ?? null, log, error: response.error };
 }
 
 /** Verifies a one-time password sent via SMTP. */

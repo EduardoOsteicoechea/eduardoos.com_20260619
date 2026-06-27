@@ -29,6 +29,8 @@ type MediaStore interface {
 	Put(ctx context.Context, key, contentType string, data []byte) (UploadResult, error)
 	Get(ctx context.Context, key string) ([]byte, string, error)
 	List(ctx context.Context, prefix string) ([]ObjectMeta, error)
+	PutAbsolute(ctx context.Context, objectKey, contentType string, data []byte) (UploadResult, error)
+	GetAbsolute(ctx context.Context, objectKey string) ([]byte, string, error)
 	BackendName() string
 	BucketName() string
 }

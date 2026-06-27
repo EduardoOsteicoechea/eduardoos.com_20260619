@@ -25,16 +25,18 @@ type config struct {
 	TesterURL        string
 	PaymentsURL      string
 	S3URL            string
+	DocumentsURL     string
 	Telemetry        *common.TelemetryClient
 }
 
 var publicPaths = []string{
 	"/health",
 	"/api/auth/login", "/api/auth/register", "/api/auth/verify-otp",
-	"/api/logger", "/api/logger/logs", "/api/logger/analytics", "/api/logger/trace", "/api/logger/stream",
-	"/api/tester", "/api/tester/runs", "/api/tester/report",
-	"/api/payments/intents", "/api/payments/webhook/paypal", "/api/payments/status",
-	"/api/media/upload", "/api/media/upload/multiple", "/api/media/objects", "/api/media/images", "/api/media/audio", "/api/media/file",
+	"/api/playlists",
+	"/api/media/audio",
+	"/api/media/file",
+	"/api/pamphlets/images",
+	"/api/payments/webhook/paypal",
 }
 
 func isPublic(path string) bool {
@@ -56,6 +58,7 @@ func main() {
 		TesterURL:        common.Env("TESTER_URL", "http://tester:3000"),
 		PaymentsURL:      common.Env("PAYMENTS_URL", "http://payments:3000"),
 		S3URL:            common.Env("S3_URL", "http://s3:3000"),
+		DocumentsURL:     common.Env("DOCUMENTS_URL", "http://documents:3000"),
 	}
 	cfg.Telemetry = common.NewTelemetryClient(cfg.TelemetryURL, cfg.InternalSecret)
 
@@ -95,6 +98,7 @@ func main() {
 	r.Get("/api/media/audio", cfg.listMediaAudio())
 	r.Get("/api/media/file/*", cfg.proxyMediaFile())
 	registerPlaylistRoutes(r, cfg, playlistStore)
+	registerPamphletGatewayRoutes(r, cfg)
 
 	log.Printf("backend listening on %s", common.ListenAddr())
 	log.Fatal(http.ListenAndServe(common.ListenAddr(), r))
@@ -113,12 +117,14 @@ func correlationMiddleware(next http.Handler) http.Handler {
 
 func authGate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cid := common.CorrelationFromRequest(r)
 		if isPublic(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}
 		auth := strings.TrimSpace(r.Header.Get("Authorization"))
 		if auth == "" {
+			log.Printf("[correlation=%s] authGate denied path=%s method=%s reason=missing_authorization", cid, r.URL.Path, r.Method)
 			common.WriteError(w, http.StatusUnauthorized, "authorization required")
 			return
 		}
@@ -128,9 +134,51 @@ func authGate(next http.Handler) http.Handler {
 
 func (c config) proxyAuth(path string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		cid := common.CorrelationFromRequest(r)
+		event := "auth" + strings.ReplaceAll(path, "/", ".")
+		c.Telemetry.Emit(common.NewFlightLog(cid, "backend", event, "started"), cid)
+
 		url := strings.TrimRight(c.AuthenticatorURL, "/") + path
-		c.signedProxy(w, r, http.MethodPost, url, "auth"+path)
+		body, _ := io.ReadAll(r.Body)
+		log.Printf("[correlation=%s] %s proxy start target=%s body_bytes=%d", cid, event, path, len(body))
+
+		req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+		if err != nil {
+			log.Printf("[correlation=%s] %s proxy build request failed: %v", cid, event, err)
+			common.WriteError(w, http.StatusBadGateway, "auth service unavailable")
+			return
+		}
+		req.Header.Set(common.CorrelationHeader, cid)
+		req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(c.InternalSecret, cid))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Printf("[correlation=%s] %s proxy upstream error: %v", cid, event, err)
+			common.WriteError(w, http.StatusBadGateway, "auth service unavailable")
+			return
+		}
+		defer resp.Body.Close()
+		out, _ := io.ReadAll(resp.Body)
+		log.Printf("[correlation=%s] %s proxy upstream status=%d response=%s", cid, event, resp.StatusCode, truncateForLog(string(out), 240))
+
+		if resp.StatusCode < 400 {
+			c.Telemetry.Emit(common.NewFlightLog(cid, "backend", event, "success"), cid)
+		} else {
+			c.Telemetry.Emit(common.NewFlightLog(cid, "backend", event, "error"), cid)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		_, _ = w.Write(out)
 	}
+}
+
+func truncateForLog(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "…"
 }
 
 func (c config) proxyPost(downPath, base, event string) http.HandlerFunc {

@@ -1,0 +1,17 @@
+{
+    "heading": "Contactanos",
+    "contact_items": [
+        {
+            "type": "Email",
+            "value": "eduardooost@gmail.com"
+        },
+        {
+            "type": "WhatsApp",
+            "value": "+58 414 728 1033"
+        }
+    ],
+    "address_data": {
+        "message": "Estamos ubicados en:",
+        "address":"Mérida, Venezuela"
+    }
+}

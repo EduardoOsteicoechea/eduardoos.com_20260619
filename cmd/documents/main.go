@@ -2,10 +2,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 
+	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/common"
 	"eduardoos/pkg/pdf"
 
@@ -14,11 +16,21 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
 	secret := common.Env("INTERNAL_SERVICE_SECRET", "dev-internal-secret")
+	pamphletStore, err := ddb.NewPamphletDocumentStore(ctx)
+	if err != nil {
+		log.Fatalf("pamphlet store: %v", err)
+	}
+	log.Printf("pamphlet store backend=%s", pamphletStore.BackendName())
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Get("/health", common.HealthHandler("documents", nil))
+	r.Get("/health", common.HealthHandler("documents", map[string]any{
+		"pamphlets_backend": pamphletStore.BackendName(),
+	}))
+	registerPamphletRoutes(r, secret, pamphletStore)
 	r.Group(func(r chi.Router) {
 		r.Use(common.InternalAuthMiddleware(secret))
 		r.Post("/generate", func(w http.ResponseWriter, r *http.Request) {
