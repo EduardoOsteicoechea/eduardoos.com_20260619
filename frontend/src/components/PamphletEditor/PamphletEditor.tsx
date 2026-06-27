@@ -12,7 +12,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import { getAuthToken } from "../../lib/auth";
-import { pamphletDebug, pamphletDebugError } from "../../lib/pamphletDebug";
+import {
+  pamphletDebug,
+  pamphletDebugError,
+  pamphletDomSummary,
+  pamphletLogMobileStream,
+  pamphletLogPrintSource,
+  pamphletResetTrace,
+  pamphletTrace,
+} from "../../lib/pamphletDebug";
 import {
   DEFAULT_LAYOUT,
   fetchCapacity,
@@ -50,6 +58,41 @@ const ZOOM_MAX = 1.5;
 const STREAM_BREAKPOINT = 1023;
 const DESKTOP_MIN = 1024;
 
+const EDITABLE_SELECTOR =
+  ".editable-block[data-content-ref], .editable-type-block[data-content-ref]";
+
+function syncMobileStreamCards(source: HTMLElement, target: HTMLElement): number {
+  target.innerHTML = "";
+  const ordered = [...source.querySelectorAll<HTMLElement>("[data-mobile-order]")].sort(
+    (a, b) =>
+      Number(a.getAttribute("data-mobile-order") ?? 0) -
+      Number(b.getAttribute("data-mobile-order") ?? 0),
+  );
+
+  for (const node of ordered) {
+    const card = document.createElement("article");
+    card.className = "pamphlet-mobile-card";
+    card.setAttribute("data-mobile-order", node.getAttribute("data-mobile-order") ?? "");
+    if (node.id) {
+      card.setAttribute("data-stream-source-id", node.id);
+    }
+    card.appendChild(node.cloneNode(true));
+    target.appendChild(card);
+  }
+
+  return ordered.length;
+}
+
+function describeClickTarget(target: HTMLElement): Record<string, unknown> {
+  return {
+    target: pamphletDomSummary(target),
+    editable: pamphletDomSummary(target.closest<HTMLElement>(EDITABLE_SELECTOR)),
+    imageWrap: pamphletDomSummary(target.closest<HTMLElement>(".block-image-wrap[data-content-ref]")),
+    caption: pamphletDomSummary(target.closest<HTMLElement>(".block-image-ref")),
+    clearBtn: Boolean(target.closest("[data-image-clear]")),
+  };
+}
+
 function applyMobileOrder(root: HTMLElement): void {
   root.querySelectorAll<HTMLElement>("[data-mobile-order]").forEach((el) => {
     const order = el.getAttribute("data-mobile-order");
@@ -73,6 +116,8 @@ export default function PamphletEditor() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const sheetsRef = useRef<HTMLDivElement>(null);
+  const mobileStreamRef = useRef<HTMLDivElement>(null);
+  const interactionRef = useRef<HTMLDivElement>(null);
   const layoutRef = useRef<LayoutFields>(DEFAULT_LAYOUT);
   const editingRef = useRef<HTMLElement | null>(null);
   const editOriginalRef = useRef("");
@@ -101,26 +146,44 @@ export default function PamphletEditor() {
   const [pageCount, setPageCount] = useState(0);
   const [pamphlets, setPamphlets] = useState<PamphletRegistryItem[]>([]);
   const [sortBy, setSortBy] = useState<"alpha" | "date">("alpha");
-  const [isMobileStream, setIsMobileStream] = useState(false);
+  const [isMobileStream, setIsMobileStream] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= STREAM_BREAKPOINT,
+  );
 
   const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
     setAuthed(Boolean(getAuthToken()));
-    setIsMobileStream(window.innerWidth <= STREAM_BREAKPOINT);
+    const stream = window.innerWidth <= STREAM_BREAKPOINT;
+    setIsMobileStream(stream);
+    pamphletTrace("mount", {
+      innerWidth: window.innerWidth,
+      streamBreakpoint: STREAM_BREAKPOINT,
+      isMobileStream: stream,
+      debug: localStorage.getItem("eduardoos-pamphlet-debug") ?? "off",
+    });
   }, []);
 
   layoutRef.current = layout;
 
+  const getInteractionRoot = useCallback((): HTMLElement | null => {
+    if (isMobileStream && mobileStreamRef.current) {
+      return mobileStreamRef.current;
+    }
+    return sheetsRef.current;
+  }, [isMobileStream]);
+
   const applyMutation = useCallback(async (body: Record<string, unknown>) => {
     setRefreshing(true);
     setError("");
+    pamphletTrace("mutation_start", body);
     pamphletDebug("mutation", { op: String(body.op ?? ""), ref: body.ref });
     try {
       const result = await mutatePamphletContent(body, layoutRef.current);
       setPreviewHtml(result.html);
       setCapacity(result.capacity);
       setStatus("Content updated");
+      pamphletTrace("mutation_done", { op: String(body.op ?? ""), htmlLen: result.html.length });
     } catch (err) {
       pamphletDebugError("mutation_failed", err, body);
       setError(err instanceof Error ? err.message : "Mutation failed");
@@ -141,6 +204,7 @@ export default function PamphletEditor() {
       setPreviewHtml(html);
       setCapacity(cap);
       setStatus("Preview updated");
+      pamphletTrace("preview_refreshed", { htmlLen: html.length, sheetCount: (html.match(/class="sheet"/g) ?? []).length });
     } catch (err) {
       pamphletDebugError("preview_refresh_failed", err);
       setError(err instanceof Error ? err.message : "Preview refresh failed");
@@ -316,19 +380,35 @@ export default function PamphletEditor() {
     suppressBlurRef.current = true;
     window.setTimeout(() => {
       suppressBlurRef.current = false;
-    }, 400);
+    }, 500);
 
     const ref = el.getAttribute("data-content-ref") ?? "";
-    setActiveRef(ref);
-    setActiveIsImage(el.classList.contains("block-image-ref"));
-    if (el.classList.contains("is-editing")) return;
+    const field = el.getAttribute("data-content-field") ?? undefined;
+    const kind = [
+      el.classList.contains("block-heading") ? "heading" : "",
+      el.classList.contains("block-paragraph") ? "paragraph" : "",
+      el.classList.contains("block-list") ? "list" : "",
+      el.classList.contains("block-quote") ? "quote" : "",
+      el.classList.contains("block-image-ref") ? "image_caption" : "",
+      el.classList.contains("pamphlet-header-title") ? "header_title" : "",
+      el.classList.contains("pamphlet-footer-title") ? "footer_title" : "",
+    ]
+      .filter(Boolean)
+      .join("|") || el.className;
 
-    pamphletDebug("edit_click", { ref, field: el.getAttribute("data-content-field") ?? undefined });
+    if (el.classList.contains("is-editing")) {
+      pamphletTrace("enter_edit_skipped", { ref, reason: "already_editing", kind });
+      return;
+    }
+
+    pamphletTrace("enter_edit_start", { ref, field, kind, el: pamphletDomSummary(el) });
+    pamphletDebug("edit_click", { ref, field, kind });
 
     editOriginalRef.current = stripHighlightMarkup(el.innerHTML).trim();
     editingRef.current = el;
     el.classList.add("is-editing");
     el.contentEditable = "true";
+
     requestAnimationFrame(() => {
       el.focus({ preventScroll: true });
       const range = document.createRange();
@@ -337,7 +417,15 @@ export default function PamphletEditor() {
       const sel = window.getSelection();
       sel?.removeAllRanges();
       sel?.addRange(range);
+      pamphletTrace("enter_edit_focused", {
+        ref,
+        activeElement: document.activeElement?.tagName?.toLowerCase(),
+        selectionLen: sel?.toString().length ?? 0,
+      });
     });
+
+    setActiveRef(ref);
+    setActiveIsImage(el.classList.contains("block-image-ref"));
   }, []);
 
   const selectImageWrap = useCallback((wrap: HTMLElement) => {
@@ -352,15 +440,27 @@ export default function PamphletEditor() {
           node.classList.remove("is-selected");
         }
       });
+    pamphletTrace("image_select", { ref, wrap: pamphletDomSummary(wrap) });
     pamphletDebug("image_select", { ref });
   }, []);
 
   const finishEditing = useCallback(async (el: HTMLElement) => {
-    if (!el.classList.contains("is-editing")) return;
+    if (!el.classList.contains("is-editing")) {
+      pamphletTrace("finish_edit_skipped", { reason: "not_editing", el: pamphletDomSummary(el) });
+      return;
+    }
 
     const ref = el.getAttribute("data-content-ref") ?? "";
     const field = el.getAttribute("data-content-field") ?? undefined;
     const value = stripHighlightMarkup(el.innerHTML).trim();
+
+    pamphletTrace("finish_edit_start", {
+      ref,
+      field,
+      valueLen: value.length,
+      originalLen: editOriginalRef.current.length,
+      changed: value !== editOriginalRef.current,
+    });
 
     el.contentEditable = "false";
     el.classList.remove("is-editing");
@@ -368,11 +468,14 @@ export default function PamphletEditor() {
 
     if (!ref) {
       setActiveRef("");
+      pamphletTrace("finish_edit_aborted", { reason: "missing_ref" });
       return;
     }
 
     if (value === editOriginalRef.current) {
+      pamphletTrace("finish_edit_unchanged", { ref, field });
       pamphletDebug("content_save_skipped", { ref, field, reason: "unchanged" });
+      setActiveRef("");
       return;
     }
 
@@ -395,8 +498,13 @@ export default function PamphletEditor() {
   const handleSheetsClick = useCallback(
     (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      const root = sheetsRef.current;
+      const root = getInteractionRoot();
       if (!root || !root.contains(target)) return;
+
+      pamphletTrace("click", {
+        ...describeClickTarget(target),
+        mobileStream: isMobileStream,
+      });
 
       const clearBtn = target.closest<HTMLElement>("[data-image-clear]");
       if (clearBtn) {
@@ -404,6 +512,7 @@ export default function PamphletEditor() {
         event.stopPropagation();
         const wrap = clearBtn.closest<HTMLElement>(".block-image-wrap[data-content-ref]");
         const ref = wrap?.getAttribute("data-content-ref") ?? "";
+        pamphletTrace("click_clear_image", { ref });
         if (ref) {
           if (editingRef.current) {
             const editing = editingRef.current;
@@ -433,7 +542,6 @@ export default function PamphletEditor() {
         const wrap = caption.closest<HTMLElement>(".block-image-wrap[data-content-ref]");
         const ref = wrap?.getAttribute("data-content-ref") ?? "";
         if (ref) {
-          setActiveRef(ref);
           setActiveIsImage(true);
         }
         if (!caption.hasAttribute("data-content-ref") && wrap) {
@@ -447,19 +555,20 @@ export default function PamphletEditor() {
       }
 
       const imageWrap = target.closest<HTMLElement>(".block-image-wrap[data-content-ref]");
-      if (imageWrap) {
+      if (imageWrap && !target.closest(".block-image-ref")) {
         selectImageWrap(imageWrap);
         return;
       }
 
-      const block = target.closest<HTMLElement>(
-        ".editable-block[data-content-ref], .editable-type-block[data-content-ref]",
-      );
+      const block = target.closest<HTMLElement>(EDITABLE_SELECTOR);
       if (block) {
         enterEditMode(block);
+        return;
       }
+
+      pamphletTrace("click_unhandled", describeClickTarget(target));
     },
-    [applyMutation, enterEditMode, selectImageWrap],
+    [applyMutation, enterEditMode, getInteractionRoot, isMobileStream, selectImageWrap],
   );
 
   const handleSheetsKeyDown = useCallback(
@@ -484,24 +593,47 @@ export default function PamphletEditor() {
 
   const handleSheetsFocusOut = useCallback(
     (event: FocusEvent) => {
-      const root = sheetsRef.current;
+      const root = getInteractionRoot();
       const target = event.target as HTMLElement;
       if (!root || !target.classList.contains("is-editing")) return;
-      if (suppressBlurRef.current) return;
+      if (suppressBlurRef.current) {
+        pamphletTrace("focusout_suppressed", { ref: target.getAttribute("data-content-ref") });
+        return;
+      }
+
+      const related = event.relatedTarget as HTMLElement | null;
+      pamphletTrace("focusout_scheduled", {
+        ref: target.getAttribute("data-content-ref"),
+        related: related ? pamphletDomSummary(related) : null,
+        activeElement: pamphletDomSummary(document.activeElement),
+      });
 
       if (blurTimerRef.current !== null) {
         window.clearTimeout(blurTimerRef.current);
       }
       blurTimerRef.current = window.setTimeout(() => {
         blurTimerRef.current = null;
-        if (suppressBlurRef.current) return;
-        if (!target.isConnected || !target.classList.contains("is-editing")) return;
+        if (suppressBlurRef.current) {
+          pamphletTrace("focusout_timer_suppressed");
+          return;
+        }
+        if (!target.isConnected || !target.classList.contains("is-editing")) {
+          pamphletTrace("focusout_timer_aborted", { reason: "no_longer_editing" });
+          return;
+        }
         const active = document.activeElement;
-        if (active === target || target.contains(active)) return;
+        if (active === target || target.contains(active)) {
+          pamphletTrace("focusout_timer_aborted", { reason: "still_focused" });
+          return;
+        }
+        if (related?.closest?.(".pamphlet-editor__block-toolbar")) {
+          pamphletTrace("focusout_timer_aborted", { reason: "toolbar_focus" });
+          return;
+        }
         void finishEditing(target);
-      }, 200);
+      }, 250);
     },
-    [finishEditing],
+    [finishEditing, getInteractionRoot],
   );
 
   sheetHandlersRef.current = {
@@ -546,7 +678,7 @@ export default function PamphletEditor() {
         const range = sel.getRangeAt(0);
         const el =
           editingRef.current ??
-          sheetsRef.current?.querySelector<HTMLElement>(`[data-content-ref="${activeRef}"]`);
+          getInteractionRoot()?.querySelector<HTMLElement>(`[data-content-ref="${activeRef}"]`);
         if (!el || !el.contains(range.commonAncestorContainer)) return;
         const pre = document.createRange();
         pre.selectNodeContents(el);
@@ -558,7 +690,7 @@ export default function PamphletEditor() {
       }
       await applyMutation({ op, ref: activeRef });
     },
-    [activeRef, applyMutation],
+    [activeRef, applyMutation, getInteractionRoot],
   );
 
   useEffect(() => {
@@ -594,7 +726,9 @@ export default function PamphletEditor() {
 
   useEffect(() => {
     const syncMobileStream = () => {
-      setIsMobileStream(window.innerWidth <= STREAM_BREAKPOINT);
+      const stream = window.innerWidth <= STREAM_BREAKPOINT;
+      setIsMobileStream(stream);
+      pamphletTrace("resize", { innerWidth: window.innerWidth, isMobileStream: stream });
     };
     syncMobileStream();
     window.addEventListener("resize", syncMobileStream);
@@ -606,24 +740,41 @@ export default function PamphletEditor() {
   }, [isMobileStream, applySheetScale]);
 
   useEffect(() => {
-    const root = sheetsRef.current;
-    if (!root) return;
+    const source = sheetsRef.current;
+    if (!source) return;
 
     const editing = editingRef.current;
     if (editing?.isConnected && editing.classList.contains("is-editing")) {
+      pamphletTrace("preview_dom_skipped", { reason: "editing_in_progress" });
       return;
     }
 
-    root.innerHTML = previewHtml;
-    applyMobileOrder(root);
-    setPageCount(previewHtml ? root.querySelectorAll(".sheet").length : 0);
+    pamphletResetTrace();
+    source.innerHTML = previewHtml;
+    applyMobileOrder(source);
+    const sheetCount = previewHtml ? source.querySelectorAll(".sheet").length : 0;
+    setPageCount(sheetCount);
+    pamphletLogPrintSource(source);
+
+    const mobileTarget = mobileStreamRef.current;
+    if (isMobileStream && mobileTarget) {
+      const cardCount = syncMobileStreamCards(source, mobileTarget);
+      pamphletTrace("mobile_stream_built", { cardCount, sheetCount });
+      pamphletLogMobileStream(mobileTarget);
+    } else if (mobileTarget) {
+      mobileTarget.innerHTML = "";
+      pamphletTrace("mobile_stream_cleared", { reason: "desktop_mode" });
+    }
+
     requestAnimationFrame(() => applySheetScale());
-  }, [previewHtml, applySheetScale]);
+  }, [previewHtml, applySheetScale, isMobileStream]);
 
   useEffect(() => {
     if (!authed) return;
-    const root = sheetsRef.current;
+    const root = interactionRef.current;
     if (!root) return;
+
+    pamphletTrace("handlers_attached", { mobileStream: isMobileStream });
 
     const onClick = (event: MouseEvent) => sheetHandlersRef.current.click(event);
     const onKeyDown = (event: KeyboardEvent) => sheetHandlersRef.current.keydown(event);
@@ -631,14 +782,14 @@ export default function PamphletEditor() {
 
     root.addEventListener("click", onClick);
     root.addEventListener("keydown", onKeyDown);
-    root.addEventListener("focusout", onFocusOut);
+    root.addEventListener("focusout", onFocusOut, true);
 
     return () => {
       root.removeEventListener("click", onClick);
       root.removeEventListener("keydown", onKeyDown);
-      root.removeEventListener("focusout", onFocusOut);
+      root.removeEventListener("focusout", onFocusOut, true);
     };
-  }, [authed]);
+  }, [authed, isMobileStream]);
 
   useEffect(() => {
     return () => {
@@ -694,7 +845,12 @@ export default function PamphletEditor() {
           aria-hidden
         />
         {activeRef ? (
-          <div className="pamphlet-editor__block-toolbar" role="toolbar" aria-label="Block tools">
+          <div
+            className="pamphlet-editor__block-toolbar"
+            role="toolbar"
+            aria-label="Block tools"
+            onMouseDown={(event) => event.preventDefault()}
+          >
             {activeIsImage ? (
               <button type="button" title="Upload image" onClick={openImagePicker}>
                 Img
@@ -724,7 +880,16 @@ export default function PamphletEditor() {
         ) : null}
         <div className="pamphlet-editor__viewport" ref={viewportRef}>
           <div className="pamphlet-editor__canvas" ref={canvasRef}>
-            <div className="pamphlet-editor__sheets" ref={sheetsRef} />
+            <div className="pamphlet-editor__interaction" ref={interactionRef}>
+              <div
+                className="pamphlet-editor__sheets pamphlet-editor__sheets--print-source"
+                ref={sheetsRef}
+                aria-hidden={isMobileStream}
+              />
+              {isMobileStream ? (
+                <div className="pamphlet-editor__mobile-stream" ref={mobileStreamRef} />
+              ) : null}
+            </div>
           </div>
         </div>
       </main>
