@@ -17,6 +17,7 @@ export interface RequestOptions {
   method?: string;
   body?: unknown;
   correlationId: string;
+  authToken?: string;
   fetchFn?: typeof fetch;
 }
 
@@ -30,6 +31,9 @@ export async function apiRequest<T>(
     "Content-Type": "application/json",
     "X-Correlation-ID": options.correlationId,
   };
+  if (options.authToken) {
+    headers.Authorization = `Bearer ${options.authToken}`;
+  }
 
   const response = await fetchFn(path, {
     method: options.method ?? "GET",

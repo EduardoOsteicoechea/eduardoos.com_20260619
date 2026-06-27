@@ -1,21 +1,21 @@
 ---
 /**
- * BaseLayout.astro — Root HTML shell (Eduardo OS chrome, PWA hooks, global audio player).
+ * BaseLayout.astro — Root HTML shell (Eduardo OS chrome + PWA hooks).
  */
 import { ClientRouter } from "astro:transitions";
 import "../styles/global.css";
 import "./BaseLayout.css";
 import PageBackground from "../components/PageBackground/PageBackground.astro";
-import GlobalPlayer from "../components/GlobalPlayer/GlobalPlayer";
 import { isHomePath } from "../config/homeLayout";
 import { Header } from "../components/Header/Header";
 
 interface Props {
   title?: string;
   activityBarMode?: "default" | "article" | "editor";
+  pagePlaylist?: boolean;
 }
 
-const { title = "Eduardo Osteicoechea", activityBarMode = "default" } =
+const { title = "Eduardo Osteicoechea", activityBarMode = "default", pagePlaylist = false } =
   Astro.props;
 
 const pathname = Astro.url.pathname;
@@ -72,14 +72,11 @@ const pageEditor = activityBarMode === "editor";
     class:list={{
       "page-editor": pageEditor,
       "has-page-background": true,
-      "has-global-player": true,
+      "page-playlist": pagePlaylist,
     }}
   >
     <PageBackground />
     <Header client:load pathname={pathname} />
-    <div transition:persist="audio-player">
-      <GlobalPlayer client:load />
-    </div>
     <main>
       <slot />
     </main>

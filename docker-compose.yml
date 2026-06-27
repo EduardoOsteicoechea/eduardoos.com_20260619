@@ -35,6 +35,10 @@ services:
       S3_URL: http://s3:3000
       S3_PREFIX: ${S3_PREFIX:-media}
       S3_BUCKET: ${S3_BUCKET:-eduardoos20260607}
+      S3_BACKEND: ${S3_BACKEND:-stub}
+      S3_AUDIO_PREFIX: ${S3_AUDIO_PREFIX:-worship_playlists}
+      PLAYLISTS_BACKEND: ${PLAYLISTS_BACKEND:-memory}
+      PLAYLISTS_TABLE: ${PLAYLISTS_TABLE:-eduardoos_playlists}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       CHATBOT_URL: http://chatbot:3000
       PAYMENTS_URL: http://payments:3000

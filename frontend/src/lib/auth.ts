@@ -36,6 +36,26 @@ export const AUTH_ROUTES = {
   verifyOtp: "/api/auth/verify-otp",
 } as const;
 
+const AUTH_TOKEN_KEY = "eduardoos-auth-token";
+
+/** Persists the JWT issued by the authenticator after login or OTP verification. */
+export function saveAuthToken(token: string): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+/** Returns the stored JWT for authenticated gateway routes (e.g. playlists). */
+export function getAuthToken(): string {
+  if (typeof localStorage === "undefined") return "";
+  return localStorage.getItem(AUTH_TOKEN_KEY) ?? "";
+}
+
+/** Clears the stored session token. */
+export function clearAuthToken(): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
 /** Registers a new user and emits flight logs for each lifecycle phase. */
 export async function registerUser(
   credentials: AuthCredentials,
@@ -61,6 +81,10 @@ export async function registerUser(
     { email: credentials.email }
   );
   await emitFlightLog(log, fetchFn);
+
+  if (response.data?.token) {
+    saveAuthToken(response.data.token);
+  }
 
   return { result: response.data ?? null, log };
 }
@@ -91,6 +115,10 @@ export async function loginUser(
   );
   await emitFlightLog(log, fetchFn);
 
+  if (response.data?.token) {
+    saveAuthToken(response.data.token);
+  }
+
   return { result: response.data ?? null, log };
 }
 
@@ -119,6 +147,10 @@ export async function verifyOtp(
     { email: payload.email }
   );
   await emitFlightLog(log, fetchFn);
+
+  if (response.data?.token) {
+    saveAuthToken(response.data.token);
+  }
 
   return { result: response.data ?? null, log };
 }

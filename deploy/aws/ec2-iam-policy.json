@@ -49,7 +49,9 @@
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_flight_logs",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_flight_logs/index/*",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_test_runs",
-        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_test_runs/index/*"
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_test_runs/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_playlists",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_playlists/index/*"
       ]
     }
   ]

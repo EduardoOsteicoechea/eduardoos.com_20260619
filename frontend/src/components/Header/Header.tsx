@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { href: APP_ROUTES.logger, label: "Logger" },
   { href: APP_ROUTES.tester, label: "Tester" },
   { href: APP_ROUTES.mediaGallery, label: "Media" },
+  { href: APP_ROUTES.mediaPlaylist, label: "Playlist Builder" },
   { href: APP_ROUTES.subscriptionMonthlyBasic, label: "Subscribe" },
 ] as const;
 

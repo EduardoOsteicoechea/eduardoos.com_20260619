@@ -164,6 +164,78 @@ func (c config) listMediaImages() http.HandlerFunc {
 	}
 }
 
+func (c config) listMediaAudio() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cid := common.CorrelationFromRequest(r)
+		c.Telemetry.Emit(common.NewFlightLog(cid, "backend", "media.audio.list", "started"), cid)
+
+		audioPrefix := common.Env("S3_AUDIO_PREFIX", "worship_playlists")
+		prefix := r.URL.Query().Get("prefix")
+		if prefix == "" {
+			prefix = audioPrefix
+		}
+		target := strings.TrimRight(c.S3URL, "/") + "/objects?prefix=" + url.QueryEscape(prefix)
+		req, err := http.NewRequest(http.MethodGet, target, nil)
+		if err != nil {
+			common.WriteError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		req.Header.Set(common.CorrelationHeader, cid)
+		req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(c.InternalSecret, cid))
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			c.Telemetry.Emit(common.NewFlightLog(cid, "backend", "media.audio.list", "error"), cid)
+			common.WriteError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode >= 400 {
+			w.WriteHeader(resp.StatusCode)
+			_, _ = w.Write(body)
+			return
+		}
+
+		var payload struct {
+			Objects []s3store.ObjectMeta `json:"objects"`
+		}
+		if err := json.Unmarshal(body, &payload); err != nil {
+			common.WriteError(w, http.StatusBadGateway, "invalid s3 response")
+			return
+		}
+
+		type audioTrack struct {
+			s3store.AudioItem
+			URL   string `json:"url"`
+			S3URL string `json:"s3_url"`
+		}
+		region := common.Env("AWS_REGION", "us-east-1")
+		backend := common.Env("S3_BACKEND", "stub")
+		bucket := common.Env("S3_BUCKET", "eduardoos20260607")
+		s3Prefix := common.Env("S3_PREFIX", "media")
+		tracks := make([]audioTrack, 0)
+		for _, item := range s3store.ToAudioItems(payload.Objects) {
+			rel := s3store.RelativeKey(s3Prefix, item.Key)
+			if rel == "" {
+				rel = item.Key
+			}
+			tracks = append(tracks, audioTrack{
+				AudioItem: item,
+				URL:       "/api/media/file/" + url.PathEscape(rel),
+				S3URL:     s3store.S3ObjectURL(backend, bucket, region, item.Key),
+			})
+		}
+
+		c.Telemetry.Emit(common.NewFlightLog(cid, "backend", "media.audio.list", "success"), cid)
+		common.WriteJSON(w, http.StatusOK, map[string]any{
+			"prefix":  prefix,
+			"count":   len(tracks),
+			"tracks":  tracks,
+		})
+	}
+}
+
 func (c config) proxyMediaFile() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		suffix := chi.URLParam(r, "*")

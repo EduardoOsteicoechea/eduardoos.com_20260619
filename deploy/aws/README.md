@@ -11,6 +11,7 @@ This stack runs on **Graviton (arm64)** EC2 instances in **us-east-1** and uses:
 | DynamoDB | `eduardoos_refresh_tokens` | Keys prefixed `refresh:` |
 | DynamoDB | `eduardoos_flight_logs` | Flight logs (7-day TTL on `expiresAt`) |
 | DynamoDB | `eduardoos_test_runs` | QA + build test runs (7-day TTL) |
+| DynamoDB | `eduardoos_playlists` | Worship playlists (PK `userId`, SK `playlistId`) |
 
 ## Observability tables (flight logs + test runs)
 
@@ -27,6 +28,7 @@ DynamoDB TTL deletes items automatically after **7 days**.
 
 ```bash
 bash deploy/aws/create-observability-tables.sh
+bash deploy/aws/create-playlists-table.sh
 ```
 
 Deploy on EC2 also runs this script when the instance role includes
@@ -93,6 +95,9 @@ docker compose up -d --build
 | `S3_PREFIX` | `media` | same |
 | `AWS_REGION` | `us-east-1` | same |
 | `DYNAMODB_TABLE_PREFIX` | `eduardoos` | same |
+| `PLAYLISTS_BACKEND` | `memory` | `dynamodb` (via ec2 overlay) |
+| `PLAYLISTS_TABLE` | `eduardoos_playlists` | same |
+| `S3_AUDIO_PREFIX` | `worship_playlists` | same |
 
 ## 7. Verify AWS access from EC2
 
@@ -117,6 +122,7 @@ Generic keys use single-table style within each table:
 | `data` | JSON string payload |
 
 S3 objects are stored at `{S3_PREFIX}/{key}` (default `media/...`).
+Worship playlist audio lives under `media/worship_playlists/`.
 
 ## 8. Generate application secrets (npm)
 

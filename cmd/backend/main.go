@@ -3,11 +3,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log"
 	"net/http"
 	"strings"
 
+	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/common"
 
 	"github.com/go-chi/chi/v5"
@@ -17,6 +19,7 @@ import (
 
 type config struct {
 	InternalSecret   string
+	JWTSecret        string
 	AuthenticatorURL string
 	TelemetryURL     string
 	TesterURL        string
@@ -31,7 +34,7 @@ var publicPaths = []string{
 	"/api/logger", "/api/logger/logs", "/api/logger/analytics", "/api/logger/trace", "/api/logger/stream",
 	"/api/tester", "/api/tester/runs", "/api/tester/report",
 	"/api/payments/intents", "/api/payments/webhook/paypal", "/api/payments/status",
-	"/api/media/upload", "/api/media/upload/multiple", "/api/media/objects", "/api/media/images", "/api/media/file",
+	"/api/media/upload", "/api/media/upload/multiple", "/api/media/objects", "/api/media/images", "/api/media/audio", "/api/media/file",
 }
 
 func isPublic(path string) bool {
@@ -44,8 +47,10 @@ func isPublic(path string) bool {
 }
 
 func main() {
+	ctx := context.Background()
 	cfg := config{
 		InternalSecret:   common.Env("INTERNAL_SERVICE_SECRET", "dev-internal-secret"),
+		JWTSecret:        common.Env("JWT_SECRET", "dev-jwt-secret"),
 		AuthenticatorURL: common.Env("AUTHENTICATOR_URL", "http://authenticator:3000"),
 		TelemetryURL:     common.Env("TELEMETRY_URL", "http://telemetry:3000"),
 		TesterURL:        common.Env("TESTER_URL", "http://tester:3000"),
@@ -53,6 +58,12 @@ func main() {
 		S3URL:            common.Env("S3_URL", "http://s3:3000"),
 	}
 	cfg.Telemetry = common.NewTelemetryClient(cfg.TelemetryURL, cfg.InternalSecret)
+
+	playlistStore, err := ddb.NewPlaylistStore(ctx)
+	if err != nil {
+		log.Fatalf("playlist store: %v", err)
+	}
+	log.Printf("playlist store backend=%s", playlistStore.BackendName())
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -81,7 +92,9 @@ func main() {
 	r.Post("/api/media/upload/multiple", cfg.uploadMediaMultiple())
 	r.Get("/api/media/objects", cfg.proxyGetQuery("/objects", cfg.S3URL))
 	r.Get("/api/media/images", cfg.listMediaImages())
+	r.Get("/api/media/audio", cfg.listMediaAudio())
 	r.Get("/api/media/file/*", cfg.proxyMediaFile())
+	registerPlaylistRoutes(r, cfg, playlistStore)
 
 	log.Printf("backend listening on %s", common.ListenAddr())
 	log.Fatal(http.ListenAndServe(common.ListenAddr(), r))
@@ -100,11 +113,16 @@ func correlationMiddleware(next http.Handler) http.Handler {
 
 func authGate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isPublic(r.URL.Path) || r.Header.Get("Authorization") != "" {
+		if isPublic(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}
-		common.WriteError(w, http.StatusUnauthorized, "authorization required")
+		auth := strings.TrimSpace(r.Header.Get("Authorization"))
+		if auth == "" {
+			common.WriteError(w, http.StatusUnauthorized, "authorization required")
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 

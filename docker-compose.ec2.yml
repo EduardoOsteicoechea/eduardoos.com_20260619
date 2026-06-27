@@ -12,6 +12,11 @@ services:
 
   backend:
     platform: linux/arm64
+    environment:
+      PLAYLISTS_BACKEND: dynamodb
+      S3_BACKEND: aws
+      S3_AUDIO_PREFIX: ${S3_AUDIO_PREFIX:-worship_playlists}
+      PLAYLISTS_TABLE: ${PLAYLISTS_TABLE:-eduardoos_playlists}
 
   authenticator:
     platform: linux/arm64

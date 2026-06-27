@@ -3,7 +3,7 @@
 #pwa-toast {
   position: fixed;
   right: 1rem;
-  bottom: calc(var(--global_player_height, 3.5rem) + 0.75rem);
+  bottom: 1rem;
   z-index: 10000;
   display: none;
   align-items: center;
@@ -34,11 +34,7 @@
   cursor: pointer;
 }
 
-body.has-global-player {
-  --global_player_height: 3.5rem;
-  padding-bottom: var(--global_player_height);
-}
-
-body.has-global-player main {
-  margin-bottom: 0;
+body.page-playlist {
+  --playlist_activity_height: 3.75rem;
+  padding-bottom: var(--playlist_activity_height);
 }

@@ -1,0 +1,11 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PlaylistBuilder from "../../components/PlaylistBuilder/PlaylistBuilder";
+import "../observability/observability.css";
+---
+
+<BaseLayout title="Playlist Manager — Eduardo Osteicoechea" activityBarMode="editor" pagePlaylist>
+  <div class="page-shell page-shell--wide">
+    <PlaylistBuilder client:load />
+  </div>
+</BaseLayout>

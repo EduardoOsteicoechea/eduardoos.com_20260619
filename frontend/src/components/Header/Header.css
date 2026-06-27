@@ -104,15 +104,15 @@
   }
 }
 
-/* Desktop: single row of nav links */
+/* Desktop: wrapped nav row — height grows so all links stay visible */
 @media (min-width: 1024px) {
   .site-header {
     flex-direction: row;
     align-items: center;
     justify-content: flex-end;
     min-height: var(--header_bar_height);
-    height: var(--header_bar_height);
-    padding: 0 1.25rem;
+    height: auto;
+    padding: 0.35rem 1.25rem;
   }
 
   .site-header__bar {
@@ -122,7 +122,11 @@
   .site-header__nav {
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.45rem 0.65rem;
     padding: 0;
     border-top: none;
+    max-width: 100%;
   }
 }

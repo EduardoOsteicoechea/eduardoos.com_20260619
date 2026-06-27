@@ -8,6 +8,7 @@ export const APP_ROUTES = {
   tester: "/observability/tester",
   subscriptionMonthlyBasic: "/payments/subscription/montly/basic",
   mediaGallery: "/media/gallery",
+  mediaPlaylist: "/media/playlist",
 } as const;
 
 /** Public gateway media API endpoints. */
@@ -17,6 +18,12 @@ export const MEDIA_ROUTES = {
   objects: "/api/media/objects",
   images: "/api/media/images",
   file: "/api/media/file",
+} as const;
+
+/** Authenticated playlist gateway endpoints. */
+export const PLAYLIST_ROUTES = {
+  save: "/api/playlists",
+  list: "/api/playlists",
 } as const;
 
 /** Public gateway observability API endpoints. */
