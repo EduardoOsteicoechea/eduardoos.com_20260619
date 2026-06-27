@@ -9,7 +9,7 @@
  * 5. Browser print exports letter-landscape sheets (CSS @media print)
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import { getAuthToken } from "../../lib/auth";
 import {
@@ -97,6 +97,20 @@ function clampZoom(value: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
 }
 
+function findActiveBlockElement(
+  root: HTMLElement | null,
+  ref: string,
+  isImage: boolean,
+): HTMLElement | null {
+  if (!root || !ref) return null;
+  if (isImage) {
+    return root.querySelector<HTMLElement>(`.block-image-wrap[data-content-ref="${ref}"]`);
+  }
+  const editing = root.querySelector<HTMLElement>(`.is-editing[data-content-ref="${ref}"]`);
+  if (editing) return editing;
+  return root.querySelector<HTMLElement>(`[data-content-ref="${ref}"]`);
+}
+
 function stripHighlightMarkup(html: string): string {
   const tmp = document.createElement("div");
   tmp.innerHTML = html;
@@ -109,6 +123,9 @@ export default function PamphletEditor() {
   const sheetsRef = useRef<HTMLDivElement>(null);
   const mobileStreamRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const viewportScrollRef = useRef(0);
+  const preserveScrollRef = useRef(false);
   const layoutRef = useRef<LayoutFields>(DEFAULT_LAYOUT);
   const editingRef = useRef<HTMLElement | null>(null);
   const editOriginalRef = useRef("");
@@ -164,7 +181,36 @@ export default function PamphletEditor() {
     return sheetsRef.current;
   }, [isMobileStream]);
 
+  const updateToolbarPosition = useCallback(() => {
+    const toolbar = toolbarRef.current;
+    const canvas = canvasRef.current;
+    const root = getInteractionRoot();
+    if (isMobileStream || !toolbar || !canvas || !root || !activeRef) {
+      return;
+    }
+
+    const target = findActiveBlockElement(root, activeRef, activeIsImage);
+    if (!target) {
+      pamphletTrace("toolbar_position_missing_target", { ref: activeRef });
+      return;
+    }
+
+    const targetRect = target.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    const gap = 8;
+    const top = targetRect.top - canvasRect.top - toolbar.offsetHeight - gap;
+    const left = targetRect.left - canvasRect.left + targetRect.width / 2;
+
+    toolbar.style.top = `${Math.max(4, top)}px`;
+    toolbar.style.left = `${left}px`;
+  }, [activeIsImage, activeRef, getInteractionRoot, isMobileStream]);
+
   const applyMutation = useCallback(async (body: Record<string, unknown>) => {
+    const viewport = viewportRef.current;
+    if (viewport) {
+      viewportScrollRef.current = viewport.scrollTop;
+      preserveScrollRef.current = true;
+    }
     setRefreshing(true);
     setError("");
     pamphletTrace("mutation_start", body);
@@ -244,7 +290,9 @@ export default function PamphletEditor() {
       canvas.style.width = `${Math.ceil(sheetPx * scale)}px`;
       canvas.style.height = `${Math.ceil(naturalH * scale)}px`;
     }
-  }, [userZoom]);
+
+    updateToolbarPosition();
+  }, [userZoom, updateToolbarPosition]);
 
   const scheduleRefresh = useCallback(
     (nextLayout: LayoutFields) => {
@@ -679,10 +727,70 @@ export default function PamphletEditor() {
         await applyMutation({ op: "toggle_highlight", ref: activeRef, start, end });
         return;
       }
+      if (op === "delete") {
+        const ref = activeRef;
+        if (editingRef.current) {
+          editingRef.current.contentEditable = "false";
+          editingRef.current.classList.remove("is-editing");
+          editingRef.current = null;
+        }
+        setActiveRef("");
+        setActiveIsImage(false);
+        pamphletTrace("delete_block", { ref });
+        await applyMutation({ op: "delete", ref });
+        return;
+      }
       await applyMutation({ op, ref: activeRef });
     },
     [activeRef, applyMutation, getInteractionRoot],
   );
+
+  const blockToolbar = activeRef ? (
+    <div
+      ref={toolbarRef}
+      className={`pamphlet-editor__block-toolbar${
+        isMobileStream
+          ? " pamphlet-editor__block-toolbar--mobile"
+          : " pamphlet-editor__block-toolbar--desktop"
+      }`}
+      role="toolbar"
+      aria-label="Block tools"
+      onMouseDown={(event) => event.preventDefault()}
+    >
+      {activeIsImage ? (
+        <button type="button" title="Upload image" onClick={openImagePicker}>
+          Img
+        </button>
+      ) : (
+        <button
+          type="button"
+          title="Toggle bold"
+          onClick={() => void handleToolbarAction("toggle_highlight")}
+        >
+          B
+        </button>
+      )}
+      <button type="button" title="Move up" onClick={() => void handleToolbarAction("move_up")}>
+        ↑
+      </button>
+      <button type="button" title="Move down" onClick={() => void handleToolbarAction("move_down")}>
+        ↓
+      </button>
+      <button type="button" title="Insert below" onClick={() => void handleToolbarAction("insert_below")}>
+        +
+      </button>
+      <button
+        type="button"
+        title="Delete"
+        onClick={(event) => {
+          event.preventDefault();
+          void handleToolbarAction("delete");
+        }}
+      >
+        ✕
+      </button>
+    </div>
+  ) : null;
 
   useEffect(() => {
     if (!authed) {
@@ -756,8 +864,28 @@ export default function PamphletEditor() {
       pamphletTrace("mobile_stream_cleared", { reason: "desktop_mode" });
     }
 
-    requestAnimationFrame(() => applySheetScale());
-  }, [previewHtml, applySheetScale, isMobileStream]);
+    requestAnimationFrame(() => {
+      applySheetScale();
+      if (preserveScrollRef.current && viewportRef.current) {
+        viewportRef.current.scrollTop = viewportScrollRef.current;
+        preserveScrollRef.current = false;
+        pamphletTrace("scroll_restored", { scrollTop: viewportScrollRef.current });
+      }
+      updateToolbarPosition();
+    });
+  }, [previewHtml, applySheetScale, isMobileStream, updateToolbarPosition]);
+
+  useLayoutEffect(() => {
+    updateToolbarPosition();
+  }, [activeRef, activeIsImage, previewHtml, userZoom, isMobileStream, updateToolbarPosition]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const onScroll = () => updateToolbarPosition();
+    viewport.addEventListener("scroll", onScroll, { passive: true });
+    return () => viewport.removeEventListener("scroll", onScroll);
+  }, [updateToolbarPosition]);
 
   useEffect(() => {
     if (!authed) return;
@@ -834,42 +962,10 @@ export default function PamphletEditor() {
           tabIndex={-1}
           aria-hidden
         />
-        {activeRef ? (
-          <div
-            className="pamphlet-editor__block-toolbar"
-            role="toolbar"
-            aria-label="Block tools"
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            {activeIsImage ? (
-              <button type="button" title="Upload image" onClick={openImagePicker}>
-                Img
-              </button>
-            ) : (
-              <button
-                type="button"
-                title="Toggle bold"
-                onClick={() => void handleToolbarAction("toggle_highlight")}
-              >
-                B
-              </button>
-            )}
-            <button type="button" title="Move up" onClick={() => void handleToolbarAction("move_up")}>
-              ↑
-            </button>
-            <button type="button" title="Move down" onClick={() => void handleToolbarAction("move_down")}>
-              ↓
-            </button>
-            <button type="button" title="Insert below" onClick={() => void handleToolbarAction("insert_below")}>
-              +
-            </button>
-            <button type="button" title="Delete" onClick={() => void handleToolbarAction("delete")}>
-              ✕
-            </button>
-          </div>
-        ) : null}
         <div className="pamphlet-editor__viewport" ref={viewportRef}>
+          {isMobileStream ? blockToolbar : null}
           <div className="pamphlet-editor__canvas" ref={canvasRef}>
+            {!isMobileStream ? blockToolbar : null}
             <div className="pamphlet-editor__interaction" ref={interactionRef}>
               <div
                 className="pamphlet-editor__sheets pamphlet-editor__sheets--print-source"

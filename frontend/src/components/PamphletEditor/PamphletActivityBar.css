@@ -128,15 +128,15 @@
   min-width: 4.5rem;
   min-height: var(--control_min_height, 36px);
   padding: 0.35rem 0.6rem;
-  border: 1px solid var(--site-border);
+  border: var(--border_001, solid 1px var(--site-border));
   border-radius: var(--border_radius_001, 6px);
-  background: var(--site-input-bg, #0f172a);
-  color: var(--site-body-fg);
+  background: var(--site-body-bg, #fff);
+  color: var(--site-body-fg, #0f172a);
   cursor: pointer;
 }
 
 .pamphlet-activity__pages button:hover {
-  border-color: var(--site-accent);
+  border-color: var(--site-medium, #64748b);
 }
 
 .pamphlet-activity__bar {
@@ -157,17 +157,17 @@
   min-height: 2rem;
   min-width: 2.5rem;
   padding: 0.35rem 0.55rem;
-  border: 1px solid var(--site-border);
+  border: var(--border_001, solid 1px var(--site-border));
   border-radius: var(--border_radius_001, 6px);
-  background: var(--site-input-bg, #1e293b);
-  color: var(--site-body-fg);
+  background: var(--site-body-bg, #fff);
+  color: var(--site-body-fg, #0f172a);
   font-size: var(--font-sm, 0.85rem);
   font-weight: 600;
   cursor: pointer;
 }
 
 .pamphlet-activity__bar button:hover:not(:disabled) {
-  border-color: var(--site-accent);
+  border-color: var(--site-medium, #64748b);
 }
 
 .pamphlet-activity__bar button:disabled {
