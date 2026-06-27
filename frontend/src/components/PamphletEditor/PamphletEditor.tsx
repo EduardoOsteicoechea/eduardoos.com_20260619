@@ -65,6 +65,8 @@ export default function PamphletEditor() {
   const sheetsRef = useRef<HTMLDivElement>(null);
   const layoutRef = useRef<LayoutFields>(DEFAULT_LAYOUT);
   const editingRef = useRef<HTMLElement | null>(null);
+  const blurTimerRef = useRef<number | null>(null);
+  const suppressBlurRef = useRef(false);
   const refreshTimerRef = useRef<number | null>(null);
   const saveLayoutTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,11 +85,14 @@ export default function PamphletEditor() {
   const [pageCount, setPageCount] = useState(0);
   const [pamphlets, setPamphlets] = useState<PamphletRegistryItem[]>([]);
   const [sortBy, setSortBy] = useState<"alpha" | "date">("alpha");
-  const [isMobileStream, setIsMobileStream] = useState(
-    () => typeof window !== "undefined" && window.innerWidth <= MOBILE_STREAM_MAX,
-  );
+  const [isMobileStream, setIsMobileStream] = useState(false);
 
-  const authed = Boolean(getAuthToken());
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    setAuthed(Boolean(getAuthToken()));
+    setIsMobileStream(window.innerWidth <= MOBILE_STREAM_MAX);
+  }, []);
 
   layoutRef.current = layout;
 
@@ -277,6 +282,15 @@ export default function PamphletEditor() {
   );
 
   const enterEditMode = useCallback((el: HTMLElement) => {
+    if (blurTimerRef.current !== null) {
+      window.clearTimeout(blurTimerRef.current);
+      blurTimerRef.current = null;
+    }
+    suppressBlurRef.current = true;
+    window.setTimeout(() => {
+      suppressBlurRef.current = false;
+    }, 250);
+
     const ref = el.getAttribute("data-content-ref") ?? "";
     setActiveRef(ref);
     setActiveIsImage(el.classList.contains("block-image-ref"));
@@ -353,7 +367,24 @@ export default function PamphletEditor() {
         const wrap = clearBtn.closest<HTMLElement>(".block-image-wrap[data-content-ref]");
         const ref = wrap?.getAttribute("data-content-ref") ?? "";
         if (ref) {
-          void applyMutation({ op: "clear_image", ref });
+          if (editingRef.current) {
+            const editing = editingRef.current;
+            editing.contentEditable = "false";
+            editing.classList.remove("is-editing");
+            editingRef.current = null;
+          }
+          if (blurTimerRef.current !== null) {
+            window.clearTimeout(blurTimerRef.current);
+            blurTimerRef.current = null;
+          }
+          setActiveRef("");
+          setActiveIsImage(false);
+          suppressBlurRef.current = true;
+          void applyMutation({ op: "clear_image", ref }).finally(() => {
+            window.setTimeout(() => {
+              suppressBlurRef.current = false;
+            }, 150);
+          });
         }
         return;
       }
@@ -411,16 +442,38 @@ export default function PamphletEditor() {
     [refreshPreview],
   );
 
+  const handleSheetsMouseDown = useCallback((event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    const root = sheetsRef.current;
+    if (!root || !root.contains(target)) return;
+    if (target.closest("[data-image-clear]")) return;
+
+    const editable = target.closest<HTMLElement>(
+      ".editable-block[data-content-ref], .block-image-ref",
+    );
+    if (editable && !editable.classList.contains("is-editing")) {
+      event.preventDefault();
+    }
+  }, []);
+
   const handleSheetsFocusOut = useCallback(
     (event: FocusEvent) => {
       const root = sheetsRef.current;
       const target = event.target as HTMLElement;
       if (!root || !target.classList.contains("is-editing")) return;
+      if (suppressBlurRef.current) return;
 
-      const related = event.relatedTarget as Node | null;
-      if (related && root.contains(related)) return;
-
-      void finishEditing(target);
+      if (blurTimerRef.current !== null) {
+        window.clearTimeout(blurTimerRef.current);
+      }
+      blurTimerRef.current = window.setTimeout(() => {
+        blurTimerRef.current = null;
+        if (suppressBlurRef.current) return;
+        if (!target.isConnected || !target.classList.contains("is-editing")) return;
+        const active = document.activeElement;
+        if (active === target || target.contains(active)) return;
+        void finishEditing(target);
+      }, 120);
     },
     [finishEditing],
   );
@@ -518,30 +571,39 @@ export default function PamphletEditor() {
 
   useEffect(() => {
     const root = sheetsRef.current;
-    if (!root || !previewHtml) {
-      setPageCount(0);
+    if (!root) return;
+
+    const editing = editingRef.current;
+    if (editing?.isConnected && editing.classList.contains("is-editing")) {
       return;
     }
-    setPageCount(root.querySelectorAll(".sheet").length);
+
+    root.innerHTML = previewHtml;
+    setPageCount(previewHtml ? root.querySelectorAll(".sheet").length : 0);
   }, [previewHtml]);
 
   useEffect(() => {
     const root = sheetsRef.current;
     if (!root) return;
 
+    root.addEventListener("mousedown", handleSheetsMouseDown);
     root.addEventListener("click", handleSheetsClick);
     root.addEventListener("keydown", handleSheetsKeyDown);
     root.addEventListener("focusout", handleSheetsFocusOut);
 
     return () => {
+      root.removeEventListener("mousedown", handleSheetsMouseDown);
       root.removeEventListener("click", handleSheetsClick);
       root.removeEventListener("keydown", handleSheetsKeyDown);
       root.removeEventListener("focusout", handleSheetsFocusOut);
     };
-  }, [previewHtml, handleSheetsClick, handleSheetsKeyDown, handleSheetsFocusOut]);
+  }, [previewHtml, handleSheetsMouseDown, handleSheetsClick, handleSheetsKeyDown, handleSheetsFocusOut]);
 
   useEffect(() => {
     return () => {
+      if (blurTimerRef.current !== null) {
+        window.clearTimeout(blurTimerRef.current);
+      }
       if (refreshTimerRef.current !== null) {
         window.clearTimeout(refreshTimerRef.current);
       }
@@ -621,11 +683,7 @@ export default function PamphletEditor() {
         ) : null}
         <div className="pamphlet-editor__viewport" ref={viewportRef}>
           <div className="pamphlet-editor__canvas" ref={canvasRef}>
-            <div
-              className="pamphlet-editor__sheets"
-              ref={sheetsRef}
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
-            />
+            <div className="pamphlet-editor__sheets" ref={sheetsRef} />
           </div>
         </div>
       </main>
