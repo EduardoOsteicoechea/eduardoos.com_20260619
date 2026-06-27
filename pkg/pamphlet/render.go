@@ -106,11 +106,18 @@ func renderLayoutBlock(block LayoutBlock, columnWidthMM, headingBottomMarginMM, 
 		src := imageSrc(block.ImageURL)
 		media := `<span class="block-image-placeholder" aria-hidden="true"></span>`
 		if src != "" {
-			media = fmt.Sprintf(`<img src="%s" alt="%s" class="block-image-img">`, html.EscapeString(src), html.EscapeString(block.Description))
+			media = fmt.Sprintf(
+				`<img src="%s" alt="%s" class="block-image-img" loading="lazy" onerror="this.classList.add('is-broken');this.style.display='none';this.closest('.block-image-wrap')?.classList.add('is-broken')">`,
+				html.EscapeString(src), html.EscapeString(block.Description),
+			)
+		}
+		brokenBtn := ""
+		if block.ContentRef != "" {
+			brokenBtn = `<button type="button" class="block-image-clear" data-image-clear="1" title="Remove image reference">✕</button>`
 		}
 		return fmt.Sprintf(
-			`<div class="%s"%s%s><div class="block-image" style="padding-bottom:%.2f%%">%s</div><div class="block-image-ref">%s</div></div>`,
-			cls, style, editableAttrs(block.ContentRef), ratioPct, media, html.EscapeString(block.Description),
+			`<div class="%s"%s%s>%s<div class="block-image" style="padding-bottom:%.2f%%">%s</div><div class="block-image-ref">%s</div></div>`,
+			cls, style, editableAttrs(block.ContentRef), brokenBtn, ratioPct, media, html.EscapeString(block.Description),
 		)
 	default:
 		return ""
@@ -138,32 +145,41 @@ func renderColumnBlocks(blocks []LayoutBlock, columnWidthMM, paragraphSepMM, hea
 	return b.String()
 }
 
-func renderColumnDiv(id string, blocks []LayoutBlock, colWidth, colHeight, fontSizePt, lh, paraSep, headingGap float64) string {
+func renderColumnDiv(id string, blocks []LayoutBlock, colWidth, colHeight, fontSizePt, lh, paraSep, headingGap float64, mobileOrder int) string {
 	inner := renderColumnBlocks(blocks, colWidth, paraSep, headingGap)
+	orderAttr := ""
+	if mobileOrder > 0 {
+		orderAttr = fmt.Sprintf(` data-mobile-order="%d"`, mobileOrder)
+	}
 	return fmt.Sprintf(
-		`<div id="%s" class="column" data-base-max-height-mm="%.4f" style="font-size:%gpt;line-height:%g;max-height:%.4fmm;height:100%%;overflow:hidden">%s</div>`,
-		id, colHeight, fontSizePt, lh, colHeight, inner,
+		`<div id="%s" class="column"%s data-base-max-height-mm="%.4f" style="font-size:%gpt;line-height:%g;max-height:%.4fmm;height:100%%;overflow:hidden">%s</div>`,
+		id, orderAttr, colHeight, fontSizePt, lh, colHeight, inner,
 	)
 }
 
 func renderHeaderZone(payload HeaderPayload) string {
 	if payload.Text != "" {
-		return fmt.Sprintf(`<div class="pamphlet-header-text">%s</div>`, html.EscapeString(payload.Text))
+		return fmt.Sprintf(`<div class="pamphlet-header-text editable-block" data-content-ref="header:text" tabindex="0">%s</div>`, html.EscapeString(payload.Text))
 	}
 	var b strings.Builder
 	b.WriteString(`<div class="pamphlet-header">`)
 	if payload.Heading != "" {
-		b.WriteString(fmt.Sprintf(`<div class="pamphlet-header-title">%s</div>`, html.EscapeString(payload.Heading)))
+		b.WriteString(fmt.Sprintf(`<div class="pamphlet-header-title editable-block" data-content-ref="header:heading" tabindex="0">%s</div>`, html.EscapeString(payload.Heading)))
+	} else {
+		b.WriteString(`<div class="pamphlet-header-title editable-block" data-content-ref="header:heading" tabindex="0"></div>`)
+	}
+	if payload.Subheading != "" {
+		b.WriteString(fmt.Sprintf(`<div class="pamphlet-header-sub editable-block" data-content-ref="header:subheading" tabindex="0">%s</div>`, html.EscapeString(payload.Subheading)))
 	}
 	meta := make([]string, 0, 3)
 	if payload.Author != "" {
-		meta = append(meta, html.EscapeString(payload.Author))
+		meta = append(meta, fmt.Sprintf(`<span class="editable-block" data-content-ref="header:author" tabindex="0">%s</span>`, html.EscapeString(payload.Author)))
 	}
 	if payload.Date != "" {
-		meta = append(meta, html.EscapeString(payload.Date))
+		meta = append(meta, fmt.Sprintf(`<span class="editable-block" data-content-ref="header:date" tabindex="0">%s</span>`, html.EscapeString(payload.Date)))
 	}
 	if payload.Category != "" {
-		meta = append(meta, html.EscapeString(payload.Category))
+		meta = append(meta, fmt.Sprintf(`<span class="editable-block" data-content-ref="header:category" tabindex="0">%s</span>`, html.EscapeString(payload.Category)))
 	}
 	if len(meta) > 0 {
 		b.WriteString(fmt.Sprintf(`<div class="pamphlet-header-meta">%s</div>`, strings.Join(meta, " · ")))
@@ -174,22 +190,26 @@ func renderHeaderZone(payload HeaderPayload) string {
 
 func renderFooterZone(payload FooterPayload) string {
 	if payload.Text != "" {
-		return fmt.Sprintf(`<div class="pamphlet-footer-text">%s</div>`, html.EscapeString(payload.Text))
+		return fmt.Sprintf(`<div class="pamphlet-footer-text editable-block" data-content-ref="footer:text" tabindex="0">%s</div>`, html.EscapeString(payload.Text))
 	}
 	var b strings.Builder
 	b.WriteString(`<div class="pamphlet-footer">`)
 	if payload.Heading != "" {
-		b.WriteString(fmt.Sprintf(`<div class="pamphlet-footer-title">%s</div>`, html.EscapeString(payload.Heading)))
+		b.WriteString(fmt.Sprintf(`<div class="pamphlet-footer-title editable-block" data-content-ref="footer:heading" tabindex="0">%s</div>`, html.EscapeString(payload.Heading)))
+	} else {
+		b.WriteString(`<div class="pamphlet-footer-title editable-block" data-content-ref="footer:heading" tabindex="0"></div>`)
 	}
-	for _, item := range payload.ContactItems {
+	for i, item := range payload.ContactItems {
 		line := strings.TrimSpace(item.Type + ": " + item.Value)
-		if line != ":" {
-			b.WriteString(fmt.Sprintf(`<div class="pamphlet-footer-line">%s</div>`, html.EscapeString(line)))
+		if line == ":" {
+			line = item.Value
 		}
+		ref := fmt.Sprintf("footer:contact:%d", i)
+		b.WriteString(fmt.Sprintf(`<div class="pamphlet-footer-line editable-block" data-content-ref="%s" tabindex="0">%s</div>`, ref, html.EscapeString(line)))
 	}
 	if payload.AddressData.Message != "" || payload.AddressData.Address != "" {
 		addr := strings.TrimSpace(payload.AddressData.Message + " " + payload.AddressData.Address)
-		b.WriteString(fmt.Sprintf(`<div class="pamphlet-footer-address">%s</div>`, html.EscapeString(addr)))
+		b.WriteString(fmt.Sprintf(`<div class="pamphlet-footer-address editable-block" data-content-ref="footer:address" tabindex="0">%s</div>`, html.EscapeString(addr)))
 	}
 	b.WriteString(`</div>`)
 	return b.String()
@@ -200,21 +220,21 @@ func RenderSheet1Outer(cfg LayoutConfig, header HeaderPayload, footer FooterPayl
 	colW := columnWidthMM(cfg)
 	paraSep := ParagraphSeparationMM(cfg.FontSizePt, cfg.LineHeightFactor, cfg.ParagraphSeparationFactor)
 	fs, lh := cfg.FontSizePt, cfg.LineHeightFactor
-	s1r := renderColumnDiv("s1r-col0", distributed[0], colW, heights[0], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM)
-	s1r += renderColumnDiv("s1r-col1", distributed[1], colW, heights[1], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM)
-	s1l := renderColumnDiv("s1l-col0", distributed[6], colW, heights[6], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM)
-	s1l += renderColumnDiv("s1l-col1", distributed[7], colW, heights[7], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM)
+	s1r := renderColumnDiv("s1r-col0", distributed[0], colW, heights[0], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 2)
+	s1r += renderColumnDiv("s1r-col1", distributed[1], colW, heights[1], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 3)
+	s1l := renderColumnDiv("s1l-col0", distributed[6], colW, heights[6], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 100)
+	s1l += renderColumnDiv("s1l-col1", distributed[7], colW, heights[7], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 101)
 	return fmt.Sprintf(`
-<div class="sheet" id="sheet1" style="--mid-gap:%.4fmm;--col-gap:%.4fmm;--hf-gap:%.4fmm">
+<div class="sheet" id="sheet1" data-sheet-index="1" style="--mid-gap:%.4fmm;--col-gap:%.4fmm;--hf-gap:%.4fmm">
   <div class="sheet-inner sheet1-grid" style="padding:%.4fmm %.4fmm">
     <div class="block left sheet1-left">
       <div class="zone-body" id="s1-left-body">%s</div>
       <div class="zone-gap"></div>
-      <div class="zone-footer" id="zone-footer" style="font-size:%gpt;line-height:%g">%s</div>
+      <div class="zone-footer" id="zone-footer" data-mobile-order="99" style="font-size:%gpt;line-height:%g">%s</div>
     </div>
     <div class="gutter" id="mid-gutter"></div>
     <div class="block right sheet1-right">
-      <div class="zone-header" id="zone-header" style="font-size:%gpt;line-height:%g">%s</div>
+      <div class="zone-header" id="zone-header" data-mobile-order="1" style="font-size:%gpt;line-height:%g">%s</div>
       <div class="zone-gap"></div>
       <div class="zone-body" id="s1-right-body">%s</div>
     </div>
@@ -232,12 +252,12 @@ func RenderSheet2Inner(cfg LayoutConfig, distributed [][]LayoutBlock, heights []
 	colW := columnWidthMM(cfg)
 	paraSep := ParagraphSeparationMM(cfg.FontSizePt, cfg.LineHeightFactor, cfg.ParagraphSeparationFactor)
 	fs, lh := cfg.FontSizePt, cfg.LineHeightFactor
-	s2l := renderColumnDiv("s2l-col0", distributed[2], colW, heights[2], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM)
-	s2l += renderColumnDiv("s2l-col1", distributed[3], colW, heights[3], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM)
-	s2r := renderColumnDiv("s2r-col0", distributed[4], colW, heights[4], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM)
-	s2r += renderColumnDiv("s2r-col1", distributed[5], colW, heights[5], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM)
+	s2l := renderColumnDiv("s2l-col0", distributed[2], colW, heights[2], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 4)
+	s2l += renderColumnDiv("s2l-col1", distributed[3], colW, heights[3], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 5)
+	s2r := renderColumnDiv("s2r-col0", distributed[4], colW, heights[4], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 6)
+	s2r += renderColumnDiv("s2r-col1", distributed[5], colW, heights[5], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 7)
 	return fmt.Sprintf(`
-<div class="sheet" id="sheet2" style="--mid-gap:%.4fmm;--col-gap:%.4fmm">
+<div class="sheet" id="sheet2" data-sheet-index="2" style="--mid-gap:%.4fmm;--col-gap:%.4fmm">
   <div class="sheet-inner sheet2-grid" style="padding:%.4fmm %.4fmm">
     <div class="block left sheet2-left"><div class="zone-body" id="s2-left-body">%s</div></div>
     <div class="gutter" id="mid-gutter-2"></div>
@@ -250,7 +270,7 @@ func RenderSheet2Inner(cfg LayoutConfig, distributed [][]LayoutBlock, heights []
 	)
 }
 
-// RenderPreviewSheets returns the two-sheet HTML fragment for the editor preview pane.
+// RenderPreviewSheets returns the sheet HTML fragment for the editor preview pane.
 func RenderPreviewSheets(cfg LayoutConfig, doc Document) string {
 	rects := EightColumnRects(cfg, doc.Header, doc.Footer)
 	heights := make([]float64, len(rects))
@@ -260,7 +280,35 @@ func RenderPreviewSheets(cfg LayoutConfig, doc Document) string {
 		widths[i] = r.WidthMM
 	}
 	blocks := FlattenContent(doc.Content, doc.Header)
+	distributed := DistributeBlocksFlow(blocks, cfg, doc.Header, doc.Footer)
+	var html strings.Builder
+	html.WriteString(RenderSheet1Outer(cfg, doc.Header, doc.Footer, distributed, heights))
+	if sheet1RightFull(distributed, heights, cfg) && sheet2HasContent(distributed) {
+		html.WriteString(RenderSheet2Inner(cfg, distributed, heights))
+	}
+	for i, group := range overflowPageGroups(distributed) {
+		html.WriteString(RenderOverflowSheet(cfg, group, heights, i+3))
+	}
+	return html.String()
+}
+
+// RenderOverflowSheet renders sheet 3+ as four-column pages (same topology as sheet 2).
+func RenderOverflowSheet(cfg LayoutConfig, cols [][]LayoutBlock, heights []float64, pageNum int) string {
+	colW := columnWidthMM(cfg)
 	paraSep := ParagraphSeparationMM(cfg.FontSizePt, cfg.LineHeightFactor, cfg.ParagraphSeparationFactor)
-	distributed := DistributeBlocksEightColumns(blocks, widths, heights, cfg.FontSizePt, cfg.LineHeightFactor, paraSep, cfg.IdeaHeadingBottomMarginMM)
-	return RenderSheet1Outer(cfg, doc.Header, doc.Footer, distributed, heights) + RenderSheet2Inner(cfg, distributed, heights)
+	fs, lh := cfg.FontSizePt, cfg.LineHeightFactor
+	bodyH := contentHeightMM(cfg)
+	left := renderColumnDiv(fmt.Sprintf("s%d-l0", pageNum), cols[0], colW, bodyH, fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 10+pageNum*4)
+	left += renderColumnDiv(fmt.Sprintf("s%d-l1", pageNum), cols[1], colW, bodyH, fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 11+pageNum*4)
+	right := renderColumnDiv(fmt.Sprintf("s%d-r0", pageNum), cols[2], colW, bodyH, fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 12+pageNum*4)
+	right += renderColumnDiv(fmt.Sprintf("s%d-r1", pageNum), cols[3], colW, bodyH, fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 13+pageNum*4)
+	_ = heights
+	return fmt.Sprintf(`
+<div class="sheet sheet-overflow" id="sheet%d" data-sheet-index="%d" style="--mid-gap:%.4fmm;--col-gap:%.4fmm">
+  <div class="sheet-inner sheet2-grid" style="padding:%.4fmm %.4fmm">
+    <div class="block left sheet2-left"><div class="zone-body">%s</div></div>
+    <div class="gutter"></div>
+    <div class="block right sheet2-right"><div class="zone-body">%s</div></div>
+  </div>
+</div>`, pageNum, pageNum, cfg.MidSeparationMM, cfg.ColumnGapMM, cfg.MarginVerticalMM, cfg.MarginLateralMM, left, right)
 }

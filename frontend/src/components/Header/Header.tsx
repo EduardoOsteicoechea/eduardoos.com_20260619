@@ -3,7 +3,24 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
+import { getAuthToken } from "../../lib/auth";
 import "./Header.css";
+
+/** Returns the uppercase first letter of the email from a JWT sub claim. */
+function profileInitialFromToken(token: string): string {
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return "?";
+    const payloadJson = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(payloadJson) as { sub?: string };
+    const sub = typeof payload.sub === "string" ? payload.sub.trim() : "";
+    const email = sub.includes("@") ? sub : sub;
+    const letter = email.charAt(0);
+    return letter ? letter.toUpperCase() : "?";
+  } catch {
+    return "?";
+  }
+}
 
 interface HeaderProps {
   pathname: string;
@@ -23,6 +40,7 @@ const NAV_LINKS = [
 
 export function Header({ pathname }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileInitial, setProfileInitial] = useState("");
   const headerRef = useRef<HTMLElement>(null);
 
   function navClass(href: string) {
@@ -56,6 +74,11 @@ export function Header({ pathname }: HeaderProps) {
     return () => window.removeEventListener("resize", syncHeaderHeight);
   }, [menuOpen, pathname]);
 
+  useEffect(() => {
+    const token = getAuthToken();
+    setProfileInitial(token ? profileInitialFromToken(token) : "");
+  }, [pathname]);
+
   return (
     <header
       ref={headerRef}
@@ -69,6 +92,17 @@ export function Header({ pathname }: HeaderProps) {
         eduardoos
       </a>
       <div className="site-header__bar">
+        {profileInitial ? (
+          <a
+            className="site-header__profile"
+            href={APP_ROUTES.home}
+            title="Account"
+            aria-label="Account home"
+            onClick={closeMenu}
+          >
+            {profileInitial}
+          </a>
+        ) : null}
         <button
           type="button"
           className="site-header__menu"
@@ -95,6 +129,17 @@ export function Header({ pathname }: HeaderProps) {
             {label}
           </a>
         ))}
+        {profileInitial ? (
+          <a
+            className={`site-header__profile site-header__profile--nav${pathname === APP_ROUTES.home ? " is-active" : ""}`}
+            href={APP_ROUTES.home}
+            title="Account"
+            aria-label="Account home"
+            onClick={closeMenu}
+          >
+            {profileInitial}
+          </a>
+        ) : null}
       </nav>
     </header>
   );

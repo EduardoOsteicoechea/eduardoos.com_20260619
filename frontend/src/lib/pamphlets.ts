@@ -60,7 +60,16 @@ export const PAMPHLET_ROUTES = {
   capacity: "/api/pamphlets/capacity",
   content: "/api/pamphlets/content",
   images: "/api/pamphlets/images",
+  registry: "/api/pamphlets/registry",
+  layout: "/api/pamphlets/layout",
 } as const;
+
+export interface PamphletRegistryItem {
+  pamphletId: string;
+  title: string;
+  updatedAt?: string;
+  layout?: LayoutFields;
+}
 
 function layoutQuery(layout: LayoutFields): string {
   const params = new URLSearchParams();
@@ -209,4 +218,48 @@ export async function uploadPamphletImage(
     throw new Error("Upload response missing preview payload");
   }
   return { html: payload.html, capacity: payload.capacity };
+}
+
+/** Lists pamphlet drafts for the authenticated user. */
+export async function fetchPamphletRegistry(sort: "alpha" | "date" = "alpha"): Promise<PamphletRegistryItem[]> {
+  const correlationId = createCorrelationId();
+  const sortParam = sort === "date" ? "date" : "alpha";
+  const result = await apiRequest<{ pamphlets: PamphletRegistryItem[] }>(
+    `${PAMPHLET_ROUTES.registry}?sort=${sortParam}`,
+    authOptions(correlationId),
+  );
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+  return result.data?.pamphlets ?? [];
+}
+
+/** Loads persisted layout settings for the active pamphlet draft. */
+export async function fetchPamphletLayout(pamphletId = "active"): Promise<LayoutFields> {
+  const correlationId = createCorrelationId();
+  const result = await apiRequest<{ layout: LayoutFields }>(
+    `${PAMPHLET_ROUTES.layout}?pamphletId=${encodeURIComponent(pamphletId)}`,
+    authOptions(correlationId),
+  );
+  if (result.error || !result.data?.layout) {
+    return DEFAULT_LAYOUT;
+  }
+  return { ...DEFAULT_LAYOUT, ...result.data.layout };
+}
+
+/** Persists layout settings for the active pamphlet draft. */
+export async function savePamphletLayout(
+  layout: LayoutFields,
+  title = "active",
+  pamphletId = "active",
+): Promise<void> {
+  const correlationId = createCorrelationId();
+  const result = await apiRequest<{ status: string }>(PAMPHLET_ROUTES.layout, {
+    method: "POST",
+    body: { layout, title },
+    ...authOptions(correlationId),
+  });
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
 }

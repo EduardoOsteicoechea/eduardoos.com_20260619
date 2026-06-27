@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -15,11 +16,12 @@ import (
 
 // pamphletHandlers serves pamphlet layout routes on the documents microservice.
 type pamphletHandlers struct {
-	store pamphlet.DocumentStore
+	store    pamphlet.DocumentStore
+	registry pamphlet.RegistryStore
 }
 
-func newPamphletHandlers(store pamphlet.DocumentStore) pamphletHandlers {
-	return pamphletHandlers{store: store}
+func newPamphletHandlers(store pamphlet.DocumentStore, registry pamphlet.RegistryStore) pamphletHandlers {
+	return pamphletHandlers{store: store, registry: registry}
 }
 
 func (h pamphletHandlers) getDocument() http.HandlerFunc {
@@ -108,6 +110,7 @@ func (h pamphletHandlers) capacity() http.HandlerFunc {
 func (h pamphletHandlers) mutateContent() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, pamphletID := pamphletIDsFromRequest(r)
+		cid := common.CorrelationFromRequest(r)
 		doc, err := h.store.Get(r.Context(), userID, pamphletID)
 		if err != nil {
 			common.WriteError(w, http.StatusBadRequest, err.Error())
@@ -119,6 +122,7 @@ func (h pamphletHandlers) mutateContent() http.HandlerFunc {
 			common.WriteError(w, http.StatusBadRequest, "invalid body")
 			return
 		}
+		log.Printf("[correlation=%s] pamphlet.mutate user=%s id=%s op=%s ref=%s", cid, userID, pamphletID, req.Op, req.Ref)
 		cfg := pamphlet.DefaultLayoutConfig()
 		if req.Layout != nil {
 			cfg = layoutFromMap(req.Layout)
@@ -141,8 +145,8 @@ func (h pamphletHandlers) mutateContent() http.HandlerFunc {
 	}
 }
 
-func registerPamphletRoutes(r chi.Router, secret string, store pamphlet.DocumentStore) {
-	h := newPamphletHandlers(store)
+func registerPamphletRoutes(r chi.Router, secret string, store pamphlet.DocumentStore, registry pamphlet.RegistryStore) {
+	h := newPamphletHandlers(store, registry)
 	r.Group(func(r chi.Router) {
 		r.Use(common.InternalAuthMiddleware(secret))
 		r.Get("/pamphlet/document", h.getDocument())
@@ -151,6 +155,9 @@ func registerPamphletRoutes(r chi.Router, secret string, store pamphlet.Document
 		r.Get("/pamphlet/preview-sheets", h.previewSheets())
 		r.Get("/pamphlet/capacity", h.capacity())
 		r.Post("/pamphlet/content", h.mutateContent())
+		r.Get("/pamphlet/registry", h.listRegistry())
+		r.Get("/pamphlet/layout", h.getLayout())
+		r.Post("/pamphlet/layout", h.saveLayout())
 	})
 }
 

@@ -103,6 +103,7 @@ services:
       PAMPHLET_HEADERS_TABLE: ${PAMPHLET_HEADERS_TABLE:-eduardoos_pamphlet_headers}
       PAMPHLET_FOOTERS_TABLE: ${PAMPHLET_FOOTERS_TABLE:-eduardoos_pamphlet_footers}
       PAMPHLET_CONTENTS_TABLE: ${PAMPHLET_CONTENTS_TABLE:-eduardoos_pamphlet_contents}
+      PAMPHLET_REGISTRY_TABLE: ${PAMPHLET_REGISTRY_TABLE:-eduardoos_pamphlet_registry}
       AWS_REGION: ${AWS_REGION:-us-east-1}
     networks:
       - internal

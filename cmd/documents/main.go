@@ -22,7 +22,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("pamphlet store: %v", err)
 	}
-	log.Printf("pamphlet store backend=%s", pamphletStore.BackendName())
+	registryStore, err := ddb.NewPamphletRegistryStore(ctx)
+	if err != nil {
+		log.Fatalf("pamphlet registry: %v", err)
+	}
+	log.Printf("pamphlet store backend=%s registry=%s", pamphletStore.BackendName(), registryStore.BackendName())
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -30,7 +34,7 @@ func main() {
 	r.Get("/health", common.HealthHandler("documents", map[string]any{
 		"pamphlets_backend": pamphletStore.BackendName(),
 	}))
-	registerPamphletRoutes(r, secret, pamphletStore)
+	registerPamphletRoutes(r, secret, pamphletStore, registryStore)
 	r.Group(func(r chi.Router) {
 		r.Use(common.InternalAuthMiddleware(secret))
 		r.Post("/generate", func(w http.ResponseWriter, r *http.Request) {

@@ -5,6 +5,8 @@
  * that the backend proxies to the telemetry microservice via /api/logger.
  */
 
+import { getAuthToken } from "./auth";
+
 /** Shape of a single flight log entry sent to the observability engine. */
 export interface FlightLogEntry {
   correlationId: string;
@@ -54,14 +56,22 @@ export async function emitFlightLog(
   fetchFn: typeof fetch = fetch
 ): Promise<void> {
   try {
-    await fetchFn("/api/logger", {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-Correlation-ID": entry.correlationId,
+    };
+    const token = getAuthToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const response = await fetchFn("/api/logger", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Correlation-ID": entry.correlationId,
-      },
+      headers,
       body: serializeFlightLog(entry),
     });
+    if (!response.ok && typeof console !== "undefined") {
+      console.debug("[telemetry] emit skipped", response.status, entry.event);
+    }
   } catch {
     // Telemetry is best-effort on the client; the gateway still traces server hops.
   }

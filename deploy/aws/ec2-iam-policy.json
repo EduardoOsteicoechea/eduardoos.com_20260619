@@ -57,7 +57,9 @@
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_footers",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_footers/index/*",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_contents",
-        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_contents/index/*"
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_contents/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_registry",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_registry/index/*"
       ]
     }
   ]

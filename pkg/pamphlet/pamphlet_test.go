@@ -43,8 +43,11 @@ func TestEightColumnDistribution(t *testing.T) {
 		t.Fatalf("expected 8 columns, got %d", len(distributed))
 	}
 	html := RenderPreviewSheets(cfg, doc)
-	if html == "" || !contains(html, "sheet1") || !contains(html, "sheet2") {
-		t.Fatal("preview HTML missing sheets")
+	if html == "" || !contains(html, "sheet1") {
+		t.Fatal("preview HTML missing sheet1")
+	}
+	if sheet1RightFull(distributed, heights, cfg) && sheet2HasContent(distributed) && !contains(html, "sheet2") {
+		t.Fatal("expected sheet2 when first right columns are full and sheet2 has content")
 	}
 }
 

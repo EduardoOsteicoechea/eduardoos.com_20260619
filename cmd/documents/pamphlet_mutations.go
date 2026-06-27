@@ -40,6 +40,10 @@ func applyContentMutation(doc *pamphlet.Document, req contentMutationRequest) (p
 		if err := updateImageRef(doc, req.Ref, req.Value); err != nil {
 			return pamphlet.Document{}, err
 		}
+	case "clear_image":
+		if err := updateImageRef(doc, req.Ref, ""); err != nil {
+			return pamphlet.Document{}, err
+		}
 	case "toggle_highlight", "highlight":
 		if err := toggleHighlight(doc, req.Ref, req.Start, req.End, req.ItemIndex); err != nil {
 			return pamphlet.Document{}, err
@@ -120,6 +124,9 @@ func subideaForRef(doc *pamphlet.Document, ref parsedRef) (*pamphlet.SubideaJSON
 }
 
 func updateContentRef(doc *pamphlet.Document, ref, value, field string, itemIndex *int) error {
+	if strings.HasPrefix(ref, "header:") || strings.HasPrefix(ref, "footer:") {
+		return updateMetaRef(doc, ref, value)
+	}
 	parsed, err := parseContentRef(ref)
 	if err != nil {
 		return err
@@ -296,5 +303,60 @@ func updateImageRef(doc *pamphlet.Document, ref, objectKey string) error {
 		return fmt.Errorf("ref is not an image subidea")
 	}
 	sub.Image = strings.TrimSpace(objectKey)
+	return nil
+}
+
+func updateMetaRef(doc *pamphlet.Document, ref, value string) error {
+	cleaned := strings.TrimSpace(value)
+	parts := strings.Split(ref, ":")
+	if len(parts) < 2 {
+		return fmt.Errorf("invalid meta ref %q", ref)
+	}
+	zone := parts[0]
+	field := parts[1]
+	switch zone {
+	case "header":
+		switch field {
+		case "text":
+			doc.Header.Text = cleaned
+		case "heading":
+			doc.Header.Heading = cleaned
+		case "subheading":
+			doc.Header.Subheading = cleaned
+		case "author":
+			doc.Header.Author = cleaned
+		case "date":
+			doc.Header.Date = cleaned
+		case "category":
+			doc.Header.Category = cleaned
+		default:
+			return fmt.Errorf("unknown header field %q", field)
+		}
+	case "footer":
+		switch field {
+		case "text":
+			doc.Footer.Text = cleaned
+		case "heading":
+			doc.Footer.Heading = cleaned
+		case "address":
+			doc.Footer.AddressData.Address = cleaned
+		case "contact":
+			if len(parts) != 3 {
+				return fmt.Errorf("invalid footer contact ref %q", ref)
+			}
+			idx, err := strconv.Atoi(parts[2])
+			if err != nil {
+				return err
+			}
+			for len(doc.Footer.ContactItems) <= idx {
+				doc.Footer.ContactItems = append(doc.Footer.ContactItems, pamphlet.FooterContact{})
+			}
+			doc.Footer.ContactItems[idx].Value = cleaned
+		default:
+			return fmt.Errorf("unknown footer field %q", field)
+		}
+	default:
+		return fmt.Errorf("unknown zone %q", zone)
+	}
 	return nil
 }
