@@ -225,7 +225,7 @@ func RenderSheet1Outer(cfg LayoutConfig, header HeaderPayload, footer FooterPayl
 	s1l := renderColumnDiv("s1l-col0", distributed[6], colW, heights[6], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 100)
 	s1l += renderColumnDiv("s1l-col1", distributed[7], colW, heights[7], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 101)
 	return fmt.Sprintf(`
-<div class="sheet" id="sheet1" data-sheet-index="1" style="--mid-gap:%.4fmm;--col-gap:%.4fmm;--hf-gap:%.4fmm">
+<div class="sheet" id="sheet1" data-sheet-index="1" style="--mid-gap:%.4fmm;--col-gap:%.4fmm;--hf-gap:%.4fmm;--para-sep-mm:%.4fmm;--heading-gap-mm:%.4fmm">
   <div class="sheet-inner sheet1-grid" style="padding:%.4fmm %.4fmm">
     <div class="block left sheet1-left">
       <div class="zone-body" id="s1-left-body">%s</div>
@@ -240,7 +240,7 @@ func RenderSheet1Outer(cfg LayoutConfig, header HeaderPayload, footer FooterPayl
     </div>
   </div>
 </div>`,
-		cfg.MidSeparationMM, cfg.ColumnGapMM, cfg.HeaderFooterGapMM,
+		cfg.MidSeparationMM, cfg.ColumnGapMM, cfg.HeaderFooterGapMM, paraSep, cfg.IdeaHeadingBottomMarginMM,
 		cfg.MarginVerticalMM, cfg.MarginLateralMM,
 		s1l, fs, lh, renderFooterZone(footer),
 		fs, lh, renderHeaderZone(header), s1r,
@@ -257,14 +257,14 @@ func RenderSheet2Inner(cfg LayoutConfig, distributed [][]LayoutBlock, heights []
 	s2r := renderColumnDiv("s2r-col0", distributed[4], colW, heights[4], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 6)
 	s2r += renderColumnDiv("s2r-col1", distributed[5], colW, heights[5], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 7)
 	return fmt.Sprintf(`
-<div class="sheet" id="sheet2" data-sheet-index="2" style="--mid-gap:%.4fmm;--col-gap:%.4fmm">
+<div class="sheet" id="sheet2" data-sheet-index="2" style="--mid-gap:%.4fmm;--col-gap:%.4fmm;--para-sep-mm:%.4fmm;--heading-gap-mm:%.4fmm">
   <div class="sheet-inner sheet2-grid" style="padding:%.4fmm %.4fmm">
     <div class="block left sheet2-left"><div class="zone-body" id="s2-left-body">%s</div></div>
     <div class="gutter" id="mid-gutter-2"></div>
     <div class="block right sheet2-right"><div class="zone-body" id="s2-right-body">%s</div></div>
   </div>
 </div>`,
-		cfg.MidSeparationMM, cfg.ColumnGapMM,
+		cfg.MidSeparationMM, cfg.ColumnGapMM, paraSep, cfg.IdeaHeadingBottomMarginMM,
 		cfg.MarginVerticalMM, cfg.MarginLateralMM,
 		s2l, s2r,
 	)
@@ -304,11 +304,11 @@ func RenderOverflowSheet(cfg LayoutConfig, cols [][]LayoutBlock, heights []float
 	right += renderColumnDiv(fmt.Sprintf("s%d-r1", pageNum), cols[3], colW, bodyH, fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 13+pageNum*4)
 	_ = heights
 	return fmt.Sprintf(`
-<div class="sheet sheet-overflow" id="sheet%d" data-sheet-index="%d" style="--mid-gap:%.4fmm;--col-gap:%.4fmm">
+<div class="sheet sheet-overflow" id="sheet%d" data-sheet-index="%d" style="--mid-gap:%.4fmm;--col-gap:%.4fmm;--para-sep-mm:%.4fmm;--heading-gap-mm:%.4fmm">
   <div class="sheet-inner sheet2-grid" style="padding:%.4fmm %.4fmm">
     <div class="block left sheet2-left"><div class="zone-body">%s</div></div>
     <div class="gutter"></div>
     <div class="block right sheet2-right"><div class="zone-body">%s</div></div>
   </div>
-</div>`, pageNum, pageNum, cfg.MidSeparationMM, cfg.ColumnGapMM, cfg.MarginVerticalMM, cfg.MarginLateralMM, left, right)
+</div>`, pageNum, pageNum, cfg.MidSeparationMM, cfg.ColumnGapMM, paraSep, cfg.IdeaHeadingBottomMarginMM, cfg.MarginVerticalMM, cfg.MarginLateralMM, left, right)
 }

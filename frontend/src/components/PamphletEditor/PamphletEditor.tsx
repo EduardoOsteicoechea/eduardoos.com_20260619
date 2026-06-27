@@ -13,6 +13,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { APP_ROUTES } from "../../config/routes";
 import { getAuthToken } from "../../lib/auth";
 import {
+  pamphletAuditBlockSpacing,
   pamphletDebug,
   pamphletDebugError,
   pamphletDomSummary,
@@ -61,6 +62,27 @@ const DESKTOP_MIN = 1024;
 const EDITABLE_SELECTOR =
   ".editable-block[data-content-ref], .editable-type-block[data-content-ref]";
 
+const SHEET_SPACING_VARS = ["--para-sep-mm", "--heading-gap-mm"] as const;
+
+function copySheetSpacingVars(sourceNode: HTMLElement, target: HTMLElement): void {
+  const sheet = sourceNode.closest<HTMLElement>(".sheet");
+  if (!sheet) {
+    pamphletTrace("spacing_vars_missing_sheet", { sourceId: sourceNode.id || undefined });
+    return;
+  }
+  for (const name of SHEET_SPACING_VARS) {
+    const value = sheet.style.getPropertyValue(name);
+    if (value) {
+      target.style.setProperty(name, value);
+    }
+  }
+  pamphletTrace("spacing_vars_copied", {
+    sourceId: sourceNode.id || undefined,
+    paraSep: target.style.getPropertyValue("--para-sep-mm") || undefined,
+    headingGap: target.style.getPropertyValue("--heading-gap-mm") || undefined,
+  });
+}
+
 function syncMobileStreamCards(source: HTMLElement, target: HTMLElement): number {
   target.innerHTML = "";
   const ordered = [...source.querySelectorAll<HTMLElement>("[data-mobile-order]")].sort(
@@ -76,6 +98,7 @@ function syncMobileStreamCards(source: HTMLElement, target: HTMLElement): number
     if (node.id) {
       card.setAttribute("data-stream-source-id", node.id);
     }
+    copySheetSpacingVars(node, card);
     card.appendChild(node.cloneNode(true));
     target.appendChild(card);
   }
@@ -127,6 +150,7 @@ export default function PamphletEditor() {
   const viewportScrollRef = useRef(0);
   const preserveScrollRef = useRef(false);
   const resetScrollOnPreviewRef = useRef(false);
+  const pendingEditRef = useRef("");
   const layoutRef = useRef<LayoutFields>(DEFAULT_LAYOUT);
   const editingRef = useRef<HTMLElement | null>(null);
   const editOriginalRef = useRef("");
@@ -221,32 +245,48 @@ export default function PamphletEditor() {
   const applyMutation = useCallback(async (body: Record<string, unknown>) => {
     const viewport = viewportRef.current;
     const op = String(body.op ?? "");
+    const ref = String(body.ref ?? "");
+    pamphletTrace("mutation_step_1_prepare", { op, ref, layout: layoutRef.current });
     const shouldPreserveScroll =
       op !== "delete" && op !== "clear_image" && window.innerWidth <= STREAM_BREAKPOINT;
     if (viewport && shouldPreserveScroll) {
       viewportScrollRef.current = viewport.scrollTop;
       preserveScrollRef.current = true;
+      pamphletTrace("mutation_step_2_scroll_preserve", { scrollTop: viewportScrollRef.current });
     } else {
       preserveScrollRef.current = false;
       if (window.innerWidth > STREAM_BREAKPOINT && (op === "delete" || op === "clear_image")) {
         resetScrollOnPreviewRef.current = true;
+        pamphletTrace("mutation_step_2_scroll_reset_scheduled", { op });
       }
     }
     setRefreshing(true);
     setError("");
-    pamphletTrace("mutation_start", body);
-    pamphletDebug("mutation", { op: String(body.op ?? ""), ref: body.ref });
+    pamphletTrace("mutation_step_3_request_start", body);
+    pamphletDebug("mutation", { op, ref });
     try {
       const result = await mutatePamphletContent(body, layoutRef.current);
+      pamphletTrace("mutation_step_4_response_received", {
+        op,
+        ref,
+        htmlLen: result.html.length,
+        newRef: result.newRef,
+        capacityChars: result.capacity.characters,
+      });
       setPreviewHtml(result.html);
       setCapacity(result.capacity);
-      setStatus("Content updated");
-      pamphletTrace("mutation_done", { op: String(body.op ?? ""), htmlLen: result.html.length });
+      if (result.newRef) {
+        pendingEditRef.current = result.newRef;
+        pamphletTrace("mutation_step_5_pending_edit_ref", { newRef: result.newRef });
+      }
+      setStatus(op === "insert_below" ? `Inserted ${result.newRef ?? ref}` : "Content updated");
+      pamphletTrace("mutation_step_6_state_updated", { op, ref, newRef: result.newRef });
     } catch (err) {
       pamphletDebugError("mutation_failed", err, body);
       setError(err instanceof Error ? err.message : "Mutation failed");
     } finally {
       setRefreshing(false);
+      pamphletTrace("mutation_step_7_done", { op, ref });
     }
   }, []);
 
@@ -286,6 +326,7 @@ export default function PamphletEditor() {
         canvas.style.width = "";
         canvas.style.height = "";
       }
+      pamphletTrace("scale_step_stream_mode", { innerWidth: window.innerWidth });
       updateToolbarPosition();
       return;
     }
@@ -299,6 +340,7 @@ export default function PamphletEditor() {
     const naturalW = sheets.offsetWidth;
     const naturalH = sheets.offsetHeight;
     const sheetPx = naturalW > 0 ? naturalW : SHEET_WIDTH_IN * 96;
+    pamphletTrace("scale_step_measured", { naturalW, naturalH, sheetPx, userZoom });
 
     let scale = userZoom;
     if (!isDesktop) {
@@ -312,10 +354,19 @@ export default function PamphletEditor() {
     sheets.style.transform = `scale(${scale.toFixed(4)})`;
     sheets.style.transformOrigin = "top center";
 
+    const canvasW = Math.ceil(sheetPx * scale);
+    const canvasH = Math.ceil(Math.max(naturalH, sheets.scrollHeight) * scale);
     if (canvas) {
-      canvas.style.width = `${Math.ceil(sheetPx * scale)}px`;
-      canvas.style.height = `${Math.ceil(Math.max(naturalH, sheets.scrollHeight) * scale)}px`;
+      canvas.style.width = `${canvasW}px`;
+      canvas.style.height = `${canvasH}px`;
     }
+
+    pamphletTrace("scale_step_applied", {
+      scale,
+      canvasW,
+      canvasH,
+      scrollHeight: sheets.scrollHeight,
+    });
 
     updateToolbarPosition();
   }, [userZoom, updateToolbarPosition]);
@@ -736,7 +787,13 @@ export default function PamphletEditor() {
 
   const handleToolbarAction = useCallback(
     async (op: string) => {
-      if (!activeRef) return;
+      if (!activeRef) {
+        pamphletTrace("toolbar_action_skipped", { op, reason: "no_active_ref" });
+        return;
+      }
+      const ref = activeRef;
+      pamphletTrace("toolbar_action_start", { op, ref, editing: Boolean(editingRef.current) });
+
       if (op === "toggle_highlight") {
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
@@ -753,8 +810,23 @@ export default function PamphletEditor() {
         await applyMutation({ op: "toggle_highlight", ref: activeRef, start, end });
         return;
       }
+      if (op === "insert_below") {
+        if (editingRef.current) {
+          pamphletTrace("toolbar_insert_finish_edit_first", { ref });
+          await finishEditing(editingRef.current);
+        }
+        if (!ref) {
+          pamphletTrace("toolbar_insert_aborted", { reason: "missing_ref_after_save" });
+          return;
+        }
+        setActiveRef("");
+        setActiveIsImage(false);
+        pamphletTrace("toolbar_insert_request", { ref });
+        await applyMutation({ op: "insert_below", ref });
+        return;
+      }
       if (op === "delete") {
-        const ref = activeRef;
+        const deleteRef = ref;
         if (editingRef.current) {
           editingRef.current.contentEditable = "false";
           editingRef.current.classList.remove("is-editing");
@@ -762,13 +834,17 @@ export default function PamphletEditor() {
         }
         setActiveRef("");
         setActiveIsImage(false);
-        pamphletTrace("delete_block", { ref });
-        await applyMutation({ op: "delete", ref });
+        pamphletTrace("delete_block", { ref: deleteRef });
+        await applyMutation({ op: "delete", ref: deleteRef });
         return;
       }
-      await applyMutation({ op, ref: activeRef });
+      if (editingRef.current && (op === "move_up" || op === "move_down")) {
+        await finishEditing(editingRef.current);
+      }
+      await applyMutation({ op, ref });
+      pamphletTrace("toolbar_action_done", { op, ref });
     },
-    [activeRef, applyMutation, getInteractionRoot],
+    [activeRef, applyMutation, finishEditing, getInteractionRoot],
   );
 
   const blockToolbar = activeRef ? (
@@ -871,37 +947,64 @@ export default function PamphletEditor() {
     }
 
     pamphletResetTrace();
+    pamphletTrace("preview_step_1_reset_canvas", { htmlLen: previewHtml.length });
     resetCanvasMetrics();
     source.innerHTML = previewHtml;
     const sheetCount = previewHtml ? source.querySelectorAll(".sheet").length : 0;
     setPageCount(sheetCount);
+    pamphletTrace("preview_step_2_dom_painted", { sheetCount });
     pamphletLogPrintSource(source);
+    pamphletAuditBlockSpacing(source, "print_source");
 
     const mobileTarget = mobileStreamRef.current;
     if (isMobileStream && mobileTarget) {
       const cardCount = syncMobileStreamCards(source, mobileTarget);
-      pamphletTrace("mobile_stream_built", { cardCount, sheetCount });
+      pamphletTrace("preview_step_3_mobile_stream_built", { cardCount, sheetCount });
       pamphletLogMobileStream(mobileTarget);
+      pamphletAuditBlockSpacing(mobileTarget, "mobile_stream");
     } else if (mobileTarget) {
       mobileTarget.innerHTML = "";
-      pamphletTrace("mobile_stream_cleared", { reason: "desktop_mode" });
+      pamphletTrace("preview_step_3_mobile_stream_cleared", { reason: "desktop_mode" });
     }
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        pamphletTrace("preview_step_4_scale_start");
         applySheetScale();
         if (preserveScrollRef.current && viewportRef.current) {
           viewportRef.current.scrollTop = viewportScrollRef.current;
           preserveScrollRef.current = false;
-          pamphletTrace("scroll_restored", { scrollTop: viewportScrollRef.current });
+          pamphletTrace("preview_step_5_scroll_restored", { scrollTop: viewportScrollRef.current });
         } else if (resetScrollOnPreviewRef.current && viewportRef.current && !isMobileStream) {
           viewportRef.current.scrollTop = 0;
           resetScrollOnPreviewRef.current = false;
+          pamphletTrace("preview_step_5_scroll_reset", { scrollTop: 0 });
         }
         updateToolbarPosition();
+
+        const nextEditRef = pendingEditRef.current;
+        if (nextEditRef) {
+          pendingEditRef.current = "";
+          const root = isMobileStream ? mobileStreamRef.current : sheetsRef.current;
+          const nextEl = root?.querySelector<HTMLElement>(`[data-content-ref="${nextEditRef}"]`);
+          pamphletTrace("preview_step_6_pending_edit_lookup", {
+            newRef: nextEditRef,
+            found: Boolean(nextEl),
+            root: isMobileStream ? "mobile_stream" : "print_source",
+          });
+          if (nextEl) {
+            setActiveRef(nextEditRef);
+            setActiveIsImage(nextEl.classList.contains("block-image-ref"));
+            enterEditMode(nextEl);
+          } else {
+            pamphletTrace("preview_step_6_pending_edit_missing", { newRef: nextEditRef });
+          }
+        }
+
+        pamphletTrace("preview_step_7_complete", { sheetCount, isMobileStream });
       });
     });
-  }, [previewHtml, applySheetScale, isMobileStream, resetCanvasMetrics, updateToolbarPosition]);
+  }, [previewHtml, applySheetScale, isMobileStream, resetCanvasMetrics, updateToolbarPosition, enterEditMode]);
 
   useLayoutEffect(() => {
     updateToolbarPosition();

@@ -127,21 +127,25 @@ func (h pamphletHandlers) mutateContent() http.HandlerFunc {
 		if req.Layout != nil {
 			cfg = layoutFromMap(req.Layout)
 		}
-		updated, err := applyContentMutation(&doc, req)
+		updated, newRef, err := applyContentMutation(&doc, req)
 		if err != nil {
 			common.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		if err := h.store.Put(r.Context(), userID, pamphletID, doc); err != nil {
+		if err := h.store.Put(r.Context(), userID, pamphletID, updated); err != nil {
 			common.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		common.WriteJSON(w, http.StatusOK, map[string]any{
+		resp := map[string]any{
 			"status":   "ok",
 			"document": updated,
-			"html":     pamphlet.RenderPreviewSheets(cfg, doc),
-			"capacity": pamphlet.ComputeCapacityTelemetry(cfg, doc),
-		})
+			"html":     pamphlet.RenderPreviewSheets(cfg, updated),
+			"capacity": pamphlet.ComputeCapacityTelemetry(cfg, updated),
+		}
+		if newRef != "" {
+			resp["newRef"] = newRef
+		}
+		common.WriteJSON(w, http.StatusOK, resp)
 	}
 }
 

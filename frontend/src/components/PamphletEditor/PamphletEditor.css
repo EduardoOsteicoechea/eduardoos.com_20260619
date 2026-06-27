@@ -219,6 +219,18 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
   height: 100%;
 }
 
+/* Block spacing — CSS variables come from each .sheet; !important beats global * reset */
+.pamphlet-editor__sheets .column > .block-paragraph:not(:last-child),
+.pamphlet-editor__sheets .column > .block-list:not(:last-child),
+.pamphlet-editor__sheets .column > .block-quote:not(:last-child),
+.pamphlet-editor__sheets .column > .block-image-wrap:not(:last-child) {
+  margin-bottom: var(--para-sep-mm, 4.2336mm) !important;
+}
+
+.pamphlet-editor__sheets .column > .block-heading:not(:last-child) {
+  margin-bottom: var(--heading-gap-mm, 5mm) !important;
+}
+
 .pamphlet-editor__sheets .block-heading {
   font-weight: 700;
   font-size: 1.15em;
@@ -248,8 +260,10 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
 }
 
 .pamphlet-editor__sheets .block-paragraph {
-  margin: 0;
-  overflow: hidden;
+  margin-top: 0;
+  margin-left: 0;
+  margin-right: 0;
+  overflow: visible;
 }
 
 .pamphlet-editor__sheets .block-list {
@@ -427,6 +441,21 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
     border: 1px solid #e2e8f0;
     box-shadow: 0 1px 6px rgba(15, 23, 42, 0.08);
     box-sizing: border-box;
+    overflow: visible;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-paragraph:not(:last-child),
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-list:not(:last-child),
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-quote:not(:last-child),
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-image-wrap:not(:last-child) {
+    margin-bottom: var(--para-sep-mm, 4.2336mm) !important;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-heading:not(:last-child) {
+    margin-bottom: var(--heading-gap-mm, 5mm) !important;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-paragraph {
     overflow: visible;
   }
 

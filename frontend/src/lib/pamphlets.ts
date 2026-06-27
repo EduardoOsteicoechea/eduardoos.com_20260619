@@ -150,9 +150,9 @@ export async function resetPamphletDocument(layout: LayoutFields): Promise<{
 export async function mutatePamphletContent(
   body: Record<string, unknown>,
   layout: LayoutFields,
-): Promise<{ html: string; capacity: CapacityTelemetry }> {
+): Promise<{ html: string; capacity: CapacityTelemetry; newRef?: string }> {
   const correlationId = createCorrelationId();
-  const result = await apiRequest<{ html: string; capacity: CapacityTelemetry }>(
+  const result = await apiRequest<{ html: string; capacity: CapacityTelemetry; newRef?: string }>(
     PAMPHLET_ROUTES.content,
     {
       method: "POST",
@@ -163,7 +163,7 @@ export async function mutatePamphletContent(
   if (result.error) {
     throw new Error(result.error.message);
   }
-  return result.data as { html: string; capacity: CapacityTelemetry };
+  return result.data as { html: string; capacity: CapacityTelemetry; newRef?: string };
 }
 
 /** Updates one content ref (e.g. "0:subidea:2") and returns refreshed preview HTML. */

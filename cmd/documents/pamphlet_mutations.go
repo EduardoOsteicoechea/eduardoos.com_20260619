@@ -10,7 +10,8 @@ import (
 )
 
 // applyContentMutation applies pamphlet content edits from the editor UI.
-func applyContentMutation(doc *pamphlet.Document, req contentMutationRequest) (pamphlet.Document, error) {
+func applyContentMutation(doc *pamphlet.Document, req contentMutationRequest) (pamphlet.Document, string, error) {
+	var newRef string
 	switch req.Op {
 	case "update":
 		value := req.Value
@@ -18,48 +19,50 @@ func applyContentMutation(doc *pamphlet.Document, req contentMutationRequest) (p
 			value = req.Text
 		}
 		if err := updateContentRef(doc, req.Ref, value, req.Field, req.ItemIndex); err != nil {
-			return pamphlet.Document{}, err
+			return pamphlet.Document{}, "", err
 		}
 	case "delete":
 		if err := deleteContentRef(doc, req.Ref); err != nil {
-			return pamphlet.Document{}, err
+			return pamphlet.Document{}, "", err
 		}
 	case "move_up":
 		if err := moveSubidea(doc, req.Ref, -1); err != nil {
-			return pamphlet.Document{}, err
+			return pamphlet.Document{}, "", err
 		}
 	case "move_down":
 		if err := moveSubidea(doc, req.Ref, 1); err != nil {
-			return pamphlet.Document{}, err
+			return pamphlet.Document{}, "", err
 		}
 	case "insert_below":
-		if err := insertSubideaBelow(doc, req.Ref, req.Value); err != nil {
-			return pamphlet.Document{}, err
+		ref, err := insertSubideaBelow(doc, req.Ref, req.Value)
+		if err != nil {
+			return pamphlet.Document{}, "", err
 		}
+		newRef = ref
 	case "update_image":
 		if err := updateImageRef(doc, req.Ref, req.Value); err != nil {
-			return pamphlet.Document{}, err
+			return pamphlet.Document{}, "", err
 		}
 	case "clear_image":
 		if err := updateImageRef(doc, req.Ref, ""); err != nil {
-			return pamphlet.Document{}, err
+			return pamphlet.Document{}, "", err
 		}
 	case "toggle_highlight", "highlight":
 		if err := toggleHighlight(doc, req.Ref, req.Start, req.End, req.ItemIndex); err != nil {
-			return pamphlet.Document{}, err
+			return pamphlet.Document{}, "", err
 		}
 	case "restore":
 		if req.Content != nil {
 			raw, err := mapToContent(req.Content)
 			if err != nil {
-				return pamphlet.Document{}, err
+				return pamphlet.Document{}, "", err
 			}
 			doc.Content = raw
 		}
 	default:
-		return pamphlet.Document{}, fmt.Errorf("unsupported op %q", req.Op)
+		return pamphlet.Document{}, "", fmt.Errorf("unsupported op %q", req.Op)
 	}
-	return *doc, nil
+	return *doc, newRef, nil
 }
 
 func mapToContent(m map[string]any) (pamphlet.ContentPayload, error) {
@@ -226,27 +229,33 @@ func moveSubidea(doc *pamphlet.Document, ref string, delta int) error {
 	return nil
 }
 
-func insertSubideaBelow(doc *pamphlet.Document, ref, text string) error {
+const defaultInsertParagraphText = "New paragraph"
+
+func insertSubideaBelow(doc *pamphlet.Document, ref, text string) (string, error) {
 	parsed, err := parseContentRef(ref)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if parsed.field != "subidea" {
-		return fmt.Errorf("only subideas support insert_below")
+		return "", fmt.Errorf("only subideas support insert_below")
 	}
 	idea, err := ideaForRef(doc, parsed)
 	if err != nil {
-		return err
+		return "", err
 	}
 	insertAt := parsed.subIdx + 1
 	if insertAt > len(idea.Subideas) {
 		insertAt = len(idea.Subideas)
 	}
-	newSub := pamphlet.SubideaJSON{Type: "simple_idea", Content: strings.TrimSpace(text)}
+	content := strings.TrimSpace(text)
+	if content == "" {
+		content = defaultInsertParagraphText
+	}
+	newSub := pamphlet.SubideaJSON{Type: "simple_idea", Content: content}
 	tail := append([]pamphlet.SubideaJSON{}, idea.Subideas[insertAt:]...)
 	idea.Subideas = append(idea.Subideas[:insertAt], newSub)
 	idea.Subideas = append(idea.Subideas, tail...)
-	return nil
+	return pamphlet.FormatContentRef(parsed.ideaIdx, "subidea", insertAt), nil
 }
 
 func toggleHighlight(doc *pamphlet.Document, ref string, start, end int, itemIndex *int) error {

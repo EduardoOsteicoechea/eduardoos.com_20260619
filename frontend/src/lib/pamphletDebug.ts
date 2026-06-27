@@ -3,7 +3,7 @@
  *
  * Enable in browser console:
  *   localStorage.setItem('eduardoos-pamphlet-debug', '1')       // standard + telemetry
- *   localStorage.setItem('eduardoos-pamphlet-debug', 'verbose') // line-by-line trace
+ *   localStorage.setItem('eduardoos-pamphlet-debug', 'verbose') // same line-by-line trace (always on editor ops)
  */
 
 import { getAuthToken } from "./auth";
@@ -34,7 +34,7 @@ export function pamphletDebug(event: string, detail?: Record<string, unknown>): 
   );
 }
 
-/** Line-by-line trace when debug mode is `verbose` (also mirrors to console.info). */
+/** Numbered line-by-line trace — always mirrors to console.info for editor diagnostics. */
 export function pamphletTrace(step: string, detail?: Record<string, unknown>): void {
   traceStep += 1;
   const payload = {
@@ -43,17 +43,27 @@ export function pamphletTrace(step: string, detail?: Record<string, unknown>): v
     ...detail,
     authed: Boolean(getAuthToken()),
   };
+  console.info(PREFIX, "trace", step, payload);
   const mode = debugMode();
-  if (mode === "verbose") {
-    console.info(PREFIX, "trace", step, payload);
-  } else if (mode === "standard") {
-    console.debug(PREFIX, "trace", step, payload);
+  if (mode === "standard" || mode === "verbose") {
+    const correlationId = createCorrelationId();
+    void emitFlightLog(
+      buildFlightLog(`pamphlet.trace.${step}`, "success", correlationId, {
+        detail: JSON.stringify(payload).slice(0, 800),
+      }),
+    );
   }
+}
+
+/** Alias for explicit step logging in hot paths. */
+export function pamphletLogLine(step: string, detail?: Record<string, unknown>): void {
+  pamphletTrace(step, detail);
 }
 
 export function pamphletDebugError(event: string, err: unknown, detail?: Record<string, unknown>): void {
   const message = err instanceof Error ? err.message : String(err);
   console.error(PREFIX, event, message, detail ?? {});
+  pamphletTrace(`${event}_error`, { message, ...(detail ?? {}) });
 }
 
 /** Summarize a DOM node for console feedback. */
@@ -79,6 +89,35 @@ export function pamphletDomSummary(el: Element | null | undefined): Record<strin
   };
 }
 
+const SPACING_BLOCK_SELECTOR =
+  ".block-paragraph, .block-heading, .block-list, .block-quote, .block-image-wrap";
+
+/** Log computed spacing for each content block (line-by-line margin audit). */
+export function pamphletAuditBlockSpacing(root: HTMLElement | null, label: string): void {
+  if (!root || typeof window === "undefined") {
+    pamphletTrace("spacing_audit_skipped", { label, reason: "root_missing" });
+    return;
+  }
+  const blocks = [...root.querySelectorAll<HTMLElement>(SPACING_BLOCK_SELECTOR)];
+  pamphletTrace("spacing_audit_start", { label, blockCount: blocks.length });
+  blocks.forEach((el, index) => {
+    const cs = window.getComputedStyle(el);
+    pamphletTrace("spacing_audit_block", {
+      label,
+      index,
+      ref: el.getAttribute("data-content-ref") ?? undefined,
+      tag: el.tagName.toLowerCase(),
+      classes: el.className,
+      inlineStyle: el.getAttribute("style") ?? "",
+      marginTop: cs.marginTop,
+      marginBottom: cs.marginBottom,
+      heightPx: Math.round(el.getBoundingClientRect().height),
+      parentTag: el.parentElement?.tagName.toLowerCase(),
+    });
+  });
+  pamphletTrace("spacing_audit_done", { label, blockCount: blocks.length });
+}
+
 /** Log ordered mobile-stream nodes after layout. */
 export function pamphletLogMobileStream(root: HTMLElement | null): void {
   if (!root) {
@@ -92,6 +131,7 @@ export function pamphletLogMobileStream(root: HTMLElement | null): void {
       index,
       order: card.getAttribute("data-mobile-order"),
       sourceId: card.getAttribute("data-stream-source-id"),
+      paraSep: card.style.getPropertyValue("--para-sep-mm") || undefined,
       ...pamphletDomSummary(card),
     })),
   });
@@ -103,6 +143,16 @@ export function pamphletLogPrintSource(root: HTMLElement | null): void {
     pamphletTrace("print_source_audit", { error: "root_missing" });
     return;
   }
+  const sheets = [...root.querySelectorAll<HTMLElement>(".sheet")];
+  pamphletTrace("print_source_sheets", {
+    sheetCount: sheets.length,
+    sheets: sheets.map((sheet, index) => ({
+      index,
+      id: sheet.id,
+      paraSep: sheet.style.getPropertyValue("--para-sep-mm") || undefined,
+      headingGap: sheet.style.getPropertyValue("--heading-gap-mm") || undefined,
+    })),
+  });
   const nodes = [...root.querySelectorAll<HTMLElement>("[data-mobile-order]")];
   pamphletTrace("print_source_audit", {
     nodeCount: nodes.length,
