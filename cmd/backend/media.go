@@ -150,7 +150,7 @@ func (c config) listMediaImages() http.HandlerFunc {
 			}
 			images = append(images, galleryImage{
 				ImageItem: img,
-				URL:       "/api/media/file/" + url.PathEscape(rel),
+				URL:       "/api/media/file/" + s3store.EncodeRelativePath(rel),
 				S3URL:     s3store.S3ObjectURL(payload.Backend, payload.Bucket, region, img.Key),
 			})
 		}
@@ -222,7 +222,7 @@ func (c config) listMediaAudio() http.HandlerFunc {
 			}
 			tracks = append(tracks, audioTrack{
 				AudioItem: item,
-				URL:       "/api/media/file/" + url.PathEscape(rel),
+				URL:       "/api/media/file/" + s3store.EncodeRelativePath(rel),
 				S3URL:     s3store.S3ObjectURL(backend, bucket, region, item.Key),
 			})
 		}
@@ -243,7 +243,8 @@ func (c config) proxyMediaFile() http.HandlerFunc {
 			common.WriteError(w, http.StatusBadRequest, "file key required")
 			return
 		}
-		target := strings.TrimRight(c.S3URL, "/") + "/file/" + suffix
+		// Re-encode each segment so internal http.Get URLs stay valid (spaces, unicode).
+		target := strings.TrimRight(c.S3URL, "/") + "/file/" + s3store.EncodeRelativePath(suffix)
 		c.signedProxy(w, r, http.MethodGet, target, "")
 	}
 }

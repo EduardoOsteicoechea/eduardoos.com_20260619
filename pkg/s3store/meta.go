@@ -117,7 +117,17 @@ func S3ObjectURL(backend, bucket, region, objectKey string) string {
 	return "s3://" + bucket + "/" + objectKey
 }
 
+// EncodeRelativePath percent-encodes each path segment but keeps slashes as separators.
+// Using url.PathEscape on a full path encodes "/" as "%2F", which breaks chi/nginx routing.
+func EncodeRelativePath(key string) string {
+	return encodePathSegments(key)
+}
+
 func encodeS3Key(key string) string {
+	return encodePathSegments(key)
+}
+
+func encodePathSegments(key string) string {
 	parts := strings.Split(key, "/")
 	for i, part := range parts {
 		parts[i] = url.PathEscape(part)
