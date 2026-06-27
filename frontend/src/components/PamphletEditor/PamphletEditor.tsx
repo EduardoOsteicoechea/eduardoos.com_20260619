@@ -126,6 +126,7 @@ export default function PamphletEditor() {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const viewportScrollRef = useRef(0);
   const preserveScrollRef = useRef(false);
+  const resetScrollOnPreviewRef = useRef(false);
   const layoutRef = useRef<LayoutFields>(DEFAULT_LAYOUT);
   const editingRef = useRef<HTMLElement | null>(null);
   const editOriginalRef = useRef("");
@@ -185,7 +186,7 @@ export default function PamphletEditor() {
     const toolbar = toolbarRef.current;
     const canvas = canvasRef.current;
     const root = getInteractionRoot();
-    if (isMobileStream || !toolbar || !canvas || !root || !activeRef) {
+    if (!toolbar || !canvas || !root || !activeRef) {
       return;
     }
 
@@ -203,13 +204,33 @@ export default function PamphletEditor() {
 
     toolbar.style.top = `${Math.max(4, top)}px`;
     toolbar.style.left = `${left}px`;
-  }, [activeIsImage, activeRef, getInteractionRoot, isMobileStream]);
+  }, [activeIsImage, activeRef, getInteractionRoot]);
+
+  const resetCanvasMetrics = useCallback(() => {
+    const canvas = canvasRef.current;
+    const sheets = sheetsRef.current;
+    if (canvas) {
+      canvas.style.width = "";
+      canvas.style.height = "";
+    }
+    if (sheets) {
+      sheets.style.transform = "none";
+    }
+  }, []);
 
   const applyMutation = useCallback(async (body: Record<string, unknown>) => {
     const viewport = viewportRef.current;
-    if (viewport) {
+    const op = String(body.op ?? "");
+    const shouldPreserveScroll =
+      op !== "delete" && op !== "clear_image" && window.innerWidth <= STREAM_BREAKPOINT;
+    if (viewport && shouldPreserveScroll) {
       viewportScrollRef.current = viewport.scrollTop;
       preserveScrollRef.current = true;
+    } else {
+      preserveScrollRef.current = false;
+      if (window.innerWidth > STREAM_BREAKPOINT && (op === "delete" || op === "clear_image")) {
+        resetScrollOnPreviewRef.current = true;
+      }
     }
     setRefreshing(true);
     setError("");
@@ -265,9 +286,14 @@ export default function PamphletEditor() {
         canvas.style.width = "";
         canvas.style.height = "";
       }
+      updateToolbarPosition();
       return;
     }
 
+    if (canvas) {
+      canvas.style.width = "";
+      canvas.style.height = "";
+    }
     sheets.style.transform = "none";
 
     const naturalW = sheets.offsetWidth;
@@ -288,7 +314,7 @@ export default function PamphletEditor() {
 
     if (canvas) {
       canvas.style.width = `${Math.ceil(sheetPx * scale)}px`;
-      canvas.style.height = `${Math.ceil(naturalH * scale)}px`;
+      canvas.style.height = `${Math.ceil(Math.max(naturalH, sheets.scrollHeight) * scale)}px`;
     }
 
     updateToolbarPosition();
@@ -748,11 +774,7 @@ export default function PamphletEditor() {
   const blockToolbar = activeRef ? (
     <div
       ref={toolbarRef}
-      className={`pamphlet-editor__block-toolbar${
-        isMobileStream
-          ? " pamphlet-editor__block-toolbar--mobile"
-          : " pamphlet-editor__block-toolbar--desktop"
-      }`}
+      className="pamphlet-editor__block-toolbar pamphlet-editor__block-toolbar--anchored"
       role="toolbar"
       aria-label="Block tools"
       onMouseDown={(event) => event.preventDefault()}
@@ -849,6 +871,7 @@ export default function PamphletEditor() {
     }
 
     pamphletResetTrace();
+    resetCanvasMetrics();
     source.innerHTML = previewHtml;
     const sheetCount = previewHtml ? source.querySelectorAll(".sheet").length : 0;
     setPageCount(sheetCount);
@@ -865,15 +888,20 @@ export default function PamphletEditor() {
     }
 
     requestAnimationFrame(() => {
-      applySheetScale();
-      if (preserveScrollRef.current && viewportRef.current) {
-        viewportRef.current.scrollTop = viewportScrollRef.current;
-        preserveScrollRef.current = false;
-        pamphletTrace("scroll_restored", { scrollTop: viewportScrollRef.current });
-      }
-      updateToolbarPosition();
+      requestAnimationFrame(() => {
+        applySheetScale();
+        if (preserveScrollRef.current && viewportRef.current) {
+          viewportRef.current.scrollTop = viewportScrollRef.current;
+          preserveScrollRef.current = false;
+          pamphletTrace("scroll_restored", { scrollTop: viewportScrollRef.current });
+        } else if (resetScrollOnPreviewRef.current && viewportRef.current && !isMobileStream) {
+          viewportRef.current.scrollTop = 0;
+          resetScrollOnPreviewRef.current = false;
+        }
+        updateToolbarPosition();
+      });
     });
-  }, [previewHtml, applySheetScale, isMobileStream, updateToolbarPosition]);
+  }, [previewHtml, applySheetScale, isMobileStream, resetCanvasMetrics, updateToolbarPosition]);
 
   useLayoutEffect(() => {
     updateToolbarPosition();
@@ -963,9 +991,8 @@ export default function PamphletEditor() {
           aria-hidden
         />
         <div className="pamphlet-editor__viewport" ref={viewportRef}>
-          {isMobileStream ? blockToolbar : null}
           <div className="pamphlet-editor__canvas" ref={canvasRef}>
-            {!isMobileStream ? blockToolbar : null}
+            {blockToolbar}
             <div className="pamphlet-editor__interaction" ref={interactionRef}>
               <div
                 className="pamphlet-editor__sheets pamphlet-editor__sheets--print-source"
