@@ -35,6 +35,28 @@
 }
 
 body.page-playlist {
-  --playlist_activity_height: 3.75rem;
-  padding-bottom: var(--playlist_activity_height);
+  --playlist-bar-mobile: 6.65rem;
+  --playlist-bar-desktop: var(--activity-bar-height);
+  padding-bottom: var(--playlist-bar-mobile);
+  width: 100%;
+  max-width: 100%;
+}
+
+body.page-playlist:has(.playlist-controls--tray-open) {
+  --playlist-bar-mobile: 12rem;
+}
+
+body.page-playlist .page-shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(100%, var(--max_desktop_width));
+  margin-inline: auto;
+  padding-inline: max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-right));
+  overflow-x: clip;
+}
+
+@media (min-width: 768px) {
+  body.page-playlist {
+    padding-bottom: var(--playlist-bar-desktop);
+  }
 }

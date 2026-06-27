@@ -1,5 +1,5 @@
 /**
- * Header.tsx — Fixed chrome: nav links (incl. Home), mobile expandable menu.
+ * Header.tsx — Fixed chrome: eduardoos home brand, nav links, mobile expandable menu.
  */
 import { useEffect, useRef, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
@@ -60,6 +60,13 @@ export function Header({ pathname }: HeaderProps) {
       ref={headerRef}
       className={`site-header${menuOpen ? " site-header--open" : ""}`}
     >
+      <a
+        className={`site-header__brand${pathname === "/" ? " is-active" : ""}`}
+        href={APP_ROUTES.home}
+        onClick={closeMenu}
+      >
+        eduardoos
+      </a>
       <div className="site-header__bar">
         <button
           type="button"

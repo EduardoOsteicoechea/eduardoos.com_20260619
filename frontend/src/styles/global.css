@@ -41,7 +41,7 @@ body {
   min-height: 100vh;
   height: fit-content;
   max-width: 1920px;
-  width: 100vw;
+  width: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   margin: auto;

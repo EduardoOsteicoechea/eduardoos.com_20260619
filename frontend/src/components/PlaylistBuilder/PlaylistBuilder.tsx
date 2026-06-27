@@ -18,12 +18,21 @@ import {
 } from "../../lib/mediaLibrary";
 import { fetchPlaylists, savePlaylist, type PlaylistRecord } from "../../lib/playlists";
 import PlaylistControls from "./PlaylistControls";
+import {
+  IconAddToPlaylist,
+  IconChevronDown,
+  IconChevronUp,
+  IconRemove,
+} from "./PlaylistIcons";
 import "./PlaylistBuilder.css";
 
 const DRAG_MIME = "application/x-eduardoos-track-key";
 
 export default function PlaylistBuilder() {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const activeTracksRef = useRef<string[]>([]);
+  const loopPlaylistRef = useRef(false);
+  const isSeekingRef = useRef(false);
 
   const [library, setLibrary] = useState<AudioLibraryItem[]>([]);
   const [urlByKey, setUrlByKey] = useState<Map<string, string>>(() => new Map());
@@ -36,12 +45,19 @@ export default function PlaylistBuilder() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [loopPlaylist, setLoopPlaylist] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [dropActive, setDropActive] = useState(false);
   const [dragReorderIndex, setDragReorderIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+
+  activeTracksRef.current = activeTracks;
+  loopPlaylistRef.current = loopPlaylist;
 
   const loadLibrary = useCallback(async () => {
     const tracks = await fetchAudioLibrary();
@@ -94,6 +110,8 @@ export default function PlaylistBuilder() {
     const nextSrc = mediaObjectPlaybackUrl(currentTrackKey, urlByKey.get(currentTrackKey));
     if (audio.src !== new URL(nextSrc, window.location.origin).href) {
       audio.src = nextSrc;
+      setCurrentTime(0);
+      setDuration(0);
     }
   }, [currentTrackKey, playbackRate, urlByKey, volume]);
 
@@ -119,17 +137,52 @@ export default function PlaylistBuilder() {
     navigator.mediaSession.setActionHandler("pause", () => audioRef.current?.pause());
   }, [currentTrackKey, playlistName]);
 
-  function addTrack(key: string) {
-    if (!key || activeTracks.includes(key)) return;
-    setActiveTracks((tracks) => [...tracks, key]);
+  function addTrack(key: string, insertAt?: number) {
+    if (!key) return;
+    setActiveTracks((tracks) => {
+      const next = [...tracks];
+      const index = insertAt === undefined ? next.length : Math.min(insertAt, next.length);
+      next.splice(index, 0, key);
+      return next;
+    });
   }
 
   function removeTrack(index: number) {
     setActiveTracks((tracks) => tracks.filter((_, i) => i !== index));
-    setCurrentIndex((idx) => Math.max(0, Math.min(idx, activeTracks.length - 2)));
+    setCurrentIndex((idx) => {
+      if (idx > index) return idx - 1;
+      if (idx === index) return Math.max(0, idx - 1);
+      return idx;
+    });
+  }
+
+  function moveTrack(from: number, to: number) {
+    if (from === to || from < 0 || to < 0) return;
+    setActiveTracks((tracks) => {
+      if (from >= tracks.length || to >= tracks.length) return tracks;
+      const next = [...tracks];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    setCurrentIndex((idx) => {
+      if (idx === from) return to;
+      if (from < idx && to >= idx) return idx - 1;
+      if (from > idx && to <= idx) return idx + 1;
+      return idx;
+    });
+  }
+
+  function moveTrackUp(index: number) {
+    if (index > 0) moveTrack(index, index - 1);
+  }
+
+  function moveTrackDown(index: number) {
+    if (index < activeTracks.length - 1) moveTrack(index, index + 1);
   }
 
   function handleLibraryDragStart(key: string, event: React.DragEvent) {
+    setDragReorderIndex(null);
     event.dataTransfer.setData(DRAG_MIME, key);
     event.dataTransfer.effectAllowed = "copy";
   }
@@ -140,27 +193,43 @@ export default function PlaylistBuilder() {
     event.dataTransfer.effectAllowed = "move";
   }
 
+  function handlePlaylistItemDragOver(index: number, event: React.DragEvent) {
+    event.preventDefault();
+    setDropTargetIndex(index);
+  }
+
   function handleDropOnPlaylist(event: React.DragEvent) {
     event.preventDefault();
     setDropActive(false);
     const key = event.dataTransfer.getData(DRAG_MIME);
-    if (!key) return;
+    if (!key) {
+      setDragReorderIndex(null);
+      setDropTargetIndex(null);
+      return;
+    }
+
+    const targetIndex = dropTargetIndex ?? activeTracks.length;
 
     if (dragReorderIndex !== null) {
       setActiveTracks((tracks) => {
         const next = [...tracks];
         const [moved] = next.splice(dragReorderIndex, 1);
         if (!moved) return tracks;
-        if (!next.includes(key)) {
-          next.push(moved);
+        let insertAt = targetIndex;
+        if (dragReorderIndex < insertAt) {
+          insertAt -= 1;
         }
+        insertAt = Math.max(0, Math.min(insertAt, next.length));
+        next.splice(insertAt, 0, moved);
         return next;
       });
       setDragReorderIndex(null);
+      setDropTargetIndex(null);
       return;
     }
 
-    addTrack(key);
+    addTrack(key, targetIndex);
+    setDropTargetIndex(null);
   }
 
   async function handleSave() {
@@ -195,6 +264,8 @@ export default function PlaylistBuilder() {
     setPlaylistName(found.name);
     setActiveTracks([...found.trackIds]);
     setCurrentIndex(0);
+    setCurrentTime(0);
+    setDuration(0);
     setIsPlaying(false);
     audioRef.current?.pause();
   }
@@ -215,6 +286,7 @@ export default function PlaylistBuilder() {
     if (!audio) return;
     audio.pause();
     audio.currentTime = 0;
+    setCurrentTime(0);
     setIsPlaying(false);
   }
 
@@ -228,13 +300,54 @@ export default function PlaylistBuilder() {
     setCurrentIndex((idx) => (idx + 1) % activeTracks.length);
   }
 
+  const handleTrackEnded = useCallback(() => {
+    const tracks = activeTracksRef.current;
+    if (tracks.length === 0) return;
+
+    setCurrentIndex((idx) => {
+      const atLast = idx >= tracks.length - 1;
+      if (atLast) {
+        if (loopPlaylistRef.current) {
+          return 0;
+        }
+        setIsPlaying(false);
+        return idx;
+      }
+      return idx + 1;
+    });
+  }, []);
+
+  function handleSeek(seconds: number) {
+    setCurrentTime(seconds);
+  }
+
+  function handleSeekStart() {
+    isSeekingRef.current = true;
+  }
+
+  function handleSeekEnd(seconds: number) {
+    const audio = audioRef.current;
+    if (audio && Number.isFinite(seconds)) {
+      audio.currentTime = seconds;
+      setCurrentTime(seconds);
+    }
+    isSeekingRef.current = false;
+  }
+
+  function updateDurationFromAudio() {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(audio.duration)) return;
+    setDuration(audio.duration);
+  }
+
   return (
     <div className="playlist-builder">
       <header className="playlist-builder__header">
         <h1>Worship Playlist Manager</h1>
         <p>
           Drag audio from the S3 library (<code>media/worship_playlists/</code>) into your
-          active playlist. Save and load playlists with your authenticated account.
+          active playlist — the same song can be added multiple times. Save and load playlists
+          with your authenticated account.
         </p>
       </header>
 
@@ -290,11 +403,24 @@ export default function PlaylistBuilder() {
               library.map((item) => (
                 <li
                   key={item.key}
-                  className="playlist-builder__item"
+                  className="playlist-builder__item playlist-builder__item--library"
                   draggable
                   onDragStart={(e) => handleLibraryDragStart(item.key, e)}
+                  onDoubleClick={() => addTrack(item.key)}
                 >
-                  {trackDisplayName(item.key)}
+                  <span className="playlist-builder__item-label">{trackDisplayName(item.key)}</span>
+                  <button
+                    type="button"
+                    className="playlist-builder__icon-btn"
+                    title="Add to playlist"
+                    aria-label="Add to playlist"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addTrack(item.key);
+                    }}
+                  >
+                    <IconAddToPlaylist />
+                  </button>
                 </li>
               ))
             )}
@@ -308,6 +434,9 @@ export default function PlaylistBuilder() {
             onDragOver={(e) => {
               e.preventDefault();
               setDropActive(true);
+              if (dropTargetIndex === null) {
+                setDropTargetIndex(activeTracks.length);
+              }
             }}
             onDragLeave={() => setDropActive(false)}
             onDrop={handleDropOnPlaylist}
@@ -319,23 +448,53 @@ export default function PlaylistBuilder() {
                 activeTracks.map((key, index) => (
                   <li
                     key={`${key}-${index}`}
-                    className={`playlist-builder__item${index === currentIndex ? " playlist-builder__item--playing" : ""}`}
+                    className={`playlist-builder__item${index === currentIndex ? " playlist-builder__item--playing" : ""}${dropTargetIndex === index ? " playlist-builder__item--drop-target" : ""}`}
                     draggable
                     onDragStart={(e) => handlePlaylistDragStart(index, e)}
+                    onDragOver={(e) => handlePlaylistItemDragOver(index, e)}
                     onClick={() => setCurrentIndex(index)}
                   >
-                    <span>{trackDisplayName(key)}</span>
-                    <button
-                      type="button"
-                      className="playlist-builder__remove"
-                      aria-label="Remove track"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeTrack(index);
-                      }}
-                    >
-                      Remove
-                    </button>
+                    <span className="playlist-builder__item-label">{trackDisplayName(key)}</span>
+                    <div className="playlist-builder__item-actions">
+                      <button
+                        type="button"
+                        className="playlist-builder__icon-btn"
+                        title="Move up"
+                        aria-label="Move up"
+                        disabled={index === 0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveTrackUp(index);
+                        }}
+                      >
+                        <IconChevronUp />
+                      </button>
+                      <button
+                        type="button"
+                        className="playlist-builder__icon-btn"
+                        title="Move down"
+                        aria-label="Move down"
+                        disabled={index === activeTracks.length - 1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveTrackDown(index);
+                        }}
+                      >
+                        <IconChevronDown />
+                      </button>
+                      <button
+                        type="button"
+                        className="playlist-builder__icon-btn"
+                        title="Remove track"
+                        aria-label="Remove track"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeTrack(index);
+                        }}
+                      >
+                        <IconRemove />
+                      </button>
+                    </div>
                   </li>
                 ))
               )}
@@ -350,6 +509,9 @@ export default function PlaylistBuilder() {
         canPlay={Boolean(currentTrackKey)}
         volume={volume}
         playbackRate={playbackRate}
+        currentTime={currentTime}
+        duration={duration}
+        loopPlaylist={loopPlaylist}
         onPlay={() => void playCurrent()}
         onPause={() => audioRef.current?.pause()}
         onStop={stopPlayback}
@@ -357,6 +519,10 @@ export default function PlaylistBuilder() {
         onNext={playNext}
         onVolumeChange={setVolume}
         onSpeedChange={setPlaybackRate}
+        onSeek={handleSeek}
+        onSeekStart={handleSeekStart}
+        onSeekEnd={handleSeekEnd}
+        onLoopToggle={() => setLoopPlaylist((loop) => !loop)}
       />
 
       <audio
@@ -375,7 +541,14 @@ export default function PlaylistBuilder() {
             navigator.mediaSession.playbackState = "paused";
           }
         }}
-        onEnded={playNext}
+        onTimeUpdate={() => {
+          const audio = audioRef.current;
+          if (!audio || isSeekingRef.current) return;
+          setCurrentTime(audio.currentTime);
+        }}
+        onLoadedMetadata={updateDurationFromAudio}
+        onDurationChange={updateDurationFromAudio}
+        onEnded={handleTrackEnded}
       />
     </div>
   );
