@@ -13,6 +13,6 @@ func TestEncodeRelativePathKeepsSlashes(t *testing.T) {
 func TestEncodeRelativePathDoesNotUseEncodedSlash(t *testing.T) {
 	got := EncodeRelativePath("worship_playlists/song.mp3")
 	if got == "worship_playlists%2Fsong.mp3" {
-		t.Fatal("slash must stay literal, not %2F")
+		t.Fatal("slash must stay literal, not encoded as percent-two-F")
 	}
 }
