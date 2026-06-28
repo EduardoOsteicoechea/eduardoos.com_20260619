@@ -11,6 +11,25 @@ import { buildFlightLog, createCorrelationId, emitFlightLog } from "./telemetry"
 
 const PREFIX = "[pamphlet-editor]";
 let traceStep = 0;
+let clickStep = 0;
+let stateStep = 0;
+
+/** Always-visible click log (console.log — shows even when Info is filtered). */
+export function pamphletLogClick(label: string, detail?: Record<string, unknown>): void {
+  clickStep += 1;
+  console.log(`${PREFIX} CLICK #${clickStep} | ${label}`, detail ?? {});
+}
+
+/** State about to change or just changed. */
+export function pamphletLogState(label: string, detail?: Record<string, unknown>): void {
+  stateStep += 1;
+  console.log(`${PREFIX} STATE #${stateStep} | ${label}`, detail ?? {});
+}
+
+/** Result after a state update or async action completes. */
+export function pamphletLogStateResult(label: string, detail?: Record<string, unknown>): void {
+  console.log(`${PREFIX} RESULT | ${label}`, detail ?? {});
+}
 
 function debugMode(): "off" | "standard" | "verbose" {
   if (typeof localStorage === "undefined") return "off";
@@ -23,7 +42,7 @@ function debugMode(): "off" | "standard" | "verbose" {
 /** Always logs to console; emits flight log when debug flag is on. */
 export function pamphletDebug(event: string, detail?: Record<string, unknown>): void {
   const payload = { ...detail, authed: Boolean(getAuthToken()) };
-  console.info(PREFIX, event, payload);
+  console.log(`${PREFIX} ${event}`, payload);
   const mode = debugMode();
   if (mode === "off") return;
   const correlationId = createCorrelationId();
@@ -91,6 +110,41 @@ export function pamphletDomSummary(el: Element | null | undefined): Record<strin
 
 const SPACING_BLOCK_SELECTOR =
   ".block-paragraph, .block-heading, .block-list, .block-quote, .block-image-wrap";
+
+const SPACING_BLOCK_TAGS =
+  ".block-paragraph, .block-heading, .block-list, .block-quote, .block-image-wrap";
+
+/** Force flex row-gap on columns so spacing survives margin collapse / global reset. */
+export function pamphletEnforceColumnSpacing(root: HTMLElement | null, label: string): void {
+  if (!root) {
+    pamphletLogStateResult("enforce_spacing_skipped", { label, reason: "no_root" });
+    return;
+  }
+  const columns = [...root.querySelectorAll<HTMLElement>(".column")];
+  pamphletLogState("enforce_spacing_start", { label, columnCount: columns.length });
+  columns.forEach((col, index) => {
+    const sheet = col.closest<HTMLElement>(".sheet");
+    const card = col.closest<HTMLElement>(".pamphlet-mobile-card");
+    const paraSep =
+      sheet?.style.getPropertyValue("--para-sep-mm") ||
+      card?.style.getPropertyValue("--para-sep-mm") ||
+      "4.2336mm";
+    col.style.display = "flex";
+    col.style.flexDirection = "column";
+    col.style.rowGap = paraSep;
+    col.querySelectorAll<HTMLElement>(SPACING_BLOCK_TAGS).forEach((block) => {
+      block.style.marginBottom = "0";
+    });
+    pamphletLogStateResult(`enforce_spacing_column_${index}`, {
+      label,
+      columnId: col.id || undefined,
+      paraSep,
+      childCount: col.children.length,
+      rowGap: col.style.rowGap,
+    });
+  });
+  pamphletLogStateResult("enforce_spacing_done", { label, columnCount: columns.length });
+}
 
 /** Log computed spacing for each content block (line-by-line margin audit). */
 export function pamphletAuditBlockSpacing(root: HTMLElement | null, label: string): void {

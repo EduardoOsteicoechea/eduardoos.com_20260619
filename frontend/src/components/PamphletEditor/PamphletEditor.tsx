@@ -17,8 +17,12 @@ import {
   pamphletDebug,
   pamphletDebugError,
   pamphletDomSummary,
+  pamphletEnforceColumnSpacing,
+  pamphletLogClick,
   pamphletLogMobileStream,
   pamphletLogPrintSource,
+  pamphletLogState,
+  pamphletLogStateResult,
   pamphletResetTrace,
   pamphletTrace,
 } from "../../lib/pamphletDebug";
@@ -199,6 +203,29 @@ export default function PamphletEditor() {
 
   layoutRef.current = layout;
 
+  useEffect(() => {
+    pamphletLogState("activeRef", { activeRef, activeIsImage });
+  }, [activeRef, activeIsImage]);
+
+  useEffect(() => {
+    pamphletLogState("previewHtml", {
+      htmlLen: previewHtml.length,
+      sheetCount: previewHtml ? (previewHtml.match(/class="sheet"/g) ?? []).length : 0,
+    });
+  }, [previewHtml]);
+
+  useEffect(() => {
+    pamphletLogState("refreshing", { refreshing, loading, error, status });
+  }, [refreshing, loading, error, status]);
+
+  useEffect(() => {
+    pamphletLogState("isMobileStream", { isMobileStream, innerWidth: window.innerWidth });
+  }, [isMobileStream]);
+
+  useEffect(() => {
+    pamphletLogState("userZoom", { userZoom, pageCount });
+  }, [userZoom, pageCount]);
+
   const getInteractionRoot = useCallback((): HTMLElement | null => {
     if (isMobileStream && mobileStreamRef.current) {
       return mobileStreamRef.current;
@@ -262,10 +289,20 @@ export default function PamphletEditor() {
     }
     setRefreshing(true);
     setError("");
+    pamphletLogState("mutation_start", { op, ref, layout: layoutRef.current });
     pamphletTrace("mutation_step_3_request_start", body);
     pamphletDebug("mutation", { op, ref });
     try {
       const result = await mutatePamphletContent(body, layoutRef.current);
+      pamphletLogStateResult("mutation_response", {
+        op,
+        ref,
+        htmlLen: result.html.length,
+        newRef: result.newRef,
+        capacityChars: result.capacity.characters,
+        hasParaSepVar: result.html.includes("--para-sep-mm"),
+        marginBottomCount: (result.html.match(/margin-bottom:/g) ?? []).length,
+      });
       pamphletTrace("mutation_step_4_response_received", {
         op,
         ref,
@@ -282,10 +319,16 @@ export default function PamphletEditor() {
       setStatus(op === "insert_below" ? `Inserted ${result.newRef ?? ref}` : "Content updated");
       pamphletTrace("mutation_step_6_state_updated", { op, ref, newRef: result.newRef });
     } catch (err) {
+      pamphletLogStateResult("mutation_failed", {
+        op,
+        ref,
+        message: err instanceof Error ? err.message : String(err),
+      });
       pamphletDebugError("mutation_failed", err, body);
       setError(err instanceof Error ? err.message : "Mutation failed");
     } finally {
       setRefreshing(false);
+      pamphletLogStateResult("mutation_done", { op, ref });
       pamphletTrace("mutation_step_7_done", { op, ref });
     }
   }, []);
@@ -518,12 +561,15 @@ export default function PamphletEditor() {
     }
 
     pamphletTrace("enter_edit_start", { ref, field, kind, el: pamphletDomSummary(el) });
+    pamphletLogClick("edit_block", { ref, field, kind, ...pamphletDomSummary(el) });
     pamphletDebug("edit_click", { ref, field, kind });
 
     editOriginalRef.current = stripHighlightMarkup(el.innerHTML).trim();
     editingRef.current = el;
     el.classList.add("is-editing");
     el.contentEditable = "true";
+
+    pamphletLogState("enter_edit_mode", { ref, field, kind, originalLen: editOriginalRef.current.length });
 
     requestAnimationFrame(() => {
       el.focus({ preventScroll: true });
@@ -615,10 +661,24 @@ export default function PamphletEditor() {
     (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       const root = getInteractionRoot();
-      if (!root || !root.contains(target)) return;
+      pamphletLogClick("pointer_down", {
+        x: event.clientX,
+        y: event.clientY,
+        tag: target.tagName.toLowerCase(),
+        inRoot: Boolean(root?.contains(target)),
+        mobileStream: isMobileStream,
+        activeRef,
+        refreshing,
+      });
+      if (!root || !root.contains(target)) {
+        pamphletLogStateResult("click_ignored", { reason: "outside_root" });
+        return;
+      }
 
+      const clickDetail = describeClickTarget(target);
+      pamphletLogClick("sheets_target", clickDetail);
       pamphletTrace("click", {
-        ...describeClickTarget(target),
+        ...clickDetail,
         mobileStream: isMobileStream,
       });
 
@@ -684,7 +744,7 @@ export default function PamphletEditor() {
 
       pamphletTrace("click_unhandled", describeClickTarget(target));
     },
-    [applyMutation, enterEditMode, getInteractionRoot, isMobileStream, selectImageWrap],
+    [activeRef, applyMutation, enterEditMode, getInteractionRoot, isMobileStream, refreshing, selectImageWrap],
   );
 
   const handleSheetsKeyDown = useCallback(
@@ -792,6 +852,7 @@ export default function PamphletEditor() {
         return;
       }
       const ref = activeRef;
+      pamphletLogClick("toolbar_button", { op, ref, editing: Boolean(editingRef.current) });
       pamphletTrace("toolbar_action_start", { op, ref, editing: Boolean(editingRef.current) });
 
       if (op === "toggle_highlight") {
@@ -834,6 +895,7 @@ export default function PamphletEditor() {
         }
         setActiveRef("");
         setActiveIsImage(false);
+        pamphletLogClick("toolbar_delete", { ref: deleteRef });
         pamphletTrace("delete_block", { ref: deleteRef });
         await applyMutation({ op: "delete", ref: deleteRef });
         return;
@@ -950,18 +1012,25 @@ export default function PamphletEditor() {
     pamphletTrace("preview_step_1_reset_canvas", { htmlLen: previewHtml.length });
     resetCanvasMetrics();
     source.innerHTML = previewHtml;
+    pamphletEnforceColumnSpacing(source, "print_source");
     const sheetCount = previewHtml ? source.querySelectorAll(".sheet").length : 0;
     setPageCount(sheetCount);
-    pamphletTrace("preview_step_2_dom_painted", { sheetCount });
+    pamphletLogStateResult("preview_dom_painted", {
+      htmlLen: previewHtml.length,
+      sheetCount,
+      columnCount: source.querySelectorAll(".column").length,
+    });
     pamphletLogPrintSource(source);
     pamphletAuditBlockSpacing(source, "print_source");
 
     const mobileTarget = mobileStreamRef.current;
     if (isMobileStream && mobileTarget) {
       const cardCount = syncMobileStreamCards(source, mobileTarget);
+      pamphletEnforceColumnSpacing(mobileTarget, "mobile_stream");
       pamphletTrace("preview_step_3_mobile_stream_built", { cardCount, sheetCount });
       pamphletLogMobileStream(mobileTarget);
       pamphletAuditBlockSpacing(mobileTarget, "mobile_stream");
+      pamphletLogStateResult("mobile_stream_built", { cardCount, sheetCount });
     } else if (mobileTarget) {
       mobileTarget.innerHTML = "";
       pamphletTrace("preview_step_3_mobile_stream_cleared", { reason: "desktop_mode" });
@@ -971,6 +1040,18 @@ export default function PamphletEditor() {
       requestAnimationFrame(() => {
         pamphletTrace("preview_step_4_scale_start");
         applySheetScale();
+        pamphletEnforceColumnSpacing(source, "print_source_after_scale");
+        if (isMobileStream && mobileStreamRef.current) {
+          pamphletEnforceColumnSpacing(mobileStreamRef.current, "mobile_after_scale");
+        }
+        pamphletAuditBlockSpacing(source, "print_source_after_scale");
+        pamphletLogStateResult("preview_scale_applied", {
+          sheetCount,
+          isMobileStream,
+          canvasW: canvasRef.current?.style.width,
+          canvasH: canvasRef.current?.style.height,
+          sheetsTransform: sheetsRef.current?.style.transform,
+        });
         if (preserveScrollRef.current && viewportRef.current) {
           viewportRef.current.scrollTop = viewportScrollRef.current;
           preserveScrollRef.current = false;

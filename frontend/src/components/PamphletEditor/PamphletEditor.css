@@ -211,6 +211,9 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
 }
 
 .pamphlet-editor__sheets .column {
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--para-sep-mm, 4.2336mm);
   padding: 2px;
   overflow: hidden;
   word-break: break-word;
@@ -219,16 +222,14 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
   height: 100%;
 }
 
-/* Block spacing — CSS variables come from each .sheet; !important beats global * reset */
-.pamphlet-editor__sheets .column > .block-paragraph:not(:last-child),
-.pamphlet-editor__sheets .column > .block-list:not(:last-child),
-.pamphlet-editor__sheets .column > .block-quote:not(:last-child),
-.pamphlet-editor__sheets .column > .block-image-wrap:not(:last-child) {
-  margin-bottom: var(--para-sep-mm, 4.2336mm) !important;
-}
-
-.pamphlet-editor__sheets .column > .block-heading:not(:last-child) {
-  margin-bottom: var(--heading-gap-mm, 5mm) !important;
+/* Flex gap handles spacing; zero margins so nothing collapses with global * reset */
+.pamphlet-editor__sheets .column > .block-paragraph,
+.pamphlet-editor__sheets .column > .block-list,
+.pamphlet-editor__sheets .column > .block-quote,
+.pamphlet-editor__sheets .column > .block-image-wrap,
+.pamphlet-editor__sheets .column > .block-heading {
+  margin-bottom: 0 !important;
+  flex-shrink: 0;
 }
 
 .pamphlet-editor__sheets .block-heading {
@@ -444,24 +445,12 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
     overflow: visible;
   }
 
-  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-paragraph:not(:last-child),
-  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-list:not(:last-child),
-  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-quote:not(:last-child),
-  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-image-wrap:not(:last-child) {
-    margin-bottom: var(--para-sep-mm, 4.2336mm) !important;
-  }
-
-  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-heading:not(:last-child) {
-    margin-bottom: var(--heading-gap-mm, 5mm) !important;
-  }
-
-  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-paragraph {
-    overflow: visible;
-  }
-
   .pamphlet-editor--mobile-stream .pamphlet-mobile-card .column,
   .pamphlet-editor--mobile-stream .pamphlet-mobile-card .zone-header,
   .pamphlet-editor--mobile-stream .pamphlet-mobile-card .zone-footer {
+    display: flex;
+    flex-direction: column;
+    row-gap: var(--para-sep-mm, 4.2336mm);
     max-height: none !important;
     height: auto !important;
     overflow: visible !important;
@@ -469,6 +458,15 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
     border: none;
     box-shadow: none;
     background: transparent;
+  }
+
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-paragraph,
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-heading,
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-list,
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-quote,
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-image-wrap {
+    margin-bottom: 0 !important;
+    overflow: visible;
   }
 
   .pamphlet-editor--mobile-stream .pamphlet-mobile-card .block-image {
