@@ -85,6 +85,18 @@ ensure_cert_bootstrap() {
 
 ensure_cert_bootstrap
 
+reclaim_ec2_disk() {
+  echo "==> Disk usage before cleanup"
+  df -h / /var/lib/docker 2>/dev/null || df -h /
+
+  echo "==> Pruning unused Docker images, containers, and build cache"
+  docker system prune -af || true
+  docker builder prune -af || true
+
+  echo "==> Disk usage after cleanup"
+  df -h / /var/lib/docker 2>/dev/null || df -h /
+}
+
 issue_letsencrypt_cert() {
   if has_letsencrypt_cert; then
     echo "==> Let's Encrypt certificate already installed for ${DOMAIN}"
@@ -131,6 +143,8 @@ echo "==> Building and starting stack (arm64 + AWS backends)"
 export COMPOSE_PARALLEL_LIMIT=1
 export DOCKER_BUILDKIT=1
 
+reclaim_ec2_disk
+
 # t4g.micro (1 GB RAM) may OOM when building all service images in parallel.
 BUILD_SERVICES=(
   frontend
@@ -147,6 +161,7 @@ BUILD_SERVICES=(
 for svc in "${BUILD_SERVICES[@]}"; do
   echo "==> Building ${svc}"
   "${COMPOSE[@]}" build "${svc}"
+  docker builder prune -af || true
 done
 
 "${COMPOSE[@]}" up -d

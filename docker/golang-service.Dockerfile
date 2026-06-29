@@ -7,7 +7,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 COPY pkg ./pkg
 COPY cmd ./cmd
-RUN CGO_ENABLED=0 GOOS=linux go test ./...
+# Tests run in GitHub Actions (deploy.yml test job); skip here to save EC2 disk during image builds.
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/service ./cmd/${SERVICE}
 
 FROM alpine:3.20 AS runtime
