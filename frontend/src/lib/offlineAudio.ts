@@ -59,3 +59,78 @@ export async function hasOfflineTrack(trackId: string): Promise<boolean> {
   const blob = await audioStore.getItem<Blob>(trackId);
   return blob instanceof Blob;
 }
+
+export interface OfflineDownloadItem {
+  trackId: string;
+  url: string;
+}
+
+export interface OfflineBulkProgress {
+  done: number;
+  total: number;
+  trackId: string;
+  status: "skipped" | "saved" | "failed";
+  error?: string;
+}
+
+/**
+ * Downloads many tracks into IndexedDB for offline PWA playback.
+ * Skips tracks that are already cached; reports per-track progress via callback.
+ */
+export async function saveTracksOfflineBulk(
+  items: OfflineDownloadItem[],
+  onProgress?: (progress: OfflineBulkProgress) => void,
+): Promise<{ saved: number; skipped: number; failed: number }> {
+  const unique = new Map<string, string>();
+  for (const item of items) {
+    if (item.trackId && item.url) {
+      unique.set(item.trackId, item.url);
+    }
+  }
+
+  const entries = [...unique.entries()];
+  let saved = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (let index = 0; index < entries.length; index += 1) {
+    const [trackId, url] = entries[index];
+    const report = (status: OfflineBulkProgress["status"], error?: string) => {
+      onProgress?.({
+        done: index + 1,
+        total: entries.length,
+        trackId,
+        status,
+        error,
+      });
+    };
+
+    try {
+      if (await hasOfflineTrack(trackId)) {
+        skipped += 1;
+        report("skipped");
+        continue;
+      }
+      await saveTrackOffline(trackId, url);
+      saved += 1;
+      report("saved");
+    } catch (err) {
+      failed += 1;
+      report("failed", err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  return { saved, skipped, failed };
+}
+
+/** Count how many of the given track IDs exist in offline storage. */
+export async function countOfflineTracks(trackIds: string[]): Promise<number> {
+  const unique = [...new Set(trackIds.filter(Boolean))];
+  let count = 0;
+  for (const trackId of unique) {
+    if (await hasOfflineTrack(trackId)) {
+      count += 1;
+    }
+  }
+  return count;
+}

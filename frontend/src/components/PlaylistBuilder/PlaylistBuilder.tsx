@@ -16,6 +16,14 @@ import {
   trackDisplayName,
   type AudioLibraryItem,
 } from "../../lib/mediaLibrary";
+import {
+  countOfflineTracks,
+  getOfflineTrackUrl,
+  revokeOfflineTrackUrl,
+  saveTrackOffline,
+  saveTracksOfflineBulk,
+  type OfflineBulkProgress,
+} from "../../lib/offlineAudio";
 import { fetchPlaylists, savePlaylist, type PlaylistRecord } from "../../lib/playlists";
 import PlaylistControls from "./PlaylistControls";
 import {
@@ -30,9 +38,14 @@ const DRAG_MIME = "application/x-eduardoos-track-key";
 
 export default function PlaylistBuilder() {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const blobUrlRef = useRef<string | null>(null);
   const activeTracksRef = useRef<string[]>([]);
   const loopPlaylistRef = useRef(false);
   const isSeekingRef = useRef(false);
+  const isPlayingRef = useRef(false);
+  const autoPlayNextRef = useRef(false);
+  const currentIndexRef = useRef(0);
+  const urlByKeyRef = useRef<Map<string, string>>(new Map());
 
   const [library, setLibrary] = useState<AudioLibraryItem[]>([]);
   const [urlByKey, setUrlByKey] = useState<Map<string, string>>(() => new Map());
@@ -55,9 +68,29 @@ export default function PlaylistBuilder() {
   const [dropActive, setDropActive] = useState(false);
   const [dragReorderIndex, setDragReorderIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [offlineReadyCount, setOfflineReadyCount] = useState(0);
+  const [offlineDownloading, setOfflineDownloading] = useState(false);
+  const [offlineProgress, setOfflineProgress] = useState("");
 
   activeTracksRef.current = activeTracks;
   loopPlaylistRef.current = loopPlaylist;
+  isPlayingRef.current = isPlaying;
+  currentIndexRef.current = currentIndex;
+  urlByKeyRef.current = urlByKey;
+
+  const clearBlobUrl = useCallback(() => {
+    revokeOfflineTrackUrl(blobUrlRef.current);
+    blobUrlRef.current = null;
+  }, []);
+
+  const refreshOfflineCount = useCallback(async (keys: string[]) => {
+    if (keys.length === 0) {
+      setOfflineReadyCount(0);
+      return;
+    }
+    const count = await countOfflineTracks(keys);
+    setOfflineReadyCount(count);
+  }, []);
 
   const loadLibrary = useCallback(async () => {
     const tracks = await fetchAudioLibrary();
@@ -67,7 +100,8 @@ export default function PlaylistBuilder() {
       map.set(track.key, track.url);
     }
     setUrlByKey(map);
-  }, []);
+    await refreshOfflineCount(tracks.map((track) => track.key));
+  }, [refreshOfflineCount]);
 
   const loadSavedPlaylists = useCallback(async () => {
     if (!getAuthToken()) {
@@ -98,33 +132,59 @@ export default function PlaylistBuilder() {
     ? `Now playing: ${trackDisplayName(currentTrackKey)}`
     : "No track selected";
 
-  const syncAudioElement = useCallback(() => {
+  const syncAudioElement = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = volume;
     audio.playbackRate = playbackRate;
     if (!currentTrackKey) {
+      clearBlobUrl();
       audio.removeAttribute("src");
       return;
     }
-    const nextSrc = mediaObjectPlaybackUrl(currentTrackKey, urlByKey.get(currentTrackKey));
-    if (audio.src !== new URL(nextSrc, window.location.origin).href) {
+
+    const remoteSrc = mediaObjectPlaybackUrl(currentTrackKey, urlByKey.get(currentTrackKey));
+    const offlineUrl = await getOfflineTrackUrl(currentTrackKey);
+    clearBlobUrl();
+
+    let nextSrc = remoteSrc;
+    if (offlineUrl) {
+      blobUrlRef.current = offlineUrl;
+      nextSrc = offlineUrl;
+    } else if (navigator.onLine) {
+      void saveTrackOffline(currentTrackKey, remoteSrc)
+        .then(() => refreshOfflineCount(library.map((item) => item.key)))
+        .catch(() => {
+          /* streaming still works */
+        });
+    }
+
+    const resolved = new URL(nextSrc, window.location.origin).href;
+    if (audio.src !== resolved) {
       audio.src = nextSrc;
+      audio.load();
       setCurrentTime(0);
       setDuration(0);
     }
-  }, [currentTrackKey, playbackRate, urlByKey, volume]);
+  }, [clearBlobUrl, currentTrackKey, library, playbackRate, refreshOfflineCount, urlByKey, volume]);
 
   useEffect(() => {
-    syncAudioElement();
+    void syncAudioElement();
   }, [syncAudioElement]);
 
   useEffect(() => {
-    if (isPlaying && currentTrackKey) {
-      void playCurrent();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-sync audio when track index changes during playback
-  }, [currentIndex]);
+    if (!autoPlayNextRef.current && !isPlayingRef.current) return;
+    if (!currentTrackKey) return;
+    autoPlayNextRef.current = false;
+    void playCurrent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-play when track index changes during playback
+  }, [currentIndex, currentTrackKey]);
+
+  useEffect(() => {
+    return () => {
+      clearBlobUrl();
+    };
+  }, [clearBlobUrl]);
 
   useEffect(() => {
     if (!("mediaSession" in navigator) || !currentTrackKey) return;
@@ -273,9 +333,31 @@ export default function PlaylistBuilder() {
   async function playCurrent() {
     const audio = audioRef.current;
     if (!audio || !currentTrackKey) return;
-    syncAudioElement();
+    await syncAudioElement();
+
+    if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+      await new Promise<void>((resolve, reject) => {
+        const onReady = () => {
+          cleanup();
+          resolve();
+        };
+        const onError = () => {
+          cleanup();
+          reject(new Error("Audio failed to load"));
+        };
+        const cleanup = () => {
+          audio.removeEventListener("canplay", onReady);
+          audio.removeEventListener("error", onError);
+        };
+        audio.addEventListener("canplay", onReady, { once: true });
+        audio.addEventListener("error", onError, { once: true });
+      });
+    }
+
     try {
       await audio.play();
+      isPlayingRef.current = true;
+      setIsPlaying(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Playback blocked");
     }
@@ -292,11 +374,13 @@ export default function PlaylistBuilder() {
 
   function playPrevious() {
     if (activeTracks.length === 0) return;
+    autoPlayNextRef.current = isPlayingRef.current;
     setCurrentIndex((idx) => (idx === 0 ? activeTracks.length - 1 : idx - 1));
   }
 
   function playNext() {
     if (activeTracks.length === 0) return;
+    autoPlayNextRef.current = isPlayingRef.current;
     setCurrentIndex((idx) => (idx + 1) % activeTracks.length);
   }
 
@@ -304,18 +388,54 @@ export default function PlaylistBuilder() {
     const tracks = activeTracksRef.current;
     if (tracks.length === 0) return;
 
-    setCurrentIndex((idx) => {
-      const atLast = idx >= tracks.length - 1;
-      if (atLast) {
-        if (loopPlaylistRef.current) {
-          return 0;
-        }
-        setIsPlaying(false);
-        return idx;
-      }
-      return idx + 1;
-    });
+    const idx = currentIndexRef.current;
+    const atLast = idx >= tracks.length - 1;
+
+    if (atLast && !loopPlaylistRef.current) {
+      isPlayingRef.current = false;
+      setIsPlaying(false);
+      return;
+    }
+
+    autoPlayNextRef.current = true;
+    setCurrentIndex(atLast ? 0 : idx + 1);
   }, []);
+
+  async function downloadLibraryOffline() {
+    if (library.length === 0) {
+      setError("No library tracks to download.");
+      return;
+    }
+    if (!navigator.onLine) {
+      setError("Connect to the internet to download tracks for offline playback.");
+      return;
+    }
+
+    setOfflineDownloading(true);
+    setError("");
+    setMessage("");
+    setOfflineProgress(`0 / ${library.length}`);
+
+    const items = library.map((item) => ({
+      trackId: item.key,
+      url: mediaObjectPlaybackUrl(item.key, item.url),
+    }));
+
+    try {
+      const result = await saveTracksOfflineBulk(items, (progress: OfflineBulkProgress) => {
+        setOfflineProgress(`${progress.done} / ${progress.total}`);
+      });
+      await refreshOfflineCount(library.map((item) => item.key));
+      setMessage(
+        `Offline library: ${result.saved} saved, ${result.skipped} already cached, ${result.failed} failed.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Offline download failed");
+    } finally {
+      setOfflineDownloading(false);
+      setOfflineProgress("");
+    }
+  }
 
   function handleSeek(seconds: number) {
     setCurrentTime(seconds);
@@ -386,6 +506,16 @@ export default function PlaylistBuilder() {
         </button>
         <button type="button" className="btn btn--secondary" onClick={() => void loadSavedPlaylists()}>
           Refresh lists
+        </button>
+        <button
+          type="button"
+          className="btn btn--secondary"
+          disabled={offlineDownloading || library.length === 0}
+          onClick={() => void downloadLibraryOffline()}
+        >
+          {offlineDownloading
+            ? `Downloading… ${offlineProgress}`
+            : `Save library offline (${offlineReadyCount}/${library.length})`}
         </button>
       </div>
 
@@ -512,7 +642,10 @@ export default function PlaylistBuilder() {
         currentTime={currentTime}
         duration={duration}
         loopPlaylist={loopPlaylist}
-        onPlay={() => void playCurrent()}
+        onPlay={() => {
+          isPlayingRef.current = true;
+          void playCurrent();
+        }}
         onPause={() => audioRef.current?.pause()}
         onStop={stopPlayback}
         onPrevious={playPrevious}
@@ -531,12 +664,18 @@ export default function PlaylistBuilder() {
         preload="metadata"
         onPlay={() => {
           setIsPlaying(true);
+          isPlayingRef.current = true;
           if ("mediaSession" in navigator) {
             navigator.mediaSession.playbackState = "playing";
           }
         }}
         onPause={() => {
+          const audio = audioRef.current;
+          if (audio?.ended) {
+            return;
+          }
           setIsPlaying(false);
+          isPlayingRef.current = false;
           if ("mediaSession" in navigator) {
             navigator.mediaSession.playbackState = "paused";
           }
