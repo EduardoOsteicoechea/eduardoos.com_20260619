@@ -28,19 +28,11 @@ func footerHeightMM(cfg LayoutConfig) float64 {
 }
 
 func sheet1RightBodyHeightMM(cfg LayoutConfig, header HeaderPayload) float64 {
-	contentH := contentHeightMM(cfg)
-	maxHeader := headerHeightMM(cfg)
-	gap := cfg.HeaderFooterGapMM
-	usedHeader := math.Min(maxHeader, MeasureHeaderZoneHeightMM(header, blockWidthMM(cfg), cfg.FontSizePt, cfg.LineHeightFactor))
-	return contentH - usedHeader - gap
+	return ComputePage1Layout(cfg, header, FooterPayload{}).FrontBodyHeightMM
 }
 
 func sheet1LeftBodyHeightMM(cfg LayoutConfig, footer FooterPayload) float64 {
-	contentH := contentHeightMM(cfg)
-	maxFooter := footerHeightMM(cfg)
-	gap := cfg.HeaderFooterGapMM
-	usedFooter := math.Min(maxFooter, MeasureFooterZoneHeightMM(footer, blockWidthMM(cfg), cfg.FontSizePt, cfg.LineHeightFactor))
-	return contentH - usedFooter - gap
+	return ComputePage1Layout(cfg, HeaderPayload{}, footer).BackBodyHeightMM
 }
 
 func contentBottomYMM(cfg LayoutConfig) float64 {
@@ -62,12 +54,13 @@ func columnX(blockX float64, col int, cfg LayoutConfig) float64 {
 // EightColumnRects returns all eight body column rects in V5 content-flow order.
 func EightColumnRects(cfg LayoutConfig, header HeaderPayload, footer FooterPayload) []RegionRect {
 	colW := columnWidthMM(cfg)
+	p1 := ComputePage1Layout(cfg, header, footer)
 	rects := make([]RegionRect, 0, 8)
 
 	for col := 0; col < cfg.ColumnsPerBlock; col++ {
 		rects = append(rects, RegionRect{
-			XMM: columnX(rightBlockXMM(cfg), col, cfg), YMM: contentBottomYMM(cfg),
-			WidthMM: colW, HeightMM: sheet1RightBodyHeightMM(cfg, header),
+			XMM: columnX(rightBlockXMM(cfg), col, cfg), YMM: p1.BodyTopYMM,
+			WidthMM: colW, HeightMM: p1.FrontBodyHeightMM,
 			Label: EightColumnFlowLabels[col],
 		})
 	}
@@ -85,15 +78,11 @@ func EightColumnRects(cfg LayoutConfig, header HeaderPayload, footer FooterPaylo
 			Label: EightColumnFlowLabels[4+col],
 		})
 	}
-	footerBand := footerHeightMM(cfg)
-	if footer.Heading != "" || len(footer.ContactItems) > 0 {
-		footerBand = math.Min(footerBand, MeasureFooterZoneHeightMM(footer, blockWidthMM(cfg), cfg.FontSizePt, cfg.LineHeightFactor))
-	}
-	yLeft := contentBottomYMM(cfg) + footerBand + cfg.HeaderFooterGapMM
+	yBack := p1.BodyTopYMM
 	for col := 0; col < cfg.ColumnsPerBlock; col++ {
 		rects = append(rects, RegionRect{
-			XMM: columnX(leftBlockXMM(cfg), col, cfg), YMM: yLeft,
-			WidthMM: colW, HeightMM: sheet1LeftBodyHeightMM(cfg, footer),
+			XMM: columnX(leftBlockXMM(cfg), col, cfg), YMM: yBack,
+			WidthMM: colW, HeightMM: p1.BackBodyHeightMM,
 			Label: EightColumnFlowLabels[6+col],
 		})
 	}

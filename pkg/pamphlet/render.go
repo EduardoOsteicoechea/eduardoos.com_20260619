@@ -152,8 +152,8 @@ func renderColumnDiv(id string, blocks []LayoutBlock, colWidth, colHeight, fontS
 		orderAttr = fmt.Sprintf(` data-mobile-order="%d"`, mobileOrder)
 	}
 	return fmt.Sprintf(
-		`<div id="%s" class="column"%s data-base-max-height-mm="%.4f" style="font-size:%gpt;line-height:%g;max-height:%.4fmm;height:100%%;overflow:hidden">%s</div>`,
-		id, orderAttr, colHeight, fontSizePt, lh, colHeight, inner,
+		`<div id="%s" class="column"%s data-base-max-height-mm="%.4f" style="font-size:%gpt;line-height:%g;height:%.4fmm;max-height:%.4fmm;overflow:hidden">%s</div>`,
+		id, orderAttr, colHeight, fontSizePt, lh, colHeight, colHeight, inner,
 	)
 }
 
@@ -218,6 +218,7 @@ func renderFooterZone(payload FooterPayload) string {
 // RenderSheet1Outer renders sheet 1 outside face HTML.
 func RenderSheet1Outer(cfg LayoutConfig, header HeaderPayload, footer FooterPayload, distributed [][]LayoutBlock, heights []float64) string {
 	colW := columnWidthMM(cfg)
+	p1 := ComputePage1Layout(cfg, header, footer)
 	paraSep := ParagraphSeparationMM(cfg.FontSizePt, cfg.LineHeightFactor, cfg.ParagraphSeparationFactor)
 	fs, lh := cfg.FontSizePt, cfg.LineHeightFactor
 	s1r := renderColumnDiv("s1r-col0", distributed[0], colW, heights[0], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 2)
@@ -225,25 +226,31 @@ func RenderSheet1Outer(cfg LayoutConfig, header HeaderPayload, footer FooterPayl
 	s1l := renderColumnDiv("s1l-col0", distributed[6], colW, heights[6], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 100)
 	s1l += renderColumnDiv("s1l-col1", distributed[7], colW, heights[7], fs, lh, paraSep, cfg.IdeaHeadingBottomMarginMM, 101)
 	return fmt.Sprintf(`
-<div class="sheet" id="sheet1" data-sheet-index="1" style="--mid-gap:%.4fmm;--col-gap:%.4fmm;--hf-gap:%.4fmm;--para-sep-mm:%.4fmm;--heading-gap-mm:%.4fmm">
-  <div class="sheet-inner sheet1-grid" style="padding:%.4fmm %.4fmm">
-    <div class="block left sheet1-left">
-      <div class="zone-body" id="s1-left-body">%s</div>
-      <div class="zone-gap"></div>
-      <div class="zone-footer" id="zone-footer" data-mobile-order="99" style="font-size:%gpt;line-height:%g">%s</div>
-    </div>
-    <div class="gutter" id="mid-gutter"></div>
-    <div class="block right sheet1-right">
-      <div class="zone-header" id="zone-header" data-mobile-order="1" style="font-size:%gpt;line-height:%g">%s</div>
-      <div class="zone-gap"></div>
-      <div class="zone-body" id="s1-right-body">%s</div>
+<div class="sheet sheet-page-1" id="sheet1" data-sheet-index="1" style="--mid-gap:%.4fmm;--col-gap:%.4fmm;--hf-gap:%.4fmm;--para-sep-mm:%.4fmm;--heading-gap-mm:%.4fmm">
+  <div class="sheet-inner sheet-page-1-inner" style="padding:%.4fmm %.4fmm">
+    <div class="zone-header sheet-page-header" id="zone-header" data-mobile-order="1" style="height:%.4fmm;max-height:%.4fmm;font-size:%gpt;line-height:%g">%s</div>
+    <div class="zone-gap sheet-page-header-gap" style="height:%.4fmm;flex-shrink:0"></div>
+    <div class="sheet-page-halves sheet1-grid" style="height:%.4fmm;max-height:%.4fmm">
+      <div class="block left sheet1-left sheet-page-half sheet-page-half--back">
+        <div class="zone-body sheet-page-body" id="s1-left-body" style="height:%.4fmm;max-height:%.4fmm">%s</div>
+        <div class="zone-gap"></div>
+        <div class="zone-footer sheet-page-footer" id="zone-footer" data-mobile-order="99" style="height:%.4fmm;max-height:%.4fmm;font-size:%gpt;line-height:%g">%s</div>
+      </div>
+      <div class="gutter" id="mid-gutter"></div>
+      <div class="block right sheet1-right sheet-page-half sheet-page-half--front">
+        <div class="zone-body sheet-page-body" id="s1-right-body" style="height:%.4fmm;max-height:%.4fmm">%s</div>
+      </div>
     </div>
   </div>
 </div>`,
 		cfg.MidSeparationMM, cfg.ColumnGapMM, cfg.HeaderFooterGapMM, paraSep, cfg.IdeaHeadingBottomMarginMM,
 		cfg.MarginVerticalMM, cfg.MarginLateralMM,
-		s1l, fs, lh, renderFooterZone(footer),
-		fs, lh, renderHeaderZone(header), s1r,
+		p1.HeaderHeightMM, p1.HeaderHeightMM, fs, lh, renderHeaderZone(header),
+		p1.HFGapMM,
+		p1.HalvesHeightMM, p1.HalvesHeightMM,
+		p1.BackBodyHeightMM, p1.BackBodyHeightMM, s1l,
+		p1.FooterHeightMM, p1.FooterHeightMM, fs, lh, renderFooterZone(footer),
+		p1.FrontBodyHeightMM, p1.FrontBodyHeightMM, s1r,
 	)
 }
 

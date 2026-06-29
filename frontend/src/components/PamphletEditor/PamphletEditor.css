@@ -136,6 +136,35 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
   overflow: hidden;
 }
 
+.pamphlet-editor__sheets .sheet-page-1-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pamphlet-editor__sheets .sheet-page-header {
+  flex: 0 0 auto;
+  width: 100%;
+  overflow: hidden;
+  padding: 2px;
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+.pamphlet-editor__sheets .sheet-page-header-gap {
+  flex: 0 0 auto;
+}
+
+.pamphlet-editor__sheets .sheet-page-halves {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr var(--mid-gap) 1fr;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .pamphlet-editor__sheets .sheet1-grid {
   grid-template-columns: 1fr var(--mid-gap) 1fr;
 }
@@ -152,12 +181,29 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
   overflow: hidden;
 }
 
-.pamphlet-editor__sheets .block.sheet1-right .zone-header {
+.pamphlet-editor__sheets .block.sheet-page-half {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pamphlet-editor__sheets .block.sheet-page-half .sheet-page-body {
   flex: 0 0 auto;
-  max-height: 25%;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--col-gap);
+  min-height: 0;
+}
+
+.pamphlet-editor__sheets .block.sheet-page-half .sheet-page-footer {
+  flex: 0 0 auto;
   overflow: hidden;
   padding: 2px;
   color: #0f172a;
+  box-sizing: border-box;
 }
 
 .pamphlet-editor__sheets .pamphlet-header-title {
@@ -180,8 +226,6 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
   white-space: pre-wrap;
 }
 
-.pamphlet-editor__sheets .block.sheet1-right .zone-body,
-.pamphlet-editor__sheets .block.sheet1-left .zone-body,
 .pamphlet-editor__sheets .block.sheet2-left .zone-body,
 .pamphlet-editor__sheets .block.sheet2-right .zone-body {
   flex: 1 1 0;
@@ -192,12 +236,9 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
   gap: var(--col-gap);
 }
 
-.pamphlet-editor__sheets .block.sheet1-left .zone-footer {
-  flex: 0 0 auto;
-  max-height: 25%;
-  overflow: hidden;
-  padding: 2px;
-  color: #0f172a;
+.pamphlet-editor__sheets .sheet-page-1 .column {
+  height: auto;
+  max-height: none;
 }
 
 .pamphlet-editor__sheets .zone-gap {
@@ -447,6 +488,7 @@ body.page-editor .page-shell:has(.pamphlet-editor) {
 
   .pamphlet-editor--mobile-stream .pamphlet-mobile-card .column,
   .pamphlet-editor--mobile-stream .pamphlet-mobile-card .zone-header,
+  .pamphlet-editor--mobile-stream .pamphlet-mobile-card .sheet-page-header,
   .pamphlet-editor--mobile-stream .pamphlet-mobile-card .zone-footer {
     display: flex;
     flex-direction: column;

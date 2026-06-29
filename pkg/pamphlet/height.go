@@ -121,6 +121,9 @@ func MeasureHeaderZoneHeightMM(payload HeaderPayload, blockWidthMM, fontSizePt, 
 	if payload.Heading != "" {
 		total += MeasureTextHeightMM(payload.Heading, blockWidthMM, fontSizePt*1.15, lineHeightFactor)
 	}
+	if payload.Subheading != "" {
+		total += MeasureTextHeightMM(payload.Subheading, blockWidthMM, fontSizePt*0.95, lineHeightFactor)
+	}
 	meta := make([]string, 0, 3)
 	if payload.Author != "" {
 		meta = append(meta, payload.Author)
