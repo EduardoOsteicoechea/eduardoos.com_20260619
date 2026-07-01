@@ -1,11 +1,10 @@
 /**
- * PamphletV2.css — Generator workspace surface.
+ * PamphletV2.css — Generator workspace chrome (non-print sheet surface).
  */
 
 .pamphlet-v2 {
   width: 100%;
   min-height: inherit;
-  background: var(--site-body-bg);
   color: var(--site-body-fg);
   box-sizing: border-box;
 }

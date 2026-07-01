@@ -1,0 +1,233 @@
+/**
+ * pamphlet-print.css — Physical US Letter sheet layout and print rules.
+ * All spatial dimensions inside sheets use mm for browser-to-PDF fidelity.
+ */
+
+/* ── Layout tokens (aligned with pkg/pamphlet constants) ── */
+.pamphlet-sheet {
+  --pamphlet-sheet-w: 215.9mm;
+  --pamphlet-sheet-h: 279.4mm;
+  --pamphlet-safe-margin: 10mm;
+  --pamphlet-mid-gap: 25mm;
+  --pamphlet-col-gap: 4mm;
+  --pamphlet-hf-gap: 5mm;
+  --pamphlet-heading-gap: 5mm;
+  --pamphlet-para-sep: 4.2336mm;
+  --pamphlet-body-font-pt: 10pt;
+  --pamphlet-line-height: 1.2;
+}
+
+/* ── 1. Canvas container (physical paper) ── */
+.pamphlet-sheet {
+  box-sizing: border-box;
+  width: var(--pamphlet-sheet-w);
+  height: var(--pamphlet-sheet-h);
+  min-width: var(--pamphlet-sheet-w);
+  min-height: var(--pamphlet-sheet-h);
+  max-width: var(--pamphlet-sheet-w);
+  max-height: var(--pamphlet-sheet-h);
+  padding: var(--pamphlet-safe-margin);
+  margin: 0 auto;
+  background: #ffffff;
+  color: #1e293b;
+  box-shadow: 0 2mm 6mm rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.pamphlet-sheet__inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* ── Page 1: full-width header, then two halves (back | front) ── */
+.pamphlet-sheet__header {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 15mm;
+  max-height: 40mm;
+  overflow: hidden;
+  padding-bottom: 1mm;
+  font-size: var(--pamphlet-body-font-pt);
+  line-height: var(--pamphlet-line-height);
+}
+
+.pamphlet-sheet__hf-gap {
+  flex: 0 0 var(--pamphlet-hf-gap);
+  height: var(--pamphlet-hf-gap);
+  min-height: var(--pamphlet-hf-gap);
+}
+
+.pamphlet-sheet__halves {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1fr var(--pamphlet-mid-gap) 1fr;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pamphlet-sheet__half {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pamphlet-sheet__gutter {
+  width: var(--pamphlet-mid-gap);
+  min-width: var(--pamphlet-mid-gap);
+}
+
+.pamphlet-sheet__body {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--pamphlet-col-gap);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pamphlet-sheet__column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pamphlet-para-sep);
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.5mm;
+  font-size: var(--pamphlet-body-font-pt);
+  line-height: var(--pamphlet-line-height);
+  word-break: break-word;
+}
+
+.pamphlet-sheet__footer {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 12mm;
+  max-height: 35mm;
+  overflow: hidden;
+  padding-top: 1mm;
+  font-size: var(--pamphlet-body-font-pt);
+  line-height: var(--pamphlet-line-height);
+}
+
+/* ── Inner content blocks (typography in pt; spacing in mm) ── */
+.pamphlet-sheet__title {
+  font-size: 11.5pt;
+  font-weight: 700;
+  margin-bottom: 1mm;
+}
+
+.pamphlet-sheet__subheading {
+  font-size: 9.5pt;
+  margin-bottom: 1mm;
+}
+
+.pamphlet-sheet__meta {
+  font-size: 8pt;
+  margin-top: 1mm;
+}
+
+.pamphlet-sheet__block-heading {
+  font-size: 11.5pt;
+  font-weight: 700;
+  margin-bottom: var(--pamphlet-heading-gap);
+}
+
+.pamphlet-sheet__block-paragraph {
+  margin-bottom: 0;
+}
+
+.pamphlet-sheet__block-image {
+  width: 100%;
+  margin-bottom: var(--pamphlet-para-sep);
+}
+
+/* ── Sheet 2+ (four-column inner spread) ── */
+.pamphlet-sheet--inner .pamphlet-sheet__halves {
+  height: 100%;
+}
+
+.pamphlet-sheet--inner .pamphlet-sheet__half--back .pamphlet-sheet__body,
+.pamphlet-sheet--inner .pamphlet-sheet__half--front .pamphlet-sheet__body {
+  height: 100%;
+}
+
+/* ── Screen canvas behind sheets ── */
+.pamphlet-v2__canvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10mm;
+  width: 100%;
+  min-height: inherit;
+  padding: 10mm;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--site-body-fg) 8%, var(--site-body-bg));
+}
+
+/* ── 3. Print media query ── */
+@media print {
+  @page {
+    size: letter;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 215.9mm;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+  }
+
+  body.page-pamphlet-v2 {
+    padding: 0 !important;
+  }
+
+  body.page-pamphlet-v2 main {
+    margin-top: 0 !important;
+  }
+
+  .site-header,
+  .site-activity-bar,
+  .pamphlet-no-print,
+  #pwa-toast,
+  .page-background {
+    display: none !important;
+  }
+
+  .pamphlet-v2-page,
+  .pamphlet-v2,
+  .pamphlet-v2__canvas {
+    display: block;
+    width: auto;
+    min-height: auto;
+    padding: 0;
+    margin: 0;
+    background: transparent !important;
+    gap: 0;
+  }
+
+  .pamphlet-sheet {
+    margin: 0 !important;
+    box-shadow: none !important;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .pamphlet-sheet:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .pamphlet-sheet,
+  .pamphlet-sheet * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

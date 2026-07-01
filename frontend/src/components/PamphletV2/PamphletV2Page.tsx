@@ -8,7 +8,9 @@ import "./PamphletV2Page.css";
 export default function PamphletV2Page() {
   return (
     <div className="pamphlet-v2-page">
-      <ActivityBar buttons={[]} ariaLabel="Pamphlet actions" />
+      <div className="pamphlet-no-print">
+        <ActivityBar buttons={[]} ariaLabel="Pamphlet actions" />
+      </div>
       <PamphletV2 />
     </div>
   );
