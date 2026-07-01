@@ -3,7 +3,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
-import { getAuthToken } from "../../lib/auth";
+import { getAuthToken, logoutUser } from "../../lib/auth";
 import "./Header.css";
 
 /** Returns the uppercase first letter of the email from a JWT sub claim. */
@@ -61,6 +61,13 @@ export function Header({ pathname }: HeaderProps) {
     setMenuOpen((open) => !open);
   }
 
+  async function handleLogout() {
+    closeMenu();
+    await logoutUser();
+    setProfileInitial("");
+    window.location.replace(APP_ROUTES.login);
+  }
+
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
@@ -95,15 +102,24 @@ export function Header({ pathname }: HeaderProps) {
       </a>
       <div className="site-header__bar">
         {clientReady && profileInitial ? (
-          <a
-            className="site-header__profile"
-            href={APP_ROUTES.home}
-            title="Account"
-            aria-label="Account home"
-            onClick={closeMenu}
-          >
-            {profileInitial}
-          </a>
+          <>
+            <a
+              className="site-header__profile"
+              href={APP_ROUTES.home}
+              title="Account"
+              aria-label="Account home"
+              onClick={closeMenu}
+            >
+              {profileInitial}
+            </a>
+            <button
+              type="button"
+              className="site-header__logout"
+              onClick={() => void handleLogout()}
+            >
+              Log out
+            </button>
+          </>
         ) : null}
         <button
           type="button"
@@ -132,15 +148,24 @@ export function Header({ pathname }: HeaderProps) {
           </a>
         ))}
         {clientReady && profileInitial ? (
-          <a
-            className={`site-header__profile site-header__profile--nav${pathname === APP_ROUTES.home ? " is-active" : ""}`}
-            href={APP_ROUTES.home}
-            title="Account"
-            aria-label="Account home"
-            onClick={closeMenu}
-          >
-            {profileInitial}
-          </a>
+          <>
+            <a
+              className={`site-header__profile site-header__profile--nav${pathname === APP_ROUTES.home ? " is-active" : ""}`}
+              href={APP_ROUTES.home}
+              title="Account"
+              aria-label="Account home"
+              onClick={closeMenu}
+            >
+              {profileInitial}
+            </a>
+            <button
+              type="button"
+              className="site-header__logout site-header__logout--nav"
+              onClick={() => void handleLogout()}
+            >
+              Log out
+            </button>
+          </>
         ) : null}
       </nav>
     </header>

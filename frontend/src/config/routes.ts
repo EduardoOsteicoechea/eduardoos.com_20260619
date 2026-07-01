@@ -10,7 +10,6 @@ export const APP_ROUTES = {
   mediaGallery: "/media/gallery",
   mediaPlaylist: "/media/playlist",
   pamphlet: "/documents/pamphlet",
-  pamphletV2: "/documents/pamphlet-v2",
 } as const;
 
 /** Public gateway media API endpoints. */

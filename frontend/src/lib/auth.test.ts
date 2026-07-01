@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   AUTH_ROUTES,
+  getAuthToken,
   hasIssuedToken,
   loginUser,
+  logoutUser,
   registerUser,
+  saveAuthToken,
   verifyOtp,
 } from "./auth";
 
@@ -18,6 +21,7 @@ describe("auth routes", () => {
     expect(AUTH_ROUTES.register).toBe("/api/auth/register");
     expect(AUTH_ROUTES.login).toBe("/api/auth/login");
     expect(AUTH_ROUTES.verifyOtp).toBe("/api/auth/verify-otp");
+    expect(AUTH_ROUTES.logout).toBe("/api/auth/logout");
   });
 
   it("registerUser calls register endpoint and emits logs", async () => {
@@ -89,5 +93,34 @@ describe("auth routes", () => {
       AUTH_ROUTES.verifyOtp,
       expect.objectContaining({ method: "POST" })
     );
+  });
+
+  it("logoutUser posts to logout route, clears token, and emits logs", async () => {
+    saveAuthToken("session-jwt");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ message: "Logged out" }),
+      })
+      .mockResolvedValueOnce({ ok: true });
+
+    const { result, log } = await logoutUser(fetchMock);
+
+    expect(result?.message).toBe("Logged out");
+    expect(log.event).toBe("auth.logout");
+    expect(log.status).toBe("success");
+    expect(fetchMock).toHaveBeenCalledWith(
+      AUTH_ROUTES.logout,
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer session-jwt",
+        }),
+      })
+    );
+    expect(getAuthToken()).toBe("");
   });
 });

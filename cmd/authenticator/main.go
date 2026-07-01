@@ -52,6 +52,7 @@ func main() {
 		r.Post("/register", st.register)
 		r.Post("/login", st.login)
 		r.Post("/verify-otp", st.verifyOTP)
+		r.Post("/logout", st.logout)
 		r.Post("/user-exists", st.userExists)
 	})
 
@@ -191,6 +192,36 @@ func (s *state) verifyOTP(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("[correlation=%s] verify-otp success email=%s", cid, email)
 	common.WriteJSON(w, http.StatusOK, map[string]any{"message": "Email verified", "token": token})
+}
+
+func (s *state) logout(w http.ResponseWriter, r *http.Request) {
+	cid := common.CorrelationFromRequest(r)
+	auth := strings.TrimSpace(r.Header.Get("Authorization"))
+	if auth == "" {
+		log.Printf("[correlation=%s] logout rejected reason=missing_authorization", cid)
+		common.WriteError(w, http.StatusUnauthorized, "authorization required")
+		return
+	}
+
+	tokenStr := strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+	email := ""
+	if tokenStr != "" {
+		parsed, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
+			if t.Method != jwt.SigningMethodHS256 {
+				return nil, fmt.Errorf("unexpected signing method")
+			}
+			return []byte(s.jwtSecret), nil
+		})
+		if err == nil && parsed.Valid {
+			if sub, ok := parsed.Claims.(jwt.MapClaims)["sub"].(string); ok {
+				email = sub
+			}
+		}
+	}
+
+	s.report(r, "auth.logout", "success", email)
+	log.Printf("[correlation=%s] logout success email=%s", cid, email)
+	common.WriteJSON(w, http.StatusOK, map[string]any{"message": "Logged out"})
 }
 
 func (s *state) userExists(w http.ResponseWriter, r *http.Request) {

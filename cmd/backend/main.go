@@ -78,6 +78,7 @@ func main() {
 	r.Post("/api/auth/register", cfg.proxyAuth("/register"))
 	r.Post("/api/auth/login", cfg.proxyAuth("/login"))
 	r.Post("/api/auth/verify-otp", cfg.proxyAuth("/verify-otp"))
+	r.Post("/api/auth/logout", cfg.proxyAuthLogout())
 	r.Post("/api/logger", cfg.proxyPost("/ingest", cfg.TelemetryURL, "logger.proxy"))
 	r.Get("/api/logger/logs", cfg.proxyGetQuery("/logs", cfg.TelemetryURL))
 	r.Get("/api/logger/analytics", cfg.proxyGet("/analytics", cfg.TelemetryURL))
@@ -151,6 +152,47 @@ func (c config) proxyAuth(path string) http.HandlerFunc {
 		req.Header.Set(common.CorrelationHeader, cid)
 		req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(c.InternalSecret, cid))
 		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Printf("[correlation=%s] %s proxy upstream error: %v", cid, event, err)
+			common.WriteError(w, http.StatusBadGateway, "auth service unavailable")
+			return
+		}
+		defer resp.Body.Close()
+		out, _ := io.ReadAll(resp.Body)
+		log.Printf("[correlation=%s] %s proxy upstream status=%d response=%s", cid, event, resp.StatusCode, truncateForLog(string(out), 240))
+
+		if resp.StatusCode < 400 {
+			c.Telemetry.Emit(common.NewFlightLog(cid, "backend", event, "success"), cid)
+		} else {
+			c.Telemetry.Emit(common.NewFlightLog(cid, "backend", event, "error"), cid)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		_, _ = w.Write(out)
+	}
+}
+
+func (c config) proxyAuthLogout() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cid := common.CorrelationFromRequest(r)
+		event := "auth.logout"
+		c.Telemetry.Emit(common.NewFlightLog(cid, "backend", event, "started"), cid)
+
+		url := strings.TrimRight(c.AuthenticatorURL, "/") + "/logout"
+		req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader([]byte("{}")))
+		if err != nil {
+			log.Printf("[correlation=%s] %s proxy build request failed: %v", cid, event, err)
+			common.WriteError(w, http.StatusBadGateway, "auth service unavailable")
+			return
+		}
+		req.Header.Set(common.CorrelationHeader, cid)
+		req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(c.InternalSecret, cid))
+		req.Header.Set("Content-Type", "application/json")
+		if auth := strings.TrimSpace(r.Header.Get("Authorization")); auth != "" {
+			req.Header.Set("Authorization", auth)
+		}
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {

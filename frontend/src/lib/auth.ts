@@ -39,6 +39,7 @@ export const AUTH_ROUTES = {
   register: "/api/auth/register",
   login: "/api/auth/login",
   verifyOtp: "/api/auth/verify-otp",
+  logout: "/api/auth/logout",
 } as const;
 
 const AUTH_TOKEN_KEY = "eduardoos-auth-token";
@@ -158,4 +159,34 @@ export async function verifyOtp(
   }
 
   return { result: response.data ?? null, log };
+}
+
+/** Ends the client session and notifies the authenticator via the gateway. */
+export async function logoutUser(
+  fetchFn?: typeof fetch
+): Promise<{ result: AuthSuccess | null; log: FlightLogEntry; error?: ApiError }> {
+  const correlationId = createCorrelationId();
+  const token = getAuthToken();
+  const started = buildFlightLog("auth.logout", "started", correlationId, {});
+  await emitFlightLog(started, fetchFn);
+
+  const response = await apiRequest<AuthSuccess>(AUTH_ROUTES.logout, {
+    method: "POST",
+    body: {},
+    correlationId,
+    authToken: token || undefined,
+    fetchFn,
+  });
+
+  clearAuthToken();
+
+  const log = buildFlightLog(
+    "auth.logout",
+    response.error ? "error" : "success",
+    correlationId,
+    {}
+  );
+  await emitFlightLog(log, fetchFn);
+
+  return { result: response.data ?? null, log, error: response.error };
 }

@@ -1,10 +1,15 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import PamphletEditor from "../../components/PamphletEditor/PamphletEditor";
+import PamphletV2 from "../../components/PamphletV2/PamphletV2";
 ---
 
-<BaseLayout title="Pamphlet Generator — Eduardo Osteicoechea" activityBarMode="editor">
+<BaseLayout
+  title="Pamphlet Generator — Eduardo Osteicoechea"
+  activityBarMode="editor"
+  requireAuth
+  pagePamphletV2
+>
   <div class="page-shell page-shell--wide">
-    <PamphletEditor client:only="react" />
+    <PamphletV2 client:only="react" />
   </div>
 </BaseLayout>
