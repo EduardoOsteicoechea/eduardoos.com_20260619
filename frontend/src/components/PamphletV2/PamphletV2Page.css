@@ -1,0 +1,20 @@
+/**
+ * PamphletV2Page.css — Layout offsets for global header + activity bar.
+ */
+
+.pamphlet-v2-page {
+  width: 100%;
+  min-height: calc(var(--vv-height, 100dvh) - var(--header_height));
+  box-sizing: border-box;
+}
+
+.pamphlet-v2-page .pamphlet-v2 {
+  width: 100%;
+  min-height: calc(var(--vv-height, 100dvh) - var(--header_height) - var(--header_height));
+}
+
+@media (min-width: 768px) {
+  .pamphlet-v2-page .pamphlet-v2 {
+    min-height: calc(var(--vv-height, 100dvh) - var(--header_height));
+  }
+}

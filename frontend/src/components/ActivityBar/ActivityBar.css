@@ -1,0 +1,101 @@
+/**
+ * ActivityBar.css — Global activity bar chrome (plain CSS, theme tokens).
+ */
+
+.site-activity-bar {
+  position: fixed;
+  z-index: 150;
+  box-sizing: border-box;
+  background: var(--site-chrome-bar-bg);
+  color: var(--site-chrome-bar-fg);
+  border-color: var(--site-border);
+}
+
+.site-activity-bar__inner {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.25rem;
+  width: 100%;
+  height: 100%;
+  padding: 0.25rem;
+  box-sizing: border-box;
+}
+
+.site-activity-bar__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: var(--control_min_width);
+  min-height: var(--control_min_height);
+  padding: 0.25rem 0.5rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.site-activity-bar__btn:hover:not(:disabled) {
+  border-color: var(--site-medium);
+}
+
+.site-activity-bar__btn.is-active {
+  background: var(--site-accent);
+  border-color: var(--site-accent);
+  color: var(--site-accent-fg);
+}
+
+.site-activity-bar__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.site-activity-bar__label {
+  white-space: nowrap;
+}
+
+/* Mobile: bottom bar, height matches site header */
+.site-activity-bar {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--header_height);
+  min-height: var(--header_height);
+  border-top: var(--border_001);
+}
+
+.site-activity-bar__inner {
+  flex-direction: row;
+}
+
+/* Tablet + desktop: left rail below global header */
+@media (min-width: 768px) {
+  .site-activity-bar {
+    top: var(--header_height);
+    left: 0;
+    right: auto;
+    bottom: 0;
+    width: var(--header_height);
+    min-width: var(--header_height);
+    height: auto;
+    border-top: none;
+    border-right: var(--border_001);
+  }
+
+  .site-activity-bar__inner {
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 0.35rem 0.25rem;
+  }
+
+  .site-activity-bar__btn {
+    flex: 0 0 var(--header_height);
+    width: 100%;
+    height: var(--header_height);
+    min-height: var(--header_height);
+  }
+}

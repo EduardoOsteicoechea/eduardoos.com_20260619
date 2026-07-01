@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import PamphletV2 from "../../components/PamphletV2/PamphletV2";
+import PamphletV2Page from "../../components/PamphletV2/PamphletV2Page";
 ---
 
 <BaseLayout
@@ -9,7 +9,5 @@ import PamphletV2 from "../../components/PamphletV2/PamphletV2";
   requireAuth
   pagePamphletV2
 >
-  <div class="page-shell page-shell--wide">
-    <PamphletV2 client:only="react" />
-  </div>
+  <PamphletV2Page client:only="react" />
 </BaseLayout>

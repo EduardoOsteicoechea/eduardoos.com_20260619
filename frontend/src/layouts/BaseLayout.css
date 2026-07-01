@@ -62,9 +62,20 @@ body.page-playlist .page-shell {
 }
 
 body.page-pamphlet-v2 {
-  padding-bottom: var(--activity-bar-height);
+  padding-bottom: var(--header_height);
   width: 100%;
   max-width: 100%;
+}
+
+body.page-pamphlet-v2 main {
+  padding-bottom: 0;
+}
+
+@media (min-width: 768px) {
+  body.page-pamphlet-v2 {
+    padding-bottom: 0;
+    padding-left: var(--header_height);
+  }
 }
 
 body.page-pamphlet-v2 .page-shell {

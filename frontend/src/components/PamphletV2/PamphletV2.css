@@ -1,46 +1,11 @@
 /**
- * PamphletV2.css — v2 pamphlet page shell using global theme tokens.
+ * PamphletV2.css — Generator workspace surface.
  */
 
 .pamphlet-v2 {
-  display: flex;
-  flex-direction: column;
   width: 100%;
-  min-height: calc(var(--vv-height, 100dvh) - var(--header_height) - var(--activity-bar-height));
-  color: var(--site-body-fg);
-}
-
-.pamphlet-v2__header {
-  flex: 0 0 auto;
-  width: 100%;
-  padding: 0.75rem 0;
-  border-bottom: var(--border_001);
-  background: var(--glassed_background);
-}
-
-.pamphlet-v2__title {
-  font-size: var(--font-lg);
-  font-weight: 700;
-  color: var(--site-body-fg);
-}
-
-.pamphlet-v2__main {
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
+  min-height: inherit;
   background: var(--site-body-bg);
-}
-
-.pamphlet-v2__activity {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 500;
-  height: var(--activity-bar-height);
-  min-height: var(--activity-bar-height);
-  border-top: var(--border_001);
-  background: var(--site-chrome-bar-bg);
-  color: var(--site-chrome-bar-fg);
-  box-shadow: 0 -2px 12px color-mix(in srgb, var(--site-body-fg) 12%, transparent);
+  color: var(--site-body-fg);
+  box-sizing: border-box;
 }
