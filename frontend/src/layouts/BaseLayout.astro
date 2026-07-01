@@ -7,6 +7,7 @@ import "../styles/global.css";
 import "./BaseLayout.css";
 import PageBackground from "../components/PageBackground/PageBackground.astro";
 import { isHomePath } from "../config/homeLayout";
+import { APP_ROUTES } from "../config/routes";
 import { Header } from "../components/Header/Header";
 import { AuthGate } from "../components/AuthGate/AuthGate";
 
@@ -14,10 +15,17 @@ interface Props {
   title?: string;
   activityBarMode?: "default" | "article" | "editor";
   pagePlaylist?: boolean;
+  pagePamphletV2?: boolean;
+  requireAuth?: boolean;
 }
 
-const { title = "Eduardo Osteicoechea", activityBarMode = "default", pagePlaylist = false } =
-  Astro.props;
+const {
+  title = "Eduardo Osteicoechea",
+  activityBarMode = "default",
+  pagePlaylist = false,
+  pagePamphletV2 = false,
+  requireAuth = false,
+} = Astro.props;
 
 const pathname = Astro.url.pathname;
 const pageHome = isHomePath(pathname);
@@ -25,9 +33,40 @@ const pageEditor = activityBarMode === "editor";
 ---
 
 <!doctype html>
-<html lang="en" class:list={{ "page-home": pageHome }}>
+<html
+  lang="en"
+  class:list={{ "page-home": pageHome }}
+  data-auth-check={requireAuth ? "pending" : undefined}
+>
   <head>
     <meta charset="utf-8" />
+    {
+      requireAuth && (
+        <>
+          <style is:inline>
+            {`html[data-auth-check="pending"] body { visibility: hidden !important; }`}
+          </style>
+          <script
+            is:inline
+            define:vars={{ loginPath: APP_ROUTES.login, tokenKey: "eduardoos-auth-token" }}
+          >
+            {`(function () {
+  try {
+    if (!localStorage.getItem(tokenKey)) {
+      var next = encodeURIComponent(location.pathname + location.search);
+      location.replace(loginPath + "?next=" + next);
+      return;
+    }
+  } catch (_) {
+    location.replace(loginPath);
+    return;
+  }
+  document.documentElement.setAttribute("data-auth-check", "ok");
+})();`}
+          </script>
+        </>
+      )
+    }
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width" />
@@ -74,6 +113,7 @@ const pageEditor = activityBarMode === "editor";
       "page-editor": pageEditor,
       "has-page-background": true,
       "page-playlist": pagePlaylist,
+      "page-pamphlet-v2": pagePamphletV2,
     }}
   >
     <PageBackground />

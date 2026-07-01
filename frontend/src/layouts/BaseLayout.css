@@ -60,3 +60,18 @@ body.page-playlist .page-shell {
     padding-bottom: var(--playlist-bar-desktop);
   }
 }
+
+body.page-pamphlet-v2 {
+  padding-bottom: var(--activity-bar-height);
+  width: 100%;
+  max-width: 100%;
+}
+
+body.page-pamphlet-v2 .page-shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(100%, var(--max_desktop_width));
+  margin-inline: auto;
+  padding-inline: max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-right));
+  overflow-x: clip;
+}
