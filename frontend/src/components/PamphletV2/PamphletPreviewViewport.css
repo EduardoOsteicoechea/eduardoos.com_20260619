@@ -1,0 +1,70 @@
+/**
+ * PamphletPreviewViewport.css — Preview canvas interaction chrome.
+ */
+
+.pamphlet-preview-viewport {
+  position: relative;
+  width: 100%;
+  min-height: inherit;
+  box-sizing: border-box;
+}
+
+.pamphlet-preview-viewport.is-mode-active {
+  border: 2px solid var(--site-accent);
+  border-radius: var(--border_radius_001);
+}
+
+.pamphlet-preview-viewport__exit {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1mm 3mm rgba(15, 23, 42, 0.15);
+}
+
+.pamphlet-preview-viewport__exit:hover {
+  border-color: var(--site-accent);
+}
+
+.pamphlet-preview-viewport__stage {
+  transform-origin: top center;
+  width: 100%;
+  min-height: inherit;
+}
+
+.pamphlet-preview-viewport.is-mode-zoom-in .pamphlet-preview-viewport__stage,
+.pamphlet-preview-viewport.is-mode-zoom-out .pamphlet-preview-viewport__stage {
+  cursor: zoom-in;
+}
+
+.pamphlet-preview-viewport.is-mode-zoom-out .pamphlet-preview-viewport__stage {
+  cursor: zoom-out;
+}
+
+.pamphlet-preview-viewport.is-mode-drag .pamphlet-preview-viewport__stage {
+  cursor: grab;
+}
+
+.pamphlet-preview-viewport.is-mode-drag .pamphlet-preview-viewport__stage:active {
+  cursor: grabbing;
+}
+
+@media print {
+  .pamphlet-preview-viewport,
+  .pamphlet-preview-viewport__stage {
+    transform: none !important;
+    border: none !important;
+  }
+}

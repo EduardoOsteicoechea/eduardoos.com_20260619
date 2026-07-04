@@ -15,6 +15,10 @@ export function isPublicPagePath(pathname: string): boolean {
   if (path === normalizePath(APP_ROUTES.mediaPlaylist) || path.startsWith(`${normalizePath(APP_ROUTES.mediaPlaylist)}/`)) {
     return true;
   }
+  // TEMP: pamphlet preview open without login — re-enable auth before production.
+  if (path === normalizePath(APP_ROUTES.pamphlet) || path.startsWith(`${normalizePath(APP_ROUTES.pamphlet)}/`)) {
+    return true;
+  }
   return false;
 }
 

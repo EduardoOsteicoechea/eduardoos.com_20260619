@@ -1,23 +1,28 @@
 /**
- * pamphlet-print.css — Physical US Letter sheet layout and print rules.
- * All spatial dimensions inside sheets use mm for browser-to-PDF fidelity.
+ * pamphlet-print.css — Physical US Letter landscape sheet layout and print rules.
+ * Sheet: 279.4mm × 215.9mm (11in × 8.5in). All spatial layout units are mm.
  */
 
-/* ── Layout tokens (aligned with pkg/pamphlet constants) ── */
 .pamphlet-sheet {
-  --pamphlet-sheet-w: 215.9mm;
-  --pamphlet-sheet-h: 279.4mm;
-  --pamphlet-safe-margin: 10mm;
-  --pamphlet-mid-gap: 25mm;
-  --pamphlet-col-gap: 4mm;
-  --pamphlet-hf-gap: 5mm;
-  --pamphlet-heading-gap: 5mm;
-  --pamphlet-para-sep: 4.2336mm;
+  --pamphlet-sheet-w: 279.4mm;
+  --pamphlet-sheet-h: 215.9mm;
+  --pamphlet-margin-top: 10mm;
+  --pamphlet-margin-bottom: 10mm;
+  --pamphlet-margin-ext: 10mm;
+  --pamphlet-margin-int: 5mm;
+  --pamphlet-col-sep: 4mm;
+  --pamphlet-row-sep: 5mm;
+  --pamphlet-header-h: 25mm;
+  --pamphlet-footer-h: 25mm;
+  --pamphlet-right-col-h: 165.9mm;
+  --pamphlet-left-col-h: 165.9mm;
+  --pamphlet-inner-col-h: 195.9mm;
+  --pamphlet-center-gap: 10mm;
   --pamphlet-body-font-pt: 10pt;
   --pamphlet-line-height: 1.2;
+  --pamphlet-preview-scale: 1;
 }
 
-/* ── 1. Canvas container (physical paper) ── */
 .pamphlet-sheet {
   box-sizing: border-box;
   width: var(--pamphlet-sheet-w);
@@ -26,137 +31,176 @@
   min-height: var(--pamphlet-sheet-h);
   max-width: var(--pamphlet-sheet-w);
   max-height: var(--pamphlet-sheet-h);
-  padding: var(--pamphlet-safe-margin);
-  margin: 0 auto;
+  aspect-ratio: 279.4 / 215.9;
+  padding: 0;
+  margin: 0;
   background: #ffffff;
   color: #1e293b;
   box-shadow: 0 2mm 6mm rgba(15, 23, 42, 0.18);
   overflow: hidden;
   flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
-.pamphlet-sheet__inner {
-  display: flex;
-  flex-direction: column;
+.pamphlet-sheet__content {
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
-  box-sizing: border-box;
+  padding:
+    var(--pamphlet-margin-top)
+    var(--pamphlet-margin-ext)
+    var(--pamphlet-margin-bottom)
+    var(--pamphlet-margin-ext);
   overflow: hidden;
-}
-
-/* ── Page 1: full-width header, then two halves (back | front) ── */
-.pamphlet-sheet__header {
-  flex: 0 0 auto;
-  width: 100%;
-  min-height: 15mm;
-  max-height: 40mm;
-  overflow: hidden;
-  padding-bottom: 1mm;
-  font-size: var(--pamphlet-body-font-pt);
-  line-height: var(--pamphlet-line-height);
-}
-
-.pamphlet-sheet__hf-gap {
-  flex: 0 0 var(--pamphlet-hf-gap);
-  height: var(--pamphlet-hf-gap);
-  min-height: var(--pamphlet-hf-gap);
 }
 
 .pamphlet-sheet__halves {
-  flex: 1 1 auto;
   display: grid;
-  grid-template-columns: 1fr var(--pamphlet-mid-gap) 1fr;
+  grid-template-columns: minmax(0, 1fr) var(--pamphlet-center-gap) minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 
 .pamphlet-sheet__half {
-  display: flex;
-  flex-direction: column;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
 
-.pamphlet-sheet__gutter {
-  width: var(--pamphlet-mid-gap);
-  min-width: var(--pamphlet-mid-gap);
-}
-
-.pamphlet-sheet__body {
-  flex: 1 1 auto;
+.pamphlet-sheet__half--front {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--pamphlet-col-gap);
-  min-height: 0;
-  overflow: hidden;
+  grid-template-rows:
+    var(--pamphlet-header-h)
+    var(--pamphlet-row-sep)
+    minmax(0, var(--pamphlet-right-col-h));
+  height: 100%;
 }
 
-.pamphlet-sheet__column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--pamphlet-para-sep);
+.pamphlet-sheet__half--back {
+  display: grid;
+  grid-template-rows:
+    minmax(0, var(--pamphlet-left-col-h))
+    var(--pamphlet-row-sep)
+    var(--pamphlet-footer-h);
+  height: 100%;
+}
+
+.pamphlet-sheet__center-gap {
+  width: var(--pamphlet-center-gap);
+  min-width: var(--pamphlet-center-gap);
+  height: 100%;
+}
+
+.pamphlet-sheet__header {
+  height: var(--pamphlet-header-h);
   min-height: 0;
+  max-height: var(--pamphlet-header-h);
   overflow: hidden;
-  padding: 0.5mm;
-  font-size: var(--pamphlet-body-font-pt);
-  line-height: var(--pamphlet-line-height);
-  word-break: break-word;
 }
 
 .pamphlet-sheet__footer {
-  flex: 0 0 auto;
-  width: 100%;
-  min-height: 12mm;
-  max-height: 35mm;
+  height: var(--pamphlet-footer-h);
+  min-height: 0;
+  max-height: var(--pamphlet-footer-h);
   overflow: hidden;
-  padding-top: 1mm;
+}
+
+.pamphlet-sheet__row-sep {
+  height: var(--pamphlet-row-sep);
+  min-height: var(--pamphlet-row-sep);
+  max-height: var(--pamphlet-row-sep);
+}
+
+.pamphlet-sheet__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--pamphlet-col-sep) minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pamphlet-sheet__body--left {
+  height: var(--pamphlet-left-col-h);
+  max-height: var(--pamphlet-left-col-h);
+}
+
+.pamphlet-sheet__body--right {
+  height: var(--pamphlet-right-col-h);
+  max-height: var(--pamphlet-right-col-h);
+}
+
+.pamphlet-sheet--inner .pamphlet-sheet__half--back,
+.pamphlet-sheet--inner .pamphlet-sheet__half--front {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pamphlet-sheet__body--inner {
+  height: var(--pamphlet-inner-col-h);
+  max-height: var(--pamphlet-inner-col-h);
+  flex: 0 0 auto;
+}
+
+.pamphlet-sheet__col-sep {
+  width: var(--pamphlet-col-sep);
+  min-width: var(--pamphlet-col-sep);
+  height: 100%;
+}
+
+.pamphlet-sheet__column {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
   font-size: var(--pamphlet-body-font-pt);
   line-height: var(--pamphlet-line-height);
 }
 
-/* ── Inner content blocks (typography in pt; spacing in mm) ── */
-.pamphlet-sheet__title {
-  font-size: 11.5pt;
-  font-weight: 700;
-  margin-bottom: 1mm;
+.pamphlet-sheet__zone {
+  box-sizing: border-box;
+  border: 0.3mm dashed color-mix(in srgb, currentColor 25%, transparent);
 }
 
-.pamphlet-sheet__subheading {
-  font-size: 9.5pt;
-  margin-bottom: 1mm;
+.pamphlet-sheet__zone-label {
+  display: block;
+  padding: 1mm;
+  font-size: 7pt;
+  font-weight: 600;
+  opacity: 0.85;
 }
 
-.pamphlet-sheet__meta {
-  font-size: 8pt;
-  margin-top: 1mm;
+.pamphlet-sheet__zone--header {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
 }
 
-.pamphlet-sheet__block-heading {
-  font-size: 11.5pt;
-  font-weight: 700;
-  margin-bottom: var(--pamphlet-heading-gap);
+.pamphlet-sheet__zone--footer {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
 }
 
-.pamphlet-sheet__block-paragraph {
-  margin-bottom: 0;
+.pamphlet-sheet__zone--col {
+  background: rgba(251, 191, 36, 0.14);
+  color: #92400e;
 }
 
-.pamphlet-sheet__block-image {
-  width: 100%;
-  margin-bottom: var(--pamphlet-para-sep);
+.pamphlet-sheet__zone--sep {
+  background: rgba(139, 92, 246, 0.16);
+  border-style: solid;
 }
 
-/* ── Sheet 2+ (four-column inner spread) ── */
-.pamphlet-sheet--inner .pamphlet-sheet__halves {
-  height: 100%;
+.pamphlet-sheet__zone--row-sep {
+  background: rgba(100, 116, 139, 0.14);
+  border-style: solid;
 }
 
-.pamphlet-sheet--inner .pamphlet-sheet__half--back .pamphlet-sheet__body,
-.pamphlet-sheet--inner .pamphlet-sheet__half--front .pamphlet-sheet__body {
-  height: 100%;
+.pamphlet-sheet__zone--center {
+  background: rgba(148, 163, 184, 0.12);
+  border-style: solid;
 }
 
-/* ── Screen canvas behind sheets ── */
 .pamphlet-v2__canvas {
   display: flex;
   flex-direction: column;
@@ -167,18 +211,32 @@
   padding: 10mm;
   box-sizing: border-box;
   background: color-mix(in srgb, var(--site-body-fg) 8%, var(--site-body-bg));
+  overflow-x: auto;
 }
 
-/* ── 3. Print media query ── */
+.pamphlet-v2__sheet-fit {
+  transform: scale(var(--pamphlet-preview-scale, 1));
+  transform-origin: top center;
+}
+
+@media screen and (max-width: 1200px) {
+  .pamphlet-v2__canvas {
+    --pamphlet-preview-scale: min(
+      1,
+      calc((100vw - var(--header_height) - 24mm) / 279.4mm)
+    );
+  }
+}
+
 @media print {
   @page {
-    size: letter;
+    size: 279.4mm 215.9mm;
     margin: 0;
   }
 
   html,
   body {
-    width: 215.9mm;
+    width: 279.4mm;
     height: auto;
     margin: 0;
     padding: 0;
@@ -211,6 +269,11 @@
     margin: 0;
     background: transparent !important;
     gap: 0;
+    overflow: visible;
+  }
+
+  .pamphlet-v2__sheet-fit {
+    transform: none !important;
   }
 
   .pamphlet-sheet {
@@ -229,5 +292,9 @@
   .pamphlet-sheet * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  .pamphlet-sheet__zone-label {
+    display: none;
   }
 }
