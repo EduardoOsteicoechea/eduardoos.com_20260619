@@ -42,6 +42,29 @@ describe("PamphletPreviewViewport", () => {
     expect(onZoomIn).toHaveBeenCalledTimes(1);
   });
 
+  it("zooms in repeatedly while zoom-in mode stays active", () => {
+    const onZoomIn = vi.fn();
+    render(
+      <PamphletPreviewViewport
+        mode="zoom-in"
+        zoomScale={1}
+        pan={{ x: 0, y: 0 }}
+        onZoomIn={onZoomIn}
+        onZoomOut={vi.fn()}
+        onPanChange={vi.fn()}
+        onExitMode={vi.fn()}
+      >
+        <button type="button">Nested control</button>
+      </PamphletPreviewViewport>,
+    );
+
+    const stage = screen.getByTestId("pamphlet-preview-stage");
+    fireEvent.click(stage);
+    fireEvent.click(stage);
+    fireEvent.click(stage);
+    expect(onZoomIn).toHaveBeenCalledTimes(3);
+  });
+
   it("exits mode on Escape or exit button", () => {
     const onExitMode = vi.fn();
     render(

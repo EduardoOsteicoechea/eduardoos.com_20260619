@@ -82,6 +82,18 @@ export const COLUMN_ZONE_ORDER: PamphletZoneId[] = [
 const DEFAULT_IMAGE_HEIGHT_RATIO = 0.75;
 const DEFAULT_LINE_TEXT = "New paragraph";
 
+const FAKE_PARAGRAPH_VARIANTS = [
+  "Una mis mayores preocupaciones es que muchas personas afirman creer en Dios, pero sus acciones diarias no reflejan esa creencia.",
+  "Me preocupa porque vivimos distraídos, ocupados y sin examinar si nuestras decisiones honran a Dios.",
+  "La fe auténtica transforma la manera en que tratamos a los demás, usamos el tiempo y respondemos ante la adversidad.",
+  "Decir que creemos no basta cuando nuestras prioridades revelan un corazón dividido y distante del Señor.",
+  "Necesitamos una vida coherente donde lo que confesamos con los labios se confirme con obediencia cotidiana.",
+];
+
+function stripLegacyBlockPrefix(text: string): string {
+  return text.replace(/^Bloque\s+\d+:\s*/i, "").trimStart();
+}
+
 export interface DbHighlightRange {
   start: number;
   end: number;
@@ -237,14 +249,14 @@ function mapDbSubideaType(raw?: string): PamphletContentItemType {
   if (kind === "paragraph") {
     return "paragraph";
   }
-  return "key_idea";
+  return "paragraph";
 }
 
 function subideaToItem(sub: DbSubidea, contentRef: string): PamphletContentItem {
   const type = mapDbSubideaType(sub.type);
   return createContentItem(type, {
     contentRef,
-    text: sub.content ?? "",
+    text: stripLegacyBlockPrefix(sub.content ?? ""),
     highlights: sub.highlights ?? [],
     references: sub.references ?? [],
     listItems: (sub.items ?? []).map((entry) => ({
@@ -328,6 +340,145 @@ export function documentFromDbPayload(
   };
 }
 
+function itemToSubidea(item: PamphletContentItem): DbSubidea {
+  switch (item.type) {
+    case "list":
+      return {
+        type: "list",
+        items: item.listItems.map((entry) => ({
+          content: entry.text,
+          highlights: entry.highlights,
+        })),
+      };
+    case "image":
+      return {
+        type: "image",
+        description: item.description,
+        image: item.imageUrl,
+        aspect_ratio: 0.75,
+      };
+    case "quote":
+      return {
+        type: "quote",
+        content: item.text,
+        highlights: item.highlights,
+        references: item.references,
+      };
+    default:
+      return {
+        type: "simple_idea",
+        content: item.text,
+        highlights: item.highlights,
+      };
+  }
+}
+
+function headerItemsToPayload(items: PamphletContentItem[]): DbHeaderPayload {
+  const payload: DbHeaderPayload = {
+    heading: "",
+    subheading: "",
+    author: "",
+    date: "",
+    image: "",
+    category: "",
+    text: "",
+  };
+  for (const item of items) {
+    if (item.contentRef === "header:text") {
+      payload.text = item.text;
+    } else if (item.contentRef === "header:heading") {
+      payload.heading = item.text;
+    } else if (item.contentRef === "header:subheading") {
+      payload.subheading = item.text;
+    }
+  }
+  return payload;
+}
+
+function footerItemsToPayload(items: PamphletContentItem[]): DbFooterPayload {
+  const payload: DbFooterPayload = {
+    heading: "",
+    contact_items: [],
+    address_data: { message: "", address: "" },
+    text: "",
+  };
+  for (const item of items) {
+    if (item.contentRef === "footer:text") {
+      payload.text = item.text;
+    } else if (item.contentRef === "footer:heading") {
+      payload.heading = item.text;
+    } else if (item.contentRef.startsWith("footer:contact:")) {
+      const match = item.text.match(/^([^:]+):\s*(.*)$/);
+      payload.contact_items = payload.contact_items ?? [];
+      payload.contact_items.push({
+        type: match?.[1]?.trim() ?? "",
+        value: match?.[2]?.trim() ?? item.text,
+      });
+    } else if (item.contentRef === "footer:address") {
+      payload.address_data = { message: "At", address: item.text.replace(/^At\s*/, "") };
+    }
+  }
+  return payload;
+}
+
+function bodyItemsToContentPayload(items: PamphletContentItem[]): DbContentPayload {
+  const ideasMap = new Map<number, DbIdea & { subideaMap: Map<number, DbSubidea> }>();
+  for (const item of items) {
+    const parts = item.contentRef.split(":");
+    if (parts.length >= 2 && parts[1] === "heading") {
+      const ideaIndex = Number.parseInt(parts[0], 10);
+      const idea = ideasMap.get(ideaIndex) ?? {
+        heading: "",
+        summary: "",
+        subideas: [],
+        subideaMap: new Map<number, DbSubidea>(),
+      };
+      idea.heading = item.text;
+      idea.heading_highlights = item.highlights;
+      ideasMap.set(ideaIndex, idea);
+      continue;
+    }
+    if (parts.length >= 3 && parts[1] === "subidea") {
+      const ideaIndex = Number.parseInt(parts[0], 10);
+      const subIndex = Number.parseInt(parts[2], 10);
+      const idea = ideasMap.get(ideaIndex) ?? {
+        heading: "",
+        summary: "",
+        subideas: [],
+        subideaMap: new Map<number, DbSubidea>(),
+      };
+      idea.subideaMap.set(subIndex, itemToSubidea(item));
+      ideasMap.set(ideaIndex, idea);
+    }
+  }
+
+  const ideas = [...ideasMap.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([, idea]) => ({
+      heading: idea.heading,
+      heading_highlights: idea.heading_highlights,
+      summary: idea.summary ?? "",
+      subideas: [...idea.subideaMap.entries()]
+        .sort(([left], [right]) => left - right)
+        .map(([, subidea]) => subidea),
+    }));
+
+  return { ideas };
+}
+
+/** Converts editable preview items back into the pamphlet JSON document shape. */
+export function contentDocumentToDbPayload(document: PamphletContentDocument): {
+  header: DbHeaderPayload;
+  content: DbContentPayload;
+  footer: DbFooterPayload;
+} {
+  return {
+    header: headerItemsToPayload(document.headerItems),
+    content: bodyItemsToContentPayload(document.bodyItems),
+    footer: footerItemsToPayload(document.footerItems),
+  };
+}
+
 /** Recomputes all item heights after layout or font changes. */
 export function recalculatePamphletDocument(
   document: PamphletContentDocument,
@@ -372,9 +523,9 @@ export function buildFakePamphletContentDocument(
       return {
         type: "list",
         items: [
-          { content: `Punto A del bloque ${block}` },
-          { content: `Punto B del bloque ${block}` },
-          { content: `Punto C del bloque ${block}` },
+          { content: "Recordar la Palabra cada mañana" },
+          { content: "Servir con humildad a quienes nos rodean" },
+          { content: "Examinar nuestras decisiones a la luz del Evangelio" },
         ],
       };
     }
@@ -388,7 +539,7 @@ export function buildFakePamphletContentDocument(
     }
     return {
       type: "simple_idea",
-      content: `Una mis mayores preocupaciones es que muchas personas afirman creer en Dios, pero sus acciones y decisiones diarias no reflejan esa creencia de forma constante.`,
+      content: FAKE_PARAGRAPH_VARIANTS[(block - 1) % FAKE_PARAGRAPH_VARIANTS.length],
     };
   });
 
@@ -429,7 +580,8 @@ export function buildFakePamphletContentDocument(
           summary: "Contenido adicional para llenar columnas posteriores del folleto.",
           subideas: Array.from({ length: 24 }, (_, index) => ({
             type: "simple_idea" as const,
-            content: `Sección 2 · párrafo ${index + 1}: caminamos distraídos, ocupados y sin examinar si nuestras decisiones honran a Dios.`,
+            content:
+              FAKE_PARAGRAPH_VARIANTS[index % FAKE_PARAGRAPH_VARIANTS.length],
           })),
         },
       ],

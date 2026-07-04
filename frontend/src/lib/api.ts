@@ -18,6 +18,7 @@ export interface RequestOptions {
   body?: unknown;
   correlationId: string;
   authToken?: string;
+  pamphletId?: string;
   fetchFn?: typeof fetch;
 }
 
@@ -33,6 +34,9 @@ export async function apiRequest<T>(
   };
   if (options.authToken) {
     headers.Authorization = `Bearer ${options.authToken}`;
+  }
+  if (options.pamphletId) {
+    headers["X-Pamphlet-Id"] = options.pamphletId;
   }
 
   const response = await fetchFn(path, {

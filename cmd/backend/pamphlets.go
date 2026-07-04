@@ -32,6 +32,9 @@ func (c config) proxyPamphletGet(path string, event string) http.HandlerFunc {
 		req.Header.Set(common.CorrelationHeader, cid)
 		req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(c.InternalSecret, cid))
 		req.Header.Set("X-Pamphlet-User", email)
+		if pid := strings.TrimSpace(r.Header.Get("X-Pamphlet-Id")); pid != "" {
+			req.Header.Set("X-Pamphlet-Id", pid)
+		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			common.WriteError(w, http.StatusBadGateway, err.Error())
@@ -65,6 +68,9 @@ func (c config) proxyPamphletWrite(method, path, event string) http.HandlerFunc 
 		}
 		body, _ := io.ReadAll(r.Body)
 		target := strings.TrimRight(c.DocumentsURL, "/") + path
+		if q := r.URL.RawQuery; q != "" {
+			target += "?" + q
+		}
 		req, err := http.NewRequest(method, target, bytes.NewReader(body))
 		if err != nil {
 			common.WriteError(w, http.StatusBadGateway, err.Error())
@@ -74,6 +80,9 @@ func (c config) proxyPamphletWrite(method, path, event string) http.HandlerFunc 
 		req.Header.Set(common.CorrelationHeader, cid)
 		req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(c.InternalSecret, cid))
 		req.Header.Set("X-Pamphlet-User", email)
+		if pid := strings.TrimSpace(r.Header.Get("X-Pamphlet-Id")); pid != "" {
+			req.Header.Set("X-Pamphlet-Id", pid)
+		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			common.WriteError(w, http.StatusBadGateway, err.Error())

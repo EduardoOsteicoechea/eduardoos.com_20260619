@@ -37,3 +37,39 @@ export function IconDragMove() {
     </svg>
   );
 }
+
+export function IconOpenFolder() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        d="M3 7.5h6l2 2h10v9.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7.5z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M3 7.5V6a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+export function IconSaveCloud() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        d="M7 17.5h10M12 4v9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <path
+        d="M8.5 19.5h7a4 4 0 0 0 .8-7.92A5.5 5.5 0 0 0 6.2 9.7 4.5 4.5 0 0 0 8.5 19.5z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

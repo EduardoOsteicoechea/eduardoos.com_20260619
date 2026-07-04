@@ -1,17 +1,27 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../../lib/pamphletPersistence", () => ({
+  bootstrapPamphletFromCloud: vi.fn().mockResolvedValue(null),
+  loadPamphletBundle: vi.fn(),
+  savePamphletBundle: vi.fn(),
+  persistActivePamphletId: vi.fn(),
+}));
+
 import PamphletV2Page from "./PamphletV2Page";
 
 describe("PamphletV2Page preview settings", () => {
   it("renders icon activity buttons with tooltips for margin and preview tools", () => {
     render(<PamphletV2Page />);
     const bar = screen.getByRole("toolbar", { name: "Pamphlet actions" });
-    expect(within(bar).getAllByRole("button")).toHaveLength(10);
+    expect(within(bar).getAllByRole("button")).toHaveLength(12);
     expect(screen.getByRole("button", { name: "Page Top Margin" })).toHaveAttribute(
       "title",
       "Top safe margin in millimeters",
     );
     expect(screen.getByRole("button", { name: "Font sizes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save to cloud" })).toBeInTheDocument();
   });
 
   it("activates zoom mode with canvas border and exits on Escape", () => {
@@ -20,6 +30,19 @@ describe("PamphletV2Page preview settings", () => {
     expect(screen.getByTestId("pamphlet-preview-viewport")).toHaveClass("is-mode-active");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("button", { name: "Exit preview mode" })).toBeNull();
+  });
+
+  it("keeps zoom mode active across multiple canvas clicks", () => {
+    render(<PamphletV2Page />);
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    const viewport = screen.getByTestId("pamphlet-preview-viewport");
+    expect(viewport).toHaveClass("is-mode-active");
+
+    const stage = screen.getByTestId("pamphlet-preview-stage");
+    fireEvent.click(stage);
+    fireEvent.click(stage);
+    expect(viewport).toHaveClass("is-mode-active");
+    expect(screen.getByRole("button", { name: "Exit preview mode" })).toBeInTheDocument();
   });
 
   it("opens a setting panel on button click and applies saved value to the sheet", () => {

@@ -7,6 +7,7 @@ import {
   buildFakePamphletContentDocument,
   countPlacedColumnItems,
   distributeContentToZones,
+  contentDocumentToDbPayload,
   documentFromDbPayload,
   measureContentItemHeight,
   moveContentItemDown,
@@ -125,10 +126,60 @@ describe("documentFromDbPayload", () => {
     expect(doc.headerItems.length).toBeGreaterThan(0);
     expect(doc.footerItems.length).toBeGreaterThan(0);
     expect(doc.bodyItems.some((entry) => entry.type === "key_idea")).toBe(true);
-    expect(doc.bodyItems.some((entry) => entry.type === "list")).toBe(true);
-    expect(doc.bodyItems.some((entry) => entry.type === "image")).toBe(true);
-    expect(doc.bodyItems.some((entry) => entry.type === "quote")).toBe(true);
+    expect(doc.bodyItems.some((entry) => entry.type === "paragraph")).toBe(true);
     expect(doc.bodyItems.some((entry) => entry.contentRef.includes("subidea"))).toBe(true);
+  });
+
+  it("maps simple_idea subideas to regular paragraphs, not key ideas", () => {
+    const doc = documentFromDbPayload(
+      { text: "" },
+      {
+        ideas: [{ subideas: [{ type: "simple_idea", content: "Body one" }] }],
+      },
+      { text: "" },
+    );
+    expect(doc.bodyItems.every((entry) => entry.type === "paragraph")).toBe(true);
+  });
+});
+
+describe("contentDocumentToDbPayload", () => {
+  it("round-trips db-shaped content through editable items", () => {
+    const sourceHeader = {
+      heading: "Title",
+      subheading: "Subtitle",
+      author: "Author",
+      date: "2026",
+      image: "",
+      category: "Faith",
+      text: "",
+    };
+    const sourceContent = {
+      ideas: [
+        {
+          heading: "Idea",
+          summary: "",
+          subideas: [
+            { type: "simple_idea", content: "Body one" },
+            { type: "list", items: [{ content: "Bullet" }] },
+            { type: "quote", content: "Quote", references: ["Ref"] },
+          ],
+        },
+      ],
+    };
+    const sourceFooter = {
+      heading: "Contact",
+      contact_items: [{ type: "Email", value: "a@b.com" }],
+      address_data: { message: "At", address: "City" },
+      text: "",
+    };
+
+    const editable = documentFromDbPayload(sourceHeader, sourceContent, sourceFooter);
+    const payload = contentDocumentToDbPayload(editable);
+
+    expect(payload.header.heading).toBe("Title");
+    expect(payload.content.ideas[0]?.heading).toBe("Idea");
+    expect(payload.content.ideas[0]?.subideas?.length).toBe(3);
+    expect(payload.footer.heading).toBe("Contact");
   });
 });
 
@@ -139,6 +190,30 @@ describe("buildFakePamphletContentDocument", () => {
     expect(doc.bodyItems.length).toBeGreaterThan(0);
     expect(doc.footerItems.length).toBeGreaterThan(0);
     expect(doc.bodyItems.every((entry) => entry.heightMm > 0)).toBe(true);
+  });
+
+  it("does not include legacy Bloque prefixes in generated paragraphs", () => {
+    const doc = buildFakePamphletContentDocument(DEFAULT_PAMPHLET_LAYOUT_SETTINGS);
+    expect(doc.bodyItems.some((entry) => /^Bloque\s+\d+:/i.test(entry.text))).toBe(false);
+    expect(doc.bodyItems.some((entry) => /del bloque/i.test(entry.text))).toBe(false);
+  });
+});
+
+describe("documentFromDbPayload legacy prefixes", () => {
+  it("strips Bloque n prefixes when mapping stored subideas", () => {
+    const doc = documentFromDbPayload(
+      { text: "" },
+      {
+        ideas: [
+          {
+            subideas: [{ type: "simple_idea", content: "Bloque 4: Una mis mayores preocupaciones es..." }],
+          },
+        ],
+      },
+      { text: "" },
+    );
+    expect(doc.bodyItems[0]?.text.startsWith("Bloque")).toBe(false);
+    expect(doc.bodyItems[0]?.text.startsWith("Una mis")).toBe(true);
   });
 });
 

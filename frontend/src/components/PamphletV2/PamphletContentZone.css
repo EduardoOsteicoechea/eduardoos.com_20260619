@@ -7,6 +7,11 @@
   overflow: hidden;
 }
 
+.pamphlet-content-zone:has(.pamphlet-content-item.is-selected) {
+  overflow: visible;
+  z-index: 4;
+}
+
 .pamphlet-sheet__zone--header .pamphlet-content-zone,
 .pamphlet-sheet__zone--footer .pamphlet-content-zone,
 .pamphlet-sheet__column .pamphlet-content-zone {

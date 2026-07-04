@@ -79,12 +79,38 @@ function layoutQuery(layout: LayoutFields): string {
   return params.toString();
 }
 
-function authOptions(correlationId: string) {
+function authOptions(correlationId: string, pamphletId?: string) {
   const token = getAuthToken();
   return {
     correlationId,
     authToken: token ?? undefined,
+    pamphletId,
   };
+}
+
+/** Loads the user's pamphlet JSON document for one registry id. */
+export async function fetchPamphletDocumentById(pamphletId: string): Promise<PamphletDocument> {
+  const correlationId = createCorrelationId();
+  const path = `${PAMPHLET_ROUTES.document}?pamphletId=${encodeURIComponent(pamphletId)}`;
+  const result = await apiRequest<PamphletDocument>(path, authOptions(correlationId, pamphletId));
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+  return result.data as PamphletDocument;
+}
+
+/** Persists the full pamphlet JSON document for one registry id. */
+export async function savePamphletDocument(pamphletId: string, document: PamphletDocument): Promise<void> {
+  const correlationId = createCorrelationId();
+  const path = `${PAMPHLET_ROUTES.document}?pamphletId=${encodeURIComponent(pamphletId)}`;
+  const result = await apiRequest<{ status: string }>(path, {
+    method: "PUT",
+    body: document,
+    ...authOptions(correlationId, pamphletId),
+  });
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
 }
 
 /** Loads the user's pamphlet JSON document. */
@@ -239,7 +265,7 @@ export async function fetchPamphletLayout(pamphletId = "active"): Promise<Layout
   const correlationId = createCorrelationId();
   const result = await apiRequest<{ layout: LayoutFields }>(
     `${PAMPHLET_ROUTES.layout}?pamphletId=${encodeURIComponent(pamphletId)}`,
-    authOptions(correlationId),
+    authOptions(correlationId, pamphletId),
   );
   if (result.error || !result.data?.layout) {
     return DEFAULT_LAYOUT;
@@ -257,7 +283,7 @@ export async function savePamphletLayout(
   const result = await apiRequest<{ status: string }>(PAMPHLET_ROUTES.layout, {
     method: "POST",
     body: { layout, title },
-    ...authOptions(correlationId),
+    ...authOptions(correlationId, pamphletId),
   });
   if (result.error) {
     throw new Error(result.error.message);

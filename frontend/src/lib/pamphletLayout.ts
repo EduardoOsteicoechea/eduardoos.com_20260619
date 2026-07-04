@@ -195,3 +195,53 @@ export function pamphletLayoutToCssVars(settings: PamphletLayoutSettings): Recor
     "--pamphlet-half-body-w": `${Math.max(0, layout.contentWidthMm / 2 - clampLayoutMm(settings.pageLateralInternalMarginMm, 30))}mm`,
   };
 }
+
+/** Maps preview layout settings to persisted API layout fields. */
+export function layoutSettingsToApiLayout(
+  settings: PamphletLayoutSettings,
+  paragraphSep = 1,
+): {
+  marginLateral: number;
+  marginVertical: number;
+  midMargin: number;
+  colSep: number;
+  hfGap: number;
+  fontSize: number;
+  lineHeight: number;
+  paragraphSep: number;
+  headingBottomMargin: number;
+} {
+  return {
+    marginLateral: settings.pageLateralExternalMarginMm,
+    marginVertical: settings.pageTopMarginMm,
+    midMargin: settings.pageLateralInternalMarginMm,
+    colSep: settings.pageSideColumnSeparationMm,
+    hfGap: settings.pageRowSeparationMm,
+    fontSize: 10,
+    lineHeight: 1.2,
+    paragraphSep,
+    headingBottomMargin: 5,
+  };
+}
+
+/** Applies persisted API layout fields onto preview layout settings. */
+export function apiLayoutToLayoutSettings(
+  layout: {
+    marginLateral: number;
+    marginVertical: number;
+    midMargin: number;
+    colSep: number;
+    hfGap: number;
+  },
+  base: PamphletLayoutSettings = DEFAULT_PAMPHLET_LAYOUT_SETTINGS,
+): PamphletLayoutSettings {
+  return {
+    ...base,
+    pageTopMarginMm: layout.marginVertical,
+    pageBottomMarginMm: layout.marginVertical,
+    pageLateralExternalMarginMm: layout.marginLateral,
+    pageLateralInternalMarginMm: layout.midMargin,
+    pageSideColumnSeparationMm: layout.colSep,
+    pageRowSeparationMm: layout.hfGap,
+  };
+}

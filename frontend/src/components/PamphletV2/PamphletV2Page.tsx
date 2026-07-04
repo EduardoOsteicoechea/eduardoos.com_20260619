@@ -1,7 +1,7 @@
 /**
  * PamphletV2Page.tsx — Activity bar controls + content insertion preview.
  */
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ActivityBar } from "../ActivityBar/ActivityBar";
 import {
   addContentItemAfter,
@@ -29,6 +29,7 @@ import {
   type PamphletLayoutSettings,
   type PamphletSettingKey,
 } from "../../lib/pamphletLayout";
+import { bootstrapPamphletFromCloud, loadPamphletBundle, persistActivePamphletId, savePamphletBundle } from "../../lib/pamphletPersistence";
 import {
   applyPreviewZoomIn,
   applyPreviewZoomOut,
@@ -42,9 +43,11 @@ import { marginSettingIcon } from "./PamphletMarginIcons";
 import { IconFontSize } from "./PamphletContentIcons";
 import type { PamphletContentZoneHandlers } from "./PamphletContentZone";
 import PamphletFontSettingsPanel from "./PamphletFontSettingsPanel";
+import PamphletOpenModal from "./PamphletOpenModal";
+import PamphletSaveModal from "./PamphletSaveModal";
 import PamphletSettingPanel from "./PamphletSettingPanel";
 import PamphletV2 from "./PamphletV2";
-import { IconDragMove, IconZoomIn, IconZoomOut } from "./PamphletViewIcons";
+import { IconDragMove, IconOpenFolder, IconSaveCloud, IconZoomIn, IconZoomOut } from "./PamphletViewIcons";
 import "./PamphletV2Page.css";
 
 const PREVIEW_MODE_BUTTONS: Array<{
@@ -82,8 +85,80 @@ export default function PamphletV2Page() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [actionPlacement, setActionPlacement] = useState<"top" | "bottom">("top");
+  const [openModalVisible, setOpenModalVisible] = useState(false);
+  const [saveModalVisible, setSaveModalVisible] = useState(false);
+  const [activePamphletId, setActivePamphletId] = useState<string | null>(null);
+  const [activePamphletTitle, setActivePamphletTitle] = useState("Untitled pamphlet");
+  const [cloudHydrated, setCloudHydrated] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState("");
 
   const activeDefinition = PAMPHLET_LAYOUT_SETTING_DEFINITIONS.find((item) => item.key === openSetting);
+
+  useEffect(() => {
+    let cancelled = false;
+    void bootstrapPamphletFromCloud(DEFAULT_PAMPHLET_FONT_SETTINGS, DEFAULT_PAMPHLET_LAYOUT_SETTINGS)
+      .then((boot) => {
+        if (cancelled || !boot) {
+          return;
+        }
+        setContentDocument(boot.contentDocument);
+        setSettings(boot.settings);
+        setActivePamphletId(boot.pamphletId);
+        setActivePamphletTitle(boot.title);
+        setCloudStatus(`Loaded ${boot.title}`);
+      })
+      .catch((err) => {
+        if (cancelled) {
+          return;
+        }
+        setCloudStatus(err instanceof Error ? err.message : "Could not load pamphlet from cloud");
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setCloudHydrated(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const closePanels = useCallback(() => {
+    setOpenSetting(null);
+    setFontPanelOpen(false);
+    setPreviewMode(null);
+  }, []);
+
+  const handleOpenPamphlet = useCallback(
+    async (pamphletId: string, title: string) => {
+      const bundle = await loadPamphletBundle(pamphletId, fontSettings, DEFAULT_PAMPHLET_LAYOUT_SETTINGS);
+      setContentDocument(bundle.contentDocument);
+      setSettings(bundle.settings);
+      setActivePamphletId(pamphletId);
+      setActivePamphletTitle(title);
+      persistActivePamphletId(pamphletId);
+      setCloudStatus(`Loaded ${title}`);
+      setSelectedItemId(null);
+      closePanels();
+    },
+    [closePanels, fontSettings],
+  );
+
+  const handleSavePamphlet = useCallback(
+    async (options: { pamphletId: string; title: string; overwrite: boolean }) => {
+      await savePamphletBundle({
+        pamphletId: options.pamphletId,
+        title: options.title,
+        contentDocument,
+        layoutSettings: settings,
+      });
+      setActivePamphletId(options.pamphletId);
+      setActivePamphletTitle(options.title);
+      persistActivePamphletId(options.pamphletId);
+      setCloudStatus(`Saved ${options.title}`);
+    },
+    [contentDocument, settings],
+  );
 
   const activatePreviewMode = useCallback((mode: PreviewInteractionMode) => {
     setOpenSetting(null);
@@ -112,7 +187,9 @@ export default function PamphletV2Page() {
   const contentHandlers = useMemo<PamphletContentZoneHandlers>(
     () => ({
       onSelectItem: (itemId, _zoneId, elementTopPx, elementBottomPx) => {
-        setPreviewMode(null);
+        if (previewMode) {
+          return;
+        }
         setSelectedItemId(itemId);
         setActionPlacement(resolveActionBarPlacement(elementTopPx, elementBottomPx));
       },
@@ -151,11 +228,35 @@ export default function PamphletV2Page() {
         setContentDocument((current) => updateContentItemText(current, itemId, text, settings, fontSettings));
       },
     }),
-    [contentDocument, fontSettings, mutateStream, settings],
+    [contentDocument, fontSettings, mutateStream, previewMode, settings],
   );
 
   const activityButtons = useMemo(
     () => [
+      {
+        id: "open-pamphlet",
+        label: "Open",
+        title: "Open a saved pamphlet from the cloud",
+        icon: <IconOpenFolder />,
+        active: openModalVisible,
+        onClick: () => {
+          closePanels();
+          setSaveModalVisible(false);
+          setOpenModalVisible(true);
+        },
+      },
+      {
+        id: "save-pamphlet",
+        label: "Save to cloud",
+        title: "Save this pamphlet to the cloud",
+        icon: <IconSaveCloud />,
+        active: saveModalVisible,
+        onClick: () => {
+          closePanels();
+          setOpenModalVisible(false);
+          setSaveModalVisible(true);
+        },
+      },
       ...PAMPHLET_LAYOUT_SETTING_DEFINITIONS.map((def) => ({
         id: def.key,
         label: def.label,
@@ -189,7 +290,7 @@ export default function PamphletV2Page() {
         onClick: () => activatePreviewMode(button.id),
       })),
     ],
-    [activatePreviewMode, fontPanelOpen, openSetting, previewMode],
+    [activatePreviewMode, closePanels, fontPanelOpen, openModalVisible, openSetting, previewMode, saveModalVisible],
   );
 
   function handleSave(valueMm: number) {
@@ -227,6 +328,23 @@ export default function PamphletV2Page() {
           onSave={handleFontSave}
           onClose={() => setFontPanelOpen(false)}
         />
+        <PamphletOpenModal
+          open={openModalVisible}
+          onClose={() => setOpenModalVisible(false)}
+          onOpen={handleOpenPamphlet}
+        />
+        <PamphletSaveModal
+          open={saveModalVisible}
+          activePamphletId={activePamphletId}
+          activeTitle={activePamphletTitle}
+          onClose={() => setSaveModalVisible(false)}
+          onSave={handleSavePamphlet}
+        />
+        {cloudHydrated && cloudStatus ? (
+          <p className="pamphlet-v2-page__status pamphlet-no-print" aria-live="polite">
+            {cloudStatus}
+          </p>
+        ) : null}
       </div>
       <PamphletV2
         settings={settings}

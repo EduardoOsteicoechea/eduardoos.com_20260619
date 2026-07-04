@@ -18,14 +18,34 @@
 
 .pamphlet-content-item__text {
   width: 100%;
+  font-family: Raleway, Montserrat, Roboto, sans-serif;
   font-size: var(--pamphlet-font-regular);
+  font-weight: 400;
   line-height: var(--pamphlet-line-height);
   word-break: break-word;
+}
+
+.pamphlet-content-item__text[contenteditable="true"] {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  outline: none;
+  cursor: text;
+}
+
+.pamphlet-content-item__text strong {
+  font-weight: 600;
 }
 
 .pamphlet-content-item__text--key_idea {
   font-size: var(--pamphlet-font-regular-heading);
   font-weight: 600;
+}
+
+.pamphlet-content-item__text--paragraph {
+  font-size: var(--pamphlet-font-regular);
+  font-weight: 400;
 }
 
 .pamphlet-content-item__list {

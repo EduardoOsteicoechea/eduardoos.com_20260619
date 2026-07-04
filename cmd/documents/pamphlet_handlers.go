@@ -27,6 +27,9 @@ func newPamphletHandlers(store pamphlet.DocumentStore, registry pamphlet.Registr
 func (h pamphletHandlers) getDocument() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, pamphletID := pamphletIDsFromRequest(r)
+		if q := strings.TrimSpace(r.URL.Query().Get("pamphletId")); q != "" {
+			pamphletID = q
+		}
 		doc, err := h.store.Get(r.Context(), userID, pamphletID)
 		if err != nil {
 			common.WriteError(w, http.StatusBadRequest, err.Error())
@@ -39,6 +42,9 @@ func (h pamphletHandlers) getDocument() http.HandlerFunc {
 func (h pamphletHandlers) putDocument() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, pamphletID := pamphletIDsFromRequest(r)
+		if q := strings.TrimSpace(r.URL.Query().Get("pamphletId")); q != "" {
+			pamphletID = q
+		}
 		body, _ := io.ReadAll(r.Body)
 		var doc pamphlet.Document
 		if err := json.Unmarshal(body, &doc); err != nil {

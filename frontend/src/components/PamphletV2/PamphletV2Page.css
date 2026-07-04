@@ -18,3 +18,10 @@
     min-height: calc(var(--vv-height, 100dvh) - var(--header_height));
   }
 }
+
+.pamphlet-v2-page__status {
+  margin: 0.5rem 0 0;
+  padding: 0 0.75rem;
+  font-size: var(--font-sm);
+  color: var(--site-body-fg);
+}

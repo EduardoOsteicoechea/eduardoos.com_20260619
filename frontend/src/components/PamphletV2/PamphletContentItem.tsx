@@ -1,7 +1,7 @@
 /**
  * PamphletContentItem.tsx — One full-width preview content block with mm height metadata.
  */
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { PamphletContentItem as ContentItemModel, PamphletContentItemType } from "../../lib/pamphletContent";
 import type { PamphletFontSettings } from "../../lib/pamphletFontSettings";
 import PamphletContentActionBar from "./PamphletContentActionBar";
@@ -44,12 +44,24 @@ function applyHighlights(text: string, highlights: ContentItemModel["highlights"
   return html;
 }
 
+function placeCaretAtEnd(node: HTMLElement) {
+  const selection = window.getSelection();
+  if (!selection) {
+    return;
+  }
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 export function PamphletContentItem({
   item,
   bottomMarginMm,
   selected,
   actionPlacement = "top",
-  fonts,
+  fonts: _fonts,
   canMoveUp = false,
   canMoveDown = false,
   onSelect,
@@ -63,7 +75,28 @@ export function PamphletContentItem({
   onDecreaseImageHeight,
   onTextChange,
 }: PamphletContentItemProps) {
+  const itemRef = useRef<HTMLDivElement>(null);
   const editableRef = useRef<HTMLDivElement>(null);
+  const activeItemRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!selected || !editableRef.current) {
+      if (!selected) {
+        activeItemRef.current = null;
+      }
+      return;
+    }
+    if (activeItemRef.current !== item.id) {
+      editableRef.current.textContent = item.text;
+      activeItemRef.current = item.id;
+      editableRef.current.focus();
+      placeCaretAtEnd(editableRef.current);
+      return;
+    }
+    if (document.activeElement !== editableRef.current) {
+      editableRef.current.textContent = item.text;
+    }
+  }, [item.id, item.text, selected]);
 
   function handleBold() {
     editableRef.current?.focus();
@@ -72,6 +105,48 @@ export function PamphletContentItem({
     if (editableRef.current && onTextChange) {
       onTextChange(editableRef.current.innerText);
     }
+  }
+
+  function renderActionBar() {
+    if (!selected || !onSetType || !onAddBelow || !onMoveUp || !onMoveDown || !onRemove) {
+      return null;
+    }
+    return (
+      <PamphletContentActionBar
+        itemType={item.type}
+        placement={actionPlacement}
+        canMoveUp={canMoveUp}
+        canMoveDown={canMoveDown}
+        onSetType={onSetType}
+        onAddBelow={onAddBelow}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        onRemove={onRemove}
+        onBold={item.type !== "image" && item.type !== "list" ? handleBold : undefined}
+        onIncreaseImageHeight={onIncreaseImageHeight}
+        onDecreaseImageHeight={onDecreaseImageHeight}
+      />
+    );
+  }
+
+  function renderEditableText(className: string) {
+    if (selected) {
+      return (
+        <div
+          ref={editableRef}
+          className={className}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={(event) => onTextChange?.(event.currentTarget.innerText)}
+        />
+      );
+    }
+    return (
+      <div
+        className={className}
+        dangerouslySetInnerHTML={{ __html: applyHighlights(item.text, item.highlights) }}
+      />
+    );
   }
 
   function renderBody() {
@@ -106,36 +181,21 @@ export function PamphletContentItem({
       case "quote":
         return (
           <div className="pamphlet-content-item__quote">
-            <div
-              ref={editableRef}
-              className="pamphlet-content-item__text"
-              contentEditable={selected}
-              suppressContentEditableWarning
-              dangerouslySetInnerHTML={{ __html: applyHighlights(item.text, item.highlights) }}
-              onInput={(event) => onTextChange?.(event.currentTarget.innerText)}
-            />
+            {renderEditableText("pamphlet-content-item__text")}
             {item.references.length > 0 ? (
               <div className="pamphlet-content-item__reference">{item.references.join(" · ")}</div>
             ) : null}
           </div>
         );
       default:
-        return (
-          <div
-            ref={editableRef}
-            className={`pamphlet-content-item__text pamphlet-content-item__text--${item.type}`}
-            contentEditable={selected}
-            suppressContentEditableWarning
-            dangerouslySetInnerHTML={{ __html: applyHighlights(item.text, item.highlights) }}
-            onInput={(event) => onTextChange?.(event.currentTarget.innerText)}
-          />
-        );
+        return renderEditableText(`pamphlet-content-item__text pamphlet-content-item__text--${item.type}`);
     }
   }
 
   return (
     <div className="pamphlet-content-item-wrap">
       <div
+        ref={itemRef}
         className={`pamphlet-content-item${selected ? " is-selected" : ""}`}
         data-testid="pamphlet-content-item"
         data-height-mm={item.heightMm.toFixed(2)}
@@ -146,23 +206,9 @@ export function PamphletContentItem({
           onSelect(item.id, rect.top, rect.bottom);
         }}
       >
-        {selected && onSetType && onAddBelow && onMoveUp && onMoveDown && onRemove ? (
-          <PamphletContentActionBar
-            itemType={item.type}
-            placement={actionPlacement}
-            canMoveUp={canMoveUp}
-            canMoveDown={canMoveDown}
-            onSetType={onSetType}
-            onAddBelow={onAddBelow}
-            onMoveUp={onMoveUp}
-            onMoveDown={onMoveDown}
-            onRemove={onRemove}
-            onBold={item.type !== "image" ? handleBold : undefined}
-            onIncreaseImageHeight={onIncreaseImageHeight}
-            onDecreaseImageHeight={onDecreaseImageHeight}
-          />
-        ) : null}
+        {actionPlacement === "top" ? renderActionBar() : null}
         {renderBody()}
+        {actionPlacement === "bottom" ? renderActionBar() : null}
       </div>
       {bottomMarginMm > 0 ? (
         <div
