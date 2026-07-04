@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -35,6 +36,13 @@ func (c config) uploadPamphletImage() http.HandlerFunc {
 			common.WriteError(w, http.StatusBadRequest, "ref required")
 			return
 		}
+		pamphletID := strings.TrimSpace(r.Header.Get("X-Pamphlet-Id"))
+		if pamphletID == "" {
+			pamphletID = strings.TrimSpace(r.FormValue("pamphletId"))
+		}
+		if pamphletID == "" {
+			pamphletID = pamphlet.DefaultPamphletID
+		}
 		var layout map[string]any
 		if raw := strings.TrimSpace(r.FormValue("layout")); raw != "" {
 			_ = json.Unmarshal([]byte(raw), &layout)
@@ -55,7 +63,7 @@ func (c config) uploadPamphletImage() http.HandlerFunc {
 			ext = ".png"
 		}
 		filename := pamphlet.ContentImageFilenameFromRef(ref, ext)
-		objectKey := pamphlet.ContentImageObjectKey(email, pamphlet.DefaultPamphletID, filename)
+		objectKey := pamphlet.ContentImageObjectKey(email, pamphletID, filename)
 		if err := c.proxyAbsoluteUpload(r, cid, objectKey, header.Filename, data); err != nil {
 			common.WriteError(w, http.StatusBadGateway, err.Error())
 			return
@@ -71,27 +79,27 @@ func (c config) uploadPamphletImage() http.HandlerFunc {
 		if layout != nil {
 			mutationBody["layout"] = layout
 		}
-		out, status, err := c.proxyPamphletMutation(email, cid, mutationBody)
-		if err != nil {
-			common.WriteError(w, http.StatusBadGateway, err.Error())
-			return
+		resp := map[string]any{
+			"status":   "ok",
+			"imageUrl": imageURL,
+			"imageKey": objectKey,
 		}
-		if status >= 400 {
-			w.WriteHeader(status)
-			_, _ = w.Write(out)
-			return
+		out, status, mutErr := c.proxyPamphletMutation(email, cid, pamphletID, mutationBody)
+		if mutErr != nil {
+			log.Printf("[correlation=%s] pamphlet.image.upload mutation skipped: %v", cid, mutErr)
+		} else if status >= 400 {
+			log.Printf("[correlation=%s] pamphlet.image.upload mutation status=%d body=%s", cid, status, truncateForLog(string(out), 240))
+		} else if len(out) > 0 {
+			var merged map[string]any
+			if err := json.Unmarshal(out, &merged); err == nil {
+				for key, value := range merged {
+					resp[key] = value
+				}
+			}
 		}
+
 		c.Telemetry.Emit(common.NewFlightLog(cid, "backend", "pamphlet.image.upload", "success"), cid)
-		var merged map[string]any
-		if err := json.Unmarshal(out, &merged); err != nil || merged == nil {
-			merged = map[string]any{}
-		}
-		merged["imageUrl"] = imageURL
-		merged["imageKey"] = objectKey
-		out, _ = json.Marshal(merged)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(out)
+		common.WriteJSON(w, http.StatusOK, resp)
 	}
 }
 
@@ -103,8 +111,32 @@ func (c config) proxyPamphletImage() http.HandlerFunc {
 			return
 		}
 		target := strings.TrimRight(c.S3URL, "/") + "/absolute/" + s3store.EncodeRelativePath(suffix)
-		c.signedProxy(w, r, http.MethodGet, target, "")
+		c.proxyBinary(w, r, http.MethodGet, target)
 	}
+}
+
+func (c config) proxyBinary(w http.ResponseWriter, r *http.Request, method, url string) {
+	cid := common.CorrelationFromRequest(r)
+	req, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		common.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	req.Header.Set(common.CorrelationHeader, cid)
+	req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(c.InternalSecret, cid))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		common.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	defer resp.Body.Close()
+	for key, vals := range resp.Header {
+		for _, value := range vals {
+			w.Header().Add(key, value)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	_, _ = io.Copy(w, resp.Body)
 }
 
 func (c config) proxyAbsoluteUpload(r *http.Request, cid, objectKey, filename string, data []byte) error {
@@ -140,7 +172,7 @@ func (c config) proxyAbsoluteUpload(r *http.Request, cid, objectKey, filename st
 	return nil
 }
 
-func (c config) proxyPamphletMutation(email, cid string, body map[string]any) ([]byte, int, error) {
+func (c config) proxyPamphletMutation(email, cid, pamphletID string, body map[string]any) ([]byte, int, error) {
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return nil, 0, err
@@ -154,7 +186,10 @@ func (c config) proxyPamphletMutation(email, cid string, body map[string]any) ([
 	req.Header.Set(common.CorrelationHeader, cid)
 	req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(c.InternalSecret, cid))
 	req.Header.Set("X-Pamphlet-User", email)
-	req.Header.Set("X-Pamphlet-Id", pamphlet.DefaultPamphletID)
+	if strings.TrimSpace(pamphletID) == "" {
+		pamphletID = pamphlet.DefaultPamphletID
+	}
+	req.Header.Set("X-Pamphlet-Id", pamphletID)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, 0, err

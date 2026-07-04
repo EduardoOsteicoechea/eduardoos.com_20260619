@@ -211,6 +211,7 @@ export async function uploadPamphletImage(
   ref: string,
   file: File,
   layout: LayoutFields,
+  pamphletId?: string,
 ): Promise<{ html: string; capacity: CapacityTelemetry; imageUrl?: string; imageKey?: string }> {
   const correlationId = createCorrelationId();
   const token = getAuthToken();
@@ -218,12 +219,18 @@ export async function uploadPamphletImage(
   form.append("ref", ref);
   form.append("file", file);
   form.append("layout", JSON.stringify(layout));
+  if (pamphletId?.trim()) {
+    form.append("pamphletId", pamphletId.trim());
+  }
 
   const headers: Record<string, string> = {
     "X-Correlation-ID": correlationId,
   };
   if (token) {
     headers.Authorization = `Bearer ${token}`;
+  }
+  if (pamphletId?.trim()) {
+    headers["X-Pamphlet-Id"] = pamphletId.trim();
   }
 
   const response = await fetch(PAMPHLET_ROUTES.images, {
@@ -242,14 +249,22 @@ export async function uploadPamphletImage(
   if (!response.ok) {
     throw new Error(payload.message ?? payload.error ?? `Upload failed (${response.status})`);
   }
-  if (!payload.html || !payload.capacity) {
-    throw new Error("Upload response missing preview payload");
+  const imageKey = payload.imageKey ?? payload.imageUrl;
+  if (!imageKey) {
+    throw new Error("Upload response missing image key");
   }
   return {
-    html: payload.html,
-    capacity: payload.capacity,
+    html: payload.html ?? "",
+    capacity: payload.capacity ?? {
+      characters: 0,
+      content_length: 0,
+      overflow_characters: 0,
+      overflow_words: 0,
+      readout_html: "",
+      warning: "",
+    },
     imageUrl: payload.imageUrl,
-    imageKey: payload.imageKey,
+    imageKey: payload.imageKey ?? imageKey,
   };
 }
 

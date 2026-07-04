@@ -282,7 +282,12 @@ export default function PamphletV2Page() {
         }
         setImageUploadingItemId(itemId);
         setImageUploadError("");
-        void uploadPamphletImage(contentRef, file, layoutSettingsToApiLayout(settings))
+        void uploadPamphletImage(
+          contentRef,
+          file,
+          layoutSettingsToApiLayout(settings),
+          activePamphletId ?? "active",
+        )
           .then((result) => {
             const imageKey = result.imageKey ?? result.imageUrl ?? "";
             if (!imageKey) {
@@ -301,7 +306,7 @@ export default function PamphletV2Page() {
           });
       },
     }),
-    [contentDocument, fontSettings, mutateStream, previewMode, settings],
+    [contentDocument, fontSettings, mutateStream, previewMode, settings, activePamphletId],
   );
 
   const pinnedActivityButtons = useMemo(
