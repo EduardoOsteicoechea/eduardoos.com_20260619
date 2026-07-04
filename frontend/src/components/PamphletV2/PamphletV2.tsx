@@ -17,6 +17,8 @@ interface PamphletV2Props {
   selectedItemId: string | null;
   actionPlacement: "top" | "bottom";
   contentHandlers: PamphletContentZoneHandlers;
+  imageUploadingItemId: string | null;
+  imageUploadError: string;
   previewMode: PreviewInteractionMode | null;
   zoomScale: number;
   pan: PreviewPan;
@@ -33,6 +35,8 @@ export default function PamphletV2({
   selectedItemId,
   actionPlacement,
   contentHandlers,
+  imageUploadingItemId,
+  imageUploadError,
   previewMode,
   zoomScale,
   pan,
@@ -50,6 +54,8 @@ export default function PamphletV2({
         selectedItemId={selectedItemId}
         actionPlacement={actionPlacement}
         contentHandlers={contentHandlers}
+        imageUploadingItemId={imageUploadingItemId}
+        imageUploadError={imageUploadError}
         previewMode={previewMode}
         zoomScale={zoomScale}
         pan={pan}

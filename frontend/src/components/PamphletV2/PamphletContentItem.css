@@ -59,6 +59,11 @@
   margin: 0;
 }
 
+.pamphlet-content-item__list-header {
+  margin: 0 0 1mm;
+  font-weight: 600;
+}
+
 .pamphlet-content-item__quote {
   border-left: 0.8mm solid color-mix(in srgb, var(--site-accent) 55%, transparent);
   padding-left: 2mm;

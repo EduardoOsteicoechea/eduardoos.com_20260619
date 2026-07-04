@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { ActivityBar } from "../ActivityBar/ActivityBar";
 import {
   addContentItemAfter,
+  addContentListItem,
   adjustImageHeight,
   buildFakePamphletContentDocument,
   findContentItemLocation,
@@ -14,17 +15,25 @@ import {
   recalculateContentHeights,
   recalculatePamphletDocument,
   removeContentItem,
+  removeContentListItem,
   resolveActionBarPlacement,
   setContentItemType,
   setStreamItems,
+  updateContentItemDescription,
+  updateContentItemImageUrl,
+  updateContentItemListHeader,
+  updateContentItemReferences,
   updateContentItemText,
+  updateContentListItemText,
   type PamphletContentDocument,
   type PamphletContentItemType,
 } from "../../lib/pamphletContent";
+import { isAuthenticated } from "../../lib/auth";
 import {
   applyPamphletSetting,
   computeSheet1Layout,
   DEFAULT_PAMPHLET_LAYOUT_SETTINGS,
+  layoutSettingsToApiLayout,
   PAMPHLET_LAYOUT_SETTING_DEFINITIONS,
   type PamphletLayoutSettings,
   type PamphletSettingKey,
@@ -48,7 +57,10 @@ import PamphletSaveModal from "./PamphletSaveModal";
 import PamphletSettingPanel from "./PamphletSettingPanel";
 import PamphletV2 from "./PamphletV2";
 import { IconDragMove, IconOpenFolder, IconSaveCloud, IconZoomIn, IconZoomOut } from "./PamphletViewIcons";
+import { uploadPamphletImage } from "../../lib/pamphlets";
 import "./PamphletV2Page.css";
+
+const PAMPHLET_AUTH_REQUIRED_MESSAGE = "Sign in to open and save pamphlets from the cloud.";
 
 const PREVIEW_MODE_BUTTONS: Array<{
   id: PreviewInteractionMode;
@@ -91,6 +103,8 @@ export default function PamphletV2Page() {
   const [activePamphletTitle, setActivePamphletTitle] = useState("Untitled pamphlet");
   const [cloudHydrated, setCloudHydrated] = useState(false);
   const [cloudStatus, setCloudStatus] = useState("");
+  const [imageUploadingItemId, setImageUploadingItemId] = useState<string | null>(null);
+  const [imageUploadError, setImageUploadError] = useState("");
 
   const activeDefinition = PAMPHLET_LAYOUT_SETTING_DEFINITIONS.find((item) => item.key === openSetting);
 
@@ -227,6 +241,65 @@ export default function PamphletV2Page() {
       onTextChange: (itemId, _zoneId, text) => {
         setContentDocument((current) => updateContentItemText(current, itemId, text, settings, fontSettings));
       },
+      onImageReferenceChange: (itemId, _zoneId, value) => {
+        setContentDocument((current) =>
+          updateContentItemDescription(current, itemId, value, settings, fontSettings),
+        );
+      },
+      onQuoteReferenceChange: (itemId, _zoneId, value) => {
+        setContentDocument((current) =>
+          updateContentItemReferences(current, itemId, value.trim() ? [value] : [], settings, fontSettings),
+        );
+      },
+      onListHeaderChange: (itemId, _zoneId, value) => {
+        setContentDocument((current) =>
+          updateContentItemListHeader(current, itemId, value, settings, fontSettings),
+        );
+      },
+      onListItemChange: (itemId, _zoneId, index, value) => {
+        setContentDocument((current) =>
+          updateContentListItemText(current, itemId, index, value, settings, fontSettings),
+        );
+      },
+      onAddListItem: (itemId) => {
+        setContentDocument((current) => addContentListItem(current, itemId, settings, fontSettings));
+      },
+      onRemoveListItem: (itemId, _zoneId, index) => {
+        setContentDocument((current) => removeContentListItem(current, itemId, index, settings, fontSettings));
+      },
+      onImageUpload: (itemId, _zoneId, file) => {
+        const location = findContentItemLocation(contentDocument, itemId);
+        const contentRef = location
+          ? getStreamItems(contentDocument, location.stream).find((entry) => entry.id === itemId)?.contentRef
+          : "";
+        if (!contentRef) {
+          setImageUploadError("This image block has no content reference.");
+          return;
+        }
+        if (!isAuthenticated()) {
+          setImageUploadError(PAMPHLET_AUTH_REQUIRED_MESSAGE);
+          return;
+        }
+        setImageUploadingItemId(itemId);
+        setImageUploadError("");
+        void uploadPamphletImage(contentRef, file, layoutSettingsToApiLayout(settings))
+          .then((result) => {
+            const imageKey = result.imageKey ?? result.imageUrl ?? "";
+            if (!imageKey) {
+              throw new Error("Upload succeeded but no image key was returned.");
+            }
+            setContentDocument((current) =>
+              updateContentItemImageUrl(current, itemId, imageKey, settings, fontSettings),
+            );
+            setCloudStatus("Image uploaded to cloud storage.");
+          })
+          .catch((err) => {
+            setImageUploadError(err instanceof Error ? err.message : "Image upload failed");
+          })
+          .finally(() => {
+            setImageUploadingItemId(null);
+          });
+      },
     }),
     [contentDocument, fontSettings, mutateStream, previewMode, settings],
   );
@@ -240,6 +313,10 @@ export default function PamphletV2Page() {
         icon: <IconOpenFolder />,
         active: openModalVisible,
         onClick: () => {
+          if (!isAuthenticated()) {
+            setCloudStatus(PAMPHLET_AUTH_REQUIRED_MESSAGE);
+            return;
+          }
           closePanels();
           setSaveModalVisible(false);
           setOpenModalVisible(true);
@@ -252,6 +329,10 @@ export default function PamphletV2Page() {
         icon: <IconSaveCloud />,
         active: saveModalVisible,
         onClick: () => {
+          if (!isAuthenticated()) {
+            setCloudStatus(PAMPHLET_AUTH_REQUIRED_MESSAGE);
+            return;
+          }
           closePanels();
           setOpenModalVisible(false);
           setSaveModalVisible(true);
@@ -350,7 +431,7 @@ export default function PamphletV2Page() {
           onClose={() => setSaveModalVisible(false)}
           onSave={handleSavePamphlet}
         />
-        {cloudHydrated && cloudStatus ? (
+        {cloudStatus ? (
           <p className="pamphlet-v2-page__status pamphlet-no-print" aria-live="polite">
             {cloudStatus}
           </p>
@@ -363,6 +444,8 @@ export default function PamphletV2Page() {
         selectedItemId={selectedItemId}
         actionPlacement={actionPlacement}
         contentHandlers={contentHandlers}
+        imageUploadingItemId={imageUploadingItemId}
+        imageUploadError={imageUploadError}
         previewMode={previewMode}
         zoomScale={zoomScale}
         pan={pan}

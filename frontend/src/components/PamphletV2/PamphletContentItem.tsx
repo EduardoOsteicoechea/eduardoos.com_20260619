@@ -3,7 +3,11 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import type { PamphletContentItem as ContentItemModel, PamphletContentItemType } from "../../lib/pamphletContent";
+import {
+  resolvePamphletImageUrl,
+  type PamphletContentItem as ContentItemModel,
+  type PamphletContentItemType,
+} from "../../lib/pamphletContent";
 import type { PamphletFontSettings } from "../../lib/pamphletFontSettings";
 import PamphletContentActionBar from "./PamphletContentActionBar";
 import "./PamphletContentItem.css";
@@ -16,6 +20,8 @@ interface PamphletContentItemProps {
   fonts: PamphletFontSettings;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
+  imageUploading?: boolean;
+  imageUploadError?: string;
   onSelect: (itemId: string, elementTopPx: number, elementBottomPx: number) => void;
   onSetType?: (type: PamphletContentItemType) => void;
   onAddBelow?: () => void;
@@ -26,9 +32,17 @@ interface PamphletContentItemProps {
   onIncreaseImageHeight?: () => void;
   onDecreaseImageHeight?: () => void;
   onTextChange?: (text: string) => void;
+  onImageUpload?: (file: File) => void;
+  onImageReferenceChange?: (value: string) => void;
+  onQuoteReferenceChange?: (value: string) => void;
+  onListHeaderChange?: (value: string) => void;
+  onListItemChange?: (index: number, value: string) => void;
+  onAddListItem?: () => void;
+  onRemoveListItem?: (index: number) => void;
 }
 
-const ACTION_BAR_HEIGHT_PX = 44;
+const ACTION_BAR_ICON_HEIGHT_PX = 44;
+const ACTION_BAR_FIELDS_HEIGHT_PX = 132;
 const SITE_HEADER_OFFSET_PX = 72;
 const TEXT_SYNC_DEBOUNCE_MS = 120;
 
@@ -61,10 +75,21 @@ function placeCaretAtEnd(node: HTMLElement) {
   selection.addRange(range);
 }
 
-function resolvePortalBarStyle(itemRect: DOMRect, placement: "top" | "bottom"): CSSProperties {
+function actionBarHeightForType(type: PamphletContentItemType): number {
+  if (type === "image" || type === "quote" || type === "list") {
+    return ACTION_BAR_ICON_HEIGHT_PX + ACTION_BAR_FIELDS_HEIGHT_PX;
+  }
+  return ACTION_BAR_ICON_HEIGHT_PX;
+}
+
+function resolvePortalBarStyle(
+  itemRect: DOMRect,
+  placement: "top" | "bottom",
+  barHeightPx: number,
+): CSSProperties {
   const top =
     placement === "top"
-      ? Math.max(SITE_HEADER_OFFSET_PX, itemRect.top - ACTION_BAR_HEIGHT_PX - 4)
+      ? Math.max(SITE_HEADER_OFFSET_PX, itemRect.top - barHeightPx - 4)
       : itemRect.bottom + 4;
   return {
     position: "fixed",
@@ -83,6 +108,8 @@ export function PamphletContentItem({
   fonts: _fonts,
   canMoveUp = false,
   canMoveDown = false,
+  imageUploading = false,
+  imageUploadError = "",
   onSelect,
   onSetType,
   onAddBelow,
@@ -93,12 +120,20 @@ export function PamphletContentItem({
   onIncreaseImageHeight,
   onDecreaseImageHeight,
   onTextChange,
+  onImageUpload,
+  onImageReferenceChange,
+  onQuoteReferenceChange,
+  onListHeaderChange,
+  onListItemChange,
+  onAddListItem,
+  onRemoveListItem,
 }: PamphletContentItemProps) {
   const itemRef = useRef<HTMLDivElement>(null);
   const editableRef = useRef<HTMLDivElement>(null);
   const activeItemRef = useRef<string | null>(null);
   const textDebounceRef = useRef<number | null>(null);
   const [portalBarStyle, setPortalBarStyle] = useState<CSSProperties | null>(null);
+  const barHeightPx = actionBarHeightForType(item.type);
 
   useLayoutEffect(() => {
     if (!selected || !itemRef.current) {
@@ -111,7 +146,7 @@ export function PamphletContentItem({
         return;
       }
       const rect = itemRef.current.getBoundingClientRect();
-      setPortalBarStyle(resolvePortalBarStyle(rect, actionPlacement));
+      setPortalBarStyle(resolvePortalBarStyle(rect, actionPlacement, barHeightPx));
     }
 
     updateBarPosition();
@@ -121,7 +156,7 @@ export function PamphletContentItem({
       window.removeEventListener("scroll", updateBarPosition, true);
       window.removeEventListener("resize", updateBarPosition);
     };
-  }, [actionPlacement, selected, item.id, item.heightMm]);
+  }, [actionPlacement, barHeightPx, selected, item.id, item.heightMm, item.type]);
 
   useEffect(() => {
     if (!selected || !editableRef.current) {
@@ -181,6 +216,12 @@ export function PamphletContentItem({
         placement={actionPlacement}
         portal
         style={portalBarStyle}
+        imageReference={item.description}
+        quoteReference={item.references[0] ?? ""}
+        listHeader={item.text}
+        listItems={item.listItems}
+        imageUploading={imageUploading}
+        imageUploadError={imageUploadError}
         canMoveUp={canMoveUp}
         canMoveDown={canMoveDown}
         onSetType={onSetType}
@@ -191,6 +232,13 @@ export function PamphletContentItem({
         onBold={item.type !== "image" && item.type !== "list" ? handleBold : undefined}
         onIncreaseImageHeight={onIncreaseImageHeight}
         onDecreaseImageHeight={onDecreaseImageHeight}
+        onImageUpload={onImageUpload}
+        onImageReferenceChange={onImageReferenceChange}
+        onQuoteReferenceChange={onQuoteReferenceChange}
+        onListHeaderChange={onListHeaderChange}
+        onListItemChange={onListItemChange}
+        onAddListItem={onAddListItem}
+        onRemoveListItem={onRemoveListItem}
       />
     );
 
@@ -228,17 +276,23 @@ export function PamphletContentItem({
     switch (item.type) {
       case "list":
         return (
-          <ul className="pamphlet-content-item__list">
-            {(item.listItems.length > 0 ? item.listItems : [{ text: "", highlights: [] }]).map((entry, index) => (
-              <li
-                key={`${item.id}-li-${index}`}
-                className="pamphlet-content-item__list-item"
-                dangerouslySetInnerHTML={{ __html: applyHighlights(entry.text, entry.highlights) }}
-              />
-            ))}
-          </ul>
+          <>
+            {item.text.trim() ? (
+              <div className="pamphlet-content-item__list-header">{item.text}</div>
+            ) : null}
+            <ul className="pamphlet-content-item__list">
+              {(item.listItems.length > 0 ? item.listItems : [{ text: "", highlights: [] }]).map((entry, index) => (
+                <li
+                  key={`${item.id}-li-${index}`}
+                  className="pamphlet-content-item__list-item"
+                  dangerouslySetInnerHTML={{ __html: applyHighlights(entry.text, entry.highlights) }}
+                />
+              ))}
+            </ul>
+          </>
         );
-      case "image":
+      case "image": {
+        const imageSrc = resolvePamphletImageUrl(item.imageUrl);
         return (
           <div className="pamphlet-content-item__image-wrap">
             <div
@@ -246,13 +300,14 @@ export function PamphletContentItem({
               style={{ height: `${item.imageHeightMm}mm` }}
               data-image-height-mm={item.imageHeightMm}
             >
-              {item.imageUrl ? <img src={item.imageUrl} alt={item.description || "Pamphlet image"} /> : null}
+              {imageSrc ? <img src={imageSrc} alt={item.description || "Pamphlet image"} /> : null}
             </div>
             {item.description ? (
               <div className="pamphlet-content-item__reference">{item.description}</div>
             ) : null}
           </div>
         );
+      }
       case "quote":
         return (
           <div className="pamphlet-content-item__quote">

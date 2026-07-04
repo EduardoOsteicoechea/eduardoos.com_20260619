@@ -56,6 +56,11 @@ export function getAuthToken(): string {
   return localStorage.getItem(AUTH_TOKEN_KEY) ?? "";
 }
 
+/** Returns true when the user has a stored gateway JWT. */
+export function isAuthenticated(): boolean {
+  return getAuthToken().trim().length > 0;
+}
+
 /** Clears the stored session token. */
 export function clearAuthToken(): void {
   if (typeof localStorage === "undefined") return;

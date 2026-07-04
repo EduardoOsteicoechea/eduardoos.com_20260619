@@ -4,6 +4,13 @@ import { DEFAULT_PAMPHLET_FONT_SETTINGS } from "./pamphletFontSettings";
 import {
   COLUMN_ZONE_ORDER,
   addContentItemAfter,
+  addContentListItem,
+  contentDocumentToDbPayload,
+  removeContentListItem,
+  resolvePamphletImageUrl,
+  updateContentItemListHeader,
+  updateContentItemReferences,
+  updateContentListItemText,
   buildFakePamphletContentDocument,
   countPlacedColumnItems,
   distributeContentToZones,
@@ -366,5 +373,79 @@ describe("zone widths", () => {
     const zones = distributeContentToZones(doc, DEFAULT_PAMPHLET_LAYOUT_SETTINGS, fonts);
     const header = zones.find((zone) => zone.zoneId === "header");
     expect(header?.widthMm).toBeCloseTo(headerWidth, 1);
+  });
+});
+
+describe("typed content updates", () => {
+  function baseDocument(): PamphletContentDocument {
+    return {
+      headerItems: [],
+      footerItems: [],
+      bodyItems: recalculateContentHeights(
+        [
+          {
+            id: "quote-1",
+            type: "quote",
+            heightMm: 0,
+            text: "Quoted text",
+            highlights: [],
+            references: [],
+            listItems: [],
+            description: "",
+            imageUrl: "",
+            imageHeightMm: 0,
+            contentRef: "0:subidea:0",
+          },
+          {
+            id: "list-1",
+            type: "list",
+            heightMm: 0,
+            text: "",
+            highlights: [],
+            references: [],
+            listItems: [{ text: "First", highlights: [] }],
+            description: "",
+            imageUrl: "",
+            imageHeightMm: 0,
+            contentRef: "0:subidea:1",
+          },
+        ],
+        () => colWidth,
+        fonts,
+      ),
+      itemBottomMarginMm: 1,
+    };
+  }
+
+  it("resolves pamphlet image keys to gateway URLs", () => {
+    expect(resolvePamphletImageUrl("pamphlets/content-images/user/active/0-subidea-1.png")).toBe(
+      "/api/pamphlets/images/pamphlets/content-images/user/active/0-subidea-1.png",
+    );
+  });
+
+  it("updates quote references, list header, and list items", () => {
+    let doc = baseDocument();
+    doc = updateContentItemReferences(doc, "quote-1", ["Romanos 12:2"], DEFAULT_PAMPHLET_LAYOUT_SETTINGS, fonts);
+    doc = updateContentItemListHeader(doc, "list-1", "Daily habits", DEFAULT_PAMPHLET_LAYOUT_SETTINGS, fonts);
+    doc = updateContentListItemText(doc, "list-1", 0, "Read Scripture", DEFAULT_PAMPHLET_LAYOUT_SETTINGS, fonts);
+    doc = addContentListItem(doc, "list-1", DEFAULT_PAMPHLET_LAYOUT_SETTINGS, fonts);
+    doc = removeContentListItem(doc, "list-1", 1, DEFAULT_PAMPHLET_LAYOUT_SETTINGS, fonts);
+
+    expect(doc.bodyItems[0]?.references).toEqual(["Romanos 12:2"]);
+    expect(doc.bodyItems[1]?.text).toBe("Daily habits");
+    expect(doc.bodyItems[1]?.listItems).toHaveLength(1);
+    expect(doc.bodyItems[1]?.listItems[0]?.text).toBe("Read Scripture");
+  });
+
+  it("persists list header in DB payload", () => {
+    const doc = updateContentItemListHeader(
+      baseDocument(),
+      "list-1",
+      "Header",
+      DEFAULT_PAMPHLET_LAYOUT_SETTINGS,
+      fonts,
+    );
+    const payload = contentDocumentToDbPayload(doc);
+    expect(payload.content.ideas[0]?.subideas?.[1]?.content).toBe("Header");
   });
 });

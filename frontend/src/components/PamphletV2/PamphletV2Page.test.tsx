@@ -8,7 +8,13 @@ vi.mock("../../lib/pamphletPersistence", () => ({
   persistActivePamphletId: vi.fn(),
 }));
 
+vi.mock("../../lib/auth", () => ({
+  isAuthenticated: vi.fn(() => false),
+  getAuthToken: vi.fn(() => ""),
+}));
+
 import PamphletV2Page from "./PamphletV2Page";
+import { isAuthenticated } from "../../lib/auth";
 
 describe("PamphletV2Page preview settings", () => {
   it("renders icon activity buttons with tooltips for margin and preview tools", () => {
@@ -54,5 +60,16 @@ describe("PamphletV2Page preview settings", () => {
 
     const sheet = document.querySelector(".pamphlet-sheet") as HTMLElement;
     expect(sheet.style.getPropertyValue("--pamphlet-margin-top")).toBe("18mm");
+  });
+
+  it("shows a login error instead of opening cloud modals when signed out", () => {
+    render(<PamphletV2Page />);
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText("Sign in to open and save pamphlets from the cloud.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save to cloud" }));
+    expect(screen.getByText("Sign in to open and save pamphlets from the cloud.")).toBeInTheDocument();
+    expect(isAuthenticated).toHaveBeenCalled();
   });
 });

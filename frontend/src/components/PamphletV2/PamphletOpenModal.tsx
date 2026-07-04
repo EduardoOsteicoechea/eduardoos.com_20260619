@@ -45,6 +45,11 @@ export default function PamphletOpenModal({ open, onClose, onOpen }: PamphletOpe
   }, [loadRegistry, open]);
 
   async function handleSelect(pamphletId: string) {
+    const entry = pamphlets.find((item) => item.pamphletId === pamphletId);
+    if (!entry) {
+      setError("Pamphlet not found.");
+      return;
+    }
     setOpeningId(pamphletId);
     setError("");
     try {

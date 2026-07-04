@@ -82,6 +82,13 @@ func (c config) uploadPamphletImage() http.HandlerFunc {
 			return
 		}
 		c.Telemetry.Emit(common.NewFlightLog(cid, "backend", "pamphlet.image.upload", "success"), cid)
+		var merged map[string]any
+		if err := json.Unmarshal(out, &merged); err != nil || merged == nil {
+			merged = map[string]any{}
+		}
+		merged["imageUrl"] = imageURL
+		merged["imageKey"] = objectKey
+		out, _ = json.Marshal(merged)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(out)

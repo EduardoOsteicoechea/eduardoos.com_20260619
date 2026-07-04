@@ -17,6 +17,13 @@ export interface PamphletContentZoneHandlers {
   onIncreaseImageHeight: (itemId: string, zoneId: PamphletZoneId) => void;
   onDecreaseImageHeight: (itemId: string, zoneId: PamphletZoneId) => void;
   onTextChange: (itemId: string, zoneId: PamphletZoneId, text: string) => void;
+  onImageUpload: (itemId: string, zoneId: PamphletZoneId, file: File) => void;
+  onImageReferenceChange: (itemId: string, zoneId: PamphletZoneId, value: string) => void;
+  onQuoteReferenceChange: (itemId: string, zoneId: PamphletZoneId, value: string) => void;
+  onListHeaderChange: (itemId: string, zoneId: PamphletZoneId, value: string) => void;
+  onListItemChange: (itemId: string, zoneId: PamphletZoneId, index: number, value: string) => void;
+  onAddListItem: (itemId: string, zoneId: PamphletZoneId) => void;
+  onRemoveListItem: (itemId: string, zoneId: PamphletZoneId, index: number) => void;
 }
 
 interface PamphletContentZoneProps {
@@ -25,6 +32,8 @@ interface PamphletContentZoneProps {
   selectedItemId: string | null;
   actionPlacement: "top" | "bottom";
   fonts: PamphletFontSettings;
+  imageUploadingItemId: string | null;
+  imageUploadError: string;
   handlers: PamphletContentZoneHandlers;
 }
 
@@ -34,6 +43,8 @@ export function PamphletContentZone({
   selectedItemId,
   actionPlacement,
   fonts,
+  imageUploadingItemId,
+  imageUploadError,
   handlers,
 }: PamphletContentZoneProps) {
   if (items.length === 0) {
@@ -54,6 +65,8 @@ export function PamphletContentZone({
             fonts={fonts}
             canMoveUp={index > 0}
             canMoveDown={index < items.length - 1}
+            imageUploading={imageUploadingItemId === placed.item.id}
+            imageUploadError={selected ? imageUploadError : ""}
             onSelect={(itemId, elementTopPx, elementBottomPx) =>
               handlers.onSelectItem(itemId, zoneId, elementTopPx, elementBottomPx)
             }
@@ -66,6 +79,13 @@ export function PamphletContentZone({
             onIncreaseImageHeight={() => handlers.onIncreaseImageHeight(placed.item.id, zoneId)}
             onDecreaseImageHeight={() => handlers.onDecreaseImageHeight(placed.item.id, zoneId)}
             onTextChange={(text) => handlers.onTextChange(placed.item.id, zoneId, text)}
+            onImageUpload={(file) => handlers.onImageUpload(placed.item.id, zoneId, file)}
+            onImageReferenceChange={(value) => handlers.onImageReferenceChange(placed.item.id, zoneId, value)}
+            onQuoteReferenceChange={(value) => handlers.onQuoteReferenceChange(placed.item.id, zoneId, value)}
+            onListHeaderChange={(value) => handlers.onListHeaderChange(placed.item.id, zoneId, value)}
+            onListItemChange={(itemIndex, value) => handlers.onListItemChange(placed.item.id, zoneId, itemIndex, value)}
+            onAddListItem={() => handlers.onAddListItem(placed.item.id, zoneId)}
+            onRemoveListItem={(itemIndex) => handlers.onRemoveListItem(placed.item.id, zoneId, itemIndex)}
           />
         );
       })}

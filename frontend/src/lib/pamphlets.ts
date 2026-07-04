@@ -211,7 +211,7 @@ export async function uploadPamphletImage(
   ref: string,
   file: File,
   layout: LayoutFields,
-): Promise<{ html: string; capacity: CapacityTelemetry }> {
+): Promise<{ html: string; capacity: CapacityTelemetry; imageUrl?: string; imageKey?: string }> {
   const correlationId = createCorrelationId();
   const token = getAuthToken();
   const form = new FormData();
@@ -234,6 +234,8 @@ export async function uploadPamphletImage(
   const payload = (await response.json()) as {
     html?: string;
     capacity?: CapacityTelemetry;
+    imageUrl?: string;
+    imageKey?: string;
     message?: string;
     error?: string;
   };
@@ -243,7 +245,12 @@ export async function uploadPamphletImage(
   if (!payload.html || !payload.capacity) {
     throw new Error("Upload response missing preview payload");
   }
-  return { html: payload.html, capacity: payload.capacity };
+  return {
+    html: payload.html,
+    capacity: payload.capacity,
+    imageUrl: payload.imageUrl,
+    imageKey: payload.imageKey,
+  };
 }
 
 /** Lists pamphlet drafts for the authenticated user. */

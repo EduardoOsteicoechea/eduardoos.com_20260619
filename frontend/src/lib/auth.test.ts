@@ -3,6 +3,7 @@ import {
   AUTH_ROUTES,
   getAuthToken,
   hasIssuedToken,
+  isAuthenticated,
   loginUser,
   logoutUser,
   registerUser,
@@ -16,6 +17,12 @@ describe("auth routes", () => {
     expect(hasIssuedToken({ message: "ok", token: "" })).toBe(false);
     expect(hasIssuedToken({ message: "ok" })).toBe(false);
     expect(hasIssuedToken({ message: "ok", token: "eyJhbGciOiJIUzI1NiJ9" })).toBe(true);
+  });
+
+  it("isAuthenticated reflects stored JWT presence", () => {
+    saveAuthToken("token");
+    expect(isAuthenticated()).toBe(true);
+    expect(getAuthToken()).toBe("token");
   });
   it("exposes correct public gateway paths", () => {
     expect(AUTH_ROUTES.register).toBe("/api/auth/register");

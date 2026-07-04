@@ -18,6 +18,8 @@ interface PamphletSheetPreviewProps {
   selectedItemId: string | null;
   actionPlacement: "top" | "bottom";
   contentHandlers: PamphletContentZoneHandlers;
+  imageUploadingItemId: string | null;
+  imageUploadError: string;
   previewMode: PreviewInteractionMode | null;
   zoomScale: number;
   pan: PreviewPan;
@@ -41,6 +43,8 @@ function PamphletSheetPage1({
   actionPlacement,
   fonts,
   contentHandlers,
+  imageUploadingItemId,
+  imageUploadError,
 }: {
   sheetStyle: CSSProperties;
   placements: ReturnType<typeof distributeContentToZones>;
@@ -48,6 +52,8 @@ function PamphletSheetPage1({
   actionPlacement: "top" | "bottom";
   fonts: PamphletFontSettings;
   contentHandlers: PamphletContentZoneHandlers;
+  imageUploadingItemId: string | null;
+  imageUploadError: string;
 }) {
   return (
     <article className="pamphlet-sheet pamphlet-sheet--page-1" id="sheet1" data-sheet-index="1" style={sheetStyle}>
@@ -63,6 +69,8 @@ function PamphletSheetPage1({
                   actionPlacement={actionPlacement}
                   fonts={fonts}
                   handlers={contentHandlers}
+                  imageUploadingItemId={imageUploadingItemId}
+                  imageUploadError={imageUploadError}
                 />
               </div>
               <div
@@ -77,6 +85,8 @@ function PamphletSheetPage1({
                   actionPlacement={actionPlacement}
                   fonts={fonts}
                   handlers={contentHandlers}
+                  imageUploadingItemId={imageUploadingItemId}
+                  imageUploadError={imageUploadError}
                 />
               </div>
             </div>
@@ -116,6 +126,8 @@ function PamphletSheetPage1({
                   actionPlacement={actionPlacement}
                   fonts={fonts}
                   handlers={contentHandlers}
+                  imageUploadingItemId={imageUploadingItemId}
+                  imageUploadError={imageUploadError}
                 />
               </div>
               <div
@@ -130,6 +142,8 @@ function PamphletSheetPage1({
                   actionPlacement={actionPlacement}
                   fonts={fonts}
                   handlers={contentHandlers}
+                  imageUploadingItemId={imageUploadingItemId}
+                  imageUploadError={imageUploadError}
                 />
               </div>
             </div>
@@ -147,6 +161,8 @@ function PamphletSheetInner({
   actionPlacement,
   fonts,
   contentHandlers,
+  imageUploadingItemId,
+  imageUploadError,
 }: {
   sheetStyle: CSSProperties;
   placements: ReturnType<typeof distributeContentToZones>;
@@ -154,6 +170,8 @@ function PamphletSheetInner({
   actionPlacement: "top" | "bottom";
   fonts: PamphletFontSettings;
   contentHandlers: PamphletContentZoneHandlers;
+  imageUploadingItemId: string | null;
+  imageUploadError: string;
 }) {
   return (
     <article className="pamphlet-sheet pamphlet-sheet--inner" id="sheet2" data-sheet-index="2" style={sheetStyle}>
@@ -169,6 +187,8 @@ function PamphletSheetInner({
                   actionPlacement={actionPlacement}
                   fonts={fonts}
                   handlers={contentHandlers}
+                  imageUploadingItemId={imageUploadingItemId}
+                  imageUploadError={imageUploadError}
                 />
               </div>
               <div className="pamphlet-sheet__col-sep pamphlet-sheet__zone pamphlet-sheet__zone--sep" aria-hidden="true" />
@@ -180,6 +200,8 @@ function PamphletSheetInner({
                   actionPlacement={actionPlacement}
                   fonts={fonts}
                   handlers={contentHandlers}
+                  imageUploadingItemId={imageUploadingItemId}
+                  imageUploadError={imageUploadError}
                 />
               </div>
             </div>
@@ -195,6 +217,8 @@ function PamphletSheetInner({
                   actionPlacement={actionPlacement}
                   fonts={fonts}
                   handlers={contentHandlers}
+                  imageUploadingItemId={imageUploadingItemId}
+                  imageUploadError={imageUploadError}
                 />
               </div>
               <div className="pamphlet-sheet__col-sep pamphlet-sheet__zone pamphlet-sheet__zone--sep" aria-hidden="true" />
@@ -206,6 +230,8 @@ function PamphletSheetInner({
                   actionPlacement={actionPlacement}
                   fonts={fonts}
                   handlers={contentHandlers}
+                  imageUploadingItemId={imageUploadingItemId}
+                  imageUploadError={imageUploadError}
                 />
               </div>
             </div>
@@ -223,6 +249,8 @@ export function PamphletSheetPreview({
   selectedItemId,
   actionPlacement,
   contentHandlers,
+  imageUploadingItemId,
+  imageUploadError,
   previewMode,
   zoomScale,
   pan,
@@ -261,6 +289,8 @@ export function PamphletSheetPreview({
             actionPlacement={actionPlacement}
             fonts={fontSettings}
             contentHandlers={contentHandlers}
+            imageUploadingItemId={imageUploadingItemId}
+            imageUploadError={imageUploadError}
           />
         </div>
         <div className="pamphlet-v2__sheet-fit">
@@ -271,6 +301,8 @@ export function PamphletSheetPreview({
             actionPlacement={actionPlacement}
             fonts={fontSettings}
             contentHandlers={contentHandlers}
+            imageUploadingItemId={imageUploadingItemId}
+            imageUploadError={imageUploadError}
           />
         </div>
       </div>

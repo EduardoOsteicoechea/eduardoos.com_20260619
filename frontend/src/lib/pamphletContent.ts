@@ -81,6 +81,22 @@ export const COLUMN_ZONE_ORDER: PamphletZoneId[] = [
 
 const DEFAULT_IMAGE_HEIGHT_RATIO = 0.75;
 const DEFAULT_LINE_TEXT = "New paragraph";
+const PAMPHLET_CONTENT_IMAGE_PREFIX = "pamphlets/content-images";
+
+/** Maps stored S3 keys or gateway paths to a browser-loadable pamphlet image URL. */
+export function resolvePamphletImageUrl(imageUrl: string): string {
+  const trimmed = imageUrl.trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith(PAMPHLET_CONTENT_IMAGE_PREFIX)) {
+    return `/api/pamphlets/images/${trimmed.split("/").map(encodeURIComponent).join("/")}`;
+  }
+  return `/api/pamphlets/images/${encodeURIComponent(trimmed)}`;
+}
 
 const FAKE_PARAGRAPH_VARIANTS = [
   "Una mis mayores preocupaciones es que muchas personas afirman creer en Dios, pero sus acciones diarias no reflejan esa creencia.",
@@ -171,9 +187,15 @@ export function measureContentItemHeight(
   switch (item.type) {
     case "list": {
       const items = item.listItems.length > 0 ? item.listItems : [{ text: "", highlights: [] }];
-      return items.reduce(
-        (total, entry) => total + measureTextHeightMm(entry.text, containerWidthMm, bodyFont),
-        0,
+      const header = item.text.trim()
+        ? measureTextHeightMm(item.text, containerWidthMm, bodyFont)
+        : 0;
+      return (
+        header +
+        items.reduce(
+          (total, entry) => total + measureTextHeightMm(entry.text, containerWidthMm, bodyFont),
+          0,
+        )
       );
     }
     case "image": {
@@ -345,6 +367,7 @@ function itemToSubidea(item: PamphletContentItem): DbSubidea {
     case "list":
       return {
         type: "list",
+        content: item.text,
         items: item.listItems.map((entry) => ({
           content: entry.text,
           highlights: entry.highlights,
@@ -885,10 +908,25 @@ export function resolveActionBarPlacement(
   return spaceBelow >= spaceAbove ? "bottom" : "top";
 }
 
-export function updateContentItemText(
+function streamWidthForLocation(
+  document: PamphletContentDocument,
+  location: NonNullable<ReturnType<typeof findContentItemLocation>>,
+  settings: PamphletLayoutSettings,
+): number {
+  void document;
+  return buildZoneSpecs(settings).find((spec) =>
+    location.stream === "header"
+      ? spec.zoneId === "header"
+      : location.stream === "footer"
+        ? spec.zoneId === "footer"
+        : spec.zoneId === COLUMN_ZONE_ORDER[0],
+  )!.widthMm;
+}
+
+function updateContentItemById(
   document: PamphletContentDocument,
   itemId: string,
-  text: string,
+  patch: (item: PamphletContentItem) => PamphletContentItem,
   settings: PamphletLayoutSettings,
   fonts: PamphletFontSettings,
 ): PamphletContentDocument {
@@ -896,15 +934,133 @@ export function updateContentItemText(
   if (!location) {
     return document;
   }
+  const width = streamWidthForLocation(document, location, settings);
   const streamItems = getStreamItems(document, location.stream);
-  const width = buildZoneSpecs(settings).find((spec) =>
-    location.stream === "header"
-      ? spec.zoneId === "header"
-      : location.stream === "footer"
-        ? spec.zoneId === "footer"
-        : spec.zoneId === COLUMN_ZONE_ORDER[0],
-  )!.widthMm;
-  const nextItems = streamItems.map((entry) => (entry.id === itemId ? { ...entry, text } : entry));
+  const nextItems = streamItems.map((entry) => (entry.id === itemId ? patch(entry) : entry));
   const recalculated = recalculateContentHeights(nextItems, () => width, fonts);
   return setStreamItems(document, location.stream, recalculated);
+}
+
+export function updateContentItemText(
+  document: PamphletContentDocument,
+  itemId: string,
+  text: string,
+  settings: PamphletLayoutSettings,
+  fonts: PamphletFontSettings,
+): PamphletContentDocument {
+  return updateContentItemById(document, itemId, (entry) => ({ ...entry, text }), settings, fonts);
+}
+
+export function updateContentItemDescription(
+  document: PamphletContentDocument,
+  itemId: string,
+  description: string,
+  settings: PamphletLayoutSettings,
+  fonts: PamphletFontSettings,
+): PamphletContentDocument {
+  return updateContentItemById(document, itemId, (entry) => ({ ...entry, description }), settings, fonts);
+}
+
+export function updateContentItemReferences(
+  document: PamphletContentDocument,
+  itemId: string,
+  references: string[],
+  settings: PamphletLayoutSettings,
+  fonts: PamphletFontSettings,
+): PamphletContentDocument {
+  return updateContentItemById(document, itemId, (entry) => ({ ...entry, references }), settings, fonts);
+}
+
+export function updateContentItemListHeader(
+  document: PamphletContentDocument,
+  itemId: string,
+  text: string,
+  settings: PamphletLayoutSettings,
+  fonts: PamphletFontSettings,
+): PamphletContentDocument {
+  return updateContentItemById(document, itemId, (entry) => ({ ...entry, text }), settings, fonts);
+}
+
+export function updateContentItemListItems(
+  document: PamphletContentDocument,
+  itemId: string,
+  listItems: PamphletListItem[],
+  settings: PamphletLayoutSettings,
+  fonts: PamphletFontSettings,
+): PamphletContentDocument {
+  return updateContentItemById(document, itemId, (entry) => ({ ...entry, listItems }), settings, fonts);
+}
+
+export function updateContentItemImageUrl(
+  document: PamphletContentDocument,
+  itemId: string,
+  imageUrl: string,
+  settings: PamphletLayoutSettings,
+  fonts: PamphletFontSettings,
+): PamphletContentDocument {
+  return updateContentItemById(document, itemId, (entry) => ({ ...entry, imageUrl }), settings, fonts);
+}
+
+export function addContentListItem(
+  document: PamphletContentDocument,
+  itemId: string,
+  settings: PamphletLayoutSettings,
+  fonts: PamphletFontSettings,
+): PamphletContentDocument {
+  return updateContentItemById(
+    document,
+    itemId,
+    (entry) => ({
+      ...entry,
+      listItems: [...entry.listItems, { text: DEFAULT_LINE_TEXT, highlights: [] }],
+    }),
+    settings,
+    fonts,
+  );
+}
+
+export function removeContentListItem(
+  document: PamphletContentDocument,
+  itemId: string,
+  index: number,
+  settings: PamphletLayoutSettings,
+  fonts: PamphletFontSettings,
+): PamphletContentDocument {
+  return updateContentItemById(
+    document,
+    itemId,
+    (entry) => {
+      if (entry.listItems.length <= 1) {
+        return entry;
+      }
+      return {
+        ...entry,
+        listItems: entry.listItems.filter((_, itemIndex) => itemIndex !== index),
+      };
+    },
+    settings,
+    fonts,
+  );
+}
+
+export function updateContentListItemText(
+  document: PamphletContentDocument,
+  itemId: string,
+  index: number,
+  text: string,
+  settings: PamphletLayoutSettings,
+  fonts: PamphletFontSettings,
+): PamphletContentDocument {
+  return updateContentItemById(
+    document,
+    itemId,
+    (entry) => ({
+      ...entry,
+      listItems: entry.listItems.map((listEntry, itemIndex) =>
+        itemIndex === index ? { ...listEntry, text } : listEntry,
+      ),
+    }),
+    settings,
+    fonts,
+  );
 }

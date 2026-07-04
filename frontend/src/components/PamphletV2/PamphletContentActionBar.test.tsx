@@ -99,4 +99,68 @@ describe("PamphletContentActionBar", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "List" }));
     expect(onSetType).toHaveBeenCalledWith("list");
   });
+
+  it("renders image upload and reference fields for image blocks", () => {
+    render(
+      <PamphletContentActionBar
+        itemType="image"
+        canMoveUp={false}
+        canMoveDown={false}
+        placement="top"
+        imageReference="Caption"
+        onSetType={vi.fn()}
+        onAddBelow={vi.fn()}
+        onMoveUp={vi.fn()}
+        onMoveDown={vi.fn()}
+        onRemove={vi.fn()}
+        onIncreaseImageHeight={vi.fn()}
+        onDecreaseImageHeight={vi.fn()}
+        onImageReferenceChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Upload image")).toBeInTheDocument();
+    expect(screen.getByLabelText("Image reference")).toHaveValue("Caption");
+  });
+
+  it("renders quote reference and list editing fields", () => {
+    render(
+      <PamphletContentActionBar
+        itemType="quote"
+        canMoveUp={false}
+        canMoveDown={false}
+        placement="top"
+        quoteReference="Romanos 12:2"
+        onSetType={vi.fn()}
+        onAddBelow={vi.fn()}
+        onMoveUp={vi.fn()}
+        onMoveDown={vi.fn()}
+        onRemove={vi.fn()}
+        onQuoteReferenceChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Quote reference")).toHaveValue("Romanos 12:2");
+
+    render(
+      <PamphletContentActionBar
+        itemType="list"
+        canMoveUp={false}
+        canMoveDown={false}
+        placement="top"
+        listHeader="Steps"
+        listItems={[{ text: "Pray", highlights: [] }]}
+        onSetType={vi.fn()}
+        onAddBelow={vi.fn()}
+        onMoveUp={vi.fn()}
+        onMoveDown={vi.fn()}
+        onRemove={vi.fn()}
+        onListHeaderChange={vi.fn()}
+        onListItemChange={vi.fn()}
+        onAddListItem={vi.fn()}
+        onRemoveListItem={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("List header")).toHaveValue("Steps");
+    expect(screen.getByLabelText("List item 1")).toHaveValue("Pray");
+    expect(screen.getByRole("button", { name: "+ Add item" })).toBeInTheDocument();
+  });
 });
