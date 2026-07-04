@@ -38,6 +38,21 @@ describe("ActivityBar", () => {
     expect(screen.getByRole("button", { name: "Preview" })).toHaveClass("is-active");
   });
 
+  it("renders pinned buttons in a dedicated always-visible section", () => {
+    const onOpen = vi.fn();
+    render(
+      <ActivityBar
+        pinnedButtons={[{ id: "open", label: "Open", onClick: onOpen }]}
+        buttons={[{ id: "zoom", label: "Zoom in", onClick: vi.fn() }]}
+        ariaLabel="Pamphlet actions"
+      />,
+    );
+
+    expect(screen.getByLabelText("Primary actions")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
   it("uses header height for mobile bottom bar sizing", () => {
     expect(cssSource).toContain("height: var(--header_height)");
     expect(cssSource).toContain("bottom: 0");

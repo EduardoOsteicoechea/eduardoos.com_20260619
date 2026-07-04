@@ -1,7 +1,7 @@
 /**
  * PamphletContentActionBar.tsx — Inner icon toolbar for one content item.
  */
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import type { PamphletContentItemType } from "../../lib/pamphletContent";
 import {
   IconAddBelow,
@@ -25,6 +25,8 @@ const TYPE_OPTIONS: Array<{ id: PamphletContentItemType; label: string }> = [
 interface PamphletContentActionBarProps {
   itemType: PamphletContentItemType;
   placement: "top" | "bottom";
+  style?: CSSProperties;
+  portal?: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onSetType: (type: PamphletContentItemType) => void;
@@ -40,6 +42,8 @@ interface PamphletContentActionBarProps {
 export function PamphletContentActionBar({
   itemType,
   placement,
+  style,
+  portal = false,
   canMoveUp,
   canMoveDown,
   onSetType,
@@ -56,7 +60,10 @@ export function PamphletContentActionBar({
 
   return (
     <div
-      className={`pamphlet-content-action-bar pamphlet-content-action-bar--${placement} pamphlet-no-print`}
+      className={`pamphlet-content-action-bar${
+        portal ? " pamphlet-content-action-bar--portal" : ` pamphlet-content-action-bar--${placement}`
+      } pamphlet-no-print`}
+      style={style}
       role="toolbar"
       aria-label="Content item actions"
       onClick={(event) => event.stopPropagation()}

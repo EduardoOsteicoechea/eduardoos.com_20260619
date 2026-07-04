@@ -231,7 +231,7 @@ export default function PamphletV2Page() {
     [contentDocument, fontSettings, mutateStream, previewMode, settings],
   );
 
-  const activityButtons = useMemo(
+  const pinnedActivityButtons = useMemo(
     () => [
       {
         id: "open-pamphlet",
@@ -257,6 +257,12 @@ export default function PamphletV2Page() {
           setSaveModalVisible(true);
         },
       },
+    ],
+    [closePanels, openModalVisible, saveModalVisible],
+  );
+
+  const activityButtons = useMemo(
+    () => [
       ...PAMPHLET_LAYOUT_SETTING_DEFINITIONS.map((def) => ({
         id: def.key,
         label: def.label,
@@ -290,7 +296,7 @@ export default function PamphletV2Page() {
         onClick: () => activatePreviewMode(button.id),
       })),
     ],
-    [activatePreviewMode, closePanels, fontPanelOpen, openModalVisible, openSetting, previewMode, saveModalVisible],
+    [activatePreviewMode, fontPanelOpen, openSetting, previewMode],
   );
 
   function handleSave(valueMm: number) {
@@ -312,7 +318,11 @@ export default function PamphletV2Page() {
   return (
     <div className="pamphlet-v2-page">
       <div className="pamphlet-no-print">
-        <ActivityBar buttons={activityButtons} ariaLabel="Pamphlet actions" />
+        <ActivityBar
+          pinnedButtons={pinnedActivityButtons}
+          buttons={activityButtons}
+          ariaLabel="Pamphlet actions"
+        />
         {activeDefinition ? (
           <PamphletSettingPanel
             open

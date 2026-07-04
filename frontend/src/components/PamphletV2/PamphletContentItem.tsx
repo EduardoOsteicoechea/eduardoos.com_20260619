@@ -1,7 +1,8 @@
 /**
  * PamphletContentItem.tsx — One full-width preview content block with mm height metadata.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import type { PamphletContentItem as ContentItemModel, PamphletContentItemType } from "../../lib/pamphletContent";
 import type { PamphletFontSettings } from "../../lib/pamphletFontSettings";
 import PamphletContentActionBar from "./PamphletContentActionBar";
@@ -26,6 +27,10 @@ interface PamphletContentItemProps {
   onDecreaseImageHeight?: () => void;
   onTextChange?: (text: string) => void;
 }
+
+const ACTION_BAR_HEIGHT_PX = 44;
+const SITE_HEADER_OFFSET_PX = 72;
+const TEXT_SYNC_DEBOUNCE_MS = 120;
 
 function applyHighlights(text: string, highlights: ContentItemModel["highlights"]): string {
   if (!text || highlights.length === 0) {
@@ -56,6 +61,20 @@ function placeCaretAtEnd(node: HTMLElement) {
   selection.addRange(range);
 }
 
+function resolvePortalBarStyle(itemRect: DOMRect, placement: "top" | "bottom"): CSSProperties {
+  const top =
+    placement === "top"
+      ? Math.max(SITE_HEADER_OFFSET_PX, itemRect.top - ACTION_BAR_HEIGHT_PX - 4)
+      : itemRect.bottom + 4;
+  return {
+    position: "fixed",
+    left: itemRect.left,
+    width: itemRect.width,
+    top,
+    zIndex: 1300,
+  };
+}
+
 export function PamphletContentItem({
   item,
   bottomMarginMm,
@@ -78,6 +97,31 @@ export function PamphletContentItem({
   const itemRef = useRef<HTMLDivElement>(null);
   const editableRef = useRef<HTMLDivElement>(null);
   const activeItemRef = useRef<string | null>(null);
+  const textDebounceRef = useRef<number | null>(null);
+  const [portalBarStyle, setPortalBarStyle] = useState<CSSProperties | null>(null);
+
+  useLayoutEffect(() => {
+    if (!selected || !itemRef.current) {
+      setPortalBarStyle(null);
+      return;
+    }
+
+    function updateBarPosition() {
+      if (!itemRef.current) {
+        return;
+      }
+      const rect = itemRef.current.getBoundingClientRect();
+      setPortalBarStyle(resolvePortalBarStyle(rect, actionPlacement));
+    }
+
+    updateBarPosition();
+    window.addEventListener("scroll", updateBarPosition, true);
+    window.addEventListener("resize", updateBarPosition);
+    return () => {
+      window.removeEventListener("scroll", updateBarPosition, true);
+      window.removeEventListener("resize", updateBarPosition);
+    };
+  }, [actionPlacement, selected, item.id, item.heightMm]);
 
   useEffect(() => {
     if (!selected || !editableRef.current) {
@@ -91,30 +135,52 @@ export function PamphletContentItem({
       activeItemRef.current = item.id;
       editableRef.current.focus();
       placeCaretAtEnd(editableRef.current);
-      return;
     }
-    if (document.activeElement !== editableRef.current) {
-      editableRef.current.textContent = item.text;
+  }, [item.id, selected]);
+
+  useEffect(
+    () => () => {
+      if (textDebounceRef.current !== null) {
+        window.clearTimeout(textDebounceRef.current);
+      }
+    },
+    [],
+  );
+
+  function flushTextChange(text: string) {
+    onTextChange?.(text);
+  }
+
+  function scheduleTextChange(text: string) {
+    if (textDebounceRef.current !== null) {
+      window.clearTimeout(textDebounceRef.current);
     }
-  }, [item.id, item.text, selected]);
+    textDebounceRef.current = window.setTimeout(() => {
+      flushTextChange(text);
+      textDebounceRef.current = null;
+    }, TEXT_SYNC_DEBOUNCE_MS);
+  }
 
   function handleBold() {
     editableRef.current?.focus();
     document.execCommand("bold");
     onBold?.();
-    if (editableRef.current && onTextChange) {
-      onTextChange(editableRef.current.innerText);
+    if (editableRef.current) {
+      flushTextChange(editableRef.current.innerText);
     }
   }
 
   function renderActionBar() {
-    if (!selected || !onSetType || !onAddBelow || !onMoveUp || !onMoveDown || !onRemove) {
+    if (!selected || !portalBarStyle || !onSetType || !onAddBelow || !onMoveUp || !onMoveDown || !onRemove) {
       return null;
     }
-    return (
+
+    const bar = (
       <PamphletContentActionBar
         itemType={item.type}
         placement={actionPlacement}
+        portal
+        style={portalBarStyle}
         canMoveUp={canMoveUp}
         canMoveDown={canMoveDown}
         onSetType={onSetType}
@@ -127,6 +193,8 @@ export function PamphletContentItem({
         onDecreaseImageHeight={onDecreaseImageHeight}
       />
     );
+
+    return typeof document !== "undefined" ? createPortal(bar, document.body) : bar;
   }
 
   function renderEditableText(className: string) {
@@ -137,7 +205,14 @@ export function PamphletContentItem({
           className={className}
           contentEditable
           suppressContentEditableWarning
-          onInput={(event) => onTextChange?.(event.currentTarget.innerText)}
+          onInput={(event) => scheduleTextChange(event.currentTarget.innerText)}
+          onBlur={(event) => {
+            if (textDebounceRef.current !== null) {
+              window.clearTimeout(textDebounceRef.current);
+              textDebounceRef.current = null;
+            }
+            flushTextChange(event.currentTarget.innerText);
+          }}
         />
       );
     }
@@ -206,10 +281,9 @@ export function PamphletContentItem({
           onSelect(item.id, rect.top, rect.bottom);
         }}
       >
-        {actionPlacement === "top" ? renderActionBar() : null}
         {renderBody()}
-        {actionPlacement === "bottom" ? renderActionBar() : null}
       </div>
+      {renderActionBar()}
       {bottomMarginMm > 0 ? (
         <div
           className="pamphlet-content-item-gap"

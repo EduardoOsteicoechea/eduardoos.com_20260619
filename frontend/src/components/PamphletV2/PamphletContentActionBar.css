@@ -16,6 +16,13 @@
   box-shadow: 0 1mm 3mm rgba(15, 23, 42, 0.12);
 }
 
+.pamphlet-content-action-bar--portal {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  margin: 0;
+}
+
 .pamphlet-content-action-bar--top {
   bottom: 100%;
   top: auto;

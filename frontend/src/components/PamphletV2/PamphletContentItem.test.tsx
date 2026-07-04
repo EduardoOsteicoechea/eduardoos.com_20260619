@@ -87,7 +87,7 @@ describe("PamphletContentItem", () => {
       />,
     );
     expect(screen.getByRole("toolbar", { name: "Content item actions" })).toHaveClass(
-      "pamphlet-content-action-bar--bottom",
+      "pamphlet-content-action-bar--portal",
     );
   });
 
@@ -104,5 +104,25 @@ describe("PamphletContentItem", () => {
     );
     fireEvent.click(screen.getByTestId("pamphlet-content-item"));
     expect(onSelect).toHaveBeenCalledWith("item-1", expect.any(Number), expect.any(Number));
+  });
+
+  it("keeps typed characters in order while editing", () => {
+    const onTextChange = vi.fn();
+    render(
+      <PamphletContentItem
+        item={sampleItem}
+        bottomMarginMm={0}
+        selected
+        fonts={DEFAULT_PAMPHLET_FONT_SETTINGS}
+        onSelect={vi.fn()}
+        onTextChange={onTextChange}
+      />,
+    );
+
+    const editable = document.querySelector("[contenteditable='true']") as HTMLElement;
+    editable.textContent = "abc";
+    fireEvent.input(editable, { data: "abc" });
+
+    expect(editable.textContent).toBe("abc");
   });
 });

@@ -9,6 +9,26 @@
   background: var(--site-chrome-bar-bg);
   color: var(--site-chrome-bar-fg);
   border-color: var(--site-border);
+  display: flex;
+}
+
+.site-activity-bar__pinned {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  padding: 0.25rem;
+  box-sizing: border-box;
+  background: var(--site-chrome-bar-bg);
+  border-color: var(--site-border);
+}
+
+.site-activity-bar__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
 }
 
 .site-activity-bar__inner {
@@ -66,6 +86,12 @@
   height: var(--header_height);
   min-height: var(--header_height);
   border-top: var(--border_001);
+  flex-direction: row;
+}
+
+.site-activity-bar__pinned {
+  flex-direction: row;
+  border-right: var(--border_001);
 }
 
 .site-activity-bar__inner {
@@ -84,6 +110,19 @@
     height: auto;
     border-top: none;
     border-right: var(--border_001);
+    flex-direction: column;
+  }
+
+  .site-activity-bar__pinned {
+    flex-direction: column;
+    border-right: none;
+    border-bottom: var(--border_001);
+    padding: 0.35rem 0.25rem;
+  }
+
+  .site-activity-bar__scroll {
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .site-activity-bar__inner {
