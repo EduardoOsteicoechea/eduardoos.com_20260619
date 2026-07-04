@@ -1,10 +1,29 @@
 /**
- * PamphletV2Page.tsx — Activity bar margin controls + generator preview.
+ * PamphletV2Page.tsx — Activity bar controls + content insertion preview.
  */
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { ActivityBar } from "../ActivityBar/ActivityBar";
 import {
+  addContentItemAfter,
+  adjustImageHeight,
+  buildFakePamphletContentDocument,
+  findContentItemLocation,
+  getStreamItems,
+  moveContentItemDown,
+  moveContentItemUp,
+  recalculateContentHeights,
+  recalculatePamphletDocument,
+  removeContentItem,
+  resolveActionBarPlacement,
+  setContentItemType,
+  setStreamItems,
+  updateContentItemText,
+  type PamphletContentDocument,
+  type PamphletContentItemType,
+} from "../../lib/pamphletContent";
+import {
   applyPamphletSetting,
+  computeSheet1Layout,
   DEFAULT_PAMPHLET_LAYOUT_SETTINGS,
   PAMPHLET_LAYOUT_SETTING_DEFINITIONS,
   type PamphletLayoutSettings,
@@ -15,7 +34,14 @@ import {
   applyPreviewZoomOut,
   type PreviewInteractionMode,
 } from "../../lib/pamphletPreviewInteraction";
+import {
+  DEFAULT_PAMPHLET_FONT_SETTINGS,
+  type PamphletFontSettings,
+} from "../../lib/pamphletFontSettings";
 import { marginSettingIcon } from "./PamphletMarginIcons";
+import { IconFontSize } from "./PamphletContentIcons";
+import type { PamphletContentZoneHandlers } from "./PamphletContentZone";
+import PamphletFontSettingsPanel from "./PamphletFontSettingsPanel";
 import PamphletSettingPanel from "./PamphletSettingPanel";
 import PamphletV2 from "./PamphletV2";
 import { IconDragMove, IconZoomIn, IconZoomOut } from "./PamphletViewIcons";
@@ -32,23 +58,101 @@ const PREVIEW_MODE_BUTTONS: Array<{
   { id: "drag", label: "Drag move", title: "Drag the preview to pan", icon: <IconDragMove /> },
 ];
 
+function streamWidthForZone(
+  settings: PamphletLayoutSettings,
+  stream: "header" | "footer" | "body",
+): number {
+  const sheet = computeSheet1Layout(settings);
+  if (stream === "header" || stream === "footer") {
+    return sheet.contentWidthMm / 2 - settings.pageLateralInternalMarginMm;
+  }
+  return sheet.rightColumns.col1WidthMm;
+}
+
 export default function PamphletV2Page() {
   const [settings, setSettings] = useState<PamphletLayoutSettings>(DEFAULT_PAMPHLET_LAYOUT_SETTINGS);
+  const [fontSettings, setFontSettings] = useState<PamphletFontSettings>(DEFAULT_PAMPHLET_FONT_SETTINGS);
+  const [contentDocument, setContentDocument] = useState<PamphletContentDocument>(() =>
+    buildFakePamphletContentDocument(DEFAULT_PAMPHLET_LAYOUT_SETTINGS, DEFAULT_PAMPHLET_FONT_SETTINGS),
+  );
   const [openSetting, setOpenSetting] = useState<PamphletSettingKey | null>(null);
+  const [fontPanelOpen, setFontPanelOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewInteractionMode | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [actionPlacement, setActionPlacement] = useState<"top" | "bottom">("top");
 
   const activeDefinition = PAMPHLET_LAYOUT_SETTING_DEFINITIONS.find((item) => item.key === openSetting);
 
   const activatePreviewMode = useCallback((mode: PreviewInteractionMode) => {
     setOpenSetting(null);
+    setFontPanelOpen(false);
     setPreviewMode(mode);
   }, []);
 
   const exitPreviewMode = useCallback(() => {
     setPreviewMode(null);
   }, []);
+
+  const mutateStream = useCallback(
+    (itemId: string, updater: (items: PamphletContentDocument["bodyItems"]) => PamphletContentDocument["bodyItems"]) => {
+      const location = findContentItemLocation(contentDocument, itemId);
+      if (!location) {
+        return;
+      }
+      const streamItems = getStreamItems(contentDocument, location.stream);
+      const width = streamWidthForZone(settings, location.stream);
+      const nextItems = recalculateContentHeights(updater(streamItems), () => width, fontSettings);
+      setContentDocument(setStreamItems(contentDocument, location.stream, nextItems));
+    },
+    [contentDocument, fontSettings, settings],
+  );
+
+  const contentHandlers = useMemo<PamphletContentZoneHandlers>(
+    () => ({
+      onSelectItem: (itemId, _zoneId, elementTopPx, elementBottomPx) => {
+        setPreviewMode(null);
+        setSelectedItemId(itemId);
+        setActionPlacement(resolveActionBarPlacement(elementTopPx, elementBottomPx));
+      },
+      onSetType: (itemId, _zoneId, type: PamphletContentItemType) => {
+        const location = findContentItemLocation(contentDocument, itemId);
+        const width = streamWidthForZone(settings, location?.stream ?? "body");
+        mutateStream(itemId, (items) => setContentItemType(items, itemId, type, width, fontSettings));
+      },
+      onAddBelow: (itemId) => {
+        const location = findContentItemLocation(contentDocument, itemId);
+        const width = streamWidthForZone(settings, location?.stream ?? "body");
+        mutateStream(itemId, (items) => addContentItemAfter(items, itemId, width, fontSettings));
+      },
+      onMoveUp: (itemId) => {
+        mutateStream(itemId, (items) => moveContentItemUp(items, itemId));
+      },
+      onMoveDown: (itemId) => {
+        mutateStream(itemId, (items) => moveContentItemDown(items, itemId));
+      },
+      onRemove: (itemId) => {
+        mutateStream(itemId, (items) => removeContentItem(items, itemId));
+        setSelectedItemId((current) => (current === itemId ? null : current));
+      },
+      onBold: () => {},
+      onIncreaseImageHeight: (itemId) => {
+        const location = findContentItemLocation(contentDocument, itemId);
+        const width = streamWidthForZone(settings, location?.stream ?? "body");
+        mutateStream(itemId, (items) => adjustImageHeight(items, itemId, 2, width, fontSettings));
+      },
+      onDecreaseImageHeight: (itemId) => {
+        const location = findContentItemLocation(contentDocument, itemId);
+        const width = streamWidthForZone(settings, location?.stream ?? "body");
+        mutateStream(itemId, (items) => adjustImageHeight(items, itemId, -2, width, fontSettings));
+      },
+      onTextChange: (itemId, _zoneId, text) => {
+        setContentDocument((current) => updateContentItemText(current, itemId, text, settings, fontSettings));
+      },
+    }),
+    [contentDocument, fontSettings, mutateStream, settings],
+  );
 
   const activityButtons = useMemo(
     () => [
@@ -60,9 +164,22 @@ export default function PamphletV2Page() {
         active: openSetting === def.key,
         onClick: () => {
           setPreviewMode(null);
+          setFontPanelOpen(false);
           setOpenSetting(def.key);
         },
       })),
+      {
+        id: "font-sizes",
+        label: "Font sizes",
+        title: "Preview font sizes in millimeters",
+        icon: <IconFontSize />,
+        active: fontPanelOpen,
+        onClick: () => {
+          setPreviewMode(null);
+          setOpenSetting(null);
+          setFontPanelOpen(true);
+        },
+      },
       ...PREVIEW_MODE_BUTTONS.map((button) => ({
         id: button.id,
         label: button.label,
@@ -72,14 +189,23 @@ export default function PamphletV2Page() {
         onClick: () => activatePreviewMode(button.id),
       })),
     ],
-    [activatePreviewMode, openSetting, previewMode],
+    [activatePreviewMode, fontPanelOpen, openSetting, previewMode],
   );
 
   function handleSave(valueMm: number) {
     if (!openSetting) {
       return;
     }
-    setSettings((current) => applyPamphletSetting(current, openSetting, valueMm));
+    setSettings((current) => {
+      const next = applyPamphletSetting(current, openSetting, valueMm);
+      setContentDocument((doc) => recalculatePamphletDocument(doc, next, fontSettings));
+      return next;
+    });
+  }
+
+  function handleFontSave(nextFonts: PamphletFontSettings) {
+    setFontSettings(nextFonts);
+    setContentDocument((current) => recalculatePamphletDocument(current, settings, nextFonts));
   }
 
   return (
@@ -95,9 +221,20 @@ export default function PamphletV2Page() {
             onClose={() => setOpenSetting(null)}
           />
         ) : null}
+        <PamphletFontSettingsPanel
+          open={fontPanelOpen}
+          settings={fontSettings}
+          onSave={handleFontSave}
+          onClose={() => setFontPanelOpen(false)}
+        />
       </div>
       <PamphletV2
         settings={settings}
+        contentDocument={contentDocument}
+        fontSettings={fontSettings}
+        selectedItemId={selectedItemId}
+        actionPlacement={actionPlacement}
+        contentHandlers={contentHandlers}
         previewMode={previewMode}
         zoomScale={zoomScale}
         pan={pan}

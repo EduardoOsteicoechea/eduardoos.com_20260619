@@ -6,12 +6,12 @@ describe("PamphletV2Page preview settings", () => {
   it("renders icon activity buttons with tooltips for margin and preview tools", () => {
     render(<PamphletV2Page />);
     const bar = screen.getByRole("toolbar", { name: "Pamphlet actions" });
-    expect(within(bar).getAllByRole("button")).toHaveLength(9);
+    expect(within(bar).getAllByRole("button")).toHaveLength(10);
     expect(screen.getByRole("button", { name: "Page Top Margin" })).toHaveAttribute(
       "title",
       "Top safe margin in millimeters",
     );
-    expect(screen.getByRole("button", { name: "Zoom in" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Font sizes" })).toBeInTheDocument();
   });
 
   it("activates zoom mode with canvas border and exits on Escape", () => {

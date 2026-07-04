@@ -158,6 +158,13 @@
   line-height: var(--pamphlet-line-height);
 }
 
+.pamphlet-sheet__column:has(.pamphlet-content-item.is-selected),
+.pamphlet-sheet__header:has(.pamphlet-content-item.is-selected),
+.pamphlet-sheet__footer:has(.pamphlet-content-item.is-selected) {
+  overflow: visible;
+  z-index: 3;
+}
+
 .pamphlet-sheet__zone {
   box-sizing: border-box;
   border: 0.3mm dashed color-mix(in srgb, currentColor 25%, transparent);

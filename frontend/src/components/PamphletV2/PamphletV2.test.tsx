@@ -4,10 +4,33 @@ import { fileURLToPath } from "node:url";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PAMPHLET_LAYOUT_SETTINGS } from "../../lib/pamphletLayout";
+import { buildFakePamphletContentDocument } from "../../lib/pamphletContent";
+import { DEFAULT_PAMPHLET_FONT_SETTINGS } from "../../lib/pamphletFontSettings";
 import PamphletV2 from "./PamphletV2";
 import PamphletV2Page from "./PamphletV2Page";
 
+const contentDocument = buildFakePamphletContentDocument(
+  DEFAULT_PAMPHLET_LAYOUT_SETTINGS,
+  DEFAULT_PAMPHLET_FONT_SETTINGS,
+);
+
 const previewProps = {
+  contentDocument,
+  fontSettings: DEFAULT_PAMPHLET_FONT_SETTINGS,
+  selectedItemId: null,
+  actionPlacement: "top" as const,
+  contentHandlers: {
+    onSelectItem: () => {},
+    onSetType: () => {},
+    onAddBelow: () => {},
+    onMoveUp: () => {},
+    onMoveDown: () => {},
+    onRemove: () => {},
+    onBold: () => {},
+    onIncreaseImageHeight: () => {},
+    onDecreaseImageHeight: () => {},
+    onTextChange: () => {},
+  },
   previewMode: null,
   zoomScale: 1,
   pan: { x: 0, y: 0 },
@@ -33,13 +56,11 @@ describe("PamphletV2.tsx", () => {
     expect(container.querySelector(".site-activity-bar")).toBeNull();
   });
 
-  it("renders page 1 and inner sheet previews with zone containers", () => {
+  it("renders page 1 and inner sheet previews with content items", () => {
     const { container } = render(<PamphletV2 settings={DEFAULT_PAMPHLET_LAYOUT_SETTINGS} {...previewProps} />);
     expect(container.querySelector("#sheet1")).toBeInTheDocument();
     expect(container.querySelector("#sheet2")).toBeInTheDocument();
-    expect(container.querySelector("#zone-header")).toBeInTheDocument();
-    expect(container.querySelector("#zone-footer")).toBeInTheDocument();
-    expect(container.querySelectorAll(".pamphlet-sheet__zone--col").length).toBeGreaterThanOrEqual(4);
+    expect(container.querySelectorAll("[data-testid='pamphlet-content-item']").length).toBeGreaterThan(0);
   });
 
   it("labels the generator workspace for assistive tech", () => {
