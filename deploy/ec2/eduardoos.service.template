@@ -1,0 +1,17 @@
+[Unit]
+Description=Eduardo OS unified backend (all Go microservices)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@DEPLOY_USER@
+WorkingDirectory=@APP_DIR@
+EnvironmentFile=@APP_DIR@/.env
+ExecStart=/usr/bin/go run ./cmd/eduardoos
+Restart=on-failure
+RestartSec=5
+Environment=PORT=3000
+
+[Install]
+WantedBy=multi-user.target

@@ -33,12 +33,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Precache hashed Astro build assets and static public files matching these extensions.
+        // Precache hashed Astro build assets and per-route HTML (Astro MPA, not a single-page app).
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
-        // SPA fallback for document navigations only — not for /api/* proxy routes.
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
-        // Never treat query-string variants as separate cache keys (avoids stale API caching).
+        // Nginx try_files handles unknown routes; avoid Workbox navigateFallback on /index.html.
         ignoreURLParametersMatching: [/./],
       },
     }),

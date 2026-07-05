@@ -139,30 +139,52 @@ issue_letsencrypt_cert() {
   return 1
 }
 
-echo "==> Building and starting stack (arm64 + AWS backends)"
+echo "==> Building and starting edge stack (frontend + nginx + certbot)"
 export COMPOSE_PARALLEL_LIMIT=1
 export DOCKER_BUILDKIT=1
 
 reclaim_ec2_disk
 
-# t4g.micro (1 GB RAM) may OOM when building all service images in parallel.
-BUILD_SERVICES=(
-  frontend
-  database
-  documents
-  telemetry
-  s3
-  chatbot
-  authenticator
-  tester
-  payments
-  backend
-)
-for svc in "${BUILD_SERVICES[@]}"; do
-  echo "==> Building ${svc}"
-  "${COMPOSE[@]}" build "${svc}"
-  docker builder prune -af || true
-done
+echo "==> Building frontend"
+"${COMPOSE[@]}" build frontend
+docker builder prune -af || true
+
+install_host_backend() {
+  echo "==> Installing / restarting Eduardo OS monolith on the host"
+  if ! command -v go >/dev/null 2>&1; then
+    echo "==> Installing Go toolchain"
+    if command -v dnf >/dev/null 2>&1; then
+      sudo dnf install -y golang || true
+    elif command -v yum >/dev/null 2>&1; then
+      sudo yum install -y golang || true
+    elif command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update && sudo apt-get install -y golang-go || true
+    fi
+  fi
+  if ! command -v go >/dev/null 2>&1; then
+    echo "ERROR: Go is required on the EC2 host for cmd/eduardoos (monolith backend)."
+    exit 1
+  fi
+
+  DEPLOY_USER="$(whoami)"
+  SERVICE_FILE="/etc/systemd/system/eduardoos.service"
+  sed \
+    -e "s|@APP_DIR@|${APP_DIR}|g" \
+    -e "s|@DEPLOY_USER@|${DEPLOY_USER}|g" \
+    deploy/ec2/eduardoos.service.template | sudo tee "${SERVICE_FILE}" >/dev/null
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable eduardoos.service
+  sudo systemctl restart eduardoos.service
+  sleep 3
+  if ! curl -sf "http://127.0.0.1:3000/health" >/dev/null; then
+    echo "WARNING: monolith /health not ready — check: sudo journalctl -u eduardoos -n 50"
+  else
+    echo "==> Monolith backend healthy on :3000"
+  fi
+}
+
+install_host_backend
 
 "${COMPOSE[@]}" up -d
 

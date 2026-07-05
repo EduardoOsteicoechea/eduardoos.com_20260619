@@ -1,0 +1,209 @@
+# Revert to multi-container microservices (legacy Docker Compose)
+#
+# Usage:
+#   docker compose -f docker-compose.microservices.yml up -d --build
+#
+# Stop the host monolith first:
+#   sudo systemctl stop eduardoos
+#
+# Restore nginx upstream to `http://backend:3000` in nginx/default.conf
+
+x-go-service: &go-service
+  build:
+    context: .
+    dockerfile: docker/golang-service.Dockerfile
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    command: ["sh", "-c", "cp -r /srv/frontend/dist/. /output/ && sleep infinity"]
+    volumes:
+      - frontend_dist:/output
+    networks:
+      - internal
+
+  backend:
+    <<: *go-service
+    build:
+      context: .
+      dockerfile: docker/golang-service.Dockerfile
+      args:
+        SERVICE: backend
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      AUTHENTICATOR_URL: http://authenticator:3000
+      TELEMETRY_URL: http://telemetry:3000
+      TESTER_URL: http://tester:3000
+      DATABASE_URL: http://database:3000
+      DOCUMENTS_URL: http://documents:3000
+      S3_URL: http://s3:3000
+      S3_PREFIX: ${S3_PREFIX:-media}
+      S3_BUCKET: ${S3_BUCKET:-eduardoos20260607}
+      S3_BACKEND: ${S3_BACKEND:-stub}
+      S3_AUDIO_PREFIX: ${S3_AUDIO_PREFIX:-worship_playlists}
+      PLAYLISTS_BACKEND: ${PLAYLISTS_BACKEND:-memory}
+      PLAYLISTS_TABLE: ${PLAYLISTS_TABLE:-eduardoos_playlists}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      CHATBOT_URL: http://chatbot:3000
+      PAYMENTS_URL: http://payments:3000
+    networks:
+      - internal
+    depends_on:
+      - authenticator
+      - telemetry
+      - payments
+      - s3
+
+  authenticator:
+    <<: *go-service
+    build:
+      args:
+        SERVICE: authenticator
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      DATABASE_URL: http://database:3000
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      TELEMETRY_URL: http://telemetry:3000
+    networks:
+      - internal
+    depends_on:
+      - database
+      - telemetry
+
+  database:
+    <<: *go-service
+    build:
+      args:
+        SERVICE: database
+    environment:
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      DATABASE_BACKEND: ${DATABASE_BACKEND:-memory}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      DYNAMODB_TABLE_PREFIX: ${DYNAMODB_TABLE_PREFIX:-eduardoos}
+    networks:
+      - internal
+
+  documents:
+    <<: *go-service
+    build:
+      args:
+        SERVICE: documents
+    environment:
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      PAMPHLETS_BACKEND: ${PAMPHLETS_BACKEND:-memory}
+      PAMPHLET_HEADERS_TABLE: ${PAMPHLET_HEADERS_TABLE:-eduardoos_pamphlet_headers}
+      PAMPHLET_FOOTERS_TABLE: ${PAMPHLET_FOOTERS_TABLE:-eduardoos_pamphlet_footers}
+      PAMPHLET_CONTENTS_TABLE: ${PAMPHLET_CONTENTS_TABLE:-eduardoos_pamphlet_contents}
+      PAMPHLET_REGISTRY_TABLE: ${PAMPHLET_REGISTRY_TABLE:-eduardoos_pamphlet_registry}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    networks:
+      - internal
+
+  telemetry:
+    <<: *go-service
+    build:
+      args:
+        SERVICE: telemetry
+    environment:
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+    networks:
+      - internal
+
+  s3:
+    <<: *go-service
+    build:
+      args:
+        SERVICE: s3
+    environment:
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      S3_BUCKET: ${S3_BUCKET:-eduardoos20260607}
+      S3_PREFIX: ${S3_PREFIX:-media}
+      S3_BACKEND: ${S3_BACKEND:-stub}
+      S3_STUB_DATA_DIR: /data
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    volumes:
+      - s3_stub_data:/data
+    networks:
+      - internal
+
+  chatbot:
+    <<: *go-service
+    build:
+      args:
+        SERVICE: chatbot
+    environment:
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+    networks:
+      - internal
+
+  tester:
+    <<: *go-service
+    build:
+      args:
+        SERVICE: tester
+    environment:
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      TELEMETRY_URL: http://telemetry:3000
+    networks:
+      - internal
+    depends_on:
+      - telemetry
+
+  payments:
+    <<: *go-service
+    build:
+      args:
+        SERVICE: payments
+    environment:
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      DATABASE_URL: http://database:3000
+      AUTHENTICATOR_URL: http://authenticator:3000
+      TELEMETRY_URL: http://telemetry:3000
+      PAYPAL_HOSTED_BUTTON_ID: ${PAYPAL_HOSTED_BUTTON_ID:-QEVGD66SG7LXN}
+      PAYPAL_IPN_VERIFY_URL: ${PAYPAL_IPN_VERIFY_URL:-https://ipnpb.paypal.com/cgi-bin/webscr}
+      PAYPAL_PLAN_ID: subscription_monthly_basic
+    networks:
+      - internal
+    depends_on:
+      - database
+      - authenticator
+      - telemetry
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - frontend_dist:/usr/share/nginx/html:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - certbot_www:/var/www/certbot:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - internal
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./nginx/certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h; done"
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  frontend_dist:
+  certbot_www:
+  s3_stub_data:
