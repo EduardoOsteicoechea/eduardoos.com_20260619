@@ -5,6 +5,7 @@ import {
   COLUMN_ZONE_ORDER,
   addContentItemAfter,
   addContentListItem,
+  assignBodyContentRefs,
   contentDocumentToDbPayload,
   removeContentListItem,
   resolvePamphletImageUrl,
@@ -14,7 +15,6 @@ import {
   buildFakePamphletContentDocument,
   countPlacedColumnItems,
   distributeContentToZones,
-  contentDocumentToDbPayload,
   documentFromDbPayload,
   measureContentItemHeight,
   moveContentItemDown,
@@ -187,6 +187,28 @@ describe("contentDocumentToDbPayload", () => {
     expect(payload.content.ideas[0]?.heading).toBe("Idea");
     expect(payload.content.ideas[0]?.subideas?.length).toBe(3);
     expect(payload.footer.heading).toBe("Contact");
+  });
+
+  it("persists newly added body paragraphs with generated subidea refs", () => {
+    const doc = buildFakePamphletContentDocument(DEFAULT_PAMPHLET_LAYOUT_SETTINGS);
+    const firstId = doc.bodyItems[0]?.id ?? "";
+    const colWidth = layout.rightColumns.col1WidthMm;
+    const withNew = addContentItemAfter(doc.bodyItems, firstId, colWidth, DEFAULT_PAMPHLET_FONT_SETTINGS);
+    const payload = contentDocumentToDbPayload({ ...doc, bodyItems: withNew });
+    const subideas = payload.content.ideas.flatMap((idea) => idea.subideas ?? []);
+    expect(subideas.some((entry) => (entry.content ?? "").includes("New paragraph"))).toBe(true);
+  });
+});
+
+describe("assignBodyContentRefs", () => {
+  it("maps orphan item refs to idea subidea indices", () => {
+    const items: PamphletContentItem[] = [
+      { id: "a", type: "key_idea", heightMm: 5, text: "Idea", highlights: [], references: [], listItems: [], description: "", imageUrl: "", imageHeightMm: 0, contentRef: "item-a" },
+      { id: "b", type: "paragraph", heightMm: 5, text: "Body", highlights: [], references: [], listItems: [], description: "", imageUrl: "", imageHeightMm: 0, contentRef: "item-b" },
+    ];
+    const assigned = assignBodyContentRefs(items);
+    expect(assigned[0]?.contentRef).toBe("0:heading");
+    expect(assigned[1]?.contentRef).toBe("0:subidea:0");
   });
 });
 

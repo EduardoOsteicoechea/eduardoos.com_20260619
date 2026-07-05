@@ -40,6 +40,7 @@ const previewProps = {
   },
   imageUploadingItemId: null,
   imageUploadError: "",
+  viewMode: "preview" as const,
   previewMode: null,
   zoomScale: 1,
   pan: { x: 0, y: 0 },
@@ -76,6 +77,14 @@ describe("PamphletV2.tsx", () => {
     render(<PamphletV2 settings={DEFAULT_PAMPHLET_LAYOUT_SETTINGS} {...previewProps} />);
     expect(screen.getByLabelText("Pamphlet generator")).toBeInTheDocument();
   });
+
+  it("renders immersive mode as a vertical stack", () => {
+    const { container } = render(
+      <PamphletV2 settings={DEFAULT_PAMPHLET_LAYOUT_SETTINGS} {...previewProps} viewMode="immersive" />,
+    );
+    expect(container.querySelector(".pamphlet-immersive")).toBeInTheDocument();
+    expect(container.querySelector("#sheet1")).toBeNull();
+  });
 });
 
 describe("pamphlet-print.css", () => {
@@ -86,10 +95,10 @@ describe("pamphlet-print.css", () => {
     expect(printCss).toContain("box-sizing: border-box");
   });
 
-  it("uses mm margin variables and preview zone colors", () => {
+  it("uses mm margin variables and theme-aware preview zones", () => {
     expect(printCss).toContain("--pamphlet-margin-top");
     expect(printCss).toContain(".pamphlet-sheet__zone--header");
-    expect(printCss).toContain(".pamphlet-sheet__zone--col");
+    expect(printCss).toContain("background: transparent");
   });
 
   it("implements robust @media print rules", () => {

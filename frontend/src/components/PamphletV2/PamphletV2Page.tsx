@@ -55,8 +55,8 @@ import PamphletFontSettingsPanel from "./PamphletFontSettingsPanel";
 import PamphletOpenModal from "./PamphletOpenModal";
 import PamphletSaveModal from "./PamphletSaveModal";
 import PamphletSettingPanel from "./PamphletSettingPanel";
-import PamphletV2 from "./PamphletV2";
-import { IconDragMove, IconOpenFolder, IconSaveCloud, IconZoomIn, IconZoomOut } from "./PamphletViewIcons";
+import PamphletV2, { type PamphletEditorViewMode } from "./PamphletV2";
+import { IconDragMove, IconImmersiveEdit, IconOpenFolder, IconPreviewLayout, IconSaveCloud, IconZoomIn, IconZoomOut } from "./PamphletViewIcons";
 import { uploadPamphletImage } from "../../lib/pamphlets";
 import "./PamphletV2Page.css";
 
@@ -93,6 +93,7 @@ export default function PamphletV2Page() {
   const [openSetting, setOpenSetting] = useState<PamphletSettingKey | null>(null);
   const [fontPanelOpen, setFontPanelOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewInteractionMode | null>(null);
+  const [viewMode, setViewMode] = useState<PamphletEditorViewMode>("preview");
   const [zoomScale, setZoomScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -160,7 +161,7 @@ export default function PamphletV2Page() {
 
   const handleSavePamphlet = useCallback(
     async (options: { pamphletId: string; title: string; overwrite: boolean }) => {
-      await savePamphletBundle({
+      const response = await savePamphletBundle({
         pamphletId: options.pamphletId,
         title: options.title,
         contentDocument,
@@ -169,7 +170,8 @@ export default function PamphletV2Page() {
       setActivePamphletId(options.pamphletId);
       setActivePamphletTitle(options.title);
       persistActivePamphletId(options.pamphletId);
-      setCloudStatus(`Saved ${options.title}`);
+      const logTail = response.logs?.length ? ` Logs: ${response.logs.join(" | ")}` : "";
+      setCloudStatus(`Saved ${options.title}.${logTail}`);
     },
     [contentDocument, settings],
   );
@@ -177,7 +179,19 @@ export default function PamphletV2Page() {
   const activatePreviewMode = useCallback((mode: PreviewInteractionMode) => {
     setOpenSetting(null);
     setFontPanelOpen(false);
+    setViewMode("preview");
     setPreviewMode(mode);
+  }, []);
+
+  const enterImmersiveView = useCallback(() => {
+    setOpenSetting(null);
+    setFontPanelOpen(false);
+    setPreviewMode(null);
+    setViewMode("immersive");
+  }, []);
+
+  const enterPreviewView = useCallback(() => {
+    setViewMode("preview");
   }, []);
 
   const exitPreviewMode = useCallback(() => {
@@ -201,7 +215,7 @@ export default function PamphletV2Page() {
   const contentHandlers = useMemo<PamphletContentZoneHandlers>(
     () => ({
       onSelectItem: (itemId, _zoneId, elementTopPx, elementBottomPx) => {
-        if (previewMode) {
+        if (previewMode && viewMode === "preview") {
           return;
         }
         setSelectedItemId(itemId);
@@ -306,7 +320,72 @@ export default function PamphletV2Page() {
           });
       },
     }),
-    [contentDocument, fontSettings, mutateStream, previewMode, settings, activePamphletId],
+    [contentDocument, fontSettings, mutateStream, previewMode, settings, activePamphletId, viewMode],
+  );
+
+  const viewModeButtons = useMemo(
+    () => [
+      {
+        id: "immersive-edit",
+        label: "Immersive edit",
+        title: "Stack all columns vertically for focused editing",
+        icon: <IconImmersiveEdit />,
+        active: viewMode === "immersive",
+        onClick: enterImmersiveView,
+      },
+      {
+        id: "preview-view",
+        label: "Preview view",
+        title: "Return to the sheet preview layout",
+        icon: <IconPreviewLayout />,
+        active: viewMode === "preview",
+        onClick: enterPreviewView,
+      },
+    ],
+    [enterImmersiveView, enterPreviewView, viewMode],
+  );
+
+  const previewModeButtons = useMemo(
+    () =>
+      PREVIEW_MODE_BUTTONS.map((button) => ({
+        id: button.id,
+        label: button.label,
+        title: button.title,
+        icon: button.icon,
+        active: previewMode === button.id && viewMode === "preview",
+        onClick: () => activatePreviewMode(button.id),
+      })),
+    [activatePreviewMode, previewMode, viewMode],
+  );
+
+  const marginAndFontButtons = useMemo(
+    () => [
+      ...PAMPHLET_LAYOUT_SETTING_DEFINITIONS.map((def) => ({
+        id: def.key,
+        label: def.label,
+        title: def.tooltip,
+        icon: marginSettingIcon(def.key),
+        active: openSetting === def.key,
+        onClick: () => {
+          setPreviewMode(null);
+          setFontPanelOpen(false);
+          setOpenSetting(def.key);
+        },
+      })),
+      {
+        id: "font-sizes",
+        label: "Font sizes",
+        title: "Preview font sizes in millimeters",
+        icon: <IconFontSize />,
+        active: fontPanelOpen,
+        onClick: () => {
+          setPreviewMode(null);
+          setOpenSetting(null);
+          setFontPanelOpen(true);
+        },
+      },
+    ],
+    [fontPanelOpen, openSetting],
   );
 
   const pinnedActivityButtons = useMemo(
@@ -348,41 +427,13 @@ export default function PamphletV2Page() {
   );
 
   const activityButtons = useMemo(
-    () => [
-      ...PAMPHLET_LAYOUT_SETTING_DEFINITIONS.map((def) => ({
-        id: def.key,
-        label: def.label,
-        title: def.tooltip,
-        icon: marginSettingIcon(def.key),
-        active: openSetting === def.key,
-        onClick: () => {
-          setPreviewMode(null);
-          setFontPanelOpen(false);
-          setOpenSetting(def.key);
-        },
-      })),
-      {
-        id: "font-sizes",
-        label: "Font sizes",
-        title: "Preview font sizes in millimeters",
-        icon: <IconFontSize />,
-        active: fontPanelOpen,
-        onClick: () => {
-          setPreviewMode(null);
-          setOpenSetting(null);
-          setFontPanelOpen(true);
-        },
-      },
-      ...PREVIEW_MODE_BUTTONS.map((button) => ({
-        id: button.id,
-        label: button.label,
-        title: button.title,
-        icon: button.icon,
-        active: previewMode === button.id,
-        onClick: () => activatePreviewMode(button.id),
-      })),
-    ],
-    [activatePreviewMode, fontPanelOpen, openSetting, previewMode],
+    () => [...marginAndFontButtons, ...viewModeButtons, ...previewModeButtons],
+    [marginAndFontButtons, previewModeButtons, viewModeButtons],
+  );
+
+  const mobileOverflowButtons = useMemo(
+    () => [...marginAndFontButtons, ...viewModeButtons],
+    [marginAndFontButtons, viewModeButtons],
   );
 
   function handleSave(valueMm: number) {
@@ -407,6 +458,8 @@ export default function PamphletV2Page() {
         <ActivityBar
           pinnedButtons={pinnedActivityButtons}
           buttons={activityButtons}
+          mobilePrimaryButtons={previewModeButtons}
+          mobileOverflowButtons={mobileOverflowButtons}
           ariaLabel="Pamphlet actions"
         />
         {activeDefinition ? (
@@ -451,6 +504,7 @@ export default function PamphletV2Page() {
         contentHandlers={contentHandlers}
         imageUploadingItemId={imageUploadingItemId}
         imageUploadError={imageUploadError}
+        viewMode={viewMode}
         previewMode={previewMode}
         zoomScale={zoomScale}
         pan={pan}

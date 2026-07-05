@@ -107,6 +107,7 @@ func registerPamphletGatewayRoutes(r interface {
 	r.Get("/api/pamphlets/registry", cfg.proxyPamphletGet("/pamphlet/registry", "pamphlet.registry.list"))
 	r.Get("/api/pamphlets/layout", cfg.proxyPamphletGet("/pamphlet/layout", "pamphlet.layout.get"))
 	r.Post("/api/pamphlets/layout", cfg.proxyPamphletWrite(http.MethodPost, "/pamphlet/layout", "pamphlet.layout.save"))
+	r.Post("/api/pamphlets/save", cfg.proxyPamphletWrite(http.MethodPost, "/pamphlet/save", "pamphlet.save.bundle"))
 	r.Get("/api/pamphlets/document", cfg.proxyPamphletGet("/pamphlet/document", "pamphlet.document.get"))
 	r.Put("/api/pamphlets/document", cfg.proxyPamphletWrite(http.MethodPut, "/pamphlet/document", "pamphlet.document.put"))
 	r.Post("/api/pamphlets/reset", cfg.proxyPamphletWrite(http.MethodPost, "/pamphlet/reset", "pamphlet.reset"))

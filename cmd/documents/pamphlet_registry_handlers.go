@@ -50,6 +50,9 @@ func (h pamphletHandlers) getLayout() http.HandlerFunc {
 func (h pamphletHandlers) saveLayout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, pamphletID := pamphletIDsFromRequest(r)
+		if q := strings.TrimSpace(r.URL.Query().Get("pamphletId")); q != "" {
+			pamphletID = q
+		}
 		body, _ := io.ReadAll(r.Body)
 		var req struct {
 			Title  string                `json:"title"`

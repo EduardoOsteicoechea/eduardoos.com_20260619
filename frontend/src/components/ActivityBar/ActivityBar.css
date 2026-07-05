@@ -78,7 +78,19 @@
   white-space: nowrap;
 }
 
-/* Mobile: bottom bar, height matches site header */
+.site-activity-bar__menu-btn {
+  display: none;
+}
+
+.site-activity-bar__mobile-primary {
+  display: none;
+}
+
+.site-activity-bar__mobile-tray {
+  display: none;
+}
+
+/* Mobile: bottom bar, compact buttons like the site header */
 .site-activity-bar {
   left: 0;
   right: 0;
@@ -96,6 +108,86 @@
 
 .site-activity-bar__inner {
   flex-direction: row;
+}
+
+@media (max-width: 767px) {
+  .site-activity-bar__btn {
+    flex: 0 0 auto;
+    min-height: 2rem;
+    min-width: 2rem;
+    padding: 0.25rem 0.65rem;
+    font-size: var(--font-sm);
+  }
+
+  .site-activity-bar__scroll--desktop {
+    display: none;
+  }
+
+  .site-activity-bar__mobile-primary {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0.25rem;
+    box-sizing: border-box;
+  }
+
+  .site-activity-bar__menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-height: 2rem;
+    min-width: 2rem;
+    margin: 0.25rem 0.35rem 0.25rem 0;
+    padding: 0.25rem 0.65rem;
+    border: var(--border_001);
+    border-radius: var(--border_radius_001);
+    background: var(--site-body-bg);
+    color: var(--site-body-fg);
+    font-size: var(--font-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .site-activity-bar__menu-btn.is-active {
+    background: var(--site-accent);
+    border-color: var(--site-accent);
+    color: var(--site-accent-fg);
+  }
+
+  .site-activity-bar.is-mobile-menu-open .site-activity-bar__mobile-tray {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--header_height);
+    height: 250px;
+    z-index: 149;
+    box-sizing: border-box;
+    border-top: var(--border_001);
+    background: var(--site-chrome-bar-bg);
+    color: var(--site-chrome-bar-fg);
+    overflow: hidden;
+  }
+
+  .site-activity-bar__mobile-tray-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 0.35rem;
+    height: 100%;
+    padding: 0.5rem;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  .site-activity-bar__mobile-tray-inner .site-activity-bar__btn {
+    flex: 0 0 calc(25% - 0.3rem);
+    max-width: calc(25% - 0.3rem);
+  }
 }
 
 /* Tablet + desktop: left rail below global header */

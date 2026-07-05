@@ -73,3 +73,23 @@ export function IconSaveCloud() {
     </svg>
   );
 }
+
+export function IconImmersiveEdit() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <rect x="6" y="4" width="12" height="4" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="6" y="10" width="12" height="4" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="6" y="16" width="12" height="4" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+export function IconPreviewLayout() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" strokeWidth="1.25" />
+      <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" strokeWidth="1.25" />
+    </svg>
+  );
+}

@@ -79,6 +79,9 @@ export const COLUMN_ZONE_ORDER: PamphletZoneId[] = [
   "s1l-col1",
 ];
 
+/** Vertical immersive reading order: header, eight columns, footer. */
+export const IMMERSIVE_ZONE_ORDER: PamphletZoneId[] = ["header", ...COLUMN_ZONE_ORDER, "footer"];
+
 const DEFAULT_IMAGE_HEIGHT_RATIO = 0.75;
 const DEFAULT_LINE_TEXT = "New paragraph";
 const PAMPHLET_CONTENT_IMAGE_PREFIX = "pamphlets/content-images";
@@ -413,9 +416,41 @@ function headerItemsToPayload(items: PamphletContentItem[]): DbHeaderPayload {
       payload.heading = item.text;
     } else if (item.contentRef === "header:subheading") {
       payload.subheading = item.text;
+    } else if (item.contentRef === "header:meta") {
+      const parts = item.text.split(" · ").map((entry) => entry.trim());
+      if (parts[0]) {
+        payload.author = parts[0];
+      }
+      if (parts[1]) {
+        payload.date = parts[1];
+      }
+      if (parts[2]) {
+        payload.category = parts[2];
+      }
     }
   }
   return payload;
+}
+
+/** Assigns stable idea/subidea refs so every body item survives cloud save. */
+export function assignBodyContentRefs(items: PamphletContentItem[]): PamphletContentItem[] {
+  let ideaIndex = 0;
+  let subIndex = 0;
+  let hasHeadingForCurrentIdea = false;
+
+  return items.map((item) => {
+    if (item.type === "key_idea") {
+      if (hasHeadingForCurrentIdea || subIndex > 0) {
+        ideaIndex += 1;
+      }
+      hasHeadingForCurrentIdea = true;
+      subIndex = 0;
+      return { ...item, contentRef: `${ideaIndex}:heading` };
+    }
+    const ref = `${ideaIndex}:subidea:${subIndex}`;
+    subIndex += 1;
+    return { ...item, contentRef: ref };
+  });
 }
 
 function footerItemsToPayload(items: PamphletContentItem[]): DbFooterPayload {
@@ -495,9 +530,10 @@ export function contentDocumentToDbPayload(document: PamphletContentDocument): {
   content: DbContentPayload;
   footer: DbFooterPayload;
 } {
+  const bodyItems = assignBodyContentRefs(document.bodyItems);
   return {
     header: headerItemsToPayload(document.headerItems),
-    content: bodyItemsToContentPayload(document.bodyItems),
+    content: bodyItemsToContentPayload(bodyItems),
     footer: footerItemsToPayload(document.footerItems),
   };
 }
@@ -872,7 +908,7 @@ export function setStreamItems(
   if (stream === "footer") {
     return { ...document, footerItems: items };
   }
-  return { ...document, bodyItems: items };
+  return { ...document, bodyItems: assignBodyContentRefs(items) };
 }
 
 /** Counts items placed across the eight body flow columns. */

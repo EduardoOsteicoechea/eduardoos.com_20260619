@@ -20,9 +20,9 @@ import {
   fetchPamphletDocumentById,
   fetchPamphletLayout,
   fetchPamphletRegistry,
-  savePamphletDocument,
-  savePamphletLayout,
+  savePamphletBundleToCloud,
   type PamphletDocument,
+  type SavePamphletBundleResponse,
 } from "./pamphlets";
 import { getAuthToken } from "./auth";
 
@@ -81,7 +81,7 @@ export async function savePamphletBundle(options: {
   title: string;
   contentDocument: PamphletContentDocument;
   layoutSettings: PamphletLayoutSettings;
-}): Promise<void> {
+}): Promise<SavePamphletBundleResponse> {
   const payload = contentDocumentToDbPayload(options.contentDocument);
   const document: PamphletDocument = {
     header: payload.header,
@@ -89,9 +89,15 @@ export async function savePamphletBundle(options: {
     footer: payload.footer,
   };
   const layout = layoutSettingsToApiLayout(options.layoutSettings, options.contentDocument.itemBottomMarginMm);
-  await savePamphletDocument(options.pamphletId, document);
-  await savePamphletLayout(layout, options.title, options.pamphletId);
+  console.info("[pamphlet save] local payload summary:", {
+    pamphletId: options.pamphletId,
+    title: options.title,
+    ideaCount: payload.content.ideas.length,
+    headerKeys: Object.keys(payload.header),
+  });
+  const response = await savePamphletBundleToCloud(options.pamphletId, options.title, document, layout);
   persistActivePamphletId(options.pamphletId);
+  return response;
 }
 
 /** Reads the last opened pamphlet id from browser storage. */

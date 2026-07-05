@@ -168,6 +168,7 @@ func registerPamphletRoutes(r chi.Router, secret string, store pamphlet.Document
 		r.Get("/pamphlet/registry", h.listRegistry())
 		r.Get("/pamphlet/layout", h.getLayout())
 		r.Post("/pamphlet/layout", h.saveLayout())
+		r.Post("/pamphlet/save", h.saveBundle())
 	})
 }
 

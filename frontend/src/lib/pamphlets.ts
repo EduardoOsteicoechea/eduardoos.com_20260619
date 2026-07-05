@@ -62,7 +62,16 @@ export const PAMPHLET_ROUTES = {
   images: "/api/pamphlets/images",
   registry: "/api/pamphlets/registry",
   layout: "/api/pamphlets/layout",
+  save: "/api/pamphlets/save",
 } as const;
+
+export interface SavePamphletBundleResponse {
+  status: string;
+  pamphletId: string;
+  logs: string[];
+  ideaCount?: number;
+  subideaCount?: number;
+}
 
 export interface PamphletRegistryItem {
   pamphletId: string;
@@ -302,7 +311,8 @@ export async function savePamphletLayout(
   pamphletId = "active",
 ): Promise<void> {
   const correlationId = createCorrelationId();
-  const result = await apiRequest<{ status: string }>(PAMPHLET_ROUTES.layout, {
+  const path = `${PAMPHLET_ROUTES.layout}?pamphletId=${encodeURIComponent(pamphletId)}`;
+  const result = await apiRequest<{ status: string }>(path, {
     method: "POST",
     body: { layout, title },
     ...authOptions(correlationId, pamphletId),
@@ -310,4 +320,30 @@ export async function savePamphletLayout(
   if (result.error) {
     throw new Error(result.error.message);
   }
+}
+
+/** Saves document + layout in one request; server returns a line-by-line trace. */
+export async function savePamphletBundleToCloud(
+  pamphletId: string,
+  title: string,
+  document: PamphletDocument,
+  layout: LayoutFields,
+): Promise<SavePamphletBundleResponse> {
+  const correlationId = createCorrelationId();
+  const payload = { title, layout, document };
+  console.info("[pamphlet save] uploaded payload:", JSON.stringify(payload, null, 2));
+
+  const path = `${PAMPHLET_ROUTES.save}?pamphletId=${encodeURIComponent(pamphletId)}`;
+  const result = await apiRequest<SavePamphletBundleResponse>(path, {
+    method: "POST",
+    body: payload,
+    ...authOptions(correlationId, pamphletId),
+  });
+  if (result.error) {
+    console.error("[pamphlet save] request failed:", result.error.message);
+    throw new Error(result.error.message);
+  }
+  const response = result.data as SavePamphletBundleResponse;
+  console.info("[pamphlet save] server logs:", response.logs?.join("\n") ?? "(none)");
+  return response;
 }

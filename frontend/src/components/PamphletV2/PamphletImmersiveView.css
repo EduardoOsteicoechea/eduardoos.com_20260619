@@ -1,0 +1,36 @@
+/**
+ * PamphletImmersiveView.css — Vertical stacked zone editor (theme-aware, no preview tint).
+ */
+
+.pamphlet-immersive {
+  width: 100%;
+  min-height: inherit;
+  box-sizing: border-box;
+  color: var(--site-body-fg);
+  background: transparent;
+}
+
+.pamphlet-immersive__stream {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--pamphlet-row-sep, 5mm) + 2mm);
+  width: 100%;
+  max-width: min(100%, 720px);
+  margin: 0 auto;
+  padding: 1rem 0.75rem 2rem;
+  box-sizing: border-box;
+}
+
+.pamphlet-immersive__zone {
+  box-sizing: border-box;
+  width: 100%;
+  background: transparent;
+  color: inherit;
+}
+
+@media (min-width: 768px) {
+  .pamphlet-immersive__stream {
+    padding: 1.5rem 1rem 2.5rem;
+  }
+}
