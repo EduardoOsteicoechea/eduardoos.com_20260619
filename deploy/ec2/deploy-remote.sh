@@ -6,7 +6,7 @@ APP_DIR="${APP_DIR:-$HOME/eduardoos.com_20260619}"
 REPO_URL="${REPO_URL:-https://github.com/EduardoOsteicoechea/eduardoos.com_20260619.git}"
 BRANCH="${BRANCH:-master}"
 
-echo "==> Deploying Eduardo OS to ${APP_DIR} (${BRANCH})"
+echo "==> Deploying Eduardo OS to ${APP_DIR} (${BRANCH}) [host frontend + monolith + nginx/certbot]"
 
 if [ ! -d "${APP_DIR}/.git" ]; then
   echo "==> Cloning repository"
