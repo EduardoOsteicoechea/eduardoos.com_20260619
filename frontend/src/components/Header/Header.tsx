@@ -1,9 +1,9 @@
 /**
- * Header.tsx — Fixed chrome: eduardoos home brand, nav links, mobile expandable menu.
+ * Header.tsx — Fixed chrome: brand, nav links, auth controls, mobile menu.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { APP_ROUTES } from "../../config/routes";
-import { getAuthToken, logoutUser } from "../../lib/auth";
+import { getAuthToken, isAuthenticated, logoutUser } from "../../lib/auth";
 import "./Header.css";
 
 /** Returns the uppercase first letter of the email from a JWT sub claim. */
@@ -14,8 +14,7 @@ function profileInitialFromToken(token: string): string {
     const payloadJson = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
     const payload = JSON.parse(payloadJson) as { sub?: string };
     const sub = typeof payload.sub === "string" ? payload.sub.trim() : "";
-    const email = sub.includes("@") ? sub : sub;
-    const letter = email.charAt(0);
+    const letter = sub.charAt(0);
     return letter ? letter.toUpperCase() : "?";
   } catch {
     return "?";
@@ -28,8 +27,6 @@ interface HeaderProps {
 
 const NAV_LINKS = [
   { href: APP_ROUTES.home, label: "Home" },
-  { href: APP_ROUTES.login, label: "Login" },
-  { href: APP_ROUTES.register, label: "Register" },
   { href: APP_ROUTES.logger, label: "Logger" },
   { href: APP_ROUTES.tester, label: "Tester" },
   { href: APP_ROUTES.mediaGallery, label: "Media" },
@@ -38,8 +35,112 @@ const NAV_LINKS = [
   { href: APP_ROUTES.subscriptionMonthlyBasic, label: "Subscribe" },
 ] as const;
 
+interface AccountMenuProps {
+  initial: string;
+  onLogout: () => void;
+}
+
+function AccountMenu({ initial, onLogout }: AccountMenuProps) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function handlePointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
+  return (
+    <div className="site-header__account" ref={rootRef}>
+      <button
+        type="button"
+        className="site-header__profile"
+        title="Account"
+        aria-label="Account menu"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        {initial}
+      </button>
+      {open ? (
+        <div className="site-header__account-menu" role="menu" aria-label="Account actions">
+          <button
+            type="button"
+            className="site-header__account-menu-item"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+          >
+            Log out
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+interface LoggedOutActionsProps {
+  loginClassName?: string;
+  onNavigate?: () => void;
+}
+
+function LoggedOutActions({ loginClassName = "", onNavigate }: LoggedOutActionsProps) {
+  return (
+    <>
+      <a
+        className="site-header__auth-link"
+        href={APP_ROUTES.register}
+        onClick={onNavigate}
+      >
+        Register
+      </a>
+      <a
+        className={`site-header__action btn btn--primary${loginClassName ? ` ${loginClassName}` : ""}`}
+        href={APP_ROUTES.login}
+        onClick={onNavigate}
+      >
+        Log in
+      </a>
+    </>
+  );
+}
+
+interface AuthControlsProps {
+  loggedIn: boolean;
+  profileInitial: string;
+  onLogout: () => void;
+  onNavigate?: () => void;
+  variant: "bar" | "nav";
+}
+
+function AuthControls({ loggedIn, profileInitial, onLogout, onNavigate, variant }: AuthControlsProps) {
+  let content: ReactNode;
+  if (loggedIn) {
+    content = <AccountMenu initial={profileInitial} onLogout={onLogout} />;
+  } else {
+    content = <LoggedOutActions onNavigate={onNavigate} />;
+  }
+
+  return (
+    <div className={`site-header__auth site-header__auth--${variant}`}>
+      {content}
+    </div>
+  );
+}
+
 export function Header({ pathname }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
   const [profileInitial, setProfileInitial] = useState("");
   const [clientReady, setClientReady] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
@@ -61,10 +162,17 @@ export function Header({ pathname }: HeaderProps) {
     setMenuOpen((open) => !open);
   }
 
+  function syncAuthState() {
+    const authed = isAuthenticated();
+    setLoggedIn(authed);
+    const token = getAuthToken();
+    setProfileInitial(authed && token ? profileInitialFromToken(token) : "");
+  }
+
   async function handleLogout() {
     closeMenu();
     await logoutUser();
-    setProfileInitial("");
+    syncAuthState();
     window.location.replace(APP_ROUTES.login);
   }
 
@@ -80,13 +188,14 @@ export function Header({ pathname }: HeaderProps) {
     syncHeaderHeight();
     window.addEventListener("resize", syncHeaderHeight);
     return () => window.removeEventListener("resize", syncHeaderHeight);
-  }, [menuOpen, pathname]);
+  }, [menuOpen, pathname, loggedIn]);
 
   useEffect(() => {
     setClientReady(true);
-    const token = getAuthToken();
-    setProfileInitial(token ? profileInitialFromToken(token) : "");
+    syncAuthState();
   }, [pathname]);
+
+  const showAuth = clientReady;
 
   return (
     <header
@@ -101,26 +210,6 @@ export function Header({ pathname }: HeaderProps) {
         eduardoos
       </a>
       <div className="site-header__bar">
-        {clientReady && profileInitial ? (
-          <>
-            <a
-              className="site-header__profile"
-              href={APP_ROUTES.home}
-              title="Account"
-              aria-label="Account home"
-              onClick={closeMenu}
-            >
-              {profileInitial}
-            </a>
-            <button
-              type="button"
-              className="site-header__logout"
-              onClick={() => void handleLogout()}
-            >
-              Log out
-            </button>
-          </>
-        ) : null}
         <button
           type="button"
           className="site-header__menu"
@@ -131,6 +220,16 @@ export function Header({ pathname }: HeaderProps) {
         >
           Menu
         </button>
+        <div className="site-header__bar-spacer" aria-hidden="true" />
+        {showAuth ? (
+          <AuthControls
+            variant="bar"
+            loggedIn={loggedIn}
+            profileInitial={profileInitial}
+            onLogout={() => void handleLogout()}
+            onNavigate={closeMenu}
+          />
+        ) : null}
       </div>
       <nav
         id="site-header-nav"
@@ -147,25 +246,14 @@ export function Header({ pathname }: HeaderProps) {
             {label}
           </a>
         ))}
-        {clientReady && profileInitial ? (
-          <>
-            <a
-              className={`site-header__profile site-header__profile--nav${pathname === APP_ROUTES.home ? " is-active" : ""}`}
-              href={APP_ROUTES.home}
-              title="Account"
-              aria-label="Account home"
-              onClick={closeMenu}
-            >
-              {profileInitial}
-            </a>
-            <button
-              type="button"
-              className="site-header__logout site-header__logout--nav"
-              onClick={() => void handleLogout()}
-            >
-              Log out
-            </button>
-          </>
+        {showAuth ? (
+          <AuthControls
+            variant="nav"
+            loggedIn={loggedIn}
+            profileInitial={profileInitial}
+            onLogout={() => void handleLogout()}
+            onNavigate={closeMenu}
+          />
         ) : null}
       </nav>
     </header>
