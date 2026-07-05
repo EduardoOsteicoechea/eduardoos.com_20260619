@@ -139,14 +139,18 @@ issue_letsencrypt_cert() {
   return 1
 }
 
-echo "==> Building and starting edge stack (frontend + nginx + certbot)"
+echo "==> Building host assets (frontend + backend)"
 export COMPOSE_PARALLEL_LIMIT=1
 export DOCKER_BUILDKIT=1
 
 reclaim_ec2_disk
 
-echo "==> Building frontend"
-"${COMPOSE[@]}" build frontend
+build_host_frontend() {
+  chmod +x deploy/ec2/build-frontend.sh
+  APP_DIR="${APP_DIR}" bash deploy/ec2/build-frontend.sh
+}
+
+build_host_frontend
 docker builder prune -af || true
 
 install_host_backend() {

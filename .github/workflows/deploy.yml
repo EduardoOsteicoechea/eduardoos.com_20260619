@@ -122,6 +122,7 @@ jobs:
             "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/.env"
           scp -i ~/.ssh/deploy_key $SSH_OPTS \
             deploy/ec2/deploy-remote.sh \
+            deploy/ec2/build-frontend.sh \
             deploy/ec2/issue-cert.sh \
             deploy/ec2/report-build-tests.sh \
             deploy/aws/create-observability-tables.sh \

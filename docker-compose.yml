@@ -1,17 +1,8 @@
-# Eduardo OS — Frontend + edge (nginx/certbot). Backend runs on the host via cmd/eduardoos.
-# Run: cp .env.example .env && docker compose up -d
+# Eduardo OS — Edge only (nginx + certbot).
+# Static site: build on host → frontend/dist (see deploy/ec2/build-frontend.sh).
+# Backend: go run ./cmd/eduardoos on the host (:3000).
 
 services:
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    command: ["sh", "-c", "cp -r /srv/frontend/dist/. /output/ && sleep infinity"]
-    volumes:
-      - frontend_dist:/output
-    networks:
-      - internal
-
   nginx:
     image: nginx:1.27-alpine
     ports:
@@ -19,7 +10,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - frontend_dist:/usr/share/nginx/html:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
       - ./nginx/certs:/etc/nginx/certs:ro
       - certbot_www:/var/www/certbot:ro
     extra_hosts:
@@ -41,5 +32,4 @@ networks:
     driver: bridge
 
 volumes:
-  frontend_dist:
   certbot_www:

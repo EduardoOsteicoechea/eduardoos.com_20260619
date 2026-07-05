@@ -1,14 +1,11 @@
 # EC2 (ARM64 / Graviton) overlay — merge with the base compose file.
 #
-# Local Docker Desktop (amd64):  docker compose up -d --build
-# EC2 Graviton (arm64):         docker compose -f docker-compose.yml -f docker-compose.ec2.yml up -d --build
+# docker compose -f docker-compose.yml -f docker-compose.ec2.yml up -d
 #
-# Backend: run on the EC2 host (not in Docker) — see deploy/ec2/eduardoos.service
+# Host: frontend/dist (npm build), cmd/eduardoos (:3000)
+# Docker: nginx + certbot only
 
 services:
-  frontend:
-    platform: linux/arm64
-
   nginx:
     platform: linux/arm64
     volumes:
