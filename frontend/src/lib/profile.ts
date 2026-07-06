@@ -12,6 +12,30 @@ export interface UserProfile {
   profileImageUrl: string;
 }
 
+export const PROFILE_IMAGE_UPDATED_EVENT = "eduardoos-profile-image-updated";
+
+/** Appends a cache-busting query param so the browser loads a fresh avatar. */
+export function profileImageUrlWithCacheBust(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return "";
+  }
+  const separator = trimmed.includes("?") ? "&" : "?";
+  return `${trimmed}${separator}t=${Date.now()}`;
+}
+
+/** Notifies header chrome (and other listeners) that the profile avatar changed. */
+export function notifyProfileImageUpdated(profileImageUrl: string): void {
+  if (typeof window === "undefined" || !profileImageUrl.trim()) {
+    return;
+  }
+  window.dispatchEvent(
+    new CustomEvent(PROFILE_IMAGE_UPDATED_EVENT, {
+      detail: { profileImageUrl },
+    }),
+  );
+}
+
 export async function fetchUserProfile(): Promise<UserProfile | null> {
   const token = getAuthToken();
   if (!token) {
@@ -56,6 +80,13 @@ export async function uploadProfileImage(file: File): Promise<UserProfile | null
   if (!response.ok) {
     throw new Error(humanizeS3Error(data?.message ?? response.statusText ?? "Upload failed"));
   }
+  const uploadedUrl = data?.profileImageUrl?.trim() ?? "";
+  if (uploadedUrl) {
+    notifyProfileImageUpdated(profileImageUrlWithCacheBust(uploadedUrl));
+  }
   const profile = await fetchUserProfile();
+  if (profile?.profileImageUrl && !uploadedUrl) {
+    notifyProfileImageUpdated(profileImageUrlWithCacheBust(profile.profileImageUrl));
+  }
   return profile;
 }

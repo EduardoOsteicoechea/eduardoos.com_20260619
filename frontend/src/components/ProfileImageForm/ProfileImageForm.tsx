@@ -4,7 +4,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import { isAuthenticated } from "../../lib/auth";
-import { fetchUserProfile, uploadProfileImage } from "../../lib/profile";
+import { fetchUserProfile, profileImageUrlWithCacheBust, uploadProfileImage } from "../../lib/profile";
 import "./ProfileImageForm.css";
 
 export default function ProfileImageForm() {
@@ -45,7 +45,7 @@ export default function ProfileImageForm() {
     try {
       const profile = await uploadProfileImage(file);
       if (profile?.profileImageUrl) {
-        setImageUrl(`${profile.profileImageUrl}?t=${Date.now()}`);
+        setImageUrl(profileImageUrlWithCacheBust(profile.profileImageUrl));
       }
       setMessage("Profile image updated");
       if (input) {
