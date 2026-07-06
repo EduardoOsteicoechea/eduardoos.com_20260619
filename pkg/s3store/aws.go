@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -118,6 +119,9 @@ func (a *awsStore) Get(ctx context.Context, key string) ([]byte, string, error) 
 
 func (a *awsStore) List(ctx context.Context, prefix string) ([]ObjectMeta, error) {
 	searchPrefix := ObjectKey(a.prefix, prefix)
+	if searchPrefix == "" && a.prefix != "" {
+		searchPrefix = strings.TrimSuffix(a.prefix, "/") + "/"
+	}
 	out, err := a.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
 		Bucket: aws.String(a.bucket),
 		Prefix: aws.String(searchPrefix),

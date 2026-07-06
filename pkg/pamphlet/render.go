@@ -20,7 +20,7 @@ func imageSrc(imageURL string) string {
 	if strings.HasPrefix(imageURL, "http://") || strings.HasPrefix(imageURL, "https://") || strings.HasPrefix(imageURL, "/") {
 		return imageURL
 	}
-	resolved := ResolveContentImageObjectKey(imageURL, "", "")
+	resolved := NormalizeContentImageObjectKey(imageURL)
 	if strings.HasPrefix(resolved, ContentImagePrefix+"/") || resolved == ContentImagePrefix {
 		return GatewayImagePath(resolved)
 	}

@@ -84,7 +84,19 @@ export const IMMERSIVE_ZONE_ORDER: PamphletZoneId[] = ["header", ...COLUMN_ZONE_
 
 const DEFAULT_IMAGE_HEIGHT_RATIO = 0.75;
 const DEFAULT_LINE_TEXT = "New paragraph";
-const PAMPHLET_CONTENT_IMAGE_PREFIX = "pamphlets/content-images";
+const PAMPHLET_CONTENT_IMAGE_PREFIX = "media/pamphlets/content-images";
+const LEGACY_PAMPHLET_CONTENT_IMAGE_PREFIX = "pamphlets/content-images";
+
+function normalizePamphletImageObjectKey(objectKey: string): string {
+  const trimmed = objectKey.trim().replace(/^\/+/, "");
+  if (trimmed.startsWith(PAMPHLET_CONTENT_IMAGE_PREFIX)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith(LEGACY_PAMPHLET_CONTENT_IMAGE_PREFIX)) {
+    return `media/${trimmed}`;
+  }
+  return trimmed;
+}
 
 export interface PamphletImageResolveContext {
   userEmail?: string | null;
@@ -113,7 +125,9 @@ export function resolveContentImageObjectKey(
   if (trimmed.startsWith(PAMPHLET_CONTENT_IMAGE_PREFIX)) {
     return trimmed;
   }
-
+  if (trimmed.startsWith(LEGACY_PAMPHLET_CONTENT_IMAGE_PREFIX)) {
+    return normalizePamphletImageObjectKey(trimmed);
+  }
   const email = context?.userEmail?.trim().toLowerCase() ?? "";
   const pamphletId = context?.pamphletId?.trim() || "active";
   let filename = trimmed.replace(/^\/+/, "");
@@ -152,7 +166,7 @@ export function resolvePamphletImageUrl(imageUrl: string, context?: PamphletImag
     return trimmed;
   }
 
-  const objectKey = resolveContentImageObjectKey(trimmed, context);
+  const objectKey = normalizePamphletImageObjectKey(resolveContentImageObjectKey(trimmed, context));
   if (objectKey.startsWith(PAMPHLET_CONTENT_IMAGE_PREFIX)) {
     return encodePamphletImageObjectKey(objectKey);
   }

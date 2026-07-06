@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3ListMediaPrefix",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": "arn:aws:s3:::eduardoos20260607",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": ["media/", "media/*"]
+        }
+      }
+    },
+    {
+      "Sid": "S3MediaObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::eduardoos20260607/media/*"
+    }
+  ]
+}

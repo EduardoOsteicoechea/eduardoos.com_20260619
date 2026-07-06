@@ -6,8 +6,14 @@ import (
 	"strings"
 )
 
-// ContentImagePrefix is the bucket-root prefix for pamphlet content images.
-const ContentImagePrefix = "pamphlets/content-images"
+// MediaPrefix is the site-wide S3 prefix (see S3_PREFIX, default "media").
+const MediaPrefix = "media"
+
+// ContentImagePrefix is the object prefix for pamphlet content images (under media/).
+const ContentImagePrefix = MediaPrefix + "/pamphlets/content-images"
+
+// LegacyContentImagePrefix is the pre-media prefix kept for DB/S3 migration.
+const LegacyContentImagePrefix = "pamphlets/content-images"
 
 // ContentImageObjectKey builds the canonical S3 object key for a content image.
 func ContentImageObjectKey(userID, pamphletID, filename string) string {
@@ -43,6 +49,18 @@ func GatewayImagePath(objectKey string) string {
 	return "/api/pamphlets/images/" + encodeImagePath(objectKey)
 }
 
+// NormalizeContentImageObjectKey upgrades legacy bucket-root pamphlet keys.
+func NormalizeContentImageObjectKey(objectKey string) string {
+	objectKey = strings.TrimPrefix(strings.TrimSpace(objectKey), "/")
+	if strings.HasPrefix(objectKey, ContentImagePrefix+"/") || objectKey == ContentImagePrefix {
+		return objectKey
+	}
+	if strings.HasPrefix(objectKey, LegacyContentImagePrefix+"/") {
+		return MediaPrefix + "/" + objectKey
+	}
+	return objectKey
+}
+
 // ResolveContentImageObjectKey maps legacy DB values (e.g. images/0-subidea-7.png) to canonical S3 keys.
 func ResolveContentImageObjectKey(storedValue, userEmail, pamphletID string) string {
 	storedValue = strings.TrimSpace(storedValue)
@@ -52,6 +70,7 @@ func ResolveContentImageObjectKey(storedValue, userEmail, pamphletID string) str
 	if strings.HasPrefix(storedValue, "http://") || strings.HasPrefix(storedValue, "https://") {
 		return storedValue
 	}
+	storedValue = NormalizeContentImageObjectKey(storedValue)
 	if strings.HasPrefix(storedValue, ContentImagePrefix+"/") || storedValue == ContentImagePrefix {
 		return strings.TrimPrefix(storedValue, "/")
 	}

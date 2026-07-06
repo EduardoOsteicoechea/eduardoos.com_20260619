@@ -38,40 +38,35 @@ Local Docker keeps in-memory stores (`TELEMETRY_BACKEND=memory`,
 `TESTER_BACKEND=memory`).
 
 
-In **IAM → Policies → Create policy → JSON**, paste the contents of
-[`ec2-iam-policy.json`](./ec2-iam-policy.json), then name it e.g.
-`EduardoOS-EC2-S3-DynamoDB`.
+Production uses **two inline policies** on role **`eduardoos-ec2-s3-role`**:
 
-## 2. Attach policy to the EC2 instance role
+| Policy file | Covers |
+|-------------|--------|
+| [`ec2-iam-s3-policy.json`](./ec2-iam-s3-policy.json) | `ListBucket` (prefix `media/`) + `GetObject`/`PutObject` on `media/*` |
+| [`ec2-iam-dynamodb-policy.json`](./ec2-iam-dynamodb-policy.json) | All Eduardo OS DynamoDB tables |
 
-Production instance role: **`eduardoos-ec2-s3-role`** (must allow `s3:ListBucket` on the bucket ARN, not only object `/*` actions).
+All app objects live under **`media/`**:
 
-**Quick fix (AWS CLI on your machine or CloudShell):**
+| Path | Feature |
+|------|---------|
+| `media/` | Gallery images |
+| `media/profiles/` | Profile avatars |
+| `media/pamphlets/content-images/` | Pamphlet editor images |
+| `media/worship_playlists/` | Playlist audio |
 
-```bash
-bash deploy/aws/ensure-ec2-iam-policy.sh
-```
+Your S3 policy shape is correct. Add **`media/`** alongside **`media/*`** in the `s3:prefix` condition (see `ec2-iam-s3-policy.json`) so `ListObjects` with prefix `media/` is allowed.
 
-Or manually:
+Optional combined policy: [`ec2-iam-policy.json`](./ec2-iam-policy.json) (broader, single file).
 
-1. **IAM → Policies → Create policy → JSON**, paste [`ec2-iam-policy.json`](./ec2-iam-policy.json), name it `EduardoOS-EC2-S3-DynamoDB`.
-2. **IAM → Roles → `eduardoos-ec2-s3-role` → Add permissions → Attach policies** → select that policy.
-3. Wait ~1 minute, then refresh **Media Gallery**.
+### Troubleshooting: `AccessDenied`
 
-### Troubleshooting: `AccessDenied` / `s3:ListBucket` / `s3:PutObject`
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `s3:ListBucket` | App listed the whole bucket (`prefix=""`) | Fixed in code — lists `media/` only. Redeploy latest. |
+| `s3:PutObject` on `profiles/...` | Old build stored outside `media/` | Redeploy — now uses `media/profiles/`. |
+| `s3:PutObject` on `pamphlets/...` | Old build stored outside `media/` | Redeploy — now uses `media/pamphlets/content-images/`. |
 
-If the gallery shows `s3:ListBucket` AccessDenied, or profile upload shows `s3:PutObject` on `media/profiles/...`:
-
-- The EC2 role is missing **bucket-level** `s3:ListBucket` on `arn:aws:s3:::eduardoos20260607`.
-- Object actions need `s3:PutObject` and `s3:GetObject` on `arn:aws:s3:::eduardoos20260607/*` (covers `media/`, `media/profiles/`, `pamphlets/`, etc.).
-- Re-run `ensure-ec2-iam-policy.sh` or attach the updated policy from this repo.
-
-Legacy manual steps:
-
-1. **IAM → Roles** → select (or create) the role attached to your EC2 instance
-   (e.g. `eduardoos-ec2-role`).
-2. **Add permissions → Attach policies** → select `EduardoOS-EC2-S3-DynamoDB`.
-3. Ensure the EC2 instance uses this role (**Actions → Security → Modify IAM role**).
+After updating IAM or deploying code, wait ~1 minute for instance credentials to refresh.
 
 No `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` are required in `.env` when
 using an instance profile — the AWS SDK inside containers reads credentials from

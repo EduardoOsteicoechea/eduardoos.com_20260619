@@ -1,0 +1,54 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EduardoosDynamoDBTables",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:UpdateItem",
+        "dynamodb:CreateTable",
+        "dynamodb:UpdateTimeToLive",
+        "dynamodb:DescribeTimeToLive"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_catalog",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_catalog/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_posts",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_posts/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_users",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_users/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_refresh_tokens",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_refresh_tokens/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_flight_logs",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_flight_logs/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_test_runs",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_test_runs/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_playlists",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_playlists/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_headers",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_headers/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_footers",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_footers/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_contents",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_contents/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_registry",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_registry/index/*"
+      ]
+    },
+    {
+      "Sid": "EduardoosDynamoDBListTables",
+      "Effect": "Allow",
+      "Action": ["dynamodb:ListTables"],
+      "Resource": "*"
+    }
+  ]
+}

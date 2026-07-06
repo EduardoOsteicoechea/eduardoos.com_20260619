@@ -440,8 +440,14 @@ describe("typed content updates", () => {
   }
 
   it("resolves pamphlet image keys to gateway URLs", () => {
+    expect(resolvePamphletImageUrl("media/pamphlets/content-images/user/active/0-subidea-1.png")).toBe(
+      "/api/pamphlets/images/media/pamphlets/content-images/user/active/0-subidea-1.png",
+    );
+  });
+
+  it("upgrades legacy pamphlets/ image keys", () => {
     expect(resolvePamphletImageUrl("pamphlets/content-images/user/active/0-subidea-1.png")).toBe(
-      "/api/pamphlets/images/pamphlets/content-images/user/active/0-subidea-1.png",
+      "/api/pamphlets/images/media/pamphlets/content-images/user/active/0-subidea-1.png",
     );
   });
 
@@ -451,7 +457,7 @@ describe("typed content updates", () => {
         userEmail: "user@example.com",
         pamphletId: "active",
       }),
-    ).toBe("/api/pamphlets/images/pamphlets/content-images/user%40example.com/active/0-subidea-7.png");
+    ).toBe("/api/pamphlets/images/media/pamphlets/content-images/user%40example.com/active/0-subidea-7.png");
   });
 
   it("rewrites broken gateway legacy image URLs", () => {
@@ -460,7 +466,7 @@ describe("typed content updates", () => {
         userEmail: "user@example.com",
         pamphletId: "my-pamphlet",
       }),
-    ).toBe("/api/pamphlets/images/pamphlets/content-images/user%40example.com/my-pamphlet/0-subidea-7.png");
+    ).toBe("/api/pamphlets/images/media/pamphlets/content-images/user%40example.com/my-pamphlet/0-subidea-7.png");
   });
 
   it("updates quote references, list header, and list items", () => {
