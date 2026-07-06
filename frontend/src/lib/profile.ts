@@ -4,6 +4,7 @@
 import { apiRequest } from "./api";
 import { AUTH_ROUTES, getAuthToken } from "./auth";
 import { createCorrelationId } from "./telemetry";
+import { humanizeS3Error } from "./s3Errors";
 
 export interface UserProfile {
   email: string;
@@ -53,7 +54,7 @@ export async function uploadProfileImage(file: File): Promise<UserProfile | null
     }
   }
   if (!response.ok) {
-    throw new Error(data?.message ?? response.statusText ?? "Upload failed");
+    throw new Error(humanizeS3Error(data?.message ?? response.statusText ?? "Upload failed"));
   }
   const profile = await fetchUserProfile();
   return profile;

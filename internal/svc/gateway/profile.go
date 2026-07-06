@@ -11,6 +11,7 @@ import (
 
 	"eduardoos/pkg/common"
 	"eduardoos/pkg/profile"
+	"eduardoos/pkg/s3store"
 )
 
 func (c config) getUserProfile() http.HandlerFunc {
@@ -54,7 +55,7 @@ func (c config) getUserProfile() http.HandlerFunc {
 		}
 		imageURL := ""
 		if key := strings.TrimSpace(stored.ProfileImageKey); key != "" {
-			imageURL = profile.GatewayMediaFilePath(key)
+			imageURL = profile.GatewayMediaFilePath(profile.NormalizeImageObjectKey(key))
 		}
 		common.WriteJSON(w, http.StatusOK, map[string]any{
 			"email":           stored.Email,
@@ -92,7 +93,7 @@ func (c config) uploadProfileImage() http.HandlerFunc {
 		filename := profile.ImageFilenameFromUpload(header.Filename)
 		objectKey := profile.ImageObjectKey(email, filename)
 		if err := c.proxyAbsoluteUpload(r, cid, objectKey, filepath.Base(filename), data); err != nil {
-			common.WriteError(w, http.StatusBadGateway, err.Error())
+			common.WriteError(w, http.StatusBadGateway, s3store.HumanizeAccessError(err.Error()))
 			return
 		}
 

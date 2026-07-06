@@ -120,8 +120,7 @@ func (c config) listMediaImages() http.HandlerFunc {
 		defer resp.Body.Close()
 		body, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode >= 400 {
-			w.WriteHeader(resp.StatusCode)
-			_, _ = w.Write(body)
+			common.WriteError(w, resp.StatusCode, s3store.HumanizeAccessError(string(body)))
 			return
 		}
 

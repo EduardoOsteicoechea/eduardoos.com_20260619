@@ -4,7 +4,7 @@ This stack runs on **Graviton (arm64)** EC2 instances in **us-east-1** and uses:
 
 | Resource | Name | Purpose |
 |----------|------|---------|
-| S3 bucket | `eduardoos20260607` | Media uploads under `media/` |
+| S3 bucket | `eduardoos20260607` | Media uploads under `media/`; profile avatars under `media/profiles/` |
 | DynamoDB | `eduardoos_catalog` | Generic app KV (payments, catalog) |
 | DynamoDB | `eduardoos_users` | Keys prefixed `user:` |
 | DynamoDB | `eduardoos_posts` | Keys prefixed `post:` |
@@ -43,6 +43,30 @@ In **IAM → Policies → Create policy → JSON**, paste the contents of
 `EduardoOS-EC2-S3-DynamoDB`.
 
 ## 2. Attach policy to the EC2 instance role
+
+Production instance role: **`eduardoos-ec2-s3-role`** (must allow `s3:ListBucket` on the bucket ARN, not only object `/*` actions).
+
+**Quick fix (AWS CLI on your machine or CloudShell):**
+
+```bash
+bash deploy/aws/ensure-ec2-iam-policy.sh
+```
+
+Or manually:
+
+1. **IAM → Policies → Create policy → JSON**, paste [`ec2-iam-policy.json`](./ec2-iam-policy.json), name it `EduardoOS-EC2-S3-DynamoDB`.
+2. **IAM → Roles → `eduardoos-ec2-s3-role` → Add permissions → Attach policies** → select that policy.
+3. Wait ~1 minute, then refresh **Media Gallery**.
+
+### Troubleshooting: `AccessDenied` / `s3:ListBucket` / `s3:PutObject`
+
+If the gallery shows `s3:ListBucket` AccessDenied, or profile upload shows `s3:PutObject` on `media/profiles/...`:
+
+- The EC2 role is missing **bucket-level** `s3:ListBucket` on `arn:aws:s3:::eduardoos20260607`.
+- Object actions need `s3:PutObject` and `s3:GetObject` on `arn:aws:s3:::eduardoos20260607/*` (covers `media/`, `media/profiles/`, `pamphlets/`, etc.).
+- Re-run `ensure-ec2-iam-policy.sh` or attach the updated policy from this repo.
+
+Legacy manual steps:
 
 1. **IAM → Roles** → select (or create) the role attached to your EC2 instance
    (e.g. `eduardoos-ec2-role`).

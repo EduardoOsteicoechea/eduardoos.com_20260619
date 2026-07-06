@@ -8,8 +8,11 @@ import (
 	"eduardoos/pkg/s3store"
 )
 
-// ImagePrefix is the bucket-root prefix for user profile avatars.
-const ImagePrefix = "profiles"
+// MediaPrefix is the site-wide S3 object prefix (see S3_PREFIX, default "media").
+const MediaPrefix = "media"
+
+// ProfilesPrefix is where user avatars are stored inside the media prefix.
+const ProfilesPrefix = "profiles"
 
 // ImageObjectKey builds the canonical S3 object key for a profile avatar.
 func ImageObjectKey(userEmail, filename string) string {
@@ -18,7 +21,7 @@ func ImageObjectKey(userEmail, filename string) string {
 	if filename == "" {
 		filename = "avatar.png"
 	}
-	return fmt.Sprintf("%s/%s/%s", ImagePrefix, userEmail, filename)
+	return fmt.Sprintf("%s/%s/%s/%s", MediaPrefix, ProfilesPrefix, userEmail, filename)
 }
 
 // ImageFilenameFromUpload picks a stable avatar filename from an uploaded file name.
@@ -32,5 +35,22 @@ func ImageFilenameFromUpload(originalName string) string {
 
 // GatewayMediaFilePath returns the browser-facing gateway path for a stored object key.
 func GatewayMediaFilePath(objectKey string) string {
-	return "/api/media/file/" + s3store.EncodeRelativePath(strings.TrimPrefix(strings.TrimSpace(objectKey), "/"))
+	objectKey = strings.TrimPrefix(strings.TrimSpace(objectKey), "/")
+	rel := s3store.RelativeKey(MediaPrefix, objectKey)
+	if rel == objectKey && strings.HasPrefix(objectKey, ProfilesPrefix+"/") {
+		rel = objectKey
+	}
+	return "/api/media/file/" + s3store.EncodeRelativePath(rel)
+}
+
+// NormalizeImageObjectKey upgrades legacy bucket-root keys to the media/ prefix.
+func NormalizeImageObjectKey(objectKey string) string {
+	objectKey = strings.TrimPrefix(strings.TrimSpace(objectKey), "/")
+	if strings.HasPrefix(objectKey, MediaPrefix+"/") {
+		return objectKey
+	}
+	if strings.HasPrefix(objectKey, ProfilesPrefix+"/") {
+		return MediaPrefix + "/" + objectKey
+	}
+	return objectKey
 }

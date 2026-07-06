@@ -5,6 +5,7 @@
 import { apiRequest } from "./api";
 import { MEDIA_ROUTES } from "../config/routes";
 import { createCorrelationId } from "./telemetry";
+import { humanizeS3Error } from "./s3Errors";
 
 export interface MediaImage {
   key: string;
@@ -49,4 +50,9 @@ export function formatMediaDate(iso: string): string {
 
 export function sortImagesByName(images: MediaImage[]): MediaImage[] {
   return [...images].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Maps raw gateway/S3 errors to a short user-facing gallery message. */
+export function humanizeMediaError(message: string): string {
+  return humanizeS3Error(message);
 }

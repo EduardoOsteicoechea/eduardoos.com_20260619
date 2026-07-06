@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   fetchMediaImages,
   formatMediaDate,
+  humanizeMediaError,
   sortImagesByName,
   type MediaImage,
 } from "../../lib/media";
@@ -26,7 +27,8 @@ function MediaGallery() {
       setBackend(data.backend);
       setImages(sortImagesByName(data.images));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load media");
+      const raw = err instanceof Error ? err.message : "Failed to load media";
+      setError(humanizeMediaError(raw));
       setImages([]);
     } finally {
       setLoading(false);
