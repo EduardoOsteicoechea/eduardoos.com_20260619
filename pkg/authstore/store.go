@@ -16,9 +16,10 @@ import (
 
 // User is a registered account record.
 type User struct {
-	Email        string `json:"email"`
-	PasswordHash string `json:"passwordHash"`
-	Verified     bool   `json:"verified"`
+	Email            string `json:"email"`
+	PasswordHash     string `json:"passwordHash"`
+	Verified         bool   `json:"verified"`
+	ProfileImageKey  string `json:"profileImageKey,omitempty"`
 }
 
 // Store abstracts user + OTP persistence.

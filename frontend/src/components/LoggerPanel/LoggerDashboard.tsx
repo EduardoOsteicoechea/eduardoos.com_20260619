@@ -13,6 +13,7 @@ import {
   type LogFilters,
 } from "../../lib/observability";
 import { validateLoggerEvent } from "../../lib/validation";
+import ChromeToggle from "../ChromeToggle/ChromeToggle";
 import "./LoggerDashboard.css";
 
 const REFRESH_MS = 15000;
@@ -173,22 +174,12 @@ export default function LoggerDashboard() {
           </p>
         </div>
         <div className="panel__actions">
-          <label className="obs-toggle">
-            <input
-              type="checkbox"
-              checked={liveMode}
-              onChange={(e) => setLiveMode(e.target.checked)}
-            />
-            Live stream
-          </label>
-          <label className="obs-toggle">
-            <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-            />
-            Analytics refresh ({REFRESH_MS / 1000}s)
-          </label>
+          <ChromeToggle label="Live stream" active={liveMode} onChange={setLiveMode} />
+          <ChromeToggle
+            label={`Analytics refresh (${REFRESH_MS / 1000}s)`}
+            active={autoRefresh}
+            onChange={setAutoRefresh}
+          />
           <button className="btn" type="button" onClick={refresh} disabled={loading}>
             {loading ? "Loading…" : "Refresh"}
           </button>

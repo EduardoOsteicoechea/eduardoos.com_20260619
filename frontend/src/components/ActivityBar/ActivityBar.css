@@ -1,55 +1,69 @@
 /**
- * ActivityBar.css — Global activity bar chrome (plain CSS, theme tokens).
+ * ActivityBar.css — Bottom chrome bar aligned with playlist controls (plain CSS, theme tokens).
  */
 
 .site-activity-bar {
   position: fixed;
-  z-index: 150;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
   box-sizing: border-box;
-  background: var(--site-chrome-bar-bg);
-  color: var(--site-chrome-bar-fg);
-  border-color: var(--site-border);
+  width: 100%;
+  max-width: 100%;
+  border-top: var(--border_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.site-activity-bar__shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(100%, var(--max_desktop_width));
+  margin: 0 auto;
+  min-height: var(--activity-bar-height);
+  padding-block: 0.8rem;
+  padding-inline: max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-right));
   display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .site-activity-bar__pinned {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
   gap: 0.25rem;
   flex: 0 0 auto;
-  padding: 0.25rem;
-  box-sizing: border-box;
-  background: var(--site-chrome-bar-bg);
-  border-color: var(--site-border);
 }
 
-.site-activity-bar__scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
-  overflow: auto;
-}
-
-.site-activity-bar__inner {
+.site-activity-bar__deck {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  width: 100%;
-  height: 100%;
-  padding: 0.25rem;
-  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 
 .site-activity-bar__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 1 1 auto;
-  min-width: var(--control_min_width);
-  min-height: var(--control_min_height);
-  padding: 0.25rem 0.5rem;
+  flex-shrink: 0;
+  width: 35px;
+  height: 35px;
+  min-width: 35px;
+  min-height: 35px;
+  max-width: 35px;
+  max-height: 35px;
+  padding: 0;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
   background: var(--site-body-bg);
@@ -57,6 +71,12 @@
   font-size: var(--font-sm);
   font-weight: 600;
   cursor: pointer;
+}
+
+.site-activity-bar__btn svg {
+  width: 17px;
+  height: 17px;
+  display: block;
 }
 
 .site-activity-bar__btn:hover:not(:disabled) {
@@ -76,6 +96,8 @@
 
 .site-activity-bar__label {
   white-space: nowrap;
+  font-size: var(--font-xs);
+  padding-inline: 0.15rem;
 }
 
 .site-activity-bar__menu-btn {
@@ -90,48 +112,27 @@
   display: none;
 }
 
-/* Mobile: bottom bar, compact buttons like the site header */
-.site-activity-bar {
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: var(--header_height);
-  min-height: var(--header_height);
-  border-top: var(--border_001);
-  flex-direction: row;
-}
-
-.site-activity-bar__pinned {
-  flex-direction: row;
-  border-right: var(--border_001);
-}
-
-.site-activity-bar__inner {
-  flex-direction: row;
-}
-
 @media (max-width: 767px) {
-  .site-activity-bar__btn {
-    flex: 0 0 auto;
-    min-height: 2rem;
-    min-width: 2rem;
-    padding: 0.25rem 0.65rem;
-    font-size: var(--font-sm);
+  .site-activity-bar__shell {
+    padding-block: 0.55rem;
   }
 
-  .site-activity-bar__scroll--desktop {
-    display: none;
+  .site-activity-bar__btn {
+    width: 35px;
+    height: 40px;
+    min-width: 35px;
+    min-height: 40px;
+    max-width: 35px;
+    max-height: 40px;
   }
 
   .site-activity-bar__mobile-primary {
     display: flex;
     flex: 1 1 auto;
-    align-items: stretch;
+    align-items: center;
     justify-content: center;
     gap: 0.25rem;
     min-width: 0;
-    padding: 0.25rem;
-    box-sizing: border-box;
   }
 
   .site-activity-bar__menu-btn {
@@ -139,9 +140,8 @@
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    min-height: 2rem;
-    min-width: 2rem;
-    margin: 0.25rem 0.35rem 0.25rem 0;
+    min-height: 40px;
+    min-width: 35px;
     padding: 0.25rem 0.65rem;
     border: var(--border_001);
     border-radius: var(--border_radius_001);
@@ -163,13 +163,13 @@
     position: fixed;
     left: 0;
     right: 0;
-    bottom: var(--header_height);
+    bottom: var(--activity-bar-height);
     height: 250px;
-    z-index: 149;
+    z-index: 9998;
     box-sizing: border-box;
     border-top: var(--border_001);
-    background: var(--site-chrome-bar-bg);
-    color: var(--site-chrome-bar-fg);
+    background: var(--site-body-bg);
+    color: var(--site-body-fg);
     overflow: hidden;
   }
 
@@ -179,7 +179,7 @@
     align-content: flex-start;
     gap: 0.35rem;
     height: 100%;
-    padding: 0.5rem;
+    padding: 0.5rem max(1.25rem, env(safe-area-inset-left)) 0.5rem max(1.25rem, env(safe-area-inset-right));
     box-sizing: border-box;
     overflow-y: auto;
   }
@@ -190,43 +190,9 @@
   }
 }
 
-/* Tablet + desktop: left rail below global header */
 @media (min-width: 768px) {
-  .site-activity-bar {
-    top: var(--header_height);
-    left: 0;
-    right: auto;
-    bottom: 0;
-    width: var(--header_height);
-    min-width: var(--header_height);
-    height: auto;
-    border-top: none;
-    border-right: var(--border_001);
-    flex-direction: column;
-  }
-
-  .site-activity-bar__pinned {
-    flex-direction: column;
-    border-right: none;
-    border-bottom: var(--border_001);
-    padding: 0.35rem 0.25rem;
-  }
-
-  .site-activity-bar__scroll {
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  .site-activity-bar__inner {
-    flex-direction: column;
-    justify-content: flex-start;
-    padding: 0.35rem 0.25rem;
-  }
-
-  .site-activity-bar__btn {
-    flex: 0 0 var(--header_height);
-    width: 100%;
-    height: var(--header_height);
-    min-height: var(--header_height);
+  .site-activity-bar__shell {
+    padding-block: 0;
+    padding-inline: 1.25rem;
   }
 }

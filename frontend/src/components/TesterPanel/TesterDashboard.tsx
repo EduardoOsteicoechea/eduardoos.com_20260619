@@ -13,6 +13,7 @@ import {
   type TestRunRecord,
 } from "../../lib/observability";
 import { validateTesterScript } from "../../lib/validation";
+import ChromeToggle from "../ChromeToggle/ChromeToggle";
 import "../LoggerPanel/LoggerDashboard.css";
 import "./TesterDashboard.css";
 
@@ -116,14 +117,7 @@ export default function TesterDashboard() {
           </p>
         </div>
         <div className="panel__actions">
-          <label className="obs-toggle">
-            <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-            />
-            Auto-refresh
-          </label>
+          <ChromeToggle label="Auto-refresh" active={autoRefresh} onChange={setAutoRefresh} />
           <button className="btn" type="button" onClick={refresh} disabled={loading}>
             Refresh
           </button>

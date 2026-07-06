@@ -40,6 +40,8 @@ export const AUTH_ROUTES = {
   login: "/api/auth/login",
   verifyOtp: "/api/auth/verify-otp",
   logout: "/api/auth/logout",
+  profile: "/api/auth/profile",
+  profileImage: "/api/auth/profile/image",
 } as const;
 
 const AUTH_TOKEN_KEY = "eduardoos-auth-token";
@@ -59,6 +61,31 @@ export function getAuthToken(): string {
 /** Returns true when the user has a stored gateway JWT. */
 export function isAuthenticated(): boolean {
   return getAuthToken().trim().length > 0;
+}
+
+/** Reads the JWT subject (email) from the stored session token without a network call. */
+export function getAuthEmailFromToken(): string | null {
+  const token = getAuthToken().trim();
+  if (!token) {
+    return null;
+  }
+  try {
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) {
+      return null;
+    }
+    const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+    const padLength = (4 - (normalized.length % 4)) % 4;
+    const padded = normalized.padEnd(normalized.length + padLength, "=");
+    const payload = JSON.parse(atob(padded)) as { sub?: unknown };
+    if (typeof payload.sub !== "string") {
+      return null;
+    }
+    const email = payload.sub.trim().toLowerCase();
+    return email.length > 0 ? email : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Clears the stored session token. */

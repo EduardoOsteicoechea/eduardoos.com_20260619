@@ -53,14 +53,15 @@ describe("ActivityBar", () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
-  it("uses header height for mobile bottom bar sizing", () => {
-    expect(cssSource).toContain("height: var(--header_height)");
+  it("uses playlist-style bottom bar sizing tokens", () => {
+    expect(cssSource).toContain("min-height: var(--activity-bar-height)");
     expect(cssSource).toContain("bottom: 0");
+    expect(cssSource).toContain("width: 35px");
   });
 
-  it("uses left rail layout from tablet breakpoint", () => {
+  it("keeps a bottom bar on tablet and desktop breakpoints", () => {
     expect(cssSource).toContain("@media (min-width: 768px)");
-    expect(cssSource).toContain("width: var(--header_height)");
-    expect(cssSource).toContain("top: var(--header_height)");
+    expect(cssSource).not.toContain("top: var(--header_height)");
+    expect(cssSource).not.toContain("width: var(--header_height)");
   });
 });

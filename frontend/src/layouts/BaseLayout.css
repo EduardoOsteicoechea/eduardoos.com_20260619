@@ -22,7 +22,7 @@
 }
 
 #pwa-toast button {
-  min-height: var(--control_min_height);
+  min-height: var(--chrome-control-size, 2rem);
   min-width: auto;
   padding: 0.25rem 0.65rem;
   border: var(--border_001);
@@ -34,55 +34,50 @@
   cursor: pointer;
 }
 
-body.page-playlist {
-  --playlist-bar-mobile: 6.65rem;
-  --playlist-bar-desktop: var(--activity-bar-height);
-  padding-bottom: var(--playlist-bar-mobile);
+/* Shared bottom-chrome page shell (playlist + pamphlet + editor routes). */
+body.page-playlist,
+body.page-pamphlet-v2,
+body.page-editor {
+  --chrome-bar-mobile: var(--site-chrome-bar-mobile, 6.65rem);
+  --chrome-bar-desktop: var(--activity-bar-height);
   width: 100%;
   max-width: 100%;
 }
 
-body.page-playlist:has(.playlist-controls--tray-open) {
-  --playlist-bar-mobile: 12rem;
+body.page-playlist {
+  padding-bottom: var(--chrome-bar-mobile);
 }
 
-body.page-playlist .page-shell {
+body.page-playlist:has(.playlist-controls--tray-open) {
+  --chrome-bar-mobile: 12rem;
+}
+
+body.page-pamphlet-v2 {
+  padding-bottom: var(--chrome-bar-mobile);
+}
+
+body.page-pamphlet-v2:has(.site-activity-bar.is-mobile-menu-open) {
+  --chrome-bar-mobile: calc(var(--activity-bar-height) + 250px);
+}
+
+@media (min-width: 768px) {
+  body.page-playlist,
+  body.page-pamphlet-v2 {
+    padding-bottom: var(--chrome-bar-desktop);
+  }
+}
+
+body.page-playlist .page-shell,
+body.page-pamphlet-v2 .page-shell,
+body.page-editor .page-shell {
   box-sizing: border-box;
   width: 100%;
   max-width: min(100%, var(--max_desktop_width));
   margin-inline: auto;
   padding-inline: max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-right));
   overflow-x: clip;
-}
-
-@media (min-width: 768px) {
-  body.page-playlist {
-    padding-bottom: var(--playlist-bar-desktop);
-  }
-}
-
-body.page-pamphlet-v2 {
-  padding-bottom: var(--header_height);
-  width: 100%;
-  max-width: 100%;
 }
 
 body.page-pamphlet-v2 main {
   padding-bottom: 0;
-}
-
-@media (min-width: 768px) {
-  body.page-pamphlet-v2 {
-    padding-bottom: 0;
-    padding-left: var(--header_height);
-  }
-}
-
-body.page-pamphlet-v2 .page-shell {
-  box-sizing: border-box;
-  width: 100%;
-  max-width: min(100%, var(--max_desktop_width));
-  margin-inline: auto;
-  padding-inline: max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-right));
-  overflow-x: clip;
 }

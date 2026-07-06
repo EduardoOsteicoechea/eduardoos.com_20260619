@@ -1,6 +1,6 @@
 /**
- * ActivityBar.tsx — Global activity bar for editor-style pages.
- * Mobile: fixed bottom with optional overflow tray. Tablet/desktop: fixed left rail.
+ * ActivityBar.tsx — Global bottom activity bar for editor-style pages (playlist chrome).
+ * Mobile: optional overflow tray above the bar. Tablet/desktop: single horizontal row.
  */
 import { useEffect, useState, type ReactNode } from "react";
 import "./ActivityBar.css";
@@ -85,7 +85,7 @@ export function ActivityBar({
       aria-label={ariaLabel}
     >
       {useMobileSplit && mobileMenuOpen ? (
-        <div className="site-activity-bar__mobile-tray" role="dialog" aria-label="More pamphlet actions">
+        <div className="site-activity-bar__mobile-tray" role="dialog" aria-label="More actions">
           <div className="site-activity-bar__mobile-tray-inner">
             {mobileOverflowButtons!.map((button) =>
               renderButton({ ...button, onClick: () => handleOverflowClick(button) }),
@@ -94,34 +94,34 @@ export function ActivityBar({
         </div>
       ) : null}
 
-      {pinnedButtons.length > 0 ? (
-        <div className="site-activity-bar__pinned" aria-label="Primary actions">
-          {pinnedButtons.map(renderButton)}
-        </div>
-      ) : null}
-
-      {useMobileSplit ? (
-        <>
-          <div className="site-activity-bar__mobile-primary" aria-label="Preview tools">
-            {mobilePrimaryButtons!.map(renderButton)}
+      <div className="site-activity-bar__shell">
+        {pinnedButtons.length > 0 ? (
+          <div className="site-activity-bar__pinned" aria-label="Primary actions">
+            {pinnedButtons.map(renderButton)}
           </div>
-          <button
-            type="button"
-            className={`site-activity-bar__menu-btn${mobileMenuOpen ? " is-active" : ""}`}
-            aria-label={mobileMenuOpen ? "Close menu" : "More actions"}
-            aria-expanded={mobileMenuOpen}
-            onClick={() => setMobileMenuOpen((open) => !open)}
-          >
-            Menu
-          </button>
-        </>
-      ) : null}
+        ) : null}
 
-      {!useMobileSplit ? (
-        <div className="site-activity-bar__scroll site-activity-bar__scroll--desktop">
-          <div className="site-activity-bar__inner">{buttons.map(renderButton)}</div>
-        </div>
-      ) : null}
+        {useMobileSplit ? (
+          <>
+            <div className="site-activity-bar__mobile-primary" aria-label="Primary tools">
+              {mobilePrimaryButtons!.map(renderButton)}
+            </div>
+            <button
+              type="button"
+              className={`site-activity-bar__menu-btn${mobileMenuOpen ? " is-active" : ""}`}
+              aria-label={mobileMenuOpen ? "Close menu" : "More actions"}
+              aria-expanded={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+            >
+              Menu
+            </button>
+          </>
+        ) : (
+          <div className="site-activity-bar__deck" aria-label="Page tools">
+            {buttons.map(renderButton)}
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

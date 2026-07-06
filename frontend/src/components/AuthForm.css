@@ -4,10 +4,14 @@
 
 .auth-form__otp-hint {
   margin: 0.35rem 0 0.5rem;
-  font-size: 0.9rem;
+  font-size: var(--font-sm);
   line-height: 1.45;
-  color: var(--site-body-fg, #cbd5e1);
+  color: var(--site-body-fg);
   opacity: 0.9;
+}
+
+.auth-form .btn--primary {
+  color: var(--site-accent-fg);
 }
 
 .auth-form__otp-field input {

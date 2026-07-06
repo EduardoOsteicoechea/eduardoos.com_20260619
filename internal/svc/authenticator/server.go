@@ -54,6 +54,8 @@ func Run(addr string) error {
 		r.Post("/verify-otp", st.verifyOTP)
 		r.Post("/logout", st.logout)
 		r.Post("/user-exists", st.userExists)
+		r.Get("/profile", st.getProfile)
+		r.Put("/profile", st.putProfile)
 	})
 
 	log.Printf("authenticator listening on %s", addr)
@@ -263,4 +265,66 @@ func (s *state) report(r *http.Request, event, status, email string) {
 	entry := common.NewFlightLog(cid, "authenticator", event, status)
 	entry.Metadata = map[string]string{"email": email}
 	s.telemetry.Emit(entry, cid)
+}
+
+func (s *state) getProfile(w http.ResponseWriter, r *http.Request) {
+	cid := common.CorrelationFromRequest(r)
+	email := strings.TrimSpace(r.Header.Get("X-User-Email"))
+	if email == "" {
+		common.WriteError(w, http.StatusBadRequest, "user email required")
+		return
+	}
+	email = authstore.NormalizeEmail(email)
+	user, ok, err := s.store.GetUser(r.Context(), email)
+	if err != nil {
+		log.Printf("[correlation=%s] profile get store error email=%s err=%v", cid, email, err)
+		common.WriteError(w, http.StatusInternalServerError, "profile lookup failed")
+		return
+	}
+	if !ok {
+		common.WriteError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	common.WriteJSON(w, http.StatusOK, map[string]any{
+		"email":           user.Email,
+		"profileImageKey": strings.TrimSpace(user.ProfileImageKey),
+	})
+}
+
+func (s *state) putProfile(w http.ResponseWriter, r *http.Request) {
+	cid := common.CorrelationFromRequest(r)
+	email := strings.TrimSpace(r.Header.Get("X-User-Email"))
+	if email == "" {
+		common.WriteError(w, http.StatusBadRequest, "user email required")
+		return
+	}
+	email = authstore.NormalizeEmail(email)
+	var body struct {
+		ProfileImageKey string `json:"profileImageKey"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		common.WriteError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	user, ok, err := s.store.GetUser(r.Context(), email)
+	if err != nil {
+		log.Printf("[correlation=%s] profile put store error email=%s err=%v", cid, email, err)
+		common.WriteError(w, http.StatusInternalServerError, "profile update failed")
+		return
+	}
+	if !ok {
+		common.WriteError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	user.ProfileImageKey = strings.TrimSpace(body.ProfileImageKey)
+	if err := s.store.PutUser(r.Context(), user); err != nil {
+		log.Printf("[correlation=%s] profile put save error email=%s err=%v", cid, email, err)
+		common.WriteError(w, http.StatusInternalServerError, "profile update failed")
+		return
+	}
+	s.report(r, "auth.profile.update", "success", email)
+	common.WriteJSON(w, http.StatusOK, map[string]any{
+		"email":           user.Email,
+		"profileImageKey": user.ProfileImageKey,
+	})
 }

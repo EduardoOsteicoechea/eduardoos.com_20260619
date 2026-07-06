@@ -20,10 +20,11 @@ func imageSrc(imageURL string) string {
 	if strings.HasPrefix(imageURL, "http://") || strings.HasPrefix(imageURL, "https://") || strings.HasPrefix(imageURL, "/") {
 		return imageURL
 	}
-	if strings.HasPrefix(imageURL, ContentImagePrefix+"/") || strings.HasPrefix(imageURL, ContentImagePrefix) {
-		return GatewayImagePath(imageURL)
+	resolved := ResolveContentImageObjectKey(imageURL, "", "")
+	if strings.HasPrefix(resolved, ContentImagePrefix+"/") || resolved == ContentImagePrefix {
+		return GatewayImagePath(resolved)
 	}
-	return "/api/pamphlets/images/" + imageURL
+	return GatewayImagePath(imageURL)
 }
 
 func renderLayoutBlock(block LayoutBlock, columnWidthMM, headingBottomMarginMM, marginBottomMM float64) string {

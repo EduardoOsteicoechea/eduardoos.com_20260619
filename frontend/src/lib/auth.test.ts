@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   AUTH_ROUTES,
+  getAuthEmailFromToken,
   getAuthToken,
   hasIssuedToken,
   isAuthenticated,
@@ -24,11 +25,19 @@ describe("auth routes", () => {
     expect(isAuthenticated()).toBe(true);
     expect(getAuthToken()).toBe("token");
   });
+
+  it("getAuthEmailFromToken reads the JWT subject", () => {
+    const payload = btoa(JSON.stringify({ sub: "User@Example.com" }));
+    saveAuthToken(`header.${payload}.signature`);
+    expect(getAuthEmailFromToken()).toBe("user@example.com");
+  });
   it("exposes correct public gateway paths", () => {
     expect(AUTH_ROUTES.register).toBe("/api/auth/register");
     expect(AUTH_ROUTES.login).toBe("/api/auth/login");
     expect(AUTH_ROUTES.verifyOtp).toBe("/api/auth/verify-otp");
     expect(AUTH_ROUTES.logout).toBe("/api/auth/logout");
+    expect(AUTH_ROUTES.profile).toBe("/api/auth/profile");
+    expect(AUTH_ROUTES.profileImage).toBe("/api/auth/profile/image");
   });
 
   it("registerUser calls register endpoint and emits logs", async () => {

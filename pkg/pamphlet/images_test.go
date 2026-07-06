@@ -16,3 +16,11 @@ func TestGatewayImagePath(t *testing.T) {
 		t.Fatalf("expected absolute gateway path, got %q", path)
 	}
 }
+
+func TestResolveContentImageObjectKey(t *testing.T) {
+	got := ResolveContentImageObjectKey("images/0-subidea-7.png", "user@example.com", "active")
+	want := "pamphlets/content-images/user@example.com/active/0-subidea-7.png"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}

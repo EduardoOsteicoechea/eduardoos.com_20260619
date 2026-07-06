@@ -10,6 +10,7 @@ import {
 } from "../../lib/pamphletContent";
 import type { PamphletFontSettings } from "../../lib/pamphletFontSettings";
 import PamphletContentActionBar from "./PamphletContentActionBar";
+import { usePamphletImageContext } from "./PamphletImageContext";
 import "./PamphletContentItem.css";
 
 interface PamphletContentItemProps {
@@ -128,6 +129,7 @@ export function PamphletContentItem({
   onAddListItem,
   onRemoveListItem,
 }: PamphletContentItemProps) {
+  const imageContext = usePamphletImageContext();
   const itemRef = useRef<HTMLDivElement>(null);
   const editableRef = useRef<HTMLDivElement>(null);
   const activeItemRef = useRef<string | null>(null);
@@ -292,7 +294,10 @@ export function PamphletContentItem({
           </>
         );
       case "image": {
-        const imageSrc = resolvePamphletImageUrl(item.imageUrl);
+        const imageSrc = resolvePamphletImageUrl(item.imageUrl, {
+          userEmail: imageContext.userEmail,
+          pamphletId: imageContext.pamphletId,
+        });
         return (
           <div className="pamphlet-content-item__image-wrap">
             <div

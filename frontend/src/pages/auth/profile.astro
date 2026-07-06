@@ -1,0 +1,11 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ProfileImageForm from "../../components/ProfileImageForm/ProfileImageForm";
+import "../observability/observability.css";
+---
+
+<BaseLayout title="Profile — Eduardo Osteicoechea" requireAuth>
+  <div class="page-shell">
+    <ProfileImageForm client:load />
+  </div>
+</BaseLayout>

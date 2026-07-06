@@ -30,13 +30,29 @@
   color: var(--site-accent-fg);
 }
 
+a.btn--primary,
+a.btn--primary:hover,
+button.btn--primary,
+button.btn--primary:hover {
+  color: var(--site-accent-fg);
+}
+
 .btn--primary:hover {
   background: var(--site-accent);
   border-color: var(--site-medium);
-  color: var(--site-accent-fg);
 }
 
 .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.btn--icon {
+  width: var(--chrome-control-size, 2rem);
+  height: var(--chrome-control-size, 2rem);
+  min-width: var(--chrome-control-size, 2rem);
+  min-height: var(--chrome-control-size, 2rem);
+  max-width: var(--chrome-control-size, 2rem);
+  max-height: var(--chrome-control-size, 2rem);
+  padding: 0;
 }

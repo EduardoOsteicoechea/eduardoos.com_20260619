@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import { getAuthToken, isAuthenticated, logoutUser } from "../../lib/auth";
+import { fetchUserProfile } from "../../lib/profile";
 import "./Header.css";
 
 /** Returns the uppercase first letter of the email from a JWT sub claim. */
@@ -37,10 +38,11 @@ const NAV_LINKS = [
 
 interface AccountMenuProps {
   initial: string;
+  profileImageUrl: string;
   onLogout: () => void;
 }
 
-function AccountMenu({ initial, onLogout }: AccountMenuProps) {
+function AccountMenu({ initial, profileImageUrl, onLogout }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -68,10 +70,22 @@ function AccountMenu({ initial, onLogout }: AccountMenuProps) {
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        {initial}
+        {profileImageUrl ? (
+          <img className="site-header__profile-img" src={profileImageUrl} alt="" />
+        ) : (
+          initial
+        )}
       </button>
       {open ? (
         <div className="site-header__account-menu" role="menu" aria-label="Account actions">
+          <a
+            className="site-header__account-menu-item"
+            role="menuitem"
+            href={APP_ROUTES.profile}
+            onClick={() => setOpen(false)}
+          >
+            Profile image
+          </a>
           <button
             type="button"
             className="site-header__account-menu-item"
@@ -118,15 +132,16 @@ function LoggedOutActions({ loginClassName = "", onNavigate }: LoggedOutActionsP
 interface AuthControlsProps {
   loggedIn: boolean;
   profileInitial: string;
+  profileImageUrl: string;
   onLogout: () => void;
   onNavigate?: () => void;
   variant: "bar" | "nav";
 }
 
-function AuthControls({ loggedIn, profileInitial, onLogout, onNavigate, variant }: AuthControlsProps) {
+function AuthControls({ loggedIn, profileInitial, profileImageUrl, onLogout, onNavigate, variant }: AuthControlsProps) {
   let content: ReactNode;
   if (loggedIn) {
-    content = <AccountMenu initial={profileInitial} onLogout={onLogout} />;
+    content = <AccountMenu initial={profileInitial} profileImageUrl={profileImageUrl} onLogout={onLogout} />;
   } else {
     content = <LoggedOutActions onNavigate={onNavigate} />;
   }
@@ -142,6 +157,7 @@ export function Header({ pathname }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [profileInitial, setProfileInitial] = useState("");
+  const [profileImageUrl, setProfileImageUrl] = useState("");
   const [clientReady, setClientReady] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
@@ -167,6 +183,13 @@ export function Header({ pathname }: HeaderProps) {
     setLoggedIn(authed);
     const token = getAuthToken();
     setProfileInitial(authed && token ? profileInitialFromToken(token) : "");
+    if (!authed) {
+      setProfileImageUrl("");
+      return;
+    }
+    void fetchUserProfile().then((profile) => {
+      setProfileImageUrl(profile?.profileImageUrl ?? "");
+    });
   }
 
   async function handleLogout() {
@@ -226,6 +249,7 @@ export function Header({ pathname }: HeaderProps) {
             variant="bar"
             loggedIn={loggedIn}
             profileInitial={profileInitial}
+            profileImageUrl={profileImageUrl}
             onLogout={() => void handleLogout()}
             onNavigate={closeMenu}
           />
@@ -251,6 +275,7 @@ export function Header({ pathname }: HeaderProps) {
             variant="nav"
             loggedIn={loggedIn}
             profileInitial={profileInitial}
+            profileImageUrl={profileImageUrl}
             onLogout={() => void handleLogout()}
             onNavigate={closeMenu}
           />

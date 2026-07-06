@@ -7,6 +7,7 @@ export const APP_ROUTES = {
   logger: "/observability/logger",
   tester: "/observability/tester",
   subscriptionMonthlyBasic: "/payments/subscription/montly/basic",
+  profile: "/auth/profile",
   mediaGallery: "/media/gallery",
   mediaPlaylist: "/media/playlist",
   pamphlet: "/documents/pamphlet",

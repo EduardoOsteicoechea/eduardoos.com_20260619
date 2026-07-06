@@ -33,8 +33,11 @@ var publicPaths = []string{
 	"/health",
 	"/api/auth/login", "/api/auth/register", "/api/auth/verify-otp",
 	"/api/playlists",
+	"/api/logger",
+	"/api/tester",
 	"/api/media/audio",
 	"/api/media/file",
+	"/api/media/images",
 	"/api/pamphlets/images",
 	"/api/payments/webhook/paypal",
 }
@@ -79,6 +82,8 @@ func Run(addr string) error {
 	r.Post("/api/auth/login", cfg.proxyAuth("/login"))
 	r.Post("/api/auth/verify-otp", cfg.proxyAuth("/verify-otp"))
 	r.Post("/api/auth/logout", cfg.proxyAuthLogout())
+	r.Get("/api/auth/profile", cfg.getUserProfile())
+	r.Post("/api/auth/profile/image", cfg.uploadProfileImage())
 	r.Post("/api/logger", cfg.proxyPost("/ingest", cfg.TelemetryURL, "logger.proxy"))
 	r.Get("/api/logger/logs", cfg.proxyGetQuery("/logs", cfg.TelemetryURL))
 	r.Get("/api/logger/analytics", cfg.proxyGet("/analytics", cfg.TelemetryURL))

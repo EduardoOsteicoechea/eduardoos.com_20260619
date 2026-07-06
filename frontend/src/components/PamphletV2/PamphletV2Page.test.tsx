@@ -11,6 +11,7 @@ vi.mock("../../lib/pamphletPersistence", () => ({
 vi.mock("../../lib/auth", () => ({
   isAuthenticated: vi.fn(() => false),
   getAuthToken: vi.fn(() => ""),
+  getAuthEmailFromToken: vi.fn(() => null),
 }));
 
 import PamphletV2Page from "./PamphletV2Page";

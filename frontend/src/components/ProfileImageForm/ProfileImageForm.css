@@ -1,0 +1,34 @@
+.profile-image-form__lead {
+  margin-bottom: 1rem;
+  font-size: var(--font-md);
+  color: var(--site-body-fg);
+}
+
+.profile-image-form__preview-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.profile-image-form__preview {
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  object-fit: cover;
+  border: var(--border_001);
+  background: var(--site-body-bg);
+}
+
+.profile-image-form__preview--empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-lg);
+  font-weight: 700;
+  color: var(--site-body-fg);
+}
+
+.profile-image-form__status {
+  font-size: var(--font-md);
+  color: var(--site-body-fg);
+}

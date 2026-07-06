@@ -43,6 +43,40 @@ func GatewayImagePath(objectKey string) string {
 	return "/api/pamphlets/images/" + encodeImagePath(objectKey)
 }
 
+// ResolveContentImageObjectKey maps legacy DB values (e.g. images/0-subidea-7.png) to canonical S3 keys.
+func ResolveContentImageObjectKey(storedValue, userEmail, pamphletID string) string {
+	storedValue = strings.TrimSpace(storedValue)
+	if storedValue == "" {
+		return ""
+	}
+	if strings.HasPrefix(storedValue, "http://") || strings.HasPrefix(storedValue, "https://") {
+		return storedValue
+	}
+	if strings.HasPrefix(storedValue, ContentImagePrefix+"/") || storedValue == ContentImagePrefix {
+		return strings.TrimPrefix(storedValue, "/")
+	}
+	if strings.HasPrefix(storedValue, "/api/pamphlets/images/") {
+		storedValue = strings.TrimPrefix(storedValue, "/api/pamphlets/images/")
+	}
+
+	userEmail = strings.TrimSpace(strings.ToLower(userEmail))
+	pamphletID = strings.TrimSpace(pamphletID)
+	if pamphletID == "" {
+		pamphletID = DefaultPamphletID
+	}
+
+	filename := strings.TrimPrefix(storedValue, "/")
+	filename = strings.TrimPrefix(filename, "images/")
+	if strings.Contains(filename, "/") {
+		parts := strings.Split(filename, "/")
+		filename = parts[len(parts)-1]
+	}
+	if userEmail != "" && filename != "" {
+		return ContentImageObjectKey(userEmail, pamphletID, filename)
+	}
+	return storedValue
+}
+
 func encodeImagePath(objectKey string) string {
 	parts := strings.Split(objectKey, "/")
 	for i, part := range parts {

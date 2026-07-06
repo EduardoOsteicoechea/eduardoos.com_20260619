@@ -86,17 +86,75 @@ const DEFAULT_IMAGE_HEIGHT_RATIO = 0.75;
 const DEFAULT_LINE_TEXT = "New paragraph";
 const PAMPHLET_CONTENT_IMAGE_PREFIX = "pamphlets/content-images";
 
-/** Maps stored S3 keys or gateway paths to a browser-loadable pamphlet image URL. */
-export function resolvePamphletImageUrl(imageUrl: string): string {
+export interface PamphletImageResolveContext {
+  userEmail?: string | null;
+  pamphletId?: string | null;
+}
+
+function encodePamphletImageObjectKey(objectKey: string): string {
+  return `/api/pamphlets/images/${objectKey.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+/** Builds the canonical S3 object key from stored DB values and optional user scope. */
+export function resolveContentImageObjectKey(
+  imageUrl: string,
+  context?: PamphletImageResolveContext,
+): string {
   const trimmed = imageUrl.trim();
   if (!trimmed) {
     return "";
   }
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     return trimmed;
   }
+  if (trimmed.startsWith("/api/pamphlets/images/")) {
+    return decodeURIComponent(trimmed.slice("/api/pamphlets/images/".length));
+  }
   if (trimmed.startsWith(PAMPHLET_CONTENT_IMAGE_PREFIX)) {
-    return `/api/pamphlets/images/${trimmed.split("/").map(encodeURIComponent).join("/")}`;
+    return trimmed;
+  }
+
+  const email = context?.userEmail?.trim().toLowerCase() ?? "";
+  const pamphletId = context?.pamphletId?.trim() || "active";
+  let filename = trimmed.replace(/^\/+/, "");
+  if (filename.startsWith("images/")) {
+    filename = filename.slice("images/".length);
+  }
+  if (filename.includes("/")) {
+    filename = filename.split("/").pop() ?? filename;
+  }
+  if (email && filename) {
+    return `${PAMPHLET_CONTENT_IMAGE_PREFIX}/${email}/${pamphletId}/${filename}`;
+  }
+  return trimmed;
+}
+
+/** Maps stored S3 keys or gateway paths to a browser-loadable pamphlet image URL. */
+export function resolvePamphletImageUrl(imageUrl: string, context?: PamphletImageResolveContext): string {
+  const trimmed = imageUrl.trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/") && !trimmed.startsWith("/api/pamphlets/images/")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/api/pamphlets/images/")) {
+    const legacySuffix = decodeURIComponent(trimmed.slice("/api/pamphlets/images/".length));
+    if (legacySuffix.startsWith("images/") || !legacySuffix.startsWith(PAMPHLET_CONTENT_IMAGE_PREFIX)) {
+      const resolved = resolveContentImageObjectKey(legacySuffix, context);
+      if (resolved.startsWith(PAMPHLET_CONTENT_IMAGE_PREFIX)) {
+        return encodePamphletImageObjectKey(resolved);
+      }
+    }
+    return trimmed;
+  }
+
+  const objectKey = resolveContentImageObjectKey(trimmed, context);
+  if (objectKey.startsWith(PAMPHLET_CONTENT_IMAGE_PREFIX)) {
+    return encodePamphletImageObjectKey(objectKey);
   }
   return `/api/pamphlets/images/${encodeURIComponent(trimmed)}`;
 }

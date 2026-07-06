@@ -28,7 +28,7 @@ import {
   type PamphletContentDocument,
   type PamphletContentItemType,
 } from "../../lib/pamphletContent";
-import { isAuthenticated } from "../../lib/auth";
+import { getAuthEmailFromToken, isAuthenticated } from "../../lib/auth";
 import {
   applyPamphletSetting,
   computeSheet1Layout,
@@ -56,6 +56,7 @@ import PamphletOpenModal from "./PamphletOpenModal";
 import PamphletSaveModal from "./PamphletSaveModal";
 import PamphletSettingPanel from "./PamphletSettingPanel";
 import PamphletV2, { type PamphletEditorViewMode } from "./PamphletV2";
+import { PamphletImageProvider } from "./PamphletImageContext";
 import { IconDragMove, IconImmersiveEdit, IconOpenFolder, IconPreviewLayout, IconSaveCloud, IconZoomIn, IconZoomOut } from "./PamphletViewIcons";
 import { uploadPamphletImage } from "../../lib/pamphlets";
 import "./PamphletV2Page.css";
@@ -453,7 +454,11 @@ export default function PamphletV2Page() {
   }
 
   return (
-    <div className="pamphlet-v2-page">
+    <PamphletImageProvider
+      pamphletId={activePamphletId ?? "active"}
+      userEmail={getAuthEmailFromToken()}
+    >
+      <div className="pamphlet-v2-page">
       <div className="pamphlet-no-print">
         <ActivityBar
           pinnedButtons={pinnedActivityButtons}
@@ -513,6 +518,7 @@ export default function PamphletV2Page() {
         onPanChange={(x, y) => setPan({ x, y })}
         onExitPreviewMode={exitPreviewMode}
       />
-    </div>
+      </div>
+    </PamphletImageProvider>
   );
 }

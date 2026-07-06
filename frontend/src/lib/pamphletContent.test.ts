@@ -445,6 +445,24 @@ describe("typed content updates", () => {
     );
   });
 
+  it("resolves legacy images/ paths when user scope is available", () => {
+    expect(
+      resolvePamphletImageUrl("images/0-subidea-7.png", {
+        userEmail: "user@example.com",
+        pamphletId: "active",
+      }),
+    ).toBe("/api/pamphlets/images/pamphlets/content-images/user%40example.com/active/0-subidea-7.png");
+  });
+
+  it("rewrites broken gateway legacy image URLs", () => {
+    expect(
+      resolvePamphletImageUrl("/api/pamphlets/images/images%2F0-subidea-7.png", {
+        userEmail: "user@example.com",
+        pamphletId: "my-pamphlet",
+      }),
+    ).toBe("/api/pamphlets/images/pamphlets/content-images/user%40example.com/my-pamphlet/0-subidea-7.png");
+  });
+
   it("updates quote references, list header, and list items", () => {
     let doc = baseDocument();
     doc = updateContentItemReferences(doc, "quote-1", ["Romanos 12:2"], DEFAULT_PAMPHLET_LAYOUT_SETTINGS, fonts);
