@@ -42,4 +42,30 @@ describe("api client", () => {
     expect(result.error?.status).toBe(401);
     expect(result.error?.message).toBe("Invalid credentials");
   });
+
+  it("returns debug logs from error payload", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+      text: async () =>
+        JSON.stringify({
+          message: "authorization required",
+          correlation_id: "corr-debug",
+          debug_logs: ["authGate: Authorization header missing"],
+        }),
+    });
+
+    const result = await apiRequest("/api/payments/intents", {
+      method: "POST",
+      body: { email: "a@b.com" },
+      correlationId: "corr-debug",
+      fetchFn: fetchMock,
+    });
+
+    expect(result.error?.correlationId).toBe("corr-debug");
+    expect(result.error?.debugLogs).toEqual([
+      "authGate: Authorization header missing",
+    ]);
+  });
 });

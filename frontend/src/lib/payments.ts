@@ -37,7 +37,11 @@ export async function createPaymentIntent(
   email: string,
   planId = "subscription_monthly_basic",
   fetchFn?: typeof fetch
-): Promise<{ data: PaymentIntentResponse | null; correlationId: string }> {
+): Promise<{
+  data: PaymentIntentResponse | null;
+  correlationId: string;
+  error?: { message: string; debugLogs?: string[] };
+}> {
   const correlationId = createCorrelationId();
   await emitFlightLog(
     buildFlightLog("payments.intent", "started", correlationId, { email }),
@@ -64,7 +68,16 @@ export async function createPaymentIntent(
     fetchFn
   );
 
-  return { data: response.data ?? null, correlationId };
+  return {
+    data: response.data ?? null,
+    correlationId,
+    error: response.error
+      ? {
+          message: response.error.message,
+          debugLogs: response.error.debugLogs,
+        }
+      : undefined,
+  };
 }
 
 /** Polls payment status after PayPal redirects back. */

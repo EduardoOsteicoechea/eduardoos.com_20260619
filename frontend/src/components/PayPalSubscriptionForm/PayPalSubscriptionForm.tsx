@@ -39,11 +39,16 @@ export default function PayPalSubscriptionForm() {
     setIntentId("");
 
     try {
-      const { data } = await createPaymentIntent(email, PLAN_ID);
+      const { data, error } = await createPaymentIntent(email, PLAN_ID);
       if (!data) {
-        setError(
-          "Could not create payment intent. Register and verify your email first."
-        );
+        const lines = [
+          error?.message ??
+            "Could not create payment intent. Register and verify your email first.",
+        ];
+        if (error?.debugLogs?.length) {
+          lines.push(...error.debugLogs);
+        }
+        setError(lines.join("\n"));
         return;
       }
       setIntentId(data.intent_id);

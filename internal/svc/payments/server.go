@@ -4,6 +4,7 @@ package payments
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"eduardoos/pkg/authstore"
 	"eduardoos/pkg/common"
 
 	"github.com/go-chi/chi/v5"
@@ -81,35 +83,73 @@ func Run(addr string) error {
 }
 
 func (s *service) createIntent(w http.ResponseWriter, r *http.Request) {
+	cid := common.CorrelationFromRequest(r)
+	logs := []string{
+		"createIntent: handler started",
+		"createIntent: correlation_id=" + cid,
+	}
+
 	var body struct {
 		Email  string `json:"email"`
 		PlanID string `json:"plan_id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || !strings.Contains(body.Email, "@") {
-		common.WriteError(w, http.StatusBadRequest, "invalid email")
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		logs = append(logs, "createIntent: failed to decode JSON body", "createIntent: error="+err.Error())
+		log.Printf("[correlation=%s] createIntent decode failed: %v", cid, err)
+		common.WriteErrorWithDebug(w, http.StatusBadRequest, "invalid request body", cid, logs)
 		return
 	}
-	if !s.userVerified(r, body.Email) {
-		common.WriteError(w, http.StatusUnauthorized, "user not verified")
+
+	rawEmail := strings.TrimSpace(body.Email)
+	normalizedEmail := authstore.NormalizeEmail(rawEmail)
+	logs = append(logs,
+		"createIntent: raw_email="+rawEmail,
+		"createIntent: normalized_email="+normalizedEmail,
+		"createIntent: plan_id="+strings.TrimSpace(body.PlanID),
+	)
+
+	if !strings.Contains(normalizedEmail, "@") {
+		logs = append(logs, "createIntent: rejected invalid email after normalization")
+		log.Printf("[correlation=%s] createIntent invalid email raw=%q normalized=%q", cid, rawEmail, normalizedEmail)
+		common.WriteErrorWithDebug(w, http.StatusBadRequest, "invalid email", cid, logs)
 		return
 	}
-	plan := body.PlanID
+
+	verify := s.checkUserVerified(r, normalizedEmail)
+	logs = append(logs, verify.logs...)
+	if !verify.verified {
+		log.Printf("[correlation=%s] createIntent user not verified email=%s logs=%v", cid, normalizedEmail, logs)
+		common.WriteErrorWithDebug(w, http.StatusUnauthorized, "user not verified", cid, logs)
+		return
+	}
+
+	plan := strings.TrimSpace(body.PlanID)
 	if plan == "" {
 		plan = s.planID
+		logs = append(logs, "createIntent: plan_id empty, using default="+plan)
 	}
 	now := time.Now().UTC()
 	intent := paymentIntent{
-		IntentID: uuid.NewString(), UserEmail: body.Email, PlanID: plan,
+		IntentID: uuid.NewString(), UserEmail: normalizedEmail, PlanID: plan,
 		HostedButtonID: s.buttonID, Currency: "USD", Status: statusPending,
 		CreatedAt: now, UpdatedAt: now,
 	}
 	s.mu.Lock()
 	s.cache[intent.IntentID] = intent
 	s.mu.Unlock()
-	_ = s.saveIntent(r, intent)
+
+	if err := s.saveIntent(r, intent); err != nil {
+		logs = append(logs, "createIntent: intent created in memory but database save failed", "createIntent: save_error="+err.Error())
+		log.Printf("[correlation=%s] createIntent save failed intent=%s err=%v", cid, intent.IntentID, err)
+	} else {
+		logs = append(logs, "createIntent: intent persisted intent_id="+intent.IntentID)
+	}
+
+	log.Printf("[correlation=%s] createIntent success intent=%s email=%s plan=%s", cid, intent.IntentID, normalizedEmail, plan)
 	common.WriteJSON(w, http.StatusOK, map[string]any{
 		"intent_id": intent.IntentID, "email": intent.UserEmail, "plan_id": intent.PlanID,
 		"hosted_button_id": intent.HostedButtonID, "currency": intent.Currency,
+		"correlation_id": cid, "debug_logs": logs,
 	})
 }
 
@@ -183,23 +223,82 @@ func mapPayPalStatus(s string) paymentStatus {
 	}
 }
 
-func (s *service) userVerified(r *http.Request, email string) bool {
+type userVerifyResult struct {
+	verified bool
+	logs     []string
+}
+
+func (s *service) checkUserVerified(r *http.Request, email string) userVerifyResult {
 	cid := common.CorrelationFromRequest(r)
-	payload, _ := json.Marshal(map[string]string{"email": email})
-	req, _ := http.NewRequest(http.MethodPost, strings.TrimRight(s.authURL, "/")+"/user-exists", bytes.NewReader(payload))
+	logs := []string{
+		"checkUserVerified: starting lookup",
+		"checkUserVerified: email=" + email,
+	}
+
+	target := strings.TrimRight(s.authURL, "/") + "/user-exists"
+	logs = append(logs, "checkUserVerified: authenticator_url="+target)
+
+	payload, err := json.Marshal(map[string]string{"email": email})
+	if err != nil {
+		logs = append(logs, "checkUserVerified: failed to marshal request body", "checkUserVerified: error="+err.Error())
+		return userVerifyResult{verified: false, logs: logs}
+	}
+
+	req, err := http.NewRequest(http.MethodPost, target, bytes.NewReader(payload))
+	if err != nil {
+		logs = append(logs, "checkUserVerified: failed to build request", "checkUserVerified: error="+err.Error())
+		return userVerifyResult{verified: false, logs: logs}
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(common.CorrelationHeader, cid)
 	req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(s.secret, cid))
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return false
+		logs = append(logs,
+			"checkUserVerified: authenticator request failed",
+			"checkUserVerified: error="+err.Error(),
+		)
+		log.Printf("[correlation=%s] checkUserVerified request failed email=%s err=%v", cid, email, err)
+		return userVerifyResult{verified: false, logs: logs}
 	}
 	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	logs = append(logs,
+		"checkUserVerified: authenticator_status="+fmt.Sprintf("%d", resp.StatusCode),
+		"checkUserVerified: authenticator_body="+truncateBody(string(body), 240),
+	)
+
 	var out struct {
+		Exists   bool `json:"exists"`
 		Verified bool `json:"verified"`
 	}
-	_ = json.NewDecoder(resp.Body).Decode(&out)
-	return out.Verified
+	if err := json.Unmarshal(body, &out); err != nil {
+		logs = append(logs, "checkUserVerified: failed to decode authenticator response", "checkUserVerified: error="+err.Error())
+		return userVerifyResult{verified: false, logs: logs}
+	}
+
+	logs = append(logs,
+		"checkUserVerified: exists="+fmt.Sprintf("%t", out.Exists),
+		"checkUserVerified: verified="+fmt.Sprintf("%t", out.Verified),
+	)
+	if !out.Exists {
+		logs = append(logs, "checkUserVerified: user record not found for normalized email")
+	}
+	if out.Exists && !out.Verified {
+		logs = append(logs, "checkUserVerified: user exists but email is not verified")
+	}
+
+	return userVerifyResult{verified: out.Verified, logs: logs}
+}
+
+func truncateBody(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "…"
 }
 
 func (s *service) saveIntent(r *http.Request, intent paymentIntent) error {

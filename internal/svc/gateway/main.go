@@ -39,6 +39,8 @@ var publicPaths = []string{
 	"/api/media/file",
 	"/api/media/images",
 	"/api/pamphlets/images",
+	"/api/payments/intents",
+	"/api/payments/status",
 	"/api/payments/webhook/paypal",
 }
 
@@ -130,8 +132,14 @@ func authGate(next http.Handler) http.Handler {
 		}
 		auth := strings.TrimSpace(r.Header.Get("Authorization"))
 		if auth == "" {
-			log.Printf("[correlation=%s] authGate denied path=%s method=%s reason=missing_authorization", cid, r.URL.Path, r.Method)
-			common.WriteError(w, http.StatusUnauthorized, "authorization required")
+			logs := []string{
+				"authGate: request blocked before upstream handler",
+				"authGate: path=" + r.URL.Path + " method=" + r.Method,
+				"authGate: Authorization header missing",
+				"authGate: path is not in publicPaths allowlist",
+			}
+			log.Printf("[correlation=%s] authGate denied path=%s method=%s reason=missing_authorization logs=%v", cid, r.URL.Path, r.Method, logs)
+			common.WriteErrorWithDebug(w, http.StatusUnauthorized, "authorization required", cid, logs)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -329,14 +337,22 @@ func (c config) signedProxy(w http.ResponseWriter, r *http.Request, method, url,
 	if event != "" {
 		c.Telemetry.Emit(common.NewFlightLog(cid, "backend", event, "started"), cid)
 	}
+	var bodyBytes []byte
 	var body io.Reader
 	if method == http.MethodPost {
-		b, _ := io.ReadAll(r.Body)
-		body = bytes.NewReader(b)
+		bodyBytes, _ = io.ReadAll(r.Body)
+		body = bytes.NewReader(bodyBytes)
 	}
+	log.Printf("[correlation=%s] signedProxy start event=%s method=%s target=%s body_bytes=%d", cid, event, method, url, len(bodyBytes))
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
-		common.WriteError(w, http.StatusBadGateway, err.Error())
+		logs := []string{
+			"signedProxy: failed to build upstream request",
+			"signedProxy: target=" + url,
+			"signedProxy: error=" + err.Error(),
+		}
+		log.Printf("[correlation=%s] signedProxy build failed: %v", cid, err)
+		common.WriteErrorWithDebug(w, http.StatusBadGateway, err.Error(), cid, logs)
 		return
 	}
 	req.Header.Set(common.CorrelationHeader, cid)
@@ -346,14 +362,26 @@ func (c config) signedProxy(w http.ResponseWriter, r *http.Request, method, url,
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		common.WriteError(w, http.StatusBadGateway, err.Error())
+		logs := []string{
+			"signedProxy: upstream request failed",
+			"signedProxy: target=" + url,
+			"signedProxy: error=" + err.Error(),
+		}
+		log.Printf("[correlation=%s] signedProxy upstream error target=%s err=%v", cid, url, err)
+		common.WriteErrorWithDebug(w, http.StatusBadGateway, err.Error(), cid, logs)
 		return
 	}
 	defer resp.Body.Close()
 	out, _ := io.ReadAll(resp.Body)
+	log.Printf("[correlation=%s] signedProxy complete event=%s status=%d response=%s", cid, event, resp.StatusCode, truncateForLog(string(out), 480))
 	if event != "" {
-		c.Telemetry.Emit(common.NewFlightLog(cid, "backend", event, "success"), cid)
+		state := "success"
+		if resp.StatusCode >= 400 {
+			state = "error"
+		}
+		c.Telemetry.Emit(common.NewFlightLog(cid, "backend", event, state), cid)
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
 	_, _ = w.Write(out)
 }

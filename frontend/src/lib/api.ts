@@ -6,6 +6,8 @@
 export interface ApiError {
   message: string;
   status: number;
+  correlationId?: string;
+  debugLogs?: string[];
 }
 
 export interface ApiResponse<T> {
@@ -56,11 +58,19 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok) {
-    const message =
-      (data as { message?: string } | undefined)?.message ??
-      response.statusText;
+    const payload = data as {
+      message?: string;
+      correlation_id?: string;
+      debug_logs?: string[];
+    } | undefined;
+    const message = payload?.message ?? response.statusText;
     return {
-      error: { message, status: response.status },
+      error: {
+        message,
+        status: response.status,
+        correlationId: payload?.correlation_id,
+        debugLogs: payload?.debug_logs,
+      },
     };
   }
 
