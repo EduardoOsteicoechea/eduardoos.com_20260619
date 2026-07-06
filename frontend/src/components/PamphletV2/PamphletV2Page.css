@@ -17,7 +17,11 @@
 
 .pamphlet-v2-page__status {
   margin: 0.5rem 0 0;
-  padding: 0 0.75rem;
-  font-size: var(--font-sm);
+  padding: 0.55rem 1rem;
+  font-size: var(--font-md);
+  font-weight: 600;
+  line-height: 1.35;
   color: var(--site-body-fg);
+  border-bottom: var(--border_001);
+  background: var(--site-body-bg);
 }
