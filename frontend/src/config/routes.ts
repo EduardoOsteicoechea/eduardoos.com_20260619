@@ -46,5 +46,6 @@ export const PAYMENT_ROUTES = {
   intents: "/api/payments/intents",
   status: "/api/payments/status",
   entitlements: "/api/subscriptions/entitlements",
+  entitlementsPreview: "/api/subscriptions/entitlements/preview",
   webhook: "/api/payments/webhook/paypal",
 } as const;

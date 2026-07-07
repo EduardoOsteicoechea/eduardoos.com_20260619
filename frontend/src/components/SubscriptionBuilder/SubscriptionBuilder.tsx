@@ -2,11 +2,12 @@
  * SubscriptionBuilder.tsx — Pick services, see live pricing, and start PayPal checkout.
  */
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { isAuthenticated } from "../../lib/auth";
+import { getAuthEmailFromToken, isAuthenticated } from "../../lib/auth";
 import { APP_ROUTES } from "../../config/routes";
 import { getPaymentStatus, PAYPAL_BUTTON_IMAGE, PAYPAL_FORM_ACTION } from "../../lib/payments";
 import {
   createSubscriptionIntent,
+  fetchEntitlementsForEmail,
   fetchMyEntitlements,
   quoteSubscription,
   SUBSCRIPTION_SERVICES,
@@ -16,6 +17,10 @@ import {
 } from "../../lib/subscriptions";
 import { validateEmail } from "../../lib/validation";
 import "./SubscriptionBuilder.css";
+
+function entitlementMap(records: EntitlementRecord[]): Map<string, EntitlementRecord> {
+  return new Map(records.map((record) => [record.service_id, record]));
+}
 
 export default function SubscriptionBuilder() {
   const [email, setEmail] = useState("");
@@ -28,19 +33,55 @@ export default function SubscriptionBuilder() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const activeByService = useMemo(() => entitlementMap(entitlements), [entitlements]);
+  const activeServiceIds = useMemo(
+    () => new Set(entitlements.map((record) => record.service_id)),
+    [entitlements]
+  );
+  const purchasableSelected = useMemo(
+    () => selected.filter((serviceId) => !activeServiceIds.has(serviceId)),
+    [selected, activeServiceIds]
+  );
+
   const total = useMemo(
-    () => quoteSubscription(selected, billingPeriod),
-    [selected, billingPeriod]
+    () => quoteSubscription(purchasableSelected, billingPeriod),
+    [purchasableSelected, billingPeriod]
   );
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      return;
+    const sessionEmail = getAuthEmailFromToken();
+    if (sessionEmail) {
+      setEmail(sessionEmail);
     }
-    void fetchMyEntitlements().then(setEntitlements);
   }, []);
 
+  useEffect(() => {
+    const validationError = validateEmail(email);
+    setEmailError(validationError ?? "");
+    if (validationError) {
+      setEntitlements([]);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (isAuthenticated() && getAuthEmailFromToken() === email.trim().toLowerCase()) {
+        void fetchMyEntitlements().then(setEntitlements);
+        return;
+      }
+      void fetchEntitlementsForEmail(email).then(setEntitlements);
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [email]);
+
+  useEffect(() => {
+    setSelected((current) => current.filter((serviceId) => !activeServiceIds.has(serviceId)));
+  }, [activeServiceIds]);
+
   function toggleService(serviceId: string) {
+    if (activeServiceIds.has(serviceId)) {
+      return;
+    }
     setSelected((current) =>
       current.includes(serviceId)
         ? current.filter((id) => id !== serviceId)
@@ -58,8 +99,12 @@ export default function SubscriptionBuilder() {
     if (validationError) {
       return;
     }
-    if (selected.length === 0) {
-      setError("Select at least one service.");
+    if (purchasableSelected.length === 0) {
+      setError(
+        activeServiceIds.size > 0
+          ? "You are already subscribed to the selected services."
+          : "Select at least one service."
+      );
       return;
     }
 
@@ -71,7 +116,7 @@ export default function SubscriptionBuilder() {
     try {
       const { data, error: apiError } = await createSubscriptionIntent(
         email,
-        selected,
+        purchasableSelected,
         billingPeriod
       );
       if (!data) {
@@ -105,13 +150,17 @@ export default function SubscriptionBuilder() {
         return;
       }
       setMessage(`Payment status: ${status.status}`);
-      if (isAuthenticated()) {
-        setEntitlements(await fetchMyEntitlements());
+      if (validateEmail(email)) {
+        setEntitlements(await fetchEntitlementsForEmail(email));
       }
     } finally {
       setLoading(false);
     }
   }
+
+  const allServicesActive = SUBSCRIPTION_SERVICES.every((service) =>
+    activeServiceIds.has(service.id)
+  );
 
   return (
     <div className="subscription-builder panel">
@@ -146,22 +195,31 @@ export default function SubscriptionBuilder() {
 
       <div className="subscription-builder__services">
         {SUBSCRIPTION_SERVICES.map((service) => {
-          const checked = selected.includes(service.id);
+          const active = activeByService.get(service.id);
+          const isActive = Boolean(active);
+          const checked = !isActive && selected.includes(service.id);
           const unit = billingPeriod === "yearly" ? 10 : 1;
           return (
             <label
               key={service.id}
-              className={`subscription-builder__service ${checked ? "subscription-builder__service--selected" : ""}`}
+              className={`subscription-builder__service ${checked ? "subscription-builder__service--selected" : ""}${isActive ? " subscription-builder__service--active" : ""}`}
             >
               <input
                 type="checkbox"
                 checked={checked}
+                disabled={isActive}
                 onChange={() => toggleService(service.id)}
               />
               <span className="subscription-builder__service-copy">
                 <strong>{service.label}</strong>
                 <span>{service.description}</span>
-                <span className="subscription-builder__service-price">${unit}/period</span>
+                {isActive ? (
+                  <span className="subscription-builder__service-status">
+                    Subscribed until {new Date(active!.valid_until).toLocaleString()}
+                  </span>
+                ) : (
+                  <span className="subscription-builder__service-price">${unit}/period</span>
+                )}
               </span>
             </label>
           );
@@ -186,7 +244,11 @@ export default function SubscriptionBuilder() {
           {emailError && <span className="field-error">{emailError}</span>}
         </div>
         <div className="panel__actions">
-          <button className="btn btn--primary" type="submit" disabled={loading || selected.length === 0}>
+          <button
+            className="btn btn--primary"
+            type="submit"
+            disabled={loading || purchasableSelected.length === 0 || allServicesActive}
+          >
             {loading ? "Preparing…" : "Prepare checkout"}
           </button>
           {intent && (

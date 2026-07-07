@@ -27,6 +27,16 @@
   box-shadow: 0 0 0 1px var(--site-accent);
 }
 
+.subscription-builder__service--active {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.subscription-builder__service-status {
+  color: var(--site-accent);
+  font-size: 0.95rem;
+}
+
 .subscription-builder__service input {
   margin-top: 0.2rem;
 }

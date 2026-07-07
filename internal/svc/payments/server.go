@@ -141,6 +141,28 @@ func (s *service) createIntent(w http.ResponseWriter, r *http.Request) {
 		if billingPeriod == "" {
 			billingPeriod = subscriptions.BillingMonthly
 		}
+		serviceIDs, _ = subscriptions.NormalizeServiceIDs(serviceIDs)
+		activeRecords, entErr := s.entitlements.GetEntitlements(r.Context(), normalizedEmail, cid)
+		if entErr != nil {
+			logs = append(logs, "createIntent: entitlement lookup failed", "createIntent: error="+entErr.Error())
+			common.WriteErrorWithDebug(w, http.StatusBadGateway, "could not verify subscriptions", cid, logs)
+			return
+		}
+		active := ddb.ActiveEntitlements(activeRecords, time.Now().UTC())
+		activeIDs := make([]string, 0, len(active))
+		for _, record := range active {
+			activeIDs = append(activeIDs, record.ServiceID)
+		}
+		allowed, blocked, filterErr := subscriptions.FilterPurchasable(serviceIDs, activeIDs)
+		if filterErr != nil {
+			logs = append(logs, "createIntent: all requested services already active", "createIntent: blocked="+strings.Join(blocked, ","))
+			common.WriteErrorWithDebug(w, http.StatusConflict, filterErr.Error(), cid, logs)
+			return
+		}
+		if len(blocked) > 0 {
+			logs = append(logs, "createIntent: skipped already active services="+strings.Join(blocked, ","))
+		}
+		serviceIDs = allowed
 		total, quotedName, quoteErr := subscriptions.Quote(serviceIDs, billingPeriod)
 		if quoteErr != nil {
 			logs = append(logs, "createIntent: quote failed", "createIntent: error="+quoteErr.Error())
@@ -150,7 +172,6 @@ func (s *service) createIntent(w http.ResponseWriter, r *http.Request) {
 		productName = quotedName
 		expectedAmount = fmt.Sprintf("%.2f", total)
 		plan = "subscription_custom_" + billingPeriod
-		serviceIDs, _ = subscriptions.NormalizeServiceIDs(serviceIDs)
 		logs = append(logs,
 			"createIntent: services="+strings.Join(serviceIDs, ","),
 			"createIntent: billing_period="+billingPeriod,

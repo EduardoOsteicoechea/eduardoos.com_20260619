@@ -42,6 +42,7 @@ var publicPaths = []string{
 	"/api/payments/intents",
 	"/api/payments/status",
 	"/api/payments/webhook/paypal",
+	"/api/subscriptions/entitlements/preview",
 }
 
 func isPublic(path string) bool {

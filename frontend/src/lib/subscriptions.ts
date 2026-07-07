@@ -6,6 +6,7 @@ import { apiRequest } from "./api";
 import { getAuthToken } from "./auth";
 import { PAYMENT_ROUTES } from "../config/routes";
 import { createCorrelationId } from "./telemetry";
+import { validateEmail } from "./validation";
 
 export const SUBSCRIPTION_SERVICES = [
   {
@@ -94,6 +95,21 @@ export async function createSubscriptionIntent(
         }
       : undefined,
   };
+}
+
+/** Returns active entitlements for a verified registered email. */
+export async function fetchEntitlementsForEmail(
+  email: string
+): Promise<EntitlementRecord[]> {
+  if (validateEmail(email)) {
+    return [];
+  }
+  const correlationId = createCorrelationId();
+  const response = await apiRequest<{ entitlements: EntitlementRecord[] }>(
+    `${PAYMENT_ROUTES.entitlementsPreview}?email=${encodeURIComponent(email)}`,
+    { correlationId }
+  );
+  return response.data?.entitlements ?? [];
 }
 
 /** Returns active entitlements for the signed-in user. */

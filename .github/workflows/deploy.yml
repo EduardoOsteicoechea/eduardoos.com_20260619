@@ -84,6 +84,8 @@ jobs:
           DOMAIN: ${{ secrets.DOMAIN }}
           CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
           PAYPAL_HOSTED_BUTTON_ID: ${{ secrets.PAYPAL_HOSTED_BUTTON_ID != '' && secrets.PAYPAL_HOSTED_BUTTON_ID || 'QEVGD66SG7LXN' }}
+          PAYPAL_BUSINESS_EMAIL: ${{ secrets.PAYPAL_BUSINESS_EMAIL }}
+          PAYPAL_CHECKOUT_URL: ${{ secrets.PAYPAL_CHECKOUT_URL != '' && secrets.PAYPAL_CHECKOUT_URL || 'https://www.paypal.com/cgi-bin/webscr' }}
           PAYPAL_IPN_VERIFY_URL: ${{ secrets.PAYPAL_IPN_VERIFY_URL != '' && secrets.PAYPAL_IPN_VERIFY_URL || 'https://ipnpb.paypal.com/cgi-bin/webscr' }}
         run: |
           {
@@ -94,6 +96,8 @@ jobs:
             printf 'DOMAIN=%s\n' "$DOMAIN"
             printf 'CERTBOT_EMAIL=%s\n' "$CERTBOT_EMAIL"
             printf 'PAYPAL_HOSTED_BUTTON_ID=%s\n' "$PAYPAL_HOSTED_BUTTON_ID"
+            printf 'PAYPAL_BUSINESS_EMAIL=%s\n' "$PAYPAL_BUSINESS_EMAIL"
+            printf 'PAYPAL_CHECKOUT_URL=%s\n' "$PAYPAL_CHECKOUT_URL"
             printf 'PAYPAL_IPN_VERIFY_URL=%s\n' "$PAYPAL_IPN_VERIFY_URL"
             printf 'AWS_REGION=us-east-1\n'
             printf 'S3_BUCKET=eduardoos20260607\n'
@@ -101,6 +105,15 @@ jobs:
             printf 'S3_BACKEND=aws\n'
             printf 'DATABASE_BACKEND=dynamodb\n'
             printf 'DYNAMODB_TABLE_PREFIX=eduardoos\n'
+            printf 'TELEMETRY_BACKEND=dynamodb\n'
+            printf 'TESTER_BACKEND=dynamodb\n'
+            printf 'PLAYLISTS_BACKEND=dynamodb\n'
+            printf 'PLAYLISTS_TABLE=eduardoos_playlists\n'
+            printf 'PAYMENTS_BACKEND=dynamodb\n'
+            printf 'PAYMENTS_TABLE=eduardoos_payments\n'
+            printf 'ENTITLEMENTS_BACKEND=dynamodb\n'
+            printf 'ENTITLEMENTS_TABLE=eduardoos_entitlements\n'
+            printf 'S3_AUDIO_PREFIX=worship_playlists\n'
           } > .env.production
 
       - name: Prepare EC2 app directory

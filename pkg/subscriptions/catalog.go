@@ -130,3 +130,26 @@ func LabelForService(id string) string {
 	}
 	return id
 }
+
+// FilterPurchasable removes services the user already has active subscriptions for.
+func FilterPurchasable(requested, active []string) (allowed []string, blocked []string, err error) {
+	normalized, err := NormalizeServiceIDs(requested)
+	if err != nil {
+		return nil, nil, err
+	}
+	activeSet := map[string]bool{}
+	for _, id := range active {
+		activeSet[id] = true
+	}
+	for _, id := range normalized {
+		if activeSet[id] {
+			blocked = append(blocked, id)
+			continue
+		}
+		allowed = append(allowed, id)
+	}
+	if len(allowed) == 0 {
+		return nil, blocked, fmt.Errorf("already subscribed to the selected services")
+	}
+	return allowed, blocked, nil
+}
