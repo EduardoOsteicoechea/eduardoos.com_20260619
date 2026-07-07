@@ -23,6 +23,7 @@ export default function PayPalSubscriptionForm() {
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [intentId, setIntentId] = useState("");
+  const [checkoutUrl, setCheckoutUrl] = useState(PAYPAL_FORM_ACTION);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,6 +38,7 @@ export default function PayPalSubscriptionForm() {
     setError("");
     setMessage("");
     setIntentId("");
+    setCheckoutUrl(PAYPAL_FORM_ACTION);
 
     try {
       const { data, error } = await createPaymentIntent(email, PLAN_ID);
@@ -52,6 +54,7 @@ export default function PayPalSubscriptionForm() {
         return;
       }
       setIntentId(data.intent_id);
+      setCheckoutUrl(data.paypal_checkout_url || PAYPAL_FORM_ACTION);
       setMessage(
         `Intent ${data.intent_id} created for ${data.email}. Complete checkout with PayPal below.`
       );
@@ -125,7 +128,7 @@ export default function PayPalSubscriptionForm() {
       {intentId && (
         <form
           className="paypal-subscription__checkout"
-          action={PAYPAL_FORM_ACTION}
+          action={checkoutUrl}
           method="post"
           target="_top"
         >

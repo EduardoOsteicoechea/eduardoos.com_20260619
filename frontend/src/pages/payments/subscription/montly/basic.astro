@@ -1,11 +1,22 @@
 ---
-import BaseLayout from "../../../../layouts/BaseLayout.astro";
-import PayPalSubscriptionForm from "../../../../components/PayPalSubscriptionForm/PayPalSubscriptionForm";
-import "../../../observability/observability.css";
----
+import { APP_ROUTES } from "../../../../config/routes";
 
-<BaseLayout title="Monthly Basic Subscription — Eduardo Osteicoechea">
-  <div class="page-shell">
-    <PayPalSubscriptionForm client:load />
-  </div>
-</BaseLayout>
+const target = APP_ROUTES.subscription;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content={`0;url=${target}`} />
+    <link rel="canonical" href={target} />
+    <title>Redirecting to subscription…</title>
+    <script is:inline define:vars={{ target }}>
+      window.location.replace(target);
+    </script>
+  </head>
+  <body>
+    <p>
+      Redirecting to <a href={target}>Build your subscription</a>…
+    </p>
+  </body>
+</html>

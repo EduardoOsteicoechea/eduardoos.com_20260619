@@ -203,7 +203,7 @@ export default function SubscriptionBuilder() {
       {intent && (
         <form
           className="subscription-builder__checkout"
-          action={PAYPAL_FORM_ACTION}
+          action={intent.paypal_checkout_url || PAYPAL_FORM_ACTION}
           method="post"
           target="_top"
         >

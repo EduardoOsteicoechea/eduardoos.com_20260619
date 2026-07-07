@@ -81,6 +81,14 @@ function AccountMenu({ initial, profileImageUrl, onLogout }: AccountMenuProps) {
           <a
             className="site-header__account-menu-item"
             role="menuitem"
+            href={APP_ROUTES.subscription}
+            onClick={() => setOpen(false)}
+          >
+            Subscribe
+          </a>
+          <a
+            className="site-header__account-menu-item"
+            role="menuitem"
             href={APP_ROUTES.profile}
             onClick={() => setOpen(false)}
           >

@@ -125,6 +125,7 @@ docker compose up -d --build
 | `ENTITLEMENTS_BACKEND` | `memory` | `dynamodb` |
 | `ENTITLEMENTS_TABLE` | `eduardoos_entitlements` | same |
 | `PAYPAL_BUSINESS_EMAIL` | empty | your PayPal seller email for variable checkout amounts |
+| `PAYPAL_CHECKOUT_URL` | `https://www.paypal.com/cgi-bin/webscr` | `https://www.sandbox.paypal.com/cgi-bin/webscr` for sandbox tests |
 | `S3_AUDIO_PREFIX` | `worship_playlists` | same |
 
 ## 7. Verify AWS access from EC2

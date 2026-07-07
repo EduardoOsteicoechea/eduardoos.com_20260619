@@ -37,6 +37,7 @@ type service struct {
 	authURL           string
 	telemetry         *common.TelemetryClient
 	paypalVerify      string
+	paypalCheckoutURL string
 	paypalBusiness    string
 	buttonID          string
 	planID            string
@@ -59,8 +60,9 @@ func Run(addr string) error {
 		secret:         secret,
 		authURL:        common.Env("AUTHENTICATOR_URL", "http://authenticator:3000"),
 		telemetry:      common.NewTelemetryClient(common.Env("TELEMETRY_URL", "http://telemetry:3000"), secret),
-		paypalVerify:   common.Env("PAYPAL_IPN_VERIFY_URL", "https://ipnpb.paypal.com/cgi-bin/webscr"),
-		paypalBusiness: common.Env("PAYPAL_BUSINESS_EMAIL", ""),
+		paypalVerify:    common.Env("PAYPAL_IPN_VERIFY_URL", "https://ipnpb.paypal.com/cgi-bin/webscr"),
+		paypalCheckoutURL: common.Env("PAYPAL_CHECKOUT_URL", "https://www.paypal.com/cgi-bin/webscr"),
+		paypalBusiness:  common.Env("PAYPAL_BUSINESS_EMAIL", ""),
 		buttonID:       common.Env("PAYPAL_HOSTED_BUTTON_ID", "QEVGD66SG7LXN"),
 		planID:         common.Env("PAYPAL_PLAN_ID", "subscription_monthly_basic"),
 	}
@@ -202,6 +204,7 @@ func (s *service) createIntent(w http.ResponseWriter, r *http.Request) {
 		"currency": saved.Currency, "created_at": saved.CreatedAt,
 		"services": saved.Services, "billing_period": saved.BillingPeriod,
 		"amount": saved.ExpectedAmount, "paypal_checkout_mode": checkoutMode,
+		"paypal_checkout_url": s.paypalCheckoutURL,
 		"paypal_business": s.paypalBusiness,
 		"correlation_id": cid, "debug_logs": logs,
 	})

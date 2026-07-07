@@ -16,6 +16,11 @@ export interface PaymentIntentResponse {
   plan_id: string;
   hosted_button_id: string;
   currency: string;
+  paypal_checkout_url?: string;
+  paypal_checkout_mode?: "xclick" | "hosted";
+  paypal_business?: string;
+  amount?: string;
+  product_name?: string;
 }
 
 export interface PaymentStatusResponse {

@@ -41,6 +41,7 @@ export interface PaymentIntentResponse {
   services: string[];
   billing_period: BillingPeriod;
   paypal_checkout_mode: "xclick" | "hosted";
+  paypal_checkout_url?: string;
   paypal_business?: string;
   created_at?: string;
 }
