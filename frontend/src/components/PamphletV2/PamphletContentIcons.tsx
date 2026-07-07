@@ -1,4 +1,5 @@
 /** PamphletContentIcons.tsx — Icon-only glyphs for content item actions. */
+import { ACTIVITY_BAR_ICON_CLASS } from "./activityBarIcon";
 
 export function IconContentType() {
   return (
@@ -66,7 +67,7 @@ export function IconImageShorter() {
 
 export function IconFontSize() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <svg className={ACTIVITY_BAR_ICON_CLASS} viewBox="0 0 24 24" aria-hidden="true">
       <path fill="currentColor" d="M4 18V8h2v10H4zm12 0V8h2v10h-2zM9 4h6l5 16h-2.6l-1.2-4H7.8l-1.2 4H4L9 4zm2.2 10h3.6L12 7.8 11.2 14z" />
     </svg>
   );

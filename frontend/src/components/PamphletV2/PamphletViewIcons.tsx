@@ -1,95 +1,86 @@
 /**
- * PamphletViewIcons.tsx — Activity bar icons for preview viewport tools.
+ * PamphletViewIcons.tsx — Filled activity bar icons for preview viewport tools.
  */
+import type { ReactNode } from "react";
+import { ACTIVITY_BAR_ICON_CLASS } from "./activityBarIcon";
+
+function Icon({ children }: { children: ReactNode }) {
+  return (
+    <svg className={ACTIVITY_BAR_ICON_CLASS} viewBox="0 0 24 24" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
 
 export function IconZoomIn() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="11" y1="8" x2="11" y2="14" stroke="currentColor" strokeWidth="2" />
-      <line x1="8" y1="11" x2="14" y2="11" stroke="currentColor" strokeWidth="2" />
-      <line x1="16.5" y1="16.5" x2="20" y2="20" stroke="currentColor" strokeWidth="2" />
-    </svg>
+    <Icon>
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M10.5 3a7.5 7.5 0 015.3 12.8L21 21l-1.4 1.4-5.2-5.2A7.5 7.5 0 1110.5 3zm0 2a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM10 9h2v4h-2V9zm0-2h2v2h-2V7z"
+      />
+    </Icon>
   );
 }
 
 export function IconZoomOut() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="8" y1="11" x2="14" y2="11" stroke="currentColor" strokeWidth="2" />
-      <line x1="16.5" y1="16.5" x2="20" y2="20" stroke="currentColor" strokeWidth="2" />
-    </svg>
+    <Icon>
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M10.5 3a7.5 7.5 0 015.3 12.8L21 21l-1.4 1.4-5.2-5.2A7.5 7.5 0 1110.5 3zm0 2a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM9 10h5v2H9v-2z"
+      />
+    </Icon>
   );
 }
 
 export function IconDragMove() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <Icon>
       <path
-        d="M12 3v18M3 12h18M7 7l5-4 5 4M7 17l5 4 5-4M7 7l-4 5 4 5M17 7l4 5-4 5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        fill="currentColor"
+        d="M11 3h2v6h6v2h-6v6h-2v-6H5v-2h6V3zm-6 8h2v2H5v-2zm14 0h2v2h-2v-2zm-7 7h2v2h-2v-2z"
       />
-    </svg>
+    </Icon>
   );
 }
 
 export function IconOpenFolder() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <Icon>
       <path
-        d="M3 7.5h6l2 2h10v9.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7.5z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
+        fill="currentColor"
+        d="M3 7h7l2 2h9v10H3V7zm2 2v8h14V9h-8l-2-2H5z"
       />
-      <path d="M3 7.5V6a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
+    </Icon>
   );
 }
 
 export function IconSaveCloud() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <Icon>
       <path
-        d="M7 17.5h10M12 4v9"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
+        fill="currentColor"
+        d="M8 18h8v2H8v-2zm4-14l4 4h-3v5h-2V8H8l4-4zm-4.5 6A4.5 4.5 0 0012 19h1a5 5 0 10-5.5-5z"
       />
-      <path
-        d="M8.5 19.5h7a4 4 0 0 0 .8-7.92A5.5 5.5 0 0 0 6.2 9.7 4.5 4.5 0 0 0 8.5 19.5z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
+    </Icon>
   );
 }
 
 export function IconImmersiveEdit() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <rect x="6" y="4" width="12" height="4" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="6" y="10" width="12" height="4" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="6" y="16" width="12" height="4" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
+    <Icon>
+      <path fill="currentColor" d="M6 4h12v4H6V4zm0 6h12v4H6v-4zm0 6h12v4H6v-4z" />
+    </Icon>
   );
 }
 
 export function IconPreviewLayout() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <rect x="3" y="5" width="18" height="14" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" strokeWidth="1.25" />
-      <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" strokeWidth="1.25" />
-    </svg>
+    <Icon>
+      <path fill="currentColor" d="M3 5h18v14H3V5zm2 2v10h14V7H5zM12 7v10h-2V7h2zm0 0h7v2h-7V7zm0 4h7v2h-7v-2z" />
+    </Icon>
   );
 }

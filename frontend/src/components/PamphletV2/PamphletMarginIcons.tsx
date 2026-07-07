@@ -1,62 +1,68 @@
 /**
- * PamphletMarginIcons.tsx — Simple SVG icons for margin activity-bar buttons.
+ * PamphletMarginIcons.tsx — Filled SVG icons for margin activity-bar buttons.
  */
+import type { ReactNode } from "react";
+import { ACTIVITY_BAR_ICON_CLASS } from "./activityBarIcon";
+
+function Icon({ children }: { children: ReactNode }) {
+  return (
+    <svg className={ACTIVITY_BAR_ICON_CLASS} viewBox="0 0 24 24" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
 
 export function IconMarginTop() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <rect x="4" y="4" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="4" y1="8" x2="20" y2="8" stroke="currentColor" strokeWidth="2" />
-    </svg>
+    <Icon>
+      <path
+        fill="currentColor"
+        d="M4 4h16v3H4V4zm0 3h2v13H4V7zm14 0h2v13h-2V7zm-12 0h12v2H6V7zm0 11h12v2H6v-2z"
+      />
+    </Icon>
   );
 }
 
 export function IconMarginBottom() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <rect x="4" y="4" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="4" y1="16" x2="20" y2="16" stroke="currentColor" strokeWidth="2" />
-    </svg>
+    <Icon>
+      <path
+        fill="currentColor"
+        d="M4 4h2v13H4V4zm14 0h2v13h-2V4zm-12 0h12v2H6V4zm0 11h12v3H6v-3z"
+      />
+    </Icon>
   );
 }
 
 export function IconMarginExternal() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <rect x="7" y="4" width="10" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="4" y1="4" x2="4" y2="20" stroke="currentColor" strokeWidth="2" />
-      <line x1="20" y1="4" x2="20" y2="20" stroke="currentColor" strokeWidth="2" />
-    </svg>
+    <Icon>
+      <path fill="currentColor" d="M4 4h3v16H4V4zm13 0h3v16h-3V4zM7 6h10v12H7V6z" />
+    </Icon>
   );
 }
 
 export function IconMarginInternal() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 2" />
-      <rect x="5" y="6" width="5" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="14" y="6" width="5" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
+    <Icon>
+      <path fill="currentColor" d="M4 6h8v12H4V6zm12 0h8v12h-8V6zM11 4h2v16h-2V4z" />
+    </Icon>
   );
 }
 
 export function IconColumnSep() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <rect x="4" y="4" width="7" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="13" y="4" width="7" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="11.5" y1="4" x2="11.5" y2="20" stroke="currentColor" strokeWidth="2" />
-    </svg>
+    <Icon>
+      <path fill="currentColor" d="M4 4h7v16H4V4zm13 0h7v16h-7V4zM10 4h4v16h-4V4z" />
+    </Icon>
   );
 }
 
 export function IconRowSep() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-      <rect x="4" y="4" width="16" height="7" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="4" y="13" width="16" height="7" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="4" y1="11.5" x2="20" y2="11.5" stroke="currentColor" strokeWidth="2" />
-    </svg>
+    <Icon>
+      <path fill="currentColor" d="M4 4h16v7H4V4zm0 13h16v7H4v-7zM4 10h16v4H4v-4z" />
+    </Icon>
   );
 }
 
@@ -70,6 +76,6 @@ const MARGIN_ICONS = {
 } as const;
 
 export function marginSettingIcon(key: keyof typeof MARGIN_ICONS) {
-  const Icon = MARGIN_ICONS[key];
-  return <Icon />;
+  const IconComponent = MARGIN_ICONS[key];
+  return <IconComponent />;
 }

@@ -57,12 +57,12 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 35px;
-  height: 35px;
-  min-width: 35px;
-  min-height: 35px;
-  max-width: 35px;
-  max-height: 35px;
+  width: var(--control_min_height);
+  height: var(--control_min_height);
+  min-width: var(--control_min_height);
+  min-height: var(--control_min_height);
+  max-width: var(--control_min_height);
+  max-height: var(--control_min_height);
   padding: 0;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
@@ -73,10 +73,12 @@
   cursor: pointer;
 }
 
-.site-activity-bar__btn svg {
-  width: 17px;
-  height: 17px;
+.site-activity-bar__btn svg,
+.site-activity-bar__btn .activity-bar-icon {
+  width: 58%;
+  height: 58%;
   display: block;
+  flex-shrink: 0;
 }
 
 .site-activity-bar__btn:hover:not(:disabled) {
@@ -118,12 +120,12 @@
   }
 
   .site-activity-bar__btn {
-    width: 35px;
-    height: 40px;
-    min-width: 35px;
-    min-height: 40px;
-    max-width: 35px;
-    max-height: 40px;
+    width: var(--control_min_height);
+    height: var(--control_min_height);
+    min-width: var(--control_min_height);
+    min-height: var(--control_min_height);
+    max-width: var(--control_min_height);
+    max-height: var(--control_min_height);
   }
 
   .site-activity-bar__mobile-primary {
