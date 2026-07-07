@@ -3,6 +3,7 @@ package payments
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,9 +11,9 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
+	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/authstore"
 	"eduardoos/pkg/common"
 
@@ -21,32 +22,16 @@ import (
 	"github.com/google/uuid"
 )
 
-type paymentStatus string
-
 const (
-	statusPending   paymentStatus = "pending"
-	statusCompleted paymentStatus = "completed"
-	statusFailed    paymentStatus = "failed"
-	statusCancelled paymentStatus = "cancelled"
+	statusPending   = "pending"
+	statusCompleted = "completed"
+	statusFailed    = "failed"
+	statusCancelled = "cancelled"
 )
 
-type paymentIntent struct {
-	IntentID       string        `json:"intent_id"`
-	UserEmail      string        `json:"user_email"`
-	PlanID         string        `json:"plan_id"`
-	HostedButtonID string        `json:"hosted_button_id"`
-	Currency       string        `json:"currency"`
-	Status         paymentStatus `json:"status"`
-	PayPalTxnID    *string       `json:"paypal_txn_id"`
-	CreatedAt      time.Time     `json:"created_at"`
-	UpdatedAt      time.Time     `json:"updated_at"`
-}
-
 type service struct {
-	mu           sync.RWMutex
-	cache        map[string]paymentIntent
+	payments     ddb.PaymentStore
 	secret       string
-	databaseURL  string
 	authURL      string
 	telemetry    *common.TelemetryClient
 	paypalVerify string
@@ -55,11 +40,15 @@ type service struct {
 }
 
 func Run(addr string) error {
+	ctx := context.Background()
 	secret := common.Env("INTERNAL_SERVICE_SECRET", "dev-internal-secret")
+	paymentStore, err := ddb.NewPaymentStore(ctx)
+	if err != nil {
+		return err
+	}
 	svc := &service{
-		cache:        map[string]paymentIntent{},
+		payments:     paymentStore,
 		secret:       secret,
-		databaseURL:  common.Env("DATABASE_URL", "http://database:3000"),
 		authURL:      common.Env("AUTHENTICATOR_URL", "http://authenticator:3000"),
 		telemetry:    common.NewTelemetryClient(common.Env("TELEMETRY_URL", "http://telemetry:3000"), secret),
 		paypalVerify: common.Env("PAYPAL_IPN_VERIFY_URL", "https://ipnpb.paypal.com/cgi-bin/webscr"),
@@ -70,15 +59,18 @@ func Run(addr string) error {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Get("/health", common.HealthHandler("payments", nil))
+	r.Get("/health", common.HealthHandler("payments", map[string]any{
+		"payments_backend": paymentStore.BackendName(),
+	}))
 	r.Post("/webhook/paypal", svc.paypalIPN)
 	r.Group(func(r chi.Router) {
 		r.Use(common.InternalAuthMiddleware(secret))
 		r.Post("/intents", svc.createIntent)
 		r.Get("/status/{intentID}", svc.getStatus)
+		r.Get("/by-user/{email}", svc.listByUser)
 	})
 
-	log.Printf("payments listening on %s", addr)
+	log.Printf("payments listening on %s (payments_backend=%s)", addr, paymentStore.BackendName())
 	return http.ListenAndServe(addr, r)
 }
 
@@ -87,6 +79,7 @@ func (s *service) createIntent(w http.ResponseWriter, r *http.Request) {
 	logs := []string{
 		"createIntent: handler started",
 		"createIntent: correlation_id=" + cid,
+		"createIntent: payments_backend=" + s.payments.BackendName(),
 	}
 
 	var body struct {
@@ -128,52 +121,101 @@ func (s *service) createIntent(w http.ResponseWriter, r *http.Request) {
 		plan = s.planID
 		logs = append(logs, "createIntent: plan_id empty, using default="+plan)
 	}
-	now := time.Now().UTC()
-	intent := paymentIntent{
-		IntentID: uuid.NewString(), UserEmail: normalizedEmail, PlanID: plan,
-		HostedButtonID: s.buttonID, Currency: "USD", Status: statusPending,
-		CreatedAt: now, UpdatedAt: now,
-	}
-	s.mu.Lock()
-	s.cache[intent.IntentID] = intent
-	s.mu.Unlock()
 
-	if err := s.saveIntent(r, intent); err != nil {
-		logs = append(logs, "createIntent: intent created in memory but database save failed", "createIntent: save_error="+err.Error())
-		log.Printf("[correlation=%s] createIntent save failed intent=%s err=%v", cid, intent.IntentID, err)
-	} else {
-		logs = append(logs, "createIntent: intent persisted intent_id="+intent.IntentID)
+	record := ddb.PaymentRecord{
+		IntentID:       uuid.NewString(),
+		UserEmail:      normalizedEmail,
+		PlanID:         plan,
+		ProductName:    ddb.ProductNameForPlan(plan),
+		Status:         statusPending,
+		HostedButtonID: s.buttonID,
+		Currency:       "USD",
 	}
+	saved, err := s.payments.SavePayment(r.Context(), record, cid)
+	if err != nil {
+		logs = append(logs, "createIntent: payment store save failed", "createIntent: save_error="+err.Error())
+		log.Printf("[correlation=%s] createIntent save failed intent=%s err=%v", cid, record.IntentID, err)
+		common.WriteErrorWithDebug(w, http.StatusBadGateway, "could not save payment record", cid, logs)
+		return
+	}
+	logs = append(logs,
+		"createIntent: payment record persisted intent_id="+saved.IntentID,
+		"createIntent: product_name="+saved.ProductName,
+		"createIntent: created_at="+saved.CreatedAt,
+	)
 
-	log.Printf("[correlation=%s] createIntent success intent=%s email=%s plan=%s", cid, intent.IntentID, normalizedEmail, plan)
+	log.Printf("[correlation=%s] createIntent success intent=%s email=%s plan=%s product=%s",
+		cid, saved.IntentID, normalizedEmail, plan, saved.ProductName)
 	common.WriteJSON(w, http.StatusOK, map[string]any{
-		"intent_id": intent.IntentID, "email": intent.UserEmail, "plan_id": intent.PlanID,
-		"hosted_button_id": intent.HostedButtonID, "currency": intent.Currency,
+		"intent_id": saved.IntentID, "email": saved.UserEmail, "plan_id": saved.PlanID,
+		"product_name": saved.ProductName, "hosted_button_id": saved.HostedButtonID,
+		"currency": saved.Currency, "created_at": saved.CreatedAt,
 		"correlation_id": cid, "debug_logs": logs,
 	})
 }
 
 func (s *service) getStatus(w http.ResponseWriter, r *http.Request) {
+	cid := common.CorrelationFromRequest(r)
 	id := chi.URLParam(r, "intentID")
-	s.mu.RLock()
-	intent, ok := s.cache[id]
-	s.mu.RUnlock()
-	if !ok {
-		if loaded, found := s.loadIntent(r, id); found {
-			intent, ok = loaded, true
-		}
+	record, ok, err := s.payments.GetPaymentByIntentID(r.Context(), id, cid)
+	if err != nil {
+		common.WriteError(w, http.StatusBadGateway, err.Error())
+		return
 	}
 	if !ok {
 		common.WriteError(w, http.StatusNotFound, "intent not found")
 		return
 	}
+	common.WriteJSON(w, http.StatusOK, paymentResponse(record))
+}
+
+func (s *service) listByUser(w http.ResponseWriter, r *http.Request) {
+	cid := common.CorrelationFromRequest(r)
+	email := authstore.NormalizeEmail(chi.URLParam(r, "email"))
+	if !strings.Contains(email, "@") {
+		common.WriteError(w, http.StatusBadRequest, "invalid email")
+		return
+	}
+	records, err := s.payments.GetPaymentsByUserEmail(r.Context(), email, cid)
+	if err != nil {
+		common.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	out := make([]map[string]any, 0, len(records))
+	for _, record := range records {
+		out = append(out, paymentResponse(record))
+	}
 	common.WriteJSON(w, http.StatusOK, map[string]any{
-		"intent_id": intent.IntentID, "email": intent.UserEmail, "plan_id": intent.PlanID,
-		"status": intent.Status, "paypal_txn_id": intent.PayPalTxnID,
+		"email":    email,
+		"payments": out,
 	})
 }
 
+func paymentResponse(record ddb.PaymentRecord) map[string]any {
+	resp := map[string]any{
+		"intent_id":    record.IntentID,
+		"email":        record.UserEmail,
+		"plan_id":      record.PlanID,
+		"product_name": record.ProductName,
+		"status":       record.Status,
+		"currency":     record.Currency,
+		"created_at":   record.CreatedAt,
+		"updated_at":   record.UpdatedAt,
+	}
+	if record.Amount != "" {
+		resp["amount"] = record.Amount
+	}
+	if record.PayPalTxnID != "" {
+		resp["paypal_txn_id"] = record.PayPalTxnID
+	}
+	if record.PaidAt != "" {
+		resp["paid_at"] = record.PaidAt
+	}
+	return resp
+}
+
 func (s *service) paypalIPN(w http.ResponseWriter, r *http.Request) {
+	cid := common.CorrelationFromRequest(r)
 	body, _ := io.ReadAll(r.Body)
 	verifyBody := "cmd=_notify-validate&" + string(body)
 	resp, err := http.Post(s.paypalVerify, "application/x-www-form-urlencoded", strings.NewReader(verifyBody))
@@ -187,31 +229,63 @@ func (s *service) paypalIPN(w http.ResponseWriter, r *http.Request) {
 		common.WriteError(w, http.StatusBadRequest, "ipn not verified")
 		return
 	}
+
 	vals, _ := url.ParseQuery(string(body))
-	intentID := vals.Get("custom")
+	intentID := strings.TrimSpace(vals.Get("custom"))
+	if intentID == "" {
+		common.WriteError(w, http.StatusBadRequest, "missing intent id")
+		return
+	}
+
 	status := mapPayPalStatus(vals.Get("payment_status"))
-	s.mu.Lock()
-	intent, ok := s.cache[intentID]
-	if ok {
-		intent.Status = status
-		now := time.Now().UTC()
-		intent.UpdatedAt = now
-		if txn := vals.Get("txn_id"); txn != "" {
-			intent.PayPalTxnID = &txn
+	record, ok, err := s.payments.GetPaymentByIntentID(r.Context(), intentID, cid)
+	if err != nil {
+		log.Printf("[correlation=%s] paypalIPN load failed intent=%s err=%v", cid, intentID, err)
+		common.WriteError(w, http.StatusBadGateway, "payment lookup failed")
+		return
+	}
+	if !ok {
+		log.Printf("[correlation=%s] paypalIPN intent not found intent=%s", cid, intentID)
+		common.WriteError(w, http.StatusNotFound, "intent not found")
+		return
+	}
+
+	record.Status = status
+	if txn := strings.TrimSpace(vals.Get("txn_id")); txn != "" {
+		record.PayPalTxnID = txn
+	}
+	if amount := strings.TrimSpace(vals.Get("mc_gross")); amount != "" {
+		record.Amount = amount
+	}
+	if currency := strings.TrimSpace(vals.Get("mc_currency")); currency != "" {
+		record.Currency = currency
+	}
+	if status == statusCompleted {
+		if paymentDate := strings.TrimSpace(vals.Get("payment_date")); paymentDate != "" {
+			record.PaidAt = paymentDate
+		} else {
+			record.PaidAt = time.Now().UTC().Format(time.RFC3339)
 		}
-		s.cache[intentID] = intent
 	}
-	s.mu.Unlock()
-	if ok {
-		_ = s.saveIntent(r, intent)
+
+	saved, err := s.payments.SavePayment(r.Context(), record, cid)
+	if err != nil {
+		log.Printf("[correlation=%s] paypalIPN save failed intent=%s err=%v", cid, intentID, err)
+		common.WriteError(w, http.StatusBadGateway, "payment update failed")
+		return
 	}
+
+	log.Printf("[correlation=%s] paypalIPN updated intent=%s user=%s product=%s status=%s amount=%s paid_at=%s",
+		cid, saved.IntentID, saved.UserEmail, saved.ProductName, saved.Status, saved.Amount, saved.PaidAt)
 	common.WriteJSON(w, http.StatusOK, map[string]any{
-		"ack": true, "intent_id": intentID, "status": status, "user_email": intent.UserEmail,
+		"ack": true, "intent_id": saved.IntentID, "status": saved.Status,
+		"user_email": saved.UserEmail, "product_name": saved.ProductName,
+		"amount": saved.Amount, "paid_at": saved.PaidAt,
 	})
 }
 
-func mapPayPalStatus(s string) paymentStatus {
-	switch s {
+func mapPayPalStatus(raw string) string {
+	switch raw {
 	case "Completed", "Processed":
 		return statusCompleted
 	case "Denied", "Failed":
@@ -299,42 +373,4 @@ func truncateBody(s string, max int) string {
 		return s
 	}
 	return s[:max] + "…"
-}
-
-func (s *service) saveIntent(r *http.Request, intent paymentIntent) error {
-	cid := common.CorrelationFromRequest(r)
-	key := "payment:" + intent.IntentID
-	payload, _ := json.Marshal(map[string]any{"key": key, "value": intent})
-	req, _ := http.NewRequest(http.MethodPost, strings.TrimRight(s.databaseURL, "/")+"/put", bytes.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(common.CorrelationHeader, cid)
-	req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(s.secret, cid))
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	_ = resp.Body.Close()
-	return nil
-}
-
-func (s *service) loadIntent(r *http.Request, intentID string) (paymentIntent, bool) {
-	cid := common.CorrelationFromRequest(r)
-	key := "payment:" + intentID
-	payload, _ := json.Marshal(map[string]string{"key": key})
-	req, _ := http.NewRequest(http.MethodPost, strings.TrimRight(s.databaseURL, "/")+"/get", bytes.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(common.CorrelationHeader, cid)
-	req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(s.secret, cid))
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return paymentIntent{}, false
-	}
-	defer resp.Body.Close()
-	var out struct {
-		Value *paymentIntent `json:"value"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil || out.Value == nil {
-		return paymentIntent{}, false
-	}
-	return *out.Value, true
 }
