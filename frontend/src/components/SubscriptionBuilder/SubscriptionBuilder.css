@@ -32,6 +32,10 @@
   cursor: not-allowed;
 }
 
+.subscription-builder__service--extendable {
+  border-color: var(--site-accent);
+}
+
 .subscription-builder__service-status {
   color: var(--site-accent);
   font-size: 0.95rem;

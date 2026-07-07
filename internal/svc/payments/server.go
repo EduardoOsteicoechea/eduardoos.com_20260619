@@ -153,7 +153,7 @@ func (s *service) createIntent(w http.ResponseWriter, r *http.Request) {
 		for _, record := range active {
 			activeIDs = append(activeIDs, record.ServiceID)
 		}
-		allowed, blocked, filterErr := subscriptions.FilterPurchasable(serviceIDs, activeIDs)
+		allowed, blocked, filterErr := subscriptions.FilterPurchasable(serviceIDs, activeIDs, billingPeriod)
 		if filterErr != nil {
 			logs = append(logs, "createIntent: all requested services already active", "createIntent: blocked="+strings.Join(blocked, ","))
 			common.WriteErrorWithDebug(w, http.StatusConflict, filterErr.Error(), cid, logs)

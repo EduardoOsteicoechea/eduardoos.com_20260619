@@ -131,11 +131,16 @@ func LabelForService(id string) string {
 	return id
 }
 
-// FilterPurchasable removes services the user already has active subscriptions for.
-func FilterPurchasable(requested, active []string) (allowed []string, blocked []string, err error) {
+// FilterPurchasable removes services that cannot be purchased again for the billing period.
+// Monthly renewals are blocked while a service is still active; yearly checkout extends
+// active entitlements by one year from the current expiry.
+func FilterPurchasable(requested, active []string, billingPeriod string) (allowed []string, blocked []string, err error) {
 	normalized, err := NormalizeServiceIDs(requested)
 	if err != nil {
 		return nil, nil, err
+	}
+	if strings.ToLower(strings.TrimSpace(billingPeriod)) == BillingYearly {
+		return normalized, nil, nil
 	}
 	activeSet := map[string]bool{}
 	for _, id := range active {

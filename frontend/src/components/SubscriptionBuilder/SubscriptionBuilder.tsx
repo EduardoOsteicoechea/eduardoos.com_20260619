@@ -38,14 +38,16 @@ export default function SubscriptionBuilder() {
     () => new Set(entitlements.map((record) => record.service_id)),
     [entitlements]
   );
-  const purchasableSelected = useMemo(
-    () => selected.filter((serviceId) => !activeServiceIds.has(serviceId)),
-    [selected, activeServiceIds]
-  );
+  const checkoutSelected = useMemo(() => {
+    if (billingPeriod === "yearly") {
+      return selected;
+    }
+    return selected.filter((serviceId) => !activeServiceIds.has(serviceId));
+  }, [selected, activeServiceIds, billingPeriod]);
 
   const total = useMemo(
-    () => quoteSubscription(purchasableSelected, billingPeriod),
-    [purchasableSelected, billingPeriod]
+    () => quoteSubscription(checkoutSelected, billingPeriod),
+    [checkoutSelected, billingPeriod]
   );
 
   useEffect(() => {
@@ -75,11 +77,14 @@ export default function SubscriptionBuilder() {
   }, [email]);
 
   useEffect(() => {
+    if (billingPeriod === "yearly") {
+      return;
+    }
     setSelected((current) => current.filter((serviceId) => !activeServiceIds.has(serviceId)));
-  }, [activeServiceIds]);
+  }, [activeServiceIds, billingPeriod]);
 
   function toggleService(serviceId: string) {
-    if (activeServiceIds.has(serviceId)) {
+    if (billingPeriod === "monthly" && activeServiceIds.has(serviceId)) {
       return;
     }
     setSelected((current) =>
@@ -99,9 +104,9 @@ export default function SubscriptionBuilder() {
     if (validationError) {
       return;
     }
-    if (purchasableSelected.length === 0) {
+    if (checkoutSelected.length === 0) {
       setError(
-        activeServiceIds.size > 0
+        activeServiceIds.size > 0 && billingPeriod === "monthly"
           ? "You are already subscribed to the selected services."
           : "Select at least one service."
       );
@@ -116,7 +121,7 @@ export default function SubscriptionBuilder() {
     try {
       const { data, error: apiError } = await createSubscriptionIntent(
         email,
-        purchasableSelected,
+        checkoutSelected,
         billingPeriod
       );
       if (!data) {
@@ -158,16 +163,17 @@ export default function SubscriptionBuilder() {
     }
   }
 
-  const allServicesActive = SUBSCRIPTION_SERVICES.every((service) =>
-    activeServiceIds.has(service.id)
-  );
+  const allServicesActiveMonthly =
+    billingPeriod === "monthly" &&
+    SUBSCRIPTION_SERVICES.every((service) => activeServiceIds.has(service.id));
 
   return (
     <div className="subscription-builder panel">
       <h1 className="panel__title">Build your subscription</h1>
       <p className="page-lead">
         Choose the services you want. Each service costs $1/month or $10/year.
-        Use the same email you registered and verified on this site.
+        Yearly checkout adds one year to any active service. Use the same email you
+        registered and verified on this site.
       </p>
 
       <div className="subscription-builder__pricing-toggle" role="group" aria-label="Billing period">
@@ -197,23 +203,29 @@ export default function SubscriptionBuilder() {
         {SUBSCRIPTION_SERVICES.map((service) => {
           const active = activeByService.get(service.id);
           const isActive = Boolean(active);
-          const checked = !isActive && selected.includes(service.id);
+          const isExtendable = isActive && billingPeriod === "yearly";
+          const isBlocked = isActive && billingPeriod === "monthly";
+          const checked = selected.includes(service.id);
           const unit = billingPeriod === "yearly" ? 10 : 1;
           return (
             <label
               key={service.id}
-              className={`subscription-builder__service ${checked ? "subscription-builder__service--selected" : ""}${isActive ? " subscription-builder__service--active" : ""}`}
+              className={`subscription-builder__service ${checked ? "subscription-builder__service--selected" : ""}${isBlocked ? " subscription-builder__service--active" : ""}${isExtendable ? " subscription-builder__service--extendable" : ""}`}
             >
               <input
                 type="checkbox"
                 checked={checked}
-                disabled={isActive}
+                disabled={isBlocked}
                 onChange={() => toggleService(service.id)}
               />
               <span className="subscription-builder__service-copy">
                 <strong>{service.label}</strong>
                 <span>{service.description}</span>
-                {isActive ? (
+                {isExtendable ? (
+                  <span className="subscription-builder__service-status">
+                    Add 1 year — active until {new Date(active!.valid_until).toLocaleString()}
+                  </span>
+                ) : isActive ? (
                   <span className="subscription-builder__service-status">
                     Subscribed until {new Date(active!.valid_until).toLocaleString()}
                   </span>
@@ -247,7 +259,7 @@ export default function SubscriptionBuilder() {
           <button
             className="btn btn--primary"
             type="submit"
-            disabled={loading || purchasableSelected.length === 0 || allServicesActive}
+            disabled={loading || checkoutSelected.length === 0 || allServicesActiveMonthly}
           >
             {loading ? "Preparing…" : "Prepare checkout"}
           </button>
