@@ -1,7 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiRequest } from "./api";
+import { getAuthToken, saveAuthToken } from "./auth";
+
+function makeJwt(payload: Record<string, unknown>): string {
+  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = btoa(JSON.stringify(payload)).replace(/=+$/g, "");
+  return `${header}.${body}.signature`;
+}
 
 describe("api client", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
   it("sends correlation header on requests", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -43,6 +53,30 @@ describe("api client", () => {
     expect(result.error?.message).toBe("Invalid credentials");
   });
 
+  it("clears the stored session when the gateway rejects the JWT", async () => {
+    saveAuthToken(
+      makeJwt({
+        sub: "user@example.com",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      }),
+    );
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+      text: async () => JSON.stringify({ message: "invalid token" }),
+    });
+
+    const result = await apiRequest("/api/auth/profile", {
+      correlationId: "corr-invalid",
+      authToken: getAuthToken(),
+      fetchFn: fetchMock,
+    });
+
+    expect(result.error?.message).toBe("invalid token");
+    expect(getAuthToken()).toBe("");
+  });
+
   it("returns debug logs from error payload", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
@@ -67,5 +101,6 @@ describe("api client", () => {
     expect(result.error?.debugLogs).toEqual([
       "authGate: Authorization header missing",
     ]);
+    expect(getAuthToken()).toBe("");
   });
 });

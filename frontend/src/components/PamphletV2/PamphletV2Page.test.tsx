@@ -6,6 +6,7 @@ vi.mock("../../lib/pamphletPersistence", () => ({
   loadPamphletBundle: vi.fn(),
   savePamphletBundle: vi.fn(),
   persistActivePamphletId: vi.fn(),
+  readStoredPamphletId: vi.fn(() => null),
 }));
 
 vi.mock("../../lib/auth", () => ({

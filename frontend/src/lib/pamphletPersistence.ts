@@ -24,7 +24,7 @@ import {
   type PamphletDocument,
   type SavePamphletBundleResponse,
 } from "./pamphlets";
-import { getAuthToken } from "./auth";
+import { isAuthenticated } from "./auth";
 
 export const ACTIVE_PAMPHLET_ID_KEY = "eduardoos-pamphlet-active-id";
 
@@ -127,7 +127,7 @@ export async function bootstrapPamphletFromCloud(
   contentDocument: PamphletContentDocument;
   settings: PamphletLayoutSettings;
 } | null> {
-  if (!getAuthToken()) {
+  if (!isAuthenticated()) {
     return null;
   }
 

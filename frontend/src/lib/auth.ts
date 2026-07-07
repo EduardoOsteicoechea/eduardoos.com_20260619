@@ -46,6 +46,41 @@ export const AUTH_ROUTES = {
 
 const AUTH_TOKEN_KEY = "eduardoos-auth-token";
 
+export const AUTH_SESSION_EXPIRED_EVENT = "eduardoos-auth-session-expired";
+
+interface JwtPayload {
+  sub?: unknown;
+  exp?: unknown;
+}
+
+function decodeJwtPayload(token: string): JwtPayload | null {
+  try {
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) {
+      return null;
+    }
+    const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+    const padLength = (4 - (normalized.length % 4)) % 4;
+    const padded = normalized.padEnd(normalized.length + padLength, "=");
+    return JSON.parse(atob(padded)) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
+
+/** True when the JWT is missing, malformed, or past its exp claim. */
+export function isAuthTokenExpired(token: string, nowMs = Date.now()): boolean {
+  const payload = decodeJwtPayload(token);
+  if (!payload) {
+    return true;
+  }
+  const exp = payload.exp;
+  if (typeof exp !== "number" || !Number.isFinite(exp)) {
+    return true;
+  }
+  return nowMs >= exp * 1000;
+}
+
 /** Persists the JWT issued by the authenticator after login or OTP verification. */
 export function saveAuthToken(token: string): void {
   if (typeof localStorage === "undefined") return;
@@ -58,40 +93,44 @@ export function getAuthToken(): string {
   return localStorage.getItem(AUTH_TOKEN_KEY) ?? "";
 }
 
-/** Returns true when the user has a stored gateway JWT. */
+/** Clears the stored session token. */
+export function clearAuthToken(): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+/** Drops the client session and notifies shell components to refresh auth UI. */
+export function invalidateAuthSession(): void {
+  clearAuthToken();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
+  }
+}
+
+/** Returns true when the stored JWT is present, parseable, and not expired. */
 export function isAuthenticated(): boolean {
-  return getAuthToken().trim().length > 0;
+  const token = getAuthToken().trim();
+  if (!token || isAuthTokenExpired(token)) {
+    if (token) {
+      invalidateAuthSession();
+    }
+    return false;
+  }
+  return decodeJwtPayload(token) !== null;
 }
 
 /** Reads the JWT subject (email) from the stored session token without a network call. */
 export function getAuthEmailFromToken(): string | null {
   const token = getAuthToken().trim();
-  if (!token) {
+  if (!token || isAuthTokenExpired(token)) {
     return null;
   }
-  try {
-    const payloadPart = token.split(".")[1];
-    if (!payloadPart) {
-      return null;
-    }
-    const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
-    const padLength = (4 - (normalized.length % 4)) % 4;
-    const padded = normalized.padEnd(normalized.length + padLength, "=");
-    const payload = JSON.parse(atob(padded)) as { sub?: unknown };
-    if (typeof payload.sub !== "string") {
-      return null;
-    }
-    const email = payload.sub.trim().toLowerCase();
-    return email.length > 0 ? email : null;
-  } catch {
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.sub !== "string") {
     return null;
   }
-}
-
-/** Clears the stored session token. */
-export function clearAuthToken(): void {
-  if (typeof localStorage === "undefined") return;
-  localStorage.removeItem(AUTH_TOKEN_KEY);
+  const email = payload.sub.trim().toLowerCase();
+  return email.length > 0 ? email : null;
 }
 
 /** Registers a new user and emits flight logs for each lifecycle phase. */

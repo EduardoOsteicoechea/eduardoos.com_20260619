@@ -38,7 +38,13 @@ import {
   type PamphletLayoutSettings,
   type PamphletSettingKey,
 } from "../../lib/pamphletLayout";
-import { bootstrapPamphletFromCloud, loadPamphletBundle, persistActivePamphletId, savePamphletBundle } from "../../lib/pamphletPersistence";
+import {
+  bootstrapPamphletFromCloud,
+  loadPamphletBundle,
+  persistActivePamphletId,
+  readStoredPamphletId,
+  savePamphletBundle,
+} from "../../lib/pamphletPersistence";
 import {
   applyPreviewZoomIn,
   applyPreviewZoomOut,
@@ -112,6 +118,16 @@ export default function PamphletV2Page() {
 
   useEffect(() => {
     let cancelled = false;
+    const hadStoredPamphlet = Boolean(readStoredPamphletId());
+
+    if (!isAuthenticated()) {
+      setCloudHydrated(true);
+      if (hadStoredPamphlet) {
+        setCloudStatus(PAMPHLET_AUTH_REQUIRED_MESSAGE);
+      }
+      return;
+    }
+
     void bootstrapPamphletFromCloud(DEFAULT_PAMPHLET_FONT_SETTINGS, DEFAULT_PAMPHLET_LAYOUT_SETTINGS)
       .then((boot) => {
         if (cancelled || !boot) {
@@ -127,7 +143,17 @@ export default function PamphletV2Page() {
         if (cancelled) {
           return;
         }
-        setCloudStatus(err instanceof Error ? err.message : "Could not load pamphlet from cloud");
+        const message = err instanceof Error ? err.message : "Could not load pamphlet from cloud";
+        const normalized = message.toLowerCase();
+        if (
+          normalized.includes("invalid token") ||
+          normalized.includes("authorization required") ||
+          normalized.includes("unauthorized")
+        ) {
+          setCloudStatus(PAMPHLET_AUTH_REQUIRED_MESSAGE);
+          return;
+        }
+        setCloudStatus(message);
       })
       .finally(() => {
         if (!cancelled) {

@@ -1,10 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AUTH_ROUTES,
+  AUTH_SESSION_EXPIRED_EVENT,
+  clearAuthToken,
   getAuthEmailFromToken,
   getAuthToken,
   hasIssuedToken,
+  invalidateAuthSession,
   isAuthenticated,
+  isAuthTokenExpired,
   loginUser,
   logoutUser,
   registerUser,
@@ -12,7 +16,17 @@ import {
   verifyOtp,
 } from "./auth";
 
+function makeJwt(payload: Record<string, unknown>): string {
+  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = btoa(JSON.stringify(payload)).replace(/=+$/g, "");
+  return `${header}.${body}.signature`;
+}
+
 describe("auth routes", () => {
+  beforeEach(() => {
+    clearAuthToken();
+  });
+
   it("hasIssuedToken ignores null, empty, and missing tokens", () => {
     expect(hasIssuedToken({ message: "ok", token: null })).toBe(false);
     expect(hasIssuedToken({ message: "ok", token: "" })).toBe(false);
@@ -20,15 +34,54 @@ describe("auth routes", () => {
     expect(hasIssuedToken({ message: "ok", token: "eyJhbGciOiJIUzI1NiJ9" })).toBe(true);
   });
 
-  it("isAuthenticated reflects stored JWT presence", () => {
-    saveAuthToken("token");
+  it("isAuthenticated requires a valid unexpired JWT", () => {
+    const token = makeJwt({
+      sub: "user@example.com",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+    saveAuthToken(token);
     expect(isAuthenticated()).toBe(true);
-    expect(getAuthToken()).toBe("token");
+    expect(getAuthToken()).toBe(token);
+  });
+
+  it("isAuthenticated clears expired or malformed tokens", () => {
+    saveAuthToken(
+      makeJwt({
+        sub: "user@example.com",
+        exp: Math.floor(Date.now() / 1000) - 60,
+      }),
+    );
+    expect(isAuthenticated()).toBe(false);
+    expect(getAuthToken()).toBe("");
+
+    saveAuthToken("not-a-jwt");
+    expect(isAuthenticated()).toBe(false);
+    expect(getAuthToken()).toBe("");
+  });
+
+  it("invalidateAuthSession dispatches an auth-expired event", () => {
+    const handler = vi.fn();
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handler);
+    saveAuthToken("token");
+    invalidateAuthSession();
+    expect(getAuthToken()).toBe("");
+    expect(handler).toHaveBeenCalledTimes(1);
+    window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handler);
+  });
+
+  it("isAuthTokenExpired detects expired JWTs", () => {
+    const expired = makeJwt({ exp: 1 });
+    const valid = makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 });
+    expect(isAuthTokenExpired(expired, 2000)).toBe(true);
+    expect(isAuthTokenExpired(valid)).toBe(false);
   });
 
   it("getAuthEmailFromToken reads the JWT subject", () => {
-    const payload = btoa(JSON.stringify({ sub: "User@Example.com" }));
-    saveAuthToken(`header.${payload}.signature`);
+    const token = makeJwt({
+      sub: "User@Example.com",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+    saveAuthToken(token);
     expect(getAuthEmailFromToken()).toBe("user@example.com");
   });
   it("exposes correct public gateway paths", () => {

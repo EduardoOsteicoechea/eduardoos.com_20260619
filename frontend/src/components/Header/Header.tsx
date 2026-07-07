@@ -3,7 +3,12 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { APP_ROUTES } from "../../config/routes";
-import { getAuthToken, isAuthenticated, logoutUser } from "../../lib/auth";
+import {
+  AUTH_SESSION_EXPIRED_EVENT,
+  getAuthToken,
+  isAuthenticated,
+  logoutUser,
+} from "../../lib/auth";
 import { fetchUserProfile, PROFILE_IMAGE_UPDATED_EVENT } from "../../lib/profile";
 import "./Header.css";
 
@@ -236,6 +241,14 @@ export function Header({ pathname }: HeaderProps) {
     }
     window.addEventListener(PROFILE_IMAGE_UPDATED_EVENT, handleProfileImageUpdated);
     return () => window.removeEventListener(PROFILE_IMAGE_UPDATED_EVENT, handleProfileImageUpdated);
+  }, []);
+
+  useEffect(() => {
+    function handleAuthSessionExpired() {
+      syncAuthState();
+    }
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleAuthSessionExpired);
+    return () => window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleAuthSessionExpired);
   }, []);
 
   const showAuth = clientReady;

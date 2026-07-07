@@ -11,6 +11,7 @@ import {
 
 vi.mock("./auth", () => ({
   getAuthToken: vi.fn(),
+  isAuthenticated: vi.fn(),
 }));
 
 vi.mock("./pamphlets", () => ({
@@ -21,7 +22,7 @@ vi.mock("./pamphlets", () => ({
   savePamphletLayout: vi.fn(),
 }));
 
-import { getAuthToken } from "./auth";
+import { getAuthToken, isAuthenticated } from "./auth";
 import { fetchPamphletDocumentById, fetchPamphletLayout, fetchPamphletRegistry } from "./pamphlets";
 
 describe("slugifyPamphletId", () => {
@@ -50,19 +51,21 @@ describe("bootstrapPamphletFromCloud", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.mocked(getAuthToken).mockReset();
+    vi.mocked(isAuthenticated).mockReset();
     vi.mocked(fetchPamphletRegistry).mockReset();
     vi.mocked(fetchPamphletDocumentById).mockReset();
     vi.mocked(fetchPamphletLayout).mockReset();
   });
 
   it("returns null when the user is not authenticated", async () => {
-    vi.mocked(getAuthToken).mockReturnValue("");
+    vi.mocked(isAuthenticated).mockReturnValue(false);
     await expect(
       bootstrapPamphletFromCloud(DEFAULT_PAMPHLET_FONT_SETTINGS, DEFAULT_PAMPHLET_LAYOUT_SETTINGS),
     ).resolves.toBeNull();
   });
 
   it("loads the stored registry pamphlet when authenticated", async () => {
+    vi.mocked(isAuthenticated).mockReturnValue(true);
     vi.mocked(getAuthToken).mockReturnValue("jwt-token");
     persistActivePamphletId("draft-a");
     vi.mocked(fetchPamphletRegistry).mockResolvedValue([

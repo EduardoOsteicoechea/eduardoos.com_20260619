@@ -3,6 +3,8 @@
  * All requests attach X-Correlation-ID for distributed flight tracing.
  */
 
+import { invalidateAuthSession } from "./auth";
+
 export interface ApiError {
   message: string;
   status: number;
@@ -64,6 +66,16 @@ export async function apiRequest<T>(
       debug_logs?: string[];
     } | undefined;
     const message = payload?.message ?? response.statusText;
+    if (response.status === 401) {
+      const normalized = message.toLowerCase();
+      if (
+        normalized.includes("invalid token") ||
+        normalized.includes("authorization required") ||
+        normalized.includes("jwt secret not configured")
+      ) {
+        invalidateAuthSession();
+      }
+    }
     return {
       error: {
         message,
