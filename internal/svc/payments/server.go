@@ -16,6 +16,7 @@ import (
 	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/authstore"
 	"eduardoos/pkg/common"
+	"eduardoos/pkg/subscriptions"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -30,13 +31,15 @@ const (
 )
 
 type service struct {
-	payments     ddb.PaymentStore
-	secret       string
-	authURL      string
-	telemetry    *common.TelemetryClient
-	paypalVerify string
-	buttonID     string
-	planID       string
+	payments          ddb.PaymentStore
+	entitlements      ddb.EntitlementStore
+	secret            string
+	authURL           string
+	telemetry         *common.TelemetryClient
+	paypalVerify      string
+	paypalBusiness    string
+	buttonID          string
+	planID            string
 }
 
 func Run(addr string) error {
@@ -46,21 +49,28 @@ func Run(addr string) error {
 	if err != nil {
 		return err
 	}
+	entitlementStore, err := ddb.NewEntitlementStore(ctx)
+	if err != nil {
+		return err
+	}
 	svc := &service{
-		payments:     paymentStore,
-		secret:       secret,
-		authURL:      common.Env("AUTHENTICATOR_URL", "http://authenticator:3000"),
-		telemetry:    common.NewTelemetryClient(common.Env("TELEMETRY_URL", "http://telemetry:3000"), secret),
-		paypalVerify: common.Env("PAYPAL_IPN_VERIFY_URL", "https://ipnpb.paypal.com/cgi-bin/webscr"),
-		buttonID:     common.Env("PAYPAL_HOSTED_BUTTON_ID", "QEVGD66SG7LXN"),
-		planID:       common.Env("PAYPAL_PLAN_ID", "subscription_monthly_basic"),
+		payments:       paymentStore,
+		entitlements:   entitlementStore,
+		secret:         secret,
+		authURL:        common.Env("AUTHENTICATOR_URL", "http://authenticator:3000"),
+		telemetry:      common.NewTelemetryClient(common.Env("TELEMETRY_URL", "http://telemetry:3000"), secret),
+		paypalVerify:   common.Env("PAYPAL_IPN_VERIFY_URL", "https://ipnpb.paypal.com/cgi-bin/webscr"),
+		paypalBusiness: common.Env("PAYPAL_BUSINESS_EMAIL", ""),
+		buttonID:       common.Env("PAYPAL_HOSTED_BUTTON_ID", "QEVGD66SG7LXN"),
+		planID:         common.Env("PAYPAL_PLAN_ID", "subscription_monthly_basic"),
 	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Get("/health", common.HealthHandler("payments", map[string]any{
-		"payments_backend": paymentStore.BackendName(),
+		"payments_backend":     paymentStore.BackendName(),
+		"entitlements_backend": entitlementStore.BackendName(),
 	}))
 	r.Post("/webhook/paypal", svc.paypalIPN)
 	r.Group(func(r chi.Router) {
@@ -68,9 +78,10 @@ func Run(addr string) error {
 		r.Post("/intents", svc.createIntent)
 		r.Get("/status/{intentID}", svc.getStatus)
 		r.Get("/by-user/{email}", svc.listByUser)
+		r.Get("/entitlements/{email}", svc.getEntitlements)
 	})
 
-	log.Printf("payments listening on %s (payments_backend=%s)", addr, paymentStore.BackendName())
+	log.Printf("payments listening on %s (payments_backend=%s entitlements_backend=%s)", addr, paymentStore.BackendName(), entitlementStore.BackendName())
 	return http.ListenAndServe(addr, r)
 }
 
@@ -83,8 +94,10 @@ func (s *service) createIntent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Email  string `json:"email"`
-		PlanID string `json:"plan_id"`
+		Email         string   `json:"email"`
+		PlanID        string   `json:"plan_id"`
+		Services      []string `json:"services"`
+		BillingPeriod string   `json:"billing_period"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		logs = append(logs, "createIntent: failed to decode JSON body", "createIntent: error="+err.Error())
@@ -117,19 +130,52 @@ func (s *service) createIntent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	plan := strings.TrimSpace(body.PlanID)
-	if plan == "" {
-		plan = s.planID
-		logs = append(logs, "createIntent: plan_id empty, using default="+plan)
+	billingPeriod := strings.ToLower(strings.TrimSpace(body.BillingPeriod))
+	serviceIDs := body.Services
+	var productName string
+	var expectedAmount string
+
+	if len(serviceIDs) > 0 {
+		if billingPeriod == "" {
+			billingPeriod = subscriptions.BillingMonthly
+		}
+		total, quotedName, quoteErr := subscriptions.Quote(serviceIDs, billingPeriod)
+		if quoteErr != nil {
+			logs = append(logs, "createIntent: quote failed", "createIntent: error="+quoteErr.Error())
+			common.WriteErrorWithDebug(w, http.StatusBadRequest, quoteErr.Error(), cid, logs)
+			return
+		}
+		productName = quotedName
+		expectedAmount = fmt.Sprintf("%.2f", total)
+		plan = "subscription_custom_" + billingPeriod
+		serviceIDs, _ = subscriptions.NormalizeServiceIDs(serviceIDs)
+		logs = append(logs,
+			"createIntent: services="+strings.Join(serviceIDs, ","),
+			"createIntent: billing_period="+billingPeriod,
+			"createIntent: expected_amount="+expectedAmount,
+		)
+	} else {
+		if plan == "" {
+			plan = s.planID
+			logs = append(logs, "createIntent: plan_id empty, using default="+plan)
+		}
+		productName = ddb.ProductNameForPlan(plan)
+		serviceIDs = []string{subscriptions.ServicePlaylist}
+		billingPeriod = subscriptions.BillingMonthly
+		expectedAmount = "1.00"
 	}
 
 	record := ddb.PaymentRecord{
 		IntentID:       uuid.NewString(),
 		UserEmail:      normalizedEmail,
 		PlanID:         plan,
-		ProductName:    ddb.ProductNameForPlan(plan),
+		ProductName:    productName,
+		Services:       serviceIDs,
+		BillingPeriod:  billingPeriod,
 		Status:         statusPending,
 		HostedButtonID: s.buttonID,
 		Currency:       "USD",
+		ExpectedAmount: expectedAmount,
 	}
 	saved, err := s.payments.SavePayment(r.Context(), record, cid)
 	if err != nil {
@@ -144,12 +190,19 @@ func (s *service) createIntent(w http.ResponseWriter, r *http.Request) {
 		"createIntent: created_at="+saved.CreatedAt,
 	)
 
-	log.Printf("[correlation=%s] createIntent success intent=%s email=%s plan=%s product=%s",
-		cid, saved.IntentID, normalizedEmail, plan, saved.ProductName)
+	log.Printf("[correlation=%s] createIntent success intent=%s email=%s plan=%s product=%s amount=%s",
+		cid, saved.IntentID, normalizedEmail, plan, saved.ProductName, saved.ExpectedAmount)
+	checkoutMode := "hosted"
+	if strings.TrimSpace(s.paypalBusiness) != "" {
+		checkoutMode = "xclick"
+	}
 	common.WriteJSON(w, http.StatusOK, map[string]any{
 		"intent_id": saved.IntentID, "email": saved.UserEmail, "plan_id": saved.PlanID,
 		"product_name": saved.ProductName, "hosted_button_id": saved.HostedButtonID,
 		"currency": saved.Currency, "created_at": saved.CreatedAt,
+		"services": saved.Services, "billing_period": saved.BillingPeriod,
+		"amount": saved.ExpectedAmount, "paypal_checkout_mode": checkoutMode,
+		"paypal_business": s.paypalBusiness,
 		"correlation_id": cid, "debug_logs": logs,
 	})
 }
@@ -191,6 +244,41 @@ func (s *service) listByUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *service) getEntitlements(w http.ResponseWriter, r *http.Request) {
+	cid := common.CorrelationFromRequest(r)
+	email := authstore.NormalizeEmail(chi.URLParam(r, "email"))
+	if !strings.Contains(email, "@") {
+		common.WriteError(w, http.StatusBadRequest, "invalid email")
+		return
+	}
+	records, err := s.entitlements.GetEntitlements(r.Context(), email, cid)
+	if err != nil {
+		common.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	active := ddb.ActiveEntitlements(records, time.Now().UTC())
+	common.WriteJSON(w, http.StatusOK, map[string]any{
+		"email":        email,
+		"entitlements": entitlementResponses(active),
+		"all":          entitlementResponses(records),
+	})
+}
+
+func entitlementResponses(records []ddb.EntitlementRecord) []map[string]any {
+	out := make([]map[string]any, 0, len(records))
+	for _, record := range records {
+		out = append(out, map[string]any{
+			"service_id":     record.ServiceID,
+			"service_label":  record.ServiceLabel,
+			"billing_period": record.BillingPeriod,
+			"valid_from":     record.ValidFrom,
+			"valid_until":    record.ValidUntil,
+			"last_intent_id": record.LastIntentID,
+		})
+	}
+	return out
+}
+
 func paymentResponse(record ddb.PaymentRecord) map[string]any {
 	resp := map[string]any{
 		"intent_id":    record.IntentID,
@@ -210,6 +298,15 @@ func paymentResponse(record ddb.PaymentRecord) map[string]any {
 	}
 	if record.PaidAt != "" {
 		resp["paid_at"] = record.PaidAt
+	}
+	if len(record.Services) > 0 {
+		resp["services"] = record.Services
+	}
+	if record.BillingPeriod != "" {
+		resp["billing_period"] = record.BillingPeriod
+	}
+	if record.ExpectedAmount != "" {
+		resp["expected_amount"] = record.ExpectedAmount
 	}
 	return resp
 }
@@ -275,12 +372,27 @@ func (s *service) paypalIPN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[correlation=%s] paypalIPN updated intent=%s user=%s product=%s status=%s amount=%s paid_at=%s",
-		cid, saved.IntentID, saved.UserEmail, saved.ProductName, saved.Status, saved.Amount, saved.PaidAt)
+	var granted []ddb.EntitlementRecord
+	if saved.Status == statusCompleted && len(saved.Services) > 0 {
+		paidAt := time.Now().UTC()
+		if saved.PaidAt != "" {
+			if parsed, parseErr := time.Parse(time.RFC3339, saved.PaidAt); parseErr == nil {
+				paidAt = parsed.UTC()
+			}
+		}
+		granted, err = s.entitlements.GrantServices(r.Context(), saved.UserEmail, saved.Services, saved.BillingPeriod, saved.IntentID, paidAt, cid)
+		if err != nil {
+			log.Printf("[correlation=%s] paypalIPN entitlement grant failed intent=%s err=%v", cid, intentID, err)
+		}
+	}
+
+	log.Printf("[correlation=%s] paypalIPN updated intent=%s user=%s product=%s status=%s amount=%s paid_at=%s granted=%d",
+		cid, saved.IntentID, saved.UserEmail, saved.ProductName, saved.Status, saved.Amount, saved.PaidAt, len(granted))
 	common.WriteJSON(w, http.StatusOK, map[string]any{
 		"ack": true, "intent_id": saved.IntentID, "status": saved.Status,
 		"user_email": saved.UserEmail, "product_name": saved.ProductName,
 		"amount": saved.Amount, "paid_at": saved.PaidAt,
+		"entitlements_granted": len(granted),
 	})
 }
 

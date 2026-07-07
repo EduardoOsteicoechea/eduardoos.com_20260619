@@ -71,7 +71,12 @@ func Run(addr string) error {
 	if err != nil {
 		log.Fatalf("playlist store: %v", err)
 	}
+	entitlementStore, err := ddb.NewEntitlementStore(ctx)
+	if err != nil {
+		log.Fatalf("entitlement store: %v", err)
+	}
 	log.Printf("playlist store backend=%s", playlistStore.BackendName())
+	log.Printf("entitlement store backend=%s", entitlementStore.BackendName())
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -106,6 +111,7 @@ func Run(addr string) error {
 	r.Get("/api/media/audio", cfg.listMediaAudio())
 	r.Get("/api/media/file/*", cfg.proxyMediaFile())
 	registerPlaylistRoutes(r, cfg, playlistStore)
+	registerSubscriptionRoutes(r, cfg, entitlementStore)
 	registerPamphletGatewayRoutes(r, cfg)
 
 	log.Printf("backend listening on %s", addr)

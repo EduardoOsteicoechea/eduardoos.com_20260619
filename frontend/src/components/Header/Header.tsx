@@ -33,7 +33,7 @@ const NAV_LINKS = [
   { href: APP_ROUTES.mediaGallery, label: "Media" },
   { href: APP_ROUTES.mediaPlaylist, label: "Playlist" },
   { href: APP_ROUTES.pamphlet, label: "Pamphlet" },
-  { href: APP_ROUTES.subscriptionMonthlyBasic, label: "Subscribe" },
+  { href: APP_ROUTES.subscription, label: "Subscribe" },
 ] as const;
 
 interface AccountMenuProps {

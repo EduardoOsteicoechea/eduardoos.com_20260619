@@ -13,6 +13,7 @@ This stack runs on **Graviton (arm64)** EC2 instances in **us-east-1** and uses:
 | DynamoDB | `eduardoos_test_runs` | QA + build test runs (7-day TTL) |
 | DynamoDB | `eduardoos_playlists` | Worship playlists (PK `userId`, SK `playlistId`) |
 | DynamoDB | `eduardoos_payments` | PayPal intents and completed payments (PK `intentId`, GSI `userEmail` + `createdAt`) |
+| DynamoDB | `eduardoos_entitlements` | Active service access per user (PK `userEmail`, SK `serviceId`) |
 
 ## Observability tables (flight logs + test runs)
 
@@ -31,6 +32,7 @@ DynamoDB TTL deletes items automatically after **7 days**.
 bash deploy/aws/create-observability-tables.sh
 bash deploy/aws/create-playlists-table.sh
 bash deploy/aws/create-payments-table.sh
+bash deploy/aws/create-entitlements-table.sh
 ```
 
 Deploy on EC2 also runs this script when the instance role includes
@@ -120,6 +122,9 @@ docker compose up -d --build
 | `PLAYLISTS_TABLE` | `eduardoos_playlists` | same |
 | `PAYMENTS_BACKEND` | `memory` | `dynamodb` |
 | `PAYMENTS_TABLE` | `eduardoos_payments` | same |
+| `ENTITLEMENTS_BACKEND` | `memory` | `dynamodb` |
+| `ENTITLEMENTS_TABLE` | `eduardoos_entitlements` | same |
+| `PAYPAL_BUSINESS_EMAIL` | empty | your PayPal seller email for variable checkout amounts |
 | `S3_AUDIO_PREFIX` | `worship_playlists` | same |
 
 ## 7. Verify AWS access from EC2

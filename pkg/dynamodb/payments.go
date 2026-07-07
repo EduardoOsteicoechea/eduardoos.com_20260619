@@ -18,19 +18,22 @@ import (
 
 // PaymentRecord is a PayPal checkout intent linked to a verified user and product plan.
 type PaymentRecord struct {
-	IntentID          string `json:"intentId" dynamodbav:"intentId"`
-	UserEmail         string `json:"userEmail" dynamodbav:"userEmail"`
-	PlanID            string `json:"planId" dynamodbav:"planId"`
-	ProductName       string `json:"productName" dynamodbav:"productName"`
-	Status            string `json:"status" dynamodbav:"status"`
-	Currency          string `json:"currency" dynamodbav:"currency"`
-	Amount            string `json:"amount,omitempty" dynamodbav:"amount,omitempty"`
-	PayPalTxnID       string `json:"paypalTxnId,omitempty" dynamodbav:"paypalTxnId,omitempty"`
-	HostedButtonID    string `json:"hostedButtonId,omitempty" dynamodbav:"hostedButtonId,omitempty"`
-	CreatedAt         string `json:"createdAt" dynamodbav:"createdAt"`
-	UpdatedAt         string `json:"updatedAt" dynamodbav:"updatedAt"`
-	PaidAt            string `json:"paidAt,omitempty" dynamodbav:"paidAt,omitempty"`
-	LastCorrelationID string `json:"lastCorrelationId,omitempty" dynamodbav:"lastCorrelationId,omitempty"`
+	IntentID          string   `json:"intentId" dynamodbav:"intentId"`
+	UserEmail         string   `json:"userEmail" dynamodbav:"userEmail"`
+	PlanID            string   `json:"planId" dynamodbav:"planId"`
+	ProductName       string   `json:"productName" dynamodbav:"productName"`
+	Services          []string `json:"services,omitempty" dynamodbav:"services,omitempty"`
+	BillingPeriod     string   `json:"billingPeriod,omitempty" dynamodbav:"billingPeriod,omitempty"`
+	Status            string   `json:"status" dynamodbav:"status"`
+	Currency          string   `json:"currency" dynamodbav:"currency"`
+	Amount            string   `json:"amount,omitempty" dynamodbav:"amount,omitempty"`
+	ExpectedAmount    string   `json:"expectedAmount,omitempty" dynamodbav:"expectedAmount,omitempty"`
+	PayPalTxnID       string   `json:"paypalTxnId,omitempty" dynamodbav:"paypalTxnId,omitempty"`
+	HostedButtonID    string   `json:"hostedButtonId,omitempty" dynamodbav:"hostedButtonId,omitempty"`
+	CreatedAt         string   `json:"createdAt" dynamodbav:"createdAt"`
+	UpdatedAt         string   `json:"updatedAt" dynamodbav:"updatedAt"`
+	PaidAt            string   `json:"paidAt,omitempty" dynamodbav:"paidAt,omitempty"`
+	LastCorrelationID string   `json:"lastCorrelationId,omitempty" dynamodbav:"lastCorrelationId,omitempty"`
 }
 
 // ProductNameForPlan maps internal plan ids to human-readable product labels.
@@ -198,6 +201,19 @@ func paymentItem(record PaymentRecord) map[string]types.AttributeValue {
 		"createdAt":   &types.AttributeValueMemberS{Value: record.CreatedAt},
 		"updatedAt":   &types.AttributeValueMemberS{Value: record.UpdatedAt},
 	}
+	if record.ExpectedAmount != "" {
+		item["expectedAmount"] = &types.AttributeValueMemberS{Value: record.ExpectedAmount}
+	}
+	if len(record.Services) > 0 {
+		values := make([]types.AttributeValue, 0, len(record.Services))
+		for _, svc := range record.Services {
+			values = append(values, &types.AttributeValueMemberS{Value: svc})
+		}
+		item["services"] = &types.AttributeValueMemberL{Value: values}
+	}
+	if record.BillingPeriod != "" {
+		item["billingPeriod"] = &types.AttributeValueMemberS{Value: record.BillingPeriod}
+	}
 	if record.Amount != "" {
 		item["amount"] = &types.AttributeValueMemberS{Value: record.Amount}
 	}
@@ -238,6 +254,19 @@ func paymentFromItem(item map[string]types.AttributeValue) (PaymentRecord, bool)
 	}
 	if v, ok := item["amount"].(*types.AttributeValueMemberS); ok {
 		record.Amount = v.Value
+	}
+	if v, ok := item["expectedAmount"].(*types.AttributeValueMemberS); ok {
+		record.ExpectedAmount = v.Value
+	}
+	if v, ok := item["billingPeriod"].(*types.AttributeValueMemberS); ok {
+		record.BillingPeriod = v.Value
+	}
+	if v, ok := item["services"].(*types.AttributeValueMemberL); ok {
+		for _, av := range v.Value {
+			if s, ok := av.(*types.AttributeValueMemberS); ok {
+				record.Services = append(record.Services, s.Value)
+			}
+		}
 	}
 	if v, ok := item["paypalTxnId"].(*types.AttributeValueMemberS); ok {
 		record.PayPalTxnID = v.Value

@@ -6,6 +6,7 @@ export const APP_ROUTES = {
   verifyOtp: "/auth/verify-otp",
   logger: "/observability/logger",
   tester: "/observability/tester",
+  subscription: "/payments/subscription",
   subscriptionMonthlyBasic: "/payments/subscription/montly/basic",
   profile: "/auth/profile",
   mediaGallery: "/media/gallery",
@@ -44,5 +45,6 @@ export const OBSERVABILITY_ROUTES = {
 export const PAYMENT_ROUTES = {
   intents: "/api/payments/intents",
   status: "/api/payments/status",
+  entitlements: "/api/subscriptions/entitlements",
   webhook: "/api/payments/webhook/paypal",
 } as const;

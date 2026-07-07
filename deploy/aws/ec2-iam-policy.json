@@ -65,7 +65,9 @@
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_registry",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_registry/index/*",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_payments",
-        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_payments/index/*"
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_payments/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_entitlements",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_entitlements/index/*"
       ]
     }
   ]
