@@ -821,6 +821,13 @@ function placeItemsInZone(
   const placed: PamphletPlacedItem[] = [];
   let used = 0;
 
+  function finish(overflow: PamphletContentItem[]): { placed: PamphletPlacedItem[]; overflow: PamphletContentItem[] } {
+    if (placed.length > 0) {
+      placed[placed.length - 1].bottomMarginMm = 0;
+    }
+    return { placed, overflow };
+  }
+
   for (let index = 0; index < items.length; index++) {
     const entry = items[index];
     const measured = measureContentItemHeight(entry, spec.widthMm, fonts);
@@ -828,7 +835,7 @@ function placeItemsInZone(
     const needed = leadingGap + measured;
 
     if (needed > spec.maxHeightMm - used) {
-      return { placed, overflow: items.slice(index) };
+      return finish(items.slice(index));
     }
 
     placed.push({
@@ -841,19 +848,14 @@ function placeItemsInZone(
     if (index < items.length - 1) {
       const nextMeasured = measureContentItemHeight(items[index + 1], spec.widthMm, fonts);
       if (used + bottomMarginMm + nextMeasured > spec.maxHeightMm) {
-        placed[placed.length - 1].bottomMarginMm = 0;
-        return { placed, overflow: items.slice(index + 1) };
+        return finish(items.slice(index + 1));
       }
       placed[placed.length - 1].bottomMarginMm = bottomMarginMm;
       used += bottomMarginMm;
     }
   }
 
-  if (placed.length > 0) {
-    placed[placed.length - 1].bottomMarginMm = 0;
-  }
-
-  return { placed, overflow: [] };
+  return finish([]);
 }
 
 /** Distributes header, footer, then column body items across preview zones. */

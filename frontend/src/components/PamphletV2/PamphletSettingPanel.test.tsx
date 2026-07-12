@@ -15,7 +15,9 @@ describe("PamphletSettingPanel", () => {
       />,
     );
     expect(screen.getByText("Page Top Margin")).toBeInTheDocument();
-    expect(screen.getByLabelText("Page Top Margin (mm)")).toHaveValue(10);
+    expect(screen.getByLabelText("Page Top Margin (mm)")).toHaveValue(
+      DEFAULT_PAMPHLET_LAYOUT_SETTINGS.pageTopMarginMm,
+    );
   });
 
   it("calls onSave with parsed mm value and onClose when Save is pressed", () => {
