@@ -32,6 +32,7 @@ interface PamphletV2Props {
   onExitPreviewMode: () => void;
   immersiveZoneWidthsPx: Partial<Record<PamphletZoneId, number>>;
   onImmersiveZoneWidthChange: (zoneId: PamphletZoneId, widthPx: number) => void;
+  onEmptyZoneActivate: (zoneId: PamphletZoneId) => void;
   printSurface?: boolean;
 }
 
@@ -54,6 +55,7 @@ export default function PamphletV2({
   onExitPreviewMode,
   immersiveZoneWidthsPx,
   onImmersiveZoneWidthChange,
+  onEmptyZoneActivate,
   printSurface = false,
 }: PamphletV2Props) {
   const rootClass = [
@@ -104,6 +106,7 @@ export default function PamphletV2({
           imageUploadError={imageUploadError}
           zoneWidthsPx={immersiveZoneWidthsPx}
           onZoneWidthChange={onImmersiveZoneWidthChange}
+          onEmptyZoneActivate={onEmptyZoneActivate}
         />
       ) : (
         <PamphletSheetPreview

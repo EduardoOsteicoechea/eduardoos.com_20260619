@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import {
   distributeContentToZones,
   IMMERSIVE_ZONE_ORDER,
+  immersiveZoneItems,
+  immersiveZoneLabel,
   type PamphletContentDocument,
   type PamphletZoneId,
 } from "../../lib/pamphletContent";
@@ -28,17 +30,19 @@ interface PamphletImmersiveViewProps {
   imageUploadError: string;
   zoneWidthsPx: Partial<Record<PamphletZoneId, number>>;
   onZoneWidthChange: (zoneId: PamphletZoneId, widthPx: number) => void;
+  onEmptyZoneActivate: (zoneId: PamphletZoneId) => void;
 }
 
 interface ImmersiveZoneProps {
   zoneId: PamphletZoneId;
+  label: string;
   widthPx: number | undefined;
   streamWidthPx: number;
   onWidthChange: (zoneId: PamphletZoneId, widthPx: number) => void;
   children: ReactNode;
 }
 
-function ImmersiveZone({ zoneId, widthPx, streamWidthPx, onWidthChange, children }: ImmersiveZoneProps) {
+function ImmersiveZone({ zoneId, label, widthPx, streamWidthPx, onWidthChange, children }: ImmersiveZoneProps) {
   const dragRef = useRef<{
     edge: "left" | "right";
     startX: number;
@@ -90,6 +94,7 @@ function ImmersiveZone({ zoneId, widthPx, streamWidthPx, onWidthChange, children
       data-zone-id={zoneId}
       style={{ width: `${effectiveWidth}px`, maxWidth: "100%" }}
     >
+      <div className="pamphlet-immersive__zone-label">{label}</div>
       <div
         className="pamphlet-immersive__resize-handle pamphlet-immersive__resize-handle--left"
         role="separator"
@@ -120,6 +125,7 @@ export function PamphletImmersiveView({
   imageUploadError,
   zoneWidthsPx,
   onZoneWidthChange,
+  onEmptyZoneActivate,
 }: PamphletImmersiveViewProps) {
   const streamRef = useRef<HTMLDivElement>(null);
   const [streamWidthPx, setStreamWidthPx] = useState(960);
@@ -144,7 +150,7 @@ export function PamphletImmersiveView({
     () => distributeContentToZones(contentDocument, settings, fontSettings),
     [contentDocument, settings, fontSettings],
   );
-  const zoneMap = useMemo(() => new Map(zones.map((zone) => [zone.zoneId, zone])), [zones]);
+
   const cssVars = useMemo(
     () => ({
       ...pamphletLayoutToCssVars(settings),
@@ -157,14 +163,13 @@ export function PamphletImmersiveView({
     <div className="pamphlet-immersive" style={cssVars as CSSProperties} aria-label="Column stack pamphlet editor">
       <div ref={streamRef} className="pamphlet-immersive__stream">
         {IMMERSIVE_ZONE_ORDER.map((zoneId) => {
-          const zone = zoneMap.get(zoneId);
-          const items = zone?.items ?? [];
-          const allowEmpty = zoneId === "header" || zoneId === "footer" || COLUMN_ZONE_IDS.has(zoneId);
+          const items = immersiveZoneItems(zoneId, contentDocument, zones);
 
           return (
             <ImmersiveZone
               key={zoneId}
               zoneId={zoneId}
+              label={immersiveZoneLabel(zoneId)}
               widthPx={zoneWidthsPx[zoneId]}
               streamWidthPx={streamWidthPx}
               onWidthChange={onZoneWidthChange}
@@ -178,7 +183,9 @@ export function PamphletImmersiveView({
                 imageUploadingItemId={imageUploadingItemId}
                 imageUploadError={imageUploadError}
                 handlers={contentHandlers}
-                allowEmpty={allowEmpty}
+                allowEmpty
+                emptyHint="Click to add content"
+                onEmptyActivate={() => onEmptyZoneActivate(zoneId)}
               />
             </ImmersiveZone>
           );
@@ -187,9 +194,5 @@ export function PamphletImmersiveView({
     </div>
   );
 }
-
-const COLUMN_ZONE_IDS = new Set<PamphletZoneId>(
-  IMMERSIVE_ZONE_ORDER.filter((zoneId) => zoneId !== "header" && zoneId !== "footer"),
-);
 
 export default PamphletImmersiveView;

@@ -7,6 +7,7 @@ import {
   addContentItemAfter,
   addContentListItem,
   adjustImageHeight,
+  appendItemToStream,
   buildEmptyPamphletContentDocument,
   findContentItemLocation,
   getStreamItems,
@@ -19,6 +20,7 @@ import {
   resolveActionBarPlacement,
   setContentItemType,
   setStreamItems,
+  streamForImmersiveZone,
   updateContentItemDescription,
   updateContentItemImageUrl,
   updateContentItemListHeader,
@@ -128,6 +130,27 @@ export default function PamphletV2Page() {
   const handleImmersiveZoneWidthChange = useCallback((zoneId: PamphletZoneId, widthPx: number) => {
     setImmersiveZoneWidthsPx((current) => ({ ...current, [zoneId]: widthPx }));
   }, []);
+
+  const handleEmptyZoneActivate = useCallback(
+    (zoneId: PamphletZoneId) => {
+      const stream = streamForImmersiveZone(zoneId);
+      const width = streamWidthForZone(settings, stream);
+      setContentDocument((current) => {
+        const next = appendItemToStream(current, stream, width, fontSettings);
+        const streamItems = stream === "header"
+          ? next.headerItems
+          : stream === "footer"
+            ? next.footerItems
+            : next.bodyItems;
+        const freshId = streamItems[streamItems.length - 1]?.id ?? null;
+        if (freshId) {
+          setSelectedItemId(freshId);
+        }
+        return next;
+      });
+    },
+    [fontSettings, settings],
+  );
 
   const closePanels = useCallback(() => {
     setOpenSetting(null);
@@ -542,6 +565,7 @@ export default function PamphletV2Page() {
         onExitPreviewMode={exitPreviewMode}
         immersiveZoneWidthsPx={immersiveZoneWidthsPx}
         onImmersiveZoneWidthChange={handleImmersiveZoneWidthChange}
+        onEmptyZoneActivate={handleEmptyZoneActivate}
       />
       <PamphletV2
         settings={settings}
@@ -562,6 +586,7 @@ export default function PamphletV2Page() {
         onExitPreviewMode={() => {}}
         immersiveZoneWidthsPx={immersiveZoneWidthsPx}
         onImmersiveZoneWidthChange={handleImmersiveZoneWidthChange}
+        onEmptyZoneActivate={() => {}}
         printSurface
       />
       </div>

@@ -82,6 +82,45 @@ export const COLUMN_ZONE_ORDER: PamphletZoneId[] = [
 /** Vertical immersive reading order: header, eight columns, footer. */
 export const IMMERSIVE_ZONE_ORDER: PamphletZoneId[] = ["header", ...COLUMN_ZONE_ORDER, "footer"];
 
+/** Human-readable label for each column-stack zone. */
+export function immersiveZoneLabel(zoneId: PamphletZoneId): string {
+  if (zoneId === "header") {
+    return "Header";
+  }
+  if (zoneId === "footer") {
+    return "Footer";
+  }
+  const columnIndex = COLUMN_ZONE_ORDER.indexOf(zoneId);
+  return columnIndex >= 0 ? `Column ${columnIndex + 1}` : zoneId;
+}
+
+/** Maps editable stream items into placed preview rows for one zone. */
+export function streamToPlacedItems(
+  items: PamphletContentItem[],
+  bottomMarginMm: number,
+): PamphletPlacedItem[] {
+  return items.map((item, index) => ({
+    item,
+    heightMm: item.heightMm,
+    bottomMarginMm: index < items.length - 1 ? bottomMarginMm : 0,
+  }));
+}
+
+/** Resolves column-stack items: header/footer use full streams; columns use sheet flow. */
+export function immersiveZoneItems(
+  zoneId: PamphletZoneId,
+  document: PamphletContentDocument,
+  distributedZones: PamphletZonePlacement[],
+): PamphletPlacedItem[] {
+  if (zoneId === "header") {
+    return streamToPlacedItems(document.headerItems, document.itemBottomMarginMm);
+  }
+  if (zoneId === "footer") {
+    return streamToPlacedItems(document.footerItems, document.itemBottomMarginMm);
+  }
+  return distributedZones.find((entry) => entry.zoneId === zoneId)?.items ?? [];
+}
+
 const DEFAULT_IMAGE_HEIGHT_RATIO = 0.75;
 const DEFAULT_LINE_TEXT = "New paragraph";
 const PAMPHLET_CONTENT_IMAGE_PREFIX = "media/pamphlets/content-images";
@@ -1039,6 +1078,30 @@ export function setStreamItems(
     return { ...document, footerItems: items };
   }
   return { ...document, bodyItems: assignBodyContentRefs(items) };
+}
+
+/** Maps a column-stack zone id to its editable document stream. */
+export function streamForImmersiveZone(zoneId: PamphletZoneId): ContentStream {
+  if (zoneId === "header") {
+    return "header";
+  }
+  if (zoneId === "footer") {
+    return "footer";
+  }
+  return "body";
+}
+
+/** Appends a default paragraph to one header/body/footer stream. */
+export function appendItemToStream(
+  document: PamphletContentDocument,
+  stream: ContentStream,
+  containerWidthMm: number,
+  fonts: PamphletFontSettings = DEFAULT_PAMPHLET_FONT_SETTINGS,
+): PamphletContentDocument {
+  const streamItems = getStreamItems(document, stream);
+  const fresh = createDefaultContentItem("paragraph");
+  const nextItems = recalculateContentHeights([...streamItems, fresh], () => containerWidthMm, fonts);
+  return setStreamItems(document, stream, nextItems);
 }
 
 /** Counts items placed across the eight body flow columns. */

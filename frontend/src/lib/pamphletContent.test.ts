@@ -18,6 +18,8 @@ import {
   countPlacedColumnItems,
   distributeContentToZones,
   documentFromDbPayload,
+  immersiveZoneItems,
+  immersiveZoneLabel,
   measureContentItemHeight,
   moveContentItemDown,
   moveContentItemUp,
@@ -211,6 +213,24 @@ describe("assignBodyContentRefs", () => {
     const assigned = assignBodyContentRefs(items);
     expect(assigned[0]?.contentRef).toBe("0:heading");
     expect(assigned[1]?.contentRef).toBe("0:subidea:0");
+  });
+});
+
+describe("immersive column stack helpers", () => {
+  it("labels header, numbered columns, and footer", () => {
+    expect(immersiveZoneLabel("header")).toBe("Header");
+    expect(immersiveZoneLabel("s1r-col0")).toBe("Column 1");
+    expect(immersiveZoneLabel("s1r-col1")).toBe("Column 2");
+    expect(immersiveZoneLabel("s1l-col1")).toBe("Column 8");
+    expect(immersiveZoneLabel("footer")).toBe("Footer");
+  });
+
+  it("uses full header and footer streams in column view", () => {
+    const doc = buildEmptyPamphletContentDocument(DEFAULT_PAMPHLET_LAYOUT_SETTINGS);
+    const zones = distributeContentToZones(doc, DEFAULT_PAMPHLET_LAYOUT_SETTINGS, fonts);
+    expect(immersiveZoneItems("header", doc, zones)).toHaveLength(doc.headerItems.length);
+    expect(immersiveZoneItems("footer", doc, zones)).toHaveLength(doc.footerItems.length);
+    expect(immersiveZoneItems("header", doc, zones)[0]?.item.id).toBe(doc.headerItems[0]?.id);
   });
 });
 

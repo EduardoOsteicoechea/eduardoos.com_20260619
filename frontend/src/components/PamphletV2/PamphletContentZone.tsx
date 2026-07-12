@@ -37,6 +37,8 @@ interface PamphletContentZoneProps {
   handlers: PamphletContentZoneHandlers;
   allowEmpty?: boolean;
   readOnly?: boolean;
+  emptyHint?: string;
+  onEmptyActivate?: () => void;
 }
 
 export function PamphletContentZone({
@@ -50,6 +52,8 @@ export function PamphletContentZone({
   handlers,
   allowEmpty = false,
   readOnly = false,
+  emptyHint = "Click to add content",
+  onEmptyActivate,
 }: PamphletContentZoneProps) {
   if (items.length === 0 && !allowEmpty) {
     return null;
@@ -57,7 +61,26 @@ export function PamphletContentZone({
 
   if (items.length === 0 && allowEmpty) {
     return (
-      <div className="pamphlet-content-zone pamphlet-content-zone--empty" data-zone-id={zoneId} aria-label={`Empty ${zoneId} zone`} />
+      <div
+        className="pamphlet-content-zone pamphlet-content-zone--empty"
+        data-zone-id={zoneId}
+        role="button"
+        tabIndex={readOnly ? -1 : 0}
+        aria-label={`Empty ${zoneId} zone`}
+        onClick={readOnly ? undefined : onEmptyActivate}
+        onKeyDown={
+          readOnly || !onEmptyActivate
+            ? undefined
+            : (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onEmptyActivate();
+                }
+              }
+        }
+      >
+        <span className="pamphlet-content-zone__empty-hint">{emptyHint}</span>
+      </div>
     );
   }
 

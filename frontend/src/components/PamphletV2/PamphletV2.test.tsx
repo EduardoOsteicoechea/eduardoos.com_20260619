@@ -50,6 +50,7 @@ const previewProps = {
   onExitPreviewMode: () => {},
   immersiveZoneWidthsPx: {},
   onImmersiveZoneWidthChange: () => {},
+  onEmptyZoneActivate: () => {},
 } as const;
 
 const componentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -81,6 +82,8 @@ describe("PamphletV2.tsx", () => {
     );
     expect(container.querySelector(".pamphlet-immersive")).toBeInTheDocument();
     expect(container.querySelector("#sheet1")).toBeNull();
+    expect(container.querySelector(".pamphlet-immersive__zone-label")?.textContent).toBe("Header");
+    expect(container.querySelectorAll(".pamphlet-immersive__zone-label")).toHaveLength(10);
   });
 
   it("renders print preview mode without edit chrome on zones", () => {

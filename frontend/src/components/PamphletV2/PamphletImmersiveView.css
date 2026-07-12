@@ -34,11 +34,28 @@
   border-radius: var(--border_radius_001);
 }
 
+.pamphlet-immersive__zone-label {
+  padding: 0.4rem 0.75rem;
+  font-family: Montserrat, Raleway, Roboto, sans-serif;
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--site-body-fg) 78%, transparent);
+  border-bottom: var(--border_001);
+  background: color-mix(in srgb, var(--site-body-fg) 6%, transparent);
+}
+
 .pamphlet-immersive__zone-body {
   box-sizing: border-box;
   width: 100%;
   min-height: inherit;
   padding: 0.5rem 0.75rem;
+}
+
+.pamphlet-immersive .pamphlet-content-zone {
+  overflow: visible;
+  min-height: 2rem;
 }
 
 .pamphlet-immersive__resize-handle {
@@ -71,6 +88,16 @@
   border: 0.3mm dashed color-mix(in srgb, currentColor 20%, transparent);
   border-radius: var(--border_radius_001);
   background: color-mix(in srgb, var(--site-body-fg) 4%, transparent);
+  cursor: pointer;
+}
+
+.pamphlet-content-zone__empty-hint {
+  display: block;
+  padding: 0.75rem 0.5rem;
+  font-size: var(--font-sm);
+  font-style: italic;
+  color: color-mix(in srgb, var(--site-body-fg) 55%, transparent);
+  text-align: center;
 }
 
 @media (min-width: 768px) {
