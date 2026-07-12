@@ -40,6 +40,7 @@ interface PamphletContentItemProps {
   onListItemChange?: (index: number, value: string) => void;
   onAddListItem?: () => void;
   onRemoveListItem?: (index: number) => void;
+  readOnly?: boolean;
 }
 
 const ACTION_BAR_ICON_HEIGHT_PX = 44;
@@ -128,6 +129,7 @@ export function PamphletContentItem({
   onListItemChange,
   onAddListItem,
   onRemoveListItem,
+  readOnly = false,
 }: PamphletContentItemProps) {
   const imageContext = usePamphletImageContext();
   const itemRef = useRef<HTMLDivElement>(null);
@@ -208,7 +210,7 @@ export function PamphletContentItem({
   }
 
   function renderActionBar() {
-    if (!selected || !portalBarStyle || !onSetType || !onAddBelow || !onMoveUp || !onMoveDown || !onRemove) {
+    if (readOnly || !selected || !portalBarStyle || !onSetType || !onAddBelow || !onMoveUp || !onMoveDown || !onRemove) {
       return null;
     }
 
@@ -248,7 +250,7 @@ export function PamphletContentItem({
   }
 
   function renderEditableText(className: string) {
-    if (selected) {
+    if (selected && !readOnly) {
       return (
         <div
           ref={editableRef}
@@ -336,10 +338,14 @@ export function PamphletContentItem({
         data-height-mm={item.heightMm.toFixed(2)}
         data-content-ref={item.contentRef}
         style={{ width: "100%", minHeight: `${item.heightMm}mm` }}
-        onClick={(event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          onSelect(item.id, rect.top, rect.bottom);
-        }}
+        onClick={
+          readOnly
+            ? undefined
+            : (event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                onSelect(item.id, rect.top, rect.bottom);
+              }
+        }
       >
         {renderBody()}
       </div>

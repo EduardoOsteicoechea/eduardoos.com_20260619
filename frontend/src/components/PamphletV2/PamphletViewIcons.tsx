@@ -70,6 +70,18 @@ export function IconSaveCloud() {
 }
 
 export function IconImmersiveEdit() {
+  return <IconColumnStack />;
+}
+
+export function IconPreviewLayout() {
+  return (
+    <Icon>
+      <path fill="currentColor" d="M3 5h18v14H3V5zm2 2v10h14V7H5zM12 7v10h-2V7h2zm0 0h7v2h-7V7zm0 4h7v2h-7v-2z" />
+    </Icon>
+  );
+}
+
+export function IconColumnStack() {
   return (
     <Icon>
       <path fill="currentColor" d="M6 4h12v4H6V4zm0 6h12v4H6v-4zm0 6h12v4H6v-4z" />
@@ -77,10 +89,24 @@ export function IconImmersiveEdit() {
   );
 }
 
-export function IconPreviewLayout() {
+export function IconPrintPreview() {
   return (
     <Icon>
-      <path fill="currentColor" d="M3 5h18v14H3V5zm2 2v10h14V7H5zM12 7v10h-2V7h2zm0 0h7v2h-7V7zm0 4h7v2h-7v-2z" />
+      <path
+        fill="currentColor"
+        d="M5 4h14v4H5V4zm-1 6h16v7h-4v3H8v-3H4v-7zm3 2v2h10v-2H7zm0 4v2h6v-2H7z"
+      />
+    </Icon>
+  );
+}
+
+export function IconPrint() {
+  return (
+    <Icon>
+      <path
+        fill="currentColor"
+        d="M7 3h10v4H7V3zm-2 6h14a2 2 0 012 2v5h-3v4H6v-4H3v-5a2 2 0 012-2zm2 2v2h10V11H7zm0 4v3h10v-3H7z"
+      />
     </Icon>
   );
 }

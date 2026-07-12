@@ -22,7 +22,11 @@ describe("PamphletV2Page preview settings", () => {
   it("renders icon activity buttons with tooltips for margin and preview tools", () => {
     render(<PamphletV2Page />);
     const bar = screen.getByRole("toolbar", { name: "Pamphlet actions" });
-    expect(within(bar).getAllByRole("button")).toHaveLength(14);
+    expect(within(bar).getAllByRole("button")).toHaveLength(16);
+    expect(screen.getByRole("button", { name: "Pamphlet view" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Column view" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preview view" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Print PDF" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Page Top Margin" })).toHaveAttribute(
       "title",
       "Top safe margin in millimeters",
@@ -55,6 +59,7 @@ describe("PamphletV2Page preview settings", () => {
 
   it("opens a setting panel on button click and applies saved value to the sheet", () => {
     render(<PamphletV2Page />);
+    fireEvent.click(screen.getByRole("button", { name: "Pamphlet view" }));
     fireEvent.click(screen.getByRole("button", { name: "Page Top Margin" }));
     const input = screen.getByLabelText("Page Top Margin (mm)");
     fireEvent.change(input, { target: { value: "18" } });

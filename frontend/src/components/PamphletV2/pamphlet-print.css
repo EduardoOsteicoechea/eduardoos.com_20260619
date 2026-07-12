@@ -6,9 +6,9 @@
 .pamphlet-sheet {
   --pamphlet-sheet-w: 279.4mm;
   --pamphlet-sheet-h: 215.9mm;
-  --pamphlet-margin-top: 10mm;
-  --pamphlet-margin-bottom: 10mm;
-  --pamphlet-margin-ext: 10mm;
+  --pamphlet-margin-top: 20mm;
+  --pamphlet-margin-bottom: 20mm;
+  --pamphlet-margin-ext: 20mm;
   --pamphlet-margin-int: 5mm;
   --pamphlet-col-sep: 4mm;
   --pamphlet-row-sep: 5mm;
@@ -249,6 +249,19 @@
   }
 }
 
+.pamphlet-v2__canvas--print-preview .pamphlet-sheet__zone {
+  border-color: transparent;
+}
+
+.pamphlet-v2--print-surface {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 279.4mm;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 @media print {
   @page {
     size: 279.4mm 215.9mm;
@@ -278,6 +291,17 @@
   #pwa-toast,
   .page-background {
     display: none !important;
+  }
+
+  .pamphlet-v2-page > .pamphlet-v2:not(.pamphlet-v2--print-surface) {
+    display: none !important;
+  }
+
+  .pamphlet-v2--print-surface {
+    position: static !important;
+    left: auto !important;
+    visibility: visible !important;
+    pointer-events: none !important;
   }
 
   .pamphlet-v2-page,

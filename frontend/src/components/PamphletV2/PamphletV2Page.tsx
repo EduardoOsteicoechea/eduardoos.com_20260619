@@ -1,13 +1,13 @@
 /**
  * PamphletV2Page.tsx — Activity bar controls + content insertion preview.
  */
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { ActivityBar } from "../ActivityBar/ActivityBar";
 import {
   addContentItemAfter,
   addContentListItem,
   adjustImageHeight,
-  buildFakePamphletContentDocument,
+  buildEmptyPamphletContentDocument,
   findContentItemLocation,
   getStreamItems,
   moveContentItemDown,
@@ -39,10 +39,8 @@ import {
   type PamphletSettingKey,
 } from "../../lib/pamphletLayout";
 import {
-  bootstrapPamphletFromCloud,
   loadPamphletBundle,
   persistActivePamphletId,
-  readStoredPamphletId,
   savePamphletBundle,
 } from "../../lib/pamphletPersistence";
 import {
@@ -57,13 +55,24 @@ import {
 import { marginSettingIcon } from "./PamphletMarginIcons";
 import { IconFontSize } from "./PamphletContentIcons";
 import type { PamphletContentZoneHandlers } from "./PamphletContentZone";
+import type { PamphletZoneId } from "../../lib/pamphletContent";
 import PamphletFontSettingsPanel from "./PamphletFontSettingsPanel";
 import PamphletOpenModal from "./PamphletOpenModal";
 import PamphletSaveModal from "./PamphletSaveModal";
 import PamphletSettingPanel from "./PamphletSettingPanel";
 import PamphletV2, { type PamphletEditorViewMode } from "./PamphletV2";
 import { PamphletImageProvider } from "./PamphletImageContext";
-import { IconDragMove, IconImmersiveEdit, IconOpenFolder, IconPreviewLayout, IconSaveCloud, IconZoomIn, IconZoomOut } from "./PamphletViewIcons";
+import {
+  IconColumnStack,
+  IconDragMove,
+  IconOpenFolder,
+  IconPreviewLayout,
+  IconPrint,
+  IconPrintPreview,
+  IconSaveCloud,
+  IconZoomIn,
+  IconZoomOut,
+} from "./PamphletViewIcons";
 import { uploadPamphletImage } from "../../lib/pamphlets";
 import "./PamphletV2Page.css";
 
@@ -95,12 +104,13 @@ export default function PamphletV2Page() {
   const [settings, setSettings] = useState<PamphletLayoutSettings>(DEFAULT_PAMPHLET_LAYOUT_SETTINGS);
   const [fontSettings, setFontSettings] = useState<PamphletFontSettings>(DEFAULT_PAMPHLET_FONT_SETTINGS);
   const [contentDocument, setContentDocument] = useState<PamphletContentDocument>(() =>
-    buildFakePamphletContentDocument(DEFAULT_PAMPHLET_LAYOUT_SETTINGS, DEFAULT_PAMPHLET_FONT_SETTINGS),
+    buildEmptyPamphletContentDocument(DEFAULT_PAMPHLET_LAYOUT_SETTINGS, DEFAULT_PAMPHLET_FONT_SETTINGS),
   );
   const [openSetting, setOpenSetting] = useState<PamphletSettingKey | null>(null);
   const [fontPanelOpen, setFontPanelOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewInteractionMode | null>(null);
-  const [viewMode, setViewMode] = useState<PamphletEditorViewMode>("preview");
+  const [viewMode, setViewMode] = useState<PamphletEditorViewMode>("column");
+  const [immersiveZoneWidthsPx, setImmersiveZoneWidthsPx] = useState<Partial<Record<PamphletZoneId, number>>>({});
   const [zoomScale, setZoomScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -109,60 +119,14 @@ export default function PamphletV2Page() {
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [activePamphletId, setActivePamphletId] = useState<string | null>(null);
   const [activePamphletTitle, setActivePamphletTitle] = useState("Untitled pamphlet");
-  const [cloudHydrated, setCloudHydrated] = useState(false);
   const [cloudStatus, setCloudStatus] = useState("");
   const [imageUploadingItemId, setImageUploadingItemId] = useState<string | null>(null);
   const [imageUploadError, setImageUploadError] = useState("");
 
   const activeDefinition = PAMPHLET_LAYOUT_SETTING_DEFINITIONS.find((item) => item.key === openSetting);
 
-  useEffect(() => {
-    let cancelled = false;
-    const hadStoredPamphlet = Boolean(readStoredPamphletId());
-
-    if (!isAuthenticated()) {
-      setCloudHydrated(true);
-      if (hadStoredPamphlet) {
-        setCloudStatus(PAMPHLET_AUTH_REQUIRED_MESSAGE);
-      }
-      return;
-    }
-
-    void bootstrapPamphletFromCloud(DEFAULT_PAMPHLET_FONT_SETTINGS, DEFAULT_PAMPHLET_LAYOUT_SETTINGS)
-      .then((boot) => {
-        if (cancelled || !boot) {
-          return;
-        }
-        setContentDocument(boot.contentDocument);
-        setSettings(boot.settings);
-        setActivePamphletId(boot.pamphletId);
-        setActivePamphletTitle(boot.title);
-        setCloudStatus(`Loaded ${boot.title}`);
-      })
-      .catch((err) => {
-        if (cancelled) {
-          return;
-        }
-        const message = err instanceof Error ? err.message : "Could not load pamphlet from cloud";
-        const normalized = message.toLowerCase();
-        if (
-          normalized.includes("invalid token") ||
-          normalized.includes("authorization required") ||
-          normalized.includes("unauthorized")
-        ) {
-          setCloudStatus(PAMPHLET_AUTH_REQUIRED_MESSAGE);
-          return;
-        }
-        setCloudStatus(message);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setCloudHydrated(true);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+  const handleImmersiveZoneWidthChange = useCallback((zoneId: PamphletZoneId, widthPx: number) => {
+    setImmersiveZoneWidthsPx((current) => ({ ...current, [zoneId]: widthPx }));
   }, []);
 
   const closePanels = useCallback(() => {
@@ -206,19 +170,36 @@ export default function PamphletV2Page() {
   const activatePreviewMode = useCallback((mode: PreviewInteractionMode) => {
     setOpenSetting(null);
     setFontPanelOpen(false);
-    setViewMode("preview");
+    setViewMode((current) => (current === "column" ? "pamphlet" : current));
     setPreviewMode(mode);
   }, []);
 
-  const enterImmersiveView = useCallback(() => {
+  const enterColumnView = useCallback(() => {
     setOpenSetting(null);
     setFontPanelOpen(false);
     setPreviewMode(null);
-    setViewMode("immersive");
+    setViewMode("column");
   }, []);
 
-  const enterPreviewView = useCallback(() => {
-    setViewMode("preview");
+  const enterPamphletView = useCallback(() => {
+    setOpenSetting(null);
+    setFontPanelOpen(false);
+    setPreviewMode(null);
+    setViewMode("pamphlet");
+  }, []);
+
+  const enterPrintPreviewView = useCallback(() => {
+    setOpenSetting(null);
+    setFontPanelOpen(false);
+    setPreviewMode(null);
+    setViewMode("print-preview");
+  }, []);
+
+  const handlePrintPdf = useCallback(() => {
+    setViewMode("print-preview");
+    window.requestAnimationFrame(() => {
+      window.print();
+    });
   }, []);
 
   const exitPreviewMode = useCallback(() => {
@@ -242,7 +223,7 @@ export default function PamphletV2Page() {
   const contentHandlers = useMemo<PamphletContentZoneHandlers>(
     () => ({
       onSelectItem: (itemId, _zoneId, elementTopPx, elementBottomPx) => {
-        if (previewMode && viewMode === "preview") {
+        if (previewMode && (viewMode === "pamphlet" || viewMode === "print-preview")) {
           return;
         }
         setSelectedItemId(itemId);
@@ -353,23 +334,39 @@ export default function PamphletV2Page() {
   const viewModeButtons = useMemo(
     () => [
       {
-        id: "immersive-edit",
-        label: "Immersive edit",
-        title: "Stack all columns vertically for focused editing",
-        icon: <IconImmersiveEdit />,
-        active: viewMode === "immersive",
-        onClick: enterImmersiveView,
+        id: "pamphlet-view",
+        label: "Pamphlet view",
+        title: "Edit content on the US Letter pamphlet layout",
+        icon: <IconPreviewLayout />,
+        active: viewMode === "pamphlet",
+        onClick: enterPamphletView,
       },
       {
-        id: "preview-view",
+        id: "column-view",
+        label: "Column view",
+        title: "Stack all columns vertically for focused editing",
+        icon: <IconColumnStack />,
+        active: viewMode === "column",
+        onClick: enterColumnView,
+      },
+      {
+        id: "print-preview-view",
         label: "Preview view",
-        title: "Return to the sheet preview layout",
-        icon: <IconPreviewLayout />,
-        active: viewMode === "preview",
-        onClick: enterPreviewView,
+        title: "Full US Letter preview with generated sheets",
+        icon: <IconPrintPreview />,
+        active: viewMode === "print-preview",
+        onClick: enterPrintPreviewView,
+      },
+      {
+        id: "print-pdf",
+        label: "Print PDF",
+        title: "Print the preview as a US Letter PDF",
+        icon: <IconPrint />,
+        active: false,
+        onClick: handlePrintPdf,
       },
     ],
-    [enterImmersiveView, enterPreviewView, viewMode],
+    [enterColumnView, enterPamphletView, enterPrintPreviewView, handlePrintPdf, viewMode],
   );
 
   const previewModeButtons = useMemo(
@@ -379,7 +376,7 @@ export default function PamphletV2Page() {
         label: button.label,
         title: button.title,
         icon: button.icon,
-        active: previewMode === button.id && viewMode === "preview",
+        active: previewMode === button.id && (viewMode === "pamphlet" || viewMode === "print-preview"),
         onClick: () => activatePreviewMode(button.id),
       })),
     [activatePreviewMode, previewMode, viewMode],
@@ -543,6 +540,29 @@ export default function PamphletV2Page() {
         onZoomOut={() => setZoomScale((current) => applyPreviewZoomOut(current))}
         onPanChange={(x, y) => setPan({ x, y })}
         onExitPreviewMode={exitPreviewMode}
+        immersiveZoneWidthsPx={immersiveZoneWidthsPx}
+        onImmersiveZoneWidthChange={handleImmersiveZoneWidthChange}
+      />
+      <PamphletV2
+        settings={settings}
+        contentDocument={contentDocument}
+        fontSettings={fontSettings}
+        selectedItemId={null}
+        actionPlacement={actionPlacement}
+        contentHandlers={contentHandlers}
+        imageUploadingItemId={imageUploadingItemId}
+        imageUploadError={imageUploadError}
+        viewMode="print-preview"
+        previewMode={null}
+        zoomScale={1}
+        pan={{ x: 0, y: 0 }}
+        onZoomIn={() => {}}
+        onZoomOut={() => {}}
+        onPanChange={() => {}}
+        onExitPreviewMode={() => {}}
+        immersiveZoneWidthsPx={immersiveZoneWidthsPx}
+        onImmersiveZoneWidthChange={handleImmersiveZoneWidthChange}
+        printSurface
       />
       </div>
     </PamphletImageProvider>

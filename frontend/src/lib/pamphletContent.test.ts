@@ -13,6 +13,8 @@ import {
   updateContentItemReferences,
   updateContentListItemText,
   buildFakePamphletContentDocument,
+  buildEmptyPamphletContentDocument,
+  computeVisibleSheetNumbers,
   countPlacedColumnItems,
   distributeContentToZones,
   documentFromDbPayload,
@@ -209,6 +211,26 @@ describe("assignBodyContentRefs", () => {
     const assigned = assignBodyContentRefs(items);
     expect(assigned[0]?.contentRef).toBe("0:heading");
     expect(assigned[1]?.contentRef).toBe("0:subidea:0");
+  });
+});
+
+describe("buildEmptyPamphletContentDocument", () => {
+  it("starts with empty header, body, and footer blocks", () => {
+    const doc = buildEmptyPamphletContentDocument(DEFAULT_PAMPHLET_LAYOUT_SETTINGS);
+    expect(doc.headerItems).toHaveLength(1);
+    expect(doc.bodyItems).toHaveLength(1);
+    expect(doc.footerItems).toHaveLength(1);
+    expect(doc.headerItems[0]?.text).toBe("");
+    expect(doc.bodyItems[0]?.text).toBe("");
+    expect(doc.footerItems[0]?.text).toBe("");
+  });
+});
+
+describe("computeVisibleSheetNumbers", () => {
+  it("returns only sheet 1 for a short empty pamphlet", () => {
+    const doc = buildEmptyPamphletContentDocument(DEFAULT_PAMPHLET_LAYOUT_SETTINGS);
+    const zones = distributeContentToZones(doc, DEFAULT_PAMPHLET_LAYOUT_SETTINGS, fonts);
+    expect(computeVisibleSheetNumbers(zones)).toEqual([1]);
   });
 });
 

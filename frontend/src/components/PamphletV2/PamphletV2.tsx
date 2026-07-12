@@ -1,7 +1,7 @@
 /**
- * PamphletV2.tsx — Pamphlet generator workspace (preview driven by mm settings + content).
+ * PamphletV2.tsx — Pamphlet generator workspace (pamphlet / column / print-preview views).
  */
-import type { PamphletContentDocument } from "../../lib/pamphletContent";
+import type { PamphletContentDocument, PamphletZoneId } from "../../lib/pamphletContent";
 import type { PamphletLayoutSettings } from "../../lib/pamphletLayout";
 import type { PreviewInteractionMode, PreviewPan } from "../../lib/pamphletPreviewInteraction";
 import type { PamphletFontSettings } from "../../lib/pamphletFontSettings";
@@ -11,7 +11,7 @@ import { PamphletSheetPreview } from "./PamphletSheetPreview";
 import "./PamphletV2.css";
 import "./pamphlet-print.css";
 
-export type PamphletEditorViewMode = "preview" | "immersive";
+export type PamphletEditorViewMode = "pamphlet" | "column" | "print-preview";
 
 interface PamphletV2Props {
   settings: PamphletLayoutSettings;
@@ -30,6 +30,9 @@ interface PamphletV2Props {
   onZoomOut: () => void;
   onPanChange: (x: number, y: number) => void;
   onExitPreviewMode: () => void;
+  immersiveZoneWidthsPx: Partial<Record<PamphletZoneId, number>>;
+  onImmersiveZoneWidthChange: (zoneId: PamphletZoneId, widthPx: number) => void;
+  printSurface?: boolean;
 }
 
 export default function PamphletV2({
@@ -49,10 +52,47 @@ export default function PamphletV2({
   onZoomOut,
   onPanChange,
   onExitPreviewMode,
+  immersiveZoneWidthsPx,
+  onImmersiveZoneWidthChange,
+  printSurface = false,
 }: PamphletV2Props) {
+  const rootClass = [
+    "pamphlet-v2",
+    printSurface ? "pamphlet-v2--print-surface" : "",
+    viewMode === "print-preview" ? "pamphlet-v2--print-preview-mode" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (printSurface) {
+    return (
+      <div className={rootClass} aria-hidden="true">
+        <PamphletSheetPreview
+          settings={settings}
+          contentDocument={contentDocument}
+          fontSettings={fontSettings}
+          selectedItemId={null}
+          actionPlacement={actionPlacement}
+          contentHandlers={contentHandlers}
+          imageUploadingItemId={imageUploadingItemId}
+          imageUploadError={imageUploadError}
+          previewMode={null}
+          zoomScale={1}
+          pan={{ x: 0, y: 0 }}
+          onZoomIn={() => {}}
+          onZoomOut={() => {}}
+          onPanChange={() => {}}
+          onExitPreviewMode={() => {}}
+          presentation="print-preview"
+          interactive={false}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="pamphlet-v2" aria-label="Pamphlet generator">
-      {viewMode === "immersive" ? (
+    <div className={rootClass} aria-label="Pamphlet generator">
+      {viewMode === "column" ? (
         <PamphletImmersiveView
           settings={settings}
           contentDocument={contentDocument}
@@ -62,6 +102,8 @@ export default function PamphletV2({
           contentHandlers={contentHandlers}
           imageUploadingItemId={imageUploadingItemId}
           imageUploadError={imageUploadError}
+          zoneWidthsPx={immersiveZoneWidthsPx}
+          onZoneWidthChange={onImmersiveZoneWidthChange}
         />
       ) : (
         <PamphletSheetPreview
@@ -80,6 +122,8 @@ export default function PamphletV2({
           onZoomOut={onZoomOut}
           onPanChange={onPanChange}
           onExitPreviewMode={onExitPreviewMode}
+          presentation={viewMode === "print-preview" ? "print-preview" : "edit"}
+          interactive={viewMode !== "print-preview"}
         />
       )}
     </div>

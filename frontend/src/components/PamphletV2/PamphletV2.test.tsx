@@ -4,12 +4,12 @@ import { fileURLToPath } from "node:url";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PAMPHLET_LAYOUT_SETTINGS } from "../../lib/pamphletLayout";
-import { buildFakePamphletContentDocument } from "../../lib/pamphletContent";
+import { buildEmptyPamphletContentDocument } from "../../lib/pamphletContent";
 import { DEFAULT_PAMPHLET_FONT_SETTINGS } from "../../lib/pamphletFontSettings";
 import PamphletV2 from "./PamphletV2";
 import PamphletV2Page from "./PamphletV2Page";
 
-const contentDocument = buildFakePamphletContentDocument(
+const contentDocument = buildEmptyPamphletContentDocument(
   DEFAULT_PAMPHLET_LAYOUT_SETTINGS,
   DEFAULT_PAMPHLET_FONT_SETTINGS,
 );
@@ -40,7 +40,7 @@ const previewProps = {
   },
   imageUploadingItemId: null,
   imageUploadError: "",
-  viewMode: "preview" as const,
+  viewMode: "pamphlet" as const,
   previewMode: null,
   zoomScale: 1,
   pan: { x: 0, y: 0 },
@@ -48,6 +48,8 @@ const previewProps = {
   onZoomOut: () => {},
   onPanChange: () => {},
   onExitPreviewMode: () => {},
+  immersiveZoneWidthsPx: {},
+  onImmersiveZoneWidthChange: () => {},
 } as const;
 
 const componentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -73,17 +75,24 @@ describe("PamphletV2.tsx", () => {
     expect(container.querySelectorAll("[data-testid='pamphlet-content-item']").length).toBeGreaterThan(0);
   });
 
-  it("labels the generator workspace for assistive tech", () => {
-    render(<PamphletV2 settings={DEFAULT_PAMPHLET_LAYOUT_SETTINGS} {...previewProps} />);
-    expect(screen.getByLabelText("Pamphlet generator")).toBeInTheDocument();
-  });
-
-  it("renders immersive mode as a vertical stack", () => {
+  it("renders column mode as a vertical stack", () => {
     const { container } = render(
-      <PamphletV2 settings={DEFAULT_PAMPHLET_LAYOUT_SETTINGS} {...previewProps} viewMode="immersive" />,
+      <PamphletV2 settings={DEFAULT_PAMPHLET_LAYOUT_SETTINGS} {...previewProps} viewMode="column" />,
     );
     expect(container.querySelector(".pamphlet-immersive")).toBeInTheDocument();
     expect(container.querySelector("#sheet1")).toBeNull();
+  });
+
+  it("renders print preview mode without edit chrome on zones", () => {
+    const { container } = render(
+      <PamphletV2 settings={DEFAULT_PAMPHLET_LAYOUT_SETTINGS} {...previewProps} viewMode="print-preview" />,
+    );
+    expect(container.querySelector(".pamphlet-v2__canvas--print-preview")).toBeInTheDocument();
+  });
+
+  it("labels the generator workspace for assistive tech", () => {
+    render(<PamphletV2 settings={DEFAULT_PAMPHLET_LAYOUT_SETTINGS} {...previewProps} />);
+    expect(screen.getByLabelText("Pamphlet generator")).toBeInTheDocument();
   });
 });
 

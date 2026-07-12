@@ -95,7 +95,14 @@ describe("pamphletLayoutToCssVars", () => {
     expect(vars["--pamphlet-sheet-w"]).toBe("279.4mm");
     expect(vars["--pamphlet-sheet-h"]).toBe("215.9mm");
     expect(vars["--pamphlet-margin-top"]).toBe("12mm");
+    expect(vars["--pamphlet-margin-ext"]).toBe("20mm");
     expect(vars["--pamphlet-col-sep"]).toBe("4mm");
     expect(vars["--pamphlet-right-col-h"]).toMatch(/mm$/);
+  });
+
+  it("defaults medium page margins to 20mm", () => {
+    expect(DEFAULT_PAMPHLET_LAYOUT_SETTINGS.pageTopMarginMm).toBe(20);
+    expect(DEFAULT_PAMPHLET_LAYOUT_SETTINGS.pageBottomMarginMm).toBe(20);
+    expect(DEFAULT_PAMPHLET_LAYOUT_SETTINGS.pageLateralExternalMarginMm).toBe(20);
   });
 });

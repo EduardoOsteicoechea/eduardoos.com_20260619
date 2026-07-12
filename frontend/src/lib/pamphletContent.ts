@@ -636,6 +636,62 @@ function finalizeDocument(
   };
 }
 
+/** Blank unsaved pamphlet with empty header, body, and footer starter blocks. */
+export function buildEmptyPamphletContentDocument(
+  settings: PamphletLayoutSettings,
+  fonts: PamphletFontSettings = DEFAULT_PAMPHLET_FONT_SETTINGS,
+): PamphletContentDocument {
+  return finalizeDocument(
+    {
+      headerItems: [createContentItem("paragraph", { text: "", contentRef: "header:text" })],
+      footerItems: [createContentItem("paragraph", { text: "", contentRef: "footer:text" })],
+      bodyItems: [createContentItem("paragraph", { text: "", contentRef: "0:subidea:0" })],
+      itemBottomMarginMm: 1,
+    },
+    settings,
+    fonts,
+  );
+}
+
+const SHEET2_COLUMN_ZONES: PamphletZoneId[] = ["s2l-col0", "s2l-col1", "s2r-col0", "s2r-col1"];
+
+/** Sums placed item heights inside one zone. */
+export function zoneUsedHeightMm(zone: PamphletZonePlacement): number {
+  return zone.items.reduce((sum, placed) => sum + placed.heightMm + placed.bottomMarginMm, 0);
+}
+
+/** Reports when a zone consumed at least 92% of its vertical capacity. */
+export function zoneIsNearlyFull(zone: PamphletZonePlacement): boolean {
+  if (zone.items.length === 0) {
+    return false;
+  }
+  return zoneUsedHeightMm(zone) >= zone.maxHeightMm * 0.92;
+}
+
+/** Reports when any sheet-2 column received content. */
+export function sheet2HasContent(zones: PamphletZonePlacement[]): boolean {
+  return SHEET2_COLUMN_ZONES.some((zoneId) => (zones.find((zone) => zone.zoneId === zoneId)?.items.length ?? 0) > 0);
+}
+
+/** Reports when both sheet-1-right columns are saturated. */
+export function sheet1RightColumnsFull(zones: PamphletZonePlacement[]): boolean {
+  const right0 = zones.find((zone) => zone.zoneId === "s1r-col0");
+  const right1 = zones.find((zone) => zone.zoneId === "s1r-col1");
+  if (!right0 || !right1) {
+    return false;
+  }
+  return zoneIsNearlyFull(right0) && zoneIsNearlyFull(right1);
+}
+
+/** Returns sheet numbers that should render in print preview (matches Go preview rules). */
+export function computeVisibleSheetNumbers(zones: PamphletZonePlacement[]): number[] {
+  const sheets = [1];
+  if (sheet1RightColumnsFull(zones) && sheet2HasContent(zones)) {
+    sheets.push(2);
+  }
+  return sheets;
+}
+
 /** Bundled fake document for local preview (mirrors pkg/pamphlet/data/*.json). */
 export function buildFakePamphletContentDocument(
   settings: PamphletLayoutSettings,

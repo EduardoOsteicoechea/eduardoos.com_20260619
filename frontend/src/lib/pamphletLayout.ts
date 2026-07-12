@@ -28,9 +28,9 @@ export interface PamphletSettingDefinition {
 }
 
 export const DEFAULT_PAMPHLET_LAYOUT_SETTINGS: PamphletLayoutSettings = {
-  pageTopMarginMm: 10,
-  pageBottomMarginMm: 10,
-  pageLateralExternalMarginMm: 10,
+  pageTopMarginMm: 20,
+  pageBottomMarginMm: 20,
+  pageLateralExternalMarginMm: 20,
   pageLateralInternalMarginMm: 5,
   pageSideColumnSeparationMm: 4,
   pageRowSeparationMm: 5,

@@ -1,5 +1,5 @@
 /**
- * PamphletImmersiveView.css — Vertical stacked zone editor (theme-aware, no preview tint).
+ * PamphletImmersiveView.css — Full-width vertical stacked zone editor with lateral resize handles.
  */
 
 .pamphlet-immersive {
@@ -13,20 +13,64 @@
 .pamphlet-immersive__stream {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: calc(var(--pamphlet-row-sep, 5mm) + 2mm);
   width: 100%;
-  max-width: min(100%, 720px);
-  margin: 0 auto;
+  margin: 0;
   padding: 1rem 0.75rem 2rem;
   box-sizing: border-box;
 }
 
 .pamphlet-immersive__zone {
+  position: relative;
   box-sizing: border-box;
+  align-self: stretch;
   width: 100%;
+  min-height: 3rem;
+  margin: 0 auto;
   background: transparent;
   color: inherit;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+}
+
+.pamphlet-immersive__zone-body {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: inherit;
+  padding: 0.5rem 0.75rem;
+}
+
+.pamphlet-immersive__resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  z-index: 2;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.pamphlet-immersive__resize-handle--left {
+  left: 0;
+  transform: translateX(-50%);
+}
+
+.pamphlet-immersive__resize-handle--right {
+  right: 0;
+  transform: translateX(50%);
+}
+
+.pamphlet-immersive__resize-handle:hover,
+.pamphlet-immersive__resize-handle:active {
+  background: color-mix(in srgb, var(--site-accent) 35%, transparent);
+}
+
+.pamphlet-content-zone--empty {
+  min-height: 2.5rem;
+  border: 0.3mm dashed color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: var(--border_radius_001);
+  background: color-mix(in srgb, var(--site-body-fg) 4%, transparent);
 }
 
 @media (min-width: 768px) {

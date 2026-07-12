@@ -35,6 +35,8 @@ interface PamphletContentZoneProps {
   imageUploadingItemId: string | null;
   imageUploadError: string;
   handlers: PamphletContentZoneHandlers;
+  allowEmpty?: boolean;
+  readOnly?: boolean;
 }
 
 export function PamphletContentZone({
@@ -46,21 +48,30 @@ export function PamphletContentZone({
   imageUploadingItemId,
   imageUploadError,
   handlers,
+  allowEmpty = false,
+  readOnly = false,
 }: PamphletContentZoneProps) {
-  if (items.length === 0) {
+  if (items.length === 0 && !allowEmpty) {
     return null;
+  }
+
+  if (items.length === 0 && allowEmpty) {
+    return (
+      <div className="pamphlet-content-zone pamphlet-content-zone--empty" data-zone-id={zoneId} aria-label={`Empty ${zoneId} zone`} />
+    );
   }
 
   return (
     <div className="pamphlet-content-zone" data-zone-id={zoneId}>
       {items.map((placed, index) => {
-        const selected = selectedItemId === placed.item.id;
+        const selected = !readOnly && selectedItemId === placed.item.id;
         return (
           <PamphletContentItem
             key={placed.item.id}
             item={placed.item}
             bottomMarginMm={placed.bottomMarginMm}
             selected={selected}
+            readOnly={readOnly}
             actionPlacement={selected ? actionPlacement : "top"}
             fonts={fonts}
             canMoveUp={index > 0}
