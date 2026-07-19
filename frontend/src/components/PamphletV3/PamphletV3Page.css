@@ -1,0 +1,91 @@
+/**
+ * PamphletV3Page.css — Page chrome around letter sheets + JSON inspector.
+ */
+
+.pamphlet_v3_page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 8mm 4mm 16mm;
+  box-sizing: border-box;
+  overflow-x: auto;
+  background: color-mix(in srgb, var(--site-body-fg) 6%, var(--site-body-bg));
+}
+
+.pamphlet_v3_workspace {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6mm;
+  width: 100%;
+  max-width: 100%;
+}
+
+.pamphlet_v3_sheets {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8mm;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+@media (max-width: 1100px) {
+  .pamphlet_v3_workspace {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .pamphlet_content_json_panel {
+    flex: 1 1 auto;
+    width: min(100%, 279.4mm);
+    max-width: 279.4mm;
+    max-height: 50vh;
+  }
+}
+
+@media print {
+  @page {
+    size: 279.4mm 215.9mm;
+    margin: 0;
+  }
+
+  .pamphlet_v3_page {
+    padding: 0;
+    gap: 0;
+    background: transparent;
+  }
+
+  .pamphlet_v3_workspace {
+    display: block;
+  }
+
+  .pamphlet_v3_sheets {
+    gap: 0;
+  }
+
+  .pamphlet_sheet {
+    box-shadow: none;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .pamphlet_sheet:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .pamphlet-no-print,
+  .pamphlet_zone_label,
+  .pamphlet_zone_empty,
+  .pamphlet_content_json_panel {
+    display: none !important;
+  }
+
+  .pamphlet_header,
+  .pamphlet_column,
+  .pamphlet_footer {
+    border: none;
+  }
+}

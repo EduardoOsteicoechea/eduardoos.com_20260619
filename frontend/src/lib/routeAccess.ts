@@ -12,7 +12,13 @@ export function isPublicPagePath(pathname: string): boolean {
   if (path.startsWith("/auth/")) {
     return true;
   }
-  if (path === normalizePath(APP_ROUTES.mediaPlaylist) || path.startsWith(`${normalizePath(APP_ROUTES.mediaPlaylist)}/`)) {
+  if (
+    path === normalizePath(APP_ROUTES.mediaPlaylist) 
+    || 
+    path.startsWith(`${normalizePath(APP_ROUTES.mediaPlaylist)}/`)
+    || 
+    path.startsWith(`${normalizePath(APP_ROUTES.pamphlet)}`)
+  ) {
     return true;
   }
   return false;

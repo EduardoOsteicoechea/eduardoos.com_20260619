@@ -1,0 +1,114 @@
+/**
+ * PamphletPages.css — US Letter landscape sheets and half-page zone grids.
+ * Sheet: 279.4mm × 215.9mm (11in × 8.5in landscape).
+ */
+
+.pamphlet_sheet {
+  box-sizing: border-box;
+  width: 279.4mm;
+  height: 215.9mm;
+  min-width: 279.4mm;
+  min-height: 215.9mm;
+  max-width: 279.4mm;
+  max-height: 215.9mm;
+  margin: 0 auto;
+  aspect-ratio: 279.4 / 215.9;
+  display: flex;
+  flex-direction: row;
+  background: var(--site-body-bg, #fff);
+  color: var(--site-body-fg, #111);
+  box-shadow: 0 2mm 6mm rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+.pamphlet_half {
+  box-sizing: border-box;
+  width: 50%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  padding: 10mm;
+  gap: 0;
+}
+
+/* Front (right half): header band, then two body columns */
+.pamphlet_front_page {
+  grid-template-columns: 1fr 8mm 1fr;
+  grid-template-rows: auto 4mm 1fr;
+  grid-template-areas:
+    "header header header"
+    ". . ."
+    "col-a . col-b";
+  border-left: 0.2mm solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+/* Back (left half): two body columns, then footer band */
+.pamphlet_back_page {
+  grid-template-columns: 1fr 8mm 1fr;
+  grid-template-rows: 1fr 4mm auto;
+  grid-template-areas:
+    "col-a . col-b"
+    ". . ."
+    "footer footer footer";
+}
+
+/* Inner halves: two full-height columns */
+.pamphlet_inner_page {
+  grid-template-columns: 1fr 8mm 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: "col-a . col-b";
+}
+
+.pamphlet_content_container {
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.pamphlet_zone_label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2mm;
+  flex: 0 0 auto;
+  font-family: Montserrat, Raleway, Roboto, sans-serif;
+  font-size: 2.4mm;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.pamphlet_zone_occupation {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.9;
+}
+
+.pamphlet_zone_empty {
+  flex: 1 1 auto;
+  min-height: 12mm;
+  border: 0.3mm dashed color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 1mm;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 3mm;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.pamphlet_header,
+.pamphlet_column,
+.pamphlet_footer {
+  border: 0.2mm dashed color-mix(in srgb, currentColor 18%, transparent);
+  padding: 1mm;
+}
