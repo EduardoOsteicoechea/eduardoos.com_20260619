@@ -2,6 +2,12 @@
  * PamphletV3Page.tsx — US Letter landscape pamphlet editor (V3).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { isAuthenticated } from "../../lib/auth";
+import {
+  bootstrapPamphletV3FromCloud,
+  PAMPHLET_V3_DEFAULT_ID,
+  savePamphletV3Bundle,
+} from "../../lib/pamphletV3Persistence";
 import contentDistribution, {
   distributionToContentJson,
   type PamphletMeasuredCapacities,
@@ -26,6 +32,8 @@ import {
 } from "./pamphletV3Content";
 import "./PamphletV3Page.css";
 import "./PamphletPages.css";
+
+const SAVE_DEBOUNCE_MS = 1000;
 
 function findStream(document: PamphletV3Document, itemId: string): PamphletV3Stream | null {
   if (document.headerItems.some((item) => item.id === itemId)) {
@@ -86,9 +94,13 @@ export default function PamphletV3Page() {
   const [documentState, setDocumentState] = useState<PamphletV3Document>(() => buildEmptyPamphletV3Document());
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [measuredCapacities, setMeasuredCapacities] = useState<PamphletMeasuredCapacities>({});
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const editSnapshotRef = useRef<PamphletV3ContentItem | null>(null);
   const documentStateRef = useRef(documentState);
   const editingItemIdRef = useRef(editingItemId);
+  const pamphletIdRef = useRef(PAMPHLET_V3_DEFAULT_ID);
+  const skipNextSaveRef = useRef(true);
 
   documentStateRef.current = documentState;
   editingItemIdRef.current = editingItemId;
@@ -114,6 +126,53 @@ export default function PamphletV3Page() {
     documentStateRef.current = next;
     setDocumentState(next);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const boot = await bootstrapPamphletV3FromCloud();
+        if (cancelled) {
+          return;
+        }
+        if (boot) {
+          pamphletIdRef.current = boot.pamphletId;
+          skipNextSaveRef.current = true;
+          commitDocument(boot.document);
+        }
+      } catch (error) {
+        console.error("[pamphlet v3] bootstrap failed:", error);
+      } finally {
+        if (!cancelled) {
+          setIsHydrated(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [commitDocument]);
+
+  useEffect(() => {
+    if (!isHydrated || !isAuthenticated()) {
+      return;
+    }
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
+    setSaveStatus("saving");
+    const timer = window.setTimeout(() => {
+      const pamphletId = pamphletIdRef.current || PAMPHLET_V3_DEFAULT_ID;
+      savePamphletV3Bundle({ pamphletId, document: documentStateRef.current })
+        .then(() => setSaveStatus("saved"))
+        .catch((error) => {
+          console.error("[pamphlet v3] save failed:", error);
+          setSaveStatus("error");
+        });
+    }, SAVE_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [documentState, isHydrated]);
 
   const updateItem = useCallback(
     (itemId: string, patch: Partial<PamphletV3ContentItem>) => {
@@ -612,7 +671,7 @@ export default function PamphletV3Page() {
               onDismiss={() => saveAndExit(editingItem.item.id)}
             />
           ) : null}
-          <PamphletContentJsonPanel contentJson={contentJson} />
+          <PamphletContentJsonPanel contentJson={contentJson} saveStatus={saveStatus} />
         </div>
       </div>
     </div>

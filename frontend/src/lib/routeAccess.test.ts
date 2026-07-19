@@ -10,15 +10,10 @@ describe("routeAccess", () => {
     expect(isPublicPagePath(`${APP_ROUTES.mediaPlaylist}/`)).toBe(true);
   });
 
-  it("protects observability, media gallery, and payments", () => {
+  it("protects observability, media gallery, payments, and pamphlet", () => {
     expect(isPublicPagePath(APP_ROUTES.logger)).toBe(false);
     expect(isPublicPagePath(APP_ROUTES.mediaGallery)).toBe(false);
     expect(isPublicPagePath(APP_ROUTES.subscriptionMonthlyBasic)).toBe(false);
-  });
-
-  // TEMP (dev): pamphlet is intentionally public while Pamphlet V3 is iterated.
-  // Flip this expectation back to false when re-enabling AuthGate for pamphlet.
-  it("temporarily allows pamphlet without login for development", () => {
-    expect(isPublicPagePath(APP_ROUTES.pamphlet)).toBe(true);
+    expect(isPublicPagePath(APP_ROUTES.pamphlet)).toBe(false);
   });
 });
