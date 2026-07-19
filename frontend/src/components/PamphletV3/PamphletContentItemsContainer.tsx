@@ -30,6 +30,8 @@ export interface PamphletContentItemsContainerProps {
   handlers: PamphletContentItemHandlers;
   /** When true, zone items cannot be selected for editing (e.g. fixed footer). */
   editDisabled?: boolean;
+  /** When false, items in this zone do not publish measured heights. */
+  measureEnabled?: boolean;
   /** Empty zones only — appends to the stream; packing decides placement. */
   onEmptyActivate?: () => void;
   /** Reports the content-stack height in mm for packing / occupation. */
@@ -65,6 +67,7 @@ export function PamphletContentItemsContainer({
   capacityMm: capacityMmProp,
   handlers,
   editDisabled = false,
+  measureEnabled = true,
   onEmptyActivate,
   onCapacityChange,
 }: PamphletContentItemsContainerProps) {
@@ -145,6 +148,7 @@ export function PamphletContentItemsContainer({
               item={item}
               editing={editingItemId === item.id}
               editDisabled={editDisabled}
+              measureEnabled={measureEnabled}
               stream={stream}
               handlers={handlers}
             />

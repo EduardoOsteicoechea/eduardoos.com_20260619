@@ -32,6 +32,8 @@ interface PamphletContentItemProps {
   editing: boolean;
   editDisabled: boolean;
   stream?: PamphletV3Stream;
+  /** When false, skip ResizeObserver updates (inactive mobile/desktop twin). */
+  measureEnabled?: boolean;
   handlers: PamphletContentItemHandlers;
 }
 
@@ -40,13 +42,16 @@ export default function PamphletContentItem({
   editing,
   editDisabled,
   stream = "body",
+  measureEnabled = true,
   handlers,
 }: PamphletContentItemProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
 
   useLayoutEffect(() => {
     const rootNode = rootRef.current;
-    if (!rootNode || typeof ResizeObserver === "undefined") {
+    if (!measureEnabled || !rootNode || typeof ResizeObserver === "undefined") {
       return;
     }
 
@@ -55,16 +60,16 @@ export default function PamphletContentItem({
         return;
       }
       const root = rootRef.current;
-      // Border-box only; add type/zone CSS margins so heightMm stays stable
-      // even when the first-in-zone rule zeros (or reduces) top margin visually.
+      // Use offsetHeight (layout box) — getBoundingClientRect grows with CSS zoom/scale
+      // and would fight the twin layout, causing an infinite onHeightChange loop.
       const nextMm =
-        pxToMm(root.getBoundingClientRect().height) +
+        pxToMm(root.offsetHeight) +
         pamphletV3ItemTopMarginMm(item, stream) +
         pamphletV3ItemBottomMarginMm(item, stream);
       if (Math.abs(nextMm - item.heightMm) < 0.15) {
         return;
       }
-      handlers.onHeightChange(item.id, nextMm);
+      handlersRef.current.onHeightChange(item.id, nextMm);
     }
 
     const observer = new ResizeObserver(() => publishHeight());
@@ -72,7 +77,7 @@ export default function PamphletContentItem({
     publishHeight();
     return () => observer.disconnect();
   }, [
-    handlers,
+    measureEnabled,
     item.heightMm,
     item.id,
     item.text,

@@ -1,0 +1,89 @@
+name: CI/CD — Frontend fast deploy
+
+# Frontend-only changes: test + build in CI, then rebuild static assets on EC2
+# without Go tests or backend/Docker rebuilds.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "frontend/**"
+      - "deploy/ec2/build-frontend.sh"
+      - "deploy/ec2/deploy-frontend-remote.sh"
+      - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-frontend-ec2
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Frontend test and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  deploy:
+    name: Deploy frontend to EC2
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        run: |
+          missing=0
+          for name in EC2_HOST EC2_USER EC2_SSH_PRIVATE_KEY; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing secret: ${name}"
+              missing=1
+            fi
+          done
+          exit "${missing}"
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o ServerAliveInterval=30 -o ServerAliveCountMax=60" >> "$GITHUB_ENV"
+
+      - name: Upload frontend deploy script
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          scp -i ~/.ssh/deploy_key $SSH_OPTS \
+            deploy/ec2/deploy-frontend-remote.sh \
+            deploy/ec2/build-frontend.sh \
+            "${EC2_USER}@${EC2_HOST}:/tmp/"
+
+      - name: Run frontend-only remote deploy
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key $SSH_OPTS \
+            "${EC2_USER}@${EC2_HOST}" \
+            "cd ~/eduardoos.com_20260619 && cp /tmp/deploy-frontend-remote.sh /tmp/build-frontend.sh deploy/ec2/ && chmod +x deploy/ec2/*.sh && APP_DIR=~/eduardoos.com_20260619 bash deploy/ec2/deploy-frontend-remote.sh"

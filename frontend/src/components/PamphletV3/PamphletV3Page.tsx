@@ -587,6 +587,7 @@ export default function PamphletV3Page() {
       capacityMm: occupation.capacityMm,
       handlers,
       editDisabled: readOnly,
+      measureEnabled: reportCapacity,
       onEmptyActivate: readOnly ? undefined : () => appendToStream(stream),
       onCapacityChange: reportCapacity ? handleCapacityChange : undefined,
     } as const;

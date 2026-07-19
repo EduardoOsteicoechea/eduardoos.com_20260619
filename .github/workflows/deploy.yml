@@ -3,6 +3,14 @@ name: CI/CD — Test and Deploy to EC2
 on:
   push:
     branches: [master]
+    # Frontend-only pushes use deploy-frontend.yml (faster). Mixed/backend pushes still hit this job.
+    paths-ignore:
+      - "frontend/**"
+      - "deploy/ec2/build-frontend.sh"
+      - "deploy/ec2/deploy-frontend-remote.sh"
+      - ".github/workflows/deploy-frontend.yml"
+      - ".github/workflows/frontend.yml"
+      - "**.md"
   workflow_dispatch:
 
 concurrency:
