@@ -87,12 +87,12 @@
 @media (max-width: 900px) {
   .pamphlet_v3_page {
     padding: 3mm 3mm calc(3mm + var(--activity-bar-height));
-    overflow-x: hidden;
+    overflow-x: auto;
   }
 
   .pamphlet_v3_workspace {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     padding-right: 0;
   }
 
@@ -104,30 +104,70 @@
     display: none !important;
   }
 
+  /*
+   * Mobile stack: same physical zone sizes as one landscape half-page column/band.
+   * Half = 139.7mm wide × 215.9mm tall, 10mm padding → content 119.7 × 195.9mm.
+   * Two columns + 4mm gap → each column 57.85mm wide.
+   */
   .pamphlet_v3_mobile_stack {
+    --mobile-half-w: 139.7mm;
+    --mobile-half-pad: 10mm;
+    --mobile-col-gap: 4mm;
+    --mobile-content-w: calc(var(--mobile-half-w) - (2 * var(--mobile-half-pad)));
+    --mobile-col-w: calc((var(--mobile-content-w) - var(--mobile-col-gap)) / 2);
+    --mobile-sheet-h: 215.9mm;
+    --mobile-content-h: calc(var(--mobile-sheet-h) - (2 * var(--mobile-half-pad)));
+    --mobile-hf-band-h: 36mm;
+    --mobile-col-front-h: 166mm;
+    --mobile-col-inner-h: 190mm;
+
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 3mm;
-    width: 100%;
-    max-width: 100%;
+    width: max-content;
+    max-width: none;
+    margin: 0 auto;
     box-sizing: border-box;
+    padding: var(--mobile-half-pad);
   }
 
   .pamphlet_v3_mobile_stack .pamphlet_content_container {
-    height: auto;
-    min-height: 28mm;
-    overflow: visible;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .pamphlet_v3_mobile_stack .pamphlet_zone_stack {
-    overflow: visible;
-    min-height: 24mm;
+    overflow: hidden;
+    min-height: 0;
   }
 
   .pamphlet_v3_mobile_stack .pamphlet_header,
-  .pamphlet_v3_mobile_stack .pamphlet_column,
   .pamphlet_v3_mobile_stack .pamphlet_footer {
-    width: 100%;
+    width: var(--mobile-content-w);
+    max-width: var(--mobile-content-w);
+    min-height: var(--mobile-hf-band-h);
+    height: auto;
+  }
+
+  .pamphlet_v3_mobile_stack .pamphlet_column {
+    width: var(--mobile-col-w);
+    max-width: var(--mobile-col-w);
+    min-height: var(--mobile-col-front-h);
+    height: var(--mobile-col-front-h);
+  }
+
+  .pamphlet_v3_mobile_stack .pamphlet_column[data-capacity-key="third"],
+  .pamphlet_v3_mobile_stack .pamphlet_column[data-capacity-key="fourth"],
+  .pamphlet_v3_mobile_stack .pamphlet_column[data-capacity-key="fifth"],
+  .pamphlet_v3_mobile_stack .pamphlet_column[data-capacity-key="sixth"] {
+    min-height: var(--mobile-col-inner-h);
+    height: var(--mobile-col-inner-h);
+  }
+
+  .pamphlet_v3_mobile_stack .pamphlet_zone_empty {
+    min-height: 100%;
   }
 
   .pamphlet_v3_right_rail {
@@ -151,15 +191,27 @@
 }
 
 @media print {
-  /* Force US Letter landscape — width × height (11in × 8.5in). */
+  /* Enforce US Letter landscape (11in × 8.5in). Browsers may still show a dialog — pick Landscape if offered. */
   @page {
+    size: 11in 8.5in landscape;
+    margin: 0;
+  }
+
+  @page :left {
+    size: 11in 8.5in landscape;
+    margin: 0;
+  }
+
+  @page :right {
     size: 11in 8.5in landscape;
     margin: 0;
   }
 
   html,
   body {
-    width: 100% !important;
+    width: 11in !important;
+    min-width: 11in !important;
+    max-width: 11in !important;
     height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -168,11 +220,13 @@
 
   body.page-pamphlet {
     padding: 0 !important;
+    width: 11in !important;
   }
 
   body.page-pamphlet main {
     margin-top: 0 !important;
     padding: 0 !important;
+    width: 11in !important;
   }
 
   /* Hide site chrome — only letter sheets print. */
@@ -193,7 +247,7 @@
 
   .pamphlet_v3_page {
     display: block !important;
-    width: 100% !important;
+    width: 11in !important;
     min-height: 0 !important;
     padding: 0 !important;
     gap: 0;
@@ -205,7 +259,7 @@
   .pamphlet_v3_zoom_viewport,
   .pamphlet_v3_zoom_stage {
     display: block !important;
-    width: 100% !important;
+    width: 11in !important;
     padding: 0 !important;
     max-width: none !important;
     overflow: visible !important;
@@ -215,22 +269,22 @@
   .pamphlet_v3_sheets,
   .pamphlet_v3_sheets--desktop {
     display: block !important;
-    width: 100% !important;
+    width: 11in !important;
     gap: 0 !important;
     overflow: visible !important;
   }
 
-  /* One landscape sheet per printed page, fit to 100% of the page box. */
+  /* Exact US Letter landscape sheet — one sheet per printed page at 100% scale. */
   .pamphlet_sheet {
     box-sizing: border-box !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    max-width: none !important;
-    max-height: none !important;
+    width: 11in !important;
+    height: 8.5in !important;
+    min-width: 11in !important;
+    min-height: 8.5in !important;
+    max-width: 11in !important;
+    max-height: 8.5in !important;
     margin: 0 !important;
-    aspect-ratio: auto !important;
+    aspect-ratio: 11 / 8.5 !important;
     box-shadow: none !important;
     overflow: hidden !important;
     page-break-after: always;
