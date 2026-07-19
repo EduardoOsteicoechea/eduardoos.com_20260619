@@ -9,6 +9,7 @@ import contentDistribution, {
 import PamphletContentJsonPanel from "./PamphletContentJsonPanel";
 import { PamphletContentItemsContainer } from "./PamphletContentItemsContainer";
 import type { PamphletContentItemHandlers } from "./PamphletContentItem";
+import PamphletItemEditSidebar from "./PamphletItemEditSidebar";
 import {
   buildEmptyPamphletV3Document,
   createPamphletV3Item,
@@ -187,13 +188,20 @@ export default function PamphletV3Page() {
         return;
       }
       const target = event.target;
-      if (!(target instanceof Node)) {
+      if (!(target instanceof Element)) {
         return;
       }
-      const editingNode = window.document.querySelector(
-        `[data-item-id="${CSS.escape(editingId)}"][data-editing="true"]`,
-      );
-      if (editingNode?.contains(target)) {
+      // Keep editing when interacting with the sidebar (or its mobile backdrop panel).
+      if (target.closest("[data-pamphlet-edit-sidebar]")) {
+        return;
+      }
+      // Mobile backdrop dismiss is handled by the sidebar component.
+      if (target.closest("[data-pamphlet-edit-backdrop]")) {
+        return;
+      }
+      // Clicking the selected sheet item keeps the sidebar open.
+      const selectedItem = target.closest(`[data-item-id="${CSS.escape(editingId)}"]`);
+      if (selectedItem) {
         return;
       }
       saveAndExit(editingId);
@@ -203,6 +211,16 @@ export default function PamphletV3Page() {
     return () => window.removeEventListener("pointerdown", handlePointerDown, true);
   }, [saveAndExit]);
 
+  const editingItem = useMemo(() => {
+    if (!editingItemId) {
+      return null;
+    }
+    const stream = findStream(documentState, editingItemId);
+    if (!stream) {
+      return null;
+    }
+    return getStreamItems(documentState, stream).find((item) => item.id === editingItemId) ?? null;
+  }, [documentState, editingItemId]);
   const handlers = useMemo<PamphletContentItemHandlers>(
     () => ({
       onSelect: (itemId) => {
@@ -574,7 +592,16 @@ export default function PamphletV3Page() {
           </div>
         </div>
 
-        <PamphletContentJsonPanel contentJson={contentJson} />
+        <div className="pamphlet_v3_right_rail pamphlet-no-print">
+          {editingItem ? (
+            <PamphletItemEditSidebar
+              item={editingItem}
+              handlers={handlers}
+              onDismiss={() => saveAndExit(editingItem.id)}
+            />
+          ) : null}
+          <PamphletContentJsonPanel contentJson={contentJson} />
+        </div>
       </div>
     </div>
   );

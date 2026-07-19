@@ -153,7 +153,7 @@ export function PamphletContentItemsContainer({
                 key={item.id}
                 item={item}
                 editing={editingItemId === item.id}
-                editDisabled={editingItemId !== null && editingItemId !== item.id}
+                editDisabled={false}
                 handlers={handlers}
               />
             ))}
