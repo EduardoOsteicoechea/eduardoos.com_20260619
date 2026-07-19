@@ -20,22 +20,29 @@
   gap: 6mm;
   width: 100%;
   max-width: 100%;
+  /* Reserve space for the fixed right rail on desktop */
+  padding-right: min(380px, 34vw);
+  box-sizing: border-box;
 }
 
 .pamphlet_v3_right_rail {
+  --pamphlet-rail-width: min(380px, 34vw);
   box-sizing: border-box;
-  flex: 0 0 min(380px, 34vw);
-  width: min(380px, 34vw);
+  position: fixed;
+  top: var(--header_height, 60px);
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  width: var(--pamphlet-rail-width);
   min-width: 280px;
   max-width: 440px;
-  align-self: stretch;
   display: flex;
   flex-direction: column;
   gap: 4mm;
-  max-height: calc(var(--vv-height, 100dvh) - var(--header_height, 60px) - 24mm);
-  position: sticky;
-  top: calc(var(--header_height, 60px) + 4mm);
+  padding: 4mm;
   overflow: hidden;
+  background: color-mix(in srgb, var(--site-body-fg) 6%, var(--site-body-bg));
+  border-left: var(--border_001, 1px solid color-mix(in srgb, currentColor 18%, transparent));
 }
 
 .pamphlet_v3_right_rail .pamphlet_content_json_panel {
@@ -44,11 +51,12 @@
   min-width: 0;
   max-width: none;
   max-height: none;
+  align-self: stretch;
 }
 
 .pamphlet_v3_right_rail:has(.pamphlet_item_edit_sidebar) .pamphlet_content_json_panel {
-  flex: 0 1 38%;
-  min-height: 120px;
+  flex: 0 1 32%;
+  min-height: 100px;
 }
 
 .pamphlet_v3_sheets {
@@ -60,19 +68,27 @@
   overflow-x: auto;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 900px) {
   .pamphlet_v3_workspace {
     flex-direction: column;
     align-items: center;
+    padding-right: 0;
   }
 
   .pamphlet_v3_right_rail {
+    position: static;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    z-index: auto;
     flex: 1 1 auto;
     width: min(100%, 279.4mm);
     max-width: 279.4mm;
     min-width: 0;
-    max-height: none;
-    position: static;
+    padding: 0;
+    border-left: none;
+    background: transparent;
+    overflow: visible;
   }
 
   .pamphlet_content_json_panel {

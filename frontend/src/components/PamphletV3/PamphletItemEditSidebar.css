@@ -1,9 +1,8 @@
 /**
- * PamphletItemEditSidebar.css — Desktop fixed-height right rail + mobile modal.
+ * PamphletItemEditSidebar.css — Desktop fills the fixed right rail; mobile modal.
  */
 
 .pamphlet_item_edit_backdrop {
-  /* Desktop: backdrop is a normal flex child in the right rail (no overlay). */
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -20,7 +19,7 @@
   min-height: 0;
   width: 100%;
   height: 100%;
-  max-height: calc(var(--vv-height, 100dvh) - var(--header_height, 60px) - 24mm);
+  max-height: none;
   padding: 4mm;
   border: var(--border_001, 1px solid color-mix(in srgb, currentColor 25%, transparent));
   border-radius: var(--border_radius_001, 4px);
@@ -59,7 +58,6 @@
 }
 
 .pamphlet_item_edit_sidebar__preview_item {
-  /* Preview uses the same typography as the sheet item. */
   width: 100%;
 }
 
