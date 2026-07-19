@@ -66,6 +66,7 @@ export default function PamphletItemEditSidebar({
           onChange={(event) => handlers.onSetType(item.id, event.target.value as PamphletV3ItemType)}
         >
           <option value="paragraph">Paragraph</option>
+          <option value="heading">Heading</option>
           <option value="key_idea">Key idea</option>
           <option value="list">List</option>
           <option value="image">Image</option>
@@ -73,7 +74,10 @@ export default function PamphletItemEditSidebar({
         <button type="button" onClick={() => handlers.onAddBelow(item.id)} title="Add below (Enter)">
           +
         </button>
-        {(item.type === "paragraph" || item.type === "key_idea" || item.type === "list") && (
+        {(item.type === "paragraph" ||
+          item.type === "heading" ||
+          item.type === "key_idea" ||
+          item.type === "list") && (
           <button type="button" onClick={() => handlers.onToggleBold(item.id)} title="Bold">
             B
           </button>
@@ -194,14 +198,18 @@ export default function PamphletItemEditSidebar({
     const textClass =
       item.type === "key_idea"
         ? "pamphlet-v3-item__text pamphlet-v3-item__text--key-idea"
-        : "pamphlet-v3-item__text";
+        : item.type === "heading"
+          ? "pamphlet-v3-item__text pamphlet-v3-item__text--heading"
+          : "pamphlet-v3-item__text";
+    const placeholder =
+      item.type === "key_idea" ? "Key idea" : item.type === "heading" ? "Heading" : "Paragraph";
 
     return (
       <textarea
         ref={textRef}
         className={`pamphlet-v3-item__input ${textClass}`}
         value={item.text}
-        placeholder={item.type === "key_idea" ? "Key idea" : "Paragraph"}
+        placeholder={placeholder}
         rows={6}
         onChange={(event) => handlers.onChange(item.id, { text: event.target.value })}
       />

@@ -34,8 +34,8 @@
 
 /* Front (right half): header band, then two body columns */
 .pamphlet_front_page {
-  grid-template-columns: 1fr 8mm 1fr;
-  grid-template-rows: auto 4mm 1fr;
+  grid-template-columns: 1fr 4mm 1fr;
+  grid-template-rows: auto 2.5mm 1fr;
   grid-template-areas:
     "header header header"
     ". . ."
@@ -45,8 +45,8 @@
 
 /* Back (left half): two body columns, then footer band */
 .pamphlet_back_page {
-  grid-template-columns: 1fr 8mm 1fr;
-  grid-template-rows: 1fr 4mm auto;
+  grid-template-columns: 1fr 4mm 1fr;
+  grid-template-rows: 1fr 2.5mm auto;
   grid-template-areas:
     "col-a . col-b"
     ". . ."
@@ -55,7 +55,7 @@
 
 /* Inner halves: two full-height columns */
 .pamphlet_inner_page {
-  grid-template-columns: 1fr 8mm 1fr;
+  grid-template-columns: 1fr 4mm 1fr;
   grid-template-rows: 1fr;
   grid-template-areas: "col-a . col-b";
 }
@@ -159,6 +159,6 @@
 .pamphlet_footer {
   box-sizing: border-box;
   border: 0.2mm solid color-mix(in srgb, currentColor 35%, transparent);
-  border-radius: 2mm;
+  border-radius: 1mm;
   padding: 2mm;
 }

@@ -42,7 +42,9 @@ export default function PamphletItemView({ item, className }: PamphletItemViewPr
     const textClass =
       item.type === "key_idea"
         ? "pamphlet-v3-item__text pamphlet-v3-item__text--key-idea"
-        : "pamphlet-v3-item__text";
+        : item.type === "heading"
+          ? "pamphlet-v3-item__text pamphlet-v3-item__text--heading"
+          : "pamphlet-v3-item__text";
 
     body = !pamphletV3ItemHasContent(item) ? (
       <p className={textClass}>{"\u00a0"}</p>

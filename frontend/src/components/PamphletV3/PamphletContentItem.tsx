@@ -4,10 +4,12 @@
 import { useLayoutEffect, useRef, type CSSProperties } from "react";
 import PamphletItemView from "./PamphletItemView";
 import {
-  PAMPHLET_V3_ITEM_TOP_MARGIN_MM,
+  pamphletV3ItemBottomMarginMm,
+  pamphletV3ItemTopMarginMm,
   pxToMm,
   type PamphletV3ContentItem,
   type PamphletV3ItemType,
+  type PamphletV3Stream,
 } from "./pamphletV3Content";
 import "./PamphletContentItem.css";
 
@@ -29,6 +31,7 @@ interface PamphletContentItemProps {
   item: PamphletV3ContentItem;
   editing: boolean;
   editDisabled: boolean;
+  stream?: PamphletV3Stream;
   handlers: PamphletContentItemHandlers;
 }
 
@@ -36,6 +39,7 @@ export default function PamphletContentItem({
   item,
   editing,
   editDisabled,
+  stream = "body",
   handlers,
 }: PamphletContentItemProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -51,10 +55,12 @@ export default function PamphletContentItem({
         return;
       }
       const root = rootRef.current;
-      // Border-box only; always add the canonical top margin so heightMm stays stable
-      // even when CSS zeros margin on the first child in a zone.
+      // Border-box only; add type/zone CSS margins so heightMm stays stable
+      // even when the first-in-zone rule zeros (or reduces) top margin visually.
       const nextMm =
-        pxToMm(root.getBoundingClientRect().height) + PAMPHLET_V3_ITEM_TOP_MARGIN_MM;
+        pxToMm(root.getBoundingClientRect().height) +
+        pamphletV3ItemTopMarginMm(item, stream) +
+        pamphletV3ItemBottomMarginMm(item, stream);
       if (Math.abs(nextMm - item.heightMm) < 0.15) {
         return;
       }
@@ -75,6 +81,7 @@ export default function PamphletContentItem({
     item.imageUrl,
     item.description,
     item.listItems,
+    stream,
   ]);
 
   const style = {
@@ -93,6 +100,7 @@ export default function PamphletContentItem({
       ref={rootRef}
       className={`pamphlet-v3-item${editing ? " is-editing" : ""}${editDisabled ? " is-disabled" : ""}`}
       data-item-id={item.id}
+      data-item-type={item.type}
       data-editing={editing ? "true" : "false"}
       data-height-mm={item.heightMm.toFixed(2)}
       style={style}

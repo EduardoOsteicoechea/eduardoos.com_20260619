@@ -4,6 +4,7 @@ import {
   buildEmptyPamphletV3Document,
   createPamphletV3Item,
   packItemsIntoZones,
+  resolveStreamForNewItem,
   PAMPHLET_V3_DEFAULT_COLUMN_CAPACITIES,
 } from "./pamphletV3Content";
 
@@ -105,6 +106,12 @@ describe("pamphletV3 content packing", () => {
     expect(item.heightMm).toBeGreaterThan(2);
   });
 
+  it("estimates heading taller than a same-text paragraph", () => {
+    const paragraph = createPamphletV3Item("paragraph", { text: "Section title" });
+    const heading = createPamphletV3Item("heading", { text: "Section title" });
+    expect(heading.heightMm).toBeGreaterThan(paragraph.heightMm);
+  });
+
   it("does not place empty draft items into packed columns", () => {
     const doc = buildEmptyPamphletV3Document();
     doc.bodyItems = [
@@ -115,5 +122,17 @@ describe("pamphletV3 content packing", () => {
     expect(zones.columns.first.every((item) => item.text.trim().length > 0)).toBe(true);
     expect(zones.columns.first.some((item) => item.text === "Visible")).toBe(true);
     expect(zones.columns.first).toHaveLength(1);
+  });
+
+  it("routes new items: footer locked, header single-slot, overflow to body", () => {
+    const empty = buildEmptyPamphletV3Document();
+    expect(resolveStreamForNewItem("footer", empty)).toBeNull();
+    expect(resolveStreamForNewItem("header", empty)).toBe("header");
+    expect(resolveStreamForNewItem("header", empty, { fromExistingHeaderItem: true })).toBe("body");
+
+    const withHeader = buildEmptyPamphletV3Document();
+    withHeader.headerItems = [createPamphletV3Item("paragraph", { text: "Title" })];
+    expect(resolveStreamForNewItem("header", withHeader)).toBe("body");
+    expect(resolveStreamForNewItem("body", withHeader)).toBe("body");
   });
 });

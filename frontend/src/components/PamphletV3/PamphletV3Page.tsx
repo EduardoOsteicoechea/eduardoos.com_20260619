@@ -1,7 +1,7 @@
 /**
  * PamphletV3Page.tsx — US Letter landscape pamphlet editor (V3).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import contentDistribution, {
   distributionToContentJson,
   type PamphletMeasuredCapacities,
@@ -15,6 +15,7 @@ import {
   createPamphletV3Item,
   measurePamphletV3ItemHeight,
   pamphletV3ItemHasContent,
+  resolveStreamForNewItem,
   PAMPHLET_V3_COLUMN_WIDTH_MM,
   PAMPHLET_V3_HEADER_FOOTER_WIDTH_MM,
   type PamphletV3ColumnZoneId,
@@ -136,7 +137,7 @@ export default function PamphletV3Page() {
     (itemId: string) => {
       const current = documentStateRef.current;
       const stream = findStream(current, itemId);
-      if (!stream) {
+      if (!stream || stream === "footer") {
         return;
       }
       commitDocument(
@@ -234,7 +235,7 @@ export default function PamphletV3Page() {
         }
         const current = documentStateRef.current;
         const stream = findStream(current, itemId);
-        if (!stream) {
+        if (!stream || stream === "footer") {
           return;
         }
         const item = getStreamItems(current, stream).find((entry) => entry.id === itemId);
@@ -305,22 +306,39 @@ export default function PamphletV3Page() {
       onAddBelow: (itemId) => {
         const current = documentStateRef.current;
         const stream = findStream(current, itemId);
-        if (!stream) {
+        if (!stream || stream === "footer") {
           return;
         }
-        let items = getStreamItems(current, stream);
-        const currentItem = items.find((entry) => entry.id === itemId);
+        const sourceItems = getStreamItems(current, stream);
+        const currentItem = sourceItems.find((entry) => entry.id === itemId);
         if (currentItem && !pamphletV3ItemHasContent(currentItem)) {
           return;
         }
-        const index = items.findIndex((item) => item.id === itemId);
-        const fresh = withEstimatedHeight(createPamphletV3Item("paragraph"), stream);
-        items =
-          index < 0 ? [...items, fresh] : [...items.slice(0, index + 1), fresh, ...items.slice(index + 1)];
+        const targetStream = resolveStreamForNewItem(stream, current, {
+          fromExistingHeaderItem: stream === "header",
+        });
+        if (!targetStream) {
+          return;
+        }
+        const fresh = withEstimatedHeight(createPamphletV3Item("paragraph"), targetStream);
+        let nextDocument = current;
+        if (targetStream === stream) {
+          const index = sourceItems.findIndex((item) => item.id === itemId);
+          const items =
+            index < 0
+              ? [...sourceItems, fresh]
+              : [...sourceItems.slice(0, index + 1), fresh, ...sourceItems.slice(index + 1)];
+          nextDocument = setStreamItems(current, stream, items);
+        } else {
+          nextDocument = setStreamItems(current, targetStream, [
+            ...getStreamItems(current, targetStream),
+            fresh,
+          ]);
+        }
         editSnapshotRef.current = cloneItem(fresh);
         editingItemIdRef.current = fresh.id;
         setEditingItemId(fresh.id);
-        commitDocument(setStreamItems(current, stream, items));
+        commitDocument(nextDocument);
       },
       onRemove: (itemId) => removeItem(itemId),
       onToggleBold: (itemId) => {
@@ -397,13 +415,35 @@ export default function PamphletV3Page() {
         saveAndExit(editingId);
       }
       const current = documentStateRef.current;
-      const fresh = withEstimatedHeight(createPamphletV3Item("paragraph"), stream);
+      const targetStream = resolveStreamForNewItem(stream, current);
+      if (!targetStream) {
+        return;
+      }
+      const fresh = withEstimatedHeight(createPamphletV3Item("paragraph"), targetStream);
       editSnapshotRef.current = cloneItem(fresh);
       editingItemIdRef.current = fresh.id;
-      commitDocument(setStreamItems(current, stream, [...getStreamItems(current, stream), fresh]));
+      commitDocument(
+        setStreamItems(current, targetStream, [...getStreamItems(current, targetStream), fresh]),
+      );
       setEditingItemId(fresh.id);
     },
     [commitDocument, saveAndExit],
+  );
+
+  /** Four rapid clicks on the sheets open the browser print / Save-as-PDF dialog. */
+  const handleSheetsClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (event.detail !== 4) {
+        return;
+      }
+      event.preventDefault();
+      const editingId = editingItemIdRef.current;
+      if (editingId) {
+        saveAndExit(editingId);
+      }
+      window.print();
+    },
+    [saveAndExit],
   );
 
   function zoneProps(
@@ -415,6 +455,7 @@ export default function PamphletV3Page() {
     stream: PamphletV3Stream,
     capacityKey: PamphletV3ColumnZoneId | "header" | "footer",
   ) {
+    const readOnly = type === "footer";
     return {
       type,
       label,
@@ -427,7 +468,8 @@ export default function PamphletV3Page() {
       usedMm: occupation.usedMm,
       capacityMm: occupation.capacityMm,
       handlers,
-      onEmptyActivate: () => appendToStream(stream),
+      editDisabled: readOnly,
+      onEmptyActivate: readOnly ? undefined : () => appendToStream(stream),
       onCapacityChange: handleCapacityChange,
     } as const;
   }
@@ -435,7 +477,7 @@ export default function PamphletV3Page() {
   return (
     <div className="pamphlet_v3_page">
       <div className="pamphlet_v3_workspace">
-        <div className="pamphlet_v3_sheets">
+        <div className="pamphlet_v3_sheets" onClick={handleSheetsClick}>
           <div className="pamphlet_sheet pamphlet_first_sheet">
             <div className="pamphlet_half pamphlet_back_page">
               <PamphletContentItemsContainer

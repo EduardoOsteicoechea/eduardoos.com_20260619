@@ -9,6 +9,7 @@ import {
   zoneOccupationPercent,
   zoneUsedHeightMm,
   type PamphletV3ContentItem,
+  type PamphletV3Stream,
 } from "./pamphletV3Content";
 import "./PamphletPages.css";
 
@@ -27,6 +28,8 @@ export interface PamphletContentItemsContainerProps {
   usedMm?: number;
   capacityMm?: number;
   handlers: PamphletContentItemHandlers;
+  /** When true, zone items cannot be selected for editing (e.g. fixed footer). */
+  editDisabled?: boolean;
   /** Empty zones only — appends to the stream; packing decides placement. */
   onEmptyActivate?: () => void;
   /** Reports the content-stack height in mm for packing / occupation. */
@@ -38,6 +41,16 @@ const classByType: Record<PamphletContainerType, string> = {
   column: "pamphlet_column",
   footer: "pamphlet_footer",
 };
+
+function streamForContainer(type: PamphletContainerType): PamphletV3Stream {
+  if (type === "header") {
+    return "header";
+  }
+  if (type === "footer") {
+    return "footer";
+  }
+  return "body";
+}
 
 export function PamphletContentItemsContainer({
   type,
@@ -51,11 +64,13 @@ export function PamphletContentItemsContainer({
   usedMm: usedMmProp,
   capacityMm: capacityMmProp,
   handlers,
+  editDisabled = false,
   onEmptyActivate,
   onCapacityChange,
 }: PamphletContentItemsContainerProps) {
   const stackRef = useRef<HTMLDivElement>(null);
   const capacityProbeRef = useRef<HTMLDivElement>(null);
+  const stream = streamForContainer(type);
 
   const fallbackCapacityMm =
     type === "header"
@@ -65,7 +80,7 @@ export function PamphletContentItemsContainer({
         : PAMPHLET_V3_ZONE_CAPACITY_MM.column;
 
   const capacityMm = capacityMmProp && capacityMmProp > 1 ? capacityMmProp : fallbackCapacityMm;
-  const usedMm = usedMmProp ?? zoneUsedHeightMm(content, itemGapMm);
+  const usedMm = usedMmProp ?? zoneUsedHeightMm(content, itemGapMm, stream);
 
   const localOccupation = useMemo(
     () => zoneOccupationPercent(usedMm, capacityMm),
@@ -114,20 +129,23 @@ export function PamphletContentItemsContainer({
           data-capacity-probe="true"
         />
         {content.length === 0 ? (
-          <button
-            type="button"
-            className="pamphlet_zone_empty pamphlet-no-print"
-            onClick={onEmptyActivate}
-          >
-            Click to add content
-          </button>
+          onEmptyActivate ? (
+            <button
+              type="button"
+              className="pamphlet_zone_empty pamphlet-no-print"
+              onClick={onEmptyActivate}
+            >
+              Click to add content
+            </button>
+          ) : null
         ) : (
           content.map((item) => (
             <PamphletContentItem
               key={item.id}
               item={item}
               editing={editingItemId === item.id}
-              editDisabled={false}
+              editDisabled={editDisabled}
+              stream={stream}
               handlers={handlers}
             />
           ))

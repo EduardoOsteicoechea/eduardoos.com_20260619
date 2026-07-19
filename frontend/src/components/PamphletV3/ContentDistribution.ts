@@ -62,8 +62,9 @@ function occupationFor(
   items: PamphletV3ContentItem[],
   capacityMm: number,
   gapMm: number,
+  zone: "header" | "body" | "footer" = "body",
 ): PamphletZoneOccupation {
-  const usedMm = zoneUsedHeightMm(items, gapMm);
+  const usedMm = zoneUsedHeightMm(items, gapMm, zone);
   return {
     usedMm,
     capacityMm,
@@ -130,8 +131,8 @@ export default function contentDistribution(
     footer,
     columns,
     occupation: {
-      header: occupationFor(header, resolveCapacity("header", measuredCapacities), gapMm),
-      footer: occupationFor(footer, resolveCapacity("footer", measuredCapacities), gapMm),
+      header: occupationFor(header, resolveCapacity("header", measuredCapacities), gapMm, "header"),
+      footer: occupationFor(footer, resolveCapacity("footer", measuredCapacities), gapMm, "footer"),
       columns: {
         first: occupationFor(columns.first, resolveCapacity("first", measuredCapacities), gapMm),
         second: occupationFor(columns.second, resolveCapacity("second", measuredCapacities), gapMm),

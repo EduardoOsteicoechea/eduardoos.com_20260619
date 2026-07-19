@@ -1,7 +1,7 @@
 /**
  * pamphletV3Content.ts — Content item model and mm height estimates for Pamphlet V3.
  */
-export type PamphletV3ItemType = "paragraph" | "key_idea" | "list" | "image";
+export type PamphletV3ItemType = "paragraph" | "heading" | "key_idea" | "list" | "image";
 
 export interface PamphletV3ListItem {
   id: string;
@@ -32,10 +32,41 @@ export interface PamphletV3Document {
 export const PAMPHLET_V3_COLUMN_WIDTH_MM = 55;
 export const PAMPHLET_V3_HEADER_FOOTER_WIDTH_MM = 118;
 
-/** Top margin on every item — included in heightMm; packing gap is therefore 0. */
+/** Top margin on spaced items (key idea, list, image). */
 export const PAMPHLET_V3_ITEM_TOP_MARGIN_MM = 2;
+/** Paragraph vertical separation (top margin between body paragraphs). */
+export const PAMPHLET_V3_PARAGRAPH_TOP_MARGIN_MM = 2;
+/** Heading vertical margin (top and bottom each). Reduced 1mm from the former 2mm gap. */
+export const PAMPHLET_V3_HEADING_MARGIN_MM = 1;
+/** Extra top margin applied to every item inside the footer band. */
+export const PAMPHLET_V3_FOOTER_ITEM_TOP_MARGIN_EXTRA_MM = 1;
 /** Dashed selection border on each sheet item (top + bottom contribute to layout). */
 export const PAMPHLET_V3_ITEM_BORDER_MM = 0.2;
+
+/** CSS top margin included in heightMm for this item type (and zone). */
+export function pamphletV3ItemTopMarginMm(
+  item: Pick<PamphletV3ContentItem, "type">,
+  zone: PamphletV3Stream = "body",
+): number {
+  let base = PAMPHLET_V3_ITEM_TOP_MARGIN_MM;
+  if (item.type === "heading") {
+    base = PAMPHLET_V3_HEADING_MARGIN_MM;
+  } else if (item.type === "paragraph") {
+    base = PAMPHLET_V3_PARAGRAPH_TOP_MARGIN_MM;
+  }
+  return zone === "footer" ? base + PAMPHLET_V3_FOOTER_ITEM_TOP_MARGIN_EXTRA_MM : base;
+}
+
+/** CSS bottom margin included in heightMm — headings mirror their top margin. */
+export function pamphletV3ItemBottomMarginMm(
+  item: Pick<PamphletV3ContentItem, "type">,
+  zone: PamphletV3Stream = "body",
+): number {
+  if (item.type !== "heading") {
+    return 0;
+  }
+  return pamphletV3ItemTopMarginMm(item, zone);
+}
 
 /** Vertical capacities for each zone (fallback until DOM measures the stack).
  * Sheet 215.9mm − half padding 20mm − column chrome ≈ real content stack height.
@@ -44,7 +75,7 @@ export const PAMPHLET_V3_ITEM_BORDER_MM = 0.2;
  */
 export const PAMPHLET_V3_SHEET_HEIGHT_MM = 215.9;
 export const PAMPHLET_V3_HALF_PADDING_MM = 10;
-export const PAMPHLET_V3_COLUMN_ROW_GAP_MM = 4;
+export const PAMPHLET_V3_COLUMN_ROW_GAP_MM = 2.5;
 export const PAMPHLET_V3_ZONE_LABEL_RESERVE_MM = 4;
 export const PAMPHLET_V3_ZONE_PADDING_MM = 2;
 
@@ -94,6 +125,8 @@ export const PAMPHLET_V3_PARAGRAPH_FONT_MM = REGULAR_FONT_MM;
 export const PAMPHLET_V3_HEADER_FONT_MM = REGULAR_FONT_MM * 2;
 /** Footer standard copy is three-quarters of body paragraph size. */
 export const PAMPHLET_V3_FOOTER_FONT_MM = REGULAR_FONT_MM * 0.75;
+/** Body heading is 1.35× regular paragraph size. */
+export const PAMPHLET_V3_HEADING_FONT_MM = REGULAR_FONT_MM * 1.35;
 const KEY_IDEA_FONT_MM = 4;
 const LINE_HEIGHT = 1.2;
 const CHAR_WIDTH_FACTOR = 0.55;
@@ -139,6 +172,17 @@ function emphasisFontForZone(zone: PamphletV3Stream): number {
   return KEY_IDEA_FONT_MM;
 }
 
+/** Heading size: 1.35× body paragraph; header/footer keep their band scale. */
+function headingFontForZone(zone: PamphletV3Stream): number {
+  if (zone === "header") {
+    return PAMPHLET_V3_HEADER_FONT_MM;
+  }
+  if (zone === "footer") {
+    return PAMPHLET_V3_FOOTER_FONT_MM;
+  }
+  return PAMPHLET_V3_HEADING_FONT_MM;
+}
+
 /** Estimates item height in millimeters for packing into columns.
  * Includes top margin + borders so estimates match measured heightMm.
  */
@@ -151,6 +195,9 @@ export function measurePamphletV3ItemHeight(
   const emphasisFontMm = emphasisFontForZone(zone);
   let contentMm = 0;
   switch (item.type) {
+    case "heading":
+      contentMm = measureTextHeightMm(item.text || " ", widthMm, headingFontForZone(zone));
+      break;
     case "key_idea":
       contentMm = measureTextHeightMm(item.text || " ", widthMm, emphasisFontMm);
       break;
@@ -178,7 +225,12 @@ export function measurePamphletV3ItemHeight(
       contentMm = measureTextHeightMm(item.text || " ", widthMm, paragraphFontMm);
       break;
   }
-  return contentMm + PAMPHLET_V3_ITEM_TOP_MARGIN_MM + PAMPHLET_V3_ITEM_BORDER_MM * 2;
+  return (
+    contentMm +
+    pamphletV3ItemTopMarginMm(item, zone) +
+    pamphletV3ItemBottomMarginMm(item, zone) +
+    PAMPHLET_V3_ITEM_BORDER_MM * 2
+  );
 }
 
 export function createPamphletV3Item(
@@ -292,13 +344,27 @@ export function packItemsIntoZones(
   return result;
 }
 
-/** Layout height in a zone: first item drops its top margin (CSS :first-child). */
-export function itemLayoutHeightMm(item: PamphletV3ContentItem, isFirstInZone: boolean): number {
+/** Layout height in a zone: first item drops the flushable part of its top margin.
+ * Footer keeps a 1mm top margin on the first item (only the type gap is dropped).
+ */
+export function itemLayoutHeightMm(
+  item: PamphletV3ContentItem,
+  isFirstInZone: boolean,
+  zone: PamphletV3Stream = "body",
+): number {
   const raw = Math.max(0, item.heightMm);
   if (!isFirstInZone) {
     return raw;
   }
-  return Math.max(0, raw - PAMPHLET_V3_ITEM_TOP_MARGIN_MM);
+  const droppedMm =
+    zone === "footer"
+      ? item.type === "paragraph"
+        ? PAMPHLET_V3_PARAGRAPH_TOP_MARGIN_MM
+        : item.type === "heading"
+          ? PAMPHLET_V3_HEADING_MARGIN_MM
+          : PAMPHLET_V3_ITEM_TOP_MARGIN_MM
+      : pamphletV3ItemTopMarginMm(item, zone);
+  return Math.max(0, raw - droppedMm);
 }
 
 /** Converts CSS pixels to millimeters (CSS reference: 96px = 1in). */
@@ -314,13 +380,17 @@ export function zoneOccupationPercent(usedMm: number, capacityMm: number): numbe
   return Math.min(100, Math.max(0, (usedMm / capacityMm) * 100));
 }
 
-/** Sums item layout heights in a zone (first item has no top margin). */
-export function zoneUsedHeightMm(items: PamphletV3ContentItem[], gapMm: number = 0): number {
+/** Sums item layout heights in a zone (first item drops flushable top margin). */
+export function zoneUsedHeightMm(
+  items: PamphletV3ContentItem[],
+  gapMm: number = 0,
+  zone: PamphletV3Stream = "body",
+): number {
   if (items.length === 0) {
     return 0;
   }
   const content = items.reduce(
-    (sum, item, index) => sum + itemLayoutHeightMm(item, index === 0),
+    (sum, item, index) => sum + itemLayoutHeightMm(item, index === 0, zone),
     0,
   );
   return content + gapMm * Math.max(0, items.length - 1);
@@ -336,6 +406,27 @@ export function zoneHasRoomForAddControl(
     return true;
   }
   return capacityMm - usedMm >= minRoomMm;
+}
+
+/**
+ * Resolves where a newly created item should land.
+ * Footer is never writable. Header accepts only the first item; further adds go to body.
+ */
+export function resolveStreamForNewItem(
+  requested: PamphletV3Stream,
+  document: PamphletV3Document,
+  options: { fromExistingHeaderItem?: boolean } = {},
+): PamphletV3Stream | null {
+  if (requested === "footer") {
+    return null;
+  }
+  if (requested === "header") {
+    if (options.fromExistingHeaderItem || document.headerItems.length >= 1) {
+      return "body";
+    }
+    return "header";
+  }
+  return "body";
 }
 
 /** True when the item has user-visible content worth exporting. */
