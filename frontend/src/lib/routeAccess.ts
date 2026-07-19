@@ -18,6 +18,14 @@ export function isPublicPagePath(pathname: string): boolean {
   ) {
     return true;
   }
+  // TEMP (dev): pamphlet is public while Pamphlet V3 is under active iteration.
+  // Re-protect before production by removing this block and restoring the routeAccess test.
+  if (
+    path === normalizePath(APP_ROUTES.pamphlet) ||
+    path.startsWith(`${normalizePath(APP_ROUTES.pamphlet)}/`)
+  ) {
+    return true;
+  }
   return false;
 }
 
