@@ -140,8 +140,13 @@
   }
 
   .pamphlet_header,
-  .pamphlet_column,
-  .pamphlet_footer {
+  .pamphlet_column {
     border: none;
+  }
+
+  .pamphlet_footer {
+    border: 0.2mm solid currentColor;
+    border-radius: 2mm;
+    padding: 2mm;
   }
 }

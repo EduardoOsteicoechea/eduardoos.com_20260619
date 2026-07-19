@@ -89,6 +89,11 @@ export interface PamphletV3PackZone {
 }
 
 const REGULAR_FONT_MM = 3.53;
+/** Header band copy is twice the body paragraph size. */
+export const PAMPHLET_V3_PARAGRAPH_FONT_MM = REGULAR_FONT_MM;
+export const PAMPHLET_V3_HEADER_FONT_MM = REGULAR_FONT_MM * 2;
+/** Footer standard copy is three-quarters of body paragraph size. */
+export const PAMPHLET_V3_FOOTER_FONT_MM = REGULAR_FONT_MM * 0.75;
 const KEY_IDEA_FONT_MM = 4;
 const LINE_HEIGHT = 1.2;
 const CHAR_WIDTH_FACTOR = 0.55;
@@ -114,25 +119,48 @@ function measureTextHeightMm(text: string, widthMm: number, fontSizeMm: number):
   return lines * lineHeightMm(fontSizeMm);
 }
 
+function paragraphFontForZone(zone: PamphletV3Stream): number {
+  if (zone === "header") {
+    return PAMPHLET_V3_HEADER_FONT_MM;
+  }
+  if (zone === "footer") {
+    return PAMPHLET_V3_FOOTER_FONT_MM;
+  }
+  return REGULAR_FONT_MM;
+}
+
+function emphasisFontForZone(zone: PamphletV3Stream): number {
+  if (zone === "header") {
+    return PAMPHLET_V3_HEADER_FONT_MM;
+  }
+  if (zone === "footer") {
+    return PAMPHLET_V3_FOOTER_FONT_MM;
+  }
+  return KEY_IDEA_FONT_MM;
+}
+
 /** Estimates item height in millimeters for packing into columns.
- * Includes the item top margin so estimates match measured heightMm.
+ * Includes top margin + borders so estimates match measured heightMm.
  */
 export function measurePamphletV3ItemHeight(
   item: PamphletV3ContentItem,
   widthMm: number,
+  zone: PamphletV3Stream = "body",
 ): number {
+  const paragraphFontMm = paragraphFontForZone(zone);
+  const emphasisFontMm = emphasisFontForZone(zone);
   let contentMm = 0;
   switch (item.type) {
     case "key_idea":
-      contentMm = measureTextHeightMm(item.text || " ", widthMm, KEY_IDEA_FONT_MM);
+      contentMm = measureTextHeightMm(item.text || " ", widthMm, emphasisFontMm);
       break;
     case "list": {
       const header = item.text.trim()
-        ? measureTextHeightMm(item.text, widthMm, KEY_IDEA_FONT_MM)
+        ? measureTextHeightMm(item.text, widthMm, emphasisFontMm)
         : 0;
       const rows = item.listItems.length > 0 ? item.listItems : [{ id: "empty", text: " " }];
       const itemsHeight = rows.reduce(
-        (sum, row) => sum + measureTextHeightMm(row.text || " ", widthMm, REGULAR_FONT_MM),
+        (sum, row) => sum + measureTextHeightMm(row.text || " ", widthMm, paragraphFontMm),
         0,
       );
       contentMm = header + itemsHeight;
@@ -147,7 +175,7 @@ export function measurePamphletV3ItemHeight(
       break;
     }
     default:
-      contentMm = measureTextHeightMm(item.text || " ", widthMm, REGULAR_FONT_MM);
+      contentMm = measureTextHeightMm(item.text || " ", widthMm, paragraphFontMm);
       break;
   }
   return contentMm + PAMPHLET_V3_ITEM_TOP_MARGIN_MM + PAMPHLET_V3_ITEM_BORDER_MM * 2;
@@ -178,18 +206,31 @@ export function createPamphletV3Item(
 export function recalculateItemHeights(
   items: PamphletV3ContentItem[],
   widthMm: number,
+  zone: PamphletV3Stream = "body",
 ): PamphletV3ContentItem[] {
   return items.map((item) => ({
     ...item,
-    heightMm: measurePamphletV3ItemHeight(item, widthMm),
+    heightMm: measurePamphletV3ItemHeight(item, widthMm, zone),
   }));
 }
 
+/** Standard footer paragraphs shown on every new pamphlet. */
+export const PAMPHLET_V3_STANDARD_FOOTER_TEXTS = [
+  'Este contenido forma parte de la serie "Todo lo que necesitas saber sobre la Biblia".',
+  "Si deseas conversar al respecto, contáctanos por whatsapp al +58 414 728 1033",
+  "Si deseas recibir nuestra enseñanza en persona puedes asistir a nuestras reuniones semanales los domingos a las 10am en Mérida, Avenida las Américas, Sector el Campitos, en el salón de fiesta del Colegio de Licenciados en Educación.",
+] as const;
+
 export function buildEmptyPamphletV3Document(): PamphletV3Document {
+  const footerItems = recalculateItemHeights(
+    PAMPHLET_V3_STANDARD_FOOTER_TEXTS.map((text) => createPamphletV3Item("paragraph", { text })),
+    PAMPHLET_V3_HEADER_FOOTER_WIDTH_MM,
+    "footer",
+  );
   return {
     headerItems: [],
     bodyItems: [],
-    footerItems: [],
+    footerItems,
     // Spacing lives in each item's top margin (included in heightMm).
     itemGapMm: 0,
   };
@@ -226,14 +267,16 @@ export function packItemsIntoZones(
     while (zoneIndex < zones.length) {
       const zone = zones[zoneIndex];
       const capacityMm = Math.max(0, zone.capacityMm);
-      const leading = result[zone.id].length > 0 ? gapMm : 0;
-      const fits = used + leading + item.heightMm <= capacityMm;
-      if (fits || result[zone.id].length === 0) {
-        if (result[zone.id].length > 0) {
+      const isFirstInZone = result[zone.id].length === 0;
+      const leading = isFirstInZone ? 0 : gapMm;
+      const layoutHeightMm = itemLayoutHeightMm(item, isFirstInZone);
+      const fits = used + leading + layoutHeightMm <= capacityMm;
+      if (fits || isFirstInZone) {
+        if (!isFirstInZone) {
           used += gapMm;
         }
         result[zone.id].push(item);
-        used += item.heightMm;
+        used += layoutHeightMm;
         if (!fits && result[zone.id].length === 1) {
           // Oversized first item still occupies the zone; continue packing in the next zone.
           zoneIndex += 1;
@@ -249,6 +292,15 @@ export function packItemsIntoZones(
   return result;
 }
 
+/** Layout height in a zone: first item drops its top margin (CSS :first-child). */
+export function itemLayoutHeightMm(item: PamphletV3ContentItem, isFirstInZone: boolean): number {
+  const raw = Math.max(0, item.heightMm);
+  if (!isFirstInZone) {
+    return raw;
+  }
+  return Math.max(0, raw - PAMPHLET_V3_ITEM_TOP_MARGIN_MM);
+}
+
 /** Converts CSS pixels to millimeters (CSS reference: 96px = 1in). */
 export function pxToMm(px: number): number {
   return (px * 25.4) / 96;
@@ -262,12 +314,15 @@ export function zoneOccupationPercent(usedMm: number, capacityMm: number): numbe
   return Math.min(100, Math.max(0, (usedMm / capacityMm) * 100));
 }
 
-/** Sums item heights. gapMm is retained for callers but spacing should be inside heightMm. */
+/** Sums item layout heights in a zone (first item has no top margin). */
 export function zoneUsedHeightMm(items: PamphletV3ContentItem[], gapMm: number = 0): number {
   if (items.length === 0) {
     return 0;
   }
-  const content = items.reduce((sum, item) => sum + Math.max(0, item.heightMm), 0);
+  const content = items.reduce(
+    (sum, item, index) => sum + itemLayoutHeightMm(item, index === 0),
+    0,
+  );
   return content + gapMm * Math.max(0, items.length - 1);
 }
 

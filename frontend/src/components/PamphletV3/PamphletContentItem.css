@@ -16,6 +16,11 @@
   overflow: visible;
 }
 
+/* First real item sits flush — probe is first child, so use adjacent sibling. */
+.pamphlet_zone_stack > .pamphlet_zone_capacity_probe + .pamphlet-v3-item {
+  margin-top: 0;
+}
+
 .pamphlet-v3-item.is-editing {
   border-color: color-mix(in srgb, var(--site-accent, #4a90d9) 70%, transparent);
   background: color-mix(in srgb, var(--site-body-fg) 4%, transparent);
@@ -82,6 +87,32 @@
   font-size: 3.53mm;
   line-height: 1.2;
   white-space: pre-wrap;
+}
+
+/* Header band: twice the regular paragraph size. */
+.pamphlet_header .pamphlet-v3-item__text,
+.pamphlet_header .pamphlet-v3-item__text--key-idea,
+.pamphlet_header .pamphlet-v3-item__list-header-view,
+.pamphlet_item_edit_sidebar__preview_item.is-header-preview .pamphlet-v3-item__text,
+.pamphlet_item_edit_sidebar__preview_item.is-header-preview .pamphlet-v3-item__text--key-idea {
+  font-size: 7.06mm;
+  line-height: 1.2;
+}
+
+.pamphlet_header .pamphlet-v3-item__text--key-idea,
+.pamphlet_item_edit_sidebar__preview_item.is-header-preview .pamphlet-v3-item__text--key-idea {
+  font-weight: 700;
+}
+
+/* Footer band: 0.75× regular paragraph size. */
+.pamphlet_footer .pamphlet-v3-item__text,
+.pamphlet_footer .pamphlet-v3-item__text--key-idea,
+.pamphlet_footer .pamphlet-v3-item__list-header-view,
+.pamphlet_footer .pamphlet-v3-item__list ul,
+.pamphlet_item_edit_sidebar__preview_item.is-footer-preview .pamphlet-v3-item__text,
+.pamphlet_item_edit_sidebar__preview_item.is-footer-preview .pamphlet-v3-item__text--key-idea {
+  font-size: 2.6475mm;
+  line-height: 1.2;
 }
 
 .pamphlet-v3-item__text--key-idea {

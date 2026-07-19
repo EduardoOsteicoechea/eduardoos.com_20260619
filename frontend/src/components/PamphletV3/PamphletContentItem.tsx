@@ -3,7 +3,12 @@
  */
 import { useLayoutEffect, useRef, type CSSProperties } from "react";
 import PamphletItemView from "./PamphletItemView";
-import { pxToMm, type PamphletV3ContentItem, type PamphletV3ItemType } from "./pamphletV3Content";
+import {
+  PAMPHLET_V3_ITEM_TOP_MARGIN_MM,
+  pxToMm,
+  type PamphletV3ContentItem,
+  type PamphletV3ItemType,
+} from "./pamphletV3Content";
 import "./PamphletContentItem.css";
 
 export interface PamphletContentItemHandlers {
@@ -46,12 +51,10 @@ export default function PamphletContentItem({
         return;
       }
       const root = rootRef.current;
-      const styles = window.getComputedStyle(root);
-      const marginTopPx = Number.parseFloat(styles.marginTop) || 0;
-      const marginBottomPx = Number.parseFloat(styles.marginBottom) || 0;
-      // Full layout contribution: border-box (content + borders) + vertical margins.
-      // Measuring only the inner text node under-counted each item by ~0.4mm (borders).
-      const nextMm = pxToMm(root.getBoundingClientRect().height + marginTopPx + marginBottomPx);
+      // Border-box only; always add the canonical top margin so heightMm stays stable
+      // even when CSS zeros margin on the first child in a zone.
+      const nextMm =
+        pxToMm(root.getBoundingClientRect().height) + PAMPHLET_V3_ITEM_TOP_MARGIN_MM;
       if (Math.abs(nextMm - item.heightMm) < 0.15) {
         return;
       }

@@ -8,11 +8,14 @@ import {
 } from "./pamphletV3Content";
 
 describe("pamphletV3 content packing", () => {
-  it("builds an empty document with no starter items in any stream", () => {
+  it("builds an empty document with standard footer paragraphs and no body/header starters", () => {
     const doc = buildEmptyPamphletV3Document();
     expect(doc.headerItems).toHaveLength(0);
     expect(doc.bodyItems).toHaveLength(0);
-    expect(doc.footerItems).toHaveLength(0);
+    expect(doc.footerItems).toHaveLength(3);
+    expect(doc.footerItems[0]?.text).toContain("Todo lo que necesitas saber sobre la Biblia");
+    expect(doc.footerItems[1]?.text).toContain("+58 414 728 1033");
+    expect(doc.footerItems[2]?.text).toContain("Mérida");
     expect(doc.itemGapMm).toBe(0);
   });
 

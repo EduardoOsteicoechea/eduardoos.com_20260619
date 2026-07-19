@@ -151,8 +151,14 @@
 }
 
 .pamphlet_header,
-.pamphlet_column,
-.pamphlet_footer {
+.pamphlet_column {
   border: 0.2mm dashed color-mix(in srgb, currentColor 18%, transparent);
   padding: 0;
+}
+
+.pamphlet_footer {
+  box-sizing: border-box;
+  border: 0.2mm solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 2mm;
+  padding: 2mm;
 }

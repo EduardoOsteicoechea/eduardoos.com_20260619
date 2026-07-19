@@ -5,18 +5,20 @@
 import { useEffect, useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import type { PamphletContentItemHandlers } from "./PamphletContentItem";
 import PamphletItemView from "./PamphletItemView";
-import type { PamphletV3ContentItem, PamphletV3ItemType } from "./pamphletV3Content";
+import type { PamphletV3ContentItem, PamphletV3ItemType, PamphletV3Stream } from "./pamphletV3Content";
 import "./PamphletItemEditSidebar.css";
 import "./PamphletContentItem.css";
 
 interface PamphletItemEditSidebarProps {
   item: PamphletV3ContentItem;
+  stream?: PamphletV3Stream;
   handlers: PamphletContentItemHandlers;
   onDismiss: () => void;
 }
 
 export default function PamphletItemEditSidebar({
   item,
+  stream = "body",
   handlers,
   onDismiss,
 }: PamphletItemEditSidebarProps) {
@@ -222,7 +224,12 @@ export default function PamphletItemEditSidebar({
         <div className="pamphlet_item_edit_sidebar__preview">
           <p className="pamphlet_item_edit_sidebar__section_label">Preview</p>
           <div className="pamphlet_item_edit_sidebar__preview_frame">
-            <PamphletItemView item={item} className="pamphlet_item_edit_sidebar__preview_item" />
+            <PamphletItemView
+              item={item}
+              className={`pamphlet_item_edit_sidebar__preview_item${
+                stream === "header" ? " is-header-preview" : ""
+              }${stream === "footer" ? " is-footer-preview" : ""}`}
+            />
           </div>
         </div>
         <div className="pamphlet_item_edit_sidebar__controls">

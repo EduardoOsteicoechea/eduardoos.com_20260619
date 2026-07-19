@@ -70,7 +70,7 @@ function widthForStream(stream: PamphletV3Stream): number {
 function withEstimatedHeight(item: PamphletV3ContentItem, stream: PamphletV3Stream): PamphletV3ContentItem {
   return {
     ...item,
-    heightMm: measurePamphletV3ItemHeight(item, widthForStream(stream)),
+    heightMm: measurePamphletV3ItemHeight(item, widthForStream(stream), stream),
   };
 }
 
@@ -219,7 +219,11 @@ export default function PamphletV3Page() {
     if (!stream) {
       return null;
     }
-    return getStreamItems(documentState, stream).find((item) => item.id === editingItemId) ?? null;
+    const item = getStreamItems(documentState, stream).find((entry) => entry.id === editingItemId);
+    if (!item) {
+      return null;
+    }
+    return { item, stream };
   }, [documentState, editingItemId]);
   const handlers = useMemo<PamphletContentItemHandlers>(
     () => ({
@@ -560,9 +564,10 @@ export default function PamphletV3Page() {
         <div className="pamphlet_v3_right_rail pamphlet-no-print">
           {editingItem ? (
             <PamphletItemEditSidebar
-              item={editingItem}
+              item={editingItem.item}
+              stream={editingItem.stream}
               handlers={handlers}
-              onDismiss={() => saveAndExit(editingItem.id)}
+              onDismiss={() => saveAndExit(editingItem.item.id)}
             />
           ) : null}
           <PamphletContentJsonPanel contentJson={contentJson} />
