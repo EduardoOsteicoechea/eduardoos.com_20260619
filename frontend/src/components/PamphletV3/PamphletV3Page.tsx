@@ -2,7 +2,10 @@
  * PamphletV3Page.tsx — US Letter landscape pamphlet editor (V3).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import contentDistribution, { distributionToContentJson } from "./ContentDistribution";
+import contentDistribution, {
+  distributionToContentJson,
+  type PamphletMeasuredCapacities,
+} from "./ContentDistribution";
 import PamphletContentJsonPanel from "./PamphletContentJsonPanel";
 import { PamphletContentItemsContainer } from "./PamphletContentItemsContainer";
 import type { PamphletContentItemHandlers } from "./PamphletContentItem";
@@ -13,6 +16,7 @@ import {
   pamphletV3ItemHasContent,
   PAMPHLET_V3_COLUMN_WIDTH_MM,
   PAMPHLET_V3_HEADER_FOOTER_WIDTH_MM,
+  type PamphletV3ColumnZoneId,
   type PamphletV3ContentItem,
   type PamphletV3Document,
   type PamphletV3ItemType,
@@ -79,6 +83,7 @@ function cloneItem(item: PamphletV3ContentItem): PamphletV3ContentItem {
 export default function PamphletV3Page() {
   const [documentState, setDocumentState] = useState<PamphletV3Document>(() => buildEmptyPamphletV3Document());
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [measuredCapacities, setMeasuredCapacities] = useState<PamphletMeasuredCapacities>({});
   const editSnapshotRef = useRef<PamphletV3ContentItem | null>(null);
   const documentStateRef = useRef(documentState);
   const editingItemIdRef = useRef(editingItemId);
@@ -86,7 +91,20 @@ export default function PamphletV3Page() {
   documentStateRef.current = documentState;
   editingItemIdRef.current = editingItemId;
 
-  const distribution = useMemo(() => contentDistribution(documentState), [documentState]);
+  const handleCapacityChange = useCallback((capacityKey: string, capacityMm: number) => {
+    setMeasuredCapacities((current) => {
+      const previous = current[capacityKey as keyof PamphletMeasuredCapacities] ?? 0;
+      if (Math.abs(previous - capacityMm) < 0.4) {
+        return current;
+      }
+      return { ...current, [capacityKey]: capacityMm };
+    });
+  }, []);
+
+  const distribution = useMemo(
+    () => contentDistribution(documentState, measuredCapacities),
+    [documentState, measuredCapacities],
+  );
   const contentJson = useMemo(() => distributionToContentJson(distribution), [distribution]);
 
   /** Applies a document update and keeps the ref in sync for outside-click / Enter handlers. */
@@ -366,24 +384,64 @@ export default function PamphletV3Page() {
     [commitDocument, saveAndExit],
   );
 
+  /**
+   * Activates add-item in a zone that already has content: save any open edit,
+   * then insert a fresh paragraph after the last item currently in that zone.
+   */
+  const addInZone = useCallback(
+    (stream: PamphletV3Stream, zoneItemIds: string[]) => {
+      const editingId = editingItemIdRef.current;
+      if (editingId) {
+        saveAndExit(editingId);
+      }
+      const current = documentStateRef.current;
+      let items = getStreamItems(current, stream);
+      const fresh = withEstimatedHeight(createPamphletV3Item("paragraph"), stream);
+
+      let insertAt = items.length;
+      for (let index = zoneItemIds.length - 1; index >= 0; index -= 1) {
+        const zoneItemId = zoneItemIds[index];
+        const found = items.findIndex((item) => item.id === zoneItemId);
+        if (found >= 0) {
+          insertAt = found + 1;
+          break;
+        }
+      }
+
+      items = [...items.slice(0, insertAt), fresh, ...items.slice(insertAt)];
+      editSnapshotRef.current = cloneItem(fresh);
+      editingItemIdRef.current = fresh.id;
+      commitDocument(setStreamItems(current, stream, items));
+      setEditingItemId(fresh.id);
+    },
+    [commitDocument, saveAndExit],
+  );
+
   function zoneProps(
     type: "header" | "column" | "footer",
     label: string,
     gridArea: "header" | "footer" | "col-a" | "col-b",
     content: PamphletV3ContentItem[],
-    occupationPercent: number,
+    occupation: { percent: number; usedMm: number; capacityMm: number },
     stream: PamphletV3Stream,
+    capacityKey: PamphletV3ColumnZoneId | "header" | "footer",
   ) {
+    const zoneItemIds = content.map((item) => item.id);
     return {
       type,
       label,
       gridArea,
+      capacityKey,
       content,
       editingItemId,
       itemGapMm: documentState.itemGapMm,
-      occupationPercent,
+      occupationPercent: occupation.percent,
+      usedMm: occupation.usedMm,
+      capacityMm: occupation.capacityMm,
       handlers,
       onEmptyActivate: () => appendToStream(stream),
+      onZoneBackgroundActivate: () => addInZone(stream, zoneItemIds),
+      onCapacityChange: handleCapacityChange,
     } as const;
   }
 
@@ -399,8 +457,9 @@ export default function PamphletV3Page() {
                   "Column 7",
                   "col-a",
                   distribution.columns.seventh,
-                  distribution.occupation.columns.seventh.percent,
+                  distribution.occupation.columns.seventh,
                   "body",
+                  "seventh",
                 )}
               />
               <PamphletContentItemsContainer
@@ -409,8 +468,9 @@ export default function PamphletV3Page() {
                   "Column 8",
                   "col-b",
                   distribution.columns.eighth,
-                  distribution.occupation.columns.eighth.percent,
+                  distribution.occupation.columns.eighth,
                   "body",
+                  "eighth",
                 )}
               />
               <PamphletContentItemsContainer
@@ -419,7 +479,8 @@ export default function PamphletV3Page() {
                   "Footer",
                   "footer",
                   distribution.footer,
-                  distribution.occupation.footer.percent,
+                  distribution.occupation.footer,
+                  "footer",
                   "footer",
                 )}
               />
@@ -431,7 +492,8 @@ export default function PamphletV3Page() {
                   "Header",
                   "header",
                   distribution.header,
-                  distribution.occupation.header.percent,
+                  distribution.occupation.header,
+                  "header",
                   "header",
                 )}
               />
@@ -441,8 +503,9 @@ export default function PamphletV3Page() {
                   "Column 1",
                   "col-a",
                   distribution.columns.first,
-                  distribution.occupation.columns.first.percent,
+                  distribution.occupation.columns.first,
                   "body",
+                  "first",
                 )}
               />
               <PamphletContentItemsContainer
@@ -451,8 +514,9 @@ export default function PamphletV3Page() {
                   "Column 2",
                   "col-b",
                   distribution.columns.second,
-                  distribution.occupation.columns.second.percent,
+                  distribution.occupation.columns.second,
                   "body",
+                  "second",
                 )}
               />
             </div>
@@ -466,8 +530,9 @@ export default function PamphletV3Page() {
                   "Column 3",
                   "col-a",
                   distribution.columns.third,
-                  distribution.occupation.columns.third.percent,
+                  distribution.occupation.columns.third,
                   "body",
+                  "third",
                 )}
               />
               <PamphletContentItemsContainer
@@ -476,8 +541,9 @@ export default function PamphletV3Page() {
                   "Column 4",
                   "col-b",
                   distribution.columns.fourth,
-                  distribution.occupation.columns.fourth.percent,
+                  distribution.occupation.columns.fourth,
                   "body",
+                  "fourth",
                 )}
               />
             </div>
@@ -488,8 +554,9 @@ export default function PamphletV3Page() {
                   "Column 5",
                   "col-a",
                   distribution.columns.fifth,
-                  distribution.occupation.columns.fifth.percent,
+                  distribution.occupation.columns.fifth,
                   "body",
+                  "fifth",
                 )}
               />
               <PamphletContentItemsContainer
@@ -498,8 +565,9 @@ export default function PamphletV3Page() {
                   "Column 6",
                   "col-b",
                   distribution.columns.sixth,
-                  distribution.occupation.columns.sixth.percent,
+                  distribution.occupation.columns.sixth,
                   "body",
+                  "sixth",
                 )}
               />
             </div>

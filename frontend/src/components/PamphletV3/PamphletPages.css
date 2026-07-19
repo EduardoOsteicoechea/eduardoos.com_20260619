@@ -63,13 +63,36 @@
 .pamphlet_content_container {
   display: flex;
   flex-direction: column;
-  gap: 2mm;
+  gap: 0;
   width: 100%;
   min-width: 0;
   min-height: 0;
   height: 100%;
   overflow: hidden;
   box-sizing: border-box;
+}
+
+/* Content stack — no padding/gap; item spacing is each item's top margin. */
+.pamphlet_zone_stack {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Fills the constrained stack box so capacity ≠ content-driven height. */
+.pamphlet_zone_capacity_probe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  visibility: hidden;
+  z-index: -1;
 }
 
 .pamphlet_zone_label {
@@ -106,9 +129,30 @@
   cursor: pointer;
 }
 
+/* Leftover column space — same add affordance as an empty zone. */
+.pamphlet_zone_fill {
+  flex: 1 1 auto;
+  min-height: 10mm;
+  width: 100%;
+  margin: 0;
+  padding: 2mm;
+  border: 0.25mm dashed color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 1mm;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 2.8mm;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.pamphlet_zone_fill:hover {
+  opacity: 0.85;
+}
+
 .pamphlet_header,
 .pamphlet_column,
 .pamphlet_footer {
   border: 0.2mm dashed color-mix(in srgb, currentColor 18%, transparent);
-  padding: 1mm;
+  padding: 0;
 }

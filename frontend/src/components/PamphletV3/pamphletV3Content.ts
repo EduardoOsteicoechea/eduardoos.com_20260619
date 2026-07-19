@@ -32,12 +32,59 @@ export interface PamphletV3Document {
 export const PAMPHLET_V3_COLUMN_WIDTH_MM = 55;
 export const PAMPHLET_V3_HEADER_FOOTER_WIDTH_MM = 118;
 
-/** Vertical capacities for each zone (matches PamphletPages.css geometry). */
+/** Top margin on every item — included in heightMm; packing gap is therefore 0. */
+export const PAMPHLET_V3_ITEM_TOP_MARGIN_MM = 2;
+
+/** Vertical capacities for each zone (fallback until DOM measures the stack).
+ * Sheet 215.9mm − half padding 20mm − column chrome ≈ real content stack height.
+ * Front/back columns share height with header/footer (`auto`), so they are shorter
+ * than full-height inner columns — a single 150mm guess left a visible unused gap.
+ */
+export const PAMPHLET_V3_SHEET_HEIGHT_MM = 215.9;
+export const PAMPHLET_V3_HALF_PADDING_MM = 10;
+export const PAMPHLET_V3_COLUMN_ROW_GAP_MM = 4;
+export const PAMPHLET_V3_ZONE_LABEL_RESERVE_MM = 4;
+export const PAMPHLET_V3_ZONE_PADDING_MM = 2;
+
+/** Default stack capacities by column role (used before ResizeObserver reports). */
 export const PAMPHLET_V3_ZONE_CAPACITY_MM = {
-  header: 40,
-  footer: 40,
-  column: 150,
+  header: 36,
+  footer: 36,
+  /** Front page body columns (after a compact header band). */
+  columnFront: 166,
+  /** Inner page full-height columns. */
+  columnInner: 190,
+  /** Back page body columns (above a compact footer band). */
+  columnBack: 166,
+  /** Generic fallback when role is unknown. */
+  column: 166,
 } as const;
+
+export type PamphletV3ColumnZoneId =
+  | "first"
+  | "second"
+  | "third"
+  | "fourth"
+  | "fifth"
+  | "sixth"
+  | "seventh"
+  | "eighth";
+
+export const PAMPHLET_V3_DEFAULT_COLUMN_CAPACITIES: Record<PamphletV3ColumnZoneId, number> = {
+  first: PAMPHLET_V3_ZONE_CAPACITY_MM.columnFront,
+  second: PAMPHLET_V3_ZONE_CAPACITY_MM.columnFront,
+  third: PAMPHLET_V3_ZONE_CAPACITY_MM.columnInner,
+  fourth: PAMPHLET_V3_ZONE_CAPACITY_MM.columnInner,
+  fifth: PAMPHLET_V3_ZONE_CAPACITY_MM.columnInner,
+  sixth: PAMPHLET_V3_ZONE_CAPACITY_MM.columnInner,
+  seventh: PAMPHLET_V3_ZONE_CAPACITY_MM.columnBack,
+  eighth: PAMPHLET_V3_ZONE_CAPACITY_MM.columnBack,
+};
+
+export interface PamphletV3PackZone {
+  id: string;
+  capacityMm: number;
+}
 
 const REGULAR_FONT_MM = 3.53;
 const KEY_IDEA_FONT_MM = 4;
@@ -65,14 +112,18 @@ function measureTextHeightMm(text: string, widthMm: number, fontSizeMm: number):
   return lines * lineHeightMm(fontSizeMm);
 }
 
-/** Estimates item height in millimeters for packing into columns. */
+/** Estimates item height in millimeters for packing into columns.
+ * Includes the item top margin so estimates match measured heightMm.
+ */
 export function measurePamphletV3ItemHeight(
   item: PamphletV3ContentItem,
   widthMm: number,
 ): number {
+  let contentMm = 0;
   switch (item.type) {
     case "key_idea":
-      return measureTextHeightMm(item.text || " ", widthMm, KEY_IDEA_FONT_MM);
+      contentMm = measureTextHeightMm(item.text || " ", widthMm, KEY_IDEA_FONT_MM);
+      break;
     case "list": {
       const header = item.text.trim()
         ? measureTextHeightMm(item.text, widthMm, KEY_IDEA_FONT_MM)
@@ -82,18 +133,22 @@ export function measurePamphletV3ItemHeight(
         (sum, row) => sum + measureTextHeightMm(row.text || " ", widthMm, REGULAR_FONT_MM),
         0,
       );
-      return header + itemsHeight;
+      contentMm = header + itemsHeight;
+      break;
     }
     case "image": {
       const imageH = item.imageHeightMm > 0 ? item.imageHeightMm : widthMm * 0.75;
       const legend = item.description.trim()
         ? measureTextHeightMm(item.description, widthMm, REGULAR_FONT_MM * 0.85)
         : 0;
-      return imageH + legend;
+      contentMm = imageH + legend;
+      break;
     }
     default:
-      return measureTextHeightMm(item.text || " ", widthMm, REGULAR_FONT_MM);
+      contentMm = measureTextHeightMm(item.text || " ", widthMm, REGULAR_FONT_MM);
+      break;
   }
+  return contentMm + PAMPHLET_V3_ITEM_TOP_MARGIN_MM;
 }
 
 export function createPamphletV3Item(
@@ -133,17 +188,18 @@ export function buildEmptyPamphletV3Document(): PamphletV3Document {
     headerItems: [],
     bodyItems: [],
     footerItems: [],
-    itemGapMm: 2,
+    // Spacing lives in each item's top margin (included in heightMm).
+    itemGapMm: 0,
   };
 }
 
 /** Packs a flat item list into sequential zones until each zone is full.
  * Uses each item's stored heightMm when set; otherwise estimates from content.
+ * Each zone declares its own capacityMm (front/inner/back columns differ).
  */
 export function packItemsIntoZones(
   items: PamphletV3ContentItem[],
-  zoneIds: string[],
-  capacityMm: number,
+  zones: ReadonlyArray<PamphletV3PackZone>,
   gapMm: number,
   widthMm: number,
 ): Record<string, PamphletV3ContentItem[]> {
@@ -157,25 +213,26 @@ export function packItemsIntoZones(
     };
   });
   const result: Record<string, PamphletV3ContentItem[]> = {};
-  for (const zoneId of zoneIds) {
-    result[zoneId] = [];
+  for (const zone of zones) {
+    result[zone.id] = [];
   }
 
   let zoneIndex = 0;
   let used = 0;
 
   for (const item of sized) {
-    while (zoneIndex < zoneIds.length) {
-      const zoneId = zoneIds[zoneIndex];
-      const leading = result[zoneId].length > 0 ? gapMm : 0;
+    while (zoneIndex < zones.length) {
+      const zone = zones[zoneIndex];
+      const capacityMm = Math.max(0, zone.capacityMm);
+      const leading = result[zone.id].length > 0 ? gapMm : 0;
       const fits = used + leading + item.heightMm <= capacityMm;
-      if (fits || result[zoneId].length === 0) {
-        if (result[zoneId].length > 0) {
+      if (fits || result[zone.id].length === 0) {
+        if (result[zone.id].length > 0) {
           used += gapMm;
         }
-        result[zoneId].push(item);
+        result[zone.id].push(item);
         used += item.heightMm;
-        if (!fits && result[zoneId].length === 1) {
+        if (!fits && result[zone.id].length === 1) {
           // Oversized first item still occupies the zone; continue packing in the next zone.
           zoneIndex += 1;
           used = 0;
@@ -203,13 +260,25 @@ export function zoneOccupationPercent(usedMm: number, capacityMm: number): numbe
   return Math.min(100, Math.max(0, (usedMm / capacityMm) * 100));
 }
 
-/** Sums item heights plus gaps between them. */
-export function zoneUsedHeightMm(items: PamphletV3ContentItem[], gapMm: number): number {
+/** Sums item heights. gapMm is retained for callers but spacing should be inside heightMm. */
+export function zoneUsedHeightMm(items: PamphletV3ContentItem[], gapMm: number = 0): number {
   if (items.length === 0) {
     return 0;
   }
   const content = items.reduce((sum, item) => sum + Math.max(0, item.heightMm), 0);
   return content + gapMm * Math.max(0, items.length - 1);
+}
+
+/** True when the leftover stack space can still host the add-content control. */
+export function zoneHasRoomForAddControl(
+  usedMm: number,
+  capacityMm: number,
+  minRoomMm: number = 8,
+): boolean {
+  if (capacityMm <= 0) {
+    return true;
+  }
+  return capacityMm - usedMm >= minRoomMm;
 }
 
 /** True when the item has user-visible content worth exporting. */
@@ -236,19 +305,26 @@ export interface PamphletV3JsonItem {
   heightMm: number;
 }
 
+export interface PamphletV3ZoneJson {
+  occupationPercent: number;
+  usedMm: number;
+  capacityMm: number;
+  items: PamphletV3JsonItem[];
+}
+
 export interface PamphletV3ContentJson {
-  header: PamphletV3JsonItem[];
+  header: PamphletV3ZoneJson;
   body: {
-    col_1: PamphletV3JsonItem[];
-    col_2: PamphletV3JsonItem[];
-    col_3: PamphletV3JsonItem[];
-    col_4: PamphletV3JsonItem[];
-    col_5: PamphletV3JsonItem[];
-    col_6: PamphletV3JsonItem[];
-    col_7: PamphletV3JsonItem[];
-    col_8: PamphletV3JsonItem[];
+    col_1: PamphletV3ZoneJson;
+    col_2: PamphletV3ZoneJson;
+    col_3: PamphletV3ZoneJson;
+    col_4: PamphletV3ZoneJson;
+    col_5: PamphletV3ZoneJson;
+    col_6: PamphletV3ZoneJson;
+    col_7: PamphletV3ZoneJson;
+    col_8: PamphletV3ZoneJson;
   };
-  footer: PamphletV3JsonItem[];
+  footer: PamphletV3ZoneJson;
 }
 
 function toJsonItem(item: PamphletV3ContentItem): PamphletV3JsonItem {
@@ -271,4 +347,17 @@ function toJsonItem(item: PamphletV3ContentItem): PamphletV3JsonItem {
 
 export function exportItems(items: PamphletV3ContentItem[]): PamphletV3JsonItem[] {
   return items.filter(pamphletV3ItemHasContent).map(toJsonItem);
+}
+
+/** Zone payload for the live JSON panel: occupation stats + non-empty items. */
+export function exportZone(
+  items: PamphletV3ContentItem[],
+  occupation: { percent: number; usedMm: number; capacityMm: number },
+): PamphletV3ZoneJson {
+  return {
+    occupationPercent: Number(occupation.percent.toFixed(1)),
+    usedMm: Number(occupation.usedMm.toFixed(2)),
+    capacityMm: Number(occupation.capacityMm.toFixed(2)),
+    items: exportItems(items),
+  };
 }

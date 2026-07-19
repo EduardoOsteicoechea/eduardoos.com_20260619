@@ -1,5 +1,9 @@
 /**
  * PamphletContentItem.tsx — One editable pamphlet block with measured mm height.
+ *
+ * heightMm always reflects the final (view-mode) content height — never the
+ * edit toolbar / inputs chrome. While editing, a hidden view-mode mirror is
+ * measured so packing and JSON stay aligned with printed output.
  */
 import { useEffect, useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent } from "react";
 import {
@@ -38,6 +42,7 @@ export default function PamphletContentItem({
   handlers,
 }: PamphletContentItemProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -49,16 +54,20 @@ export default function PamphletContentItem({
   }, [editing, item.id]);
 
   useLayoutEffect(() => {
-    const node = rootRef.current;
-    if (!node || typeof ResizeObserver === "undefined") {
+    const measureNode = measureRef.current;
+    const rootNode = rootRef.current;
+    if (!measureNode || !rootNode || typeof ResizeObserver === "undefined") {
       return;
     }
 
     function publishHeight() {
-      if (!rootRef.current || editing) {
+      if (!measureRef.current || !rootRef.current) {
         return;
       }
-      const nextMm = pxToMm(rootRef.current.getBoundingClientRect().height);
+      const contentPx = measureRef.current.getBoundingClientRect().height;
+      const marginTopPx = Number.parseFloat(window.getComputedStyle(rootRef.current).marginTop) || 0;
+      // heightMm = final view content + top margin (spacing is not a separate pack gap).
+      const nextMm = pxToMm(contentPx + marginTopPx);
       if (Math.abs(nextMm - item.heightMm) < 0.15) {
         return;
       }
@@ -66,7 +75,7 @@ export default function PamphletContentItem({
     }
 
     const observer = new ResizeObserver(() => publishHeight());
-    observer.observe(node);
+    observer.observe(measureNode);
     publishHeight();
     return () => observer.disconnect();
   }, [
@@ -150,69 +159,9 @@ export default function PamphletContentItem({
     );
   }
 
-  function renderBody() {
+  /** Final printed/view presentation — also used as the height measure target. */
+  function renderViewBody() {
     if (item.type === "list") {
-      if (editing) {
-        return (
-          <div className="pamphlet-v3-item__list-edit">
-            <input
-              className="pamphlet-v3-item__input pamphlet-v3-item__list-header"
-              value={item.text}
-              placeholder="List header"
-              onChange={(event) => handlers.onChange(item.id, { text: event.target.value })}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  handlers.onAddBelow(item.id);
-                }
-              }}
-            />
-            {item.listItems.map((row, index) => (
-              <div key={row.id} className="pamphlet-v3-item__list-row">
-                <input
-                  className="pamphlet-v3-item__input"
-                  value={row.text}
-                  placeholder={`Item ${index + 1}`}
-                  onChange={(event) => {
-                    const listItems = item.listItems.map((entry) =>
-                      entry.id === row.id ? { ...entry, text: event.target.value } : entry,
-                    );
-                    handlers.onChange(item.id, { listItems });
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      handlers.onAddBelow(item.id);
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="pamphlet-v3-item__list-remove"
-                  onClick={() =>
-                    handlers.onChange(item.id, {
-                      listItems: item.listItems.filter((entry) => entry.id !== row.id),
-                    })
-                  }
-                >
-                  −
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="pamphlet-v3-item__list-add"
-              onClick={() =>
-                handlers.onChange(item.id, {
-                  listItems: [...item.listItems, { id: `li-${Date.now()}`, text: "" }],
-                })
-              }
-            >
-              + Add item
-            </button>
-          </div>
-        );
-      }
       return (
         <div className="pamphlet-v3-item__list">
           {item.text.trim() ? <p className="pamphlet-v3-item__list-header-view">{item.text}</p> : null}
@@ -226,35 +175,6 @@ export default function PamphletContentItem({
     }
 
     if (item.type === "image") {
-      if (editing) {
-        return (
-          <div className="pamphlet-v3-item__image-edit">
-            <input
-              type="file"
-              accept="image/png,image/webp,image/jpeg,.png,.webp,.jpg,.jpeg"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (!file) {
-                  return;
-                }
-                handlers.onChange(item.id, { imageUrl: URL.createObjectURL(file) });
-              }}
-            />
-            <input
-              className="pamphlet-v3-item__input"
-              value={item.description}
-              placeholder="Image description"
-              onChange={(event) => handlers.onChange(item.id, { description: event.target.value })}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  handlers.onAddBelow(item.id);
-                }
-              }}
-            />
-          </div>
-        );
-      }
       return (
         <div className="pamphlet-v3-item__image">
           <div className="pamphlet-v3-item__image-frame">
@@ -270,19 +190,6 @@ export default function PamphletContentItem({
         ? "pamphlet-v3-item__text pamphlet-v3-item__text--key-idea"
         : "pamphlet-v3-item__text";
 
-    if (editing) {
-      return (
-        <textarea
-          ref={textRef}
-          className={`pamphlet-v3-item__input ${textClass}`}
-          value={item.text}
-          placeholder={item.type === "key_idea" ? "Key idea" : "Paragraph"}
-          rows={2}
-          onChange={(event) => handlers.onChange(item.id, { text: event.target.value })}
-        />
-      );
-    }
-
     if (!pamphletV3ItemHasContent(item)) {
       return <p className={textClass}>{"\u00a0"}</p>;
     }
@@ -291,6 +198,116 @@ export default function PamphletContentItem({
       <p
         className={textClass}
         dangerouslySetInnerHTML={{ __html: item.text.trim() ? item.text : "&nbsp;" }}
+      />
+    );
+  }
+
+  function renderEditBody() {
+    if (item.type === "list") {
+      return (
+        <div className="pamphlet-v3-item__list-edit">
+          <input
+            className="pamphlet-v3-item__input pamphlet-v3-item__list-header"
+            value={item.text}
+            placeholder="List header"
+            onChange={(event) => handlers.onChange(item.id, { text: event.target.value })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                handlers.onAddBelow(item.id);
+              }
+            }}
+          />
+          {item.listItems.map((row, index) => (
+            <div key={row.id} className="pamphlet-v3-item__list-row">
+              <input
+                className="pamphlet-v3-item__input"
+                value={row.text}
+                placeholder={`Item ${index + 1}`}
+                onChange={(event) => {
+                  const listItems = item.listItems.map((entry) =>
+                    entry.id === row.id ? { ...entry, text: event.target.value } : entry,
+                  );
+                  handlers.onChange(item.id, { listItems });
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handlers.onAddBelow(item.id);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="pamphlet-v3-item__list-remove"
+                onClick={() =>
+                  handlers.onChange(item.id, {
+                    listItems: item.listItems.filter((entry) => entry.id !== row.id),
+                  })
+                }
+              >
+                −
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="pamphlet-v3-item__list-add"
+            onClick={() =>
+              handlers.onChange(item.id, {
+                listItems: [...item.listItems, { id: `li-${Date.now()}`, text: "" }],
+              })
+            }
+          >
+            + Add item
+          </button>
+        </div>
+      );
+    }
+
+    if (item.type === "image") {
+      return (
+        <div className="pamphlet-v3-item__image-edit">
+          <input
+            type="file"
+            accept="image/png,image/webp,image/jpeg,.png,.webp,.jpg,.jpeg"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) {
+                return;
+              }
+              handlers.onChange(item.id, { imageUrl: URL.createObjectURL(file) });
+            }}
+          />
+          <input
+            className="pamphlet-v3-item__input"
+            value={item.description}
+            placeholder="Image description"
+            onChange={(event) => handlers.onChange(item.id, { description: event.target.value })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                handlers.onAddBelow(item.id);
+              }
+            }}
+          />
+        </div>
+      );
+    }
+
+    const textClass =
+      item.type === "key_idea"
+        ? "pamphlet-v3-item__text pamphlet-v3-item__text--key-idea"
+        : "pamphlet-v3-item__text";
+
+    return (
+      <textarea
+        ref={textRef}
+        className={`pamphlet-v3-item__input ${textClass}`}
+        value={item.text}
+        placeholder={item.type === "key_idea" ? "Key idea" : "Paragraph"}
+        rows={2}
+        onChange={(event) => handlers.onChange(item.id, { text: event.target.value })}
       />
     );
   }
@@ -308,7 +325,23 @@ export default function PamphletContentItem({
       role="presentation"
     >
       {renderToolbar()}
-      {renderBody()}
+      {editing ? (
+        <>
+          <div className="pamphlet-v3-item__edit-chrome pamphlet-no-print">{renderEditBody()}</div>
+          <div
+            ref={measureRef}
+            className="pamphlet-v3-item__measure-mirror"
+            aria-hidden="true"
+            data-measure="view"
+          >
+            {renderViewBody()}
+          </div>
+        </>
+      ) : (
+        <div ref={measureRef} className="pamphlet-v3-item__measure" data-measure="view">
+          {renderViewBody()}
+        </div>
+      )}
     </div>
   );
 }

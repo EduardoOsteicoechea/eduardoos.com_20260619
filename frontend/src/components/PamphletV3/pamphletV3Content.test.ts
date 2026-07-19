@@ -4,6 +4,8 @@ import {
   buildEmptyPamphletV3Document,
   createPamphletV3Item,
   packItemsIntoZones,
+  PAMPHLET_V3_DEFAULT_COLUMN_CAPACITIES,
+  zoneHasRoomForAddControl,
 } from "./pamphletV3Content";
 
 describe("pamphletV3 content packing", () => {
@@ -12,6 +14,7 @@ describe("pamphletV3 content packing", () => {
     expect(doc.headerItems).toHaveLength(0);
     expect(doc.bodyItems).toHaveLength(0);
     expect(doc.footerItems).toHaveLength(0);
+    expect(doc.itemGapMm).toBe(0);
   });
 
   it("flows overflowing body items into the next column", () => {
@@ -20,7 +23,16 @@ describe("pamphletV3 content packing", () => {
         text: `Paragraph ${index} with enough words to consume vertical space in a narrow column layout.`,
       }),
     );
-    const packed = packItemsIntoZones(many, ["first", "second", "third"], 40, 2, 55);
+    const packed = packItemsIntoZones(
+      many,
+      [
+        { id: "first", capacityMm: 40 },
+        { id: "second", capacityMm: 40 },
+        { id: "third", capacityMm: 40 },
+      ],
+      0,
+      55,
+    );
     expect(packed.first.length).toBeGreaterThan(0);
     expect(packed.second.length).toBeGreaterThan(0);
   });
@@ -38,11 +50,12 @@ describe("pamphletV3 content packing", () => {
     doc.footerItems = [createPamphletV3Item("paragraph", { text: "" })];
     const zones = contentDistribution(doc);
     const json = distributionToContentJson(zones);
-    expect(json.header).toHaveLength(1);
-    expect(json.header[0]?.text).toBe("Title");
-    expect(json.body.col_1.some((item) => item.text === "Body copy")).toBe(true);
-    expect(json.body.col_1.every((item) => item.text.trim().length > 0)).toBe(true);
-    expect(json.footer).toHaveLength(0);
+    expect(json.header.items).toHaveLength(1);
+    expect(json.header.items[0]?.text).toBe("Title");
+    expect(json.body.col_1.items.some((item) => item.text === "Body copy")).toBe(true);
+    expect(json.body.col_1.items.every((item) => item.text.trim().length > 0)).toBe(true);
+    expect(typeof json.body.col_1.occupationPercent).toBe("number");
+    expect(json.footer.items).toHaveLength(0);
     expect(zones.occupation.columns.first.percent).toBeGreaterThan(0);
   });
 
@@ -53,8 +66,45 @@ describe("pamphletV3 content packing", () => {
         heightMm: 20,
       }),
     );
-    const packed = packItemsIntoZones(tall, ["first", "second", "third"], 50, 2, 55);
+    const packed = packItemsIntoZones(
+      tall,
+      [
+        { id: "first", capacityMm: 50 },
+        { id: "second", capacityMm: 50 },
+        { id: "third", capacityMm: 50 },
+      ],
+      0,
+      55,
+    );
     expect(packed.first.length).toBeLessThan(12);
     expect(packed.second.length).toBeGreaterThan(0);
+  });
+
+  it("uses taller default capacity for inner columns than front columns", () => {
+    expect(PAMPHLET_V3_DEFAULT_COLUMN_CAPACITIES.third).toBeGreaterThan(
+      PAMPHLET_V3_DEFAULT_COLUMN_CAPACITIES.first,
+    );
+  });
+
+  it("packs more items into a taller measured column capacity", () => {
+    const items = Array.from({ length: 20 }, (_, index) =>
+      createPamphletV3Item("paragraph", {
+        text: `Line ${index}`,
+        heightMm: 10,
+      }),
+    );
+    const shortCol = packItemsIntoZones(items, [{ id: "first", capacityMm: 50 }], 0, 55);
+    const tallCol = packItemsIntoZones(items, [{ id: "first", capacityMm: 120 }], 0, 55);
+    expect(tallCol.first.length).toBeGreaterThan(shortCol.first.length);
+  });
+
+  it("includes top margin in estimated item height", () => {
+    const item = createPamphletV3Item("paragraph", { text: "Hi" });
+    expect(item.heightMm).toBeGreaterThan(2);
+  });
+
+  it("hides add-room once leftover space is below the threshold", () => {
+    expect(zoneHasRoomForAddControl(90, 100, 8)).toBe(true);
+    expect(zoneHasRoomForAddControl(95, 100, 8)).toBe(false);
   });
 });
