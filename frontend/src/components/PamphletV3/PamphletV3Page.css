@@ -105,31 +105,29 @@
     margin: 0;
   }
 
-  .pamphlet_v3_page {
-    padding: 0;
-    gap: 0;
-    background: transparent;
+  html,
+  body {
+    width: 279.4mm;
+    height: auto;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
   }
 
-  .pamphlet_v3_workspace {
-    display: block;
+  body.page-pamphlet {
+    padding: 0 !important;
   }
 
-  .pamphlet_v3_sheets {
-    gap: 0;
+  body.page-pamphlet main {
+    margin-top: 0 !important;
+    padding: 0 !important;
   }
 
-  .pamphlet_sheet {
-    box-shadow: none;
-    page-break-after: always;
-    break-after: page;
-  }
-
-  .pamphlet_sheet:last-child {
-    page-break-after: auto;
-    break-after: auto;
-  }
-
+  /* Hide site chrome — only letter sheets print. */
+  .site-header,
+  .site-activity-bar,
+  .page-background,
+  #pwa-toast,
   .pamphlet-no-print,
   .pamphlet_zone_label,
   .pamphlet_zone_empty,
@@ -139,6 +137,44 @@
     display: none !important;
   }
 
+  .pamphlet_v3_page {
+    padding: 0 !important;
+    gap: 0;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  .pamphlet_v3_workspace {
+    display: block;
+    padding: 0 !important;
+    max-width: none;
+  }
+
+  .pamphlet_v3_sheets {
+    display: block;
+    gap: 0;
+    overflow: visible !important;
+  }
+
+  .pamphlet_sheet {
+    margin: 0 !important;
+    box-shadow: none !important;
+    page-break-after: always;
+    break-after: page;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .pamphlet_sheet:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .pamphlet_sheet * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .pamphlet_header,
   .pamphlet_column {
     border: none;
@@ -146,7 +182,7 @@
 
   .pamphlet_footer {
     border: 0.2mm solid currentColor;
-    border-radius: 2mm;
+    border-radius: 1mm;
     padding: 2mm;
   }
 }

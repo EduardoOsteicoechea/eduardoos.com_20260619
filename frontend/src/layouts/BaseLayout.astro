@@ -15,6 +15,7 @@ interface Props {
   activityBarMode?: "default" | "article" | "editor";
   pagePlaylist?: boolean;
   pagePamphletV2?: boolean;
+  pagePamphlet?: boolean;
   requireAuth?: boolean;
 }
 
@@ -23,6 +24,7 @@ const {
   activityBarMode = "default",
   pagePlaylist = false,
   pagePamphletV2 = false,
+  pagePamphlet = false,
   requireAuth = false,
 } = Astro.props;
 
@@ -113,6 +115,7 @@ const pageEditor = activityBarMode === "editor";
       "has-page-background": true,
       "page-playlist": pagePlaylist,
       "page-pamphlet-v2": pagePamphletV2,
+      "page-pamphlet": pagePamphlet,
     }}
   >
     <AuthGate client:load pathname={pathname} />

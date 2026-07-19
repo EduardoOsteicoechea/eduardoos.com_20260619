@@ -1,7 +1,7 @@
 /**
  * PamphletV3Page.tsx — US Letter landscape pamphlet editor (V3).
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAuthenticated } from "../../lib/auth";
 import {
   bootstrapPamphletV3FromCloud,
@@ -489,22 +489,6 @@ export default function PamphletV3Page() {
     [commitDocument, saveAndExit],
   );
 
-  /** Four rapid clicks on the sheets open the browser print / Save-as-PDF dialog. */
-  const handleSheetsClick = useCallback(
-    (event: MouseEvent<HTMLDivElement>) => {
-      if (event.detail !== 4) {
-        return;
-      }
-      event.preventDefault();
-      const editingId = editingItemIdRef.current;
-      if (editingId) {
-        saveAndExit(editingId);
-      }
-      window.print();
-    },
-    [saveAndExit],
-  );
-
   function zoneProps(
     type: "header" | "column" | "footer",
     label: string,
@@ -536,7 +520,7 @@ export default function PamphletV3Page() {
   return (
     <div className="pamphlet_v3_page">
       <div className="pamphlet_v3_workspace">
-        <div className="pamphlet_v3_sheets" onClick={handleSheetsClick}>
+        <div className="pamphlet_v3_sheets">
           <div className="pamphlet_sheet pamphlet_first_sheet">
             <div className="pamphlet_half pamphlet_back_page">
               <PamphletContentItemsContainer
