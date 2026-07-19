@@ -34,6 +34,8 @@ export const PAMPHLET_V3_HEADER_FOOTER_WIDTH_MM = 118;
 
 /** Top margin on every item — included in heightMm; packing gap is therefore 0. */
 export const PAMPHLET_V3_ITEM_TOP_MARGIN_MM = 2;
+/** Dashed selection border on each sheet item (top + bottom contribute to layout). */
+export const PAMPHLET_V3_ITEM_BORDER_MM = 0.2;
 
 /** Vertical capacities for each zone (fallback until DOM measures the stack).
  * Sheet 215.9mm − half padding 20mm − column chrome ≈ real content stack height.
@@ -148,7 +150,7 @@ export function measurePamphletV3ItemHeight(
       contentMm = measureTextHeightMm(item.text || " ", widthMm, REGULAR_FONT_MM);
       break;
   }
-  return contentMm + PAMPHLET_V3_ITEM_TOP_MARGIN_MM;
+  return contentMm + PAMPHLET_V3_ITEM_TOP_MARGIN_MM + PAMPHLET_V3_ITEM_BORDER_MM * 2;
 }
 
 export function createPamphletV3Item(

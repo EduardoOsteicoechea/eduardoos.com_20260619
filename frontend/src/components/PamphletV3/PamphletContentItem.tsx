@@ -34,22 +34,24 @@ export default function PamphletContentItem({
   handlers,
 }: PamphletContentItemProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
-    const measureNode = measureRef.current;
     const rootNode = rootRef.current;
-    if (!measureNode || !rootNode || typeof ResizeObserver === "undefined") {
+    if (!rootNode || typeof ResizeObserver === "undefined") {
       return;
     }
 
     function publishHeight() {
-      if (!measureRef.current || !rootRef.current) {
+      if (!rootRef.current) {
         return;
       }
-      const contentPx = measureRef.current.getBoundingClientRect().height;
-      const marginTopPx = Number.parseFloat(window.getComputedStyle(rootRef.current).marginTop) || 0;
-      const nextMm = pxToMm(contentPx + marginTopPx);
+      const root = rootRef.current;
+      const styles = window.getComputedStyle(root);
+      const marginTopPx = Number.parseFloat(styles.marginTop) || 0;
+      const marginBottomPx = Number.parseFloat(styles.marginBottom) || 0;
+      // Full layout contribution: border-box (content + borders) + vertical margins.
+      // Measuring only the inner text node under-counted each item by ~0.4mm (borders).
+      const nextMm = pxToMm(root.getBoundingClientRect().height + marginTopPx + marginBottomPx);
       if (Math.abs(nextMm - item.heightMm) < 0.15) {
         return;
       }
@@ -57,7 +59,7 @@ export default function PamphletContentItem({
     }
 
     const observer = new ResizeObserver(() => publishHeight());
-    observer.observe(measureNode);
+    observer.observe(rootNode);
     publishHeight();
     return () => observer.disconnect();
   }, [
@@ -94,7 +96,7 @@ export default function PamphletContentItem({
       onClick={handleSelect}
       role="presentation"
     >
-      <div ref={measureRef} className="pamphlet-v3-item__measure" data-measure="view">
+      <div className="pamphlet-v3-item__measure" data-measure="view">
         <PamphletItemView item={item} />
       </div>
     </div>
