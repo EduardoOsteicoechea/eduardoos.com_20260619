@@ -13,11 +13,8 @@ export function isPublicPagePath(pathname: string): boolean {
     return true;
   }
   if (
-    path === normalizePath(APP_ROUTES.mediaPlaylist) 
-    || 
+    path === normalizePath(APP_ROUTES.mediaPlaylist) ||
     path.startsWith(`${normalizePath(APP_ROUTES.mediaPlaylist)}/`)
-    || 
-    path.startsWith(`${normalizePath(APP_ROUTES.pamphlet)}`)
   ) {
     return true;
   }
