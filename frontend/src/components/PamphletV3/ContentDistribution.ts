@@ -7,6 +7,7 @@ import {
   PAMPHLET_V3_ZONE_CAPACITY_MM,
   exportZone,
   packItemsIntoZones,
+  pamphletV3ItemHasContent,
   zoneOccupationPercent,
   zoneUsedHeightMm,
   type PamphletV3ColumnZoneId,
@@ -90,15 +91,16 @@ function resolveCapacity(
 /**
  * Distributes document streams into printable zones using each item's heightMm.
  * Reading order: front col1 → front col2 → inner left → inner right → back cols.
- * Optional measured capacities come from each zone's content stack ResizeObserver.
+ * Only items with real content are packed — empty drafts stay out of the sheet
+ * (edited in the sidebar) so leftover column space never hosts a ghost item.
  */
 export default function contentDistribution(
   document: PamphletV3Document,
   measuredCapacities?: PamphletMeasuredCapacities,
 ): PamphletContentDistribution {
   const gapMm = document.itemGapMm;
-  const header = document.headerItems;
-  const footer = document.footerItems;
+  const header = document.headerItems.filter(pamphletV3ItemHasContent);
+  const footer = document.footerItems.filter(pamphletV3ItemHasContent);
 
   const packZones: PamphletV3PackZone[] = COLUMN_ZONE_IDS.map((id) => ({
     id,
@@ -106,7 +108,7 @@ export default function contentDistribution(
   }));
 
   const packed = packItemsIntoZones(
-    document.bodyItems,
+    document.bodyItems.filter(pamphletV3ItemHasContent),
     packZones,
     gapMm,
     PAMPHLET_V3_COLUMN_WIDTH_MM,

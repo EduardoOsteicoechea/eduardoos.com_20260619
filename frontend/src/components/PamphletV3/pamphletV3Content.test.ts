@@ -5,7 +5,6 @@ import {
   createPamphletV3Item,
   packItemsIntoZones,
   PAMPHLET_V3_DEFAULT_COLUMN_CAPACITIES,
-  zoneHasRoomForAddControl,
 } from "./pamphletV3Content";
 
 describe("pamphletV3 content packing", () => {
@@ -103,8 +102,15 @@ describe("pamphletV3 content packing", () => {
     expect(item.heightMm).toBeGreaterThan(2);
   });
 
-  it("hides add-room once leftover space is below the threshold", () => {
-    expect(zoneHasRoomForAddControl(90, 100, 8)).toBe(true);
-    expect(zoneHasRoomForAddControl(95, 100, 8)).toBe(false);
+  it("does not place empty draft items into packed columns", () => {
+    const doc = buildEmptyPamphletV3Document();
+    doc.bodyItems = [
+      createPamphletV3Item("paragraph", { text: "Visible" }),
+      createPamphletV3Item("paragraph", { text: "" }),
+    ];
+    const zones = contentDistribution(doc);
+    expect(zones.columns.first.every((item) => item.text.trim().length > 0)).toBe(true);
+    expect(zones.columns.first.some((item) => item.text === "Visible")).toBe(true);
+    expect(zones.columns.first).toHaveLength(1);
   });
 });

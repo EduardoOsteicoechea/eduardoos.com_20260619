@@ -402,39 +402,6 @@ export default function PamphletV3Page() {
     [commitDocument, saveAndExit],
   );
 
-  /**
-   * Activates add-item in a zone that already has content: save any open edit,
-   * then insert a fresh paragraph after the last item currently in that zone.
-   */
-  const addInZone = useCallback(
-    (stream: PamphletV3Stream, zoneItemIds: string[]) => {
-      const editingId = editingItemIdRef.current;
-      if (editingId) {
-        saveAndExit(editingId);
-      }
-      const current = documentStateRef.current;
-      let items = getStreamItems(current, stream);
-      const fresh = withEstimatedHeight(createPamphletV3Item("paragraph"), stream);
-
-      let insertAt = items.length;
-      for (let index = zoneItemIds.length - 1; index >= 0; index -= 1) {
-        const zoneItemId = zoneItemIds[index];
-        const found = items.findIndex((item) => item.id === zoneItemId);
-        if (found >= 0) {
-          insertAt = found + 1;
-          break;
-        }
-      }
-
-      items = [...items.slice(0, insertAt), fresh, ...items.slice(insertAt)];
-      editSnapshotRef.current = cloneItem(fresh);
-      editingItemIdRef.current = fresh.id;
-      commitDocument(setStreamItems(current, stream, items));
-      setEditingItemId(fresh.id);
-    },
-    [commitDocument, saveAndExit],
-  );
-
   function zoneProps(
     type: "header" | "column" | "footer",
     label: string,
@@ -444,7 +411,6 @@ export default function PamphletV3Page() {
     stream: PamphletV3Stream,
     capacityKey: PamphletV3ColumnZoneId | "header" | "footer",
   ) {
-    const zoneItemIds = content.map((item) => item.id);
     return {
       type,
       label,
@@ -458,7 +424,6 @@ export default function PamphletV3Page() {
       capacityMm: occupation.capacityMm,
       handlers,
       onEmptyActivate: () => appendToStream(stream),
-      onZoneBackgroundActivate: () => addInZone(stream, zoneItemIds),
       onCapacityChange: handleCapacityChange,
     } as const;
   }
