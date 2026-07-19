@@ -1,9 +1,11 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { APP_ROUTES } from "../config/routes";
+import HomePageBackground from "../../components/PageBackground/HomePageBackground";
 import "./index.css";
 ---
 
+  <HomePageBackground client:only="react" />
 <BaseLayout title="Eduardo Osteicoechea">
   <div class="page-shell hero">
     <h1>Zero Trust Microservices Platform</h1>

@@ -1,13 +1,9 @@
-.page-background {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.page-background__gradient {
+.home_page_background {
   position: absolute;
-  inset: 0;
-  background: var(--site-body-bg);
+  top: 0;
+  left: 0;
+  z-index: 100000;
+  height: 100px;
+  width: 100px;
+  background: red;
 }

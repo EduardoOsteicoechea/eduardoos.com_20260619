@@ -8,7 +8,7 @@ import { isPublicPagePath } from "../../lib/routeAccess";
 
 interface AuthGateProps {
   pathname: string;
-}
+} 
 
 export function AuthGate({ pathname }: AuthGateProps) {
   useEffect(() => {
