@@ -20,9 +20,12 @@
   gap: 6mm;
   width: 100%;
   max-width: 100%;
-  /* Reserve space for the fixed right rail on desktop */
-  padding-right: min(380px, 34vw);
   box-sizing: border-box;
+}
+
+.pamphlet_v3_page:has(.pamphlet_v3_right_rail) .pamphlet_v3_workspace {
+  /* Reserve space for the fixed right rail while editing */
+  padding-right: min(380px, 34vw);
 }
 
 .pamphlet_v3_right_rail {

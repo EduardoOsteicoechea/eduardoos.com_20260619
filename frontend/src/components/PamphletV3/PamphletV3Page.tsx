@@ -9,10 +9,8 @@ import {
   savePamphletV3Bundle,
 } from "../../lib/pamphletV3Persistence";
 import contentDistribution, {
-  distributionToContentJson,
   type PamphletMeasuredCapacities,
 } from "./ContentDistribution";
-import PamphletContentJsonPanel from "./PamphletContentJsonPanel";
 import { PamphletContentItemsContainer } from "./PamphletContentItemsContainer";
 import type { PamphletContentItemHandlers } from "./PamphletContentItem";
 import PamphletItemEditSidebar from "./PamphletItemEditSidebar";
@@ -95,7 +93,6 @@ export default function PamphletV3Page() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [measuredCapacities, setMeasuredCapacities] = useState<PamphletMeasuredCapacities>({});
   const [isHydrated, setIsHydrated] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const editSnapshotRef = useRef<PamphletV3ContentItem | null>(null);
   const documentStateRef = useRef(documentState);
   const editingItemIdRef = useRef(editingItemId);
@@ -119,7 +116,6 @@ export default function PamphletV3Page() {
     () => contentDistribution(documentState, measuredCapacities),
     [documentState, measuredCapacities],
   );
-  const contentJson = useMemo(() => distributionToContentJson(distribution), [distribution]);
 
   /** Applies a document update and keeps the ref in sync for outside-click / Enter handlers. */
   const commitDocument = useCallback((next: PamphletV3Document) => {
@@ -161,15 +157,11 @@ export default function PamphletV3Page() {
       skipNextSaveRef.current = false;
       return;
     }
-    setSaveStatus("saving");
     const timer = window.setTimeout(() => {
       const pamphletId = pamphletIdRef.current || PAMPHLET_V3_DEFAULT_ID;
-      savePamphletV3Bundle({ pamphletId, document: documentStateRef.current })
-        .then(() => setSaveStatus("saved"))
-        .catch((error) => {
-          console.error("[pamphlet v3] save failed:", error);
-          setSaveStatus("error");
-        });
+      savePamphletV3Bundle({ pamphletId, document: documentStateRef.current }).catch((error) => {
+        console.error("[pamphlet v3] save failed:", error);
+      });
     }, SAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [documentState, isHydrated]);
@@ -646,17 +638,16 @@ export default function PamphletV3Page() {
           </div>
         </div>
 
-        <div className="pamphlet_v3_right_rail pamphlet-no-print">
-          {editingItem ? (
+        {editingItem ? (
+          <div className="pamphlet_v3_right_rail pamphlet-no-print">
             <PamphletItemEditSidebar
               item={editingItem.item}
               stream={editingItem.stream}
               handlers={handlers}
               onDismiss={() => saveAndExit(editingItem.item.id)}
             />
-          ) : null}
-          <PamphletContentJsonPanel contentJson={contentJson} saveStatus={saveStatus} />
-        </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
