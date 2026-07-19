@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityBar } from "../ActivityBar/ActivityBar";
 import { IconAddBelow } from "../PamphletV2/PamphletContentIcons";
-import { IconPrint } from "../PamphletV2/PamphletViewIcons";
+import { IconPrint, IconZoomIn, IconZoomOut } from "../PamphletV2/PamphletViewIcons";
 import { isAuthenticated } from "../../lib/auth";
 import {
   bootstrapPamphletV3FromCloud,
@@ -35,6 +35,26 @@ import "./PamphletV3Page.css";
 import "./PamphletPages.css";
 
 const SAVE_DEBOUNCE_MS = 1000;
+const MOBILE_LAYOUT_MAX_PX = 900;
+const ZOOM_STEP = 0.15;
+const ZOOM_MIN = 0.55;
+const ZOOM_MAX = 2.4;
+
+/** Tracks the mobile stacked layout breakpoint (desktop sheets stay for print). */
+function useIsMobilePamphletLayout(): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) {
+      return;
+    }
+    const media = window.matchMedia(`(max-width: ${MOBILE_LAYOUT_MAX_PX}px)`);
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  return isMobile;
+}
 
 function findStream(document: PamphletV3Document, itemId: string): PamphletV3Stream | null {
   if (document.headerItems.some((item) => item.id === itemId)) {
@@ -96,6 +116,8 @@ export default function PamphletV3Page() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [measuredCapacities, setMeasuredCapacities] = useState<PamphletMeasuredCapacities>({});
   const [isHydrated, setIsHydrated] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
+  const isMobileLayout = useIsMobilePamphletLayout();
   const editSnapshotRef = useRef<PamphletV3ContentItem | null>(null);
   const documentStateRef = useRef(documentState);
   const editingItemIdRef = useRef(editingItemId);
@@ -497,6 +519,14 @@ export default function PamphletV3Page() {
     window.print();
   }, [saveAndExit]);
 
+  const zoomIn = useCallback(() => {
+    setZoomScale((current) => Math.min(ZOOM_MAX, Number((current + ZOOM_STEP).toFixed(2))));
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    setZoomScale((current) => Math.max(ZOOM_MIN, Number((current - ZOOM_STEP).toFixed(2))));
+  }, []);
+
   const activityButtons = useMemo(
     () => [
       {
@@ -507,6 +537,22 @@ export default function PamphletV3Page() {
         onClick: addNextContentItem,
       },
       {
+        id: "zoom-out",
+        label: "Zoom out",
+        title: "Zoom out from the center of the containers",
+        icon: <IconZoomOut />,
+        onClick: zoomOut,
+        disabled: zoomScale <= ZOOM_MIN,
+      },
+      {
+        id: "zoom-in",
+        label: "Zoom in",
+        title: "Zoom in toward the center of the containers",
+        icon: <IconZoomIn />,
+        onClick: zoomIn,
+        disabled: zoomScale >= ZOOM_MAX,
+      },
+      {
         id: "print-pdf",
         label: "Print",
         title: "Print landscape letter sheets",
@@ -514,17 +560,18 @@ export default function PamphletV3Page() {
         onClick: handlePrint,
       },
     ],
-    [addNextContentItem, handlePrint],
+    [addNextContentItem, handlePrint, zoomIn, zoomOut, zoomScale],
   );
 
   function zoneProps(
     type: "header" | "column" | "footer",
     label: string,
-    gridArea: "header" | "footer" | "col-a" | "col-b",
+    gridArea: "header" | "footer" | "col-a" | "col-b" | undefined,
     content: PamphletV3ContentItem[],
     occupation: { percent: number; usedMm: number; capacityMm: number },
     stream: PamphletV3Stream,
     capacityKey: PamphletV3ColumnZoneId | "header" | "footer",
+    reportCapacity: boolean,
   ) {
     const readOnly = type === "footer";
     return {
@@ -541,133 +588,279 @@ export default function PamphletV3Page() {
       handlers,
       editDisabled: readOnly,
       onEmptyActivate: readOnly ? undefined : () => appendToStream(stream),
-      onCapacityChange: handleCapacityChange,
+      onCapacityChange: reportCapacity ? handleCapacityChange : undefined,
     } as const;
   }
 
+  const desktopCapacity = !isMobileLayout;
+  const mobileCapacity = isMobileLayout;
+
   return (
-    <div className="pamphlet_v3_page">
+    <div className={`pamphlet_v3_page${isMobileLayout ? " is-mobile-layout" : ""}`}>
       <div className="pamphlet_v3_workspace">
-        <div className="pamphlet_v3_sheets">
-          <div className="pamphlet_sheet pamphlet_first_sheet">
-            <div className="pamphlet_half pamphlet_back_page">
-              <PamphletContentItemsContainer
-                {...zoneProps(
-                  "column",
-                  "Column 7",
-                  "col-a",
-                  distribution.columns.seventh,
-                  distribution.occupation.columns.seventh,
-                  "body",
-                  "seventh",
-                )}
-              />
-              <PamphletContentItemsContainer
-                {...zoneProps(
-                  "column",
-                  "Column 8",
-                  "col-b",
-                  distribution.columns.eighth,
-                  distribution.occupation.columns.eighth,
-                  "body",
-                  "eighth",
-                )}
-              />
-              <PamphletContentItemsContainer
-                {...zoneProps(
-                  "footer",
-                  "Footer",
-                  "footer",
-                  distribution.footer,
-                  distribution.occupation.footer,
-                  "footer",
-                  "footer",
-                )}
-              />
+        <div className="pamphlet_v3_zoom_viewport">
+          <div
+            className="pamphlet_v3_zoom_stage"
+            style={{
+              transform: `scale(${zoomScale})`,
+              transformOrigin: "center center",
+            }}
+          >
+            <div className="pamphlet_v3_sheets pamphlet_v3_sheets--desktop">
+              <div className="pamphlet_sheet pamphlet_first_sheet">
+                <div className="pamphlet_half pamphlet_back_page">
+                  <PamphletContentItemsContainer
+                    {...zoneProps(
+                      "column",
+                      "Column 7",
+                      "col-a",
+                      distribution.columns.seventh,
+                      distribution.occupation.columns.seventh,
+                      "body",
+                      "seventh",
+                      desktopCapacity,
+                    )}
+                  />
+                  <PamphletContentItemsContainer
+                    {...zoneProps(
+                      "column",
+                      "Column 8",
+                      "col-b",
+                      distribution.columns.eighth,
+                      distribution.occupation.columns.eighth,
+                      "body",
+                      "eighth",
+                      desktopCapacity,
+                    )}
+                  />
+                  <PamphletContentItemsContainer
+                    {...zoneProps(
+                      "footer",
+                      "Footer",
+                      "footer",
+                      distribution.footer,
+                      distribution.occupation.footer,
+                      "footer",
+                      "footer",
+                      desktopCapacity,
+                    )}
+                  />
+                </div>
+                <div className="pamphlet_half pamphlet_front_page">
+                  <PamphletContentItemsContainer
+                    {...zoneProps(
+                      "header",
+                      "Header",
+                      "header",
+                      distribution.header,
+                      distribution.occupation.header,
+                      "header",
+                      "header",
+                      desktopCapacity,
+                    )}
+                  />
+                  <PamphletContentItemsContainer
+                    {...zoneProps(
+                      "column",
+                      "Column 1",
+                      "col-a",
+                      distribution.columns.first,
+                      distribution.occupation.columns.first,
+                      "body",
+                      "first",
+                      desktopCapacity,
+                    )}
+                  />
+                  <PamphletContentItemsContainer
+                    {...zoneProps(
+                      "column",
+                      "Column 2",
+                      "col-b",
+                      distribution.columns.second,
+                      distribution.occupation.columns.second,
+                      "body",
+                      "second",
+                      desktopCapacity,
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="pamphlet_sheet pamphlet_inner_sheet">
+                <div className="pamphlet_half pamphlet_inner_page pamphlet_inner_left_page">
+                  <PamphletContentItemsContainer
+                    {...zoneProps(
+                      "column",
+                      "Column 3",
+                      "col-a",
+                      distribution.columns.third,
+                      distribution.occupation.columns.third,
+                      "body",
+                      "third",
+                      desktopCapacity,
+                    )}
+                  />
+                  <PamphletContentItemsContainer
+                    {...zoneProps(
+                      "column",
+                      "Column 4",
+                      "col-b",
+                      distribution.columns.fourth,
+                      distribution.occupation.columns.fourth,
+                      "body",
+                      "fourth",
+                      desktopCapacity,
+                    )}
+                  />
+                </div>
+                <div className="pamphlet_half pamphlet_inner_page pamphlet_inner_right_page">
+                  <PamphletContentItemsContainer
+                    {...zoneProps(
+                      "column",
+                      "Column 5",
+                      "col-a",
+                      distribution.columns.fifth,
+                      distribution.occupation.columns.fifth,
+                      "body",
+                      "fifth",
+                      desktopCapacity,
+                    )}
+                  />
+                  <PamphletContentItemsContainer
+                    {...zoneProps(
+                      "column",
+                      "Column 6",
+                      "col-b",
+                      distribution.columns.sixth,
+                      distribution.occupation.columns.sixth,
+                      "body",
+                      "sixth",
+                      desktopCapacity,
+                    )}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="pamphlet_half pamphlet_front_page">
+
+            <div className="pamphlet_v3_mobile_stack pamphlet-no-print" aria-label="Pamphlet zones">
               <PamphletContentItemsContainer
                 {...zoneProps(
                   "header",
                   "Header",
-                  "header",
+                  undefined,
                   distribution.header,
                   distribution.occupation.header,
                   "header",
                   "header",
+                  mobileCapacity,
                 )}
               />
               <PamphletContentItemsContainer
                 {...zoneProps(
                   "column",
                   "Column 1",
-                  "col-a",
+                  undefined,
                   distribution.columns.first,
                   distribution.occupation.columns.first,
                   "body",
                   "first",
+                  mobileCapacity,
                 )}
               />
               <PamphletContentItemsContainer
                 {...zoneProps(
                   "column",
                   "Column 2",
-                  "col-b",
+                  undefined,
                   distribution.columns.second,
                   distribution.occupation.columns.second,
                   "body",
                   "second",
+                  mobileCapacity,
                 )}
               />
-            </div>
-          </div>
-
-          <div className="pamphlet_sheet pamphlet_inner_sheet">
-            <div className="pamphlet_half pamphlet_inner_page pamphlet_inner_left_page">
               <PamphletContentItemsContainer
                 {...zoneProps(
                   "column",
                   "Column 3",
-                  "col-a",
+                  undefined,
                   distribution.columns.third,
                   distribution.occupation.columns.third,
                   "body",
                   "third",
+                  mobileCapacity,
                 )}
               />
               <PamphletContentItemsContainer
                 {...zoneProps(
                   "column",
                   "Column 4",
-                  "col-b",
+                  undefined,
                   distribution.columns.fourth,
                   distribution.occupation.columns.fourth,
                   "body",
                   "fourth",
+                  mobileCapacity,
                 )}
               />
-            </div>
-            <div className="pamphlet_half pamphlet_inner_page pamphlet_inner_right_page">
               <PamphletContentItemsContainer
                 {...zoneProps(
                   "column",
                   "Column 5",
-                  "col-a",
+                  undefined,
                   distribution.columns.fifth,
                   distribution.occupation.columns.fifth,
                   "body",
                   "fifth",
+                  mobileCapacity,
                 )}
               />
               <PamphletContentItemsContainer
                 {...zoneProps(
                   "column",
                   "Column 6",
-                  "col-b",
+                  undefined,
                   distribution.columns.sixth,
                   distribution.occupation.columns.sixth,
                   "body",
                   "sixth",
+                  mobileCapacity,
+                )}
+              />
+              <PamphletContentItemsContainer
+                {...zoneProps(
+                  "column",
+                  "Column 7",
+                  undefined,
+                  distribution.columns.seventh,
+                  distribution.occupation.columns.seventh,
+                  "body",
+                  "seventh",
+                  mobileCapacity,
+                )}
+              />
+              <PamphletContentItemsContainer
+                {...zoneProps(
+                  "column",
+                  "Column 8",
+                  undefined,
+                  distribution.columns.eighth,
+                  distribution.occupation.columns.eighth,
+                  "body",
+                  "eighth",
+                  mobileCapacity,
+                )}
+              />
+              <PamphletContentItemsContainer
+                {...zoneProps(
+                  "footer",
+                  "Footer",
+                  undefined,
+                  distribution.footer,
+                  distribution.occupation.footer,
+                  "footer",
+                  "footer",
+                  mobileCapacity,
                 )}
               />
             </div>

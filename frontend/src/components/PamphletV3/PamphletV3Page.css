@@ -29,6 +29,22 @@
   padding-right: min(380px, 34vw);
 }
 
+.pamphlet_v3_zoom_viewport {
+  width: 100%;
+  max-width: 100%;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.pamphlet_v3_zoom_stage {
+  flex: 0 0 auto;
+  transform-origin: center center;
+  transition: transform 120ms ease-out;
+  will-change: transform;
+}
+
 .pamphlet_v3_right_rail {
   --pamphlet-rail-width: min(380px, 34vw);
   box-sizing: border-box;
@@ -63,27 +79,74 @@
   overflow-x: auto;
 }
 
+/* Mobile stack is screen-only; desktop keeps letter sheets. */
+.pamphlet_v3_mobile_stack {
+  display: none;
+}
+
 @media (max-width: 900px) {
+  .pamphlet_v3_page {
+    padding: 3mm 3mm calc(3mm + var(--activity-bar-height));
+    overflow-x: hidden;
+  }
+
   .pamphlet_v3_workspace {
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     padding-right: 0;
   }
 
+  .pamphlet_v3_page:has(.pamphlet_v3_right_rail) .pamphlet_v3_workspace {
+    padding-right: 0;
+  }
+
+  .pamphlet_v3_sheets--desktop {
+    display: none !important;
+  }
+
+  .pamphlet_v3_mobile_stack {
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .pamphlet_v3_mobile_stack .pamphlet_content_container {
+    height: auto;
+    min-height: 28mm;
+    overflow: visible;
+  }
+
+  .pamphlet_v3_mobile_stack .pamphlet_zone_stack {
+    overflow: visible;
+    min-height: 24mm;
+  }
+
+  .pamphlet_v3_mobile_stack .pamphlet_header,
+  .pamphlet_v3_mobile_stack .pamphlet_column,
+  .pamphlet_v3_mobile_stack .pamphlet_footer {
+    width: 100%;
+  }
+
   .pamphlet_v3_right_rail {
-    position: static;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    z-index: auto;
-    flex: 1 1 auto;
-    width: min(100%, 279.4mm);
-    max-width: 279.4mm;
+    position: fixed;
+    inset: var(--header_height, 60px) 0 var(--activity-bar-height) 0;
+    width: auto;
+    max-width: none;
     min-width: 0;
-    padding: 0;
+    z-index: 60;
     border-left: none;
     background: transparent;
+    padding: 0;
     overflow: visible;
+  }
+}
+
+@media (min-width: 901px) {
+  .pamphlet_v3_mobile_stack {
+    display: none !important;
   }
 }
 
@@ -116,6 +179,7 @@
   .site-header,
   .site-activity-bar,
   .pamphlet_v3_activity,
+  .pamphlet_v3_mobile_stack,
   .page-background,
   #pwa-toast,
   .pamphlet-no-print,
@@ -137,14 +201,19 @@
     overflow: visible !important;
   }
 
-  .pamphlet_v3_workspace {
+  .pamphlet_v3_workspace,
+  .pamphlet_v3_zoom_viewport,
+  .pamphlet_v3_zoom_stage {
     display: block !important;
     width: 100% !important;
     padding: 0 !important;
     max-width: none !important;
+    overflow: visible !important;
+    transform: none !important;
   }
 
-  .pamphlet_v3_sheets {
+  .pamphlet_v3_sheets,
+  .pamphlet_v3_sheets--desktop {
     display: block !important;
     width: 100% !important;
     gap: 0 !important;
