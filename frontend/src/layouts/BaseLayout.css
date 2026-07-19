@@ -37,6 +37,7 @@
 /* Shared bottom-chrome page shell (playlist + pamphlet + editor routes). */
 body.page-playlist,
 body.page-pamphlet-v2,
+body.page-pamphlet,
 body.page-editor {
   --chrome-bar-mobile: var(--site-chrome-bar-mobile, 6.65rem);
   --chrome-bar-desktop: var(--activity-bar-height);
@@ -56,13 +57,18 @@ body.page-pamphlet-v2 {
   padding-bottom: var(--chrome-bar-mobile);
 }
 
+body.page-pamphlet {
+  padding-bottom: var(--chrome-bar-desktop);
+}
+
 body.page-pamphlet-v2:has(.site-activity-bar.is-mobile-menu-open) {
   --chrome-bar-mobile: calc(var(--activity-bar-height) + 250px);
 }
 
 @media (min-width: 768px) {
   body.page-playlist,
-  body.page-pamphlet-v2 {
+  body.page-pamphlet-v2,
+  body.page-pamphlet {
     padding-bottom: var(--chrome-bar-desktop);
   }
 }

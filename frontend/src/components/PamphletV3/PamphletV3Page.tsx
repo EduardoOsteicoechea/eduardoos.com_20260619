@@ -2,6 +2,9 @@
  * PamphletV3Page.tsx — US Letter landscape pamphlet editor (V3).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityBar } from "../ActivityBar/ActivityBar";
+import { IconAddBelow } from "../PamphletV2/PamphletContentIcons";
+import { IconPrint } from "../PamphletV2/PamphletViewIcons";
 import { isAuthenticated } from "../../lib/auth";
 import {
   bootstrapPamphletV3FromCloud,
@@ -481,6 +484,39 @@ export default function PamphletV3Page() {
     [commitDocument, saveAndExit],
   );
 
+  const addNextContentItem = useCallback(() => {
+    // Prefer header when empty; otherwise append into the body stream.
+    appendToStream("header");
+  }, [appendToStream]);
+
+  const handlePrint = useCallback(() => {
+    const editingId = editingItemIdRef.current;
+    if (editingId) {
+      saveAndExit(editingId);
+    }
+    window.print();
+  }, [saveAndExit]);
+
+  const activityButtons = useMemo(
+    () => [
+      {
+        id: "add-content",
+        label: "Add content",
+        title: "Add the next content item",
+        icon: <IconAddBelow />,
+        onClick: addNextContentItem,
+      },
+      {
+        id: "print-pdf",
+        label: "Print",
+        title: "Print landscape letter sheets",
+        icon: <IconPrint />,
+        onClick: handlePrint,
+      },
+    ],
+    [addNextContentItem, handlePrint],
+  );
+
   function zoneProps(
     type: "header" | "column" | "footer",
     label: string,
@@ -648,6 +684,10 @@ export default function PamphletV3Page() {
             />
           </div>
         ) : null}
+      </div>
+
+      <div className="pamphlet_v3_activity pamphlet-no-print">
+        <ActivityBar buttons={activityButtons} ariaLabel="Pamphlet actions" />
       </div>
     </div>
   );

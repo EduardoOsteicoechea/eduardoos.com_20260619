@@ -252,13 +252,6 @@ export function Header({ pathname }: HeaderProps) {
   }, []);
 
   const showAuth = clientReady;
-  const onPamphletPage =
-    pathname === APP_ROUTES.pamphlet || pathname.startsWith(`${APP_ROUTES.pamphlet}/`);
-
-  function handlePrintPamphlet() {
-    closeMenu();
-    window.print();
-  }
 
   return (
     <header
@@ -284,17 +277,6 @@ export function Header({ pathname }: HeaderProps) {
           Menu
         </button>
         <div className="site-header__bar-spacer" aria-hidden="true" />
-        {onPamphletPage ? (
-          <button
-            type="button"
-            className="site-header__print pamphlet-no-print"
-            title="Print pamphlet"
-            aria-label="Print pamphlet"
-            onClick={handlePrintPamphlet}
-          >
-            <span className="site-header__print-icon" aria-hidden="true" />
-          </button>
-        ) : null}
         {showAuth ? (
           <AuthControls
             variant="bar"
@@ -321,17 +303,6 @@ export function Header({ pathname }: HeaderProps) {
             {label}
           </a>
         ))}
-        {onPamphletPage ? (
-          <button
-            type="button"
-            className="site-header__print site-header__print--nav pamphlet-no-print"
-            title="Print pamphlet"
-            aria-label="Print pamphlet"
-            onClick={handlePrintPamphlet}
-          >
-            <span className="site-header__print-icon" aria-hidden="true" />
-          </button>
-        ) : null}
         {showAuth ? (
           <AuthControls
             variant="nav"
