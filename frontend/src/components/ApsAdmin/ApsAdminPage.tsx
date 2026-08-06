@@ -40,7 +40,10 @@ export default function ApsAdminPage() {
       authToken: getAuthToken(),
     });
     if (response.error) {
-      setError(response.error.message);
+      const detail = response.error.debugLogs?.length
+        ? `${response.error.message}\n\n${response.error.debugLogs.join("\n")}`
+        : response.error.message;
+      setError(detail);
       setPayload({
         error: response.error,
         data: response.data ?? null,

@@ -60,6 +60,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions): Prom
             }
         }
         return {
+            data,
             error: {
                 message,
                 status: response.status,

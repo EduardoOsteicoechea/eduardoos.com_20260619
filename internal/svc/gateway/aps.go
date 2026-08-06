@@ -80,6 +80,23 @@ func (c config) triggerAPSWorkItem() http.HandlerFunc {
 				"aps.trigger-workitem: execution failed",
 				"aps.trigger-workitem: error=" + err.Error(),
 			}
+			if result.WorkItemStatus != nil {
+				if state, ok := result.WorkItemStatus["status"].(string); ok && state != "" {
+					logs = append(logs, "aps.trigger-workitem: daStatus="+state)
+				}
+				if reportURL, ok := result.WorkItemStatus["reportUrl"].(string); ok && reportURL != "" {
+					logs = append(logs, "aps.trigger-workitem: reportUrl="+reportURL)
+				}
+			}
+			if result.ExtractedData != nil {
+				if reportText, ok := result.ExtractedData["reportText"].(string); ok && reportText != "" {
+					const maxReport = 12000
+					if len(reportText) > maxReport {
+						reportText = reportText[:maxReport] + "\n...[truncated]"
+					}
+					logs = append(logs, "aps.trigger-workitem: reportText=\n"+reportText)
+				}
+			}
 			log.Printf("[correlation=%s] aps.trigger-workitem failed: %v", cid, err)
 			c.Telemetry.Emit(common.NewFlightLog(cid, "backend", "aps.trigger-workitem", "error"), cid)
 			if status == 0 {
@@ -183,6 +200,11 @@ func executeAPSWorkItem(ctx context.Context, body triggerWorkItemRequest) (trigg
 	state, _ := finalStatus["status"].(string)
 	if !strings.EqualFold(state, "success") {
 		resp.Message = "APS WorkItem finished with status " + state
+		if reportURL, ok := finalStatus["reportUrl"].(string); ok && strings.TrimSpace(reportURL) != "" {
+			if reportText, reportErr := fetchURLText(ctx, reportURL); reportErr == nil {
+				resp.ExtractedData = map[string]any{"reportText": reportText}
+			}
+		}
 		return resp, http.StatusBadGateway, fmt.Errorf("aps workitem status=%s", state)
 	}
 
@@ -194,4 +216,21 @@ func executeAPSWorkItem(ctx context.Context, body triggerWorkItemRequest) (trigg
 	resp.ExtractedData = extracted
 	resp.Message = "APS extraction completed"
 	return resp, http.StatusOK, nil
+}
+
+func fetchURLText(ctx context.Context, rawURL string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
 }
