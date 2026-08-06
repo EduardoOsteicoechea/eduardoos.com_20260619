@@ -196,10 +196,27 @@ export function Header({ pathname }: HeaderProps) {
         {showAuth ? (<AuthControls variant="bar" loggedIn={loggedIn} profileInitial={profileInitial} profileImageUrl={profileImageUrl} onLogout={() => void handleLogout()} onNavigate={closeMenu}/>) : null}
       </div>
       <nav id="site-header-nav" className="site-header__nav" aria-label="Main">
-        {NAV_LINKS.map(({ href, label }) => (<a key={href} className={navClass(href)} href={href} onClick={closeMenu}>
+        {NAV_LINKS.map(({ href, label }) => (
+          <a
+            key={href}
+            className={navClass(href)}
+            href={href}
+            {...(href === APP_ROUTES.apsAdmin ? { "data-astro-reload": true } : {})}
+            onClick={closeMenu}
+          >
             {label}
-          </a>))}
-        {showAuth ? (<AuthControls variant="nav" loggedIn={loggedIn} profileInitial={profileInitial} profileImageUrl={profileImageUrl} onLogout={() => void handleLogout()} onNavigate={closeMenu}/>) : null}
+          </a>
+        ))}
+        {showAuth ? (
+          <AuthControls
+            variant="nav"
+            loggedIn={loggedIn}
+            profileInitial={profileInitial}
+            profileImageUrl={profileImageUrl}
+            onLogout={() => void handleLogout()}
+            onNavigate={closeMenu}
+          />
+        ) : null}
       </nav>
     </header>);
 }

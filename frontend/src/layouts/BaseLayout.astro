@@ -125,20 +125,18 @@ const pageEditor = activityBarMode === "editor";
     </div>
 
     <script>
-      
       import { registerSW } from "virtual:pwa-register";
 
-      const updateSW = registerSW({
+      registerSW({
+        immediate: true,
         onNeedRefresh() {
           document.getElementById("pwa-toast")?.classList.add("is-visible");
         },
-        onOfflineReady() {
-          
-        },
+        onOfflineReady() {},
       });
 
       document.getElementById("pwa-refresh")?.addEventListener("click", () => {
-        void updateSW(true);
+        window.location.reload();
       });
     </script>
   </body>

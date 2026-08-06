@@ -7,8 +7,7 @@ export default defineConfig({
   integrations: [
     react(),
     AstroPWA({
-      // Prompt the user before activating a waiting service worker (see BaseLayout toast).
-      registerType: "prompt",
+      registerType: "autoUpdate",
       manifest: {
         name: "Eduardo OS",
         short_name: "Eduardo OS",
@@ -33,10 +32,12 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Precache hashed Astro build assets and per-route HTML (Astro MPA, not a single-page app).
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
-        // Nginx try_files handles unknown routes; avoid Workbox navigateFallback on /index.html.
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         ignoreURLParametersMatching: [/./],
+        navigateFallback: null,
       },
     }),
   ],

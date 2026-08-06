@@ -4,7 +4,16 @@ import ApsAdminPage from "../components/ApsAdmin/ApsAdminPage";
 ---
 
 <BaseLayout title="APS Admin — Eduardo Osteicoechea" requireAuth>
-  <div class="page-shell">
+  <div class="page-shell" data-page="aps-admin">
     <ApsAdminPage client:load />
   </div>
 </BaseLayout>
+
+<script is:inline>
+  (function () {
+    var path = location.pathname.replace(/\/$/, "") || "/";
+    if (path !== "/aps-admin") return;
+    if (document.querySelector('[data-page="aps-admin"]')) return;
+    location.reload();
+  })();
+</script>
