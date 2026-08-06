@@ -35,7 +35,7 @@ func LoadConfig() Config {
 		ClientSecret:    strings.TrimSpace(common.Env("APS_CLIENT_SECRET", "")),
 		ActivityID:      strings.TrimSpace(common.Env("APS_ACTIVITY_ID", "")),
 		InputArgName:    strings.TrimSpace(common.Env("APS_INPUT_ARGUMENT", "inputFile")),
-		InputObjectKey:  strings.TrimSpace(common.Env("APS_INPUT_OBJECT_KEY", "Snowdon Towers Sample Architectural.rvt")),
+		InputObjectKey:  strings.TrimSpace(common.Env("APS_INPUT_OBJECT_KEY", "singleRoom.rvt")),
 		OutputArgName:   strings.TrimSpace(common.Env("APS_OUTPUT_ARGUMENT", "outputFile")),
 		OutputKeyPrefix: strings.TrimSpace(common.Env("APS_OUTPUT_KEY_PREFIX", "aps-outputs")),
 		OutputFileName:  strings.TrimSpace(common.Env("APS_OUTPUT_FILE_NAME", "result.json")),

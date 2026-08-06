@@ -17,6 +17,18 @@
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
       "Resource": "arn:aws:s3:::eduardoos20260607/media/*"
+    },
+    {
+      "Sid": "S3ListApsBucket",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
+      "Resource": "arn:aws:s3:::aps20250806"
+    },
+    {
+      "Sid": "S3ApsObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::aps20250806/*"
     }
   ]
 }

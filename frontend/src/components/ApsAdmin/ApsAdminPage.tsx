@@ -10,7 +10,7 @@ import { apiRequest } from "../../lib/api";
 import { createCorrelationId } from "../../lib/telemetry";
 import "./ApsAdminPage.css";
 
-const DEFAULT_INPUT_KEY = "Snowdon Towers Sample Architectural.rvt";
+const DEFAULT_INPUT_KEY = "singleRoom.rvt";
 
 export default function ApsAdminPage() {
   const [authorized, setAuthorized] = useState<boolean | null>(null);

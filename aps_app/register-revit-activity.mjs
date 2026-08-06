@@ -215,7 +215,7 @@ async function main() {
   setEnvKey(envPath, "APS_ACTIVITY_ID", qualifiedActivity);
   setEnvKey(envPath, "APS_OUTPUT_ARGUMENT", "outputFile");
   setEnvKey(envPath, "APS_INPUT_ARGUMENT", "inputFile");
-  setEnvKey(envPath, "APS_INPUT_OBJECT_KEY", "Snowdon Towers Sample Architectural.rvt");
+  setEnvKey(envPath, "APS_INPUT_OBJECT_KEY", "singleRoom.rvt");
   setEnvKey(envPath, "APS_OUTPUT_FILE_NAME", "result.json");
   setEnvKey(envPath, "APS_ENGINE", engine);
   console.log("Guardado en .env");

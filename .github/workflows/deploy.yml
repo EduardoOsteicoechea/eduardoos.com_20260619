@@ -107,7 +107,7 @@ jobs:
             printf 'APS_S3_REGION=us-east-1\n'
             printf 'APS_OUTPUT_ARGUMENT=outputFile\n'
             printf 'APS_INPUT_ARGUMENT=inputFile\n'
-            printf 'APS_INPUT_OBJECT_KEY=Snowdon Towers Sample Architectural.rvt\n'
+            printf 'APS_INPUT_OBJECT_KEY=singleRoom.rvt\n'
             printf 'APS_OUTPUT_FILE_NAME=result.json\n'
             printf 'APS_OUTPUT_KEY_PREFIX=aps-outputs\n'
             printf 'APS_CLIENT_ID=%s\n' "${APS_CLIENT_ID:-}"
