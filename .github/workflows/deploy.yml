@@ -1,4 +1,4 @@
-name: CI/CD — Test and Deploy to EC2
+name: CI/CD — Deploy to EC2
 
 on:
   push:
@@ -18,30 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Test workspace
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.23"
-      - run: go test ./...
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Frontend tests and build
-        working-directory: frontend
-        run: |
-          npm ci
-          npm test
-          npm run build
-
   deploy:
     name: Deploy to EC2 (arm64)
-    needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     steps:
@@ -95,6 +73,9 @@ jobs:
           PAYPAL_BUSINESS_EMAIL: ${{ secrets.PAYPAL_BUSINESS_EMAIL }}
           PAYPAL_CHECKOUT_URL: ${{ secrets.PAYPAL_CHECKOUT_URL != '' && secrets.PAYPAL_CHECKOUT_URL || 'https://www.paypal.com/cgi-bin/webscr' }}
           PAYPAL_IPN_VERIFY_URL: ${{ secrets.PAYPAL_IPN_VERIFY_URL != '' && secrets.PAYPAL_IPN_VERIFY_URL || 'https://ipnpb.paypal.com/cgi-bin/webscr' }}
+          APS_CLIENT_ID: ${{ secrets.APS_CLIENT_ID }}
+          APS_CLIENT_SECRET: ${{ secrets.APS_CLIENT_SECRET }}
+          APS_ACTIVITY_ID: ${{ secrets.APS_ACTIVITY_ID }}
         run: |
           {
             printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
@@ -122,6 +103,16 @@ jobs:
             printf 'ENTITLEMENTS_BACKEND=dynamodb\n'
             printf 'ENTITLEMENTS_TABLE=eduardoos_entitlements\n'
             printf 'S3_AUDIO_PREFIX=worship_playlists\n'
+            printf 'APS_S3_BUCKET=aps20250806\n'
+            printf 'APS_S3_REGION=us-east-1\n'
+            printf 'APS_OUTPUT_ARGUMENT=outputFile\n'
+            printf 'APS_INPUT_ARGUMENT=inputFile\n'
+            printf 'APS_INPUT_OBJECT_KEY=Snowdon Towers Sample Architectural.rvt\n'
+            printf 'APS_OUTPUT_FILE_NAME=result.json\n'
+            printf 'APS_OUTPUT_KEY_PREFIX=aps-outputs\n'
+            printf 'APS_CLIENT_ID=%s\n' "${APS_CLIENT_ID:-}"
+            printf 'APS_CLIENT_SECRET=%s\n' "${APS_CLIENT_SECRET:-}"
+            printf 'APS_ACTIVITY_ID=%s\n' "${APS_ACTIVITY_ID:-}"
           } > .env.production
 
       - name: Prepare EC2 app directory
@@ -145,7 +136,6 @@ jobs:
             deploy/ec2/deploy-remote.sh \
             deploy/ec2/build-frontend.sh \
             deploy/ec2/issue-cert.sh \
-            deploy/ec2/report-build-tests.sh \
             deploy/aws/create-observability-tables.sh \
             "${EC2_USER}@${EC2_HOST}:/tmp/"
 

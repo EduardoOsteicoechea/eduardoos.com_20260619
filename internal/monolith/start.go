@@ -1,4 +1,3 @@
-// Monolith runtime — starts all Eduardo OS backend services in one OS process.
 package monolith
 
 import (
@@ -29,7 +28,6 @@ const (
 	PortChatbot       = ":3017"
 )
 
-// ConfigureServiceURLs points the gateway and cross-service clients at localhost listeners.
 func ConfigureServiceURLs() {
 	_ = os.Setenv("AUTHENTICATOR_URL", "http://127.0.0.1"+PortAuthenticator)
 	_ = os.Setenv("TELEMETRY_URL", "http://127.0.0.1"+PortTelemetry)
@@ -46,7 +44,6 @@ type service struct {
 	run  func(string) error
 }
 
-// Run starts internal microservices on localhost ports, then blocks on the public gateway.
 func Run() error {
 	ConfigureServiceURLs()
 

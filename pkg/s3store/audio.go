@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// AudioItem is a playlist-library-ready object with display metadata.
 type AudioItem struct {
 	Key          string `json:"key"`
 	Name         string `json:"name"`
@@ -15,13 +14,11 @@ type AudioItem struct {
 	LastModified string `json:"last_modified"`
 }
 
-// IsAudioContentType reports whether ct is an audio MIME type.
 func IsAudioContentType(ct string) bool {
 	ct = strings.ToLower(strings.TrimSpace(ct))
 	return strings.HasPrefix(ct, "audio/") || ct == "application/ogg"
 }
 
-// ToAudioItems filters object metadata down to playable audio files.
 func ToAudioItems(items []ObjectMeta) []AudioItem {
 	var out []AudioItem
 	for _, item := range items {

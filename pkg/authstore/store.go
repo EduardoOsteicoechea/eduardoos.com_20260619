@@ -1,4 +1,3 @@
-// Package authstore persists authenticator users and OTP codes via the database microservice.
 package authstore
 
 import (
@@ -14,15 +13,13 @@ import (
 	"eduardoos/pkg/common"
 )
 
-// User is a registered account record.
 type User struct {
-	Email            string `json:"email"`
-	PasswordHash     string `json:"passwordHash"`
-	Verified         bool   `json:"verified"`
-	ProfileImageKey  string `json:"profileImageKey,omitempty"`
+	Email           string `json:"email"`
+	PasswordHash    string `json:"passwordHash"`
+	Verified        bool   `json:"verified"`
+	ProfileImageKey string `json:"profileImageKey,omitempty"`
 }
 
-// Store abstracts user + OTP persistence.
 type Store interface {
 	GetUser(ctx context.Context, email string) (User, bool, error)
 	PutUser(ctx context.Context, user User) error
@@ -32,12 +29,10 @@ type Store interface {
 	BackendName() string
 }
 
-// NormalizeEmail lowercases and trims login identifiers.
 func NormalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
-// New selects a database-backed store when databaseURL is set, otherwise memory.
 func New(databaseURL, internalSecret string) Store {
 	if strings.TrimSpace(databaseURL) == "" {
 		return &memoryStore{users: map[string]User{}, otps: map[string]string{}}

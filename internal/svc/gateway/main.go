@@ -1,4 +1,3 @@
-// Backend API gateway — correlation IDs, internal token signing, public route proxying.
 package gateway
 
 import (
@@ -9,8 +8,8 @@ import (
 	"net/http"
 	"strings"
 
-	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/common"
+	ddb "eduardoos/pkg/dynamodb"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -114,6 +113,7 @@ func Run(addr string) error {
 	registerPlaylistRoutes(r, cfg, playlistStore)
 	registerSubscriptionRoutes(r, cfg, entitlementStore)
 	registerPamphletGatewayRoutes(r, cfg)
+	registerAPSRoutes(r, cfg)
 
 	log.Printf("backend listening on %s", addr)
 	return http.ListenAndServe(addr, r)

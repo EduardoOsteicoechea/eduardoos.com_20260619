@@ -1,4 +1,3 @@
-// Eduardo OS unified backend — all Go microservices in one process (gateway on :3000).
 package main
 
 import (

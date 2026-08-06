@@ -1,46 +1,34 @@
-/**
- * MediaGallery.tsx — Lists S3 media metadata and renders a fixed-size image grid.
- */
 import { useCallback, useEffect, useState } from "react";
-import {
-  fetchMediaImages,
-  formatMediaDate,
-  humanizeMediaError,
-  sortImagesByName,
-  type MediaImage,
-} from "../../lib/media";
+import { fetchMediaImages, formatMediaDate, humanizeMediaError, sortImagesByName, type MediaImage, } from "../../lib/media";
 import "./MediaGallery.css";
-
 function MediaGallery() {
-  const [images, setImages] = useState<MediaImage[]>([]);
-  const [bucket, setBucket] = useState("");
-  const [backend, setBackend] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await fetchMediaImages();
-      setBucket(data.bucket);
-      setBackend(data.backend);
-      setImages(sortImagesByName(data.images));
-    } catch (err) {
-      const raw = err instanceof Error ? err.message : "Failed to load media";
-      setError(humanizeMediaError(raw));
-      setImages([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  return (
-    <section className="media-gallery">
+    const [images, setImages] = useState<MediaImage[]>([]);
+    const [bucket, setBucket] = useState("");
+    const [backend, setBackend] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError("");
+        try {
+            const data = await fetchMediaImages();
+            setBucket(data.bucket);
+            setBackend(data.backend);
+            setImages(sortImagesByName(data.images));
+        }
+        catch (err) {
+            const raw = err instanceof Error ? err.message : "Failed to load media";
+            setError(humanizeMediaError(raw));
+            setImages([]);
+        }
+        finally {
+            setLoading(false);
+        }
+    }, []);
+    useEffect(() => {
+        void load();
+    }, [load]);
+    return (<section className="media-gallery">
       <header className="media-gallery__header">
         <div>
           <h1>S3 Media Gallery</h1>
@@ -58,8 +46,7 @@ function MediaGallery() {
       {loading && <p className="media-gallery__status">Loading images…</p>}
       {error && <p className="media-gallery__error">{error}</p>}
 
-      {!loading && !error && (
-        <>
+      {!loading && !error && (<>
           <div className="media-gallery__list-panel">
             <h2>Image inventory</h2>
             <div className="media-gallery__table-wrap">
@@ -76,15 +63,11 @@ function MediaGallery() {
                   </tr>
                 </thead>
                 <tbody>
-                  {images.length === 0 ? (
-                    <tr>
+                  {images.length === 0 ? (<tr>
                       <td colSpan={7} className="media-gallery__empty">
                         No images found in storage.
                       </td>
-                    </tr>
-                  ) : (
-                    images.map((img) => (
-                      <tr key={img.key}>
+                    </tr>) : (images.map((img) => (<tr key={img.key}>
                         <td>{img.name}</td>
                         <td>
                           <a href={img.url} target="_blank" rel="noreferrer">
@@ -92,12 +75,7 @@ function MediaGallery() {
                           </a>
                         </td>
                         <td>
-                          <a
-                            href={img.s3_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="media-gallery__s3-link"
-                          >
+                          <a href={img.s3_url} target="_blank" rel="noreferrer" className="media-gallery__s3-link">
                             {img.s3_url}
                           </a>
                         </td>
@@ -110,9 +88,7 @@ function MediaGallery() {
                         </td>
                         <td>{formatMediaDate(img.last_modified)}</td>
                         <td className="media-gallery__key">{img.key}</td>
-                      </tr>
-                    ))
-                  )}
+                      </tr>)))}
                 </tbody>
               </table>
             </div>
@@ -120,39 +96,24 @@ function MediaGallery() {
 
           <div className="media-gallery__grid-panel">
             <h2>Preview grid</h2>
-            {images.length === 0 ? (
-              <p className="media-gallery__empty">Nothing to preview yet.</p>
-            ) : (
-              <ul className="media-gallery__grid">
-                {images.map((img) => (
-                  <li key={img.key} className="media-gallery__tile">
+            {images.length === 0 ? (<p className="media-gallery__empty">Nothing to preview yet.</p>) : (<ul className="media-gallery__grid">
+                {images.map((img) => (<li key={img.key} className="media-gallery__tile">
                     <a href={img.url} target="_blank" rel="noreferrer">
-                      <img src={img.url} alt={img.name} loading="lazy" />
+                      <img src={img.url} alt={img.name} loading="lazy"/>
                     </a>
                     <div className="media-gallery__tile-caption">
                       <span className="media-gallery__tile-name">{img.name}</span>
                       <span className="media-gallery__tile-meta">
                         {img.size_human} · {formatMediaDate(img.last_modified)}
                       </span>
-                      <a
-                        className="media-gallery__tile-s3"
-                        href={img.s3_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        title={img.s3_url}
-                      >
+                      <a className="media-gallery__tile-s3" href={img.s3_url} target="_blank" rel="noreferrer" title={img.s3_url}>
                         {img.s3_url}
                       </a>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+                  </li>))}
+              </ul>)}
           </div>
-        </>
-      )}
-    </section>
-  );
+        </>)}
+    </section>);
 }
-
 export default MediaGallery;

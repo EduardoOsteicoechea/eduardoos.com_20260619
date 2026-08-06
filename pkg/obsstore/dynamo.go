@@ -295,7 +295,6 @@ func (d *dynamoTestStore) GetRun(ctx context.Context, runID string) (TestRun, bo
 	return run, true, nil
 }
 
-// NewLogStore picks DynamoDB on EC2 or memory locally.
 func NewLogStore(ctx context.Context) LogStore {
 	if common.Env("TELEMETRY_BACKEND", "memory") == "dynamodb" {
 		client, logsTable, _ := NewDynamoClients(ctx, common.Env("DYNAMODB_TABLE_PREFIX", "eduardoos"))
@@ -304,7 +303,6 @@ func NewLogStore(ctx context.Context) LogStore {
 	return NewMemoryLogStore()
 }
 
-// NewTestStore picks DynamoDB on EC2 or memory locally.
 func NewTestStore(ctx context.Context) TestStore {
 	if common.Env("TESTER_BACKEND", "memory") == "dynamodb" {
 		client, _, runsTable := NewDynamoClients(ctx, common.Env("DYNAMODB_TABLE_PREFIX", "eduardoos"))

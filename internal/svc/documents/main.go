@@ -1,4 +1,3 @@
-// Documents — raw PDF generation microservice.
 package documents
 
 import (
@@ -7,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/common"
+	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/pdf"
 
 	"github.com/go-chi/chi/v5"

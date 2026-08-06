@@ -1,0 +1,57 @@
+.aps-admin {
+  width: min(100%, 48rem);
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.aps-admin__title {
+  margin: 0;
+  font-family: Montserrat, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--site-body-fg);
+}
+
+.aps-admin__lead {
+  margin: 0;
+  color: var(--site-body-fg);
+  opacity: 0.85;
+  line-height: 1.5;
+}
+
+.aps-admin__lead code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.aps-admin__status,
+.aps-admin__error {
+  margin: 0;
+}
+
+.aps-admin__error {
+  color: var(--site-danger, #b42318);
+}
+
+.aps-admin__payload {
+  margin: 0;
+  padding: 1rem;
+  overflow: auto;
+  max-height: min(60vh, 32rem);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--glassed_background, var(--site-body-bg));
+  color: var(--site-body-fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.aps-admin--denied {
+  text-align: left;
+}

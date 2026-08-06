@@ -18,13 +18,12 @@ import (
 )
 
 type pamphletDynamoStore struct {
-	client       *dynamodb.Client
-	headersTable string
-	footersTable string
+	client        *dynamodb.Client
+	headersTable  string
+	footersTable  string
 	contentsTable string
 }
 
-// NewPamphletDocumentStore selects memory or DynamoDB pamphlet persistence.
 func NewPamphletDocumentStore(ctx context.Context) (pamphlet.DocumentStore, error) {
 	mode := common.Env("PAMPHLETS_BACKEND", "memory")
 	if mode != "dynamodb" {
@@ -185,13 +184,13 @@ func (d *pamphletDynamoStore) putFooter(ctx context.Context, userID, pamphletID 
 	contactsJSON, _ := json.Marshal(footer.ContactItems)
 	addressJSON, _ := json.Marshal(footer.AddressData)
 	item := map[string]types.AttributeValue{
-		"userId":       &types.AttributeValueMemberS{Value: userID},
-		"pamphletId":   &types.AttributeValueMemberS{Value: pamphletID},
-		"heading":      &types.AttributeValueMemberS{Value: footer.Heading},
-		"text":         &types.AttributeValueMemberS{Value: footer.Text},
-		"contactItems": &types.AttributeValueMemberS{Value: string(contactsJSON)},
-		"addressData":  &types.AttributeValueMemberS{Value: string(addressJSON)},
-		"updatedAt":    &types.AttributeValueMemberS{Value: updatedAt},
+		"userId":        &types.AttributeValueMemberS{Value: userID},
+		"pamphletId":    &types.AttributeValueMemberS{Value: pamphletID},
+		"heading":       &types.AttributeValueMemberS{Value: footer.Heading},
+		"text":          &types.AttributeValueMemberS{Value: footer.Text},
+		"contactItems":  &types.AttributeValueMemberS{Value: string(contactsJSON)},
+		"addressData":   &types.AttributeValueMemberS{Value: string(addressJSON)},
+		"updatedAt":     &types.AttributeValueMemberS{Value: updatedAt},
 		"schemaVersion": &types.AttributeValueMemberN{Value: "1"},
 	}
 	item["createdAt"] = &types.AttributeValueMemberS{Value: updatedAt}

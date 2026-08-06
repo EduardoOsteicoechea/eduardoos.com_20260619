@@ -1,4 +1,3 @@
-// Backend API gateway — standalone entry (use cmd/eduardoos for production monolith).
 package main
 
 import (

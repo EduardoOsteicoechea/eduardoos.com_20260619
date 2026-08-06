@@ -12,13 +12,11 @@ type memoryKey struct {
 	pamphletID string
 }
 
-// MemoryStore holds pamphlet documents in process memory (local Docker default).
 type MemoryStore struct {
 	mu   sync.RWMutex
 	docs map[memoryKey]Document
 }
 
-// NewMemoryStore constructs an empty in-memory pamphlet store.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{docs: map[memoryKey]Document{}}
 }
@@ -34,7 +32,6 @@ func (s *MemoryStore) key(userID, pamphletID string) (memoryKey, error) {
 	return memoryKey{userID: userID, pamphletID: pamphletID}, nil
 }
 
-// Get returns a user's pamphlet draft, seeding bundled defaults on first access.
 func (s *MemoryStore) Get(_ context.Context, userID, pamphletID string) (Document, error) {
 	k, err := s.key(userID, pamphletID)
 	if err != nil {
@@ -50,7 +47,6 @@ func (s *MemoryStore) Get(_ context.Context, userID, pamphletID string) (Documen
 	return doc, nil
 }
 
-// Put replaces a pamphlet draft for the user.
 func (s *MemoryStore) Put(_ context.Context, userID, pamphletID string, doc Document) error {
 	k, err := s.key(userID, pamphletID)
 	if err != nil {
@@ -62,7 +58,6 @@ func (s *MemoryStore) Put(_ context.Context, userID, pamphletID string, doc Docu
 	return nil
 }
 
-// Reset reloads bundled defaults for the user's draft.
 func (s *MemoryStore) Reset(_ context.Context, userID, pamphletID string) (Document, error) {
 	doc := DefaultDocument()
 	if err := s.Put(context.Background(), userID, pamphletID, doc); err != nil {

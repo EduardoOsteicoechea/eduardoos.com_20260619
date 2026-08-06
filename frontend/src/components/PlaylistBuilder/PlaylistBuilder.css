@@ -1,8 +1,6 @@
-/* PlaylistBuilder.css — two-column drag-and-drop playlist editor */
-
 .playlist-builder {
   --playlist-control-size: 2rem;
-  /* Row height matches .playlist-builder__item (icon + vertical padding). */
+  
   --playlist-row-height: calc(var(--playlist-control-size) + 0.6rem);
   display: flex;
   flex-direction: column;

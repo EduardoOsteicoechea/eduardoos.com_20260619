@@ -1,4 +1,3 @@
-// Package common holds shared gateway and microservice primitives.
 package common
 
 import (
@@ -13,7 +12,6 @@ import (
 
 const InternalTokenHeader = "x-internal-token"
 
-// SignInternalToken builds a short-lived HMAC token: timestamp:correlationId:signature.
 func SignInternalToken(secret, correlationID string) string {
 	ts := time.Now().Unix()
 	payload := fmt.Sprintf("%d:%s", ts, correlationID)
@@ -22,7 +20,6 @@ func SignInternalToken(secret, correlationID string) string {
 	return fmt.Sprintf("%s:%s", payload, hex.EncodeToString(mac.Sum(nil)))
 }
 
-// VerifyInternalToken checks the 60-second window and HMAC signature.
 func VerifyInternalToken(secret, token string) bool {
 	parts := strings.Split(token, ":")
 	if len(parts) != 3 {

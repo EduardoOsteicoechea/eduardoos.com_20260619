@@ -8,7 +8,6 @@ import (
 	"eduardoos/pkg/common"
 )
 
-// StreamLogs writes Server-Sent Events for live flight log observation.
 func StreamLogs(w http.ResponseWriter, r *http.Request, store LogStore) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {

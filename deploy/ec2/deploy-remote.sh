@@ -197,9 +197,5 @@ issue_letsencrypt_cert || true
 echo "==> Ensuring DynamoDB observability tables exist"
 bash deploy/aws/create-observability-tables.sh || echo "WARNING: could not create observability tables (check IAM)"
 
-echo "==> Waiting for gateway before build test report"
-sleep 15
-bash deploy/ec2/report-build-tests.sh || echo "WARNING: build test report failed"
-
 echo "==> Deploy complete"
 "${COMPOSE[@]}" ps

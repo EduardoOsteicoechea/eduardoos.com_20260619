@@ -16,7 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-// EntitlementRecord is one active service grant for a user.
 type EntitlementRecord struct {
 	UserEmail     string `json:"userEmail" dynamodbav:"userEmail"`
 	ServiceID     string `json:"serviceId" dynamodbav:"serviceId"`
@@ -28,7 +27,6 @@ type EntitlementRecord struct {
 	UpdatedAt     string `json:"updatedAt" dynamodbav:"updatedAt"`
 }
 
-// EntitlementStore persists per-user service access windows.
 type EntitlementStore interface {
 	GrantServices(ctx context.Context, userEmail string, serviceIDs []string, billingPeriod, intentID string, paidAt time.Time, correlationID string) ([]EntitlementRecord, error)
 	GetEntitlements(ctx context.Context, userEmail, correlationID string) ([]EntitlementRecord, error)
@@ -218,7 +216,6 @@ func (d *dynamoEntitlementStore) HasActiveService(ctx context.Context, userEmail
 	return validUntil.After(at.UTC()), nil
 }
 
-// NewEntitlementStore selects memory or DynamoDB implementation from environment.
 func NewEntitlementStore(ctx context.Context) (EntitlementStore, error) {
 	mode := common.Env("ENTITLEMENTS_BACKEND", common.Env("PAYMENTS_BACKEND", "memory"))
 	table := common.Env("ENTITLEMENTS_TABLE", "eduardoos_entitlements")
@@ -278,7 +275,6 @@ func entitlementFromItem(item map[string]types.AttributeValue) (EntitlementRecor
 	return record, record.UserEmail != "" && record.ServiceID != ""
 }
 
-// ActiveEntitlements filters records that are still valid at the given instant.
 func ActiveEntitlements(records []EntitlementRecord, at time.Time) []EntitlementRecord {
 	out := make([]EntitlementRecord, 0, len(records))
 	now := at.UTC()

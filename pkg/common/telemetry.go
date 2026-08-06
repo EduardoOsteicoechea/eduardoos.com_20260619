@@ -9,23 +9,20 @@ import (
 	"time"
 )
 
-// TelemetryClient posts flight logs to the telemetry microservice /ingest endpoint.
 type TelemetryClient struct {
 	BaseURL    string
 	HTTPClient *http.Client
 	Secret     string
 }
 
-// NewTelemetryClient builds a client with sane defaults.
 func NewTelemetryClient(baseURL, secret string) *TelemetryClient {
 	return &TelemetryClient{
-		BaseURL: strings.TrimRight(baseURL, "/"),
-		Secret:  secret,
+		BaseURL:    strings.TrimRight(baseURL, "/"),
+		Secret:     secret,
 		HTTPClient: &http.Client{Timeout: 5 * time.Second},
 	}
 }
 
-// Emit sends a flight log; failures are logged and ignored.
 func (c *TelemetryClient) Emit(entry FlightLogEntry, correlationID string) {
 	if c == nil || c.BaseURL == "" {
 		return

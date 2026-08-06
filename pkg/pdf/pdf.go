@@ -1,4 +1,3 @@
-// Package pdf builds raw PDF byte streams without external PDF libraries.
 package pdf
 
 import (
@@ -6,10 +5,8 @@ import (
 	"strings"
 )
 
-// MmToPoints converts millimeters to PDF points using mm * (72.0 / 25.4).
 func MmToPoints(mm float64) float64 { return mm * (72.0 / 25.4) }
 
-// BuildSamplePDF creates a minimal valid PDF with one text line.
 func BuildSamplePDF(title string) []byte {
 	x := MmToPoints(20)
 	y := MmToPoints(270)

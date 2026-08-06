@@ -1,0 +1,10 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ApsAdminPage from "../components/ApsAdmin/ApsAdminPage";
+---
+
+<BaseLayout title="APS Admin — Eduardo Osteicoechea" requireAuth>
+  <div class="page-shell">
+    <ApsAdminPage client:load />
+  </div>
+</BaseLayout>

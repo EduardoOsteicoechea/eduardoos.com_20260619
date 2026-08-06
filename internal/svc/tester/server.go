@@ -1,4 +1,3 @@
-// Tester — QA automation with DynamoDB run history and build-time reporting.
 package tester
 
 import (
@@ -49,7 +48,9 @@ func Run(addr string) error {
 }
 
 func (s *state) runScript(w http.ResponseWriter, r *http.Request) {
-	var body struct{ Script string `json:"script"` }
+	var body struct {
+		Script string `json:"script"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Script == "" {
 		common.WriteError(w, http.StatusBadRequest, "script required")
 		return
@@ -60,12 +61,12 @@ func (s *state) runScript(w http.ResponseWriter, r *http.Request) {
 
 func (s *state) reportRun(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Script    string            `json:"script"`
-		Passed    bool              `json:"passed"`
-		Steps     []obsstore.TestStep `json:"steps"`
-		Source    string            `json:"source"`
-		BuildID   string            `json:"buildId"`
-		DurationMs int64            `json:"durationMs"`
+		Script     string              `json:"script"`
+		Passed     bool                `json:"passed"`
+		Steps      []obsstore.TestStep `json:"steps"`
+		Source     string              `json:"source"`
+		BuildID    string              `json:"buildId"`
+		DurationMs int64               `json:"durationMs"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Script == "" {
 		common.WriteError(w, http.StatusBadRequest, "script and steps required")

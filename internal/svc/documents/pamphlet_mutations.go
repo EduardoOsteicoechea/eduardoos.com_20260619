@@ -9,7 +9,6 @@ import (
 	"eduardoos/pkg/pamphlet"
 )
 
-// applyContentMutation applies pamphlet content edits from the editor UI.
 func applyContentMutation(doc *pamphlet.Document, req contentMutationRequest) (pamphlet.Document, string, error) {
 	var newRef string
 	switch req.Op {

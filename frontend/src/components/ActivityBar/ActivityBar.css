@@ -1,7 +1,3 @@
-/**
- * ActivityBar.css — Bottom chrome bar aligned with playlist controls (plain CSS, theme tokens).
- */
-
 .site-activity-bar {
   position: fixed;
   left: 0;

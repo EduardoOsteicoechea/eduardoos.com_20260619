@@ -223,7 +223,7 @@
   margin-left: auto;
 }
 
-/* Tablet + phone: collapsible column nav */
+
 @media (max-width: 1023px) {
   .site-header__menu {
     display: inline-flex;
@@ -260,7 +260,7 @@
   }
 }
 
-/* Desktop: brand left, all chrome aligned to the right */
+
 @media (min-width: 1024px) {
   .site-header {
     display: flex;

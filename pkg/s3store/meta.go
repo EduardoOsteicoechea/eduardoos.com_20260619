@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// ImageItem is a gallery-ready object with display metadata.
 type ImageItem struct {
 	Key          string `json:"key"`
 	Name         string `json:"name"`
@@ -18,17 +17,14 @@ type ImageItem struct {
 	LastModified string `json:"last_modified"`
 }
 
-// IsImageContentType reports whether ct is an image MIME type.
 func IsImageContentType(ct string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(ct)), "image/")
 }
 
-// BaseName returns the filename portion of an object key.
 func BaseName(objectKey string) string {
 	return path.Base(strings.TrimPrefix(objectKey, "/"))
 }
 
-// ContentTypeFromKey guesses MIME type from file extension.
 func ContentTypeFromKey(objectKey string) string {
 	switch strings.ToLower(path.Ext(objectKey)) {
 	case ".svg":
@@ -56,7 +52,6 @@ func ContentTypeFromKey(objectKey string) string {
 	}
 }
 
-// FormatSize renders a byte count for humans.
 func FormatSize(bytes int) string {
 	switch {
 	case bytes < 1024:
@@ -68,7 +63,6 @@ func FormatSize(bytes int) string {
 	}
 }
 
-// ToImageItems filters and enriches object metadata for gallery views.
 func ToImageItems(items []ObjectMeta) []ImageItem {
 	var out []ImageItem
 	for _, item := range items {
@@ -98,7 +92,6 @@ func ToImageItems(items []ObjectMeta) []ImageItem {
 	return out
 }
 
-// RelativeKey strips the configured prefix from a full object key.
 func RelativeKey(prefix, objectKey string) string {
 	objectKey = strings.TrimPrefix(objectKey, "/")
 	prefix = strings.TrimSuffix(prefix, "/")
@@ -108,7 +101,6 @@ func RelativeKey(prefix, objectKey string) string {
 	return strings.TrimPrefix(objectKey, prefix+"/")
 }
 
-// S3ObjectURL builds the canonical object URI/HTTPS URL for a stored key.
 func S3ObjectURL(backend, bucket, region, objectKey string) string {
 	objectKey = strings.TrimPrefix(objectKey, "/")
 	if backend == "aws" {
@@ -117,8 +109,6 @@ func S3ObjectURL(backend, bucket, region, objectKey string) string {
 	return "s3://" + bucket + "/" + objectKey
 }
 
-// EncodeRelativePath percent-encodes each path segment but keeps slashes as separators.
-// Using url.PathEscape on a full path encodes "/" as "%2F", which breaks chi/nginx routing.
 func EncodeRelativePath(key string) string {
 	return encodePathSegments(key)
 }

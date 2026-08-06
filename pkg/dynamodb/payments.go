@@ -1,4 +1,3 @@
-// Package dynamodb — payment and subscription persistence (memory locally, AWS DynamoDB on EC2).
 package dynamodb
 
 import (
@@ -16,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-// PaymentRecord is a PayPal checkout intent linked to a verified user and product plan.
 type PaymentRecord struct {
 	IntentID          string   `json:"intentId" dynamodbav:"intentId"`
 	UserEmail         string   `json:"userEmail" dynamodbav:"userEmail"`
@@ -36,7 +34,6 @@ type PaymentRecord struct {
 	LastCorrelationID string   `json:"lastCorrelationId,omitempty" dynamodbav:"lastCorrelationId,omitempty"`
 }
 
-// ProductNameForPlan maps internal plan ids to human-readable product labels.
 func ProductNameForPlan(planID string) string {
 	switch planID {
 	case "subscription_monthly_basic":
@@ -46,7 +43,6 @@ func ProductNameForPlan(planID string) string {
 	}
 }
 
-// PaymentStore persists checkout intents and completed PayPal payments.
 type PaymentStore interface {
 	SavePayment(ctx context.Context, record PaymentRecord, correlationID string) (PaymentRecord, error)
 	GetPaymentByIntentID(ctx context.Context, intentID, correlationID string) (PaymentRecord, bool, error)
@@ -172,7 +168,6 @@ func (d *dynamoPaymentStore) GetPaymentsByUserEmail(ctx context.Context, userEma
 	return records, nil
 }
 
-// NewPaymentStore selects memory or DynamoDB implementation from environment.
 func NewPaymentStore(ctx context.Context) (PaymentStore, error) {
 	mode := common.Env("PAYMENTS_BACKEND", "memory")
 	table := common.Env("PAYMENTS_TABLE", "eduardoos_payments")

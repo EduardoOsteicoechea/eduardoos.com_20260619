@@ -5,15 +5,13 @@ import (
 	"time"
 )
 
-// RegistryEntry is one pamphlet draft owned by a user.
 type RegistryEntry struct {
-	PamphletID string        `json:"pamphletId"`
-	Title      string        `json:"title"`
-	UpdatedAt  time.Time     `json:"updatedAt"`
-	Layout     LayoutFields  `json:"layout"`
+	PamphletID string       `json:"pamphletId"`
+	Title      string       `json:"title"`
+	UpdatedAt  time.Time    `json:"updatedAt"`
+	Layout     LayoutFields `json:"layout"`
 }
 
-// LayoutFields mirrors frontend layout query keys for per-document persistence.
 type LayoutFields struct {
 	MarginLateral       float64 `json:"marginLateral"`
 	MarginVertical      float64 `json:"marginVertical"`
@@ -26,7 +24,6 @@ type LayoutFields struct {
 	HeadingBottomMargin float64 `json:"headingBottomMargin"`
 }
 
-// DefaultLayoutFields returns editor default layout numbers.
 func DefaultLayoutFields() LayoutFields {
 	cfg := DefaultLayoutConfig()
 	return LayoutFields{
@@ -37,7 +34,6 @@ func DefaultLayoutFields() LayoutFields {
 	}
 }
 
-// RegistryStore lists pamphlet drafts and persists layout settings per draft.
 type RegistryStore interface {
 	List(ctx context.Context, userID, sort string) ([]RegistryEntry, error)
 	GetLayout(ctx context.Context, userID, pamphletID string) (LayoutFields, bool, error)
@@ -45,7 +41,6 @@ type RegistryStore interface {
 	BackendName() string
 }
 
-// LayoutFieldsToConfig converts persisted layout to engine config.
 func LayoutFieldsToConfig(f LayoutFields) LayoutConfig {
 	cfg := DefaultLayoutConfig()
 	if f.MarginLateral > 0 {

@@ -14,26 +14,22 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// Server exposes HTTP handlers for the s3 microservice.
 type Server struct {
 	Store  MediaStore
 	Prefix string
 }
 
-// BatchUploadResult summarizes a multi-file upload request.
 type BatchUploadResult struct {
 	Count    int             `json:"count"`
 	Uploaded []UploadResult  `json:"uploaded"`
 	Failed   []UploadFailure `json:"failed"`
 }
 
-// UploadFailure describes one rejected file in a batch.
 type UploadFailure struct {
 	Name  string `json:"name"`
 	Error string `json:"error"`
 }
 
-// RegisterRoutes mounts upload/list/get routes on r (caller adds auth middleware).
 func (s *Server) RegisterRoutes(r chi.Router) {
 	r.Post("/upload", s.handleUploadJSON)
 	r.Post("/upload/multipart", s.handleUploadMultipart)
@@ -260,4 +256,3 @@ func (s *Server) handleGetAbsoluteFile(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
 }
-

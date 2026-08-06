@@ -216,7 +216,6 @@ func renderFooterZone(payload FooterPayload) string {
 	return b.String()
 }
 
-// RenderSheet1Outer renders sheet 1 outside face HTML.
 func RenderSheet1Outer(cfg LayoutConfig, header HeaderPayload, footer FooterPayload, distributed [][]LayoutBlock, heights []float64) string {
 	colW := columnWidthMM(cfg)
 	p1 := ComputePage1Layout(cfg, header, footer)
@@ -255,7 +254,6 @@ func RenderSheet1Outer(cfg LayoutConfig, header HeaderPayload, footer FooterPayl
 	)
 }
 
-// RenderSheet2Inner renders sheet 2 inside face HTML.
 func RenderSheet2Inner(cfg LayoutConfig, distributed [][]LayoutBlock, heights []float64) string {
 	colW := columnWidthMM(cfg)
 	paraSep := ParagraphSeparationMM(cfg.FontSizePt, cfg.LineHeightFactor, cfg.ParagraphSeparationFactor)
@@ -278,7 +276,6 @@ func RenderSheet2Inner(cfg LayoutConfig, distributed [][]LayoutBlock, heights []
 	)
 }
 
-// RenderPreviewSheets returns the sheet HTML fragment for the editor preview pane.
 func RenderPreviewSheets(cfg LayoutConfig, doc Document) string {
 	rects := EightColumnRects(cfg, doc.Header, doc.Footer)
 	heights := make([]float64, len(rects))
@@ -300,7 +297,6 @@ func RenderPreviewSheets(cfg LayoutConfig, doc Document) string {
 	return html.String()
 }
 
-// RenderOverflowSheet renders sheet 3+ as four-column pages (same topology as sheet 2).
 func RenderOverflowSheet(cfg LayoutConfig, cols [][]LayoutBlock, heights []float64, pageNum int) string {
 	colW := columnWidthMM(cfg)
 	paraSep := ParagraphSeparationMM(cfg.FontSizePt, cfg.LineHeightFactor, cfg.ParagraphSeparationFactor)

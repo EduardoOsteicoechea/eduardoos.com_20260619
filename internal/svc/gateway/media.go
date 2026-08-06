@@ -228,9 +228,9 @@ func (c config) listMediaAudio() http.HandlerFunc {
 
 		c.Telemetry.Emit(common.NewFlightLog(cid, "backend", "media.audio.list", "success"), cid)
 		common.WriteJSON(w, http.StatusOK, map[string]any{
-			"prefix":  prefix,
-			"count":   len(tracks),
-			"tracks":  tracks,
+			"prefix": prefix,
+			"count":  len(tracks),
+			"tracks": tracks,
 		})
 	}
 }
@@ -242,7 +242,7 @@ func (c config) proxyMediaFile() http.HandlerFunc {
 			common.WriteError(w, http.StatusBadRequest, "file key required")
 			return
 		}
-		// Re-encode each segment so internal http.Get URLs stay valid (spaces, unicode).
+
 		target := strings.TrimRight(c.S3URL, "/") + "/file/" + s3store.EncodeRelativePath(suffix)
 		c.signedProxy(w, r, http.MethodGet, target, "")
 	}

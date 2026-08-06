@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// FormatContentRef builds refs like "0:heading" or "0:subidea:3".
 func FormatContentRef(ideaIndex int, kind string, subideaIndex int) string {
 	if kind == "heading" {
 		return fmt.Sprintf("%d:heading", ideaIndex)
@@ -13,7 +12,6 @@ func FormatContentRef(ideaIndex int, kind string, subideaIndex int) string {
 	return fmt.Sprintf("%d:subidea:%d", ideaIndex, subideaIndex)
 }
 
-// IdeaIntroMatchesHeader reports when the first idea duplicates header.json intro.
 func IdeaIntroMatchesHeader(idea IdeaJSON, header HeaderPayload) bool {
 	if header.Text != "" {
 		return false
@@ -37,7 +35,6 @@ func IdeaIntroMatchesHeader(idea IdeaJSON, header HeaderPayload) bool {
 	return ideaHeading == header.Heading
 }
 
-// FlattenContent converts nested content JSON into sequential layout blocks.
 func FlattenContent(content ContentPayload, header HeaderPayload) []LayoutBlock {
 	blocks := make([]LayoutBlock, 0)
 	for index, idea := range content.Ideas {
@@ -86,7 +83,7 @@ func parseSubidea(sub SubideaJSON, ideaIndex, subideaIndex int) LayoutBlock {
 		listItems := make([]ListItem, 0, len(items))
 		for _, raw := range items {
 			listItems = append(listItems, ListItem{
-				Text: strings.TrimSpace(raw.Content),
+				Text:       strings.TrimSpace(raw.Content),
 				Highlights: append([]HighlightRange(nil), raw.Highlights...),
 			})
 		}
@@ -108,7 +105,6 @@ func parseSubidea(sub SubideaJSON, ideaIndex, subideaIndex int) LayoutBlock {
 	}
 }
 
-// ContentLength sums character counts across flattened blocks for capacity telemetry.
 func ContentLength(blocks []LayoutBlock) int {
 	total := 0
 	for _, block := range blocks {

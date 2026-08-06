@@ -67,7 +67,6 @@ func sortRegistry(entries []RegistryEntry, sortBy string) {
 	}
 }
 
-// NewMemoryRegistryStore returns an in-process registry for local dev.
 func NewMemoryRegistryStore() RegistryStore {
 	return newMemoryRegistry()
 }

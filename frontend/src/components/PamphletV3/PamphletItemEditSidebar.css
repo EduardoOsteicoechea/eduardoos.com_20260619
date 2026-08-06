@@ -1,7 +1,3 @@
-/**
- * PamphletItemEditSidebar.css — Desktop fills the fixed right rail; mobile modal.
- */
-
 .pamphlet_item_edit_backdrop {
   display: flex;
   flex-direction: column;
@@ -82,7 +78,7 @@
   font-size: 0.9rem;
 }
 
-/* Mobile / narrow: full-screen modal with blur and 50px inset */
+
 @media (max-width: 900px) {
   .pamphlet_item_edit_backdrop {
     position: fixed;

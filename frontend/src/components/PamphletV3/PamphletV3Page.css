@@ -1,7 +1,3 @@
-/**
- * PamphletV3Page.css — Page chrome around letter sheets + bottom activity bar.
- */
-
 .pamphlet_v3_page {
   display: flex;
   flex-direction: column;
@@ -25,7 +21,7 @@
 }
 
 .pamphlet_v3_page:has(.pamphlet_v3_right_rail) .pamphlet_v3_workspace {
-  /* Reserve space for the fixed right rail while editing */
+  
   padding-right: min(380px, 34vw);
 }
 
@@ -79,7 +75,7 @@
   overflow-x: auto;
 }
 
-/* Mobile stack is screen-only; desktop keeps letter sheets. */
+
 .pamphlet_v3_mobile_stack {
   display: none;
 }
@@ -104,11 +100,7 @@
     display: none !important;
   }
 
-  /*
-   * Mobile stack: same physical zone sizes as one landscape half-page column/band.
-   * Half = 139.7mm wide × 215.9mm tall, 10mm padding → content 119.7 × 195.9mm.
-   * Two columns + 4mm gap → each column 57.85mm wide.
-   */
+  
   .pamphlet_v3_mobile_stack {
     --mobile-half-w: 139.7mm;
     --mobile-half-pad: 10mm;
@@ -191,7 +183,7 @@
 }
 
 @media print {
-  /* Enforce US Letter landscape (11in × 8.5in). Browsers may still show a dialog — pick Landscape if offered. */
+  
   @page {
     size: 11in 8.5in landscape;
     margin: 0;
@@ -229,7 +221,7 @@
     width: 11in !important;
   }
 
-  /* Hide site chrome — only letter sheets print. */
+  
   .site-header,
   .site-activity-bar,
   .pamphlet_v3_activity,
@@ -274,7 +266,7 @@
     overflow: visible !important;
   }
 
-  /* Exact US Letter landscape sheet — one sheet per printed page at 100% scale. */
+  
   .pamphlet_sheet {
     box-sizing: border-box !important;
     width: 11in !important;

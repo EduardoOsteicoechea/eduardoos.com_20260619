@@ -2,7 +2,6 @@ package s3store
 
 import "strings"
 
-// HumanizeAccessError turns AWS SDK errors into short operator-facing messages.
 func HumanizeAccessError(raw string) string {
 	lower := strings.ToLower(raw)
 	if strings.Contains(lower, "accessdenied") || strings.Contains(lower, "not authorized") {

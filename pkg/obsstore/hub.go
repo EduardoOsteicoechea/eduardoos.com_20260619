@@ -7,7 +7,6 @@ import (
 	"eduardoos/pkg/common"
 )
 
-// Hub fans out ingested logs to live SSE subscribers.
 type Hub struct {
 	mu          sync.RWMutex
 	subscribers map[chan common.FlightLogEntry]struct{}

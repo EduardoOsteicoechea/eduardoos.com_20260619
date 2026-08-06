@@ -51,7 +51,6 @@ func columnX(blockX float64, col int, cfg LayoutConfig) float64 {
 	return blockX + float64(col)*(columnWidthMM(cfg)+cfg.ColumnGapMM)
 }
 
-// EightColumnRects returns all eight body column rects in V5 content-flow order.
 func EightColumnRects(cfg LayoutConfig, header HeaderPayload, footer FooterPayload) []RegionRect {
 	colW := columnWidthMM(cfg)
 	p1 := ComputePage1Layout(cfg, header, footer)

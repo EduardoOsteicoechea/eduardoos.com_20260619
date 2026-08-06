@@ -1,4 +1,3 @@
-// Authenticator — registration, login, OTP verification, JWT issuance.
 package authenticator
 
 import (

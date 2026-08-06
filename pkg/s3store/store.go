@@ -1,4 +1,3 @@
-// Package s3store — media object storage (in-memory stub or AWS S3).
 package s3store
 
 import (
@@ -7,7 +6,6 @@ import (
 	"strings"
 )
 
-// UploadResult is returned after a successful put.
 type UploadResult struct {
 	Bucket      string `json:"bucket"`
 	Key         string `json:"key"`
@@ -16,7 +14,6 @@ type UploadResult struct {
 	Stored      bool   `json:"stored"`
 }
 
-// ObjectMeta describes a stored object for listing.
 type ObjectMeta struct {
 	Key          string `json:"key"`
 	ContentType  string `json:"content_type"`
@@ -24,7 +21,6 @@ type ObjectMeta struct {
 	LastModified string `json:"last_modified,omitempty"`
 }
 
-// MediaStore persists binary media objects.
 type MediaStore interface {
 	Put(ctx context.Context, key, contentType string, data []byte) (UploadResult, error)
 	Get(ctx context.Context, key string) ([]byte, string, error)
@@ -35,7 +31,6 @@ type MediaStore interface {
 	BucketName() string
 }
 
-// Config drives store construction.
 type Config struct {
 	Backend     string
 	Bucket      string
@@ -44,7 +39,6 @@ type Config struct {
 	StubDataDir string
 }
 
-// ObjectKey applies the configured prefix to a relative media key.
 func ObjectKey(prefix, key string) string {
 	key = strings.TrimPrefix(strings.TrimSpace(key), "/")
 	if key == "" {
@@ -56,7 +50,6 @@ func ObjectKey(prefix, key string) string {
 	return strings.TrimSuffix(prefix, "/") + "/" + key
 }
 
-// PublicURL builds a browser-facing URL when a CDN/base is configured.
 func PublicURL(baseURL, objectKey string) string {
 	if baseURL == "" {
 		return ""
@@ -64,7 +57,6 @@ func PublicURL(baseURL, objectKey string) string {
 	return strings.TrimSuffix(baseURL, "/") + "/" + strings.TrimPrefix(objectKey, "/")
 }
 
-// NewStore selects stub or AWS implementation from config.
 func NewStore(ctx context.Context, cfg Config) (MediaStore, error) {
 	if cfg.Backend == "aws" {
 		return newAWSStore(ctx, cfg)
@@ -72,7 +64,6 @@ func NewStore(ctx context.Context, cfg Config) (MediaStore, error) {
 	return newStubStore(cfg), nil
 }
 
-// ValidateKey rejects empty or path-traversal keys.
 func ValidateKey(key string) error {
 	key = strings.TrimSpace(key)
 	if key == "" {

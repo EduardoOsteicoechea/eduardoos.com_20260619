@@ -1,4 +1,3 @@
-// S3 — media object storage (stub locally, AWS S3 on EC2).
 package s3
 
 import (

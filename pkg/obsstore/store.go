@@ -1,4 +1,3 @@
-// Package obsstore — flight log and test-run persistence with live broadcast.
 package obsstore
 
 import (
@@ -11,7 +10,6 @@ import (
 
 const LogTTL = 7 * 24 * time.Hour
 
-// LogQuery filters flight log listing.
 type LogQuery struct {
 	Service       string
 	Status        string
@@ -20,7 +18,6 @@ type LogQuery struct {
 	Limit         int
 }
 
-// LogAnalytics matches the frontend analytics contract.
 type LogAnalytics struct {
 	Total              int                     `json:"total"`
 	UniqueCorrelations int                     `json:"uniqueCorrelations"`
@@ -57,7 +54,6 @@ func (q LogQuery) matches(e common.FlightLogEntry) bool {
 	return true
 }
 
-// LogStore persists and streams flight logs.
 type LogStore interface {
 	Ingest(ctx context.Context, entry common.FlightLogEntry) error
 	List(ctx context.Context, q LogQuery) ([]common.FlightLogEntry, error)
@@ -66,14 +62,12 @@ type LogStore interface {
 	Subscribe(ctx context.Context) <-chan common.FlightLogEntry
 }
 
-// TestStep is one step inside a QA run.
 type TestStep struct {
 	Name       string `json:"name"`
 	Status     string `json:"status"`
 	DurationMs int64  `json:"durationMs"`
 }
 
-// TestRun is a persisted tester execution record.
 type TestRun struct {
 	RunID         string     `json:"runId"`
 	Script        string     `json:"script"`
@@ -87,7 +81,6 @@ type TestRun struct {
 	BuildID       string     `json:"buildId,omitempty"`
 }
 
-// TestStore persists QA runs (manual + build-time).
 type TestStore interface {
 	SaveRun(ctx context.Context, run TestRun) error
 	ListRuns(ctx context.Context, limit int) ([]TestRun, error)

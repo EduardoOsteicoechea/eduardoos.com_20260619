@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/authstore"
 	"eduardoos/pkg/common"
+	ddb "eduardoos/pkg/dynamodb"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -52,7 +52,6 @@ func (h subscriptionHandlers) listEntitlements() http.HandlerFunc {
 	}
 }
 
-// previewEntitlements returns active entitlements for a verified registered email.
 func (h subscriptionHandlers) previewEntitlements() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cid := common.CorrelationFromRequest(r)

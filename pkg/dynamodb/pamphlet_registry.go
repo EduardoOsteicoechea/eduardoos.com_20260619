@@ -22,7 +22,6 @@ type pamphletRegistryStore struct {
 	mem    pamphlet.RegistryStore
 }
 
-// NewPamphletRegistryStore selects memory or DynamoDB registry persistence.
 func NewPamphletRegistryStore(ctx context.Context) (pamphlet.RegistryStore, error) {
 	mode := common.Env("PAMPHLETS_BACKEND", "memory")
 	if mode != "dynamodb" {

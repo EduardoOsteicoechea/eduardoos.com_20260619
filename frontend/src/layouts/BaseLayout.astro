@@ -1,7 +1,5 @@
 ---
-/**
- * BaseLayout.astro — Root HTML shell (Eduardo OS chrome + PWA hooks).
- */
+
 import { ClientRouter } from "astro:transitions";
 import "../styles/global.css";
 import "./BaseLayout.css";
@@ -14,7 +12,6 @@ interface Props {
   title?: string;
   activityBarMode?: "default" | "article" | "editor";
   pagePlaylist?: boolean;
-  pagePamphletV2?: boolean;
   pagePamphlet?: boolean;
   requireAuth?: boolean;
 }
@@ -23,7 +20,6 @@ const {
   title = "Eduardo Osteicoechea",
   activityBarMode = "default",
   pagePlaylist = false,
-  pagePamphletV2 = false,
   pagePamphlet = false,
   requireAuth = false,
 } = Astro.props;
@@ -114,7 +110,6 @@ const pageEditor = activityBarMode === "editor";
       "page-editor": pageEditor,
       "has-page-background": true,
       "page-playlist": pagePlaylist,
-      "page-pamphlet-v2": pagePamphletV2,
       "page-pamphlet": pagePamphlet,
     }}
   >
@@ -130,10 +125,7 @@ const pageEditor = activityBarMode === "editor";
     </div>
 
     <script>
-      /**
-       * Service worker lifecycle — prompt the user via #pwa-toast when an update is waiting.
-       * registerType is "prompt" in astro.config.mjs; updateSW(true) activates the worker.
-       */
+      
       import { registerSW } from "virtual:pwa-register";
 
       const updateSW = registerSW({
@@ -141,7 +133,7 @@ const pageEditor = activityBarMode === "editor";
           document.getElementById("pwa-toast")?.classList.add("is-visible");
         },
         onOfflineReady() {
-          /* Static shell precache completed; audio blobs use IndexedDB separately. */
+          
         },
       });
 

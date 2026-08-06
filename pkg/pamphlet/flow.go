@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// SplitParagraph splits text at the last visible word that fits within maxHeightMM.
 func SplitParagraph(text string, maxHeightMM, columnWidthMM, fontSizePt, lineHeightFactor float64) (fit, rest string) {
 	if text == "" || maxHeightMM <= 0 {
 		return "", text
@@ -49,7 +48,6 @@ func SplitParagraph(text string, maxHeightMM, columnWidthMM, fontSizePt, lineHei
 	return fit, rest
 }
 
-// HighlightsForFragment maps highlight ranges onto a substring fragment.
 func HighlightsForFragment(highlights []HighlightRange, offset, end int) []HighlightRange {
 	out := make([]HighlightRange, 0)
 	for _, h := range highlights {
@@ -71,7 +69,6 @@ func HighlightsForFragment(highlights []HighlightRange, offset, end int) []Highl
 	return out
 }
 
-// DistributeBlocksEightColumns flows layout objects through eight columns with paragraph breaks.
 func DistributeBlocksEightColumns(
 	blocks []LayoutBlock,
 	columnWidthsMM, columnHeightsMM []float64,

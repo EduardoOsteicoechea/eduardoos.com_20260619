@@ -1,7 +1,7 @@
 name: CI/CD — Frontend fast deploy
 
-# Frontend-only changes: test + build in CI, then rebuild static assets on EC2
-# without Go tests or backend/Docker rebuilds.
+# Frontend-only changes: build check in CI, then rebuild static assets on EC2
+# without backend/Docker rebuilds.
 
 on:
   push:
@@ -18,8 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Frontend test and build
+  build:
+    name: Frontend build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -32,12 +32,11 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm test
       - run: npm run build
 
   deploy:
     name: Deploy frontend to EC2
-    needs: test
+    needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
     steps:

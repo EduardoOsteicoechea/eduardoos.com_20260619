@@ -1,4 +1,3 @@
-// Package subscriptions defines sellable services, pricing, and entitlement helpers.
 package subscriptions
 
 import (
@@ -17,21 +16,18 @@ const (
 	ServicePamphlet = "pamphlet"
 )
 
-// Service describes a subscription feature users can purchase.
 type Service struct {
 	ID          string `json:"id"`
 	Label       string `json:"label"`
 	Description string `json:"description"`
 }
 
-// Catalog lists all purchasable services in display order.
 var Catalog = []Service{
 	{ID: ServiceAIAgent, Label: "AI Agent", Description: "Conversational assistant and automation tools."},
 	{ID: ServicePlaylist, Label: "Playlist", Description: "Cloud worship playlist builder and storage."},
 	{ID: ServicePamphlet, Label: "Pamphlet", Description: "Pamphlet generator, cloud sync, and exports."},
 }
 
-// PricePerServiceUSD returns the unit price for one service in the given billing period.
 func PricePerServiceUSD(period string) (float64, error) {
 	switch strings.ToLower(strings.TrimSpace(period)) {
 	case BillingMonthly:
@@ -43,7 +39,6 @@ func PricePerServiceUSD(period string) (float64, error) {
 	}
 }
 
-// NormalizeServiceIDs deduplicates and validates service identifiers.
 func NormalizeServiceIDs(ids []string) ([]string, error) {
 	allowed := map[string]string{}
 	for _, svc := range Catalog {
@@ -73,7 +68,6 @@ func NormalizeServiceIDs(ids []string) ([]string, error) {
 	return out, nil
 }
 
-// Quote calculates the checkout total for the selected services.
 func Quote(serviceIDs []string, billingPeriod string) (total float64, productName string, err error) {
 	ids, err := NormalizeServiceIDs(serviceIDs)
 	if err != nil {
@@ -100,7 +94,6 @@ func Quote(serviceIDs []string, billingPeriod string) (total float64, productNam
 	return total, productName, nil
 }
 
-// EntitlementEnd calculates when access should expire from a payment completion time.
 func EntitlementEnd(from time.Time, billingPeriod string) (time.Time, error) {
 	switch strings.ToLower(strings.TrimSpace(billingPeriod)) {
 	case BillingMonthly:
@@ -112,7 +105,6 @@ func EntitlementEnd(from time.Time, billingPeriod string) (time.Time, error) {
 	}
 }
 
-// ExtendEntitlementEnd stacks renewal on top of an active entitlement when applicable.
 func ExtendEntitlementEnd(currentEnd time.Time, paidAt time.Time, billingPeriod string) (time.Time, error) {
 	base := paidAt.UTC()
 	if currentEnd.After(base) {
@@ -121,7 +113,6 @@ func ExtendEntitlementEnd(currentEnd time.Time, paidAt time.Time, billingPeriod 
 	return EntitlementEnd(base, billingPeriod)
 }
 
-// LabelForService returns the display label for a service id.
 func LabelForService(id string) string {
 	for _, svc := range Catalog {
 		if svc.ID == id {
@@ -131,9 +122,6 @@ func LabelForService(id string) string {
 	return id
 }
 
-// FilterPurchasable removes services that cannot be purchased again for the billing period.
-// Monthly renewals are blocked while a service is still active; yearly checkout extends
-// active entitlements by one year from the current expiry.
 func FilterPurchasable(requested, active []string, billingPeriod string) (allowed []string, blocked []string, err error) {
 	normalized, err := NormalizeServiceIDs(requested)
 	if err != nil {

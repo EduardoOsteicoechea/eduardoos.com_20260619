@@ -22,7 +22,6 @@ func columnCapacityPX(widthMM, heightMM, fontSizePt, lineHeightFactor float64) i
 	return chars * rows
 }
 
-// EightColumnCapacities returns per-column character capacities for all eight flow columns.
 func EightColumnCapacities(cfg LayoutConfig, header HeaderPayload, footer FooterPayload) []int {
 	rects := EightColumnRects(cfg, header, footer)
 	out := make([]int, len(rects))
@@ -32,20 +31,18 @@ func EightColumnCapacities(cfg LayoutConfig, header HeaderPayload, footer Footer
 	return out
 }
 
-// CapacityTelemetry bundles sidebar capacity readout data for the editor UI.
 type CapacityTelemetry struct {
-	Characters        int    `json:"characters"`
-	ContentLength     int    `json:"content_length"`
-	OverflowChars     int    `json:"overflow_characters"`
-	OverflowWords     int    `json:"overflow_words"`
-	Columns           []int  `json:"columns"`
-	Readout           string `json:"readout"`
-	ReadoutHTML       string `json:"readout_html"`
-	Warning           string `json:"warning"`
-	ColumnSummary     string `json:"column_summary"`
+	Characters    int    `json:"characters"`
+	ContentLength int    `json:"content_length"`
+	OverflowChars int    `json:"overflow_characters"`
+	OverflowWords int    `json:"overflow_words"`
+	Columns       []int  `json:"columns"`
+	Readout       string `json:"readout"`
+	ReadoutHTML   string `json:"readout_html"`
+	Warning       string `json:"warning"`
+	ColumnSummary string `json:"column_summary"`
 }
 
-// ComputeCapacityTelemetry calculates structural capacity vs current document content length.
 func ComputeCapacityTelemetry(cfg LayoutConfig, doc Document) CapacityTelemetry {
 	columns := EightColumnCapacities(cfg, doc.Header, doc.Footer)
 	maxChars := 0
@@ -95,7 +92,7 @@ func formatInt(n int) string {
 		return fmt.Sprintf("%d", n)
 	}
 	s := fmt.Sprintf("%d", n)
-	// simple thousands separator
+
 	var out []byte
 	for i, c := range s {
 		if i > 0 && (len(s)-i)%3 == 0 {

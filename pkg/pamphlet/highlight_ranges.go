@@ -1,6 +1,5 @@
 package pamphlet
 
-// selectionHasHighlight reports whether every character in [start,end) is already bold.
 func selectionHasHighlight(highlights []HighlightRange, start, end int) bool {
 	if end <= start {
 		return false
@@ -27,7 +26,6 @@ func selectionHasHighlight(highlights []HighlightRange, start, end int) bool {
 	return true
 }
 
-// addHighlightRange merges a new span into existing highlight ranges.
 func addHighlightRange(highlights []HighlightRange, start, end int) []HighlightRange {
 	if end <= start {
 		return highlights
@@ -36,7 +34,6 @@ func addHighlightRange(highlights []HighlightRange, start, end int) []HighlightR
 	return mergeHighlightRanges(merged)
 }
 
-// subtractHighlightRange removes bold coverage inside [start,end).
 func subtractHighlightRange(highlights []HighlightRange, start, end int) []HighlightRange {
 	if end <= start || len(highlights) == 0 {
 		return highlights
@@ -57,7 +54,6 @@ func subtractHighlightRange(highlights []HighlightRange, start, end int) []Highl
 	return mergeHighlightRanges(out)
 }
 
-// ToggleTextHighlight toggles bold on the selected character span.
 func ToggleTextHighlight(highlights []HighlightRange, start, end int) []HighlightRange {
 	if end <= start {
 		return highlights
@@ -72,7 +68,7 @@ func mergeHighlightRanges(ranges []HighlightRange) []HighlightRange {
 	if len(ranges) == 0 {
 		return nil
 	}
-	// Sort and merge overlapping spans without requiring source text length.
+
 	pairs := make([][2]int, 0, len(ranges))
 	for _, h := range ranges {
 		if h.End > h.Start {

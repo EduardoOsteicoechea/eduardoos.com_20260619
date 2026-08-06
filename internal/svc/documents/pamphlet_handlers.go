@@ -14,7 +14,6 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// pamphletHandlers serves pamphlet layout routes on the documents microservice.
 type pamphletHandlers struct {
 	store    pamphlet.DocumentStore
 	registry pamphlet.RegistryStore
@@ -181,7 +180,6 @@ func pamphletIDsFromRequest(r *http.Request) (userID, pamphletID string) {
 	return userID, pamphletID
 }
 
-// userIDFromRequest reads X-Pamphlet-User set by the gateway from JWT email.
 func userIDFromRequest(r *http.Request) string {
 	if v := strings.TrimSpace(r.Header.Get("X-Pamphlet-User")); v != "" {
 		return v

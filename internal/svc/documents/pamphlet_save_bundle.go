@@ -17,11 +17,11 @@ type saveBundleRequest struct {
 }
 
 type saveBundleResponse struct {
-	Status     string   `json:"status"`
-	PamphletID string   `json:"pamphletId"`
-	Logs       []string `json:"logs"`
-	IdeaCount  int      `json:"ideaCount"`
-	SubideaCount int    `json:"subideaCount"`
+	Status       string   `json:"status"`
+	PamphletID   string   `json:"pamphletId"`
+	Logs         []string `json:"logs"`
+	IdeaCount    int      `json:"ideaCount"`
+	SubideaCount int      `json:"subideaCount"`
 }
 
 func (h pamphletHandlers) saveBundle() http.HandlerFunc {

@@ -2,7 +2,6 @@ package pamphlet
 
 import "math"
 
-// DistributeBlocksFlow fills columns in reading order and appends 4-column overflow pages.
 func DistributeBlocksFlow(
 	blocks []LayoutBlock,
 	cfg LayoutConfig,
@@ -98,7 +97,6 @@ func columnIsFull(blocks []LayoutBlock, heightMM, widthMM, fontSizePt, lh, paraS
 	return used >= heightMM*0.92
 }
 
-// sheet1RightFull reports when both sheet-1-right columns (0 and 1) are saturated.
 func sheet1RightFull(distributed [][]LayoutBlock, heights []float64, cfg LayoutConfig) bool {
 	if len(distributed) < 2 || len(heights) < 2 {
 		return false
@@ -110,7 +108,6 @@ func sheet1RightFull(distributed [][]LayoutBlock, heights []float64, cfg LayoutC
 	return full0 && full1
 }
 
-// sheet2HasContent reports when any sheet-2 column (indices 2–5) received blocks.
 func sheet2HasContent(distributed [][]LayoutBlock) bool {
 	for i := 2; i <= 5 && i < len(distributed); i++ {
 		if columnHasBlocks(distributed[i]) {
@@ -120,7 +117,6 @@ func sheet2HasContent(distributed [][]LayoutBlock) bool {
 	return false
 }
 
-// sheet1LeftHasContent reports when sheet-1-left columns (6–7) have blocks.
 func sheet1LeftHasContent(distributed [][]LayoutBlock) bool {
 	for i := 6; i <= 7 && i < len(distributed); i++ {
 		if columnHasBlocks(distributed[i]) {
@@ -130,7 +126,6 @@ func sheet1LeftHasContent(distributed [][]LayoutBlock) bool {
 	return false
 }
 
-// overflowPageGroups returns groups of 4 column slices starting at index 8.
 func overflowPageGroups(distributed [][]LayoutBlock) [][][]LayoutBlock {
 	if len(distributed) <= 8 {
 		return nil

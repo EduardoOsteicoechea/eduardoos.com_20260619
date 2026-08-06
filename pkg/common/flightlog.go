@@ -2,7 +2,6 @@ package common
 
 import "time"
 
-// FlightLogEntry matches the frontend telemetry contract (camelCase JSON).
 type FlightLogEntry struct {
 	CorrelationID string            `json:"correlationId"`
 	Service       string            `json:"service"`
@@ -12,7 +11,6 @@ type FlightLogEntry struct {
 	Metadata      map[string]string `json:"metadata,omitempty"`
 }
 
-// NewFlightLog creates a log entry with the current UTC timestamp.
 func NewFlightLog(correlationID, service, event, status string) FlightLogEntry {
 	return FlightLogEntry{
 		CorrelationID: correlationID,

@@ -1,8 +1,3 @@
-/**
- * PamphletPages.css — US Letter landscape sheets and half-page zone grids.
- * Sheet: 279.4mm × 215.9mm (11in × 8.5in landscape).
- */
-
 .pamphlet_sheet {
   box-sizing: border-box;
   width: 279.4mm;
@@ -32,7 +27,7 @@
   gap: 0;
 }
 
-/* Front (right half): header band, then two body columns */
+
 .pamphlet_front_page {
   grid-template-columns: 1fr 4mm 1fr;
   grid-template-rows: auto 2.5mm 1fr;
@@ -43,7 +38,7 @@
   border-left: 0.2mm solid color-mix(in srgb, currentColor 20%, transparent);
 }
 
-/* Back (left half): two body columns, then footer band */
+
 .pamphlet_back_page {
   grid-template-columns: 1fr 4mm 1fr;
   grid-template-rows: 1fr 2.5mm auto;
@@ -53,7 +48,7 @@
     "footer footer footer";
 }
 
-/* Inner halves: two full-height columns */
+
 .pamphlet_inner_page {
   grid-template-columns: 1fr 4mm 1fr;
   grid-template-rows: 1fr;
@@ -72,7 +67,7 @@
   box-sizing: border-box;
 }
 
-/* Content stack — no padding/gap; item spacing is each item's top margin. */
+
 .pamphlet_zone_stack {
   position: relative;
   flex: 1 1 auto;
@@ -84,7 +79,7 @@
   overflow: hidden;
 }
 
-/* Fills the constrained stack box so capacity ≠ content-driven height. */
+
 .pamphlet_zone_capacity_probe {
   position: absolute;
   inset: 0;
@@ -129,7 +124,7 @@
   cursor: pointer;
 }
 
-/* Leftover column space — same add affordance as an empty zone. */
+
 .pamphlet_zone_fill {
   flex: 1 1 auto;
   min-height: 10mm;

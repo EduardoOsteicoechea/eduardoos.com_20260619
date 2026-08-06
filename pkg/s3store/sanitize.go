@@ -10,17 +10,15 @@ import (
 )
 
 var (
-	// ErrEmptyAsset is returned when uploaded bytes are zero-length.
 	ErrEmptyAsset = errors.New("asset is empty")
-	// ErrDisallowedExtension is returned for unsupported file extensions.
+
 	ErrDisallowedExtension = errors.New("extension not allowed")
-	// ErrContentMismatch is returned when magic bytes disagree with the extension.
+
 	ErrContentMismatch = errors.New("file content does not match extension")
-	// ErrInvalidFilename is returned for unsafe or empty filenames.
+
 	ErrInvalidFilename = errors.New("invalid filename")
 )
 
-// allowedExt maps lowercase extensions to canonical MIME types.
 var allowedExt = map[string]string{
 	".png":  "image/png",
 	".jpg":  "image/jpeg",
@@ -46,7 +44,6 @@ var allowedExt = map[string]string{
 	".webm": "video/webm",
 }
 
-// hasPathTraversal reports .. path segments or leading parent hops.
 func hasPathTraversal(key string) bool {
 	if strings.HasPrefix(key, "..") {
 		return true
@@ -59,7 +56,6 @@ func hasPathTraversal(key string) bool {
 	return false
 }
 
-// SanitizeFilename returns a basename safe for object keys (Unicode letters allowed).
 func SanitizeFilename(name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || hasPathTraversal(name) || strings.ContainsAny(name, `/\`) {
@@ -78,7 +74,6 @@ func SanitizeFilename(name string) (string, error) {
 	return base, nil
 }
 
-// SanitizeObjectKey validates a slash-separated storage key (e.g. worship_playlists/song.mp3).
 func SanitizeObjectKey(key string) (string, error) {
 	key = strings.TrimSpace(key)
 	if key == "" || hasPathTraversal(key) {
@@ -106,7 +101,6 @@ func SanitizeObjectKey(key string) (string, error) {
 	return strings.Join(safe, "/"), nil
 }
 
-// SanitizeAsset validates filename, size, extension whitelist, and magic-byte composition.
 func SanitizeAsset(filename string, data []byte) (string, error) {
 	if len(data) == 0 {
 		return "", ErrEmptyAsset
@@ -189,7 +183,6 @@ func isMP4Family(data []byte) bool {
 	return bytes.Equal(data[4:8], []byte("ftyp"))
 }
 
-// PrepareUpload validates and returns the safe key and MIME type for storage.
 func PrepareUpload(filename string, data []byte) (key, contentType string, err error) {
 	key, err = SanitizeObjectKey(filename)
 	if err != nil {

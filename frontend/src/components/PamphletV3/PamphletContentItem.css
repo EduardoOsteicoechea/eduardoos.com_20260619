@@ -1,7 +1,3 @@
-/**
- * PamphletContentItem.css — Editable content block styles (mm typography).
- */
-
 .pamphlet-v3-item {
   position: relative;
   box-sizing: border-box;
@@ -16,23 +12,23 @@
   overflow: visible;
 }
 
-/* Regular paragraphs: 2mm separation from the previous item. */
+
 .pamphlet-v3-item[data-item-type="paragraph"] {
   margin-top: 2mm;
 }
 
-/* Heading: 1mm top and matching 1mm bottom. */
+
 .pamphlet-v3-item[data-item-type="heading"] {
   margin-top: 1mm;
   margin-bottom: 1mm;
 }
 
-/* First real item sits flush — probe is first child, so use adjacent sibling. */
+
 .pamphlet_zone_stack > .pamphlet_zone_capacity_probe + .pamphlet-v3-item {
   margin-top: 0;
 }
 
-/* Footer: +1mm top margin on every item (paragraphs 3mm; first item keeps 1mm). */
+
 .pamphlet_footer .pamphlet-v3-item {
   margin-top: 3mm;
 }
@@ -61,7 +57,7 @@
   z-index: 2;
 }
 
-/* Hidden view-mode clone measured while editing — excludes toolbar/inputs from heightMm. */
+
 .pamphlet-v3-item__measure-mirror {
   position: absolute;
   left: 0;
@@ -124,7 +120,7 @@
   white-space: pre-wrap;
 }
 
-/* Header band: twice the regular paragraph size, always bold. */
+
 .pamphlet_header .pamphlet-v3-item__text,
 .pamphlet_header .pamphlet-v3-item__text--heading,
 .pamphlet_header .pamphlet-v3-item__text--key-idea,
@@ -137,7 +133,7 @@
   font-weight: 700;
 }
 
-/* Footer band: 0.75× regular paragraph size. */
+
 .pamphlet_footer .pamphlet-v3-item__text,
 .pamphlet_footer .pamphlet-v3-item__text--heading,
 .pamphlet_footer .pamphlet-v3-item__text--key-idea,
@@ -152,7 +148,7 @@
 
 .pamphlet-v3-item__text--heading {
   font-family: Montserrat, Raleway, Roboto, sans-serif;
-  font-size: 4.7655mm; /* 3.53mm × 1.35 */
+  font-size: 4.7655mm; 
   font-weight: 700;
   line-height: 1.2;
 }

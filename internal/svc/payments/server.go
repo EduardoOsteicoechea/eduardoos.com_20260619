@@ -1,4 +1,3 @@
-// Payments — PayPal intents, status polling, and IPN webhook processing.
 package payments
 
 import (
@@ -13,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/authstore"
 	"eduardoos/pkg/common"
+	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/subscriptions"
 
 	"github.com/go-chi/chi/v5"
@@ -55,16 +54,16 @@ func Run(addr string) error {
 		return err
 	}
 	svc := &service{
-		payments:       paymentStore,
-		entitlements:   entitlementStore,
-		secret:         secret,
-		authURL:        common.Env("AUTHENTICATOR_URL", "http://authenticator:3000"),
-		telemetry:      common.NewTelemetryClient(common.Env("TELEMETRY_URL", "http://telemetry:3000"), secret),
-		paypalVerify:    common.Env("PAYPAL_IPN_VERIFY_URL", "https://ipnpb.paypal.com/cgi-bin/webscr"),
+		payments:          paymentStore,
+		entitlements:      entitlementStore,
+		secret:            secret,
+		authURL:           common.Env("AUTHENTICATOR_URL", "http://authenticator:3000"),
+		telemetry:         common.NewTelemetryClient(common.Env("TELEMETRY_URL", "http://telemetry:3000"), secret),
+		paypalVerify:      common.Env("PAYPAL_IPN_VERIFY_URL", "https://ipnpb.paypal.com/cgi-bin/webscr"),
 		paypalCheckoutURL: common.Env("PAYPAL_CHECKOUT_URL", "https://www.paypal.com/cgi-bin/webscr"),
-		paypalBusiness:  common.Env("PAYPAL_BUSINESS_EMAIL", ""),
-		buttonID:       common.Env("PAYPAL_HOSTED_BUTTON_ID", "QEVGD66SG7LXN"),
-		planID:         common.Env("PAYPAL_PLAN_ID", "subscription_monthly_basic"),
+		paypalBusiness:    common.Env("PAYPAL_BUSINESS_EMAIL", ""),
+		buttonID:          common.Env("PAYPAL_HOSTED_BUTTON_ID", "QEVGD66SG7LXN"),
+		planID:            common.Env("PAYPAL_PLAN_ID", "subscription_monthly_basic"),
 	}
 
 	r := chi.NewRouter()
@@ -226,8 +225,8 @@ func (s *service) createIntent(w http.ResponseWriter, r *http.Request) {
 		"services": saved.Services, "billing_period": saved.BillingPeriod,
 		"amount": saved.ExpectedAmount, "paypal_checkout_mode": checkoutMode,
 		"paypal_checkout_url": s.paypalCheckoutURL,
-		"paypal_business": s.paypalBusiness,
-		"correlation_id": cid, "debug_logs": logs,
+		"paypal_business":     s.paypalBusiness,
+		"correlation_id":      cid, "debug_logs": logs,
 	})
 }
 

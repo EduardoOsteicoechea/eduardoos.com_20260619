@@ -7,13 +7,12 @@ import (
 	"net/http"
 	"strings"
 
-	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/common"
+	ddb "eduardoos/pkg/dynamodb"
 
 	"github.com/go-chi/chi/v5"
 )
 
-// playlistHandlers groups playlist routes with a DynamoDB-backed store.
 type playlistHandlers struct {
 	cfg   config
 	store ddb.PlaylistStore
@@ -29,7 +28,6 @@ type savePlaylistRequest struct {
 	TrackIDs   []string `json:"trackIds"`
 }
 
-// savePlaylist handles POST /api/playlists — upserts a playlist for the JWT subject.
 func (h playlistHandlers) savePlaylist() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cid := common.CorrelationFromRequest(r)
@@ -77,7 +75,6 @@ func (h playlistHandlers) savePlaylist() http.HandlerFunc {
 	}
 }
 
-// listPlaylists handles GET /api/playlists — returns all playlists for the JWT subject.
 func (h playlistHandlers) listPlaylists() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cid := common.CorrelationFromRequest(r)
@@ -111,7 +108,6 @@ func (h playlistHandlers) listPlaylists() http.HandlerFunc {
 	}
 }
 
-// registerPlaylistRoutes mounts authenticated playlist endpoints on the gateway router.
 func registerPlaylistRoutes(r chi.Router, cfg config, store ddb.PlaylistStore) {
 	h := newPlaylistHandlers(cfg, store)
 	r.Post("/api/playlists", h.savePlaylist())

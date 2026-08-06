@@ -1,4 +1,3 @@
-// Telemetry — flight log ingestion, DynamoDB persistence, live SSE, and analytics.
 package telemetry
 
 import (

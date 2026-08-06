@@ -29,3 +29,8 @@ certbot/
 secrets/
 .env.*
 !.env.example
+
+aps_app/**/bin/
+aps_app/**/obj/
+aps_app/**/*.zip
+

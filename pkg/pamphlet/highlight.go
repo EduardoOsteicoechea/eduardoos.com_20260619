@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// RenderHighlightedText returns escaped text with bold spans for highlight ranges.
 func RenderHighlightedText(text string, highlights []HighlightRange) string {
 	ranges := normalizeRanges(text, highlights)
 	if len(ranges) == 0 {

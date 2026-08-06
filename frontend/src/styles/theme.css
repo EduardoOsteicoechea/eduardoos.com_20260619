@@ -1,10 +1,8 @@
-/* theme.css — system-only palette + fixed font-size scale */
-
 :root {
-  /* Mobile-first UI scale — 1 = desktop size, 1.5 = 50% larger type/controls (< 1024px) */
+  
   --ui-scale: 1.5;
 
-  /* Colors: bg, fg, accent (fg surface / bg text), medium (50% mix / fg text) */
+  
   --site-body-bg: #ffffff;
   --site-body-fg: #000000;
   --site-accent: var(--site-body-fg);
@@ -12,7 +10,7 @@
   --site-medium: color-mix(in srgb, var(--site-body-bg) 50%, var(--site-body-fg) 50%);
   --site-medium-fg: var(--site-body-fg);
 
-  /* Legacy aliases — must resolve only to the four colors above */
+  
   --site-border: var(--site-medium);
   --glassed_background: var(--site-body-bg);
   --site-surface-muted: var(--site-body-bg);
@@ -21,7 +19,7 @@
   --site-chrome-bar-fg: var(--site-body-fg);
   --site-chrome-bar-border: var(--site-border);
 
-  /* Font sizes — only these five values are permitted site-wide */
+  
   --font-xs: 0.65rem;
   --font-sm: 0.77rem;
   --font-md: 0.9rem;

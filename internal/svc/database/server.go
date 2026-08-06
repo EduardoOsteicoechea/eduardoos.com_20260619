@@ -1,4 +1,3 @@
-// Database — key-value storage with in-memory or DynamoDB backends.
 package database
 
 import (

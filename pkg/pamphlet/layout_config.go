@@ -5,25 +5,23 @@ import (
 	"strconv"
 )
 
-// LayoutConfig holds user-adjustable pamphlet layout and typography parameters.
 type LayoutConfig struct {
-	Orientation                 string  `json:"orientation"`
-	MarginLateralMM             float64 `json:"margin_lateral_mm"`
-	MarginVerticalMM            float64 `json:"margin_vertical_mm"`
-	MidSeparationMM             float64 `json:"mid_separation_mm"`
-	ColumnGapMM                 float64 `json:"column_gap_mm"`
-	HeaderFooterGapMM           float64 `json:"header_footer_gap_mm"`
-	ColumnsPerBlock             int     `json:"columns_per_block"`
-	FontSizePt                  float64 `json:"font_size_pt"`
-	LineHeightFactor            float64 `json:"line_height_factor"`
-	ParagraphSeparationFactor   float64 `json:"paragraph_separation_factor"`
-	IdeaHeadingBottomMarginMM   float64 `json:"idea_heading_bottom_margin_mm"`
-	FontName                    string  `json:"font_name"`
-	HeaderFraction              float64 `json:"header_fraction"`
-	FinalInfoFraction           float64 `json:"final_info_fraction"`
+	Orientation               string  `json:"orientation"`
+	MarginLateralMM           float64 `json:"margin_lateral_mm"`
+	MarginVerticalMM          float64 `json:"margin_vertical_mm"`
+	MidSeparationMM           float64 `json:"mid_separation_mm"`
+	ColumnGapMM               float64 `json:"column_gap_mm"`
+	HeaderFooterGapMM         float64 `json:"header_footer_gap_mm"`
+	ColumnsPerBlock           int     `json:"columns_per_block"`
+	FontSizePt                float64 `json:"font_size_pt"`
+	LineHeightFactor          float64 `json:"line_height_factor"`
+	ParagraphSeparationFactor float64 `json:"paragraph_separation_factor"`
+	IdeaHeadingBottomMarginMM float64 `json:"idea_heading_bottom_margin_mm"`
+	FontName                  string  `json:"font_name"`
+	HeaderFraction            float64 `json:"header_fraction"`
+	FinalInfoFraction         float64 `json:"final_info_fraction"`
 }
 
-// DefaultLayoutConfig returns domain-default pamphlet settings.
 func DefaultLayoutConfig() LayoutConfig {
 	return LayoutConfig{
 		Orientation:               "landscape",
@@ -43,7 +41,6 @@ func DefaultLayoutConfig() LayoutConfig {
 	}
 }
 
-// LayoutConfigFromQuery parses layout fields from URL query values (camelCase keys from the editor).
 func LayoutConfigFromQuery(q url.Values) LayoutConfig {
 	cfg := DefaultLayoutConfig()
 	if v := q.Get("marginLateral"); v != "" {

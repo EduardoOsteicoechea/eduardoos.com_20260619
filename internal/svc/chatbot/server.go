@@ -1,4 +1,3 @@
-// Chatbot — context-isolated conversational echo routing engine.
 package chatbot
 
 import (

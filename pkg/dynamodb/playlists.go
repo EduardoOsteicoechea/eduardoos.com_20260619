@@ -1,4 +1,3 @@
-// Package dynamodb — playlist persistence (in-memory locally, AWS DynamoDB on EC2).
 package dynamodb
 
 import (
@@ -17,7 +16,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Playlist is the domain model stored in DynamoDB eduardoos_playlists.
 type Playlist struct {
 	UserID            string   `json:"userId" dynamodbav:"userId"`
 	PlaylistID        string   `json:"playlistId" dynamodbav:"playlistId"`
@@ -28,7 +26,6 @@ type Playlist struct {
 	LastCorrelationID string   `json:"lastCorrelationId,omitempty" dynamodbav:"lastCorrelationId,omitempty"`
 }
 
-// PlaylistStore persists worship playlists per authenticated user.
 type PlaylistStore interface {
 	SavePlaylist(ctx context.Context, playlist Playlist, correlationID string) (Playlist, error)
 	GetPlaylistsByUserID(ctx context.Context, userID, correlationID string) ([]Playlist, error)
@@ -127,7 +124,6 @@ func (d *dynamoPlaylistStore) GetPlaylistsByUserID(ctx context.Context, userID, 
 	return playlists, nil
 }
 
-// NewPlaylistStore selects memory or DynamoDB implementation from environment.
 func NewPlaylistStore(ctx context.Context) (PlaylistStore, error) {
 	mode := common.Env("PLAYLISTS_BACKEND", "memory")
 	table := common.Env("PLAYLISTS_TABLE", "eduardoos_playlists")

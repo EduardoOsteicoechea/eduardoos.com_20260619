@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// CountWrappedLines estimates how many wrapped lines text requires.
 func CountWrappedLines(text string, charsPerLine int) int {
 	if text == "" || charsPerLine <= 0 {
 		return 0
@@ -33,7 +32,6 @@ func CountWrappedLines(text string, charsPerLine int) int {
 	return lines
 }
 
-// CharsPerLineForWidth estimates characters per line from column width and font size.
 func CharsPerLineForWidth(columnWidthMM, fontSizePt float64) int {
 	avgCharMM := fontSizePt * 0.3528 * TextCharWidthFactor
 	if avgCharMM <= 0 {
@@ -42,12 +40,10 @@ func CharsPerLineForWidth(columnWidthMM, fontSizePt float64) int {
 	return int(math.Floor(columnWidthMM / avgCharMM))
 }
 
-// LineHeightMM returns one line of leading expressed in millimeters.
 func LineHeightMM(fontSizePt, lineHeightFactor float64) float64 {
 	return fontSizePt * 0.3528 * lineHeightFactor
 }
 
-// MeasureTextHeightMM returns vertical space in mm for wrapped plain text.
 func MeasureTextHeightMM(text string, columnWidthMM, fontSizePt, lineHeightFactor float64) float64 {
 	chars := CharsPerLineForWidth(columnWidthMM, fontSizePt)
 	lines := CountWrappedLines(text, chars)
@@ -55,7 +51,6 @@ func MeasureTextHeightMM(text string, columnWidthMM, fontSizePt, lineHeightFacto
 	return raw * HeightMeasureCalibration
 }
 
-// MeasureBlockHeightMM returns total vertical mm consumed by any layout block type.
 func MeasureBlockHeightMM(block LayoutBlock, columnWidthMM, fontSizePt, lineHeightFactor, headingBottomMarginMM float64) float64 {
 	switch block.Kind {
 	case BlockHeading:
@@ -87,12 +82,10 @@ func MeasureBlockHeightMM(block LayoutBlock, columnWidthMM, fontSizePt, lineHeig
 	}
 }
 
-// ParagraphSeparationMM returns margin-bottom between blocks: one line height × factor.
 func ParagraphSeparationMM(fontSizePt, lineHeightFactor, separationFactor float64) float64 {
 	return LineHeightMM(fontSizePt, lineHeightFactor) * separationFactor
 }
 
-// LastParagraphIndex returns the index of the last paragraph block in a column slice.
 func LastParagraphIndex(blocks []LayoutBlock) int {
 	for i := len(blocks) - 1; i >= 0; i-- {
 		if blocks[i].Kind == BlockParagraph {
@@ -112,7 +105,6 @@ func trailingBlockSeparation(slot *ColumnSlot, separationMM float64) float64 {
 	return separationMM
 }
 
-// MeasureHeaderZoneHeightMM estimates header band content height in mm.
 func MeasureHeaderZoneHeightMM(payload HeaderPayload, blockWidthMM, fontSizePt, lineHeightFactor float64) float64 {
 	if payload.Text != "" {
 		return MeasureTextHeightMM(payload.Text, blockWidthMM, fontSizePt, lineHeightFactor)
@@ -140,7 +132,6 @@ func MeasureHeaderZoneHeightMM(payload HeaderPayload, blockWidthMM, fontSizePt, 
 	return total
 }
 
-// MeasureFooterZoneHeightMM estimates footer band content height in mm.
 func MeasureFooterZoneHeightMM(payload FooterPayload, blockWidthMM, fontSizePt, lineHeightFactor float64) float64 {
 	if payload.Text != "" {
 		return MeasureTextHeightMM(payload.Text, blockWidthMM, fontSizePt, lineHeightFactor)

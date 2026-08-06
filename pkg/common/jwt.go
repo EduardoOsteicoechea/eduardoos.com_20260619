@@ -7,7 +7,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// UserEmailFromBearer extracts the JWT subject (email) from an Authorization header.
 func UserEmailFromBearer(authHeader, secret string) (string, error) {
 	if secret == "" {
 		return "", fmt.Errorf("jwt secret not configured")

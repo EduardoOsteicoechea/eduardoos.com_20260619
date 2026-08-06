@@ -2,7 +2,6 @@ package s3store
 
 import "strings"
 
-// ValidateAbsoluteKey rejects empty keys and path traversal for bucket-root objects.
 func ValidateAbsoluteKey(objectKey string) error {
 	objectKey = strings.TrimSpace(objectKey)
 	if objectKey == "" {

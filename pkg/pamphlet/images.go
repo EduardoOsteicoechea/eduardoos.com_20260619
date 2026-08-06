@@ -6,16 +6,12 @@ import (
 	"strings"
 )
 
-// MediaPrefix is the site-wide S3 prefix (see S3_PREFIX, default "media").
 const MediaPrefix = "media"
 
-// ContentImagePrefix is the object prefix for pamphlet content images (under media/).
 const ContentImagePrefix = MediaPrefix + "/pamphlets/content-images"
 
-// LegacyContentImagePrefix is the pre-media prefix kept for DB/S3 migration.
 const LegacyContentImagePrefix = "pamphlets/content-images"
 
-// ContentImageObjectKey builds the canonical S3 object key for a content image.
 func ContentImageObjectKey(userID, pamphletID, filename string) string {
 	userID = strings.TrimSpace(userID)
 	pamphletID = strings.TrimSpace(pamphletID)
@@ -26,7 +22,6 @@ func ContentImageObjectKey(userID, pamphletID, filename string) string {
 	return fmt.Sprintf("%s/%s/%s/%s", ContentImagePrefix, userID, pamphletID, filename)
 }
 
-// ContentImageFilenameFromRef derives a stable filename from a content ref like "0:subidea:7".
 func ContentImageFilenameFromRef(ref, ext string) string {
 	ref = strings.TrimSpace(ref)
 	if ext == "" {
@@ -43,13 +38,11 @@ func ContentImageFilenameFromRef(ref, ext string) string {
 	return safe + ext
 }
 
-// GatewayImagePath returns the browser-facing gateway path for an absolute S3 key.
 func GatewayImagePath(objectKey string) string {
 	objectKey = strings.TrimPrefix(strings.TrimSpace(objectKey), "/")
 	return "/api/pamphlets/images/" + encodeImagePath(objectKey)
 }
 
-// NormalizeContentImageObjectKey upgrades legacy bucket-root pamphlet keys.
 func NormalizeContentImageObjectKey(objectKey string) string {
 	objectKey = strings.TrimPrefix(strings.TrimSpace(objectKey), "/")
 	if strings.HasPrefix(objectKey, ContentImagePrefix+"/") || objectKey == ContentImagePrefix {
@@ -61,7 +54,6 @@ func NormalizeContentImageObjectKey(objectKey string) string {
 	return objectKey
 }
 
-// ResolveContentImageObjectKey maps legacy DB values (e.g. images/0-subidea-7.png) to canonical S3 keys.
 func ResolveContentImageObjectKey(storedValue, userEmail, pamphletID string) string {
 	storedValue = strings.TrimSpace(storedValue)
 	if storedValue == "" {
