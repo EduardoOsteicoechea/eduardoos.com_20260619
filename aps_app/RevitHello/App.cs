@@ -1,4 +1,3 @@
-using System.Text;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using DesignAutomationFramework;
@@ -54,83 +53,12 @@ public class App : IExternalDBApplication
             throw new InvalidOperationException("RevitDoc is null; filePath=" + path);
         }
 
-        int walls = SafeCount(doc, BuiltInCategory.OST_Walls);
-        int doors = SafeCount(doc, BuiltInCategory.OST_Doors);
-        int windows = SafeCount(doc, BuiltInCategory.OST_Windows);
-        int floors = SafeCount(doc, BuiltInCategory.OST_Floors);
-        int rooms = SafeCount(doc, BuiltInCategory.OST_Rooms);
-        int levels = SafeClassCount(doc, typeof(Level));
-        int views = SafeClassCount(doc, typeof(View));
-        int sheets = SafeClassCount(doc, typeof(ViewSheet));
-
-        string projectName = "";
-        string projectNumber = "";
-        try
-        {
-            ProjectInfo? info = doc.ProjectInformation;
-            if (info != null)
-            {
-                projectName = info.Name ?? "";
-                projectNumber = info.Number ?? "";
-            }
-        }
-        catch
-        {
-        }
-
-        var sb = new StringBuilder();
-        sb.Append('{');
-        sb.Append("\"ok\":true,");
-        sb.Append("\"extractedAtUtc\":\"").Append(Escape(DateTime.UtcNow.ToString("o"))).Append("\",");
-        sb.Append("\"title\":\"").Append(Escape(doc.Title ?? "")).Append("\",");
-        sb.Append("\"pathName\":\"").Append(Escape(doc.PathName ?? "")).Append("\",");
-        sb.Append("\"isFamilyDocument\":").Append(doc.IsFamilyDocument ? "true" : "false").Append(',');
-        sb.Append("\"project\":{");
-        sb.Append("\"name\":\"").Append(Escape(projectName)).Append("\",");
-        sb.Append("\"number\":\"").Append(Escape(projectNumber)).Append('"');
-        sb.Append("},");
-        sb.Append("\"counts\":{");
-        sb.Append("\"walls\":").Append(walls).Append(',');
-        sb.Append("\"doors\":").Append(doors).Append(',');
-        sb.Append("\"windows\":").Append(windows).Append(',');
-        sb.Append("\"floors\":").Append(floors).Append(',');
-        sb.Append("\"rooms\":").Append(rooms).Append(',');
-        sb.Append("\"levels\":").Append(levels).Append(',');
-        sb.Append("\"views\":").Append(views).Append(',');
-        sb.Append("\"sheets\":").Append(sheets);
-        sb.Append("}}");
+        ExtractDocumentDataDto dto = new ExtractDocumentData(doc).Extract();
+        ExtractDocumentDataObservable observable = dto.ToObservableObject();
 
         string outPath = Path.Combine(Directory.GetCurrentDirectory(), "result.json");
-        File.WriteAllText(outPath, sb.ToString(), Encoding.UTF8);
+        File.WriteAllText(outPath, observable.ToJson());
         return File.Exists(outPath);
-    }
-
-    private static int SafeCount(Document doc, BuiltInCategory category)
-    {
-        try
-        {
-            return new FilteredElementCollector(doc)
-                .OfCategory(category)
-                .WhereElementIsNotElementType()
-                .ToElementIds()
-                .Count;
-        }
-        catch
-        {
-            return -1;
-        }
-    }
-
-    private static int SafeClassCount(Document doc, Type type)
-    {
-        try
-        {
-            return new FilteredElementCollector(doc).OfClass(type).ToElementIds().Count;
-        }
-        catch
-        {
-            return -1;
-        }
     }
 
     private static string Escape(string value)
