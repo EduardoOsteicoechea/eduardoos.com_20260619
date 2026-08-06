@@ -14,6 +14,8 @@ export const APP_ROUTES = {
 } as const;
 export const APS_ROUTES = {
     triggerWorkItem: "/api/aps/trigger-workitem",
+    workItemStatus: (id: string, outputObjectKey: string) =>
+        `/api/aps/workitems/${encodeURIComponent(id)}?outputObjectKey=${encodeURIComponent(outputObjectKey)}`,
 } as const;
 export const MEDIA_ROUTES = {
     upload: "/api/media/upload",

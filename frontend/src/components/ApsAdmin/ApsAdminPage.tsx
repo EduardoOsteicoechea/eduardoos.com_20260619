@@ -11,10 +11,31 @@ import { createCorrelationId } from "../../lib/telemetry";
 import "./ApsAdminPage.css";
 
 const DEFAULT_INPUT_KEY = "singleRoom.rvt";
+const POLL_MS = 4000;
+const MAX_POLLS = 180;
+
+type TriggerResponse = {
+  workItemId?: string;
+  outputObjectKey?: string;
+  message?: string;
+};
+
+type StatusResponse = {
+  status?: string;
+  done?: boolean;
+  message?: string;
+  extractedData?: unknown;
+  workItemStatus?: unknown;
+};
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export default function ApsAdminPage() {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
+  const [statusLabel, setStatusLabel] = useState("");
   const [payload, setPayload] = useState<unknown>(null);
   const [error, setError] = useState("");
 
@@ -32,26 +53,69 @@ export default function ApsAdminPage() {
     setLoading(true);
     setError("");
     setPayload(null);
+    setStatusLabel("Submitting WorkItem…");
+    const authToken = getAuthToken();
     const correlationId = createCorrelationId();
-    const response = await apiRequest<unknown>(APS_ROUTES.triggerWorkItem, {
+
+    const submitted = await apiRequest<TriggerResponse>(APS_ROUTES.triggerWorkItem, {
       method: "POST",
       body: { inputObjectKey: DEFAULT_INPUT_KEY },
       correlationId,
-      authToken: getAuthToken(),
+      authToken,
     });
-    if (response.error) {
-      const detail = response.error.debugLogs?.length
-        ? `${response.error.message}\n\n${response.error.debugLogs.join("\n")}`
-        : response.error.message;
+
+    if (submitted.error || !submitted.data?.workItemId) {
+      const detail = submitted.error?.debugLogs?.length
+        ? `${submitted.error.message}\n\n${submitted.error.debugLogs.join("\n")}`
+        : submitted.error?.message ?? "WorkItem submit failed";
       setError(detail);
-      setPayload({
-        error: response.error,
-        data: response.data ?? null,
-      });
-    } else {
-      setPayload(response.data ?? null);
+      setPayload({ error: submitted.error, data: submitted.data ?? null });
+      setLoading(false);
+      setStatusLabel("");
+      return;
     }
+
+    const workItemId = submitted.data.workItemId;
+    const outputObjectKey = submitted.data.outputObjectKey ?? "";
+    setPayload(submitted.data);
+    setStatusLabel(`Submitted ${workItemId}; polling APS…`);
+
+    for (let i = 0; i < MAX_POLLS; i++) {
+      await sleep(POLL_MS);
+      const statusRes = await apiRequest<StatusResponse>(
+        APS_ROUTES.workItemStatus(workItemId, outputObjectKey),
+        {
+          method: "GET",
+          correlationId: createCorrelationId(),
+          authToken,
+        },
+      );
+
+      if (statusRes.error) {
+        const detail = statusRes.error.debugLogs?.length
+          ? `${statusRes.error.message}\n\n${statusRes.error.debugLogs.join("\n")}`
+          : statusRes.error.message;
+        setError(detail);
+        setPayload({ error: statusRes.error, data: statusRes.data ?? null });
+        setLoading(false);
+        setStatusLabel("");
+        return;
+      }
+
+      const body = statusRes.data;
+      setPayload(body ?? null);
+      setStatusLabel(`APS status: ${body?.status ?? "unknown"}`);
+
+      if (body?.done) {
+        setLoading(false);
+        setStatusLabel(body.message ?? "Done");
+        return;
+      }
+    }
+
+    setError("Timed out waiting for APS WorkItem (client poll limit)");
     setLoading(false);
+    setStatusLabel("");
   }
 
   if (authorized === null) {
@@ -92,9 +156,10 @@ export default function ApsAdminPage() {
         {loading ? "Running extraction…" : "Extract model data"}
       </button>
 
-      {loading ? (
+      {loading || statusLabel ? (
         <p className="aps-admin__status">
-          Waiting for Autodesk Design Automation (can take several minutes)…
+          {statusLabel ||
+            "Waiting for Autodesk Design Automation (can take several minutes)…"}
         </p>
       ) : null}
 
