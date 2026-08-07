@@ -2,7 +2,7 @@
 <ApplicationPackage SchemaVersion="1.0" AutodeskProduct="Revit" Name="RevitHello" Description="Minimal APS Design Automation Revit add-in" AppVersion="1.0.0" ProductType="Application" Author="eduardoos">
   <CompanyDetails Name="eduardoos" Url="https://eduardoos.com" Email="eduardooost@gmail.com" />
   <Components>
-    <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2025" SeriesMax="R2025" />
+    <RuntimeRequirements OS="Win64" Platform="Revit" SeriesMin="R2027" SeriesMax="R2027" />
     <ComponentEntry AppName="RevitHello" ModuleName="./Contents/RevitHello.addin" AppDescription="RevitHello DA add-in" AppType="DBApplication" />
   </Components>
 </ApplicationPackage>

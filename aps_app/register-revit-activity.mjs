@@ -93,7 +93,7 @@ async function main() {
 
   const nick = (env.APS_NICKNAME || clientId).trim();
   const alias = (env.APS_ALIAS || "dev").trim();
-  const engine = (env.APS_ENGINE || "Autodesk.Revit+2025").trim();
+  const engine = (env.APS_ENGINE || "Autodesk.Revit+2027").trim();
   const appBundleId = "RevitHelloAppBundle";
   const activityId = "RevitHelloActivity";
   const zipPath = path.join(__dirname, "RevitHello", "RevitHello.zip");

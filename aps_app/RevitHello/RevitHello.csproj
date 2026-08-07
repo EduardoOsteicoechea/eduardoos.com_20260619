@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -8,8 +8,8 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Autodesk.Forge.DesignAutomation.Revit" Version="2025.0.1" />
-    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.0.0" />
+    <PackageReference Include="Autodesk.Forge.DesignAutomation.Revit" Version="2027.0.0" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2027.0.0" />
   </ItemGroup>
   <Target Name="PackBundle" AfterTargets="Build">
     <ItemGroup>
