@@ -108,6 +108,7 @@ async function main() {
   const token = await getToken(clientId, clientSecret);
 
   console.log(`2) Nickname = ${nick} (si ya tienes uno distinto, pon APS_NICKNAME en .env)`);
+  console.log(`   Engine   = ${engine}`);
   if (nick !== clientId) {
     const nickRes = await da(token, "PATCH", "/forgeapps/me", { nickname: nick });
     if (!nickRes.ok && nickRes.status !== 409) {
