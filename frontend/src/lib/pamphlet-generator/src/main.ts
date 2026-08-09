@@ -155,7 +155,7 @@ function syncMobileViewScale(): void {
     });
 }
 
-function setViewMode(mode: ViewMode): void {
+function applyViewMode(mode: ViewMode, options?: { closeSidebar?: boolean }): void {
     viewMode = mode;
     appRoot.setAttribute("data-view-mode", mode);
     viewDesktopBtn.classList.toggle("is-active", mode === "desktop");
@@ -163,7 +163,50 @@ function setViewMode(mode: ViewMode): void {
     viewDesktopBtn.setAttribute("aria-pressed", mode === "desktop" ? "true" : "false");
     viewMobileBtn.setAttribute("aria-pressed", mode === "mobile" ? "true" : "false");
     syncMobileViewScale();
+    if (options?.closeSidebar !== false) {
+        closeSidebar();
+    }
+}
+
+function setViewMode(mode: ViewMode): void {
+    applyViewMode(mode, { closeSidebar: true });
+}
+
+/** While printing, force desktop letter layout even if the screen is in mobile view. */
+let viewModeBeforePrint: ViewMode | null = null;
+
+function beginPrintDesktopLayout(): void {
+    if (viewModeBeforePrint !== null) return;
+    viewModeBeforePrint = viewMode;
+    if (viewMode === "mobile") {
+        applyViewMode("desktop", { closeSidebar: false });
+        void main.offsetHeight;
+    }
+}
+
+function endPrintDesktopLayout(): void {
+    if (viewModeBeforePrint === null) return;
+    const restore = viewModeBeforePrint;
+    viewModeBeforePrint = null;
+    if (restore === "mobile") {
+        applyViewMode("mobile", { closeSidebar: false });
+    }
+}
+
+function waitForNextPaint(): Promise<void> {
+    return new Promise((resolve) => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => resolve());
+        });
+    });
+}
+
+async function printDocument(): Promise<void> {
+    if (printBtn.disabled) return;
     closeSidebar();
+    beginPrintDesktopLayout();
+    await waitForNextPaint();
+    window.print();
 }
 
 const usLetterHeightInMillimeters = 215.9;
@@ -921,10 +964,33 @@ on(itemTypeModal, "cancel", () => {
 });
 
 on(printBtn, "click", () => {
-    if (printBtn.disabled) return;
-    closeSidebar();
-    window.print();
+    void printDocument();
 });
+
+on(window, "beforeprint", () => {
+    beginPrintDesktopLayout();
+});
+
+on(window, "afterprint", () => {
+    endPrintDesktopLayout();
+});
+
+const printMediaQuery = window.matchMedia("print");
+function onPrintMediaChange(event: MediaQueryListEvent): void {
+    if (event.matches) {
+        beginPrintDesktopLayout();
+    } else {
+        endPrintDesktopLayout();
+    }
+}
+if (typeof printMediaQuery.addEventListener === "function") {
+    printMediaQuery.addEventListener("change", onPrintMediaChange);
+    disposers.push(() => printMediaQuery.removeEventListener("change", onPrintMediaChange));
+} else {
+    // Safari < 14
+    printMediaQuery.addListener(onPrintMediaChange);
+    disposers.push(() => printMediaQuery.removeListener(onPrintMediaChange));
+}
 
 on(viewDesktopBtn, "click", () => {
     setViewMode("desktop");

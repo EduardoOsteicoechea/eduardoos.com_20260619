@@ -41,26 +41,18 @@ body.page-pamphlet {
   min-height: 0;
 }
 
-/* Room for pamphlet menu on the far right of the global header */
-body.page-pamphlet .site-header {
-  padding-right: 3.5rem;
-}
-
-body.page-pamphlet .site-header__bar {
-  padding-right: 3.25rem;
-}
-
 /*
  * Chrome is teleported to document.body (see main.ts) so it escapes
- * .pamphlet-app { isolation: isolate } and can sit above .site-header.
+ * .pamphlet-app { isolation: isolate }. Menu sits 10px under the header,
+ * 10px from the right edge (desktop and mobile).
  */
 body.page-pamphlet #file-toolbar {
   position: fixed !important;
-  top: 0;
-  right: 0;
+  top: calc(var(--header_height, 50px) + 10px);
+  right: 10px;
   left: auto;
-  width: 3rem;
-  height: var(--header_height, 50px);
+  width: 40px;
+  height: 40px;
   z-index: 200;
   margin: 0;
   padding: 0;
@@ -70,9 +62,9 @@ body.page-pamphlet #file-toolbar {
 
 body.page-pamphlet #file-toolbar .menu-toggle {
   position: absolute;
-  top: 50%;
-  right: 0.5rem;
-  transform: translateY(-50%);
+  top: 0;
+  right: 0;
+  transform: none;
   width: 40px;
   height: 40px;
   background: #ffffff;
