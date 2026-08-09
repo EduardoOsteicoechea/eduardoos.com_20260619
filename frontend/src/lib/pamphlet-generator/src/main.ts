@@ -90,6 +90,10 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const modalAuthor = requireElement<HTMLInputElement>("#modal-author");
     const itemTypeModal = requireElement<HTMLDialogElement>("#item-type-modal");
     const itemTypeCancelBtn = requireElement<HTMLButtonElement>("#item-type-cancel");
+    const fileToolbar = requireElement<HTMLElement>("#file-toolbar");
+
+    // Escape .pamphlet-app { isolation: isolate } so fixed chrome can sit above the site header
+    document.body.append(fileToolbar, sidebarBackdrop, sidebar);
 
     type ViewMode = "desktop" | "mobile";
     let viewMode: ViewMode = "desktop";
@@ -957,6 +961,9 @@ if (!isFileSystemAccessSupported()) {
         destroy() {
             for (const dispose of disposers) dispose();
             disposers.length = 0;
+            fileToolbar.remove();
+            sidebarBackdrop.remove();
+            sidebar.remove();
             host.replaceChildren();
         },
     };

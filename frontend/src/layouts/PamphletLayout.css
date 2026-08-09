@@ -41,75 +41,72 @@ body.page-pamphlet {
   min-height: 0;
 }
 
-/* Pamphlet menu sits on the far right of the global header */
+/* Room for pamphlet menu on the far right of the global header */
+body.page-pamphlet .site-header {
+  padding-right: 3.5rem;
+}
+
 body.page-pamphlet .site-header__bar {
   padding-right: 3.25rem;
 }
 
-/* Undo universal position:relative on chrome so fixed layout works */
-body.page-pamphlet .pamphlet-app #file-toolbar {
+/*
+ * Chrome is teleported to document.body (see main.ts) so it escapes
+ * .pamphlet-app { isolation: isolate } and can sit above .site-header.
+ */
+body.page-pamphlet #file-toolbar {
   position: fixed !important;
   top: 0;
   right: 0;
   left: auto;
-  width: auto;
-  min-width: 3rem;
+  width: 3rem;
   height: var(--header_height, 50px);
-  z-index: 120;
+  z-index: 200;
   margin: 0;
   padding: 0;
   pointer-events: none;
-  transform: none;
-  transform-origin: top right;
+  transform: none !important;
 }
 
-body.page-pamphlet .pamphlet-app .menu-toggle {
+body.page-pamphlet #file-toolbar .menu-toggle {
   position: absolute;
   top: 50%;
   right: 0.5rem;
   transform: translateY(-50%);
-  background: var(--site-body-fg);
-  color: var(--site-body-bg);
+  width: 40px;
+  height: 40px;
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #ffffff;
   border-radius: 0;
+  pointer-events: auto;
+  z-index: 201;
 }
 
-body.page-pamphlet .pamphlet-app .menu-toggle[aria-expanded="true"] {
-  background: var(--site-medium);
+body.page-pamphlet #file-toolbar .menu-toggle[aria-expanded="true"] {
+  background: #dddddd;
 }
 
-body.page-pamphlet .pamphlet-app .menu-toggle-icon {
-  filter: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  body.page-pamphlet .pamphlet-app .menu-toggle-icon {
-    filter: invert(1);
-  }
-}
-
-html.dark body.page-pamphlet .pamphlet-app .menu-toggle-icon,
-html[data-theme="dark"] body.page-pamphlet .pamphlet-app .menu-toggle-icon {
+body.page-pamphlet #file-toolbar .menu-toggle-icon {
   filter: invert(1);
+  width: 24px;
+  height: 24px;
 }
 
-html[data-theme="light"] body.page-pamphlet .pamphlet-app .menu-toggle-icon {
-  filter: none;
-}
-
-body.page-pamphlet .pamphlet-app .sidebar-backdrop {
+body.page-pamphlet .sidebar-backdrop {
   position: fixed !important;
   inset: 0;
-  z-index: 40;
+  z-index: 190;
 }
 
-body.page-pamphlet .pamphlet-app .app-sidebar {
+body.page-pamphlet .app-sidebar {
   position: fixed !important;
   top: var(--header_height, 50px);
   right: 0;
   left: auto;
   width: min(280px, 85vw);
   height: calc(100vh - var(--header_height, 50px));
-  z-index: 50;
+  z-index: 195;
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   box-shadow: -8px 0 24px color-mix(in srgb, var(--site-body-fg) 18%, transparent);
@@ -117,8 +114,8 @@ body.page-pamphlet .pamphlet-app .app-sidebar {
   border-radius: 0;
 }
 
-body.page-pamphlet .pamphlet-app .app-sidebar-nav button,
-body.page-pamphlet .pamphlet-app .item-type-options button {
+body.page-pamphlet .app-sidebar-nav button,
+body.page-pamphlet .item-type-options button {
   background: color-mix(in srgb, var(--site-body-fg) 12%, var(--site-body-bg));
   color: var(--site-body-fg);
   border: var(--border_001);
@@ -126,39 +123,39 @@ body.page-pamphlet .pamphlet-app .item-type-options button {
   padding: 14px 16px;
 }
 
-body.page-pamphlet .pamphlet-app .app-sidebar-nav button.is-active {
+body.page-pamphlet .app-sidebar-nav button.is-active {
   outline: 1px solid var(--site-border);
   background: color-mix(in srgb, var(--site-body-fg) 22%, var(--site-body-bg));
 }
 
-body.page-pamphlet .pamphlet-app .app-sidebar-nav button:hover:not(:disabled),
-body.page-pamphlet .pamphlet-app .item-type-options button:hover {
+body.page-pamphlet .app-sidebar-nav button:hover:not(:disabled),
+body.page-pamphlet .item-type-options button:hover {
   background: color-mix(in srgb, var(--site-body-fg) 22%, var(--site-body-bg));
 }
 
-body.page-pamphlet .pamphlet-app .create-modal {
+body.page-pamphlet .create-modal {
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   border-color: var(--site-border);
 }
 
-body.page-pamphlet .pamphlet-app .create-modal-hint {
+body.page-pamphlet .create-modal-hint {
   color: var(--site-muted-fg);
 }
 
-body.page-pamphlet .pamphlet-app .create-modal-form input {
+body.page-pamphlet .create-modal-form input {
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   border-color: var(--site-border);
 }
 
-body.page-pamphlet .pamphlet-app #modal-cancel,
-body.page-pamphlet .pamphlet-app #item-type-cancel {
+body.page-pamphlet #modal-cancel,
+body.page-pamphlet #item-type-cancel {
   background: color-mix(in srgb, var(--site-body-fg) 10%, var(--site-body-bg));
   color: var(--site-body-fg);
 }
 
-body.page-pamphlet .pamphlet-app #modal-confirm {
+body.page-pamphlet #modal-confirm {
   background: var(--site-accent);
   color: var(--site-accent-fg);
 }
@@ -234,8 +231,10 @@ body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
     transform: none !important;
   }
 
-  body.page-pamphlet .pamphlet-app #file-toolbar,
-  body.page-pamphlet .pamphlet-app .menu-toggle {
+  body.page-pamphlet #file-toolbar,
+  body.page-pamphlet .menu-toggle,
+  body.page-pamphlet .app-sidebar,
+  body.page-pamphlet .sidebar-backdrop {
     display: none !important;
   }
 }

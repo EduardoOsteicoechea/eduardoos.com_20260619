@@ -25,9 +25,6 @@ interface HeaderProps {
 }
 const NAV_LINKS = [
     { href: APP_ROUTES.home, label: "Home" },
-    { href: APP_ROUTES.logger, label: "Logger" },
-    { href: APP_ROUTES.tester, label: "Tester" },
-    { href: APP_ROUTES.mediaGallery, label: "Media" },
     { href: APP_ROUTES.mediaPlaylist, label: "Playlist" },
     { href: APP_ROUTES.pamphlet, label: "Panfleto" },
     { href: APP_ROUTES.apsAdmin, label: "APS" },
