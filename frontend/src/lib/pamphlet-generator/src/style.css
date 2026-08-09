@@ -111,21 +111,32 @@
 
 .create-modal {
   border: 1px solid #c8c8c8;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 0;
   width: min(420px, calc(100vw - 32px));
+  max-height: min(90vh, calc(100dvh - 32px));
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  /* Center in the viewport (beats .pamphlet-app * { margin: 0 }) */
+  position: fixed;
+  inset: 0;
+  margin: auto;
 }
 
 .create-modal::backdrop {
   background: rgba(0, 0, 0, 0.45);
 }
 
-.create-modal-form {
+.pamphlet-app .create-modal .create-modal-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 20px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.pamphlet-app .create-modal.item-type-modal .create-modal-form {
+  padding: 28px;
+  gap: 14px;
 }
 
 .create-modal-form h2 {

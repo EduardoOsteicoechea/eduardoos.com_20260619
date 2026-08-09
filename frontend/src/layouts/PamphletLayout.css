@@ -42,29 +42,30 @@ body.page-pamphlet {
 }
 
 /*
- * Chrome is teleported to document.body (see main.ts) so it escapes
- * .pamphlet-app { isolation: isolate }. Menu sits 10px under the header,
- * 10px from the right edge (desktop and mobile).
+ * Chrome is teleported to document.body (see main.ts).
+ * Menu: 10px below header, 10px from the right edge (desktop + mobile).
  */
 body.page-pamphlet #file-toolbar {
   position: fixed !important;
-  top: calc(var(--header_height, 50px) + 10px);
-  right: 10px;
-  left: auto;
-  width: 40px;
-  height: 40px;
+  top: calc(var(--header_height, 50px) + 10px) !important;
+  right: max(10px, env(safe-area-inset-right, 0px)) !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: 40px !important;
+  height: 40px !important;
   z-index: 200;
-  margin: 0;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
   pointer-events: none;
   transform: none !important;
 }
 
 body.page-pamphlet #file-toolbar .menu-toggle {
-  position: absolute;
-  top: 0;
-  right: 0;
-  transform: none;
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  left: auto !important;
+  transform: none !important;
   width: 40px;
   height: 40px;
   background: #ffffff;
@@ -73,6 +74,13 @@ body.page-pamphlet #file-toolbar .menu-toggle {
   border-radius: 0;
   pointer-events: auto;
   z-index: 201;
+}
+
+@media (max-width: 1023px) {
+  body.page-pamphlet #file-toolbar {
+    top: calc(var(--header_height, 50px) + 10px) !important;
+    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+  }
 }
 
 body.page-pamphlet #file-toolbar .menu-toggle[aria-expanded="true"] {
@@ -129,6 +137,22 @@ body.page-pamphlet .create-modal {
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   border-color: var(--site-border);
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(90vh, calc(100dvh - 32px));
+  padding: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+body.page-pamphlet .pamphlet-app .create-modal .create-modal-form {
+  padding: 24px;
+}
+
+body.page-pamphlet .pamphlet-app .create-modal.item-type-modal .create-modal-form {
+  padding: 28px;
 }
 
 body.page-pamphlet .create-modal-hint {
