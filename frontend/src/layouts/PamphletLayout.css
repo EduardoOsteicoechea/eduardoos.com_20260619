@@ -152,7 +152,7 @@ body.page-pamphlet #modal-confirm {
   color: var(--site-accent-fg);
 }
 
-/* Sheet: always centered under the header */
+/* Sheet paper (desktop). Mobile stack uses transparent canvas so page theme shows. */
 body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
   margin-left: auto !important;
   margin-right: auto !important;
@@ -161,6 +161,20 @@ body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
   background: #ffffff;
   color: #000000;
   flex-shrink: 0;
+}
+
+body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet {
+  background: transparent !important;
+  color: inherit;
+}
+
+/* Column/header/footer cards stay paper-white; page chrome keeps dark/light */
+body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid color-mix(in srgb, var(--site-body-fg) 28%, transparent);
 }
 
 #pwa-toast {

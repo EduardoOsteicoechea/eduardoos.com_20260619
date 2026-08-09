@@ -700,6 +700,7 @@ p {
   transform: scale(var(--mobile-view-scale, 1));
   transform-origin: top center;
   background: transparent;
+  color: inherit;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
@@ -709,8 +710,9 @@ p {
   grid-row: auto !important;
   flex: 0 0 auto;
   overflow: visible;
-  border: var(--b1);
+  border: 1px solid rgba(128, 128, 128, 0.45);
   background: #ffffff;
+  color: #000000;
   box-sizing: border-box;
 }
 
