@@ -716,6 +716,20 @@ p {
   box-sizing: border-box;
 }
 
+@media (prefers-color-scheme: dark) {
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+  .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+    background: transparent;
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-image-frame {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header {
   order: 1;
   width: var(--header-footer-width);

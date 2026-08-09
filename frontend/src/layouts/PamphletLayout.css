@@ -165,16 +165,48 @@ body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
 
 body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet {
   background: transparent !important;
-  color: inherit;
+  color: var(--site-body-fg);
 }
 
-/* Column/header/footer cards stay paper-white; page chrome keeps dark/light */
+/* Mobile stack: light = paper white; dark = no fill, theme text */
 body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
 body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
 body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
   background: #ffffff;
   color: #000000;
   border: 1px solid color-mix(in srgb, var(--site-body-fg) 28%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+    background: transparent;
+    color: var(--site-body-fg);
+    border-color: color-mix(in srgb, var(--site-body-fg) 35%, transparent);
+  }
+
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-image-frame {
+    background: color-mix(in srgb, var(--site-body-fg) 8%, transparent);
+  }
+}
+
+html.dark body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+html.dark body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+html.dark body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"],
+html[data-theme="dark"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+html[data-theme="dark"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+html[data-theme="dark"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+  background: transparent;
+  color: var(--site-body-fg);
+  border-color: color-mix(in srgb, var(--site-body-fg) 35%, transparent);
+}
+
+html[data-theme="light"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+html[data-theme="light"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+html[data-theme="light"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+  background: #ffffff;
+  color: #000000;
 }
 
 #pwa-toast {
