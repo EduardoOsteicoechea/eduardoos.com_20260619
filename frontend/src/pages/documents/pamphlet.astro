@@ -1,15 +1,13 @@
 ---
 /**
- * Panfleto editor route — mounts the portable pamphlet-generator client module
- * inside BaseLayout. Client-only: no SSR of editor logic.
+ * Panfleto editor — dedicated PamphletLayout + client-only mount.
  */
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import "../../styles/pamphlet-route.css";
+import PamphletLayout from "../../layouts/PamphletLayout.astro";
 ---
 
-<BaseLayout title="Panfleto — Eduardo Osteicoechea" pagePamphlet>
+<PamphletLayout title="Panfleto — Eduardo Osteicoechea">
   <div id="pamphlet-root" class="pamphlet-route-root"></div>
-</BaseLayout>
+</PamphletLayout>
 
 <script>
   import { mountPamphletGenerator } from "../../lib/pamphlet-generator/src/index.ts";

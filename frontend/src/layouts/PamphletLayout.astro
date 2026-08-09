@@ -1,0 +1,71 @@
+---
+/**
+ * Dedicated shell for the Panfleto editor: site header + full-width workspace.
+ * Avoids BaseLayout <main> constraints that fight the letter-size sheet.
+ */
+import { ClientRouter } from "astro:transitions";
+import "../styles/global.css";
+import "./PamphletLayout.css";
+import { Header } from "../components/Header/Header";
+import { AuthGate } from "../components/AuthGate/AuthGate";
+
+interface Props {
+  title?: string;
+}
+
+const { title = "Panfleto — Eduardo Osteicoechea" } = Astro.props;
+const pathname = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <ClientRouter />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Raleway:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <meta
+      name="description"
+      content="Editor de panfletos — Eduardo Osteicoechea"
+    />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+  </head>
+  <body class="page-pamphlet">
+    <AuthGate client:load pathname={pathname} />
+    <Header client:load pathname={pathname} />
+    <div class="pamphlet-layout-workspace">
+      <slot />
+    </div>
+
+    <div id="pwa-toast" role="status" aria-live="polite">
+      <span>A new version of Eduardo OS is ready.</span>
+      <button type="button" id="pwa-refresh">Refresh</button>
+    </div>
+
+    <script>
+      import { registerSW } from "virtual:pwa-register";
+
+      registerSW({
+        immediate: true,
+        onNeedRefresh() {
+          document.getElementById("pwa-toast")?.classList.add("is-visible");
+        },
+        onOfflineReady() {},
+      });
+
+      document.getElementById("pwa-refresh")?.addEventListener("click", () => {
+        window.location.reload();
+      });
+    </script>
+  </body>
+</html>

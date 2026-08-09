@@ -1,0 +1,218 @@
+/**
+ * PamphletLayout — full-bleed editor workspace under the site header.
+ * Centers the letter sheet; restores fixed chrome broken by .pamphlet-app * { position: relative }.
+ */
+
+body.page-pamphlet {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+}
+
+.pamphlet-layout-workspace {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: calc(100vh - var(--header_height, 50px));
+  margin-top: var(--header_height, 50px);
+  padding: 1rem 0 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pamphlet-route-root {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: transparent;
+  color: var(--site-body-fg);
+}
+
+.pamphlet-route-root .pamphlet-app {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+}
+
+/* Undo universal position:relative on chrome so fixed layout works */
+body.page-pamphlet .pamphlet-app #file-toolbar {
+  position: fixed !important;
+  top: var(--header_height, 50px);
+  right: 0;
+  left: auto;
+  width: min(100vw, 100%);
+  height: 55px;
+  z-index: 30;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  transform: none;
+  transform-origin: top right;
+}
+
+body.page-pamphlet .pamphlet-app .menu-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--site-body-fg);
+  color: var(--site-body-bg);
+}
+
+body.page-pamphlet .pamphlet-app .menu-toggle[aria-expanded="true"] {
+  background: var(--site-medium);
+}
+
+body.page-pamphlet .pamphlet-app .menu-toggle-icon {
+  filter: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  body.page-pamphlet .pamphlet-app .menu-toggle-icon {
+    filter: invert(1);
+  }
+}
+
+html.dark body.page-pamphlet .pamphlet-app .menu-toggle-icon,
+html[data-theme="dark"] body.page-pamphlet .pamphlet-app .menu-toggle-icon {
+  filter: invert(1);
+}
+
+html[data-theme="light"] body.page-pamphlet .pamphlet-app .menu-toggle-icon {
+  filter: none;
+}
+
+body.page-pamphlet .pamphlet-app .sidebar-backdrop {
+  position: fixed !important;
+  inset: 0;
+  z-index: 40;
+}
+
+body.page-pamphlet .pamphlet-app .app-sidebar {
+  position: fixed !important;
+  top: var(--header_height, 50px);
+  right: 0;
+  left: auto;
+  width: min(280px, 85vw);
+  height: calc(100vh - var(--header_height, 50px));
+  z-index: 50;
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  box-shadow: -8px 0 24px color-mix(in srgb, var(--site-body-fg) 18%, transparent);
+}
+
+body.page-pamphlet .pamphlet-app .app-sidebar-nav button,
+body.page-pamphlet .pamphlet-app .item-type-options button {
+  background: color-mix(in srgb, var(--site-body-fg) 12%, var(--site-body-bg));
+  color: var(--site-body-fg);
+  border: var(--border_001);
+}
+
+body.page-pamphlet .pamphlet-app .app-sidebar-nav button:hover:not(:disabled),
+body.page-pamphlet .pamphlet-app .item-type-options button:hover {
+  background: color-mix(in srgb, var(--site-body-fg) 22%, var(--site-body-bg));
+}
+
+body.page-pamphlet .pamphlet-app .create-modal {
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  border-color: var(--site-border);
+}
+
+body.page-pamphlet .pamphlet-app .create-modal-hint {
+  color: var(--site-muted-fg);
+}
+
+body.page-pamphlet .pamphlet-app .create-modal-form input {
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  border-color: var(--site-border);
+}
+
+body.page-pamphlet .pamphlet-app #modal-cancel,
+body.page-pamphlet .pamphlet-app #item-type-cancel {
+  background: color-mix(in srgb, var(--site-body-fg) 10%, var(--site-body-bg));
+  color: var(--site-body-fg);
+}
+
+body.page-pamphlet .pamphlet-app #modal-confirm {
+  background: var(--site-accent);
+  color: var(--site-accent-fg);
+}
+
+/* Sheet: always centered under the header */
+body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  background: #ffffff;
+  color: #000000;
+  flex-shrink: 0;
+}
+
+#pwa-toast {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: 0.65rem 0.85rem;
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  font-size: var(--font-sm);
+}
+
+#pwa-toast.is-visible {
+  display: flex;
+}
+
+#pwa-toast button {
+  min-height: var(--chrome-control-size, 2rem);
+  min-width: auto;
+  padding: 0.25rem 0.65rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-accent);
+  color: var(--site-accent-fg);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media print {
+  .site-header,
+  #pwa-toast {
+    display: none !important;
+  }
+
+  html,
+  body.page-pamphlet,
+  .pamphlet-layout-workspace,
+  .pamphlet-route-root,
+  .pamphlet-app {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .pamphlet-layout-workspace {
+    margin-top: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
+    margin: 0 auto !important;
+  }
+}
