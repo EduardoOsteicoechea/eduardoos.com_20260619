@@ -41,15 +41,21 @@ body.page-pamphlet {
   min-height: 0;
 }
 
+/* Pamphlet menu sits on the far right of the global header */
+body.page-pamphlet .site-header__bar {
+  padding-right: 3.25rem;
+}
+
 /* Undo universal position:relative on chrome so fixed layout works */
 body.page-pamphlet .pamphlet-app #file-toolbar {
   position: fixed !important;
-  top: var(--header_height, 50px);
+  top: 0;
   right: 0;
   left: auto;
-  width: min(100vw, 100%);
-  height: 55px;
-  z-index: 30;
+  width: auto;
+  min-width: 3rem;
+  height: var(--header_height, 50px);
+  z-index: 120;
   margin: 0;
   padding: 0;
   pointer-events: none;
@@ -59,10 +65,12 @@ body.page-pamphlet .pamphlet-app #file-toolbar {
 
 body.page-pamphlet .pamphlet-app .menu-toggle {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
   background: var(--site-body-fg);
   color: var(--site-body-bg);
+  border-radius: 0;
 }
 
 body.page-pamphlet .pamphlet-app .menu-toggle[aria-expanded="true"] {
@@ -105,6 +113,8 @@ body.page-pamphlet .pamphlet-app .app-sidebar {
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   box-shadow: -8px 0 24px color-mix(in srgb, var(--site-body-fg) 18%, transparent);
+  padding: 28px 20px 32px;
+  border-radius: 0;
 }
 
 body.page-pamphlet .pamphlet-app .app-sidebar-nav button,
@@ -112,6 +122,13 @@ body.page-pamphlet .pamphlet-app .item-type-options button {
   background: color-mix(in srgb, var(--site-body-fg) 12%, var(--site-body-bg));
   color: var(--site-body-fg);
   border: var(--border_001);
+  border-radius: 0;
+  padding: 14px 16px;
+}
+
+body.page-pamphlet .pamphlet-app .app-sidebar-nav button.is-active {
+  outline: 1px solid var(--site-border);
+  background: color-mix(in srgb, var(--site-body-fg) 22%, var(--site-body-bg));
 }
 
 body.page-pamphlet .pamphlet-app .app-sidebar-nav button:hover:not(:disabled),
@@ -214,5 +231,11 @@ body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
 
   body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
     margin: 0 auto !important;
+    transform: none !important;
+  }
+
+  body.page-pamphlet .pamphlet-app #file-toolbar,
+  body.page-pamphlet .pamphlet-app .menu-toggle {
+    display: none !important;
   }
 }

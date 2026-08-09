@@ -76,6 +76,8 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const openBtn = requireElement<HTMLButtonElement>("#btn-open");
     const createBtn = requireElement<HTMLButtonElement>("#btn-create");
     const printBtn = requireElement<HTMLButtonElement>("#btn-print");
+    const viewDesktopBtn = requireElement<HTMLButtonElement>("#btn-view-desktop");
+    const viewMobileBtn = requireElement<HTMLButtonElement>("#btn-view-mobile");
     const menuBtn = requireElement<HTMLButtonElement>("#btn-menu");
     const sidebar = requireElement<HTMLElement>("#app-sidebar");
     const sidebarBackdrop = requireElement<HTMLElement>("#sidebar-backdrop");
@@ -88,6 +90,10 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const modalAuthor = requireElement<HTMLInputElement>("#modal-author");
     const itemTypeModal = requireElement<HTMLDialogElement>("#item-type-modal");
     const itemTypeCancelBtn = requireElement<HTMLButtonElement>("#item-type-cancel");
+
+    type ViewMode = "desktop" | "mobile";
+    let viewMode: ViewMode = "desktop";
+    appRoot.setAttribute("data-view-mode", viewMode);
 
     const disposers: Array<() => void> = [];
     function on(
@@ -117,6 +123,43 @@ function closeSidebar(): void {
 
 function toggleSidebar(): void {
     setSidebarOpen(!sidebar.classList.contains("is-open"));
+}
+
+/** Header/footer band width in mm — widest mobile stack unit for scale-to-fit. */
+const mobileStackRefWidthMm = 60.35 * 2 + 4; // 124.7
+
+function syncMobileViewScale(): void {
+    if (viewMode !== "mobile") {
+        appRoot.style.setProperty("--mobile-view-scale", "1");
+        main.style.marginBottom = "";
+        return;
+    }
+    const padPx = 24;
+    const refPx = mobileStackRefWidthMm * (96 / 25.4);
+    const available = Math.max(120, window.innerWidth - padPx);
+    const scale = Math.min(1, available / refPx);
+    appRoot.style.setProperty("--mobile-view-scale", String(scale));
+    // Compensate layout space after CSS transform:scale (transform does not shrink flow box)
+    requestAnimationFrame(() => {
+        const layoutHeight = main.offsetHeight;
+        if (layoutHeight > 0 && scale < 1) {
+            const visualHeight = layoutHeight * scale;
+            main.style.marginBottom = `${visualHeight - layoutHeight}px`;
+        } else {
+            main.style.marginBottom = "";
+        }
+    });
+}
+
+function setViewMode(mode: ViewMode): void {
+    viewMode = mode;
+    appRoot.setAttribute("data-view-mode", mode);
+    viewDesktopBtn.classList.toggle("is-active", mode === "desktop");
+    viewMobileBtn.classList.toggle("is-active", mode === "mobile");
+    viewDesktopBtn.setAttribute("aria-pressed", mode === "desktop" ? "true" : "false");
+    viewMobileBtn.setAttribute("aria-pressed", mode === "mobile" ? "true" : "false");
+    syncMobileViewScale();
+    closeSidebar();
 }
 
 const usLetterHeightInMillimeters = 215.9;
@@ -511,6 +554,7 @@ function renderDocument(data: PamphletStructure, openEdit: boolean): void {
     currentHeader = { ...data.header };
     renderFromPamphlet(main, data);
     reflowAndReport(main);
+    syncMobileViewScale();
     if (openEdit) {
         activateEditAt(data, data.last_edited_element);
     }
@@ -878,11 +922,26 @@ on(printBtn, "click", () => {
     window.print();
 });
 
+on(viewDesktopBtn, "click", () => {
+    setViewMode("desktop");
+});
+
+on(viewMobileBtn, "click", () => {
+    setViewMode("mobile");
+});
+
 updatePrintAvailability();
 syncFixedChromeScale();
-on(window, "resize", syncFixedChromeScale);
+syncMobileViewScale();
+on(window, "resize", () => {
+    syncFixedChromeScale();
+    syncMobileViewScale();
+});
 if (window.visualViewport) {
-    on(window.visualViewport, "resize", syncFixedChromeScale);
+    on(window.visualViewport, "resize", () => {
+        syncFixedChromeScale();
+        syncMobileViewScale();
+    });
     on(window.visualViewport, "scroll", syncFixedChromeScale);
 }
 

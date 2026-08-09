@@ -13,6 +13,8 @@ export function renderShell(menuIconSrc: string): string {
     <button type="button" id="btn-open">Abrir archivo</button>
     <button type="button" id="btn-create">Nuevo panfleto</button>
     <button type="button" id="btn-print" disabled>Imprimir</button>
+    <button type="button" id="btn-view-desktop" class="is-active" aria-pressed="true">Vista escritorio</button>
+    <button type="button" id="btn-view-mobile" aria-pressed="false">Vista móvil</button>
   </nav>
 </aside>
 
