@@ -17,7 +17,7 @@ export const SUBSCRIPTION_SERVICES = [
     {
         id: "pamphlet",
         label: "Pamphlet",
-        description: "Pamphlet generator, cloud sync, and exports.",
+        description: "Local pamphlet editor and print export.",
     },
 ] as const;
 export type SubscriptionServiceId = (typeof SUBSCRIPTION_SERVICES)[number]["id"];

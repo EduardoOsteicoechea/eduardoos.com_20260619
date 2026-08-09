@@ -1,0 +1,138 @@
+/**
+ * Host chrome for the portable pamphlet-generator route.
+ * Screen: toolbar/sidebar/modals follow site light/dark tokens.
+ * Print: always light paper; hide Astro layout + editor chrome.
+ */
+
+.pamphlet-route-root {
+  width: 100%;
+  min-height: calc(100vh - var(--header_height, 50px));
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+}
+
+/* Sit generator chrome below the site header */
+body.page-pamphlet .pamphlet-app #file-toolbar {
+  top: var(--header_height, 50px);
+}
+
+body.page-pamphlet .pamphlet-app .app-sidebar {
+  top: var(--header_height, 50px);
+  height: calc(100vh - var(--header_height, 50px));
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  box-shadow: -8px 0 24px color-mix(in srgb, var(--site-body-fg) 18%, transparent);
+}
+
+body.page-pamphlet .pamphlet-app .menu-toggle {
+  background: var(--site-body-fg);
+  color: var(--site-body-bg);
+}
+
+body.page-pamphlet .pamphlet-app .menu-toggle[aria-expanded="true"] {
+  background: var(--site-medium);
+}
+
+body.page-pamphlet .pamphlet-app .menu-toggle-icon {
+  filter: none;
+}
+
+/* Icons are light-colored SVGs; invert when the toggle sits on a light fill */
+@media (prefers-color-scheme: dark) {
+  body.page-pamphlet .pamphlet-app .menu-toggle-icon {
+    filter: invert(1);
+  }
+}
+
+html.dark body.page-pamphlet .pamphlet-app .menu-toggle-icon,
+html[data-theme="dark"] body.page-pamphlet .pamphlet-app .menu-toggle-icon {
+  filter: invert(1);
+}
+
+html[data-theme="light"] body.page-pamphlet .pamphlet-app .menu-toggle-icon {
+  filter: none;
+}
+
+body.page-pamphlet .pamphlet-app .app-sidebar-nav button,
+body.page-pamphlet .pamphlet-app .item-type-options button {
+  background: color-mix(in srgb, var(--site-body-fg) 12%, var(--site-body-bg));
+  color: var(--site-body-fg);
+  border: var(--border_001);
+}
+
+body.page-pamphlet .pamphlet-app .app-sidebar-nav button:hover:not(:disabled),
+body.page-pamphlet .pamphlet-app .item-type-options button:hover {
+  background: color-mix(in srgb, var(--site-body-fg) 22%, var(--site-body-bg));
+}
+
+body.page-pamphlet .pamphlet-app .create-modal {
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  border-color: var(--site-border);
+}
+
+body.page-pamphlet .pamphlet-app .create-modal-hint {
+  color: var(--site-muted-fg);
+}
+
+body.page-pamphlet .pamphlet-app .create-modal-form input {
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  border-color: var(--site-border);
+}
+
+body.page-pamphlet .pamphlet-app #modal-cancel,
+body.page-pamphlet .pamphlet-app #item-type-cancel {
+  background: color-mix(in srgb, var(--site-body-fg) 10%, var(--site-body-bg));
+  color: var(--site-body-fg);
+}
+
+body.page-pamphlet .pamphlet-app #modal-confirm {
+  background: var(--site-accent);
+  color: var(--site-accent-fg);
+}
+
+/* Sheet stays paper-white on screen; only surrounding chrome follows theme */
+body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
+  background: #ffffff;
+  color: #000000;
+}
+
+@media print {
+  .site-header,
+  #pwa-toast,
+  #auth-gate,
+  [data-auth-gate] {
+    display: none !important;
+  }
+
+  html,
+  body,
+  body.page-pamphlet,
+  body.page-pamphlet main,
+  .pamphlet-route-root,
+  .pamphlet-app {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body.page-pamphlet {
+    padding-bottom: 0 !important;
+  }
+
+  body.page-pamphlet main {
+    margin-top: 0 !important;
+  }
+
+  .pamphlet-route-root {
+    min-height: 0 !important;
+  }
+
+  /* Force light chrome tokens if any leak into print */
+  body.page-pamphlet .pamphlet-app .app-sidebar,
+  body.page-pamphlet .pamphlet-app .create-modal,
+  body.page-pamphlet .pamphlet-app .create-modal-form input {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}

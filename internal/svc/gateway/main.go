@@ -24,7 +24,6 @@ type config struct {
 	TesterURL        string
 	PaymentsURL      string
 	S3URL            string
-	DocumentsURL     string
 	Telemetry        *common.TelemetryClient
 }
 
@@ -37,7 +36,6 @@ var publicPaths = []string{
 	"/api/media/audio",
 	"/api/media/file",
 	"/api/media/images",
-	"/api/pamphlets/images",
 	"/api/payments/intents",
 	"/api/payments/status",
 	"/api/payments/webhook/paypal",
@@ -63,7 +61,6 @@ func Run(addr string) error {
 		TesterURL:        common.Env("TESTER_URL", "http://tester:3000"),
 		PaymentsURL:      common.Env("PAYMENTS_URL", "http://payments:3000"),
 		S3URL:            common.Env("S3_URL", "http://s3:3000"),
-		DocumentsURL:     common.Env("DOCUMENTS_URL", "http://documents:3000"),
 	}
 	cfg.Telemetry = common.NewTelemetryClient(cfg.TelemetryURL, cfg.InternalSecret)
 
@@ -112,7 +109,6 @@ func Run(addr string) error {
 	r.Get("/api/media/file/*", cfg.proxyMediaFile())
 	registerPlaylistRoutes(r, cfg, playlistStore)
 	registerSubscriptionRoutes(r, cfg, entitlementStore)
-	registerPamphletGatewayRoutes(r, cfg)
 	registerAPSRoutes(r, cfg)
 
 	log.Printf("backend listening on %s", addr)

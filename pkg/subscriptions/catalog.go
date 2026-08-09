@@ -25,7 +25,7 @@ type Service struct {
 var Catalog = []Service{
 	{ID: ServiceAIAgent, Label: "AI Agent", Description: "Conversational assistant and automation tools."},
 	{ID: ServicePlaylist, Label: "Playlist", Description: "Cloud worship playlist builder and storage."},
-	{ID: ServicePamphlet, Label: "Pamphlet", Description: "Pamphlet generator, cloud sync, and exports."},
+	{ID: ServicePamphlet, Label: "Pamphlet", Description: "Local pamphlet editor and print export."},
 }
 
 func PricePerServiceUSD(period string) (float64, error) {

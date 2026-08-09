@@ -247,3 +247,50 @@ func (c config) proxyMediaFile() http.HandlerFunc {
 		c.signedProxy(w, r, http.MethodGet, target, "")
 	}
 }
+
+// proxyAbsoluteUpload posts a file to the s3 service using an absolute object key
+// (used by profile images and other non-prefix-relative uploads).
+func (c config) proxyAbsoluteUpload(r *http.Request, cid, objectKey, filename string, data []byte) error {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	_ = writer.WriteField("absolute_key", objectKey)
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		return err
+	}
+	if _, err := part.Write(data); err != nil {
+		return err
+	}
+	_ = writer.Close()
+
+	target := strings.TrimRight(c.S3URL, "/") + "/absolute/multipart"
+	req, err := http.NewRequest(http.MethodPost, target, body)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set(common.CorrelationHeader, cid)
+	req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(c.InternalSecret, cid))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		out, _ := io.ReadAll(resp.Body)
+		return proxyStatusError{status: resp.StatusCode, body: string(out)}
+	}
+	return nil
+}
+
+type proxyStatusError struct {
+	status int
+	body   string
+}
+
+func (e proxyStatusError) Error() string {
+	if e.body != "" {
+		return e.body
+	}
+	return http.StatusText(e.status)
+}

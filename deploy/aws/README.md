@@ -55,7 +55,6 @@ All app objects live under **`media/`**:
 |------|---------|
 | `media/` | Gallery images |
 | `media/profiles/` | Profile avatars |
-| `media/pamphlets/content-images/` | Pamphlet editor images |
 | `media/worship_playlists/` | Playlist audio |
 
 Your S3 policy shape is correct. Add **`media/`** alongside **`media/*`** in the `s3:prefix` condition (see `ec2-iam-s3-policy.json`) so `ListObjects` with prefix `media/` is allowed.
@@ -68,7 +67,6 @@ Optional combined policy: [`ec2-iam-policy.json`](./ec2-iam-policy.json) (broade
 |-------|-------|-----|
 | `s3:ListBucket` | App listed the whole bucket (`prefix=""`) | Fixed in code — lists `media/` only. Redeploy latest. |
 | `s3:PutObject` on `profiles/...` | Old build stored outside `media/` | Redeploy — now uses `media/profiles/`. |
-| `s3:PutObject` on `pamphlets/...` | Old build stored outside `media/` | Redeploy — now uses `media/pamphlets/content-images/`. |
 
 After updating IAM or deploying code, wait ~1 minute for instance credentials to refresh.
 

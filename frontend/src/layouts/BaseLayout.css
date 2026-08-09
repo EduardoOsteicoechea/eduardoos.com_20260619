@@ -49,13 +49,8 @@ body.page-playlist:has(.playlist-controls--tray-open) {
   --chrome-bar-mobile: 12rem;
 }
 
-body.page-pamphlet {
-  padding-bottom: var(--chrome-bar-desktop);
-}
-
 @media (min-width: 768px) {
-  body.page-playlist,
-  body.page-pamphlet {
+  body.page-playlist {
     padding-bottom: var(--chrome-bar-desktop);
   }
 }

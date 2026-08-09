@@ -1,13 +1,11 @@
 package documents
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 
 	"eduardoos/pkg/common"
-	ddb "eduardoos/pkg/dynamodb"
 	"eduardoos/pkg/pdf"
 
 	"github.com/go-chi/chi/v5"
@@ -15,25 +13,12 @@ import (
 )
 
 func Run(addr string) error {
-	ctx := context.Background()
 	secret := common.Env("INTERNAL_SERVICE_SECRET", "dev-internal-secret")
-	pamphletStore, err := ddb.NewPamphletDocumentStore(ctx)
-	if err != nil {
-		log.Fatalf("pamphlet store: %v", err)
-	}
-	registryStore, err := ddb.NewPamphletRegistryStore(ctx)
-	if err != nil {
-		log.Fatalf("pamphlet registry: %v", err)
-	}
-	log.Printf("pamphlet store backend=%s registry=%s", pamphletStore.BackendName(), registryStore.BackendName())
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Get("/health", common.HealthHandler("documents", map[string]any{
-		"pamphlets_backend": pamphletStore.BackendName(),
-	}))
-	registerPamphletRoutes(r, secret, pamphletStore, registryStore)
+	r.Get("/health", common.HealthHandler("documents", nil))
 	r.Group(func(r chi.Router) {
 		r.Use(common.InternalAuthMiddleware(secret))
 		r.Post("/generate", func(w http.ResponseWriter, r *http.Request) {

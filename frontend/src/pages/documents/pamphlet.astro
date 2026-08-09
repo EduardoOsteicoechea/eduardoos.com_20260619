@@ -1,11 +1,28 @@
 ---
+/**
+ * Panfleto editor route — mounts the portable pamphlet-generator client module
+ * inside BaseLayout. Client-only: no SSR of editor logic.
+ */
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import PamphletV3Page from "../../components/PamphletV3/PamphletV3Page";
+import "../../styles/pamphlet-route.css";
 ---
 
-<BaseLayout
-  title="Pamphlet Generator — Eduardo Osteicoechea"
-  pagePamphlet
->
-  <PamphletV3Page client:only="react" />
+<BaseLayout title="Panfleto — Eduardo Osteicoechea" pagePamphlet>
+  <div id="pamphlet-root" class="pamphlet-route-root"></div>
 </BaseLayout>
+
+<script>
+  import { mountPamphletGenerator } from "../../lib/pamphlet-generator/src/index.ts";
+
+  const host = document.getElementById("pamphlet-root");
+  if (host) {
+    const handle = mountPamphletGenerator(host);
+    document.addEventListener(
+      "astro:before-swap",
+      () => {
+        handle.destroy();
+      },
+      { once: true },
+    );
+  }
+</script>
