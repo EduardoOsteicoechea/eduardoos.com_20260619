@@ -769,11 +769,24 @@ p {
   grid-column: auto !important;
   grid-row: auto !important;
   flex: 0 0 auto;
-  overflow: visible;
   border: 1px solid rgba(128, 128, 128, 0.45);
   background: #ffffff;
   color: #000000;
   box-sizing: border-box;
+}
+
+/* Header/body columns may show edit trays; footer clips content unless editing */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+.pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+  overflow: visible;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer {
+  overflow: hidden;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer:has(.element_edit_tray) {
+  overflow: visible;
 }
 
 @media (prefers-color-scheme: dark) {

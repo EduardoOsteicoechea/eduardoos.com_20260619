@@ -96,7 +96,12 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     document.body.append(fileToolbar, sidebarBackdrop, sidebar);
 
     type ViewMode = "desktop" | "mobile";
-    let viewMode: ViewMode = "desktop";
+    /** Narrow / phone viewports start in stacked mobile layout (letter sheet is desktop-only). */
+    const mobileViewportMq = window.matchMedia("(max-width: 900px)");
+    function preferredViewMode(): ViewMode {
+        return mobileViewportMq.matches ? "mobile" : "desktop";
+    }
+    let viewMode: ViewMode = preferredViewMode();
     appRoot.setAttribute("data-view-mode", viewMode);
     appRoot.style.setProperty("--mobile-view-scale", "1");
     appRoot.style.setProperty("--mobile-inv-scale", "1");
@@ -1006,7 +1011,7 @@ on(viewMobileBtn, "click", () => {
 
 updatePrintAvailability();
 syncFixedChromeScale();
-syncMobileViewScale();
+applyViewMode(viewMode, { closeSidebar: false });
 on(window, "resize", () => {
     syncFixedChromeScale();
     syncMobileViewScale();
