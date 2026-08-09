@@ -98,6 +98,8 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     type ViewMode = "desktop" | "mobile";
     let viewMode: ViewMode = "desktop";
     appRoot.setAttribute("data-view-mode", viewMode);
+    appRoot.style.setProperty("--mobile-view-scale", "1");
+    appRoot.style.setProperty("--mobile-inv-scale", "1");
 
     const disposers: Array<() => void> = [];
     function on(
@@ -129,24 +131,26 @@ function toggleSidebar(): void {
     setSidebarOpen(!sidebar.classList.contains("is-open"));
 }
 
-/** Header/footer band width in mm — widest mobile stack unit for scale-to-fit. */
-const mobileStackRefWidthMm = 60.35 * 2 + 4; // 124.7
+/** Body column width in mm — scale so this fills the mobile viewport (mm size unchanged). */
+const mobileColumnWidthMm = 60.35;
 
 function syncMobileViewScale(): void {
     if (viewMode !== "mobile") {
         appRoot.style.setProperty("--mobile-view-scale", "1");
+        appRoot.style.setProperty("--mobile-inv-scale", "1");
         main.style.marginBottom = "";
         return;
     }
     const padPx = 24;
-    const refPx = mobileStackRefWidthMm * (96 / 25.4);
+    const refPx = mobileColumnWidthMm * (96 / 25.4);
     const available = Math.max(120, window.innerWidth - padPx);
-    const scale = Math.min(1, available / refPx);
+    const scale = available / refPx; // may be > 1 so the column fills the screen
     appRoot.style.setProperty("--mobile-view-scale", String(scale));
-    // Compensate layout space after CSS transform:scale (transform does not shrink flow box)
+    appRoot.style.setProperty("--mobile-inv-scale", String(scale > 0 ? 1 / scale : 1));
+    // Compensate layout space after CSS transform:scale (transform does not shrink/grow flow box)
     requestAnimationFrame(() => {
         const layoutHeight = main.offsetHeight;
-        if (layoutHeight > 0 && scale < 1) {
+        if (layoutHeight > 0 && scale !== 1) {
             const visualHeight = layoutHeight * scale;
             main.style.marginBottom = `${visualHeight - layoutHeight}px`;
         } else {

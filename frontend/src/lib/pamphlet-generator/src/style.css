@@ -689,6 +689,54 @@ p {
   background: #1565c0;
 }
 
+/* Mobile view: keep tray usable after column scale-to-fit (sizes are pre-scale) */
+.pamphlet-app[data-view-mode="mobile"] .element_edit_tray {
+  width: min(
+    calc(350px * var(--mobile-inv-scale, 1)),
+    calc((100vw - 24px) * var(--mobile-inv-scale, 1))
+  );
+  max-width: 100%;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  z-index: 1200;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .element_edit_tray_buttons_container {
+  width: 100%;
+  box-sizing: border-box;
+  gap: calc(6px * var(--mobile-inv-scale, 1));
+  padding: calc(6px * var(--mobile-inv-scale, 1));
+}
+
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_icon_button,
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_close_button,
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_delete_button,
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_height_button {
+  width: calc(44px * var(--mobile-inv-scale, 1));
+  height: calc(44px * var(--mobile-inv-scale, 1));
+  min-width: calc(44px * var(--mobile-inv-scale, 1));
+  min-height: calc(44px * var(--mobile-inv-scale, 1));
+  box-sizing: border-box;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_icon {
+  width: calc(22px * var(--mobile-inv-scale, 1));
+  height: calc(22px * var(--mobile-inv-scale, 1));
+}
+
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_text_area {
+  width: 100%;
+  height: calc(120px * var(--mobile-inv-scale, 1));
+  font-size: calc(16px * var(--mobile-inv-scale, 1));
+  box-sizing: border-box;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_image_controls {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 @page {
   size: letter landscape;
   margin: 0;
@@ -700,7 +748,8 @@ p {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  width: var(--header-footer-width);
+  /* Match body column width so scale-to-fit uses one consistent mm unit */
+  width: var(--column-content-width);
   height: auto;
   min-height: 0;
   border: none;
@@ -743,7 +792,7 @@ p {
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header {
   order: 1;
-  width: var(--header-footer-width);
+  width: var(--column-content-width);
   height: var(--page-header-height);
   min-height: var(--page-header-height);
   padding: 0;
@@ -751,7 +800,7 @@ p {
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer {
   order: 2;
-  width: var(--header-footer-width);
+  width: var(--column-content-width);
   height: var(--page-footer-height);
   min-height: var(--page-footer-height);
   max-height: var(--page-footer-height);
