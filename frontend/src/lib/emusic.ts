@@ -79,9 +79,15 @@ export interface ResolvedWord {
     occurrenceKey: string;
 }
 
+export interface ResolvedLine {
+    lineIndex: number;
+    words: ResolvedWord[];
+}
+
 export interface ResolvedSection {
     label: string;
     kind?: EmusicBlockKind;
+    lines: ResolvedLine[];
     words: ResolvedWord[];
 }
 
@@ -178,18 +184,16 @@ export function normalizeEmusicDocument(doc: EmusicDocument): {
             const label = String(section.label || "I").trim() || "I";
             const kind = section.kind;
             if (Array.isArray(section.lines) && section.lines.length > 0) {
-                const lines = section.lines
-                    .map((line) => ({
-                        cues: (Array.isArray(line.cues) ? line.cues : [])
-                            .map((cue) => ({
-                                t: Number(cue.t) || 0,
-                                w: asStringIds(cue.w),
-                            }))
-                            .filter((cue) => cue.w.length > 0)
-                            .sort((a, b) => a.t - b.t),
-                    }))
-                    .filter((line) => line.cues.length > 0);
-                if (lines.length) sections.push({ label, kind, lines });
+                // Keep empty lines so structure-editor indices stay stable.
+                const lines = section.lines.map((line) => ({
+                    cues: (Array.isArray(line.cues) ? line.cues : [])
+                        .map((cue) => ({
+                            t: Number(cue.t) || 0,
+                            w: asStringIds(cue.w),
+                        }))
+                        .filter((cue) => cue.w.length > 0),
+                }));
+                sections.push({ label, kind, lines });
                 continue;
             }
             if (Array.isArray(section.cues) && section.cues.length > 0) {
@@ -223,15 +227,17 @@ export function resolveEmusicSections(doc: EmusicDocument): ResolvedSection[] {
     const { lexicon, sections } = normalizeEmusicDocument(doc);
     return sections.map((section, sectionIndex) => {
         const flatCues = flattenSectionCues(section);
+        const lines: ResolvedLine[] = [];
         const words: ResolvedWord[] = [];
         let flatCueCursor = 0;
         section.lines.forEach((line, lineIndex) => {
+            const lineWords: ResolvedWord[] = [];
             line.cues.forEach((cue, cueIndex) => {
                 const end = cueEndTime(flatCues, flatCueCursor);
                 cue.w.forEach((id, wordIndex) => {
                     const text = lexicon[id];
                     if (!text) return;
-                    words.push({
+                    const resolved: ResolvedWord = {
                         id,
                         text,
                         t: cue.t,
@@ -240,12 +246,15 @@ export function resolveEmusicSections(doc: EmusicDocument): ResolvedSection[] {
                         lineIndex,
                         cueIndex,
                         occurrenceKey: `${sectionIndex}:${lineIndex}:${cueIndex}:${wordIndex}:${id}`,
-                    });
+                    };
+                    lineWords.push(resolved);
+                    words.push(resolved);
                 });
                 flatCueCursor += 1;
             });
+            lines.push({ lineIndex, words: lineWords });
         });
-        return { label: section.label, kind: section.kind, words };
+        return { label: section.label, kind: section.kind, lines, words };
     });
 }
 
@@ -333,6 +342,51 @@ function nextLexiconId(lexicon: EmusicLexicon): string {
     return String(max + 1);
 }
 
+function countLexiconIdUsage(sections: EmusicSection[], id: string): number {
+    let count = 0;
+    for (const section of sections) {
+        for (const line of section.lines) {
+            for (const cue of line.cues) {
+                for (const wordId of cue.w) {
+                    if (wordId === id) count += 1;
+                }
+            }
+        }
+    }
+    return count;
+}
+
+/** Set text for one cue slot without rewriting other occurrences that share the id. */
+function setOccurrenceText(
+    lexicon: EmusicLexicon,
+    sections: EmusicSection[],
+    sectionIndex: number,
+    lineIndex: number,
+    cueIndex: number,
+    wordIndex: number,
+    text: string,
+): void {
+    const cue = sections[sectionIndex]?.lines[lineIndex]?.cues[cueIndex];
+    if (!cue) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const oldId = cue.w[wordIndex];
+    if (!oldId) {
+        const id = nextLexiconId(lexicon);
+        lexicon[id] = trimmed;
+        cue.w[wordIndex] = id;
+        return;
+    }
+    if (lexicon[oldId] === trimmed) return;
+    if (countLexiconIdUsage(sections, oldId) <= 1) {
+        lexicon[oldId] = trimmed;
+        return;
+    }
+    const id = nextLexiconId(lexicon);
+    lexicon[id] = trimmed;
+    cue.w[wordIndex] = id;
+}
+
 function parseOccurrence(occurrenceKey: string): {
     sectionIndex: number;
     lineIndex: number;
@@ -382,14 +436,25 @@ export function updateEmusicWord(
     const loc = parseOccurrence(occurrenceKey);
     if (!loc) return cloneEmusicDocument(doc);
     return mutateNormalized(doc, (lexicon, sections) => {
-        const cue = sections[loc.sectionIndex]?.lines[loc.lineIndex]?.cues[loc.cueIndex];
-        if (!cue) return;
-        const id = cue.w[loc.wordIndex];
-        if (!id) return;
-        const trimmed = text.trim();
-        if (trimmed) lexicon[id] = trimmed;
-        cue.t = Math.max(0, Number.isFinite(timeSec) ? timeSec : cue.t);
-        sections[loc.sectionIndex].lines[loc.lineIndex].cues.sort((a, b) => a.t - b.t);
+        const line = sections[loc.sectionIndex]?.lines[loc.lineIndex];
+        const cue = line?.cues[loc.cueIndex];
+        if (!line || !cue) return;
+        setOccurrenceText(
+            lexicon,
+            sections,
+            loc.sectionIndex,
+            loc.lineIndex,
+            loc.cueIndex,
+            loc.wordIndex,
+            text,
+        );
+        const nextT = Math.max(0, Number.isFinite(timeSec) ? timeSec : cue.t);
+        // Keep cue order stable unless time actually changed; otherwise the word
+        // appears to "jump" into another slot/line after save.
+        if (Math.abs(nextT - cue.t) > 1e-6) {
+            cue.t = nextT;
+            line.cues.sort((a, b) => a.t - b.t);
+        }
     });
 }
 
@@ -493,7 +558,6 @@ export function addEmusicLineWord(
         const id = nextLexiconId(lexicon);
         lexicon[id] = text.trim() || "nueva";
         line.cues.push({ t: Math.max(0, t), w: [id] });
-        line.cues.sort((a, b) => a.t - b.t);
     });
 }
 
@@ -519,12 +583,16 @@ export function updateEmusicLineWord(
     timeSec: number,
 ): EmusicDocument {
     return mutateNormalized(doc, (lexicon, sections) => {
-        const cue = sections[sectionIndex]?.lines[lineIndex]?.cues[cueIndex];
-        if (!cue || !cue.w[0]) return;
-        const trimmed = text.trim();
-        if (trimmed) lexicon[cue.w[0]] = trimmed;
-        cue.t = Math.max(0, Number.isFinite(timeSec) ? timeSec : cue.t);
-        sections[sectionIndex].lines[lineIndex].cues.sort((a, b) => a.t - b.t);
+        const line = sections[sectionIndex]?.lines[lineIndex];
+        const cue = line?.cues[cueIndex];
+        if (!line || !cue) return;
+        if (!cue.w[0]) cue.w[0] = nextLexiconId(lexicon);
+        setOccurrenceText(lexicon, sections, sectionIndex, lineIndex, cueIndex, 0, text);
+        const nextT = Math.max(0, Number.isFinite(timeSec) ? timeSec : cue.t);
+        if (Math.abs(nextT - cue.t) > 1e-6) {
+            cue.t = nextT;
+            line.cues.sort((a, b) => a.t - b.t);
+        }
     });
 }
 

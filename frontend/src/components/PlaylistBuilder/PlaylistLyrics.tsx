@@ -249,31 +249,44 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
                                     className="playlist-lyrics__section"
                                 >
                                     <p className="playlist-lyrics__section-label">[{section.label}]</p>
-                                    <p className="playlist-lyrics__section-words">
-                                        {section.words.map((word) => {
-                                            const isActive = activeKeys.has(word.occurrenceKey);
-                                            const isSelected = selectedKey === word.occurrenceKey;
-                                            return (
-                                                <span
-                                                    key={word.occurrenceKey}
-                                                    ref={word.occurrenceKey === scrollKey ? activeRef : undefined}
-                                                    role={canEdit ? "button" : undefined}
-                                                    tabIndex={canEdit ? 0 : undefined}
-                                                    className={`playlist-lyrics__word${isActive ? " is-active" : ""}${isSelected ? " is-selected" : ""}${canEdit ? " is-editable" : ""}`}
-                                                    onClick={() => selectWord(word)}
-                                                    onKeyDown={(e) => {
-                                                        if (!canEdit) return;
-                                                        if (e.key === "Enter" || e.key === " ") {
-                                                            e.preventDefault();
-                                                            selectWord(word);
-                                                        }
-                                                    }}
-                                                >
-                                                    {word.text}{" "}
-                                                </span>
-                                            );
-                                        })}
-                                    </p>
+                                    {section.lines.map((line) => (
+                                        <p
+                                            key={`${section.label}-line-${line.lineIndex}`}
+                                            className="playlist-lyrics__section-words"
+                                        >
+                                            {line.words.length === 0 ? (
+                                                <span className="playlist-lyrics__empty-line"> </span>
+                                            ) : (
+                                                line.words.map((word) => {
+                                                    const isActive = activeKeys.has(word.occurrenceKey);
+                                                    const isSelected = selectedKey === word.occurrenceKey;
+                                                    return (
+                                                        <span
+                                                            key={word.occurrenceKey}
+                                                            ref={
+                                                                word.occurrenceKey === scrollKey
+                                                                    ? activeRef
+                                                                    : undefined
+                                                            }
+                                                            role={canEdit ? "button" : undefined}
+                                                            tabIndex={canEdit ? 0 : undefined}
+                                                            className={`playlist-lyrics__word${isActive ? " is-active" : ""}${isSelected ? " is-selected" : ""}${canEdit ? " is-editable" : ""}`}
+                                                            onClick={() => selectWord(word)}
+                                                            onKeyDown={(e) => {
+                                                                if (!canEdit) return;
+                                                                if (e.key === "Enter" || e.key === " ") {
+                                                                    e.preventDefault();
+                                                                    selectWord(word);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {word.text}{" "}
+                                                        </span>
+                                                    );
+                                                })
+                                            )}
+                                        </p>
+                                    ))}
                                 </div>
                             ))
                         )}

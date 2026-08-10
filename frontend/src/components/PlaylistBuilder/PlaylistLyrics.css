@@ -58,6 +58,10 @@
   font-size: calc(var(--font-base) * 1.05);
 }
 
+.playlist-lyrics__section-words + .playlist-lyrics__section-words {
+  margin-top: 0.2rem;
+}
+
 .playlist-lyrics__word {
   display: inline;
   border-radius: 2px;
