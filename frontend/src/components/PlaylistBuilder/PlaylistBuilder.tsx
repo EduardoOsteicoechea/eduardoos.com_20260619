@@ -4,6 +4,7 @@ import { fetchAudioLibrary, mediaObjectPlaybackUrl, trackDisplayName, type Audio
 import { countOfflineTracks, getOfflineTrackUrl, revokeOfflineTrackUrl, saveTrackOffline, saveTracksOfflineBulk, type OfflineBulkProgress, } from "../../lib/offlineAudio";
 import { fetchPlaylists, savePlaylist, type PlaylistRecord } from "../../lib/playlists";
 import PlaylistControls from "./PlaylistControls";
+import PlaylistLyrics from "./PlaylistLyrics";
 import { IconAddToPlaylist, IconChevronDown, IconChevronUp, IconRemove, } from "./PlaylistIcons";
 import "./PlaylistBuilder.css";
 const DRAG_MIME = "application/x-eduardoos-track-key";
@@ -501,6 +502,7 @@ export default function PlaylistBuilder() {
                   </li>)))}
             </ul>
           </div>
+          <PlaylistLyrics trackKey={currentTrackKey} currentTime={currentTime} />
         </section>
       </div>
 

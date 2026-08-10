@@ -118,7 +118,6 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     appRoot.setAttribute("data-view-mode", viewMode);
     appRoot.style.setProperty("--mobile-view-scale", "1");
     appRoot.style.setProperty("--mobile-inv-scale", "1");
-    appRoot.style.setProperty("--mobile-sheet-margin-left", "8px");
 
     const disposers: Array<() => void> = [];
     function on(
@@ -150,28 +149,25 @@ function toggleSidebar(): void {
     setSidebarOpen(!sidebar.classList.contains("is-open"));
 }
 
-/** Body column width in mm — scale so this fills the mobile viewport (mm size unchanged). */
+/** Body column width in mm — never wider than print; scale down only if viewport is narrower. */
 const mobileColumnWidthMm = 60.35;
 
 function syncMobileViewScale(): void {
     if (viewMode !== "mobile") {
         appRoot.style.setProperty("--mobile-view-scale", "1");
         appRoot.style.setProperty("--mobile-inv-scale", "1");
-        appRoot.style.setProperty("--mobile-sheet-margin-left", "0px");
         main.style.marginBottom = "";
         return;
     }
-    const padPx = 8;
-    // Prefer measured layout width (pre-transform); CSS mm can differ from the 96dpi formula.
+    const padPx = 16;
     const fallbackRefPx = mobileColumnWidthMm * (96 / 25.4);
     const refPx = Math.max(1, main.offsetWidth || fallbackRefPx);
     const viewportW = window.visualViewport?.width ?? window.innerWidth;
     const available = Math.max(120, viewportW - padPx * 2);
-    const scale = available / refPx; // may be > 1 so the column fills the screen
+    // Cap at 1 so columns stay at pamphlet mm width and sit centered with side margins.
+    const scale = Math.min(1, available / refPx);
     appRoot.style.setProperty("--mobile-view-scale", String(scale));
     appRoot.style.setProperty("--mobile-inv-scale", String(scale > 0 ? 1 / scale : 1));
-    appRoot.style.setProperty("--mobile-sheet-margin-left", `${padPx}px`);
-    // Compensate layout space after CSS transform:scale (transform does not shrink/grow flow box)
     requestAnimationFrame(() => {
         const layoutHeight = main.offsetHeight;
         if (layoutHeight > 0 && scale !== 1) {

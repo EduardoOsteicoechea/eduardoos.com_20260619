@@ -208,9 +208,9 @@ body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
 body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet {
   background: transparent !important;
   color: var(--site-body-fg);
-  /* Beat desktop auto-centering; JS sets --mobile-sheet-margin-left for 8px pad + top-left scale */
-  margin-left: var(--mobile-sheet-margin-left, 8px) !important;
-  margin-right: 0 !important;
+  /* Center the mm-width column stack in the viewport */
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 
 /* Mobile stack: light = paper white; dark = no fill, theme text */
