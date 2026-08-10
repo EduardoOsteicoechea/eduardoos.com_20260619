@@ -502,9 +502,10 @@ export default function PlaylistBuilder() {
                   </li>)))}
             </ul>
           </div>
-          <PlaylistLyrics trackKey={currentTrackKey} currentTime={currentTime} />
         </section>
       </div>
+
+      <PlaylistLyrics trackKey={currentTrackKey} currentTime={currentTime} />
 
       <PlaylistControls nowPlayingLabel={nowPlayingLabel} isPlaying={isPlaying} canPlay={Boolean(currentTrackKey)} volume={volume} playbackRate={playbackRate} currentTime={currentTime} duration={duration} loopPlaylist={loopPlaylist} onPlay={() => {
             isPlayingRef.current = true;

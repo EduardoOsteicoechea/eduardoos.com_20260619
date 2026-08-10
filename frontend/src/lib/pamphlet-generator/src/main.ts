@@ -49,6 +49,8 @@ import {
     HEADER_COLUMN,
     HEADER_FIELD_KEYS,
     createParagraphItem,
+    createEmptyPamphlet,
+    type CreatePamphletMeta,
     type HeaderFieldKey,
     type LastEditedElement,
     type PamphletHeader,
@@ -87,6 +89,11 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const sidebar = requireElement<HTMLElement>("#app-sidebar");
     const sidebarBackdrop = requireElement<HTMLElement>("#sidebar-backdrop");
     const createModal = requireElement<HTMLDialogElement>("#create-modal");
+    const createSaveModal = requireElement<HTMLDialogElement>("#create-save-modal");
+    const createSaveLocalBtn = requireElement<HTMLButtonElement>("#create-save-local");
+    const createSaveCloudBtn = requireElement<HTMLButtonElement>("#create-save-cloud");
+    const createSaveCloudHint = requireElement<HTMLElement>("#create-save-cloud-hint");
+    const createSaveCancelBtn = requireElement<HTMLButtonElement>("#create-save-cancel");
     const openSourceModal = requireElement<HTMLDialogElement>("#open-source-modal");
     const openSourceLocalBtn = requireElement<HTMLButtonElement>("#open-source-local");
     const openSourceCloudBtn = requireElement<HTMLButtonElement>("#open-source-cloud");
@@ -1057,15 +1064,30 @@ on(saveCloudBtn, "click", async () => {
     }
 });
 
+/** Pending meta after create form validation, before local/cloud destination. */
+let pendingCreateMeta: CreatePamphletMeta | null = null;
+
 function openCreateModal(): void {
     clearError();
     createForm.reset();
+    pendingCreateMeta = null;
     createModal.showModal();
     modalTitle.focus();
 }
 
 function closeCreateModal(): void {
     if (createModal.open) createModal.close();
+}
+
+function closeCreateSaveModal(): void {
+    if (createSaveModal.open) createSaveModal.close();
+}
+
+function openCreateSaveModal(): void {
+    const loggedIn = Boolean(getAuthToken() && isAuthenticated());
+    createSaveCloudBtn.disabled = !loggedIn;
+    createSaveCloudHint.hidden = loggedIn;
+    createSaveModal.showModal();
 }
 
 on(createBtn, "click", () => {
@@ -1077,7 +1099,7 @@ on(modalCancelBtn, "click", () => {
     closeCreateModal();
 });
 
-on(createForm, "submit", async (event) => {
+on(createForm, "submit", (event) => {
     event.preventDefault();
     clearError();
 
@@ -1091,21 +1113,58 @@ on(createForm, "submit", async (event) => {
         return;
     }
 
+    pendingCreateMeta = { title, series, series_chapter, author };
+    closeCreateModal();
+    openCreateSaveModal();
+});
+
+on(createSaveCancelBtn, "click", () => {
+    pendingCreateMeta = null;
+    closeCreateSaveModal();
+});
+
+on(createSaveLocalBtn, "click", async () => {
+    const meta = pendingCreateMeta;
+    if (!meta) return;
+    clearError();
     try {
-        const data = await createPamphletFile({
-            title,
-            series,
-            series_chapter,
-            author,
-        });
+        const data = await createPamphletFile(meta);
+        pendingCreateMeta = null;
         cloudEpamId = null;
-        closeCreateModal();
+        closeCreateSaveModal();
         loadPamphlet(data);
         openItemTypeModal({ mode: "end", column: 1 });
     } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         const message = err instanceof Error ? err.message : String(err);
         setError(`Create failed: ${message}`);
+    }
+});
+
+on(createSaveCloudBtn, "click", async () => {
+    const meta = pendingCreateMeta;
+    if (!meta) return;
+    clearError();
+    if (!getAuthToken() || !isAuthenticated()) {
+        setError("Inicia sesión para guardar en la nube.");
+        return;
+    }
+    try {
+        clearOpenFile();
+        cloudEpamId = null;
+        const blank = createEmptyPamphlet(meta);
+        setOpenFileName(
+            `${meta.series.trim().replace(/[^\w.-]+/g, "_") || "pamphlet"}_ch${meta.series_chapter.trim().replace(/[^\w.-]+/g, "_") || "1"}.epam`,
+        );
+        const savedDoc = await persistCloud(blank);
+        pendingCreateMeta = null;
+        closeCreateSaveModal();
+        loadPamphlet(savedDoc);
+        openItemTypeModal({ mode: "end", column: 1 });
+        setStatus(`Saved to cloud: ${getOpenFileName() || cloudEpamId}`, "success");
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(`Cloud create failed: ${message}`);
     }
 });
 

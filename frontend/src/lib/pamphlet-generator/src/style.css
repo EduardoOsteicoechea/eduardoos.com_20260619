@@ -251,6 +251,15 @@
   background: #454545;
 }
 
+.item-type-options button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.item-type-options button:disabled:hover {
+  background: #333;
+}
+
 /* Toastify — top-left status toasts */
 .app-toast.toastify {
   max-width: min(360px, calc(100vw - 24px));

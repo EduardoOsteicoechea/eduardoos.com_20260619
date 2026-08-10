@@ -47,7 +47,7 @@ export function renderShell(menuIconSrc: string): string {
 <dialog id="create-modal" class="create-modal">
   <form id="create-form" class="create-modal-form">
     <h2>Nuevo panfleto</h2>
-    <p class="create-modal-hint">Completa los datos del header. Luego elige carpeta y nombre del archivo .epam.</p>
+    <p class="create-modal-hint">Completa los datos del header. Luego elige dónde guardar el archivo .epam.</p>
     <label>
       Título
       <input id="modal-title" name="title" type="text" required autocomplete="off" />
@@ -69,6 +69,21 @@ export function renderShell(menuIconSrc: string): string {
       <button type="submit" id="modal-confirm">Crear y guardar</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="create-save-modal" class="create-modal">
+  <div class="create-modal-form">
+    <h2>Guardar panfleto</h2>
+    <p class="create-modal-hint">Elige dónde guardar el nuevo archivo .epam.</p>
+    <div class="item-type-options">
+      <button type="button" id="create-save-local">En este dispositivo</button>
+      <button type="button" id="create-save-cloud">En la nube</button>
+    </div>
+    <p class="create-modal-hint" id="create-save-cloud-hint" hidden>Inicia sesión para guardar en la nube.</p>
+    <div class="create-modal-actions">
+      <button type="button" id="create-save-cancel">Cancelar</button>
+    </div>
+  </div>
 </dialog>
 
 <dialog id="item-type-modal" class="create-modal item-type-modal">

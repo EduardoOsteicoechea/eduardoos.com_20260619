@@ -1,22 +1,15 @@
 .playlist-lyrics {
   margin-top: 1rem;
+  width: 100%;
   border: var(--border_001);
   background: var(--site-body-bg);
   color: var(--site-body-fg);
-  padding: 0.85rem 1rem 1rem;
+  padding: 1rem 1.1rem 1.15rem;
   box-sizing: border-box;
-  min-height: 8rem;
-  max-height: min(40vh, 22rem);
+  min-height: 10rem;
+  max-height: min(42vh, 26rem);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-}
-
-.playlist-lyrics__heading {
-  margin: 0;
-  font-size: var(--font-sm);
-  font-weight: 700;
-  letter-spacing: 0.02em;
 }
 
 .playlist-lyrics__empty {
@@ -26,10 +19,38 @@
   line-height: 1.4;
 }
 
-.playlist-lyrics__body {
+.playlist-lyrics__scroll {
   flex: 1 1 auto;
   overflow: auto;
-  line-height: 1.7;
+  min-height: 0;
+}
+
+.playlist-lyrics__title {
+  margin: 0 0 0.85rem;
+  font-size: calc(var(--font-base) * 1.35);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.playlist-lyrics__section {
+  margin: 0 0 0.95rem;
+}
+
+.playlist-lyrics__section:last-child {
+  margin-bottom: 0;
+}
+
+.playlist-lyrics__section-label {
+  margin: 0 0 0.35rem;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--site-body-fg) 55%, transparent);
+}
+
+.playlist-lyrics__section-words {
+  margin: 0;
+  line-height: 1.75;
   font-size: calc(var(--font-base) * 1.05);
 }
 

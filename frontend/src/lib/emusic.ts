@@ -1,30 +1,34 @@
 /**
- * .emusic — timed lyric words for karaoke-style highlighting during playback.
+ * .emusic — timed lyric sections for karaoke-style highlighting.
  *
- * Proposed format (JSON, UTF-8, extension `.emusic`):
  * {
  *   "type": "emusic",
- *   "version": 1,
+ *   "version": 2,
  *   "trackFile": "Song.mp3",
- *   "title": "Song",
- *   "words": [ { "t": 0.0, "d": 0.4, "w": "Lorem" }, ... ]
+ *   "title": "Song title",
+ *   "sections": [
+ *     {
+ *       "label": "I",
+ *       "words": [ { "t": 0.0, "d": 0.4, "w": "Es" }, ... ]
+ *     },
+ *     { "label": "CORO", "words": [ ... ] }
+ *   ]
  * }
- * - t: start time in seconds from track start
- * - d: duration the word stays active (seconds)
- * - w: word/token text
  *
- * Lookup: /lyrics/{slug}.emusic where slug is the MP3 basename
- * (accents stripped, non-alnum → hyphens).
+ * Highlighting follows audio.currentTime (freezes while buffering/paused).
  */
 import { trackDisplayName } from "./mediaLibrary";
 
 export interface EmusicWord {
-    /** Start time (seconds). */
     t: number;
-    /** Active duration (seconds). */
     d: number;
-    /** Display token. */
     w: string;
+}
+
+export interface EmusicSection {
+    /** Display label without brackets, e.g. "I", "CORO", "PUENTE". */
+    label: string;
+    words: EmusicWord[];
 }
 
 export interface EmusicDocument {
@@ -32,7 +36,10 @@ export interface EmusicDocument {
     version: number;
     trackFile?: string;
     title?: string;
-    words: EmusicWord[];
+    /** Preferred structured lyrics. */
+    sections?: EmusicSection[];
+    /** Legacy flat word list (v1). */
+    words?: EmusicWord[];
 }
 
 export function trackLyricsSlug(objectKey: string): string {
@@ -49,20 +56,35 @@ export function emusicPublicUrl(objectKey: string): string {
     return `/lyrics/${trackLyricsSlug(objectKey)}.emusic`;
 }
 
+export function normalizeEmusicSections(doc: EmusicDocument): EmusicSection[] {
+    if (Array.isArray(doc.sections) && doc.sections.length > 0) {
+        return doc.sections.filter((s) => Array.isArray(s.words) && s.words.length > 0);
+    }
+    if (Array.isArray(doc.words) && doc.words.length > 0) {
+        return [{ label: "I", words: doc.words }];
+    }
+    return [];
+}
+
+export function flattenSectionWords(sections: EmusicSection[]): EmusicWord[] {
+    return sections.flatMap((s) => s.words);
+}
+
 export async function fetchEmusicForTrack(objectKey: string): Promise<EmusicDocument | null> {
     const url = emusicPublicUrl(objectKey);
     try {
         const res = await fetch(url, { headers: { Accept: "application/json" } });
         if (!res.ok) return null;
         const data = (await res.json()) as EmusicDocument;
-        if (data?.type !== "emusic" || !Array.isArray(data.words)) return null;
+        if (data?.type !== "emusic") return null;
+        if (!normalizeEmusicSections(data).length) return null;
         return data;
     } catch {
         return null;
     }
 }
 
-/** Index of the word active at `timeSec`, or -1 if none. */
+/** Index into the flattened word list active at `timeSec`, or -1. */
 export function activeWordIndex(words: EmusicWord[], timeSec: number): number {
     if (!words.length) return -1;
     for (let i = 0; i < words.length; i++) {
