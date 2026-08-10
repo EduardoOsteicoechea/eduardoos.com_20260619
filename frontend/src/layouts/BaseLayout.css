@@ -15,9 +15,17 @@ body.page-playlist:has(.playlist-controls--tray-open) {
   --chrome-bar-mobile: 12rem;
 }
 
+body.page-playlist:has(.lyrics-edit-tray) {
+  padding-bottom: calc(var(--chrome-bar-mobile) + 9rem);
+}
+
 @media (min-width: 768px) {
   body.page-playlist {
     padding-bottom: var(--chrome-bar-desktop);
+  }
+
+  body.page-playlist:has(.lyrics-edit-tray) {
+    padding-bottom: calc(var(--chrome-bar-desktop) + 9rem);
   }
 }
 

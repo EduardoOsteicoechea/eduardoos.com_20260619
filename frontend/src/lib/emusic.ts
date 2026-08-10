@@ -246,3 +246,151 @@ export function activeOccurrenceKeys(words: ResolvedWord[], timeSec: number): Se
     }
     return keys;
 }
+
+export function cloneEmusicDocument(doc: EmusicDocument): EmusicDocument {
+    const { lexicon, sections } = normalizeEmusicDocument(doc);
+    return {
+        type: "emusic",
+        version: 3,
+        trackFile: doc.trackFile,
+        title: doc.title,
+        lexicon: { ...lexicon },
+        sections: sections.map((section) => ({
+            label: section.label,
+            cues: section.cues.map((cue) => ({ t: cue.t, w: [...cue.w] })),
+        })),
+    };
+}
+
+export function serializeEmusicDocument(doc: EmusicDocument): string {
+    return `${JSON.stringify(cloneEmusicDocument(doc), null, 2)}\n`;
+}
+
+function nextLexiconId(lexicon: EmusicLexicon): string {
+    let max = 0;
+    for (const key of Object.keys(lexicon)) {
+        const n = Number(key);
+        if (Number.isFinite(n)) max = Math.max(max, n);
+    }
+    return String(max + 1);
+}
+
+function parseOccurrence(occurrenceKey: string): {
+    sectionIndex: number;
+    cueIndex: number;
+    wordIndex: number;
+} | null {
+    const [sectionRaw, cueRaw, wordRaw] = occurrenceKey.split(":");
+    const sectionIndex = Number(sectionRaw);
+    const cueIndex = Number(cueRaw);
+    const wordIndex = Number(wordRaw);
+    if (![sectionIndex, cueIndex, wordIndex].every((n) => Number.isFinite(n))) return null;
+    return { sectionIndex, cueIndex, wordIndex };
+}
+
+function mutateNormalized(
+    doc: EmusicDocument,
+    mutate: (lexicon: EmusicLexicon, sections: EmusicSection[]) => void,
+): EmusicDocument {
+    const { lexicon, sections } = normalizeEmusicDocument(doc);
+    const nextLexicon = { ...lexicon };
+    const nextSections = sections.map((section) => ({
+        label: section.label,
+        cues: section.cues.map((cue) => ({ t: cue.t, w: [...cue.w] })),
+    }));
+    mutate(nextLexicon, nextSections);
+    return {
+        type: "emusic",
+        version: 3,
+        trackFile: doc.trackFile,
+        title: doc.title,
+        lexicon: nextLexicon,
+        sections: nextSections,
+    };
+}
+
+/** Update lexicon text and/or cue start time for one on-screen word. */
+export function updateEmusicWord(
+    doc: EmusicDocument,
+    occurrenceKey: string,
+    text: string,
+    timeSec: number,
+): EmusicDocument {
+    const loc = parseOccurrence(occurrenceKey);
+    if (!loc) return cloneEmusicDocument(doc);
+    return mutateNormalized(doc, (lexicon, sections) => {
+        const section = sections[loc.sectionIndex];
+        const cue = section?.cues[loc.cueIndex];
+        if (!cue) return;
+        const id = cue.w[loc.wordIndex];
+        if (!id) return;
+        const trimmed = text.trim();
+        if (trimmed) lexicon[id] = trimmed;
+        cue.t = Math.max(0, Number.isFinite(timeSec) ? timeSec : cue.t);
+        section.cues.sort((a, b) => a.t - b.t);
+    });
+}
+
+export function deleteEmusicWord(doc: EmusicDocument, occurrenceKey: string): EmusicDocument {
+    const loc = parseOccurrence(occurrenceKey);
+    if (!loc) return cloneEmusicDocument(doc);
+    return mutateNormalized(doc, (_lexicon, sections) => {
+        const section = sections[loc.sectionIndex];
+        const cue = section?.cues[loc.cueIndex];
+        if (!cue) return;
+        cue.w.splice(loc.wordIndex, 1);
+        if (cue.w.length === 0) {
+            section.cues.splice(loc.cueIndex, 1);
+        }
+    });
+}
+
+/** Insert a new single-word cue before the selected word (same section). */
+export function insertEmusicWordBefore(
+    doc: EmusicDocument,
+    occurrenceKey: string,
+    text = "nueva",
+): EmusicDocument {
+    const loc = parseOccurrence(occurrenceKey);
+    if (!loc) return cloneEmusicDocument(doc);
+    return mutateNormalized(doc, (lexicon, sections) => {
+        const section = sections[loc.sectionIndex];
+        const cue = section?.cues[loc.cueIndex];
+        if (!cue) return;
+        const prevT = section.cues[loc.cueIndex - 1]?.t ?? Math.max(0, cue.t - 0.4);
+        const t = Number(((prevT + cue.t) / 2).toFixed(3));
+        const id = nextLexiconId(lexicon);
+        lexicon[id] = text.trim() || "nueva";
+        section.cues.splice(loc.cueIndex, 0, { t, w: [id] });
+    });
+}
+
+/** Insert a new single-word cue after the selected word (before the next). */
+export function insertEmusicWordAfter(
+    doc: EmusicDocument,
+    occurrenceKey: string,
+    text = "nueva",
+): EmusicDocument {
+    const loc = parseOccurrence(occurrenceKey);
+    if (!loc) return cloneEmusicDocument(doc);
+    return mutateNormalized(doc, (lexicon, sections) => {
+        const section = sections[loc.sectionIndex];
+        const cue = section?.cues[loc.cueIndex];
+        if (!cue) return;
+        const nextT = section.cues[loc.cueIndex + 1]?.t ?? cue.t + 0.4;
+        const t = Number(((cue.t + nextT) / 2).toFixed(3));
+        const id = nextLexiconId(lexicon);
+        lexicon[id] = text.trim() || "nueva";
+        section.cues.splice(loc.cueIndex + 1, 0, { t, w: [id] });
+    });
+}
+
+export function downloadEmusicDocument(doc: EmusicDocument, fileName: string): void {
+    const blob = new Blob([serializeEmusicDocument(doc)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName.endsWith(".emusic") ? fileName : `${fileName}.emusic`;
+    a.click();
+    URL.revokeObjectURL(url);
+}

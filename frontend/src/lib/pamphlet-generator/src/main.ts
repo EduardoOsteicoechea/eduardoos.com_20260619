@@ -138,7 +138,7 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     }
 
 function updatePrintAvailability(): void {
-    printBtn.disabled = !hasOpenFile() || !currentDoc;
+    printBtn.disabled = !hasEditableSession() || !currentDoc;
 }
 
 function setSidebarOpen(open: boolean): void {
@@ -759,7 +759,7 @@ function closeItemTypeModal(): void {
 }
 
 async function confirmItemType(type: PamphletItemType): Promise<void> {
-    if (!currentDoc || !hasOpenFile() || !pendingInsert) {
+    if (!currentDoc || !hasEditableSession() || !pendingInsert) {
         closeItemTypeModal();
         return;
     }
@@ -789,7 +789,7 @@ async function confirmItemType(type: PamphletItemType): Promise<void> {
 }
 
 async function handleAddItemButton(column: number): Promise<void> {
-    if (!currentDoc || !hasOpenFile()) {
+    if (!currentDoc || !hasEditableSession()) {
         setError("No pamphlet file is open.");
         return;
     }
@@ -812,8 +812,16 @@ async function handleTrayAction(detail: PamphletTrayAction): Promise<void> {
         currentDoc = next;
         currentHeader = { ...next.header };
         try {
-            await savePamphlet(next);
-            setStatus(`Saved: ${getOpenFileName()}`, "success");
+            if (hasOpenFile()) {
+                await savePamphlet(next);
+                setStatus(`Saved: ${getOpenFileName()}`, "success");
+            } else if (cloudEpamId) {
+                await persistCloud(next);
+                setStatus(`Saved to cloud: ${getOpenFileName() || cloudEpamId}`, "success");
+            } else {
+                setError("No pamphlet file is open. Open or create a file first.");
+                return;
+            }
             clearError();
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);

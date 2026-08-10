@@ -9,6 +9,14 @@
   max-width: 100%;
   min-width: 0;
   overflow-x: clip;
+  /* Room for fixed transport + optional lyric edit tray */
+  padding-bottom: 8rem;
+  margin-bottom: 2rem;
+}
+
+.playlist-builder:has(.lyrics-edit-tray) {
+  padding-bottom: 14rem;
+  margin-bottom: 3rem;
 }
 
 @media (min-width: 768px) {
