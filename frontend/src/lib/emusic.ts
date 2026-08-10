@@ -550,6 +550,6 @@ export function emptyEmusicDocument(trackFile?: string, title?: string): EmusicD
         version: 4,
         trackFile,
         title,
-        unidades: [],
+        unidades: [{ t: "estrofa", l: [{ p: [] }] }],
     };
 }

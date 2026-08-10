@@ -3,7 +3,6 @@ import {
     activeOccurrenceKeys,
     cloneEmusicDocument,
     deleteEmusicWord,
-    emptyEmusicDocument,
     fetchEmusicForTrack,
     flattenResolvedWords,
     insertEmusicWordAfter,
@@ -14,7 +13,7 @@ import {
     type EmusicDocument,
     type ResolvedWord,
 } from "../../lib/emusic";
-import { saveEmusicToCloud } from "../../lib/emusicCloud";
+import { ensureEmusicForTrack, saveEmusicToCloud } from "../../lib/emusicCloud";
 import { getAuthEmailFromToken, isApsAdminEmail } from "../../lib/auth";
 import { isLocalTrackKey, trackDisplayName } from "../../lib/mediaLibrary";
 import LyricsStructureEditor from "./LyricsStructureEditor";
@@ -55,27 +54,43 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
         setSelectedKey(null);
         setUndoStack([]);
         setSaveStatus("");
-        void fetchEmusicForTrack(trackKey).then((loaded) => {
-            if (cancelled) return;
-            if (!loaded) {
+        void (async () => {
+            try {
                 if (isApsAdminEmail(getAuthEmailFromToken())) {
-                    const title = trackDisplayName(trackKey).replace(/\.mp3$/i, "");
-                    setDoc(
-                        emptyEmusicDocument(
-                            trackDisplayName(trackKey),
-                            title,
-                        ),
-                    );
+                    const ensured = await ensureEmusicForTrack(trackKey);
+                    if (cancelled) return;
+                    if (!ensured) {
+                        setDoc(null);
+                        setStatus("missing");
+                        return;
+                    }
+                    setDoc(ensured.document);
                     setStatus("ready");
+                    setSaveStatus(
+                        ensured.created
+                            ? "Nuevo .emusic creado en emusic_files/"
+                            : "Abierto desde emusic_files/",
+                    );
                     return;
                 }
+
+                const loaded = await fetchEmusicForTrack(trackKey);
+                if (cancelled) return;
+                if (!loaded) {
+                    setDoc(null);
+                    setStatus("missing");
+                    return;
+                }
+                setDoc(cloneEmusicDocument(loaded));
+                setStatus("ready");
+            } catch (err) {
+                if (cancelled) return;
+                const message = err instanceof Error ? err.message : String(err);
                 setDoc(null);
                 setStatus("missing");
-                return;
+                setSaveStatus(`Error al abrir .emusic: ${message}`);
             }
-            setDoc(cloneEmusicDocument(loaded));
-            setStatus("ready");
-        });
+        })();
         return () => {
             cancelled = true;
         };
@@ -240,8 +255,15 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
                 ) : (
                     <div className="playlist-lyrics__scroll">
                         <h3 className="playlist-lyrics__title">{title}</h3>
-                        {sections.length === 0 ? (
-                            <p className="playlist-lyrics__empty">Sin palabras aún.</p>
+                        {canEdit && saveStatus ? (
+                            <p className="playlist-lyrics__save-status">{saveStatus}</p>
+                        ) : null}
+                        {sections.length === 0 || sections.every((s) => s.words.length === 0) ? (
+                            <p className="playlist-lyrics__empty">
+                                {canEdit
+                                    ? "Sin palabras aún — usa el editor de estructura debajo."
+                                    : "Sin palabras aún."}
+                            </p>
                         ) : (
                             sections.map((section) => (
                                 <div

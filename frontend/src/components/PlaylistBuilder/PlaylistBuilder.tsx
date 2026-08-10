@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getAuthToken } from "../../lib/auth";
+import { getAuthEmailFromToken, getAuthToken, isApsAdminEmail } from "../../lib/auth";
+import { ensureEmusicForLibrary } from "../../lib/emusicCloud";
 import { fetchAudioLibrary, isLocalTrackKey, makeLocalTrackKey, mediaObjectPlaybackUrl, persistableTrackIds, trackDisplayName, type AudioLibraryItem, } from "../../lib/mediaLibrary";
 import { countOfflineTracks, getOfflineTrackUrl, revokeOfflineTrackUrl, saveTrackOffline, saveTracksOfflineBulk, type OfflineBulkProgress, } from "../../lib/offlineAudio";
 import { fetchPlaylists, savePlaylist, type PlaylistRecord } from "../../lib/playlists";
@@ -68,6 +69,18 @@ export default function PlaylistBuilder() {
         }
         setUrlByKey(map);
         await refreshOfflineCount(tracks.map((track) => track.key));
+
+        // Admin: create missing .emusic files in S3 for every library track.
+        if (isApsAdminEmail(getAuthEmailFromToken())) {
+            void ensureEmusicForLibrary(
+                tracks.map((track) => track.key),
+                (done, total, created) => {
+                    if (done === total && created > 0) {
+                        setMessage(`Letras: ${created} .emusic nuevos en emusic_files/ (${total} pistas).`);
+                    }
+                },
+            ).catch(() => undefined);
+        }
     }, [refreshOfflineCount]);
     const loadSavedPlaylists = useCallback(async () => {
         if (!getAuthToken()) {

@@ -36,6 +36,12 @@
   line-height: 1.25;
 }
 
+.playlist-lyrics__save-status {
+  margin: -0.45rem 0 0.75rem;
+  font-size: var(--font-sm);
+  opacity: 0.75;
+}
+
 .playlist-lyrics__section {
   margin: 0 0 0.95rem;
 }
