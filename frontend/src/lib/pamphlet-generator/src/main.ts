@@ -28,8 +28,8 @@ import {
     savePamphlet,
     setOpenFileName,
 } from "./pamphlet_file";
-import { fetchEpam, fetchEpams, saveEpamToCloud } from "../epams";
-import { getAuthToken, isAuthenticated } from "../auth";
+import { fetchEpam, fetchEpams, saveEpamToCloud } from "../../epams";
+import { getAuthToken, isAuthenticated } from "../../auth";
 import {
     createAddItemButton,
     createItemElement,
