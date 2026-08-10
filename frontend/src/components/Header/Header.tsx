@@ -186,11 +186,11 @@ export function Header({ pathname }: HeaderProps) {
         eduardoos
       </a>
       <div className="site-header__bar">
+        <div className="site-header__bar-spacer" aria-hidden="true"/>
+        {showAuth ? (<AuthControls variant="bar" loggedIn={loggedIn} profileInitial={profileInitial} profileImageUrl={profileImageUrl} onLogout={() => void handleLogout()} onNavigate={closeMenu}/>) : null}
         <button type="button" className="site-header__menu" aria-expanded={menuOpen} aria-controls="site-header-nav" aria-label={menuOpen ? "Close menu" : "Open menu"} onClick={toggleMenu}>
           Menu
         </button>
-        <div className="site-header__bar-spacer" aria-hidden="true"/>
-        {showAuth ? (<AuthControls variant="bar" loggedIn={loggedIn} profileInitial={profileInitial} profileImageUrl={profileImageUrl} onLogout={() => void handleLogout()} onNavigate={closeMenu}/>) : null}
       </div>
       <nav id="site-header-nav" className="site-header__nav" aria-label="Main">
         {NAV_LINKS.map(({ href, label }) => (

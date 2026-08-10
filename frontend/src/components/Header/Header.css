@@ -229,8 +229,41 @@
     display: inline-flex;
   }
 
-  .site-header__auth--nav {
+  /* Profile stays in the bar; Login/Register live in the open nav tray */
+  .site-header__auth--bar .site-header__auth-link,
+  .site-header__auth--bar .site-header__action {
     display: none;
+  }
+
+  .site-header__auth--bar:not(:has(.site-header__account)) {
+    display: none;
+  }
+
+  .site-header__auth--nav {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin: 0.65rem 0 0;
+    padding-top: 0.65rem;
+    border-top: var(--border_001);
+    width: 100%;
+  }
+
+  /* Profile stays in the bar on mobile — hide empty nav auth when logged in */
+  .site-header__auth--nav:has(.site-header__account) {
+    display: none;
+  }
+
+  .site-header__auth--nav .site-header__account {
+    display: none;
+  }
+
+  .site-header__auth--nav .site-header__auth-link,
+  .site-header__auth--nav .site-header__action {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
   }
 
   .site-header__nav {
@@ -251,7 +284,7 @@
     border-radius: 0;
   }
 
-  .site-header__nav a:last-child {
+  .site-header__nav > a:last-of-type {
     border-bottom: none;
   }
 

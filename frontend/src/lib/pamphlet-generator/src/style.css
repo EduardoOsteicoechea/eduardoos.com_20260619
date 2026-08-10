@@ -701,14 +701,20 @@ p {
   z-index: 1200;
 }
 
-/* Mobile: + item control at half the print/desktop size */
+/* Mobile: + item matches pamphlet menu (30px visual) after column scale */
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-add-item-button {
-  width: 4.5mm;
-  height: 4.5mm;
+  width: calc(30px * var(--mobile-inv-scale, 1));
+  height: calc(30px * var(--mobile-inv-scale, 1));
+  min-width: calc(30px * var(--mobile-inv-scale, 1));
+  min-height: calc(30px * var(--mobile-inv-scale, 1));
+  max-width: calc(30px * var(--mobile-inv-scale, 1));
+  max-height: calc(30px * var(--mobile-inv-scale, 1));
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-add-item-button::before {
-  font-size: 3mm;
+  font-size: calc(18px * var(--mobile-inv-scale, 1));
 }
 
 .pamphlet-app[data-view-mode="mobile"] .element_edit_tray_buttons_container {
