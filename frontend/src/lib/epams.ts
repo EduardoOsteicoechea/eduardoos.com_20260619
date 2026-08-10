@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiRequest, formatApiError } from "./api";
 import { getAuthToken } from "./auth";
 import { EPAM_ROUTES } from "../config/routes";
 import { createCorrelationId } from "./telemetry";
@@ -41,7 +41,7 @@ export async function fetchEpams(): Promise<EpamsListResponse> {
         authToken: token,
     });
     if (result.error) {
-        throw new Error(result.error.message);
+        throw new Error(formatApiError(result.error));
     }
     return {
         count: result.data?.count ?? 0,
@@ -60,7 +60,7 @@ export async function fetchEpam(epamId: string): Promise<EpamDocumentResponse> {
         authToken: token,
     });
     if (result.error) {
-        throw new Error(result.error.message);
+        throw new Error(formatApiError(result.error));
     }
     if (!result.data?.document || !result.data.meta) {
         throw new Error("Empty epam response");
@@ -94,7 +94,7 @@ export async function saveEpamToCloud(payload: {
         authToken: token,
     });
     if (result.error) {
-        throw new Error(result.error.message);
+        throw new Error(formatApiError(result.error));
     }
     if (!result.data?.document || !result.data.meta) {
         throw new Error("Empty epam save response");

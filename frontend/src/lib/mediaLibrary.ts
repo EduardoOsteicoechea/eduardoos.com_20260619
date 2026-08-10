@@ -84,3 +84,19 @@ export function trackDisplayName(objectKey: string): string {
     const parts = objectKey.split("/");
     return parts[parts.length - 1] || objectKey;
 }
+
+/** Session-only local uploads use this prefix and are never persisted to playlists. */
+export const LOCAL_TRACK_PREFIX = "local:";
+
+export function isLocalTrackKey(objectKey: string): boolean {
+    return objectKey.startsWith(LOCAL_TRACK_PREFIX);
+}
+
+export function makeLocalTrackKey(fileName: string): string {
+    const safe = fileName.trim() || "audio.mp3";
+    return `${LOCAL_TRACK_PREFIX}${crypto.randomUUID()}/${safe}`;
+}
+
+export function persistableTrackIds(trackIds: string[]): string[] {
+    return trackIds.filter((key) => key && !isLocalTrackKey(key));
+}

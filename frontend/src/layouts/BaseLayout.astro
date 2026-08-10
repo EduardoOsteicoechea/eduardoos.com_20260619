@@ -68,7 +68,6 @@ const pageEditor = activityBarMode === "editor";
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width" />
     <meta name="theme-color" content="#000000" />
-    <link rel="manifest" href="/manifest.webmanifest" />
     <ClientRouter />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -119,25 +118,24 @@ const pageEditor = activityBarMode === "editor";
       <slot />
     </main>
 
-    <div id="pwa-toast" role="status" aria-live="polite">
-      <span>A new version of Eduardo OS is ready.</span>
-      <button type="button" id="pwa-refresh">Refresh</button>
-    </div>
-
-    <script>
-      import { registerSW } from "virtual:pwa-register";
-
-      registerSW({
-        immediate: true,
-        onNeedRefresh() {
-          document.getElementById("pwa-toast")?.classList.add("is-visible");
-        },
-        onOfflineReady() {},
-      });
-
-      document.getElementById("pwa-refresh")?.addEventListener("click", () => {
-        window.location.reload();
-      });
+    <!-- Clear leftover service workers/caches from the former PWA setup. -->
+    <script is:inline>
+      (function () {
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (reg) {
+              void reg.unregister();
+            });
+          });
+        }
+        if (typeof caches !== "undefined" && caches.keys) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (key) {
+              void caches.delete(key);
+            });
+          });
+        }
+      })();
     </script>
   </body>
 </html>

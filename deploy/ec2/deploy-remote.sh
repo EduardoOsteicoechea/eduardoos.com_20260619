@@ -139,19 +139,11 @@ issue_letsencrypt_cert() {
   return 1
 }
 
-echo "==> Building host assets (frontend + backend)"
+echo "==> Building host assets (backend first, then frontend)"
 export COMPOSE_PARALLEL_LIMIT=1
 export DOCKER_BUILDKIT=1
 
 reclaim_ec2_disk
-
-build_host_frontend() {
-  chmod +x deploy/ec2/build-frontend.sh
-  APP_DIR="${APP_DIR}" bash deploy/ec2/build-frontend.sh
-}
-
-build_host_frontend
-docker builder prune -af || true
 
 install_host_backend() {
   echo "==> Installing / restarting Eduardo OS monolith on the host"
@@ -188,7 +180,16 @@ install_host_backend() {
   fi
 }
 
+# Backend first so API fixes (e.g. .epam uploads) ship even if Astro build fails.
 install_host_backend
+
+build_host_frontend() {
+  chmod +x deploy/ec2/build-frontend.sh
+  APP_DIR="${APP_DIR}" bash deploy/ec2/build-frontend.sh
+}
+
+build_host_frontend
+docker builder prune -af || true
 
 "${COMPOSE[@]}" up -d
 

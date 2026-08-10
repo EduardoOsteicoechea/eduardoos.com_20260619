@@ -289,13 +289,16 @@ type ToastKind = "info" | "success" | "error";
 function showToast(message: string, kind: ToastKind = "info"): void {
     Toastify({
         text: message,
-        duration: kind === "error" ? 5000 : 3200,
+        duration: kind === "error" ? 20000 : 3200,
         gravity: "top",
         position: "left",
         stopOnFocus: true,
         close: true,
         className: `app-toast app-toast--${kind}`,
     }).showToast();
+    if (kind === "error") {
+        console.error("[pamphlet]", message);
+    }
 }
 
 function setError(message: string): void {

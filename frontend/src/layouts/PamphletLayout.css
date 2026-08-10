@@ -254,43 +254,8 @@ html[data-theme="light"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile
   color: #000000;
 }
 
-#pwa-toast {
-  position: fixed;
-  right: 1rem;
-  bottom: 1rem;
-  z-index: 10000;
-  display: none;
-  align-items: center;
-  gap: 0.75rem;
-  max-width: min(22rem, calc(100vw - 2rem));
-  padding: 0.65rem 0.85rem;
-  background: var(--site-body-bg);
-  color: var(--site-body-fg);
-  border: var(--border_001);
-  border-radius: var(--border_radius_001);
-  font-size: var(--font-sm);
-}
-
-#pwa-toast.is-visible {
-  display: flex;
-}
-
-#pwa-toast button {
-  min-height: var(--chrome-control-size, 2rem);
-  min-width: auto;
-  padding: 0.25rem 0.65rem;
-  border: var(--border_001);
-  border-radius: var(--border_radius_001);
-  background: var(--site-accent);
-  color: var(--site-accent-fg);
-  font-size: var(--font-sm);
-  font-weight: 600;
-  cursor: pointer;
-}
-
 @media print {
-  .site-header,
-  #pwa-toast {
+  .site-header {
     display: none !important;
   }
 

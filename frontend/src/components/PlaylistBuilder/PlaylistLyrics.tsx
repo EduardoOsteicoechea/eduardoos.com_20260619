@@ -6,7 +6,7 @@ import {
     resolveEmusicSections,
     type EmusicDocument,
 } from "../../lib/emusic";
-import { trackDisplayName } from "../../lib/mediaLibrary";
+import { isLocalTrackKey, trackDisplayName } from "../../lib/mediaLibrary";
 import "./PlaylistLyrics.css";
 
 interface PlaylistLyricsProps {
@@ -21,9 +21,9 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
 
     useEffect(() => {
         let cancelled = false;
-        if (!trackKey) {
+        if (!trackKey || isLocalTrackKey(trackKey)) {
             setDoc(null);
-            setStatus("idle");
+            setStatus(!trackKey ? "idle" : "missing");
             return;
         }
         setStatus("loading");
@@ -71,7 +71,13 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
                 <p className="playlist-lyrics__empty">Cargando…</p>
             ) : status === "missing" ? (
                 <p className="playlist-lyrics__empty">
-                    Sin archivo <code>.emusic</code> para esta pista.
+                    {trackKey && isLocalTrackKey(trackKey)
+                        ? "Local session track — no lyrics."
+                        : (
+                            <>
+                              Sin archivo <code>.emusic</code> para esta pista.
+                            </>
+                          )}
                 </p>
             ) : (
                 <div className="playlist-lyrics__scroll">

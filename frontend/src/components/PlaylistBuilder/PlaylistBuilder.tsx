@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuthToken } from "../../lib/auth";
-import { fetchAudioLibrary, mediaObjectPlaybackUrl, trackDisplayName, type AudioLibraryItem, } from "../../lib/mediaLibrary";
+import { fetchAudioLibrary, isLocalTrackKey, makeLocalTrackKey, mediaObjectPlaybackUrl, persistableTrackIds, trackDisplayName, type AudioLibraryItem, } from "../../lib/mediaLibrary";
 import { countOfflineTracks, getOfflineTrackUrl, revokeOfflineTrackUrl, saveTrackOffline, saveTracksOfflineBulk, type OfflineBulkProgress, } from "../../lib/offlineAudio";
 import { fetchPlaylists, savePlaylist, type PlaylistRecord } from "../../lib/playlists";
 import PlaylistControls from "./PlaylistControls";
@@ -40,6 +40,8 @@ export default function PlaylistBuilder() {
     const [offlineReadyCount, setOfflineReadyCount] = useState(0);
     const [offlineDownloading, setOfflineDownloading] = useState(false);
     const [offlineProgress, setOfflineProgress] = useState("");
+    const localFileInputRef = useRef<HTMLInputElement>(null);
+    const localBlobUrlsRef = useRef<Map<string, string>>(new Map());
     activeTracksRef.current = activeTracks;
     loopPlaylistRef.current = loopPlaylist;
     isPlayingRef.current = isPlaying;
@@ -106,7 +108,26 @@ export default function PlaylistBuilder() {
             audio.removeAttribute("src");
             return;
         }
-        const remoteSrc = mediaObjectPlaybackUrl(currentTrackKey, urlByKey.get(currentTrackKey));
+        const remoteSrc = isLocalTrackKey(currentTrackKey)
+            ? (urlByKey.get(currentTrackKey) || "")
+            : mediaObjectPlaybackUrl(currentTrackKey, urlByKey.get(currentTrackKey));
+        if (!remoteSrc) {
+            clearBlobUrl();
+            audio.removeAttribute("src");
+            return;
+        }
+        // Local session files play from blob: URLs only — never cached offline.
+        if (isLocalTrackKey(currentTrackKey)) {
+            clearBlobUrl();
+            const resolved = new URL(remoteSrc, window.location.origin).href;
+            if (audio.src !== resolved) {
+                audio.src = remoteSrc;
+                audio.load();
+                setCurrentTime(0);
+                setDuration(0);
+            }
+            return;
+        }
         const offlineUrl = await getOfflineTrackUrl(currentTrackKey);
         clearBlobUrl();
         let nextSrc = remoteSrc;
@@ -142,6 +163,10 @@ export default function PlaylistBuilder() {
     useEffect(() => {
         return () => {
             clearBlobUrl();
+            for (const url of localBlobUrlsRef.current.values()) {
+                URL.revokeObjectURL(url);
+            }
+            localBlobUrlsRef.current.clear();
         };
     }, [clearBlobUrl]);
     useEffect(() => {
@@ -165,8 +190,51 @@ export default function PlaylistBuilder() {
             return next;
         });
     }
+    function revokeLocalTrack(key: string) {
+        if (!isLocalTrackKey(key))
+            return;
+        const url = localBlobUrlsRef.current.get(key);
+        if (url) {
+            URL.revokeObjectURL(url);
+            localBlobUrlsRef.current.delete(key);
+        }
+        setUrlByKey((prev) => {
+            if (!prev.has(key))
+                return prev;
+            const next = new Map(prev);
+            next.delete(key);
+            return next;
+        });
+    }
+    function addLocalAudioFiles(files: FileList | File[]) {
+        const list = Array.from(files).filter((file) => file.type.startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg)$/i.test(file.name));
+        if (list.length === 0) {
+            setError("Select one or more audio files.");
+            return;
+        }
+        setError("");
+        const addedKeys: string[] = [];
+        setUrlByKey((prev) => {
+            const next = new Map(prev);
+            for (const file of list) {
+                const key = makeLocalTrackKey(file.name);
+                const url = URL.createObjectURL(file);
+                localBlobUrlsRef.current.set(key, url);
+                next.set(key, url);
+                addedKeys.push(key);
+            }
+            return next;
+        });
+        setActiveTracks((tracks) => [...tracks, ...addedKeys]);
+        setMessage(`Added ${addedKeys.length} local track(s) for this session only (not saved).`);
+    }
     function removeTrack(index: number) {
-        setActiveTracks((tracks) => tracks.filter((_, i) => i !== index));
+        setActiveTracks((tracks) => {
+            const removed = tracks[index];
+            if (removed)
+                revokeLocalTrack(removed);
+            return tracks.filter((_, i) => i !== index);
+        });
         setCurrentIndex((idx) => {
             if (idx > index)
                 return idx - 1;
@@ -221,6 +289,13 @@ export default function PlaylistBuilder() {
     function handleDropOnPlaylist(event: React.DragEvent) {
         event.preventDefault();
         setDropActive(false);
+        const files = event.dataTransfer.files;
+        if (files && files.length > 0) {
+            addLocalAudioFiles(files);
+            setDragReorderIndex(null);
+            setDropTargetIndex(null);
+            return;
+        }
         const key = event.dataTransfer.getData(DRAG_MIME);
         if (!key) {
             setDragReorderIndex(null);
@@ -260,14 +335,24 @@ export default function PlaylistBuilder() {
             setError("Enter a playlist name before saving.");
             return;
         }
+        const trackIds = persistableTrackIds(activeTracks);
+        const skippedLocal = activeTracks.length - trackIds.length;
+        if (trackIds.length === 0) {
+            setError("Nothing to save — local-only tracks are session temporary and are not stored.");
+            return;
+        }
         try {
             const saved = await savePlaylist({
                 playlistId: loadedPlaylistId || undefined,
                 name: playlistName.trim(),
-                trackIds: activeTracks,
+                trackIds,
             });
             setLoadedPlaylistId(saved.playlistId);
-            setMessage(`Saved playlist "${saved.name}" (${saved.playlistId}).`);
+            setMessage(
+                skippedLocal > 0
+                    ? `Saved playlist "${saved.name}" (${trackIds.length} site tracks; ${skippedLocal} local skipped).`
+                    : `Saved playlist "${saved.name}" (${saved.playlistId}).`,
+            );
             await loadSavedPlaylists();
         }
         catch (err) {
@@ -280,7 +365,11 @@ export default function PlaylistBuilder() {
             return;
         setLoadedPlaylistId(found.playlistId);
         setPlaylistName(found.name);
-        setActiveTracks([...found.trackIds]);
+        // Drop any previous local blobs; loaded playlists only contain site tracks.
+        for (const key of activeTracksRef.current) {
+            revokeLocalTrack(key);
+        }
+        setActiveTracks(persistableTrackIds(found.trackIds));
         setCurrentIndex(0);
         setCurrentTime(0);
         setDuration(0);
@@ -431,6 +520,22 @@ export default function PlaylistBuilder() {
         <button type="button" className="btn btn--secondary" onClick={() => void loadSavedPlaylists()}>
           Refresh lists
         </button>
+        <button type="button" className="btn btn--secondary" onClick={() => localFileInputRef.current?.click()}>
+          Add local audio
+        </button>
+        <input
+          ref={localFileInputRef}
+          type="file"
+          accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg"
+          multiple
+          hidden
+          onChange={(e) => {
+            if (e.target.files?.length) {
+              addLocalAudioFiles(e.target.files);
+            }
+            e.target.value = "";
+          }}
+        />
         <button type="button" className="btn btn--secondary" disabled={offlineDownloading || library.length === 0} onClick={() => void downloadLibraryOffline()}>
           {offlineDownloading
             ? `Downloading… ${offlineProgress}`
@@ -468,8 +573,11 @@ export default function PlaylistBuilder() {
             }
         }} onDragLeave={() => setDropActive(false)} onDrop={handleDropOnPlaylist}>
             <ul className="playlist-builder__list">
-              {activeTracks.length === 0 ? (<li className="playlist-builder__empty">Drop tracks here to build a playlist.</li>) : (activeTracks.map((key, index) => (<li key={`${key}-${index}`} className={`playlist-builder__item${index === currentIndex ? " playlist-builder__item--playing" : ""}${dropTargetIndex === index ? " playlist-builder__item--drop-target" : ""}`} draggable onDragStart={(e) => handlePlaylistDragStart(index, e)} onDragOver={(e) => handlePlaylistItemDragOver(index, e)} onClick={() => setCurrentIndex(index)}>
-                    <span className="playlist-builder__item-label">{trackDisplayName(key)}</span>
+              {activeTracks.length === 0 ? (<li className="playlist-builder__empty">Drop site tracks or local audio files here.</li>) : (activeTracks.map((key, index) => (<li key={`${key}-${index}`} className={`playlist-builder__item${index === currentIndex ? " playlist-builder__item--playing" : ""}${dropTargetIndex === index ? " playlist-builder__item--drop-target" : ""}`} draggable onDragStart={(e) => handlePlaylistDragStart(index, e)} onDragOver={(e) => handlePlaylistItemDragOver(index, e)} onClick={() => setCurrentIndex(index)}>
+                    <span className="playlist-builder__item-label">
+                      {trackDisplayName(key)}
+                      {isLocalTrackKey(key) ? " (local)" : ""}
+                    </span>
                     <div className="playlist-builder__item-actions">
                       <button type="button" className="playlist-builder__icon-btn" title="Move up" aria-label="Move up" disabled={index === 0} onClick={(e) => {
                 e.stopPropagation();
@@ -496,7 +604,7 @@ export default function PlaylistBuilder() {
         </section>
       </div>
 
-      <PlaylistLyrics trackKey={currentTrackKey} currentTime={currentTime} />
+      <PlaylistLyrics trackKey={currentTrackKey || null} currentTime={currentTime} />
 
       <PlaylistControls nowPlayingLabel={nowPlayingLabel} isPlaying={isPlaying} canPlay={Boolean(currentTrackKey)} volume={volume} playbackRate={playbackRate} currentTime={currentTime} duration={duration} loopPlaylist={loopPlaylist} onPlay={() => {
             isPlayingRef.current = true;
