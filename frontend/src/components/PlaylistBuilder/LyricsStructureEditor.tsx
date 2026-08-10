@@ -23,9 +23,9 @@ interface LyricsStructureEditorProps {
 }
 
 type FocusWord = {
-    sectionIndex: number;
+    unitIndex: number;
     lineIndex: number;
-    cueIndex: number;
+    wordIndex: number;
 };
 
 export default function LyricsStructureEditor({
@@ -34,7 +34,7 @@ export default function LyricsStructureEditor({
     onCommit,
     saveStatus = "",
 }: LyricsStructureEditorProps) {
-    const normalized = useMemo(() => normalizeEmusicDocument(doc), [doc]);
+    const { unidades } = useMemo(() => normalizeEmusicDocument(doc), [doc]);
     const [blockKind, setBlockKind] = useState<EmusicBlockKind>("estrofa");
     const [focus, setFocus] = useState<FocusWord | null>(null);
     const [draftText, setDraftText] = useState("");
@@ -42,15 +42,14 @@ export default function LyricsStructureEditor({
 
     useEffect(() => {
         if (!focus) return;
-        const cue = normalized.sections[focus.sectionIndex]?.lines[focus.lineIndex]?.cues[focus.cueIndex];
-        if (!cue) {
+        const word = unidades[focus.unitIndex]?.l[focus.lineIndex]?.p[focus.wordIndex];
+        if (!word) {
             setFocus(null);
             return;
         }
-        const id = cue.w[0];
-        setDraftText((id && normalized.lexicon[id]) || "");
-        setDraftTime(String(cue.t));
-    }, [focus, normalized]);
+        setDraftText(word.t);
+        setDraftTime(String(word.i));
+    }, [focus, unidades]);
 
     async function commit(next: EmusicDocument): Promise<void> {
         const cloned = cloneEmusicDocument(next);
@@ -63,9 +62,9 @@ export default function LyricsStructureEditor({
         const timeSec = Number(draftTime);
         const next = updateEmusicLineWord(
             doc,
-            focus.sectionIndex,
+            focus.unitIndex,
             focus.lineIndex,
-            focus.cueIndex,
+            focus.wordIndex,
             draftText,
             Number.isFinite(timeSec) ? timeSec : 0,
         );
@@ -84,13 +83,16 @@ export default function LyricsStructureEditor({
         <section className="lyrics-structure-editor" aria-label="Lyric structure editor">
             <header className="lyrics-structure-editor__header">
                 <h3>Editor de estructura</h3>
-                <p>Bloques → líneas → palabras. OK / Enter / Esc guarda en S3.</p>
+                <p>
+                    unidades → líneas → palabras <code>{`{ t, i }`}</code>. OK / Enter / Esc guarda en
+                    S3.
+                </p>
                 {saveStatus ? <p className="lyrics-structure-editor__status">{saveStatus}</p> : null}
             </header>
 
             <div className="lyrics-structure-editor__add-block">
                 <label>
-                    Tipo de bloque
+                    Tipo de unidad
                     <select
                         value={blockKind}
                         onChange={(e) => setBlockKind(e.target.value as EmusicBlockKind)}
@@ -109,42 +111,50 @@ export default function LyricsStructureEditor({
                         void commit(addEmusicBlock(doc, blockKind));
                     }}
                 >
-                    + Bloque
+                    + Unidad
                 </button>
             </div>
 
             <div className="lyrics-structure-editor__blocks">
-                {normalized.sections.length === 0 ? (
-                    <p className="lyrics-structure-editor__empty">Sin bloques. Añade un bloque para empezar.</p>
+                {unidades.length === 0 ? (
+                    <p className="lyrics-structure-editor__empty">
+                        Sin unidades. Añade una unidad para empezar.
+                    </p>
                 ) : (
-                    normalized.sections.map((section, sectionIndex) => (
-                        <article key={`block-${sectionIndex}-${section.label}`} className="lyrics-structure-editor__block">
+                    unidades.map((unit, unitIndex) => (
+                        <article
+                            key={`unit-${unitIndex}-${unit.t}`}
+                            className="lyrics-structure-editor__block"
+                        >
                             <div className="lyrics-structure-editor__block-bar">
                                 <strong>
-                                    [{section.label}] {section.kind || "estrofa"}
+                                    unidad {unitIndex + 1}: {unit.t}
                                 </strong>
                                 <div className="lyrics-structure-editor__row-actions">
                                     <button
                                         type="button"
                                         className="lyrics-structure-editor__btn"
                                         title="Add line"
-                                        onClick={() => void commit(addEmusicLine(doc, sectionIndex))}
+                                        onClick={() => void commit(addEmusicLine(doc, unitIndex))}
                                     >
                                         + línea
                                     </button>
                                     <button
                                         type="button"
                                         className="lyrics-structure-editor__btn lyrics-structure-editor__btn--danger"
-                                        title="Remove block"
-                                        onClick={() => void commit(removeEmusicBlock(doc, sectionIndex))}
+                                        title="Remove unit"
+                                        onClick={() => void commit(removeEmusicBlock(doc, unitIndex))}
                                     >
-                                        − bloque
+                                        − unidad
                                     </button>
                                 </div>
                             </div>
 
-                            {section.lines.map((line, lineIndex) => (
-                                <div key={`line-${sectionIndex}-${lineIndex}`} className="lyrics-structure-editor__line">
+                            {unit.l.map((line, lineIndex) => (
+                                <div
+                                    key={`line-${unitIndex}-${lineIndex}`}
+                                    className="lyrics-structure-editor__line"
+                                >
                                     <div className="lyrics-structure-editor__line-bar">
                                         <span>Línea {lineIndex + 1}</span>
                                         <div className="lyrics-structure-editor__row-actions">
@@ -152,7 +162,9 @@ export default function LyricsStructureEditor({
                                                 type="button"
                                                 className="lyrics-structure-editor__btn"
                                                 onClick={() =>
-                                                    void commit(addEmusicLineWord(doc, sectionIndex, lineIndex))
+                                                    void commit(
+                                                        addEmusicLineWord(doc, unitIndex, lineIndex),
+                                                    )
                                                 }
                                             >
                                                 + palabra
@@ -161,7 +173,9 @@ export default function LyricsStructureEditor({
                                                 type="button"
                                                 className="lyrics-structure-editor__btn lyrics-structure-editor__btn--danger"
                                                 onClick={() =>
-                                                    void commit(removeEmusicLine(doc, sectionIndex, lineIndex))
+                                                    void commit(
+                                                        removeEmusicLine(doc, unitIndex, lineIndex),
+                                                    )
                                                 }
                                             >
                                                 − línea
@@ -170,42 +184,50 @@ export default function LyricsStructureEditor({
                                     </div>
 
                                     <ul className="lyrics-structure-editor__words">
-                                        {line.cues.length === 0 ? (
-                                            <li className="lyrics-structure-editor__empty">Sin palabras</li>
+                                        {line.p.length === 0 ? (
+                                            <li className="lyrics-structure-editor__empty">
+                                                Sin palabras
+                                            </li>
                                         ) : (
-                                            line.cues.map((cue, cueIndex) => {
-                                                const id = cue.w[0];
-                                                const text = (id && normalized.lexicon[id]) || "…";
+                                            line.p.map((word, wordIndex) => {
                                                 const isFocused =
-                                                    focus?.sectionIndex === sectionIndex &&
+                                                    focus?.unitIndex === unitIndex &&
                                                     focus?.lineIndex === lineIndex &&
-                                                    focus?.cueIndex === cueIndex;
+                                                    focus?.wordIndex === wordIndex;
                                                 return (
-                                                    <li key={`cue-${sectionIndex}-${lineIndex}-${cueIndex}`}>
+                                                    <li
+                                                        key={`word-${unitIndex}-${lineIndex}-${wordIndex}`}
+                                                    >
                                                         {isFocused ? (
                                                             <div className="lyrics-structure-editor__word-edit">
                                                                 <input
                                                                     type="text"
                                                                     value={draftText}
-                                                                    onChange={(e) => setDraftText(e.target.value)}
+                                                                    onChange={(e) =>
+                                                                        setDraftText(e.target.value)
+                                                                    }
                                                                     onKeyDown={onWordKeyDown}
                                                                     autoFocus
-                                                                    aria-label="Palabra"
+                                                                    aria-label="Texto"
                                                                 />
                                                                 <input
                                                                     type="number"
                                                                     step="0.001"
                                                                     min="0"
                                                                     value={draftTime}
-                                                                    onChange={(e) => setDraftTime(e.target.value)}
+                                                                    onChange={(e) =>
+                                                                        setDraftTime(e.target.value)
+                                                                    }
                                                                     onKeyDown={onWordKeyDown}
-                                                                    aria-label="Tiempo en segundos"
-                                                                    title="Tiempo de inicio (segundos)"
+                                                                    aria-label="Inicio en segundos"
+                                                                    title="Inicio (segundos)"
                                                                 />
                                                                 <button
                                                                     type="button"
                                                                     className="lyrics-structure-editor__btn lyrics-structure-editor__btn--ok"
-                                                                    onClick={() => void commitFocusedWord()}
+                                                                    onClick={() =>
+                                                                        void commitFocusedWord()
+                                                                    }
                                                                 >
                                                                     OK
                                                                 </button>
@@ -217,9 +239,9 @@ export default function LyricsStructureEditor({
                                                                         void commit(
                                                                             removeEmusicLineWord(
                                                                                 doc,
-                                                                                sectionIndex,
+                                                                                unitIndex,
                                                                                 lineIndex,
-                                                                                cueIndex,
+                                                                                wordIndex,
                                                                             ),
                                                                         );
                                                                     }}
@@ -232,11 +254,15 @@ export default function LyricsStructureEditor({
                                                                 type="button"
                                                                 className="lyrics-structure-editor__word-chip"
                                                                 onClick={() => {
-                                                                    setFocus({ sectionIndex, lineIndex, cueIndex });
+                                                                    setFocus({
+                                                                        unitIndex,
+                                                                        lineIndex,
+                                                                        wordIndex,
+                                                                    });
                                                                 }}
                                                             >
-                                                                <span>{text}</span>
-                                                                <small>{cue.t.toFixed(2)}s</small>
+                                                                <span>{word.t}</span>
+                                                                <small>{word.i.toFixed(2)}s</small>
                                                             </button>
                                                         )}
                                                     </li>

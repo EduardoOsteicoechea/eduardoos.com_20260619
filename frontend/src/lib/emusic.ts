@@ -1,46 +1,42 @@
 /**
- * .emusic — timed lyric sections for karaoke-style highlighting + structure editing.
+ * .emusic — timed lyrics as nested units → lines → words.
  *
- * v3 shape (preferred):
+ * Canonical v4 shape (each word owns its own text + start time):
  * {
  *   "type": "emusic",
- *   "version": 3,
+ *   "version": 4,
  *   "title": "Song title",
- *   "lexicon": { "1": "mis", "2": "iniquidades" },
- *   "sections": [
+ *   "unidades": [
  *     {
- *       "label": "I",
- *       "kind": "estrofa",
- *       "lines": [
- *         { "cues": [ { "t": 0.0, "w": ["1"] }, { "t": 0.5, "w": ["2"] } ] }
+ *       "t": "estrofa",
+ *       "l": [
+ *         { "p": [ { "t": "Es", "i": 0 }, { "t": "más", "i": 0.42 } ] }
  *       ]
  *     }
  *   ]
  * }
  *
- * Duration of a cue is next cue start minus this start (across the section).
+ * Word highlight duration = next word start − this start (within the unit).
+ * Legacy lexicon/sections/cues formats are migrated on load and always saved as v4.
  */
 import { trackDisplayName } from "./mediaLibrary";
 
-export type EmusicLexicon = Record<string, string>;
 export type EmusicBlockKind = "estrofa" | "coro" | "precoro" | "puente";
 
-export interface EmusicCue {
-    /** Highlight start time in seconds. */
-    t: number;
-    /** Lexicon word ids active for this cue. */
-    w: string[];
+/** One sung word: text + start time (seconds). */
+export interface EmusicPalabra {
+    t: string;
+    i: number;
 }
 
-export interface EmusicLine {
-    cues: EmusicCue[];
+export interface EmusicLinea {
+    p: EmusicPalabra[];
 }
 
-export interface EmusicSection {
-    /** Display label without brackets, e.g. "I", "CORO", "PUENTE". */
-    label: string;
-    kind?: EmusicBlockKind;
-    lines: EmusicLine[];
+export interface EmusicUnidad {
+    /** Block kind: estrofa | coro | precoro | puente */
+    t: EmusicBlockKind;
+    l: EmusicLinea[];
 }
 
 export interface EmusicDocument {
@@ -48,34 +44,20 @@ export interface EmusicDocument {
     version: number;
     trackFile?: string;
     title?: string;
-    lexicon?: EmusicLexicon;
-    sections?: EmusicSection[];
-    /** Legacy flat timed words. */
-    words?: LegacyEmusicWord[];
-}
-
-interface LegacyEmusicWord {
-    t: number;
-    d?: number;
-    w: string;
-}
-
-interface LegacySection {
-    label: string;
-    kind?: EmusicBlockKind;
-    lines?: EmusicLine[];
-    cues?: EmusicCue[];
-    words?: LegacyEmusicWord[];
+    unidades?: EmusicUnidad[];
+    /** Legacy fields kept only for migration. */
+    lexicon?: Record<string, string>;
+    sections?: unknown[];
+    words?: unknown[];
 }
 
 export interface ResolvedWord {
-    id: string;
     text: string;
     t: number;
     end: number;
-    sectionIndex: number;
+    unitIndex: number;
     lineIndex: number;
-    cueIndex: number;
+    wordIndex: number;
     occurrenceKey: string;
 }
 
@@ -86,12 +68,14 @@ export interface ResolvedLine {
 
 export interface ResolvedSection {
     label: string;
-    kind?: EmusicBlockKind;
+    kind: EmusicBlockKind;
     lines: ResolvedLine[];
     words: ResolvedWord[];
 }
 
 export const EMUSIC_BLOCK_KINDS: EmusicBlockKind[] = ["estrofa", "coro", "precoro", "puente"];
+
+const KIND_SET = new Set<string>(EMUSIC_BLOCK_KINDS);
 
 export function trackLyricsSlug(objectKey: string): string {
     const name = trackDisplayName(objectKey).replace(/\.mp3$/i, "");
@@ -115,146 +99,205 @@ export function emusicApiUrl(slug: string): string {
     return `/api/emusic/${encodeURIComponent(slug)}`;
 }
 
-function asStringIds(raw: unknown): string[] {
-    if (!Array.isArray(raw)) return [];
-    return raw
-        .map((item) => String(item).trim())
-        .filter(Boolean);
+function asBlockKind(raw: unknown, fallback: EmusicBlockKind = "estrofa"): EmusicBlockKind {
+    const value = String(raw || "")
+        .trim()
+        .toLowerCase();
+    if (KIND_SET.has(value)) return value as EmusicBlockKind;
+    if (value === "chorus" || value === "refrain") return "coro";
+    if (value === "bridge") return "puente";
+    if (value === "verse" || value === "estrofa") return "estrofa";
+    return fallback;
 }
 
-function flattenSectionCues(section: EmusicSection): EmusicCue[] {
-    return section.lines.flatMap((line) => line.cues);
-}
-
-function cueEndTime(cues: EmusicCue[], index: number): number {
-    const start = cues[index]?.t ?? 0;
-    const next = cues[index + 1]?.t;
-    if (typeof next === "number" && Number.isFinite(next) && next > start) {
-        return next;
-    }
-    return start + 0.45;
-}
-
-function defaultLabelForKind(kind: EmusicBlockKind, index: number): string {
+function labelForKind(kind: EmusicBlockKind, estrofaOrdinal: number): string {
     if (kind === "coro") return "CORO";
     if (kind === "precoro") return "PRECORO";
     if (kind === "puente") return "PUENTE";
-    const n = index + 1;
-    if (n <= 3) return ["I", "II", "III"][n - 1];
-    return String(n);
+    if (estrofaOrdinal <= 3) return ["I", "II", "III"][estrofaOrdinal - 1];
+    return String(estrofaOrdinal);
 }
 
-/** Normalize any supported .emusic version into lexicon + lined sections. */
-export function normalizeEmusicDocument(doc: EmusicDocument): {
-    lexicon: EmusicLexicon;
-    sections: EmusicSection[];
-} {
-    const lexicon: EmusicLexicon = { ...(doc.lexicon ?? {}) };
-    let nextId = Object.keys(lexicon).reduce((max, key) => {
-        const n = Number(key);
-        return Number.isFinite(n) ? Math.max(max, n) : max;
-    }, 0);
+function kindFromLegacyLabel(label: string): EmusicBlockKind {
+    const upper = label.trim().toUpperCase();
+    if (upper.includes("PRECORO") || upper.includes("PRE-CORO")) return "precoro";
+    if (upper.includes("CORO") || upper.includes("CHORUS")) return "coro";
+    if (upper.includes("PUENTE") || upper.includes("BRIDGE")) return "puente";
+    return "estrofa";
+}
 
-    const ensureWord = (text: string): string => {
-        const trimmed = text.trim();
-        if (!trimmed) return "";
-        for (const [id, value] of Object.entries(lexicon)) {
-            if (value === trimmed) return id;
-        }
-        nextId += 1;
-        const id = String(nextId);
-        lexicon[id] = trimmed;
-        return id;
+function wordEndTime(starts: number[], index: number): number {
+    const start = starts[index] ?? 0;
+    const next = starts[index + 1];
+    if (typeof next === "number" && Number.isFinite(next) && next > start) return next;
+    return start + 0.45;
+}
+
+function cloneUnidades(unidades: EmusicUnidad[]): EmusicUnidad[] {
+    return unidades.map((unit) => ({
+        t: unit.t,
+        l: unit.l.map((line) => ({
+            p: line.p.map((word) => ({ t: word.t, i: word.i })),
+        })),
+    }));
+}
+
+function parsePalabra(raw: unknown): EmusicPalabra | null {
+    if (!raw || typeof raw !== "object") return null;
+    const row = raw as Record<string, unknown>;
+    const text = String(row.t ?? "").trim();
+    if (!text) return null;
+    const i = Number(row.i);
+    return { t: text, i: Number.isFinite(i) ? Math.max(0, i) : 0 };
+}
+
+function parseLinea(raw: unknown): EmusicLinea {
+    if (!raw || typeof raw !== "object") return { p: [] };
+    const row = raw as Record<string, unknown>;
+    const list = Array.isArray(row.p) ? row.p : [];
+    return {
+        p: list.map(parsePalabra).filter((word): word is EmusicPalabra => word !== null),
     };
+}
 
-    const cuesFromLegacyWords = (words: LegacyEmusicWord[]): EmusicCue[] =>
-        words
-            .map((word) => {
-                const id = ensureWord(String(word.w || ""));
-                if (!id) return null;
-                return { t: Number(word.t) || 0, w: [id] };
-            })
-            .filter((cue): cue is EmusicCue => cue !== null)
-            .sort((a, b) => a.t - b.t);
+function parseUnidad(raw: unknown): EmusicUnidad | null {
+    if (!raw || typeof raw !== "object") return null;
+    const row = raw as Record<string, unknown>;
+    const lines = Array.isArray(row.l) ? row.l.map(parseLinea) : [{ p: [] }];
+    return {
+        t: asBlockKind(row.t),
+        l: lines.length ? lines : [{ p: [] }],
+    };
+}
 
-    const rawSections = Array.isArray(doc.sections) ? (doc.sections as LegacySection[]) : [];
+/** Migrate any supported .emusic version into canonical unidades. */
+export function normalizeEmusicDocument(doc: EmusicDocument): {
+    unidades: EmusicUnidad[];
+} {
+    if (Array.isArray(doc.unidades) && doc.unidades.length > 0) {
+        const unidades = doc.unidades
+            .map(parseUnidad)
+            .filter((unit): unit is EmusicUnidad => unit !== null);
+        return { unidades };
+    }
+    if (Array.isArray(doc.unidades)) {
+        return { unidades: [] };
+    }
+
+    // Legacy v3: lexicon + sections (lines/cues or flat cues).
+    const lexicon = { ...(doc.lexicon ?? {}) };
+    const rawSections = Array.isArray(doc.sections) ? doc.sections : [];
     if (rawSections.length > 0) {
-        const sections: EmusicSection[] = [];
+        const unidades: EmusicUnidad[] = [];
         for (const section of rawSections) {
-            const label = String(section.label || "I").trim() || "I";
-            const kind = section.kind;
-            if (Array.isArray(section.lines) && section.lines.length > 0) {
-                // Keep empty lines so structure-editor indices stay stable.
-                const lines = section.lines.map((line) => ({
-                    cues: (Array.isArray(line.cues) ? line.cues : [])
-                        .map((cue) => ({
-                            t: Number(cue.t) || 0,
-                            w: asStringIds(cue.w),
-                        }))
-                        .filter((cue) => cue.w.length > 0),
-                }));
-                sections.push({ label, kind, lines });
-                continue;
+            if (!section || typeof section !== "object") continue;
+            const row = section as Record<string, unknown>;
+            const label = String(row.label || "I");
+            const kind = row.kind ? asBlockKind(row.kind) : kindFromLegacyLabel(label);
+            const lines: EmusicLinea[] = [];
+
+            if (Array.isArray(row.lines) && row.lines.length > 0) {
+                for (const line of row.lines) {
+                    if (!line || typeof line !== "object") {
+                        lines.push({ p: [] });
+                        continue;
+                    }
+                    const lineRow = line as Record<string, unknown>;
+                    const cues = Array.isArray(lineRow.cues) ? lineRow.cues : [];
+                    const p: EmusicPalabra[] = [];
+                    for (const cue of cues) {
+                        if (!cue || typeof cue !== "object") continue;
+                        const cueRow = cue as Record<string, unknown>;
+                        const start = Number(cueRow.t) || 0;
+                        const ids = Array.isArray(cueRow.w) ? cueRow.w.map(String) : [];
+                        for (const id of ids) {
+                            const text = String(lexicon[id] ?? "").trim();
+                            if (!text) continue;
+                            p.push({ t: text, i: start });
+                        }
+                    }
+                    lines.push({ p });
+                }
+            } else if (Array.isArray(row.cues) && row.cues.length > 0) {
+                const p: EmusicPalabra[] = [];
+                for (const cue of row.cues) {
+                    if (!cue || typeof cue !== "object") continue;
+                    const cueRow = cue as Record<string, unknown>;
+                    const start = Number(cueRow.t) || 0;
+                    const ids = Array.isArray(cueRow.w) ? cueRow.w.map(String) : [];
+                    for (const id of ids) {
+                        const text = String(lexicon[id] ?? "").trim();
+                        if (!text) continue;
+                        p.push({ t: text, i: start });
+                    }
+                }
+                lines.push({ p });
+            } else if (Array.isArray(row.words) && row.words.length > 0) {
+                const p: EmusicPalabra[] = [];
+                for (const word of row.words) {
+                    if (!word || typeof word !== "object") continue;
+                    const wordRow = word as Record<string, unknown>;
+                    const text = String(wordRow.w ?? "").trim();
+                    if (!text) continue;
+                    p.push({ t: text, i: Number(wordRow.t) || 0 });
+                }
+                lines.push({ p });
+            } else {
+                lines.push({ p: [] });
             }
-            if (Array.isArray(section.cues) && section.cues.length > 0) {
-                const cues = section.cues
-                    .map((cue) => ({
-                        t: Number(cue.t) || 0,
-                        w: asStringIds(cue.w),
-                    }))
-                    .filter((cue) => cue.w.length > 0)
-                    .sort((a, b) => a.t - b.t);
-                if (cues.length) sections.push({ label, kind, lines: [{ cues }] });
-                continue;
-            }
-            if (Array.isArray(section.words) && section.words.length > 0) {
-                const cues = cuesFromLegacyWords(section.words);
-                if (cues.length) sections.push({ label, kind, lines: [{ cues }] });
-            }
+
+            unidades.push({ t: kind, l: lines.length ? lines : [{ p: [] }] });
         }
-        return { lexicon, sections };
+        return { unidades };
     }
 
+    // Legacy flat words list.
     if (Array.isArray(doc.words) && doc.words.length > 0) {
-        const cues = cuesFromLegacyWords(doc.words);
-        return { lexicon, sections: cues.length ? [{ label: "I", kind: "estrofa", lines: [{ cues }] }] : [] };
+        const p: EmusicPalabra[] = [];
+        for (const word of doc.words) {
+            if (!word || typeof word !== "object") continue;
+            const wordRow = word as Record<string, unknown>;
+            const text = String(wordRow.w ?? "").trim();
+            if (!text) continue;
+            p.push({ t: text, i: Number(wordRow.t) || 0 });
+        }
+        return {
+            unidades: p.length ? [{ t: "estrofa", l: [{ p }] }] : [],
+        };
     }
 
-    return { lexicon, sections: [] };
+    return { unidades: [] };
 }
 
 export function resolveEmusicSections(doc: EmusicDocument): ResolvedSection[] {
-    const { lexicon, sections } = normalizeEmusicDocument(doc);
-    return sections.map((section, sectionIndex) => {
-        const flatCues = flattenSectionCues(section);
+    const { unidades } = normalizeEmusicDocument(doc);
+    let estrofaOrdinal = 0;
+    return unidades.map((unit, unitIndex) => {
+        if (unit.t === "estrofa") estrofaOrdinal += 1;
+        const label = labelForKind(unit.t, estrofaOrdinal);
+        const flatStarts = unit.l.flatMap((line) => line.p.map((word) => word.i));
         const lines: ResolvedLine[] = [];
         const words: ResolvedWord[] = [];
-        let flatCueCursor = 0;
-        section.lines.forEach((line, lineIndex) => {
+        let flatCursor = 0;
+        unit.l.forEach((line, lineIndex) => {
             const lineWords: ResolvedWord[] = [];
-            line.cues.forEach((cue, cueIndex) => {
-                const end = cueEndTime(flatCues, flatCueCursor);
-                cue.w.forEach((id, wordIndex) => {
-                    const text = lexicon[id];
-                    if (!text) return;
-                    const resolved: ResolvedWord = {
-                        id,
-                        text,
-                        t: cue.t,
-                        end,
-                        sectionIndex,
-                        lineIndex,
-                        cueIndex,
-                        occurrenceKey: `${sectionIndex}:${lineIndex}:${cueIndex}:${wordIndex}:${id}`,
-                    };
-                    lineWords.push(resolved);
-                    words.push(resolved);
-                });
-                flatCueCursor += 1;
+            line.p.forEach((word, wordIndex) => {
+                const resolved: ResolvedWord = {
+                    text: word.t,
+                    t: word.i,
+                    end: wordEndTime(flatStarts, flatCursor),
+                    unitIndex,
+                    lineIndex,
+                    wordIndex,
+                    occurrenceKey: `${unitIndex}:${lineIndex}:${wordIndex}`,
+                };
+                lineWords.push(resolved);
+                words.push(resolved);
+                flatCursor += 1;
             });
             lines.push({ lineIndex, words: lineWords });
         });
-        return { label: section.label, kind: section.kind, lines, words };
+        return { label, kind: unit.t, lines, words };
     });
 }
 
@@ -271,10 +314,9 @@ export async function fetchEmusicForTrack(objectKey: string): Promise<EmusicDocu
             if (!res.ok) continue;
             const data = (await res.json()) as EmusicDocument;
             if (data?.type !== "emusic") continue;
-            if (!resolveEmusicSections(data).some((section) => section.words.length > 0) && !data.sections?.length) {
-                // Allow empty structure docs for editing.
-                if (!Array.isArray(data.sections)) continue;
-            }
+            const hasUnits = Array.isArray(data.unidades);
+            const hasLegacy = Array.isArray(data.sections) || Array.isArray(data.words);
+            if (!hasUnits && !hasLegacy) continue;
             return data;
         } catch {
             // try next source
@@ -298,34 +340,18 @@ export function activeOccurrenceKeys(words: ResolvedWord[], timeSec: number): Se
     const keys = new Set<string>();
     const index = activeWordIndex(words, timeSec);
     if (index < 0) return keys;
-    const active = words[index];
-    for (const word of words) {
-        if (
-            word.sectionIndex === active.sectionIndex &&
-            word.lineIndex === active.lineIndex &&
-            word.cueIndex === active.cueIndex
-        ) {
-            keys.add(word.occurrenceKey);
-        }
-    }
+    keys.add(words[index].occurrenceKey);
     return keys;
 }
 
 export function cloneEmusicDocument(doc: EmusicDocument): EmusicDocument {
-    const { lexicon, sections } = normalizeEmusicDocument(doc);
+    const { unidades } = normalizeEmusicDocument(doc);
     return {
         type: "emusic",
-        version: 3,
+        version: 4,
         trackFile: doc.trackFile,
         title: doc.title,
-        lexicon: { ...lexicon },
-        sections: sections.map((section) => ({
-            label: section.label,
-            kind: section.kind,
-            lines: section.lines.map((line) => ({
-                cues: line.cues.map((cue) => ({ t: cue.t, w: [...cue.w] })),
-            })),
-        })),
+        unidades: cloneUnidades(unidades),
     };
 }
 
@@ -333,97 +359,33 @@ export function serializeEmusicDocument(doc: EmusicDocument): string {
     return `${JSON.stringify(cloneEmusicDocument(doc), null, 2)}\n`;
 }
 
-function nextLexiconId(lexicon: EmusicLexicon): string {
-    let max = 0;
-    for (const key of Object.keys(lexicon)) {
-        const n = Number(key);
-        if (Number.isFinite(n)) max = Math.max(max, n);
-    }
-    return String(max + 1);
-}
-
-function countLexiconIdUsage(sections: EmusicSection[], id: string): number {
-    let count = 0;
-    for (const section of sections) {
-        for (const line of section.lines) {
-            for (const cue of line.cues) {
-                for (const wordId of cue.w) {
-                    if (wordId === id) count += 1;
-                }
-            }
-        }
-    }
-    return count;
-}
-
-/** Set text for one cue slot without rewriting other occurrences that share the id. */
-function setOccurrenceText(
-    lexicon: EmusicLexicon,
-    sections: EmusicSection[],
-    sectionIndex: number,
-    lineIndex: number,
-    cueIndex: number,
-    wordIndex: number,
-    text: string,
-): void {
-    const cue = sections[sectionIndex]?.lines[lineIndex]?.cues[cueIndex];
-    if (!cue) return;
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    const oldId = cue.w[wordIndex];
-    if (!oldId) {
-        const id = nextLexiconId(lexicon);
-        lexicon[id] = trimmed;
-        cue.w[wordIndex] = id;
-        return;
-    }
-    if (lexicon[oldId] === trimmed) return;
-    if (countLexiconIdUsage(sections, oldId) <= 1) {
-        lexicon[oldId] = trimmed;
-        return;
-    }
-    const id = nextLexiconId(lexicon);
-    lexicon[id] = trimmed;
-    cue.w[wordIndex] = id;
-}
-
 function parseOccurrence(occurrenceKey: string): {
-    sectionIndex: number;
+    unitIndex: number;
     lineIndex: number;
-    cueIndex: number;
     wordIndex: number;
 } | null {
     const parts = occurrenceKey.split(":");
-    if (parts.length < 4) return null;
-    const sectionIndex = Number(parts[0]);
+    if (parts.length < 3) return null;
+    const unitIndex = Number(parts[0]);
     const lineIndex = Number(parts[1]);
-    const cueIndex = Number(parts[2]);
-    const wordIndex = Number(parts[3]);
-    if (![sectionIndex, lineIndex, cueIndex, wordIndex].every((n) => Number.isFinite(n))) return null;
-    return { sectionIndex, lineIndex, cueIndex, wordIndex };
+    const wordIndex = Number(parts[2]);
+    if (![unitIndex, lineIndex, wordIndex].every((n) => Number.isFinite(n))) return null;
+    return { unitIndex, lineIndex, wordIndex };
 }
 
 function mutateNormalized(
     doc: EmusicDocument,
-    mutate: (lexicon: EmusicLexicon, sections: EmusicSection[]) => void,
+    mutate: (unidades: EmusicUnidad[]) => void,
 ): EmusicDocument {
-    const { lexicon, sections } = normalizeEmusicDocument(doc);
-    const nextLexicon = { ...lexicon };
-    const nextSections = sections.map((section) => ({
-        label: section.label,
-        kind: section.kind,
-        lines: section.lines.map((line) => ({
-            cues: line.cues.map((cue) => ({ t: cue.t, w: [...cue.w] })),
-        })),
-    }));
-    mutate(nextLexicon, nextSections);
+    const { unidades } = normalizeEmusicDocument(doc);
+    const next = cloneUnidades(unidades);
+    mutate(next);
     return {
         type: "emusic",
-        version: 3,
+        version: 4,
         trackFile: doc.trackFile,
         title: doc.title,
-        lexicon: nextLexicon,
-        sections: nextSections,
+        unidades: next,
     };
 }
 
@@ -435,39 +397,22 @@ export function updateEmusicWord(
 ): EmusicDocument {
     const loc = parseOccurrence(occurrenceKey);
     if (!loc) return cloneEmusicDocument(doc);
-    return mutateNormalized(doc, (lexicon, sections) => {
-        const line = sections[loc.sectionIndex]?.lines[loc.lineIndex];
-        const cue = line?.cues[loc.cueIndex];
-        if (!line || !cue) return;
-        setOccurrenceText(
-            lexicon,
-            sections,
-            loc.sectionIndex,
-            loc.lineIndex,
-            loc.cueIndex,
-            loc.wordIndex,
-            text,
-        );
-        const nextT = Math.max(0, Number.isFinite(timeSec) ? timeSec : cue.t);
-        // Keep cue order stable unless time actually changed; otherwise the word
-        // appears to "jump" into another slot/line after save.
-        if (Math.abs(nextT - cue.t) > 1e-6) {
-            cue.t = nextT;
-            line.cues.sort((a, b) => a.t - b.t);
-        }
+    return mutateNormalized(doc, (unidades) => {
+        const word = unidades[loc.unitIndex]?.l[loc.lineIndex]?.p[loc.wordIndex];
+        if (!word) return;
+        const trimmed = text.trim();
+        if (trimmed) word.t = trimmed;
+        if (Number.isFinite(timeSec)) word.i = Math.max(0, timeSec);
     });
 }
 
 export function deleteEmusicWord(doc: EmusicDocument, occurrenceKey: string): EmusicDocument {
     const loc = parseOccurrence(occurrenceKey);
     if (!loc) return cloneEmusicDocument(doc);
-    return mutateNormalized(doc, (_lexicon, sections) => {
-        const line = sections[loc.sectionIndex]?.lines[loc.lineIndex];
-        const cue = line?.cues[loc.cueIndex];
-        if (!line || !cue) return;
-        cue.w.splice(loc.wordIndex, 1);
-        if (cue.w.length === 0) line.cues.splice(loc.cueIndex, 1);
-        if (line.cues.length === 0) sections[loc.sectionIndex].lines.splice(loc.lineIndex, 1);
+    return mutateNormalized(doc, (unidades) => {
+        const line = unidades[loc.unitIndex]?.l[loc.lineIndex];
+        if (!line) return;
+        line.p.splice(loc.wordIndex, 1);
     });
 }
 
@@ -478,15 +423,13 @@ export function insertEmusicWordBefore(
 ): EmusicDocument {
     const loc = parseOccurrence(occurrenceKey);
     if (!loc) return cloneEmusicDocument(doc);
-    return mutateNormalized(doc, (lexicon, sections) => {
-        const line = sections[loc.sectionIndex]?.lines[loc.lineIndex];
-        const cue = line?.cues[loc.cueIndex];
-        if (!line || !cue) return;
-        const prevT = line.cues[loc.cueIndex - 1]?.t ?? Math.max(0, cue.t - 0.4);
-        const t = Number(((prevT + cue.t) / 2).toFixed(3));
-        const id = nextLexiconId(lexicon);
-        lexicon[id] = text.trim() || "nueva";
-        line.cues.splice(loc.cueIndex, 0, { t, w: [id] });
+    return mutateNormalized(doc, (unidades) => {
+        const line = unidades[loc.unitIndex]?.l[loc.lineIndex];
+        const word = line?.p[loc.wordIndex];
+        if (!line || !word) return;
+        const prevI = line.p[loc.wordIndex - 1]?.i ?? Math.max(0, word.i - 0.4);
+        const i = Number(((prevI + word.i) / 2).toFixed(3));
+        line.p.splice(loc.wordIndex, 0, { t: text.trim() || "nueva", i });
     });
 }
 
@@ -497,112 +440,104 @@ export function insertEmusicWordAfter(
 ): EmusicDocument {
     const loc = parseOccurrence(occurrenceKey);
     if (!loc) return cloneEmusicDocument(doc);
-    return mutateNormalized(doc, (lexicon, sections) => {
-        const line = sections[loc.sectionIndex]?.lines[loc.lineIndex];
-        const cue = line?.cues[loc.cueIndex];
-        if (!line || !cue) return;
-        const nextT = line.cues[loc.cueIndex + 1]?.t ?? cue.t + 0.4;
-        const t = Number(((cue.t + nextT) / 2).toFixed(3));
-        const id = nextLexiconId(lexicon);
-        lexicon[id] = text.trim() || "nueva";
-        line.cues.splice(loc.cueIndex + 1, 0, { t, w: [id] });
+    return mutateNormalized(doc, (unidades) => {
+        const line = unidades[loc.unitIndex]?.l[loc.lineIndex];
+        const word = line?.p[loc.wordIndex];
+        if (!line || !word) return;
+        const nextI = line.p[loc.wordIndex + 1]?.i ?? word.i + 0.4;
+        const i = Number(((word.i + nextI) / 2).toFixed(3));
+        line.p.splice(loc.wordIndex + 1, 0, { t: text.trim() || "nueva", i });
     });
 }
 
 export function addEmusicBlock(doc: EmusicDocument, kind: EmusicBlockKind): EmusicDocument {
-    return mutateNormalized(doc, (_lexicon, sections) => {
-        sections.push({
-            label: defaultLabelForKind(kind, sections.length),
-            kind,
-            lines: [{ cues: [] }],
-        });
+    return mutateNormalized(doc, (unidades) => {
+        unidades.push({ t: kind, l: [{ p: [] }] });
     });
 }
 
-export function removeEmusicBlock(doc: EmusicDocument, sectionIndex: number): EmusicDocument {
-    return mutateNormalized(doc, (_lexicon, sections) => {
-        if (sectionIndex < 0 || sectionIndex >= sections.length) return;
-        sections.splice(sectionIndex, 1);
+export function removeEmusicBlock(doc: EmusicDocument, unitIndex: number): EmusicDocument {
+    return mutateNormalized(doc, (unidades) => {
+        if (unitIndex < 0 || unitIndex >= unidades.length) return;
+        unidades.splice(unitIndex, 1);
     });
 }
 
-export function addEmusicLine(doc: EmusicDocument, sectionIndex: number): EmusicDocument {
-    return mutateNormalized(doc, (_lexicon, sections) => {
-        const section = sections[sectionIndex];
-        if (!section) return;
-        section.lines.push({ cues: [] });
+export function addEmusicLine(doc: EmusicDocument, unitIndex: number): EmusicDocument {
+    return mutateNormalized(doc, (unidades) => {
+        const unit = unidades[unitIndex];
+        if (!unit) return;
+        unit.l.push({ p: [] });
     });
 }
 
-export function removeEmusicLine(doc: EmusicDocument, sectionIndex: number, lineIndex: number): EmusicDocument {
-    return mutateNormalized(doc, (_lexicon, sections) => {
-        const section = sections[sectionIndex];
-        if (!section || lineIndex < 0 || lineIndex >= section.lines.length) return;
-        section.lines.splice(lineIndex, 1);
-        if (section.lines.length === 0) section.lines.push({ cues: [] });
+export function removeEmusicLine(
+    doc: EmusicDocument,
+    unitIndex: number,
+    lineIndex: number,
+): EmusicDocument {
+    return mutateNormalized(doc, (unidades) => {
+        const unit = unidades[unitIndex];
+        if (!unit || lineIndex < 0 || lineIndex >= unit.l.length) return;
+        unit.l.splice(lineIndex, 1);
+        if (unit.l.length === 0) unit.l.push({ p: [] });
     });
 }
 
 export function addEmusicLineWord(
     doc: EmusicDocument,
-    sectionIndex: number,
+    unitIndex: number,
     lineIndex: number,
     text = "nueva",
     timeSec?: number,
 ): EmusicDocument {
-    return mutateNormalized(doc, (lexicon, sections) => {
-        const line = sections[sectionIndex]?.lines[lineIndex];
+    return mutateNormalized(doc, (unidades) => {
+        const line = unidades[unitIndex]?.l[lineIndex];
         if (!line) return;
-        const lastT = line.cues[line.cues.length - 1]?.t ?? 0;
-        const t = Number.isFinite(timeSec as number) ? Number(timeSec) : Number((lastT + 0.4).toFixed(3));
-        const id = nextLexiconId(lexicon);
-        lexicon[id] = text.trim() || "nueva";
-        line.cues.push({ t: Math.max(0, t), w: [id] });
+        const lastI = line.p[line.p.length - 1]?.i ?? 0;
+        const i = Number.isFinite(timeSec as number)
+            ? Number(timeSec)
+            : Number((lastI + 0.4).toFixed(3));
+        line.p.push({ t: text.trim() || "nueva", i: Math.max(0, i) });
     });
 }
 
 export function removeEmusicLineWord(
     doc: EmusicDocument,
-    sectionIndex: number,
+    unitIndex: number,
     lineIndex: number,
-    cueIndex: number,
+    wordIndex: number,
 ): EmusicDocument {
-    return mutateNormalized(doc, (_lexicon, sections) => {
-        const line = sections[sectionIndex]?.lines[lineIndex];
-        if (!line || cueIndex < 0 || cueIndex >= line.cues.length) return;
-        line.cues.splice(cueIndex, 1);
+    return mutateNormalized(doc, (unidades) => {
+        const line = unidades[unitIndex]?.l[lineIndex];
+        if (!line || wordIndex < 0 || wordIndex >= line.p.length) return;
+        line.p.splice(wordIndex, 1);
     });
 }
 
 export function updateEmusicLineWord(
     doc: EmusicDocument,
-    sectionIndex: number,
+    unitIndex: number,
     lineIndex: number,
-    cueIndex: number,
+    wordIndex: number,
     text: string,
     timeSec: number,
 ): EmusicDocument {
-    return mutateNormalized(doc, (lexicon, sections) => {
-        const line = sections[sectionIndex]?.lines[lineIndex];
-        const cue = line?.cues[cueIndex];
-        if (!line || !cue) return;
-        if (!cue.w[0]) cue.w[0] = nextLexiconId(lexicon);
-        setOccurrenceText(lexicon, sections, sectionIndex, lineIndex, cueIndex, 0, text);
-        const nextT = Math.max(0, Number.isFinite(timeSec) ? timeSec : cue.t);
-        if (Math.abs(nextT - cue.t) > 1e-6) {
-            cue.t = nextT;
-            line.cues.sort((a, b) => a.t - b.t);
-        }
+    return mutateNormalized(doc, (unidades) => {
+        const word = unidades[unitIndex]?.l[lineIndex]?.p[wordIndex];
+        if (!word) return;
+        const trimmed = text.trim();
+        if (trimmed) word.t = trimmed;
+        if (Number.isFinite(timeSec)) word.i = Math.max(0, timeSec);
     });
 }
 
 export function emptyEmusicDocument(trackFile?: string, title?: string): EmusicDocument {
     return {
         type: "emusic",
-        version: 3,
+        version: 4,
         trackFile,
         title,
-        lexicon: {},
-        sections: [],
+        unidades: [],
     };
 }
