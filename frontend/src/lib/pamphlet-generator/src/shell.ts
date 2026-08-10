@@ -12,11 +12,37 @@ export function renderShell(menuIconSrc: string): string {
   <nav class="app-sidebar-nav">
     <button type="button" id="btn-open">Abrir archivo</button>
     <button type="button" id="btn-create">Nuevo panfleto</button>
+    <button type="button" id="btn-save-cloud">Guardar en la nube</button>
     <button type="button" id="btn-print" disabled>Imprimir</button>
     <button type="button" id="btn-view-desktop" class="is-active" aria-pressed="true">Vista escritorio</button>
     <button type="button" id="btn-view-mobile" aria-pressed="false">Vista móvil</button>
   </nav>
 </aside>
+
+<dialog id="open-source-modal" class="create-modal">
+  <div class="create-modal-form">
+    <h2>Abrir panfleto</h2>
+    <p class="create-modal-hint">Elige de dónde cargar el archivo .epam.</p>
+    <div class="item-type-options">
+      <button type="button" id="open-source-local">Desde este dispositivo</button>
+      <button type="button" id="open-source-cloud">Desde la nube</button>
+    </div>
+    <div class="create-modal-actions">
+      <button type="button" id="open-source-cancel">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="open-cloud-modal" class="create-modal open-cloud-modal">
+  <div class="create-modal-form">
+    <h2>Mis panfletos en la nube</h2>
+    <p class="create-modal-hint" id="open-cloud-hint">Selecciona un .epam asociado a tu cuenta.</p>
+    <div id="open-cloud-list" class="open-cloud-list" role="list"></div>
+    <div class="create-modal-actions">
+      <button type="button" id="open-cloud-cancel">Cancelar</button>
+    </div>
+  </div>
+</dialog>
 
 <dialog id="create-modal" class="create-modal">
   <form id="create-form" class="create-modal-form">

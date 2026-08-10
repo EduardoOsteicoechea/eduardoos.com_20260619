@@ -62,10 +62,20 @@
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_test_runs/index/*",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_playlists",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_playlists/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_epams",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_epams/index/*",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_payments",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_payments/index/*",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_entitlements",
-        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_entitlements/index/*"
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_entitlements/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_headers",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_headers/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_footers",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_footers/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_contents",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_contents/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_registry",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_registry/index/*"
       ]
     }
   ]

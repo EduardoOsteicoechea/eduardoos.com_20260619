@@ -61,6 +61,10 @@ export type ColumnKey = (typeof COLUMN_KEYS)[number];
 
 export type PamphletStructure = {
     type: "pamphlet_single_sheet";
+    /** Stable cloud/local document id (UUID). Optional on legacy files. */
+    id?: string;
+    /** JWT subject (email) when last saved to the cloud. Optional. */
+    ownerUserId?: string;
     header: PamphletHeader;
     footer: PamphletFooter;
     last_edited_element: LastEditedElement;
@@ -71,7 +75,8 @@ export const DEFAULT_IMAGE_HEIGHT_MM = 30;
 export const MIN_IMAGE_HEIGHT_MM = 10;
 export const IMAGE_HEIGHT_STEP_MM = 2;
 
-const ROOT_KEYS = ["type", "header", "footer", "last_edited_element", ...COLUMN_KEYS] as const;
+const ROOT_REQUIRED_KEYS = ["type", "header", "footer", "last_edited_element", ...COLUMN_KEYS] as const;
+const ROOT_OPTIONAL_KEYS = ["id", "ownerUserId"] as const;
 const HEADER_KEYS = [
     "title",
     "subtitle",
@@ -92,6 +97,21 @@ function assertExactKeys(obj: object, expected: readonly string[], label: string
         throw new Error(
             `${label}: expected keys [${want.join(", ")}], got [${keys.join(", ")}]`,
         );
+    }
+}
+
+function assertRootKeys(obj: object): void {
+    const keys = Object.keys(obj);
+    const allowed = new Set<string>([...ROOT_REQUIRED_KEYS, ...ROOT_OPTIONAL_KEYS]);
+    for (const key of keys) {
+        if (!allowed.has(key)) {
+            throw new Error(`Root: unexpected key "${key}"`);
+        }
+    }
+    for (const key of ROOT_REQUIRED_KEYS) {
+        if (!(key in obj)) {
+            throw new Error(`Root: missing required key "${key}"`);
+        }
     }
 }
 
@@ -201,11 +221,17 @@ export function assertPamphletStructure(data: unknown): asserts data is Pamphlet
         throw new Error("Pamphlet JSON must be an object");
     }
 
-    assertExactKeys(data, ROOT_KEYS, "Root");
+    assertRootKeys(data);
 
     const root = data as Record<string, unknown>;
     if (root.type !== "pamphlet_single_sheet") {
         throw new Error('Root.type must be "pamphlet_single_sheet"');
+    }
+    if (root.id !== undefined && typeof root.id !== "string") {
+        throw new Error("Root.id must be a string when present");
+    }
+    if (root.ownerUserId !== undefined && typeof root.ownerUserId !== "string") {
+        throw new Error("Root.ownerUserId must be a string when present");
     }
 
     if (typeof root.header !== "object" || root.header === null || Array.isArray(root.header)) {
@@ -293,6 +319,7 @@ export function createStarterItem(): PamphletItem {
 export function createEmptyPamphlet(meta: CreatePamphletMeta): PamphletStructure {
     return {
         type: "pamphlet_single_sheet",
+        id: crypto.randomUUID(),
         header: {
             title: meta.title,
             subtitle: "",

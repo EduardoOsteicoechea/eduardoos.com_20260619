@@ -20,12 +20,16 @@ import {
 } from "./pamphlet_doc";
 import {
     createPamphletFile,
+    clearOpenFile,
     getOpenFileName,
     hasOpenFile,
     isFileSystemAccessSupported,
     openPamphletFile,
     savePamphlet,
+    setOpenFileName,
 } from "./pamphlet_file";
+import { fetchEpam, fetchEpams, saveEpamToCloud } from "../epams";
+import { getAuthToken, isAuthenticated } from "../auth";
 import {
     createAddItemButton,
     createItemElement,
@@ -75,6 +79,7 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const main = requireElement<HTMLElement>("main.pamphlet-sheet");
     const openBtn = requireElement<HTMLButtonElement>("#btn-open");
     const createBtn = requireElement<HTMLButtonElement>("#btn-create");
+    const saveCloudBtn = requireElement<HTMLButtonElement>("#btn-save-cloud");
     const printBtn = requireElement<HTMLButtonElement>("#btn-print");
     const viewDesktopBtn = requireElement<HTMLButtonElement>("#btn-view-desktop");
     const viewMobileBtn = requireElement<HTMLButtonElement>("#btn-view-mobile");
@@ -82,6 +87,14 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const sidebar = requireElement<HTMLElement>("#app-sidebar");
     const sidebarBackdrop = requireElement<HTMLElement>("#sidebar-backdrop");
     const createModal = requireElement<HTMLDialogElement>("#create-modal");
+    const openSourceModal = requireElement<HTMLDialogElement>("#open-source-modal");
+    const openSourceLocalBtn = requireElement<HTMLButtonElement>("#open-source-local");
+    const openSourceCloudBtn = requireElement<HTMLButtonElement>("#open-source-cloud");
+    const openSourceCancelBtn = requireElement<HTMLButtonElement>("#open-source-cancel");
+    const openCloudModal = requireElement<HTMLDialogElement>("#open-cloud-modal");
+    const openCloudList = requireElement<HTMLElement>("#open-cloud-list");
+    const openCloudHint = requireElement<HTMLElement>("#open-cloud-hint");
+    const openCloudCancelBtn = requireElement<HTMLButtonElement>("#open-cloud-cancel");
     const createForm = requireElement<HTMLFormElement>("#create-form");
     const modalCancelBtn = requireElement<HTMLButtonElement>("#modal-cancel");
     const modalTitle = requireElement<HTMLInputElement>("#modal-title");
@@ -252,6 +265,8 @@ let currentDoc: PamphletStructure | null = null;
 let undoSnapshot: PamphletStructure | null = null;
 let suppressEditOpenSave = false;
 let pendingInsert: PendingInsert | null = null;
+/** When set, edits can persist to DynamoDB/S3 without a local FileSystem handle. */
+let cloudEpamId: string | null = null;
 
 function convertPixelsToMillimeters(px: number): number {
     return px * (25.4 / 96);
@@ -622,16 +637,47 @@ function renderDocument(data: PamphletStructure, openEdit: boolean): void {
     }
 }
 
+function hasEditableSession(): boolean {
+    return hasOpenFile() || cloudEpamId !== null;
+}
+
+function ensureDocumentId(data: PamphletStructure): PamphletStructure {
+    if (data.id?.trim()) return data;
+    return { ...data, id: crypto.randomUUID() };
+}
+
+async function persistCloud(data: PamphletStructure): Promise<PamphletStructure> {
+    const withId = ensureDocumentId(data);
+    const saved = await saveEpamToCloud({
+        epamId: cloudEpamId || withId.id,
+        fileName: getOpenFileName() || undefined,
+        document: withId,
+    });
+    cloudEpamId = saved.meta.epamId;
+    setOpenFileName(saved.meta.fileName);
+    return saved.document;
+}
+
 async function commitDocument(data: PamphletStructure, openEdit: boolean): Promise<void> {
-    if (!hasOpenFile()) {
+    if (!hasEditableSession()) {
         setError("No pamphlet file is open. Open or create a file first.");
         return;
     }
 
     try {
-        await savePamphlet(data);
-        renderDocument(data, openEdit);
-        setStatus(`Saved: ${getOpenFileName()}`, "success");
+        let next = ensureDocumentId(data);
+        if (hasOpenFile()) {
+            await savePamphlet(next);
+        }
+        if (cloudEpamId || (!hasOpenFile() && isAuthenticated())) {
+            // Cloud-only sessions always sync; local sessions sync when already linked to cloud.
+            if (cloudEpamId || !hasOpenFile()) {
+                next = await persistCloud(next);
+            }
+        }
+        renderDocument(next, openEdit);
+        const label = getOpenFileName() || cloudEpamId || "document";
+        setStatus(`Saved: ${label}`, "success");
         clearError();
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -647,7 +693,7 @@ function pushUndoSnapshot(): void {
 
 function snapshotFromDom(lastEdited: LastEditedElement): PamphletStructure | null {
     if (!currentDoc) return null;
-    return serializePamphlet(main, lastEdited);
+    return serializePamphlet(main, lastEdited, currentDoc);
 }
 
 function locationFromContainer(container: HTMLElement): LastEditedElement | null {
@@ -714,7 +760,7 @@ async function confirmItemType(type: PamphletItemType): Promise<void> {
     pendingInsert = null;
     if (itemTypeModal.open) itemTypeModal.close();
 
-    const base = serializePamphlet(main, currentDoc.last_edited_element);
+    const base = serializePamphlet(main, currentDoc.last_edited_element, currentDoc);
     const item = createTypedItem(type);
     let focus: LastEditedElement;
 
@@ -898,16 +944,120 @@ on(sidebarBackdrop, "click", () => {
     closeSidebar();
 });
 
-on(openBtn, "click", async () => {
+on(openBtn, "click", () => {
     closeSidebar();
+    clearError();
+    openSourceModal.showModal();
+});
+
+function closeOpenSourceModal(): void {
+    if (openSourceModal.open) openSourceModal.close();
+}
+
+function closeOpenCloudModal(): void {
+    if (openCloudModal.open) openCloudModal.close();
+}
+
+on(openSourceCancelBtn, "click", () => {
+    closeOpenSourceModal();
+});
+
+on(openSourceLocalBtn, "click", async () => {
+    closeOpenSourceModal();
     clearError();
     try {
         const data = await openPamphletFile();
+        cloudEpamId = data.id?.trim() || null;
         loadPamphlet(data);
     } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         const message = err instanceof Error ? err.message : String(err);
         setError(`Open failed: ${message}`);
+    }
+});
+
+on(openSourceCloudBtn, "click", async () => {
+    closeOpenSourceModal();
+    clearError();
+    if (!getAuthToken() || !isAuthenticated()) {
+        setError("Inicia sesión para abrir desde la nube.");
+        return;
+    }
+    openCloudHint.textContent = "Cargando…";
+    openCloudList.replaceChildren();
+    openCloudModal.showModal();
+    try {
+        const { epams } = await fetchEpams();
+        openCloudList.replaceChildren();
+        if (epams.length === 0) {
+            openCloudHint.textContent = "No hay panfletos en la nube para esta cuenta.";
+            const empty = document.createElement("p");
+            empty.className = "open-cloud-list__empty";
+            empty.textContent = "Guarda un panfleto con “Guardar en la nube”.";
+            openCloudList.appendChild(empty);
+            return;
+        }
+        openCloudHint.textContent = "Selecciona un .epam asociado a tu cuenta.";
+        for (const item of epams) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "open-cloud-list__item";
+            btn.setAttribute("role", "listitem");
+            const title = document.createElement("span");
+            title.className = "open-cloud-list__title";
+            title.textContent = item.title || item.fileName;
+            const meta = document.createElement("span");
+            meta.className = "open-cloud-list__meta";
+            meta.textContent = `${item.fileName} · ${item.series} ch.${item.seriesChapter} · ${item.updatedAt.slice(0, 10)}`;
+            btn.append(title, meta);
+            btn.addEventListener("click", () => {
+                void (async () => {
+                    try {
+                        const loaded = await fetchEpam(item.epamId);
+                        clearOpenFile();
+                        cloudEpamId = loaded.meta.epamId;
+                        setOpenFileName(loaded.meta.fileName);
+                        loadPamphlet(loaded.document);
+                        closeOpenCloudModal();
+                        setStatus(`Opened from cloud: ${loaded.meta.fileName}`, "success");
+                    } catch (err) {
+                        const message = err instanceof Error ? err.message : String(err);
+                        setError(`Cloud open failed: ${message}`);
+                    }
+                })();
+            });
+            openCloudList.appendChild(btn);
+        }
+    } catch (err) {
+        closeOpenCloudModal();
+        const message = err instanceof Error ? err.message : String(err);
+        setError(`Cloud list failed: ${message}`);
+    }
+});
+
+on(openCloudCancelBtn, "click", () => {
+    closeOpenCloudModal();
+});
+
+on(saveCloudBtn, "click", async () => {
+    closeSidebar();
+    clearError();
+    if (!currentDoc) {
+        setError("No hay panfleto abierto para guardar.");
+        return;
+    }
+    if (!getAuthToken() || !isAuthenticated()) {
+        setError("Inicia sesión para guardar en la nube.");
+        return;
+    }
+    try {
+        const live = serializePamphlet(main, currentDoc.last_edited_element, currentDoc);
+        const savedDoc = await persistCloud({ ...live });
+        renderDocument(savedDoc, false);
+        setStatus(`Saved to cloud: ${getOpenFileName() || cloudEpamId}`, "success");
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(`Cloud save failed: ${message}`);
     }
 });
 
@@ -952,6 +1102,7 @@ on(createForm, "submit", async (event) => {
             series_chapter,
             author,
         });
+        cloudEpamId = null;
         closeCreateModal();
         loadPamphlet(data);
         openItemTypeModal({ mode: "end", column: 1 });

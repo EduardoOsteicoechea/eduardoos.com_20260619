@@ -345,6 +345,7 @@ export function countItems(data: PamphletStructure): number {
 export function serializePamphlet(
     main: HTMLElement,
     lastEdited: LastEditedElement,
+    existing?: Pick<PamphletStructure, "id" | "ownerUserId"> | null,
 ): PamphletStructure {
     const pamphlet: PamphletStructure = {
         type: "pamphlet_single_sheet",
@@ -360,6 +361,8 @@ export function serializePamphlet(
         column_7: [],
         column_8: [],
     };
+    if (existing?.id) pamphlet.id = existing.id;
+    if (existing?.ownerUserId) pamphlet.ownerUserId = existing.ownerUserId;
 
     for (let i = 1; i <= 8; i++) {
         const key = COLUMN_KEYS[i - 1];

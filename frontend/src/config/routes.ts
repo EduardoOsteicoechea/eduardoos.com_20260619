@@ -28,6 +28,11 @@ export const PLAYLIST_ROUTES = {
     save: "/api/playlists",
     list: "/api/playlists",
 } as const;
+export const EPAM_ROUTES = {
+    list: "/api/epams",
+    save: "/api/epams",
+    item: (epamId: string) => `/api/epams/${encodeURIComponent(epamId)}`,
+} as const;
 export const OBSERVABILITY_ROUTES = {
     logger: "/api/logger",
     logs: "/api/logger/logs",

@@ -12,6 +12,7 @@ This stack runs on **Graviton (arm64)** EC2 instances in **us-east-1** and uses:
 | DynamoDB | `eduardoos_flight_logs` | Flight logs (7-day TTL on `expiresAt`) |
 | DynamoDB | `eduardoos_test_runs` | QA + build test runs (7-day TTL) |
 | DynamoDB | `eduardoos_playlists` | Worship playlists (PK `userId`, SK `playlistId`) |
+| DynamoDB | `eduardoos_epams` | Cloud .epam pamphlets metadata (PK `userId`, SK `epamId`; body in S3 `media/epams/`) |
 | DynamoDB | `eduardoos_payments` | PayPal intents and completed payments (PK `intentId`, GSI `userEmail` + `createdAt`) |
 | DynamoDB | `eduardoos_entitlements` | Active service access per user (PK `userEmail`, SK `serviceId`) |
 
@@ -31,6 +32,7 @@ DynamoDB TTL deletes items automatically after **7 days**.
 ```bash
 bash deploy/aws/create-observability-tables.sh
 bash deploy/aws/create-playlists-table.sh
+bash deploy/aws/create-epams-table.sh
 bash deploy/aws/create-payments-table.sh
 bash deploy/aws/create-entitlements-table.sh
 ```

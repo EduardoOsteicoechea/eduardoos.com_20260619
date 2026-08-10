@@ -46,6 +46,8 @@ services:
       S3_AUDIO_PREFIX: ${S3_AUDIO_PREFIX:-worship_playlists}
       PLAYLISTS_BACKEND: ${PLAYLISTS_BACKEND:-memory}
       PLAYLISTS_TABLE: ${PLAYLISTS_TABLE:-eduardoos_playlists}
+      EPAMS_BACKEND: ${EPAMS_BACKEND:-memory}
+      EPAMS_TABLE: ${EPAMS_TABLE:-eduardoos_epams}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       CHATBOT_URL: http://chatbot:3000
       PAYMENTS_URL: http://payments:3000

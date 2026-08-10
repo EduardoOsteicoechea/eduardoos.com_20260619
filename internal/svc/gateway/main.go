@@ -68,11 +68,16 @@ func Run(addr string) error {
 	if err != nil {
 		log.Fatalf("playlist store: %v", err)
 	}
+	epamStore, err := ddb.NewEpamStore(ctx)
+	if err != nil {
+		log.Fatalf("epam store: %v", err)
+	}
 	entitlementStore, err := ddb.NewEntitlementStore(ctx)
 	if err != nil {
 		log.Fatalf("entitlement store: %v", err)
 	}
 	log.Printf("playlist store backend=%s", playlistStore.BackendName())
+	log.Printf("epam store backend=%s", epamStore.BackendName())
 	log.Printf("entitlement store backend=%s", entitlementStore.BackendName())
 
 	r := chi.NewRouter()
@@ -108,6 +113,7 @@ func Run(addr string) error {
 	r.Get("/api/media/audio", cfg.listMediaAudio())
 	r.Get("/api/media/file/*", cfg.proxyMediaFile())
 	registerPlaylistRoutes(r, cfg, playlistStore)
+	registerEpamRoutes(r, cfg, epamStore)
 	registerSubscriptionRoutes(r, cfg, entitlementStore)
 	registerAPSRoutes(r, cfg)
 

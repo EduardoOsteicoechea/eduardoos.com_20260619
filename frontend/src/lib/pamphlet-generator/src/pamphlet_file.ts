@@ -108,6 +108,15 @@ export async function createPamphletFile(meta: CreatePamphletMeta): Promise<Pamp
     return data;
 }
 
+export function clearOpenFile(): void {
+    fileHandle = null;
+    fileName = "";
+}
+
+export function setOpenFileName(name: string): void {
+    fileName = name;
+}
+
 export async function savePamphlet(data: PamphletStructure): Promise<void> {
     if (!fileHandle) {
         throw new Error("No pamphlet file is open");

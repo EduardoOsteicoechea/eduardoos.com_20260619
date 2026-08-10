@@ -98,6 +98,8 @@ jobs:
             printf 'TESTER_BACKEND=dynamodb\n'
             printf 'PLAYLISTS_BACKEND=dynamodb\n'
             printf 'PLAYLISTS_TABLE=eduardoos_playlists\n'
+            printf 'EPAMS_BACKEND=dynamodb\n'
+            printf 'EPAMS_TABLE=eduardoos_epams\n'
             printf 'PAYMENTS_BACKEND=dynamodb\n'
             printf 'PAYMENTS_TABLE=eduardoos_payments\n'
             printf 'ENTITLEMENTS_BACKEND=dynamodb\n'
