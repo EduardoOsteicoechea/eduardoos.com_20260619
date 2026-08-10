@@ -37,8 +37,10 @@ echo "==> Building frontend on host (${FRONTEND_DIR})"
 ensure_node
 
 cd "${FRONTEND_DIR}"
+# Install with default env so npm ci does not skip needed transitive deps.
+unset NODE_ENV || true
+npm ci --no-audit
 export NODE_ENV=production
-npm ci --no-audit --prefer-offline
 # Tests run in GitHub Actions; EC2 deploy only builds static assets.
 npm run build
 
