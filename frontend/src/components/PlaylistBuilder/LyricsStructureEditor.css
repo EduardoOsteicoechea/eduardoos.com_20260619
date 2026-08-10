@@ -98,6 +98,25 @@
   margin-bottom: 0.5rem;
 }
 
+.lyrics-structure-editor__unit-kind {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: var(--font-sm);
+  font-weight: 700;
+}
+
+.lyrics-structure-editor__unit-kind select {
+  min-height: 2rem;
+  background: #111;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-weight: 600;
+}
+
 .lyrics-structure-editor__row-actions {
   display: flex;
   flex-wrap: wrap;

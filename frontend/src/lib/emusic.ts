@@ -456,6 +456,18 @@ export function addEmusicBlock(doc: EmusicDocument, kind: EmusicBlockKind): Emus
     });
 }
 
+export function setEmusicBlockKind(
+    doc: EmusicDocument,
+    unitIndex: number,
+    kind: EmusicBlockKind,
+): EmusicDocument {
+    return mutateNormalized(doc, (unidades) => {
+        const unit = unidades[unitIndex];
+        if (!unit) return;
+        unit.t = kind;
+    });
+}
+
 export function removeEmusicBlock(doc: EmusicDocument, unitIndex: number): EmusicDocument {
     return mutateNormalized(doc, (unidades) => {
         if (unitIndex < 0 || unitIndex >= unidades.length) return;

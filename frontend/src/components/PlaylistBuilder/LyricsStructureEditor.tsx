@@ -9,6 +9,7 @@ import {
     removeEmusicBlock,
     removeEmusicLine,
     removeEmusicLineWord,
+    setEmusicBlockKind,
     updateEmusicLineWord,
     type EmusicBlockKind,
     type EmusicDocument,
@@ -123,13 +124,27 @@ export default function LyricsStructureEditor({
                 ) : (
                     unidades.map((unit, unitIndex) => (
                         <article
-                            key={`unit-${unitIndex}-${unit.t}`}
+                            key={`unit-${unitIndex}`}
                             className="lyrics-structure-editor__block"
                         >
                             <div className="lyrics-structure-editor__block-bar">
-                                <strong>
-                                    unidad {unitIndex + 1}: {unit.t}
-                                </strong>
+                                <label className="lyrics-structure-editor__unit-kind">
+                                    <span>unidad {unitIndex + 1}</span>
+                                    <select
+                                        value={unit.t}
+                                        aria-label={`Tipo de unidad ${unitIndex + 1}`}
+                                        onChange={(e) => {
+                                            const kind = e.target.value as EmusicBlockKind;
+                                            void commit(setEmusicBlockKind(doc, unitIndex, kind));
+                                        }}
+                                    >
+                                        {EMUSIC_BLOCK_KINDS.map((kind) => (
+                                            <option key={kind} value={kind}>
+                                                {kind}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
                                 <div className="lyrics-structure-editor__row-actions">
                                     <button
                                         type="button"
