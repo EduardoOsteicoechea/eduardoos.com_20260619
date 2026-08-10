@@ -216,10 +216,11 @@ body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet {
 /*
  * Phones/tablets: CSS `mm` is tied to the 96dpi reference pixel, so true physical mm look smaller.
  * Boost only the on-screen transform (print/desktop unchanged). Height_mm math stays identical.
+ * Phone boost is the baseline; tablet is 1.75× that visual size.
  */
 @media (max-width: 1024px) {
   body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] {
-    --mm-visual-boost: 1.28;
+    --mm-visual-boost: calc(1.35 * 1.75);
   }
 }
 
