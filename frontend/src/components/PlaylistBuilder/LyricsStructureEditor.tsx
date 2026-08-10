@@ -20,7 +20,6 @@ interface LyricsStructureEditorProps {
     doc: EmusicDocument;
     onChange: (next: EmusicDocument) => void;
     onCommit: (next: EmusicDocument) => Promise<void> | void;
-    saveStatus?: string;
 }
 
 type FocusWord = {
@@ -33,7 +32,6 @@ export default function LyricsStructureEditor({
     doc,
     onChange,
     onCommit,
-    saveStatus = "",
 }: LyricsStructureEditorProps) {
     const { unidades } = useMemo(() => normalizeEmusicDocument(doc), [doc]);
     const [blockKind, setBlockKind] = useState<EmusicBlockKind>("estrofa");
