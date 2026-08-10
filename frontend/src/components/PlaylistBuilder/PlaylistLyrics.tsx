@@ -31,6 +31,7 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const [draftWord, setDraftWord] = useState("");
     const [draftTimeSec, setDraftTimeSec] = useState("0");
+    const [draftEndSec, setDraftEndSec] = useState("0.45");
     const [undoStack, setUndoStack] = useState<EmusicDocument[]>([]);
     const [saveStatus, setSaveStatus] = useState("");
     const activeRef = useRef<HTMLSpanElement | null>(null);
@@ -122,6 +123,7 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
         if (!selectedWord) return;
         setDraftWord(selectedWord.text);
         setDraftTimeSec(String(selectedWord.t));
+        setDraftEndSec(String(selectedWord.end));
     }, [selectedWord]);
 
     const title =
@@ -166,12 +168,14 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
     async function applyOk(): Promise<void> {
         if (!doc || !selectedKey) return;
         const timeSec = Number(draftTimeSec);
+        const endSec = Number(draftEndSec);
         pushUndo(doc);
         const next = updateEmusicWord(
             doc,
             selectedKey,
             draftWord,
             Number.isFinite(timeSec) ? timeSec : 0,
+            Number.isFinite(endSec) ? endSec : undefined,
         );
         setDoc(next);
         setSelectedKey(null);
@@ -396,6 +400,18 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
                                     min="0"
                                     value={draftTimeSec}
                                     onChange={(e) => setDraftTimeSec(e.target.value)}
+                                    onKeyDown={onTrayKeyDown}
+                                />
+                            </label>
+                            <label className="lyrics-edit-tray__field">
+                                <span>Tiempo de fin (segundos)</span>
+                                <input
+                                    type="number"
+                                    inputMode="decimal"
+                                    step="0.001"
+                                    min="0"
+                                    value={draftEndSec}
+                                    onChange={(e) => setDraftEndSec(e.target.value)}
                                     onKeyDown={onTrayKeyDown}
                                 />
                             </label>

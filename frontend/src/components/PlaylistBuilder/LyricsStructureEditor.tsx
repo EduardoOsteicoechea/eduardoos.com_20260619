@@ -40,6 +40,7 @@ export default function LyricsStructureEditor({
     const [focus, setFocus] = useState<FocusWord | null>(null);
     const [draftText, setDraftText] = useState("");
     const [draftTime, setDraftTime] = useState("0");
+    const [draftEnd, setDraftEnd] = useState("0.45");
 
     useEffect(() => {
         if (!focus) return;
@@ -50,6 +51,7 @@ export default function LyricsStructureEditor({
         }
         setDraftText(word.t);
         setDraftTime(String(word.i));
+        setDraftEnd(String(word.f));
     }, [focus, unidades]);
 
     async function commit(next: EmusicDocument): Promise<void> {
@@ -61,6 +63,7 @@ export default function LyricsStructureEditor({
     async function commitFocusedWord(): Promise<void> {
         if (!focus) return;
         const timeSec = Number(draftTime);
+        const endSec = Number(draftEnd);
         const next = updateEmusicLineWord(
             doc,
             focus.unitIndex,
@@ -68,6 +71,7 @@ export default function LyricsStructureEditor({
             focus.wordIndex,
             draftText,
             Number.isFinite(timeSec) ? timeSec : 0,
+            Number.isFinite(endSec) ? endSec : undefined,
         );
         setFocus(null);
         await commit(next);
@@ -85,8 +89,8 @@ export default function LyricsStructureEditor({
             <header className="lyrics-structure-editor__header">
                 <h3>Editor de estructura</h3>
                 <p>
-                    unidades → líneas → palabras <code>{`{ t, i }`}</code>. OK / Enter / Esc guarda en
-                    S3.
+                    unidades → líneas → palabras <code>{`{ t, i, f }`}</code>. OK / Enter / Esc guarda
+                    en S3.
                 </p>
                 {saveStatus ? <p className="lyrics-structure-editor__status">{saveStatus}</p> : null}
             </header>
@@ -237,6 +241,18 @@ export default function LyricsStructureEditor({
                                                                     aria-label="Inicio en segundos"
                                                                     title="Inicio (segundos)"
                                                                 />
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.001"
+                                                                    min="0"
+                                                                    value={draftEnd}
+                                                                    onChange={(e) =>
+                                                                        setDraftEnd(e.target.value)
+                                                                    }
+                                                                    onKeyDown={onWordKeyDown}
+                                                                    aria-label="Fin en segundos"
+                                                                    title="Fin (segundos)"
+                                                                />
                                                                 <button
                                                                     type="button"
                                                                     className="lyrics-structure-editor__btn lyrics-structure-editor__btn--ok"
@@ -277,7 +293,9 @@ export default function LyricsStructureEditor({
                                                                 }}
                                                             >
                                                                 <span>{word.t}</span>
-                                                                <small>{word.i.toFixed(2)}s</small>
+                                                                <small>
+                                                                    {word.i.toFixed(2)}–{word.f.toFixed(2)}s
+                                                                </small>
                                                             </button>
                                                         )}
                                                     </li>

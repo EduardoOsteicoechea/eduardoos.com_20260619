@@ -1,7 +1,7 @@
 /**
  * .emusic — timed lyrics as nested units → lines → words.
  *
- * Canonical v4 shape (each word owns its own text + start time):
+ * Canonical v4 shape (each word owns text + start + end):
  * {
  *   "type": "emusic",
  *   "version": 4,
@@ -10,23 +10,26 @@
  *     {
  *       "t": "estrofa",
  *       "l": [
- *         { "p": [ { "t": "Es", "i": 0 }, { "t": "más", "i": 0.42 } ] }
+ *         { "p": [ { "t": "Es", "i": 0, "f": 0.42 }, { "t": "más", "i": 0.42, "f": 0.84 } ] }
  *       ]
  *     }
  *   ]
  * }
  *
- * Word highlight duration = next word start − this start (within the unit).
- * Legacy lexicon/sections/cues formats are migrated on load and always saved as v4.
+ * Highlight all words where playback time is in [i, f).
+ * Missing f is inferred from the next word start (or +0.45s) on load/save.
  */
 import { trackDisplayName } from "./mediaLibrary";
 
 export type EmusicBlockKind = "estrofa" | "coro" | "precoro" | "puente";
 
-/** One sung word: text + start time (seconds). */
+/** One sung word: text + start (i) + end (f) in seconds. */
 export interface EmusicPalabra {
     t: string;
+    /** Highlight start (inicio), seconds. */
     i: number;
+    /** Highlight end (fin), seconds. */
+    f: number;
 }
 
 export interface EmusicLinea {
@@ -133,11 +136,35 @@ function wordEndTime(starts: number[], index: number): number {
     return start + 0.45;
 }
 
+function withInferredEnds(unidades: EmusicUnidad[]): EmusicUnidad[] {
+    return unidades.map((unit) => {
+        const flat = unit.l.flatMap((line) => line.p);
+        let cursor = 0;
+        return {
+            t: unit.t,
+            l: unit.l.map((line) => ({
+                p: line.p.map((word) => {
+                    const i = Math.max(0, Number(word.i) || 0);
+                    let f = Number(word.f);
+                    if (!Number.isFinite(f) || f <= i) {
+                        f = wordEndTime(
+                            flat.map((item) => Math.max(0, Number(item.i) || 0)),
+                            cursor,
+                        );
+                    }
+                    cursor += 1;
+                    return { t: word.t, i, f };
+                }),
+            })),
+        };
+    });
+}
+
 function cloneUnidades(unidades: EmusicUnidad[]): EmusicUnidad[] {
-    return unidades.map((unit) => ({
+    return withInferredEnds(unidades).map((unit) => ({
         t: unit.t,
         l: unit.l.map((line) => ({
-            p: line.p.map((word) => ({ t: word.t, i: word.i })),
+            p: line.p.map((word) => ({ t: word.t, i: word.i, f: word.f })),
         })),
     }));
 }
@@ -148,7 +175,10 @@ function parsePalabra(raw: unknown): EmusicPalabra | null {
     const text = String(row.t ?? "").trim();
     if (!text) return null;
     const i = Number(row.i);
-    return { t: text, i: Number.isFinite(i) ? Math.max(0, i) : 0 };
+    const start = Number.isFinite(i) ? Math.max(0, i) : 0;
+    const rawF = Number(row.f);
+    const f = Number.isFinite(rawF) && rawF > start ? rawF : start + 0.45;
+    return { t: text, i: start, f };
 }
 
 function parseLinea(raw: unknown): EmusicLinea {
@@ -178,7 +208,7 @@ export function normalizeEmusicDocument(doc: EmusicDocument): {
         const unidades = doc.unidades
             .map(parseUnidad)
             .filter((unit): unit is EmusicUnidad => unit !== null);
-        return { unidades };
+        return { unidades: withInferredEnds(unidades) };
     }
     if (Array.isArray(doc.unidades)) {
         return { unidades: [] };
@@ -213,7 +243,7 @@ export function normalizeEmusicDocument(doc: EmusicDocument): {
                         for (const id of ids) {
                             const text = String(lexicon[id] ?? "").trim();
                             if (!text) continue;
-                            p.push({ t: text, i: start });
+                            p.push({ t: text, i: start, f: start + 0.45 });
                         }
                     }
                     lines.push({ p });
@@ -228,7 +258,7 @@ export function normalizeEmusicDocument(doc: EmusicDocument): {
                     for (const id of ids) {
                         const text = String(lexicon[id] ?? "").trim();
                         if (!text) continue;
-                        p.push({ t: text, i: start });
+                        p.push({ t: text, i: start, f: start + 0.45 });
                     }
                 }
                 lines.push({ p });
@@ -239,7 +269,8 @@ export function normalizeEmusicDocument(doc: EmusicDocument): {
                     const wordRow = word as Record<string, unknown>;
                     const text = String(wordRow.w ?? "").trim();
                     if (!text) continue;
-                    p.push({ t: text, i: Number(wordRow.t) || 0 });
+                    const start = Number(wordRow.t) || 0;
+                    p.push({ t: text, i: start, f: start + 0.45 });
                 }
                 lines.push({ p });
             } else {
@@ -248,7 +279,7 @@ export function normalizeEmusicDocument(doc: EmusicDocument): {
 
             unidades.push({ t: kind, l: lines.length ? lines : [{ p: [] }] });
         }
-        return { unidades };
+        return { unidades: withInferredEnds(unidades) };
     }
 
     // Legacy flat words list.
@@ -259,10 +290,11 @@ export function normalizeEmusicDocument(doc: EmusicDocument): {
             const wordRow = word as Record<string, unknown>;
             const text = String(wordRow.w ?? "").trim();
             if (!text) continue;
-            p.push({ t: text, i: Number(wordRow.t) || 0 });
+            const start = Number(wordRow.t) || 0;
+            p.push({ t: text, i: start, f: start + 0.45 });
         }
         return {
-            unidades: p.length ? [{ t: "estrofa", l: [{ p }] }] : [],
+            unidades: withInferredEnds(p.length ? [{ t: "estrofa", l: [{ p }] }] : []),
         };
     }
 
@@ -275,17 +307,15 @@ export function resolveEmusicSections(doc: EmusicDocument): ResolvedSection[] {
     return unidades.map((unit, unitIndex) => {
         if (unit.t === "estrofa") estrofaOrdinal += 1;
         const label = labelForKind(unit.t, estrofaOrdinal);
-        const flatStarts = unit.l.flatMap((line) => line.p.map((word) => word.i));
         const lines: ResolvedLine[] = [];
         const words: ResolvedWord[] = [];
-        let flatCursor = 0;
         unit.l.forEach((line, lineIndex) => {
             const lineWords: ResolvedWord[] = [];
             line.p.forEach((word, wordIndex) => {
                 const resolved: ResolvedWord = {
                     text: word.t,
                     t: word.i,
-                    end: wordEndTime(flatStarts, flatCursor),
+                    end: word.f > word.i ? word.f : word.i + 0.45,
                     unitIndex,
                     lineIndex,
                     wordIndex,
@@ -293,7 +323,6 @@ export function resolveEmusicSections(doc: EmusicDocument): ResolvedSection[] {
                 };
                 lineWords.push(resolved);
                 words.push(resolved);
-                flatCursor += 1;
             });
             lines.push({ lineIndex, words: lineWords });
         });
@@ -351,9 +380,11 @@ export function activeWordIndex(words: ResolvedWord[], timeSec: number): number 
 
 export function activeOccurrenceKeys(words: ResolvedWord[], timeSec: number): Set<string> {
     const keys = new Set<string>();
-    const index = activeWordIndex(words, timeSec);
-    if (index < 0) return keys;
-    keys.add(words[index].occurrenceKey);
+    for (const word of words) {
+        if (timeSec >= word.t && timeSec < word.end) {
+            keys.add(word.occurrenceKey);
+        }
+    }
     return keys;
 }
 
@@ -406,7 +437,8 @@ export function updateEmusicWord(
     doc: EmusicDocument,
     occurrenceKey: string,
     text: string,
-    timeSec: number,
+    startSec: number,
+    endSec?: number,
 ): EmusicDocument {
     const loc = parseOccurrence(occurrenceKey);
     if (!loc) return cloneEmusicDocument(doc);
@@ -415,7 +447,9 @@ export function updateEmusicWord(
         if (!word) return;
         const trimmed = text.trim();
         if (trimmed) word.t = trimmed;
-        if (Number.isFinite(timeSec)) word.i = Math.max(0, timeSec);
+        if (Number.isFinite(startSec)) word.i = Math.max(0, startSec);
+        const nextEnd = Number.isFinite(endSec as number) ? Number(endSec) : word.f;
+        word.f = nextEnd > word.i ? nextEnd : word.i + 0.45;
     });
 }
 
@@ -442,7 +476,12 @@ export function insertEmusicWordBefore(
         if (!line || !word) return;
         const prevI = line.p[loc.wordIndex - 1]?.i ?? Math.max(0, word.i - 0.4);
         const i = Number(((prevI + word.i) / 2).toFixed(3));
-        line.p.splice(loc.wordIndex, 0, { t: text.trim() || "nueva", i });
+        const f = Number((((i + word.i) / 2)).toFixed(3));
+        line.p.splice(loc.wordIndex, 0, {
+            t: text.trim() || "nueva",
+            i,
+            f: f > i ? f : i + 0.45,
+        });
     });
 }
 
@@ -457,9 +496,10 @@ export function insertEmusicWordAfter(
         const line = unidades[loc.unitIndex]?.l[loc.lineIndex];
         const word = line?.p[loc.wordIndex];
         if (!line || !word) return;
-        const nextI = line.p[loc.wordIndex + 1]?.i ?? word.i + 0.4;
-        const i = Number(((word.i + nextI) / 2).toFixed(3));
-        line.p.splice(loc.wordIndex + 1, 0, { t: text.trim() || "nueva", i });
+        const nextI = line.p[loc.wordIndex + 1]?.i ?? word.f ?? word.i + 0.4;
+        const i = Number((((word.f || word.i) + nextI) / 2).toFixed(3));
+        const f = Number((i + 0.4).toFixed(3));
+        line.p.splice(loc.wordIndex + 1, 0, { t: text.trim() || "nueva", i, f });
     });
 }
 
@@ -514,16 +554,21 @@ export function addEmusicLineWord(
     unitIndex: number,
     lineIndex: number,
     text = "nueva",
-    timeSec?: number,
+    startSec?: number,
+    endSec?: number,
 ): EmusicDocument {
     return mutateNormalized(doc, (unidades) => {
         const line = unidades[unitIndex]?.l[lineIndex];
         if (!line) return;
-        const lastI = line.p[line.p.length - 1]?.i ?? 0;
-        const i = Number.isFinite(timeSec as number)
-            ? Number(timeSec)
-            : Number((lastI + 0.4).toFixed(3));
-        line.p.push({ t: text.trim() || "nueva", i: Math.max(0, i) });
+        const last = line.p[line.p.length - 1];
+        const i = Number.isFinite(startSec as number)
+            ? Number(startSec)
+            : Number(((last?.f ?? last?.i ?? 0) + 0.4).toFixed(3));
+        const start = Math.max(0, i);
+        const f = Number.isFinite(endSec as number)
+            ? Number(endSec)
+            : Number((start + 0.4).toFixed(3));
+        line.p.push({ t: text.trim() || "nueva", i: start, f: f > start ? f : start + 0.45 });
     });
 }
 
@@ -546,14 +591,17 @@ export function updateEmusicLineWord(
     lineIndex: number,
     wordIndex: number,
     text: string,
-    timeSec: number,
+    startSec: number,
+    endSec?: number,
 ): EmusicDocument {
     return mutateNormalized(doc, (unidades) => {
         const word = unidades[unitIndex]?.l[lineIndex]?.p[wordIndex];
         if (!word) return;
         const trimmed = text.trim();
         if (trimmed) word.t = trimmed;
-        if (Number.isFinite(timeSec)) word.i = Math.max(0, timeSec);
+        if (Number.isFinite(startSec)) word.i = Math.max(0, startSec);
+        const nextEnd = Number.isFinite(endSec as number) ? Number(endSec) : word.f;
+        word.f = nextEnd > word.i ? nextEnd : word.i + 0.45;
     });
 }
 
