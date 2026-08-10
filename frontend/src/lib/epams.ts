@@ -78,9 +78,11 @@ export async function saveEpamToCloud(payload: {
     if (!token) {
         throw new Error("Inicia sesión para guardar en la nube.");
     }
-    const epamId = payload.epamId?.trim() || payload.document.id?.trim();
-    const path = epamId ? EPAM_ROUTES.item(epamId) : EPAM_ROUTES.save;
-    const method = epamId ? "PUT" : "POST";
+    // PUT only when updating an existing cloud id; otherwise POST /api/epams.
+    const updateId = payload.epamId?.trim();
+    const epamId = updateId || payload.document.id?.trim();
+    const path = updateId ? EPAM_ROUTES.item(updateId) : EPAM_ROUTES.save;
+    const method = updateId ? "PUT" : "POST";
     const result = await apiRequest<EpamDocumentResponse>(path, {
         method,
         body: {

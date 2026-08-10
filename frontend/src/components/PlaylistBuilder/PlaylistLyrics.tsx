@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    activeWordIndex,
+    activeOccurrenceKeys,
     fetchEmusicForTrack,
-    flattenSectionWords,
-    normalizeEmusicSections,
+    flattenResolvedWords,
+    resolveEmusicSections,
     type EmusicDocument,
 } from "../../lib/emusic";
 import { trackDisplayName } from "../../lib/mediaLibrary";
@@ -42,22 +42,26 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
         };
     }, [trackKey]);
 
-    const sections = useMemo(() => (doc ? normalizeEmusicSections(doc) : []), [doc]);
-    const flatWords = useMemo(() => flattenSectionWords(sections), [sections]);
-    const activeIndex = useMemo(
-        () => activeWordIndex(flatWords, currentTime),
+    const sections = useMemo(() => (doc ? resolveEmusicSections(doc) : []), [doc]);
+    const flatWords = useMemo(() => flattenResolvedWords(sections), [sections]);
+    const activeKeys = useMemo(
+        () => activeOccurrenceKeys(flatWords, currentTime),
         [flatWords, currentTime],
     );
+    const scrollKey = useMemo(() => {
+        for (const word of flatWords) {
+            if (activeKeys.has(word.occurrenceKey)) return word.occurrenceKey;
+        }
+        return "";
+    }, [flatWords, activeKeys]);
 
     useEffect(() => {
         activeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    }, [activeIndex]);
+    }, [scrollKey]);
 
     const title =
         doc?.title?.trim() ||
         (trackKey ? trackDisplayName(trackKey).replace(/\.mp3$/i, "") : "");
-
-    let wordCursor = 0;
 
     return (
         <section className="playlist-lyrics" aria-label="Lyrics">
@@ -72,29 +76,25 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
             ) : (
                 <div className="playlist-lyrics__scroll">
                     <h3 className="playlist-lyrics__title">{title}</h3>
-                    {sections.map((section) => {
-                        const sectionStart = wordCursor;
-                        const nodes = section.words.map((word, i) => {
-                            const globalIndex = sectionStart + i;
-                            const isActive = globalIndex === activeIndex;
-                            return (
-                                <span
-                                    key={`${section.label}-${globalIndex}`}
-                                    ref={isActive ? activeRef : undefined}
-                                    className={`playlist-lyrics__word${isActive ? " is-active" : ""}`}
-                                >
-                                    {word.w}{" "}
-                                </span>
-                            );
-                        });
-                        wordCursor += section.words.length;
-                        return (
-                            <div key={`${section.label}-${sectionStart}`} className="playlist-lyrics__section">
-                                <p className="playlist-lyrics__section-label">[{section.label}]</p>
-                                <p className="playlist-lyrics__section-words">{nodes}</p>
-                            </div>
-                        );
-                    })}
+                    {sections.map((section) => (
+                        <div key={`${section.label}-${section.words[0]?.occurrenceKey ?? "empty"}`} className="playlist-lyrics__section">
+                            <p className="playlist-lyrics__section-label">[{section.label}]</p>
+                            <p className="playlist-lyrics__section-words">
+                                {section.words.map((word) => {
+                                    const isActive = activeKeys.has(word.occurrenceKey);
+                                    return (
+                                        <span
+                                            key={word.occurrenceKey}
+                                            ref={word.occurrenceKey === scrollKey ? activeRef : undefined}
+                                            className={`playlist-lyrics__word${isActive ? " is-active" : ""}`}
+                                        >
+                                            {word.text}{" "}
+                                        </span>
+                                    );
+                                })}
+                            </p>
+                        </div>
+                    ))}
                 </div>
             )}
         </section>

@@ -407,15 +407,6 @@ export default function PlaylistBuilder() {
         setDuration(audio.duration);
     }
     return (<div className="playlist-builder">
-      <header className="playlist-builder__header">
-        <h1>Worship Playlist Manager</h1>
-        <p>
-          Drag audio from the S3 library (<code>media/worship_playlists/</code>) into your
-          active playlist — the same song can be added multiple times. Save and load playlists
-          with your authenticated account.
-        </p>
-      </header>
-
       {loading && <p className="playlist-builder__status">Loading library…</p>}
       {error && <p className="playlist-builder__status playlist-builder__status--error">{error}</p>}
       {message && <p className="playlist-builder__status">{message}</p>}

@@ -63,7 +63,7 @@ func TestMemoryEpamStoreRoundTrip(t *testing.T) {
 
 func TestEpamObjectKey(t *testing.T) {
 	got := EpamObjectKey("a@b.com", "uuid-1")
-	want := "media/epams/a@b.com/uuid-1.epam"
+	want := "media/epams/a_at_b.com/uuid-1.epam"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}

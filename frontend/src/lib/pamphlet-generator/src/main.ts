@@ -652,7 +652,9 @@ function ensureDocumentId(data: PamphletStructure): PamphletStructure {
 async function persistCloud(data: PamphletStructure): Promise<PamphletStructure> {
     const withId = ensureDocumentId(data);
     const saved = await saveEpamToCloud({
-        epamId: cloudEpamId || withId.id,
+        // Only pass epamId for updates of an already-linked cloud doc.
+        // New creates POST to /api/epams with the document id in the body.
+        epamId: cloudEpamId || undefined,
         fileName: getOpenFileName() || undefined,
         document: withId,
     });

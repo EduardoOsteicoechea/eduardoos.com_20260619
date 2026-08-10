@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -213,8 +214,11 @@ func NewEpamStore(ctx context.Context) (EpamStore, error) {
 }
 
 // EpamObjectKey builds the absolute S3 object key for a cloud .epam body.
+// Email local-part may include "@"; replace it so object keys stay URL-safe.
 func EpamObjectKey(userID, epamID string) string {
-	return fmt.Sprintf("media/epams/%s/%s.epam", userID, epamID)
+	safeUser := strings.ReplaceAll(strings.TrimSpace(userID), "@", "_at_")
+	safeUser = strings.ReplaceAll(safeUser, "/", "_")
+	return fmt.Sprintf("media/epams/%s/%s.epam", safeUser, epamID)
 }
 
 func epamItem(r EpamRecord) map[string]types.AttributeValue {

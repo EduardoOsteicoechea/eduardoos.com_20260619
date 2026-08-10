@@ -61,7 +61,7 @@ func (h epamHandlers) listEpams() http.HandlerFunc {
 		if err != nil {
 			log.Printf("[correlation=%s] epams.list store error: %v", cid, err)
 			h.cfg.Telemetry.Emit(common.NewFlightLog(cid, "backend", "epams.list", "error"), cid)
-			common.WriteError(w, http.StatusInternalServerError, "could not load epams")
+			common.WriteError(w, http.StatusInternalServerError, humanizeStoreError(err, "could not load epams"))
 			return
 		}
 		if records == nil {
@@ -211,7 +211,7 @@ func (h epamHandlers) saveEpam() http.HandlerFunc {
 		if err := h.cfg.proxyAbsoluteUpload(r, cid, s3Key, filepath.Base(fileName), normalized); err != nil {
 			log.Printf("[correlation=%s] epams.save s3 error: %v", cid, err)
 			h.cfg.Telemetry.Emit(common.NewFlightLog(cid, "backend", "epams.save", "error"), cid)
-			common.WriteError(w, http.StatusBadGateway, s3store.HumanizeAccessError(err.Error()))
+			common.WriteError(w, http.StatusBadGateway, humanizeProxyError(err))
 			return
 		}
 
@@ -231,7 +231,7 @@ func (h epamHandlers) saveEpam() http.HandlerFunc {
 		if err != nil {
 			log.Printf("[correlation=%s] epams.save store error: %v", cid, err)
 			h.cfg.Telemetry.Emit(common.NewFlightLog(cid, "backend", "epams.save", "error"), cid)
-			common.WriteError(w, http.StatusInternalServerError, "could not save epam metadata")
+			common.WriteError(w, http.StatusInternalServerError, humanizeStoreError(err, "could not save epam metadata"))
 			return
 		}
 
@@ -291,6 +291,32 @@ func registerEpamRoutes(r chi.Router, cfg config, store ddb.EpamStore) {
 	r.Get("/api/epams/{epamId}", h.getEpam())
 	r.Put("/api/epams/{epamId}", h.saveEpam())
 	r.Delete("/api/epams/{epamId}", h.deleteEpam())
+}
+
+func humanizeProxyError(err error) string {
+	raw := strings.TrimSpace(err.Error())
+	var payload struct {
+		Message string `json:"message"`
+	}
+	if json.Unmarshal([]byte(raw), &payload) == nil && strings.TrimSpace(payload.Message) != "" {
+		raw = payload.Message
+	}
+	return s3store.HumanizeAccessError(raw)
+}
+
+func humanizeStoreError(err error, fallback string) string {
+	if err == nil {
+		return fallback
+	}
+	msg := strings.TrimSpace(err.Error())
+	lower := strings.ToLower(msg)
+	if strings.Contains(lower, "resourcenotfoundexception") || strings.Contains(lower, "requested resource not found") {
+		return "DynamoDB table eduardoos_epams not found — create it with deploy/aws/create-epams-table.sh and attach IAM access"
+	}
+	if msg == "" {
+		return fallback
+	}
+	return msg
 }
 
 func (c config) fetchAbsoluteObject(r *http.Request, cid, objectKey string) ([]byte, error) {
