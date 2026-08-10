@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuthEmailFromToken, getAuthToken, isApsAdminEmail } from "../../lib/auth";
 import { ensureEmusicForLibrary } from "../../lib/emusicCloud";
+import {
+    buildEmusicsBundle,
+    downloadEmusicsBundle,
+    EMUSICS_EXTENSION,
+    importEmusicsBundle,
+    offlineItemsToAudioLibrary,
+    readEmusicsFile,
+} from "../../lib/emusicsBundle";
 import { fetchAudioLibrary, isLocalTrackKey, makeLocalTrackKey, mediaObjectPlaybackUrl, persistableTrackIds, trackDisplayName, type AudioLibraryItem, } from "../../lib/mediaLibrary";
-import { countOfflineTracks, getOfflineTrackUrl, revokeOfflineTrackUrl, saveTrackOffline, saveTracksOfflineBulk, type OfflineBulkProgress, } from "../../lib/offlineAudio";
+import { countOfflineTracks, getOfflineTrackUrl, revokeOfflineTrackUrl, saveTrackOffline } from "../../lib/offlineAudio";
+import { getOfflineLibraryCatalog, saveOfflineLibraryCatalog } from "../../lib/offlineEmusic";
 import { fetchPlaylists, savePlaylist, type PlaylistRecord } from "../../lib/playlists";
 import PlaylistControls from "./PlaylistControls";
 import PlaylistLyrics from "./PlaylistLyrics";
@@ -42,6 +51,7 @@ export default function PlaylistBuilder() {
     const [offlineDownloading, setOfflineDownloading] = useState(false);
     const [offlineProgress, setOfflineProgress] = useState("");
     const localFileInputRef = useRef<HTMLInputElement>(null);
+    const emusicsFileInputRef = useRef<HTMLInputElement>(null);
     const localBlobUrlsRef = useRef<Map<string, string>>(new Map());
     activeTracksRef.current = activeTracks;
     loopPlaylistRef.current = loopPlaylist;
@@ -61,25 +71,38 @@ export default function PlaylistBuilder() {
         setOfflineReadyCount(count);
     }, []);
     const loadLibrary = useCallback(async () => {
-        const tracks = await fetchAudioLibrary();
-        setLibrary(tracks);
-        const map = new Map<string, string>();
-        for (const track of tracks) {
-            map.set(track.key, track.url);
-        }
-        setUrlByKey(map);
-        await refreshOfflineCount(tracks.map((track) => track.key));
+        try {
+            const tracks = await fetchAudioLibrary();
+            setLibrary(tracks);
+            const map = new Map<string, string>();
+            for (const track of tracks) {
+                map.set(track.key, track.url);
+            }
+            setUrlByKey(map);
+            await refreshOfflineCount(tracks.map((track) => track.key));
 
-        // Admin: create missing .emusic files in S3 for every library track.
-        if (isApsAdminEmail(getAuthEmailFromToken())) {
-            void ensureEmusicForLibrary(
-                tracks.map((track) => track.key),
-                (done, total, created) => {
-                    if (done === total && created > 0) {
-                        setMessage(`Letras: ${created} .emusic nuevos en emusic_files/ (${total} pistas).`);
-                    }
-                },
-            ).catch(() => undefined);
+            if (isApsAdminEmail(getAuthEmailFromToken())) {
+                void ensureEmusicForLibrary(
+                    tracks.map((track) => track.key),
+                    (done, total, created) => {
+                        if (done === total && created > 0) {
+                            setMessage(`Letras: ${created} .emusic nuevos en emusic_files/ (${total} pistas).`);
+                        }
+                    },
+                ).catch(() => undefined);
+            }
+        } catch (err) {
+            // Offline fallback: restore catalog from last .emusics pack / offline save.
+            const offlineCatalog = await getOfflineLibraryCatalog();
+            if (offlineCatalog.length > 0) {
+                const tracks = offlineItemsToAudioLibrary(offlineCatalog);
+                setLibrary(tracks);
+                setUrlByKey(new Map());
+                await refreshOfflineCount(tracks.map((track) => track.key));
+                setMessage(`Biblioteca offline: ${tracks.length} pistas desde .emusics / caché local.`);
+                return;
+            }
+            throw err;
         }
     }, [refreshOfflineCount]);
     const loadSavedPlaylists = useCallback(async () => {
@@ -141,18 +164,24 @@ export default function PlaylistBuilder() {
             }
             return;
         }
+        // Prefer offline blob when present (works fully offline after .emusics import).
         const offlineUrl = await getOfflineTrackUrl(currentTrackKey);
         clearBlobUrl();
-        let nextSrc = remoteSrc;
+        let nextSrc = "";
         if (offlineUrl) {
             blobUrlRef.current = offlineUrl;
             nextSrc = offlineUrl;
-        }
-        else if (navigator.onLine) {
+        } else if (navigator.onLine) {
+            nextSrc = remoteSrc;
             void saveTrackOffline(currentTrackKey, remoteSrc)
                 .then(() => refreshOfflineCount(library.map((item) => item.key)))
                 .catch(() => {
             });
+        } else {
+            clearBlobUrl();
+            audio.removeAttribute("src");
+            setError("Track not available offline. Load a .emusics pack or reconnect.");
+            return;
         }
         const resolved = new URL(nextSrc, window.location.origin).href;
         if (audio.src !== resolved) {
@@ -470,20 +499,62 @@ export default function PlaylistBuilder() {
         setMessage("");
         setOfflineProgress(`0 / ${library.length}`);
         const items = library.map((item) => ({
-            trackId: item.key,
+            key: item.key,
             url: mediaObjectPlaybackUrl(item.key, item.url),
+            name: item.name || trackDisplayName(item.key),
+            contentType: item.content_type || "audio/mpeg",
         }));
         try {
-            const result = await saveTracksOfflineBulk(items, (progress: OfflineBulkProgress) => {
+            const bundle = await buildEmusicsBundle(items, (progress) => {
                 setOfflineProgress(`${progress.done} / ${progress.total}`);
             });
+            if (bundle.tracks.length === 0) {
+                throw new Error("No tracks could be packed into .emusics");
+            }
+            await saveOfflineLibraryCatalog(
+                bundle.tracks.map((track) => ({
+                    key: track.key,
+                    name: track.name,
+                    content_type: track.mime,
+                    size: track.size,
+                    url: "",
+                })),
+            );
+            downloadEmusicsBundle(bundle);
             await refreshOfflineCount(library.map((item) => item.key));
-            setMessage(`Offline library: ${result.saved} saved, ${result.skipped} already cached, ${result.failed} failed.`);
-        }
-        catch (err) {
+            setMessage(
+                `Offline pack: ${bundle.tracks.length} pistas en IndexedDB + descarga ${EMUSICS_EXTENSION} (audio + .emusic).`,
+            );
+        } catch (err) {
             setError(err instanceof Error ? err.message : "Offline download failed");
+        } finally {
+            setOfflineDownloading(false);
+            setOfflineProgress("");
         }
-        finally {
+    }
+
+    async function handleLoadEmusicsFile(fileList: FileList | null): Promise<void> {
+        const file = fileList?.[0];
+        if (!file) return;
+        setOfflineDownloading(true);
+        setError("");
+        setMessage("");
+        setOfflineProgress("0 / ?");
+        try {
+            const bundle = await readEmusicsFile(file);
+            const result = await importEmusicsBundle(bundle, (done, total) => {
+                setOfflineProgress(`${done} / ${total}`);
+            });
+            const tracks = offlineItemsToAudioLibrary(result.library);
+            setLibrary(tracks);
+            setUrlByKey(new Map());
+            await refreshOfflineCount(tracks.map((track) => track.key));
+            setMessage(
+                `Cargado ${file.name}: ${result.imported} pistas listas offline (audio + letras).`,
+            );
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to load .emusics");
+        } finally {
             setOfflineDownloading(false);
             setOfflineProgress("");
         }
@@ -551,9 +622,27 @@ export default function PlaylistBuilder() {
         />
         <button type="button" className="btn btn--secondary" disabled={offlineDownloading || library.length === 0} onClick={() => void downloadLibraryOffline()}>
           {offlineDownloading
-            ? `Downloading… ${offlineProgress}`
+            ? `Packing… ${offlineProgress}`
             : `Save library offline (${offlineReadyCount}/${library.length})`}
         </button>
+        <button
+          type="button"
+          className="btn btn--secondary"
+          disabled={offlineDownloading}
+          onClick={() => emusicsFileInputRef.current?.click()}
+        >
+          Load .emusics
+        </button>
+        <input
+          ref={emusicsFileInputRef}
+          type="file"
+          accept=".emusics,application/json"
+          hidden
+          onChange={(e) => {
+            void handleLoadEmusicsFile(e.target.files);
+            e.target.value = "";
+          }}
+        />
       </div>
 
       <div className="playlist-builder__grid">

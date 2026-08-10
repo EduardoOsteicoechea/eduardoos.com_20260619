@@ -307,22 +307,35 @@ export function flattenResolvedWords(sections: ResolvedSection[]): ResolvedWord[
 
 export async function fetchEmusicForTrack(objectKey: string): Promise<EmusicDocument | null> {
     const slug = trackLyricsSlug(objectKey);
-    const urls = [emusicCloudFileUrl(slug), emusicPublicUrl(objectKey)];
-    for (const url of urls) {
-        try {
-            const res = await fetch(url, { headers: { Accept: "application/json" } });
-            if (!res.ok) continue;
-            const data = (await res.json()) as EmusicDocument;
-            if (data?.type !== "emusic") continue;
-            const hasUnits = Array.isArray(data.unidades);
-            const hasLegacy = Array.isArray(data.sections) || Array.isArray(data.words);
-            if (!hasUnits && !hasLegacy) continue;
-            return data;
-        } catch {
-            // try next source
+    if (typeof navigator === "undefined" || navigator.onLine) {
+        const urls = [emusicCloudFileUrl(slug), emusicPublicUrl(objectKey)];
+        for (const url of urls) {
+            try {
+                const res = await fetch(url, { headers: { Accept: "application/json" } });
+                if (!res.ok) continue;
+                const data = (await res.json()) as EmusicDocument;
+                if (data?.type !== "emusic") continue;
+                const hasUnits = Array.isArray(data.unidades);
+                const hasLegacy = Array.isArray(data.sections) || Array.isArray(data.words);
+                if (!hasUnits && !hasLegacy) continue;
+                try {
+                    const { saveEmusicOffline } = await import("./offlineEmusic");
+                    await saveEmusicOffline(objectKey, data);
+                } catch {
+                    // offline cache is best-effort
+                }
+                return data;
+            } catch {
+                // try next source
+            }
         }
     }
-    return null;
+    try {
+        const { getEmusicOffline } = await import("./offlineEmusic");
+        return await getEmusicOffline(objectKey);
+    } catch {
+        return null;
+    }
 }
 
 export function activeWordIndex(words: ResolvedWord[], timeSec: number): number {

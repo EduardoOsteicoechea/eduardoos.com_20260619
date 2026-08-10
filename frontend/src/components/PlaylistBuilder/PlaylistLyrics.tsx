@@ -141,6 +141,14 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
             const saved = await saveEmusicToCloud(slug, next);
             setDoc(saved);
             setSaveStatus("Guardado en emusic_files/");
+            if (trackKey) {
+                try {
+                    const { saveEmusicOffline } = await import("../../lib/offlineEmusic");
+                    await saveEmusicOffline(trackKey, saved);
+                } catch {
+                    // best-effort offline mirror
+                }
+            }
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             setSaveStatus(`Error al guardar: ${message}`);

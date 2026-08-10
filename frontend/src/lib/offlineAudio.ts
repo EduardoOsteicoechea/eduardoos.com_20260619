@@ -12,6 +12,11 @@ export async function saveTrackOffline(trackId: string, url: string): Promise<bo
     await audioStore.setItem(trackId, blob);
     return true;
 }
+
+export async function saveTrackBlobOffline(trackId: string, blob: Blob): Promise<void> {
+    if (!trackId || !(blob instanceof Blob)) return;
+    await audioStore.setItem(trackId, blob);
+}
 export async function getOfflineTrackUrl(trackId: string): Promise<string | null> {
     const blob = await audioStore.getItem<Blob>(trackId);
     if (!blob) {
