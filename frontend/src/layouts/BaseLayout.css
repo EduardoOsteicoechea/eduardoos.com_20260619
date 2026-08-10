@@ -21,7 +21,13 @@ body.page-playlist:has(.lyrics-edit-tray) {
 
 @media (min-width: 768px) {
   body.page-playlist {
+    /* Match mobile: full player height (seek above buttons), not a single activity row. */
+    --chrome-bar-desktop: var(--site-chrome-bar-mobile, 6.65rem);
     padding-bottom: var(--chrome-bar-desktop);
+  }
+
+  body.page-playlist:has(.playlist-controls--tray-open) {
+    --chrome-bar-desktop: 12rem;
   }
 
   body.page-playlist:has(.lyrics-edit-tray) {

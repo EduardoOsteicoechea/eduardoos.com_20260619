@@ -8,8 +8,8 @@
   grid-template-columns: 1fr auto;
   grid-template-rows: auto;
   align-items: center;
-  background: var(--site-body-bg);
-  border-bottom: var(--border_001);
+  background: transparent;
+  border-bottom: none;
   color: var(--site-body-fg);
   overflow: visible;
 }
@@ -19,7 +19,7 @@
   grid-row: 1;
   justify-self: start;
   align-self: center;
-  margin-left: 10px;
+  margin-left: max(1.25rem, env(safe-area-inset-left));
   color: var(--site-body-fg);
   text-decoration: none;
   font-size: var(--font-base);
@@ -28,6 +28,7 @@
   padding: 0.25rem 0.5rem 0.25rem 0;
   border-radius: var(--border_radius_001);
   border: 1px solid transparent;
+  background: transparent;
   min-height: auto;
   min-width: auto;
 }
@@ -35,12 +36,13 @@
 .site-header__brand:hover {
   border-color: var(--site-medium);
   text-decoration: none;
+  background: transparent;
 }
 
 .site-header__brand.is-active {
-  background: var(--site-accent);
-  border-color: var(--site-accent);
-  color: var(--site-accent-fg);
+  background: transparent;
+  border-color: transparent;
+  color: var(--site-body-fg);
   text-decoration: none;
 }
 
@@ -116,6 +118,19 @@
   padding: 0.25rem 0.85rem;
   font-size: var(--font-sm);
   flex-shrink: 0;
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--site-body-fg) !important;
+  box-shadow: none;
+}
+
+.site-header__action:hover,
+.site-header__action.btn--primary:hover,
+a.site-header__action.btn--primary:hover {
+  background: transparent !important;
+  border-color: var(--site-medium) !important;
+  color: var(--site-body-fg) !important;
+  text-decoration: none;
 }
 
 .site-header__account {

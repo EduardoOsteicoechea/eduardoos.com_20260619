@@ -114,7 +114,9 @@
 
 @media (min-width: 900px) {
   .lyrics-edit-tray {
-    bottom: calc(var(--chrome-bar-desktop, 5.5rem) + env(safe-area-inset-bottom, 0px));
+    bottom: calc(
+      var(--chrome-bar-desktop, 5.5rem) + env(safe-area-inset-bottom, 0px)
+    );
   }
 }
 
