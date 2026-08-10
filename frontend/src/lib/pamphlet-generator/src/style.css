@@ -326,6 +326,9 @@
   --item-gap-height: 2mm;
   --b1: solid 1px rgb(231, 231, 231);
   --mobile-view-scale: 1;
+  --mobile-inv-scale: 1;
+  /* Screen-only: CSS mm under-reads on phone/tablet; boost visual size without changing layout math. */
+  --mm-visual-boost: 1;
 }
 
 .pamphlet-app,
@@ -830,7 +833,7 @@ p {
   padding: 0;
   grid-template-columns: none;
   grid-template-rows: none;
-  transform: scale(var(--mobile-view-scale, 1));
+  transform: scale(calc(var(--mobile-view-scale, 1) * var(--mm-visual-boost, 1)));
   transform-origin: top center;
   background: transparent;
   color: inherit;

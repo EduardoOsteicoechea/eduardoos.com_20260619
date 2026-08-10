@@ -67,11 +67,7 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
                     }
                     setDoc(ensured.document);
                     setStatus("ready");
-                    setSaveStatus(
-                        ensured.created
-                            ? "Nuevo .emusic creado en emusic_files/"
-                            : "Abierto desde emusic_files/",
-                    );
+                    setSaveStatus("");
                     return;
                 }
 
@@ -265,11 +261,8 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
                         )}
                     </p>
                 ) : (
-                    <div className="playlist-lyrics__scroll">
+                    <div className="playlist-lyrics__body">
                         <h3 className="playlist-lyrics__title">{title}</h3>
-                        {canEdit && saveStatus ? (
-                            <p className="playlist-lyrics__save-status">{saveStatus}</p>
-                        ) : null}
                         {sections.length === 0 || sections.every((s) => s.words.length === 0) ? (
                             <p className="playlist-lyrics__empty">
                                 {canEdit
@@ -431,7 +424,6 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
                     onCommit={async (next) => {
                         await persistDoc(next);
                     }}
-                    saveStatus={saveStatus}
                 />
             ) : null}
         </>

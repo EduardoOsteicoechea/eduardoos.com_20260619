@@ -7,13 +7,15 @@
   padding: 1rem 1.1rem 1.15rem;
   box-sizing: border-box;
   min-height: 10rem;
-  max-height: min(42vh, 26rem);
+  height: auto;
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }
 
 .playlist-lyrics--editing {
-  max-height: min(36vh, 22rem);
+  /* Extra bottom space so content clears the fixed word-edit tray. */
+  padding-bottom: calc(1.15rem + 7.5rem);
 }
 
 .playlist-lyrics__empty {
@@ -23,10 +25,9 @@
   line-height: 1.4;
 }
 
-.playlist-lyrics__scroll {
-  flex: 1 1 auto;
-  overflow: auto;
-  min-height: 0;
+.playlist-lyrics__body {
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 .playlist-lyrics__title {

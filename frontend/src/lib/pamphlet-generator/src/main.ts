@@ -177,8 +177,12 @@ function syncMobileViewScale(): void {
     appRoot.style.setProperty("--mobile-inv-scale", String(scale > 0 ? 1 / scale : 1));
     requestAnimationFrame(() => {
         const layoutHeight = main.offsetHeight;
-        if (layoutHeight > 0 && scale !== 1) {
-            const visualHeight = layoutHeight * scale;
+        const boostRaw = getComputedStyle(appRoot).getPropertyValue("--mm-visual-boost").trim();
+        const boost = Number(boostRaw);
+        const visualScale = scale * (Number.isFinite(boost) && boost > 0 ? boost : 1);
+        // Scroll gap only (transform does not change layout box). Not used for column/item mm math.
+        if (layoutHeight > 0 && visualScale !== 1) {
+            const visualHeight = layoutHeight * visualScale;
             main.style.marginBottom = `${visualHeight - layoutHeight}px`;
         } else {
             main.style.marginBottom = "";

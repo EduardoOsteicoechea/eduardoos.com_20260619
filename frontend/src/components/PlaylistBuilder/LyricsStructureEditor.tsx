@@ -92,7 +92,6 @@ export default function LyricsStructureEditor({
                     unidades → líneas → palabras <code>{`{ t, i, f }`}</code>. OK / Enter / Esc guarda
                     en S3.
                 </p>
-                {saveStatus ? <p className="lyrics-structure-editor__status">{saveStatus}</p> : null}
             </header>
 
             <div className="lyrics-structure-editor__add-block">
@@ -133,7 +132,6 @@ export default function LyricsStructureEditor({
                         >
                             <div className="lyrics-structure-editor__block-bar">
                                 <label className="lyrics-structure-editor__unit-kind">
-                                    <span>unidad {unitIndex + 1}</span>
                                     <select
                                         value={unit.t}
                                         aria-label={`Tipo de unidad ${unitIndex + 1}`}

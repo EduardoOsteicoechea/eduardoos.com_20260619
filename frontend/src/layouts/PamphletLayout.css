@@ -213,6 +213,22 @@ body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet {
   margin-right: auto !important;
 }
 
+/*
+ * Phones/tablets: CSS `mm` is tied to the 96dpi reference pixel, so true physical mm look smaller.
+ * Boost only the on-screen transform (print/desktop unchanged). Height_mm math stays identical.
+ */
+@media (max-width: 1024px) {
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] {
+    --mm-visual-boost: 1.28;
+  }
+}
+
+@media (max-width: 640px) {
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] {
+    --mm-visual-boost: 1.35;
+  }
+}
+
 /* Mobile stack: light = paper white; dark = no fill, theme text */
 body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
 body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
