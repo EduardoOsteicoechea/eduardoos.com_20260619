@@ -105,6 +105,7 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     appRoot.setAttribute("data-view-mode", viewMode);
     appRoot.style.setProperty("--mobile-view-scale", "1");
     appRoot.style.setProperty("--mobile-inv-scale", "1");
+    appRoot.style.setProperty("--mobile-sheet-margin-left", "8px");
 
     const disposers: Array<() => void> = [];
     function on(
@@ -143,15 +144,20 @@ function syncMobileViewScale(): void {
     if (viewMode !== "mobile") {
         appRoot.style.setProperty("--mobile-view-scale", "1");
         appRoot.style.setProperty("--mobile-inv-scale", "1");
+        appRoot.style.setProperty("--mobile-sheet-margin-left", "0px");
         main.style.marginBottom = "";
         return;
     }
-    const padPx = 24;
-    const refPx = mobileColumnWidthMm * (96 / 25.4);
-    const available = Math.max(120, window.innerWidth - padPx);
+    const padPx = 8;
+    // Prefer measured layout width (pre-transform); CSS mm can differ from the 96dpi formula.
+    const fallbackRefPx = mobileColumnWidthMm * (96 / 25.4);
+    const refPx = Math.max(1, main.offsetWidth || fallbackRefPx);
+    const viewportW = window.visualViewport?.width ?? window.innerWidth;
+    const available = Math.max(120, viewportW - padPx * 2);
     const scale = available / refPx; // may be > 1 so the column fills the screen
     appRoot.style.setProperty("--mobile-view-scale", String(scale));
     appRoot.style.setProperty("--mobile-inv-scale", String(scale > 0 ? 1 / scale : 1));
+    appRoot.style.setProperty("--mobile-sheet-margin-left", `${padPx}px`);
     // Compensate layout space after CSS transform:scale (transform does not shrink/grow flow box)
     requestAnimationFrame(() => {
         const layoutHeight = main.offsetHeight;

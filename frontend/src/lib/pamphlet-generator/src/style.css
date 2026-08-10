@@ -557,7 +557,9 @@ p {
   line-height: 1.2;
 }
 
-.element_edit_tray{
+/* Must beat `.pamphlet-app main.pamphlet-sheet * { position: relative }` or top:100%
+   becomes a relative offset and the tray jumps one full item-height below the content. */
+.pamphlet-app main.pamphlet-sheet .element_edit_tray {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -690,16 +692,23 @@ p {
 }
 
 /* Mobile view: keep tray usable after column scale-to-fit (sizes are pre-scale) */
-.pamphlet-app[data-view-mode="mobile"] .element_edit_tray {
-  width: min(
-    calc(350px * var(--mobile-inv-scale, 1)),
-    calc((100vw - 24px) * var(--mobile-inv-scale, 1))
-  );
+.pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet .element_edit_tray {
+  width: 100%;
   max-width: 100%;
-  left: 50%;
+  left: 0;
   right: auto;
-  transform: translateX(-50%);
+  transform: none;
   z-index: 1200;
+}
+
+/* Mobile: + item control at half the print/desktop size */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-add-item-button {
+  width: 4.5mm;
+  height: 4.5mm;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-add-item-button::before {
+  font-size: 3mm;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .element_edit_tray_buttons_container {
@@ -753,14 +762,25 @@ p {
   height: auto;
   min-height: 0;
   border: none;
-  margin: 10px auto;
+  margin: 10px 0;
   padding: 0;
   grid-template-columns: none;
   grid-template-rows: none;
   transform: scale(var(--mobile-view-scale, 1));
-  transform-origin: top center;
+  transform-origin: top left;
   background: transparent;
   color: inherit;
+}
+
+/* Image item should hug the frame so the edit tray sits flush under the image */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-item[data-item-type="image"] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  height: auto;
+  flex: 0 0 auto;
+  align-self: flex-start;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
