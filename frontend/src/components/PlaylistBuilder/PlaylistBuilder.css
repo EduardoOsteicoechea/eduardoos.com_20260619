@@ -14,8 +14,9 @@
   margin-bottom: 2rem;
 }
 
-.playlist-builder:has(.lyrics-edit-tray) {
-  padding-bottom: 14rem;
+.playlist-builder:has(.lyrics-edit-tray),
+.playlist-builder:has(.lyrics-structure-editor) {
+  padding-bottom: 16rem;
   margin-bottom: 3rem;
 }
 

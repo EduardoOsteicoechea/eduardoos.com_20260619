@@ -114,6 +114,7 @@ func Run(addr string) error {
 	r.Get("/api/media/file/*", cfg.proxyMediaFile())
 	registerPlaylistRoutes(r, cfg, playlistStore)
 	registerEpamRoutes(r, cfg, epamStore)
+	registerEmusicRoutes(r, cfg)
 	registerSubscriptionRoutes(r, cfg, entitlementStore)
 	registerAPSRoutes(r, cfg)
 

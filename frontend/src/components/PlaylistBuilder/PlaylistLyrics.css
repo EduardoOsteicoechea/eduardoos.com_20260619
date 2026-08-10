@@ -180,3 +180,11 @@
   font-size: 13px;
   font-family: Arial, sans-serif;
 }
+
+.lyrics-edit-tray__status {
+  margin: 0;
+  padding: 6px 8px 8px;
+  background: #111;
+  color: #cfcfcf;
+  font-size: 12px;
+}
