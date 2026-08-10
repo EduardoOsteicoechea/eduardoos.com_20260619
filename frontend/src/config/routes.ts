@@ -8,7 +8,7 @@ export const APP_ROUTES = {
     subscription: "/payments/subscription",
     profile: "/auth/profile",
     mediaGallery: "/media/gallery",
-    mediaPlaylist: "/media/playlist",
+    mediaPlaylist: "/media/musica",
     pamphlet: "/documents/pamphlet",
     apsAdmin: "/aps-admin",
 } as const;

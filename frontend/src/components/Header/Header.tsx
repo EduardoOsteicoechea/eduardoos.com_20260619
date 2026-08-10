@@ -25,7 +25,7 @@ interface HeaderProps {
 }
 const NAV_LINKS = [
     { href: APP_ROUTES.home, label: "Home" },
-    { href: APP_ROUTES.mediaPlaylist, label: "Playlist" },
+    { href: APP_ROUTES.mediaPlaylist, label: "Música" },
     { href: APP_ROUTES.pamphlet, label: "Panfleto" },
     { href: APP_ROUTES.apsAdmin, label: "APS" },
     { href: APP_ROUTES.subscription, label: "Subscribe" },
@@ -111,6 +111,8 @@ export function Header({ pathname }: HeaderProps) {
     const [profileImageUrl, setProfileImageUrl] = useState("");
     const [clientReady, setClientReady] = useState(false);
     const headerRef = useRef<HTMLElement>(null);
+    const trayRef = useRef<HTMLElement>(null);
+    const menuBtnRef = useRef<HTMLButtonElement>(null);
     function navClass(href: string) {
         if (href === APP_ROUTES.home) {
             return pathname === "/" ? "is-active" : "";
@@ -180,6 +182,32 @@ export function Header({ pathname }: HeaderProps) {
         window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleAuthSessionExpired);
         return () => window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleAuthSessionExpired);
     }, []);
+    useEffect(() => {
+        if (!menuOpen) {
+            return;
+        }
+        function handlePointerDown(event: MouseEvent) {
+            const target = event.target as Node;
+            if (trayRef.current?.contains(target)) {
+                return;
+            }
+            if (menuBtnRef.current?.contains(target)) {
+                return;
+            }
+            closeMenu();
+        }
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === "Escape") {
+                closeMenu();
+            }
+        }
+        document.addEventListener("mousedown", handlePointerDown);
+        document.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.removeEventListener("mousedown", handlePointerDown);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [menuOpen]);
     const showAuth = clientReady;
     return (<header ref={headerRef} className={`site-header${menuOpen ? " site-header--open" : ""}`}>
       <a className={`site-header__brand${pathname === "/" ? " is-active" : ""}`} href={APP_ROUTES.home} onClick={closeMenu}>
@@ -188,11 +216,17 @@ export function Header({ pathname }: HeaderProps) {
       <div className="site-header__bar">
         <div className="site-header__bar-spacer" aria-hidden="true"/>
         {showAuth ? (<AuthControls variant="bar" loggedIn={loggedIn} profileInitial={profileInitial} profileImageUrl={profileImageUrl} onLogout={() => void handleLogout()} onNavigate={closeMenu}/>) : null}
-        <button type="button" className="site-header__menu" aria-expanded={menuOpen} aria-controls="site-header-nav" aria-label={menuOpen ? "Close menu" : "Open menu"} onClick={toggleMenu}>
+        <button ref={menuBtnRef} type="button" className="site-header__menu" aria-expanded={menuOpen} aria-controls="site-header-nav" aria-label={menuOpen ? "Close menu" : "Open menu"} onClick={toggleMenu}>
           Menu
         </button>
       </div>
-      <nav id="site-header-nav" className="site-header__nav" aria-label="Main">
+      <div
+        className="site-header__backdrop"
+        hidden={!menuOpen}
+        aria-hidden="true"
+        onClick={closeMenu}
+      />
+      <nav ref={trayRef} id="site-header-nav" className="site-header__nav" aria-label="Main" hidden={!menuOpen}>
         {NAV_LINKS.map(({ href, label }) => (
           <a
             key={href}

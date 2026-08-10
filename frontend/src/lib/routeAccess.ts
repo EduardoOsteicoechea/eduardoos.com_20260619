@@ -8,7 +8,9 @@ export function isPublicPagePath(pathname: string): boolean {
         return true;
     }
     if (path === normalizePath(APP_ROUTES.mediaPlaylist) ||
-        path.startsWith(`${normalizePath(APP_ROUTES.mediaPlaylist)}/`)) {
+        path.startsWith(`${normalizePath(APP_ROUTES.mediaPlaylist)}/`) ||
+        path === "/media/playlist" ||
+        path.startsWith("/media/playlist/")) {
         return true;
     }
     // Panfleto editor is local-file based; no account required.
