@@ -11,6 +11,12 @@ export function isPublicPagePath(pathname: string): boolean {
         path.startsWith(`${normalizePath(APP_ROUTES.mediaPlaylist)}/`)) {
         return true;
     }
+    // Panfleto editor is local-file based; no account required.
+    if (path === normalizePath(APP_ROUTES.pamphlet) ||
+        path.startsWith(`${normalizePath(APP_ROUTES.pamphlet)}/`) ||
+        path === "/panfleto") {
+        return true;
+    }
     return false;
 }
 function normalizePath(pathname: string): string {
