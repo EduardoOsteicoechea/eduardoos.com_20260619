@@ -93,7 +93,7 @@
 
 .playlist-builder__panel {
   border: var(--border_001);
-  border-radius: var(--border_radius_001);
+  border-radius: 0;
   background: var(--site-body-bg);
   min-height: 14rem;
   min-width: 0;
@@ -127,7 +127,7 @@
   padding: 0.3rem 0.45rem;
   margin-bottom: 0.25rem;
   border: var(--border_001);
-  border-radius: var(--border_radius_001);
+  border-radius: 0;
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   font-size: var(--font-sm);
@@ -170,7 +170,7 @@
   max-height: var(--playlist-control-size);
   padding: 0;
   border: var(--border_001);
-  border-radius: var(--border_radius_001);
+  border-radius: 0;
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   cursor: pointer;
@@ -236,7 +236,7 @@
   color: var(--site-body-fg);
   border: var(--border_001);
   padding: 0.4rem 0.6rem;
-  border-radius: var(--border_radius_001);
+  border-radius: 0;
   font-size: var(--font-sm);
 }
 
