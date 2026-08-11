@@ -70,7 +70,6 @@ body.has-page-background {
 main {
   position: relative;
   z-index: 1;
-  margin-top: var(--header_height);
 }
 
 input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not(
