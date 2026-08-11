@@ -140,13 +140,13 @@ a.site-header__action.btn--primary:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.3rem;
-  height: 1.3rem;
+  width: 0.975rem;
+  height: 0.975rem;
   border-radius: 50%;
   border: 1px solid var(--site-border);
   background: var(--site-accent);
   color: var(--site-accent-fg, #fff);
-  font-size: 0.58rem;
+  font-size: 0.435rem;
   font-weight: 700;
   text-decoration: none;
   flex-shrink: 0;
