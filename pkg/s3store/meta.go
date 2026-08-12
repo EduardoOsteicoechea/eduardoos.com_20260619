@@ -47,7 +47,7 @@ func ContentTypeFromKey(objectKey string) string {
 		return "audio/mp4"
 	case ".ogg":
 		return "audio/ogg"
-	case ".json", ".epam", ".emusic":
+	case ".json", ".epam", ".emusic", ".edebat":
 		return "application/json"
 	default:
 		return "application/octet-stream"

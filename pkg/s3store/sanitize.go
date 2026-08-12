@@ -42,9 +42,10 @@ var allowedExt = map[string]string{
 	".m4v":  "video/mp4",
 	".mov":  "video/quicktime",
 	".webm": "video/webm",
-	".json":  "application/json",
-	".epam":  "application/json",
+	".json":   "application/json",
+	".epam":   "application/json",
 	".emusic": "application/json",
+	".edebat": "application/json",
 }
 
 func hasPathTraversal(key string) bool {
@@ -162,7 +163,7 @@ func contentMatchesExt(data []byte, ext string) bool {
 		return isMP4Family(data)
 	case ".webm":
 		return bytes.HasPrefix(data, []byte{0x1A, 0x45, 0xDF, 0xA3})
-	case ".json", ".epam", ".emusic":
+	case ".json", ".epam", ".emusic", ".edebat":
 		trim := bytes.TrimSpace(data)
 		if bytes.HasPrefix(trim, []byte{0xEF, 0xBB, 0xBF}) {
 			trim = bytes.TrimSpace(trim[3:])

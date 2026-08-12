@@ -148,7 +148,7 @@
 
 .edebat__debate {
   display: grid;
-  grid-template-columns: minmax(14rem, 0.9fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(12rem, 35%) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
 }

@@ -149,10 +149,6 @@ export default function EdebatApp() {
   }
 
   async function submitTurn() {
-    if (!doc.id) {
-      setError("Crea o abre un debate primero");
-      return;
-    }
     const argument = draftArg.trim();
     if (!argument) {
       setError("Escribe tu argumento");
@@ -164,11 +160,36 @@ export default function EdebatApp() {
     }
     setBusy(true);
     setError("");
-    setStatus("Esperando experto y árbitro…");
+    setStatus("Preparando debate…");
+
+    let working = doc;
+    if (!working.id) {
+      const created = await apiRequest<{ document?: EdebatDocument }>(EDEBAT_ROUTES.create, {
+        method: "POST",
+        correlationId: createCorrelationId(),
+        authToken: getAuthToken(),
+      });
+      if (created.error || !created.data?.document) {
+        setBusy(false);
+        setError(created.error ? formatApiError(created.error) : "No se pudo crear el debate");
+        setStatus("");
+        return;
+      }
+      working = {
+        ...created.data.document,
+        topic: doc.topic,
+        roundsTotal: doc.roundsTotal,
+        rules: doc.rules,
+        title: doc.topic.trim().slice(0, 48) || created.data.document.title,
+      };
+      setDoc(working);
+    }
+
+    setStatus("Guardando y esperando experto/árbitro…");
     // Persist setup fields before the turn so topic/rules/rounds are current.
-    const saved = await apiRequest<{ document?: EdebatDocument }>(EDEBAT_ROUTES.item(doc.id), {
+    const saved = await apiRequest<{ document?: EdebatDocument }>(EDEBAT_ROUTES.item(working.id), {
       method: "PUT",
-      body: { document: doc },
+      body: { document: working },
       correlationId: createCorrelationId(),
       authToken: getAuthToken(),
     });
@@ -178,7 +199,7 @@ export default function EdebatApp() {
       setStatus("");
       return;
     }
-    const turn = await apiRequest<{ document?: EdebatDocument }>(EDEBAT_ROUTES.turn(doc.id), {
+    const turn = await apiRequest<{ document?: EdebatDocument }>(EDEBAT_ROUTES.turn(working.id), {
       method: "POST",
       body: { argument },
       correlationId: createCorrelationId(),
@@ -351,15 +372,15 @@ export default function EdebatApp() {
             <textarea
               value={draftArg}
               rows={6}
-              disabled={busy || finished || !doc.id}
+              disabled={busy || finished}
               onChange={(e) => setDraftArg(e.target.value)}
-              placeholder={doc.id ? "Escribe tu argumento de esta ronda…" : "Crea o abre un debate"}
+              placeholder="Escribe tu argumento de esta ronda…"
             />
           </label>
           <button
             type="button"
             className="btn btn--primary"
-            disabled={busy || finished || !doc.id}
+            disabled={busy || finished}
             onClick={() => void submitTurn()}
           >
             Enviar ronda
