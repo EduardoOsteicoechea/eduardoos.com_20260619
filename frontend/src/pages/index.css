@@ -11,6 +11,11 @@
   color: var(--site-body-fg);
 }
 
+/* Phone/tablet: hoist children so existing absolute/fixed rules stay identical */
+.home-hero__stage {
+  display: contents;
+}
+
 .home-hero__photo {
   position: absolute;
   inset: 0;
@@ -163,9 +168,9 @@
 
 @media (min-width: 1024px) {
   .page-shell.hero.home-hero {
-    --home-pad-left: calc(100px + 5vw);
     --home-img-height: calc(100dvh - var(--header_height));
     --home-img-width: calc(var(--home-img-height) * 9 / 16);
+    --home-info-width: 450px;
 
     position: relative;
     display: block;
@@ -178,14 +183,28 @@
     overflow: hidden;
   }
 
+  .home-hero__stage {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0;
+    box-sizing: border-box;
+    width: fit-content;
+    max-width: calc(100% - 2rem);
+    height: var(--home-img-height);
+    margin: 0 auto;
+    position: relative;
+  }
+
   .home-hero__photo {
-    position: absolute;
+    position: relative;
     inset: auto;
-    top: 0;
-    left: var(--home-pad-left);
+    top: auto;
+    left: auto;
     right: auto;
     bottom: auto;
     z-index: 1;
+    flex: 0 0 auto;
     width: var(--home-img-width);
     height: var(--home-img-height);
     max-height: none;
@@ -203,12 +222,13 @@
   }
 
   .home-hero__copy {
-    position: absolute;
-    top: 0;
-    left: calc(var(--home-pad-left) + var(--home-img-width));
+    position: relative;
+    top: auto;
+    left: auto;
     right: auto;
-    width: 100%;
-    max-width: 450px;
+    flex: 0 0 auto;
+    width: var(--home-info-width);
+    max-width: var(--home-info-width);
     height: var(--home-img-height);
     margin: 0;
     padding: 0;

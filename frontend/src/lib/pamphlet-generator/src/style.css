@@ -366,12 +366,45 @@
   isolation: isolate;
 }
 
+/*
+ * Dedicated reflow measure host: real column width in CSS mm, never transformed.
+ * Lives under .pamphlet-app but outside main.pamphlet-sheet (which may be scaled).
+ */
+.pamphlet-measure-root {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  visibility: hidden;
+  pointer-events: none;
+  transform: none !important;
+  zoom: 1 !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.pamphlet-measure-root .pamphlet-measure-column {
+  display: flex;
+  flex-direction: column;
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
+  min-width: 0;
+  height: auto;
+  overflow: visible;
+}
+
 
 .pamphlet-app main.pamphlet-sheet {
     /* Two US Letter landscape sheets stacked (no extra padding/gap — margins are grid tracks) */
     width: var(--letter-landscape-width);
     height: var(--sheet-stack-height);
     box-sizing: border-box;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     display: grid;
     grid-template-columns:
         var(--page-margin)
@@ -853,6 +886,8 @@ p {
   transform-origin: top center;
   background: transparent;
   color: inherit;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* Image item should hug the frame so the edit tray sits flush under the image */

@@ -19,38 +19,40 @@ const skills = [
 
 <BaseLayout title="Eduardo Osteicoechea">
   <div class="page-shell hero home-hero">
-    <picture class="home-hero__photo">
-      <source
-        media="(min-width: 1024px)"
-        srcset="/personal_photo_cropped.webp"
-        type="image/webp"
-      />
-      <img
-        src="/personal_photo_1080x1920_side_placed.webp"
-        alt="Eduardo Osteicoechea"
-        width="1080"
-        height="1920"
-        decoding="async"
-        fetchpriority="high"
-      />
-    </picture>
+    <div class="home-hero__stage">
+      <picture class="home-hero__photo">
+        <source
+          media="(min-width: 1024px)"
+          srcset="/personal_photo_cropped.webp"
+          type="image/webp"
+        />
+        <img
+          src="/personal_photo_1080x1920_side_placed.webp"
+          alt="Eduardo Osteicoechea"
+          width="1080"
+          height="1920"
+          decoding="async"
+          fetchpriority="high"
+        />
+      </picture>
 
-    <div class="home-hero__copy">
-      <p class="home-hero__brand">Eduardo Osteicoechea</p>
-      <h1>AEC Technologist</h1>
-      <p class="page-lead">
-        I'm a Licensed Building Architect, BIM Practitioner, Full Stack
-        BIM–Desktop–Web–Cloud Software Developer, AI Integrationist, English
-        proficient and Spanish native, research enthusiast, and interdisciplinary
-        professional.
-      </p>
-      <ul class="skill_cards" aria-label="Skills">
-        {
-          skills.map((skill) => (
-            <li class="skill_cards__item">{skill}</li>
-          ))
-        }
-      </ul>
+      <div class="home-hero__copy">
+        <p class="home-hero__brand">Eduardo Osteicoechea</p>
+        <h1>AEC Technologist</h1>
+        <p class="page-lead">
+          I'm a Licensed Building Architect, BIM Practitioner, Full Stack
+          BIM–Desktop–Web–Cloud Software Developer, AI Integrationist, English
+          proficient and Spanish native, research enthusiast, and interdisciplinary
+          professional.
+        </p>
+        <ul class="skill_cards" aria-label="Skills">
+          {
+            skills.map((skill) => (
+              <li class="skill_cards__item">{skill}</li>
+            ))
+          }
+        </ul>
+      </div>
     </div>
   </div>
 

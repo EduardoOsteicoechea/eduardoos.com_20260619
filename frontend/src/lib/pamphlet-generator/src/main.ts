@@ -340,28 +340,93 @@ function convertPixelsToMillimeters(px: number): number {
 }
 
 /**
- * Layout (pre-transform) height in mm. Prefer offsetHeight so mobile
- * `transform: scale(... * --mm-visual-boost)` does not inflate reflow math.
+ * Off-screen column at real pamphlet mm width, outside the scaled sheet.
+ * Reflow measures here so phone viewport / text inflation / transform cannot skew mm math.
+ */
+function ensureMeasureRoot(): { root: HTMLElement; column: HTMLElement } {
+    let root = appRoot.querySelector<HTMLElement>(":scope > .pamphlet-measure-root");
+    if (!root) {
+        root = document.createElement("div");
+        root.className = "pamphlet-measure-root";
+        root.setAttribute("aria-hidden", "true");
+        const column = document.createElement("div");
+        column.className = "dumb-column pamphlet-measure-column";
+        root.appendChild(column);
+        appRoot.appendChild(root);
+        return { root, column };
+    }
+    const column =
+        root.querySelector<HTMLElement>(":scope > .pamphlet-measure-column") ??
+        (() => {
+            const col = document.createElement("div");
+            col.className = "dumb-column pamphlet-measure-column";
+            root!.appendChild(col);
+            return col;
+        })();
+    return { root, column };
+}
+
+/**
+ * Layout height in CSS mm from offsetHeight (pre-transform), measured in the
+ * dedicated 60.35mm sandbox when possible.
  */
 function measureLayoutHeightMm(el: HTMLElement): number {
     return convertPixelsToMillimeters(el.offsetHeight);
 }
 
+/** Park item (+ optional spacer) in the measure sandbox and return block mm. */
+function measureBlockInSandbox(
+    item: HTMLElement,
+    spacer: HTMLElement | null,
+): { itemPx: number; spacerPx: number; itemMm: number; spacerMm: number; blockMm: number } {
+    const { column } = ensureMeasureRoot();
+    column.appendChild(item);
+    if (spacer) {
+        column.appendChild(spacer);
+    }
+    // Force layout against fixed column width before reading offsetHeight.
+    void column.offsetWidth;
+    const itemPx = item.offsetHeight;
+    const spacerPx = spacer ? spacer.offsetHeight : 0;
+    const itemMm = convertPixelsToMillimeters(itemPx);
+    const spacerMm = convertPixelsToMillimeters(spacerPx);
+    return {
+        itemPx,
+        spacerPx,
+        itemMm,
+        spacerMm,
+        blockMm: itemMm + spacerMm,
+    };
+}
+
 function measureBlockMm(item: HTMLElement, spacer: HTMLElement | null): number {
-    const itemMm = measureLayoutHeightMm(item);
-    const spacerMm = spacer ? measureLayoutHeightMm(spacer) : 0;
-    return itemMm + spacerMm;
+    const prevParent = item.parentElement;
+    const nextSibling = item.nextSibling;
+    const spacerParent = spacer?.parentElement ?? null;
+    const spacerNext = spacer?.nextSibling ?? null;
+
+    const { blockMm } = measureBlockInSandbox(item, spacer);
+
+    if (prevParent) {
+        prevParent.insertBefore(item, nextSibling);
+    }
+    if (spacer && spacerParent) {
+        spacerParent.insertBefore(spacer, spacerNext);
+    }
+    return blockMm;
 }
 
 /** Probe how much vertical space a new starter item (+ spacer) and the + button need. */
-function measureAddControlsMm(host: HTMLElement): { newItemMm: number; buttonMm: number } {
+function measureAddControlsMm(_host: HTMLElement): { newItemMm: number; buttonMm: number } {
+    const { column } = ensureMeasureRoot();
     const probeItem = createItemElement(createParagraphItem());
     const probeSpacer = createItemSpacer();
     const probeBtn = createAddItemButton(0);
-    host.appendChild(probeItem);
-    host.appendChild(probeSpacer);
-    host.appendChild(probeBtn);
-    const newItemMm = measureBlockMm(probeItem, probeSpacer);
+    column.appendChild(probeItem);
+    column.appendChild(probeSpacer);
+    column.appendChild(probeBtn);
+    void column.offsetWidth;
+    const newItemMm = measureLayoutHeightMm(probeItem) + measureLayoutHeightMm(probeSpacer);
     const buttonMm = measureLayoutHeightMm(probeBtn);
     probeItem.remove();
     probeSpacer.remove();
@@ -475,7 +540,7 @@ function reflowAndReport(container: HTMLElement) {
             page1LeftColHeightMm, // cols 7–8: −footer gutter −footer
             columnWidth: "60.35mm",
             pxToMmFactor: 25.4 / 96,
-            heightSource: "offsetHeight (layout / pre-transform)",
+            heightSource: "pamphlet-measure-root sandbox (60.35mm, pre-transform)",
         },
         columns: [] as {
             columnIndex: number;
@@ -535,14 +600,9 @@ function reflowAndReport(container: HTMLElement) {
         }
 
         const spacer = createItemSpacer();
-        currentColumnDiv.appendChild(item);
-        currentColumnDiv.appendChild(spacer);
-
-        const itemPx = item.offsetHeight;
-        const spacerPx = spacer.offsetHeight;
-        const itemMm = convertPixelsToMillimeters(itemPx);
-        const spacerMm = convertPixelsToMillimeters(spacerPx);
-        const blockMm = itemMm + spacerMm;
+        // Measure in dedicated mm sandbox (not the on-screen scaled sheet).
+        const measured = measureBlockInSandbox(item, spacer);
+        const { itemPx, spacerPx, itemMm, spacerMm, blockMm } = measured;
         const filledBeforeMm = currentColumnFilledMm;
         const currentMaxMm = maxHeightForColumn(columnIndex);
         const wouldOverflow =
@@ -560,6 +620,8 @@ function reflowAndReport(container: HTMLElement) {
             currentColumnFilledMm = blockMm;
             currentColumnItemsCount = 1;
         } else {
+            currentColumnDiv.appendChild(item);
+            currentColumnDiv.appendChild(spacer);
             currentColumnFilledMm += blockMm;
             currentColumnItemsCount++;
         }
@@ -588,6 +650,9 @@ function reflowAndReport(container: HTMLElement) {
             });
         }
     });
+
+    // Clear sandbox so live sheet is the only owner of content nodes.
+    ensureMeasureRoot().column.replaceChildren();
 
     if (currentColumnItemsCount > 0) {
         pushColumnSummary(columnIndex, currentColumnItemsCount, currentColumnFilledMm);
@@ -1338,6 +1403,7 @@ if (!isFileSystemAccessSupported()) {
         destroy() {
             for (const dispose of disposers) dispose();
             disposers.length = 0;
+            appRoot.querySelector(":scope > .pamphlet-measure-root")?.remove();
             fileToolbar.remove();
             sidebarBackdrop.remove();
             sidebar.remove();
