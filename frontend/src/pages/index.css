@@ -139,7 +139,7 @@
 /* Phone only — tablet (768–1023) stays as above */
 @media (max-width: 767px) {
   .home-hero__copy {
-    margin-top: 5px;
+    margin-top: 0;
     margin-left: calc(35vw + 10px);
   }
 
@@ -156,7 +156,7 @@
   .skill_cards__item {
     width: 100%;
     box-sizing: border-box;
-    font-size: calc(var(--font-sm) * 0.85);
+    font-size: calc(var(--font-md) * 0.75 * 1.15);
     border-radius: 3px;
   }
 }
