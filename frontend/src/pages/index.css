@@ -154,7 +154,7 @@
 
 @media (min-width: 1024px) {
   .page-shell.hero.home-hero {
-    --home-pad-left: 100px;
+    --home-pad-left: calc(100px + 5vw);
     --home-img-height: calc(100dvh - var(--header_height));
     --home-img-width: calc(var(--home-img-height) * 9 / 16);
 
@@ -177,7 +177,7 @@
     right: auto;
     bottom: auto;
     z-index: 1;
-    /*width: var(--home-img-width);*/
+    width: var(--home-img-width);
     height: var(--home-img-height);
     max-height: none;
     overflow: hidden;
@@ -199,7 +199,7 @@
     left: calc(var(--home-pad-left) + var(--home-img-width));
     right: auto;
     width: 100%;
-    max-width: 600px;
+    max-width: 500px;
     height: var(--home-img-height);
     margin: 0;
     padding: 0;
