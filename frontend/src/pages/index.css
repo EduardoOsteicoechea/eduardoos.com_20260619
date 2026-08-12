@@ -180,7 +180,7 @@
     min-height: 0;
     max-height: calc(100dvh - var(--header_height));
     padding: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .home-hero__stage {
