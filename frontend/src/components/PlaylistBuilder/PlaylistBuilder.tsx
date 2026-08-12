@@ -46,7 +46,6 @@ export default function PlaylistBuilder() {
     const [offlineReadyCount, setOfflineReadyCount] = useState(0);
     const [offlineDownloading, setOfflineDownloading] = useState(false);
     const [offlineProgress, setOfflineProgress] = useState("");
-    const localFileInputRef = useRef<HTMLInputElement>(null);
     const emusicsFileInputRef = useRef<HTMLInputElement>(null);
     const localBlobUrlsRef = useRef<Map<string, string>>(new Map());
     const loadedTrackKeyRef = useRef<string>("");
