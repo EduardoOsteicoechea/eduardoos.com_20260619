@@ -640,6 +640,7 @@ p {
   top: 100%;
   left: 0;
   z-index: 1000;
+  overflow: visible;
 }
 
 .element_edit_tray_buttons_container{
@@ -772,6 +773,7 @@ p {
   right: auto;
   transform: none;
   z-index: 1200;
+  overflow: visible;
 }
 
 /* Mobile: + item matches pamphlet menu (30px visual) after column scale */
@@ -795,6 +797,7 @@ p {
   box-sizing: border-box;
   gap: calc(6px * var(--mobile-inv-scale, 1));
   padding: calc(6px * var(--mobile-inv-scale, 1));
+  zoom: 0.5;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .edit_tray_icon_button,
@@ -886,8 +889,9 @@ p {
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer:has(.element_edit_tray),
-.pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"]:has(.element_edit_tray) {
-  overflow: visible;
+.pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"]:has(.element_edit_tray),
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header:has(.element_edit_tray) {
+  overflow: visible !important;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -35,9 +35,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  height: 2rem;
   min-height: 2rem;
   min-width: 2rem;
-  padding: 0.25rem 0.65rem;
+  padding: 0 0.65rem;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
   background: var(--site-body-bg);
@@ -46,6 +47,7 @@
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .site-header__menu:hover {
@@ -110,19 +112,22 @@ a.site-header__action.btn--primary:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 0.975rem;
-  height: 0.975rem;
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
   border-radius: 50%;
   border: 1px solid var(--site-border);
   background: var(--site-accent);
   color: var(--site-accent-fg, #fff);
-  font-size: 0.435rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-decoration: none;
   flex-shrink: 0;
   padding: 0;
   cursor: pointer;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .site-header__profile-img {
