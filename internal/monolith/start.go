@@ -36,6 +36,7 @@ func ConfigureServiceURLs() {
 	_ = os.Setenv("S3_URL", "http://127.0.0.1"+PortS3)
 	_ = os.Setenv("DOCUMENTS_URL", "http://127.0.0.1"+PortDocuments)
 	_ = os.Setenv("DATABASE_URL", "http://127.0.0.1"+PortDatabase)
+	_ = os.Setenv("CHATBOT_URL", "http://127.0.0.1"+PortChatbot)
 }
 
 type service struct {

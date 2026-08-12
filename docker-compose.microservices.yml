@@ -48,6 +48,8 @@ services:
       PLAYLISTS_TABLE: ${PLAYLISTS_TABLE:-eduardoos_playlists}
       EPAMS_BACKEND: ${EPAMS_BACKEND:-memory}
       EPAMS_TABLE: ${EPAMS_TABLE:-eduardoos_epams}
+      EDEBATS_BACKEND: ${EDEBATS_BACKEND:-memory}
+      EDEBATS_TABLE: ${EDEBATS_TABLE:-eduardoos_edebats}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       CHATBOT_URL: http://chatbot:3000
       PAYMENTS_URL: http://payments:3000
@@ -135,6 +137,10 @@ services:
         SERVICE: chatbot
     environment:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL_EXPERT: ${DEEPSEEK_MODEL_EXPERT:-deepseek-v4-flash}
+      DEEPSEEK_MODEL_REFREE: ${DEEPSEEK_MODEL_REFREE:-deepseek-v4-pro}
     networks:
       - internal
 

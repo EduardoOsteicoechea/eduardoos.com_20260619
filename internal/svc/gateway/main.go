@@ -24,6 +24,7 @@ type config struct {
 	TesterURL        string
 	PaymentsURL      string
 	S3URL            string
+	ChatbotURL       string
 	Telemetry        *common.TelemetryClient
 }
 
@@ -61,6 +62,7 @@ func Run(addr string) error {
 		TesterURL:        common.Env("TESTER_URL", "http://tester:3000"),
 		PaymentsURL:      common.Env("PAYMENTS_URL", "http://payments:3000"),
 		S3URL:            common.Env("S3_URL", "http://s3:3000"),
+		ChatbotURL:       common.Env("CHATBOT_URL", "http://chatbot:3000"),
 	}
 	cfg.Telemetry = common.NewTelemetryClient(cfg.TelemetryURL, cfg.InternalSecret)
 
@@ -72,12 +74,17 @@ func Run(addr string) error {
 	if err != nil {
 		log.Fatalf("epam store: %v", err)
 	}
+	edebatStore, err := ddb.NewEdebatStore(ctx)
+	if err != nil {
+		log.Fatalf("edebat store: %v", err)
+	}
 	entitlementStore, err := ddb.NewEntitlementStore(ctx)
 	if err != nil {
 		log.Fatalf("entitlement store: %v", err)
 	}
 	log.Printf("playlist store backend=%s", playlistStore.BackendName())
 	log.Printf("epam store backend=%s", epamStore.BackendName())
+	log.Printf("edebat store backend=%s", edebatStore.BackendName())
 	log.Printf("entitlement store backend=%s", entitlementStore.BackendName())
 
 	r := chi.NewRouter()
@@ -114,6 +121,7 @@ func Run(addr string) error {
 	r.Get("/api/media/file/*", cfg.proxyMediaFile())
 	registerPlaylistRoutes(r, cfg, playlistStore)
 	registerEpamRoutes(r, cfg, epamStore)
+	registerEdebatRoutes(r, cfg, edebatStore)
 	registerEmusicRoutes(r, cfg)
 	registerSubscriptionRoutes(r, cfg, entitlementStore)
 	registerAPSRoutes(r, cfg)

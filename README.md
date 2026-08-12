@@ -109,6 +109,9 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | Flight Logger UI | `/observability/logger` |
 | QA Tester UI | `/observability/tester` |
 | Monthly Basic Subscription | `/payments/subscription/montly/basic` |
+| Edebat (admin allowlist) | `/edebat` |
+
+Authenticated Edebat APIs (JWT + `eduardooost@gmail.com`): `GET/POST /api/edebat`, `GET/PUT /api/edebat/:id`, `POST /api/edebat/:id/turn`. Bodies persist as `.edebat` under `media/edebats/{email}/` via S3; LLM turns use the chatbot service + DeepSeek (`DEEPSEEK_*`).
 
 ## Development Tests
 
@@ -136,6 +139,12 @@ go test ./...
 | `S3_BACKEND` | `stub` (local) or `aws` (EC2) |
 | `DATABASE_BACKEND` | `memory` (local) or `dynamodb` (EC2) |
 | `DYNAMODB_TABLE_PREFIX` | Table prefix (`eduardoos`) |
+| `EDEBATS_BACKEND` | `memory` (local) or `dynamodb` (EC2) |
+| `EDEBATS_TABLE` | Debate metadata table (`eduardoos_edebats`) |
+| `DEEPSEEK_API_KEY` | DeepSeek API key (chatbot only) |
+| `DEEPSEEK_BASE_URL` | Default `https://api.deepseek.com` |
+| `DEEPSEEK_MODEL_EXPERT` | Opponent model (`deepseek-v4-flash`) |
+| `DEEPSEEK_MODEL_REFREE` | Referee model (`deepseek-v4-pro`) |
 
 ## CI/CD
 

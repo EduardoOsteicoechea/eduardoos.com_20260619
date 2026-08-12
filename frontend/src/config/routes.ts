@@ -11,6 +11,13 @@ export const APP_ROUTES = {
     mediaPlaylist: "/media/musica",
     pamphlet: "/documents/pamphlet",
     apsAdmin: "/aps-admin",
+    edebat: "/edebat",
+} as const;
+export const EDEBAT_API_ROUTES = {
+    list: "/api/edebat",
+    create: "/api/edebat",
+    item: (id: string) => `/api/edebat/${encodeURIComponent(id)}`,
+    turn: (id: string) => `/api/edebat/${encodeURIComponent(id)}/turn`,
 } as const;
 export const APS_ROUTES = {
     triggerWorkItem: "/api/aps/trigger-workitem",

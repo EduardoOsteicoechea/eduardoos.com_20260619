@@ -1,0 +1,19 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import EdebatApp from "../components/Edebat/EdebatApp";
+---
+
+<BaseLayout title="Edebat — Eduardo Osteicoechea" requireAuth>
+  <div class="page-shell" data-page="edebat">
+    <EdebatApp client:load />
+  </div>
+</BaseLayout>
+
+<script is:inline>
+  (function () {
+    var path = location.pathname.replace(/\/$/, "") || "/";
+    if (path !== "/edebat") return;
+    if (document.querySelector('[data-page="edebat"]')) return;
+    location.reload();
+  })();
+</script>

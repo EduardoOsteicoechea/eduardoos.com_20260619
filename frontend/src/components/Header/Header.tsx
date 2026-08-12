@@ -28,6 +28,7 @@ const NAV_LINKS = [
     { href: APP_ROUTES.mediaPlaylist, label: "Música" },
     { href: APP_ROUTES.pamphlet, label: "Panfleto" },
     { href: APP_ROUTES.apsAdmin, label: "APS" },
+    { href: APP_ROUTES.edebat, label: "Edebat" },
     { href: APP_ROUTES.subscription, label: "Subscribe" },
 ] as const;
 interface AccountMenuProps {
@@ -229,7 +230,9 @@ export function Header({ pathname }: HeaderProps) {
             key={href}
             className={navClass(href)}
             href={href}
-            {...(href === APP_ROUTES.apsAdmin ? { "data-astro-reload": true } : {})}
+            {...(href === APP_ROUTES.apsAdmin || href === APP_ROUTES.edebat
+              ? { "data-astro-reload": true }
+              : {})}
             onClick={closeMenu}
           >
             {label}
