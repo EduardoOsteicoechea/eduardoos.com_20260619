@@ -55,9 +55,14 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+html.page-home,
 html.page-home body {
-  overflow-x: hidden;
-  overflow-y: auto;
+  height: 100%;
+  overflow: hidden;
+}
+
+html.page-home body {
+  max-height: 100dvh;
 }
 
 body.page-editor {
