@@ -76,6 +76,7 @@ jobs:
           APS_CLIENT_ID: ${{ secrets.APS_CLIENT_ID }}
           APS_CLIENT_SECRET: ${{ secrets.APS_CLIENT_SECRET }}
           APS_ACTIVITY_ID: ${{ secrets.APS_ACTIVITY_ID }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           {
             printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
@@ -100,6 +101,8 @@ jobs:
             printf 'PLAYLISTS_TABLE=eduardoos_playlists\n'
             printf 'EPAMS_BACKEND=dynamodb\n'
             printf 'EPAMS_TABLE=eduardoos_epams\n'
+            printf 'EDEBATS_BACKEND=dynamodb\n'
+            printf 'EDEBATS_TABLE=eduardoos_edebats\n'
             printf 'PAYMENTS_BACKEND=dynamodb\n'
             printf 'PAYMENTS_TABLE=eduardoos_payments\n'
             printf 'ENTITLEMENTS_BACKEND=dynamodb\n'
@@ -115,6 +118,10 @@ jobs:
             printf 'APS_CLIENT_ID=%s\n' "${APS_CLIENT_ID:-}"
             printf 'APS_CLIENT_SECRET=%s\n' "${APS_CLIENT_SECRET:-}"
             printf 'APS_ACTIVITY_ID=%s\n' "${APS_ACTIVITY_ID:-}"
+            printf 'DEEPSEEK_API_KEY=%s\n' "${DEEPSEEK_API_KEY:-}"
+            printf 'DEEPSEEK_BASE_URL=https://api.deepseek.com\n'
+            printf 'DEEPSEEK_MODEL_EXPERT=deepseek-v4-flash\n'
+            printf 'DEEPSEEK_MODEL_REFREE=deepseek-v4-pro\n'
           } > .env.production
 
       - name: Prepare EC2 app directory
