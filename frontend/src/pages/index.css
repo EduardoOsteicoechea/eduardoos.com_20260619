@@ -128,6 +128,28 @@
   }
 }
 
+/* Phone only — tablet (768–1023) stays as above */
+@media (max-width: 767px) {
+  .home-hero__copy {
+    margin-top: 15px;
+  }
+
+  .home-hero .page-lead {
+    font-size: calc(var(--font-md) * 0.75);
+  }
+
+  .skill_cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .skill_cards__item {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
 @media (min-width: 1024px) {
   .page-shell.hero.home-hero {
     --home-pad-left: 100px;

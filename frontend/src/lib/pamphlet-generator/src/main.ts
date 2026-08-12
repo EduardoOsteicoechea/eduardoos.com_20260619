@@ -275,6 +275,66 @@ let pendingInsert: PendingInsert | null = null;
 /** When set, edits can persist to DynamoDB/S3 without a local FileSystem handle. */
 let cloudEpamId: string | null = null;
 
+const LAST_EPAM_STORAGE_KEY = "eduardoos-pamphlet-last-epam-id";
+
+function rememberLastEpamId(epamId: string | null | undefined): void {
+    try {
+        const id = epamId?.trim() ?? "";
+        if (!id) {
+            localStorage.removeItem(LAST_EPAM_STORAGE_KEY);
+            return;
+        }
+        localStorage.setItem(LAST_EPAM_STORAGE_KEY, id);
+    } catch {
+        // Quota / private mode — ignore.
+    }
+}
+
+function readLastEpamId(): string | null {
+    try {
+        return localStorage.getItem(LAST_EPAM_STORAGE_KEY)?.trim() || null;
+    } catch {
+        return null;
+    }
+}
+
+async function openCloudDocumentById(epamId: string): Promise<void> {
+    const loaded = await fetchEpam(epamId);
+    clearOpenFile();
+    cloudEpamId = loaded.meta.epamId;
+    setOpenFileName(loaded.meta.fileName);
+    loadPamphlet(loaded.document);
+    rememberLastEpamId(loaded.meta.epamId);
+}
+
+/**
+ * On first visit: reopen the last cloud .epam from localStorage, or the only
+ * document available to this account when there is exactly one.
+ */
+async function tryAutoloadCloudPamphlet(): Promise<void> {
+    if (!getAuthToken() || !isAuthenticated()) {
+        return;
+    }
+    try {
+        const { epams } = await fetchEpams();
+        if (epams.length === 0) {
+            return;
+        }
+        const lastId = readLastEpamId();
+        const preferred = lastId
+            ? epams.find((item) => item.epamId === lastId)
+            : undefined;
+        const target = preferred ?? (epams.length === 1 ? epams[0] : undefined);
+        if (!target) {
+            return;
+        }
+        await openCloudDocumentById(target.epamId);
+        setStatus(`Opened from cloud: ${target.fileName}`, "success");
+    } catch {
+        // Stay on empty canvas if list/fetch fails; user can open manually.
+    }
+}
+
 function convertPixelsToMillimeters(px: number): number {
     return px * (25.4 / 96);
 }
@@ -667,6 +727,7 @@ async function persistCloud(data: PamphletStructure): Promise<PamphletStructure>
     });
     cloudEpamId = saved.meta.epamId;
     setOpenFileName(saved.meta.fileName);
+    rememberLastEpamId(saved.meta.epamId);
     return saved.document;
 }
 
@@ -988,6 +1049,7 @@ on(openSourceLocalBtn, "click", async () => {
     try {
         const data = await openPamphletFile();
         cloudEpamId = data.id?.trim() || null;
+        rememberLastEpamId(cloudEpamId);
         loadPamphlet(data);
     } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
@@ -1033,13 +1095,9 @@ on(openSourceCloudBtn, "click", async () => {
             btn.addEventListener("click", () => {
                 void (async () => {
                     try {
-                        const loaded = await fetchEpam(item.epamId);
-                        clearOpenFile();
-                        cloudEpamId = loaded.meta.epamId;
-                        setOpenFileName(loaded.meta.fileName);
-                        loadPamphlet(loaded.document);
+                        await openCloudDocumentById(item.epamId);
                         closeOpenCloudModal();
-                        setStatus(`Opened from cloud: ${loaded.meta.fileName}`, "success");
+                        setStatus(`Opened from cloud: ${item.fileName}`, "success");
                     } catch (err) {
                         const message = err instanceof Error ? err.message : String(err);
                         setError(`Cloud open failed: ${message}`);
@@ -1260,6 +1318,8 @@ if (!isFileSystemAccessSupported()) {
     } else {
         setStatus("No file open — open an existing .epam or create a new one.");
     }
+
+    void tryAutoloadCloudPamphlet();
 
     return {
         destroy() {

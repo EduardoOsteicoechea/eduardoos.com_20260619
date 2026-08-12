@@ -43,14 +43,14 @@ body.page-pamphlet {
 
 /*
  * Chrome is teleported to document.body (see main.ts).
- * Menu: 10px below header, 10px from the right edge (desktop + mobile).
+ * Menu: 15px from bottom-right (desktop + mobile).
  */
 body.page-pamphlet #file-toolbar {
   position: fixed !important;
-  top: max(10px, env(safe-area-inset-top, 0px)) !important;
-  right: max(10px, env(safe-area-inset-right, 0px)) !important;
+  top: auto !important;
+  right: max(15px, env(safe-area-inset-right, 0px)) !important;
   left: auto !important;
-  bottom: auto !important;
+  bottom: max(15px, env(safe-area-inset-bottom, 0px)) !important;
   width: 40px !important;
   height: 40px !important;
   z-index: 200;
@@ -62,15 +62,16 @@ body.page-pamphlet #file-toolbar {
 
 body.page-pamphlet #file-toolbar .menu-toggle {
   position: absolute !important;
-  top: 0 !important;
+  top: auto !important;
   right: 0 !important;
+  bottom: 0 !important;
   left: auto !important;
   transform: none !important;
   width: 40px;
   height: 40px;
-  background: #ffffff;
-  color: #000000;
-  border: 1px solid #ffffff;
+  background: var(--site-body-fg);
+  color: var(--site-body-bg);
+  border: 1px solid var(--site-body-fg);
   border-radius: 0;
   pointer-events: auto;
   z-index: 201;
@@ -78,8 +79,9 @@ body.page-pamphlet #file-toolbar .menu-toggle {
 
 @media (max-width: 1023px) {
   body.page-pamphlet #file-toolbar {
-    top: max(10px, env(safe-area-inset-top, 0px)) !important;
-    right: max(10px, env(safe-area-inset-right, 0px)) !important;
+    top: auto !important;
+    right: max(15px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(15px, env(safe-area-inset-bottom, 0px)) !important;
     width: 30px !important;
     height: 30px !important;
   }
@@ -102,13 +104,27 @@ body.page-pamphlet #file-toolbar .menu-toggle {
 }
 
 body.page-pamphlet #file-toolbar .menu-toggle[aria-expanded="true"] {
-  background: #dddddd;
+  background: var(--site-medium);
+  border-color: var(--site-medium);
 }
 
 body.page-pamphlet #file-toolbar .menu-toggle-icon {
-  filter: invert(1);
+  /* SVG is light (#E3E3E3); on light theme fg is black so bars already read as bg-ish.
+     On dark theme fg is white — invert so bars become near-black (= bg). */
+  filter: none;
   width: 24px;
   height: 24px;
+}
+
+html.dark body.page-pamphlet #file-toolbar .menu-toggle-icon,
+html[data-theme="dark"] body.page-pamphlet #file-toolbar .menu-toggle-icon {
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) body.page-pamphlet #file-toolbar .menu-toggle-icon {
+    filter: invert(1);
+  }
 }
 
 body.page-pamphlet .sidebar-backdrop {

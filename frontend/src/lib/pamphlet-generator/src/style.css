@@ -5,7 +5,8 @@
 #file-toolbar {
   /* Fixed within the browser viewport on the dedicated Astro route */
   position: fixed;
-  top: 0;
+  top: auto;
+  bottom: 0;
   right: 0;
   left: auto;
   width: calc(100% * var(--ui-zoom, 1));
@@ -15,20 +16,22 @@
   padding: 0;
   pointer-events: none;
   transform: scale(var(--ui-inv-zoom, 1));
-  transform-origin: top right;
+  transform-origin: bottom right;
 }
 
 .menu-toggle {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  bottom: 15px;
+  right: 15px;
+  top: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  background: #222;
+  background: var(--site-body-fg, #222);
+  border: 1px solid var(--site-body-fg, #222);
   border-radius: 0px;
   cursor: pointer;
   pointer-events: auto;
@@ -36,7 +39,8 @@
 }
 
 .menu-toggle[aria-expanded="true"] {
-  background: #444;
+  background: var(--site-medium, #444);
+  border-color: var(--site-medium, #444);
 }
 
 .menu-toggle-icon {
