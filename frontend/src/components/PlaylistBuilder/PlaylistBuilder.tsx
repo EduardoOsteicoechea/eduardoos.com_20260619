@@ -530,38 +530,19 @@ export default function PlaylistBuilder() {
       {error && <p className="playlist-builder__status playlist-builder__status--error">{error}</p>}
       {message && <p className="playlist-builder__status">{message}</p>}
 
-      <div className="playlist-builder__toolbar">
-        <button type="button" className="btn btn--secondary" onClick={() => localFileInputRef.current?.click()}>
-          Add local audio
-        </button>
-        <input
-          ref={localFileInputRef}
-          type="file"
-          accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg"
-          multiple
-          hidden
-          onChange={(e) => {
-            if (e.target.files?.length) {
-              addLocalAudioFiles(e.target.files);
-            }
-            e.target.value = "";
-          }}
-        />
-        <input
-          ref={emusicsFileInputRef}
-          type="file"
-          accept=".emusics,application/json"
-          hidden
-          onChange={(e) => {
-            void handleLoadEmusicsFile(e.target.files);
-            e.target.value = "";
-          }}
-        />
-      </div>
+      <input
+        ref={emusicsFileInputRef}
+        type="file"
+        accept=".emusics,application/json"
+        hidden
+        onChange={(e) => {
+          void handleLoadEmusicsFile(e.target.files);
+          e.target.value = "";
+        }}
+      />
 
       <div className="playlist-builder__grid">
-        <section className="playlist-builder__panel" aria-label="Audio library">
-          <h2>Audio library</h2>
+        <section className="playlist-builder__panel playlist-builder__panel--library" aria-label="Audio library">
           <ul className="playlist-builder__list">
             {library.length === 0 ? (<li className="playlist-builder__empty">
                 No audio in worship_playlists/. On local Docker, run{" "}
@@ -579,8 +560,8 @@ export default function PlaylistBuilder() {
           </ul>
         </section>
 
-        <section className="playlist-builder__panel" aria-label="Active playlist">
-          <h2>Active playlist ({activeTracks.length})</h2>
+        <section className="playlist-builder__panel" aria-label="Lista de reproducción">
+          <h2>Lista de reproducción ({activeTracks.length})</h2>
           <div className={`playlist-builder__dropzone${dropActive ? " playlist-builder__dropzone--over" : ""}`} onDragOver={(e) => {
             e.preventDefault();
             setDropActive(true);
@@ -589,7 +570,7 @@ export default function PlaylistBuilder() {
             }
         }} onDragLeave={() => setDropActive(false)} onDrop={handleDropOnPlaylist}>
             <ul className="playlist-builder__list">
-              {activeTracks.length === 0 ? (<li className="playlist-builder__empty">Drop site tracks or local audio files here.</li>) : (activeTracks.map((key, index) => (<li key={`${key}-${index}`} className={`playlist-builder__item${index === currentIndex ? " playlist-builder__item--playing" : ""}${dropTargetIndex === index ? " playlist-builder__item--drop-target" : ""}`} draggable onDragStart={(e) => handlePlaylistDragStart(index, e)} onDragOver={(e) => handlePlaylistItemDragOver(index, e)} onClick={() => setCurrentIndex(index)}>
+              {activeTracks.map((key, index) => (<li key={`${key}-${index}`} className={`playlist-builder__item${index === currentIndex ? " playlist-builder__item--playing" : ""}${dropTargetIndex === index ? " playlist-builder__item--drop-target" : ""}`} draggable onDragStart={(e) => handlePlaylistDragStart(index, e)} onDragOver={(e) => handlePlaylistItemDragOver(index, e)} onClick={() => setCurrentIndex(index)}>
                     <span className="playlist-builder__item-label">
                       {trackDisplayName(key)}
                       {isLocalTrackKey(key) ? " (local)" : ""}
@@ -614,7 +595,7 @@ export default function PlaylistBuilder() {
                         <IconRemove />
                       </button>
                     </div>
-                  </li>)))}
+                  </li>))}
             </ul>
           </div>
         </section>
