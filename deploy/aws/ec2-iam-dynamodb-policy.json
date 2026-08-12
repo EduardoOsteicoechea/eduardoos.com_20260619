@@ -36,6 +36,8 @@
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_playlists/index/*",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_epams",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_epams/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_edebats",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_edebats/index/*",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_headers",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_headers/index/*",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_pamphlet_footers",
