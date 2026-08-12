@@ -14,7 +14,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-frontend-ec2
+  # Share the EC2 deploy lock with the full deploy workflow so concurrent
+  # npm installs cannot corrupt frontend/node_modules on the same host.
+  group: deploy-ec2
   cancel-in-progress: true
 
 jobs:
@@ -41,8 +43,23 @@ jobs:
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Skip when full EC2 deploy already covers this push
+        id: gate
+        run: |
+          # Mixed commits (frontend + backend) trigger deploy.yml too. Skip the
+          # fast path so only one remote npm build runs.
+          if git diff --name-only HEAD~1 HEAD | grep -Ev '^(frontend/|deploy/ec2/build-frontend\.sh|deploy/ec2/deploy-frontend-remote\.sh|\.github/workflows/deploy-frontend\.yml|.*\.md$)' | grep -q .; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Non-frontend paths changed — full deploy workflow owns EC2."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Validate required secrets
+        if: steps.gate.outputs.skip != 'true'
         run: |
           missing=0
           for name in EC2_HOST EC2_USER EC2_SSH_PRIVATE_KEY; do
@@ -58,6 +75,7 @@ jobs:
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
       - name: Configure SSH
+        if: steps.gate.outputs.skip != 'true'
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
@@ -69,6 +87,7 @@ jobs:
           echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o ServerAliveInterval=30 -o ServerAliveCountMax=60" >> "$GITHUB_ENV"
 
       - name: Upload frontend deploy script
+        if: steps.gate.outputs.skip != 'true'
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -79,6 +98,7 @@ jobs:
             "${EC2_USER}@${EC2_HOST}:/tmp/"
 
       - name: Run frontend-only remote deploy
+        if: steps.gate.outputs.skip != 'true'
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
