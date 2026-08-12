@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getAuthEmailFromToken, getAuthToken, isApsAdminEmail } from "../../lib/auth";
+import { getAuthEmailFromToken, isApsAdminEmail } from "../../lib/auth";
 import { ensureEmusicForLibrary } from "../../lib/emusicCloud";
 import {
     buildEmusicsBundle,
