@@ -284,6 +284,13 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid transparent;
+  zoom: 0.5;
+}
+
+@media (max-width: 1023px) {
+  .app-toast.toastify {
+    zoom: 0.25;
+  }
 }
 
 .app-toast--info.toastify {
