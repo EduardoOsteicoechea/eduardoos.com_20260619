@@ -108,6 +108,7 @@
     z-index: 130;
     width: 100vw;
     height: calc(100dvh - 20px);
+    overflow: visible;
   }
 
   .home-hero__photo img {
@@ -128,15 +129,22 @@
   }
 }
 
+/* Tablet only */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .home-hero__copy {
+    margin-left: calc(35vw + 10px);
+  }
+}
+
 /* Phone only — tablet (768–1023) stays as above */
 @media (max-width: 767px) {
   .home-hero__copy {
     margin-top: 5px;
-    margin-left: calc(35vw + 5px);
+    margin-left: calc(35vw + 10px);
   }
 
   .home-hero .page-lead {
-    font-size: calc(var(--font-md) * 0.75);
+    font-size: calc(var(--font-md) * 0.75 * 1.15);
   }
 
   .skill_cards {
@@ -149,6 +157,7 @@
     width: 100%;
     box-sizing: border-box;
     font-size: calc(var(--font-sm) * 0.85);
+    border-radius: 3px;
   }
 }
 
@@ -180,7 +189,7 @@
     width: var(--home-img-width);
     height: var(--home-img-height);
     max-height: none;
-    overflow: hidden;
+    overflow: visible;
     pointer-events: none;
   }
 
@@ -199,7 +208,7 @@
     left: calc(var(--home-pad-left) + var(--home-img-width));
     right: auto;
     width: 100%;
-    max-width: 500px;
+    max-width: 450px;
     height: var(--home-img-height);
     margin: 0;
     padding: 0;
