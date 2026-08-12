@@ -56,7 +56,8 @@ body {
 }
 
 html.page-home body {
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 body.page-editor {
