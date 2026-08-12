@@ -87,11 +87,36 @@
 }
 
 @media (max-width: 1023px) {
+  .page-shell.hero.home-hero {
+    min-height: 100dvh;
+  }
+
+  .home-hero__photo {
+    position: fixed;
+    inset: auto;
+    top: 20px;
+    left: 15px;
+    right: 0;
+    bottom: 0;
+    z-index: 130;
+    width: calc(100vw - 15px);
+    height: calc(100dvh - 20px);
+  }
+
+  .home-hero__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+  }
+
   .home-hero__copy {
-    margin-top: min(42dvh, 22rem);
-    margin-left: 1rem;
+    z-index: 135;
+    margin-top: 20px;
+    margin-left: 30vw;
     margin-right: 1rem;
-    padding-bottom: 2rem;
+    padding: 0 0 2rem;
+    max-width: none;
     background: linear-gradient(
       to top,
       color-mix(in srgb, var(--site-body-bg) 88%, transparent) 55%,
@@ -102,46 +127,65 @@
 
 @media (min-width: 1024px) {
   .page-shell.hero.home-hero {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 20px;
+    --home-pad-top: 30px;
+    --home-pad-bottom: 30px;
+    --home-pad-left: 100px;
+    --home-pad-right: 48px;
+    --home-gap: 20px;
+    --home-img-height: calc(
+      100dvh - var(--header_height) - var(--home-pad-top) - var(--home-pad-bottom)
+    );
+    /* 9:16 portrait — height drives width; cover fills without letterboxing */
+    --home-img-width: calc(var(--home-img-height) * 9 / 16);
+
+    position: relative;
+    display: block;
     box-sizing: border-box;
+    width: 100%;
     height: calc(100dvh - var(--header_height));
     min-height: 0;
     max-height: calc(100dvh - var(--header_height));
-    padding: 30px max(1.5rem, calc((100vw - var(--max_desktop_width)) / 2 + 1.5rem))
-      1.5rem 100px;
+    padding: 0;
     overflow: hidden;
   }
 
   .home-hero__photo {
-    position: relative;
+    position: absolute;
     inset: auto;
-    top: auto;
-    left: auto;
-    flex: 0 0 auto;
-    width: min(42vw, 520px);
-    height: auto;
-    max-height: 100%;
+    top: var(--home-pad-top);
+    left: var(--home-pad-left);
+    right: auto;
+    bottom: auto;
+    z-index: 1;
+    width: var(--home-img-width);
+    height: var(--home-img-height);
+    max-height: none;
+    overflow: hidden;
+    pointer-events: none;
   }
 
   .home-hero__photo img {
+    display: block;
     width: 100%;
-    height: auto;
-    max-height: calc(100dvh - var(--header_height) - 60px);
-    object-fit: contain;
-    object-position: left top;
+    height: 100%;
+    max-height: none;
+    object-fit: cover;
+    object-position: top center;
   }
 
   .home-hero__copy {
-    flex: 1 1 0;
-    min-width: 0;
+    position: absolute;
+    top: var(--home-pad-top);
+    left: calc(var(--home-pad-left) + var(--home-img-width) + var(--home-gap));
+    right: var(--home-pad-right);
+    height: var(--home-img-height);
     max-width: none;
     margin: 0;
     padding: 0;
-    height: 100%;
     overflow: hidden;
+    z-index: 2;
+    background: none;
+    box-sizing: border-box;
   }
 
   .home-hero .page-lead {
@@ -153,6 +197,9 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.4rem;
     width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    align-content: start;
   }
 
   .skill_cards__item {

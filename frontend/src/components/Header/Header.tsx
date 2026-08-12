@@ -210,9 +210,6 @@ export function Header({ pathname }: HeaderProps) {
     }, [menuOpen]);
     const showAuth = clientReady;
     return (<header ref={headerRef} className={`site-header${menuOpen ? " site-header--open" : ""}`}>
-      <a className={`site-header__brand${pathname === "/" ? " is-active" : ""}`} href={APP_ROUTES.home} onClick={closeMenu}>
-        eduardoos
-      </a>
       <div className="site-header__bar">
         <div className="site-header__bar-spacer" aria-hidden="true"/>
         {showAuth ? (<AuthControls variant="bar" loggedIn={loggedIn} profileInitial={profileInitial} profileImageUrl={profileImageUrl} onLogout={() => void handleLogout()} onNavigate={closeMenu}/>) : null}
