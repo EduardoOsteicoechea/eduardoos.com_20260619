@@ -55,16 +55,6 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-html.page-home {
-  --ui-scale: 1;
-  font-size: 12px;
-  --control_min_height: 35px;
-  --control_min_width: 35px;
-  --header_bar_height: 50px;
-  --header_height: 50px;
-  --activity-bar-height: 45px;
-}
-
 html.page-home,
 html.page-home body {
   height: 100%;

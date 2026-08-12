@@ -53,4 +53,42 @@ const skills = [
       </ul>
     </div>
   </div>
+
+  <script>
+    const PULL_THRESHOLD_PX = 72;
+    let startY = 0;
+    let tracking = false;
+
+    window.addEventListener(
+      "touchstart",
+      (event) => {
+        if (event.touches.length !== 1) return;
+        startY = event.touches[0].clientY;
+        tracking = true;
+      },
+      { passive: true },
+    );
+
+    window.addEventListener(
+      "touchmove",
+      (event) => {
+        if (!tracking || event.touches.length !== 1) return;
+        const deltaY = event.touches[0].clientY - startY;
+        if (deltaY < PULL_THRESHOLD_PX) return;
+        tracking = false;
+        window.dispatchEvent(
+          new CustomEvent("home-pull-refresh", { detail: { deltaY } }),
+        );
+        window.location.reload();
+      },
+      { passive: true },
+    );
+
+    function endPull() {
+      tracking = false;
+    }
+
+    window.addEventListener("touchend", endPull, { passive: true });
+    window.addEventListener("touchcancel", endPull, { passive: true });
+  </script>
 </BaseLayout>
