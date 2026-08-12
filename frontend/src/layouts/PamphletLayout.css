@@ -82,24 +82,24 @@ body.page-pamphlet #file-toolbar .menu-toggle {
     top: auto !important;
     right: max(15px, env(safe-area-inset-right, 0px)) !important;
     bottom: max(15px, env(safe-area-inset-bottom, 0px)) !important;
-    width: 30px !important;
-    height: 30px !important;
+    width: 45px !important;
+    height: 45px !important;
   }
 
-  /* 0.75× of the 40px desktop control — beat global button min 60px (--ui-scale) */
+  /* 1.5× of the previous 30px mobile/tablet control */
   body.page-pamphlet #file-toolbar .menu-toggle {
-    width: 30px !important;
-    height: 30px !important;
-    min-width: 30px !important;
-    min-height: 30px !important;
-    max-width: 30px !important;
-    max-height: 30px !important;
+    width: 45px !important;
+    height: 45px !important;
+    min-width: 45px !important;
+    min-height: 45px !important;
+    max-width: 45px !important;
+    max-height: 45px !important;
     padding: 0 !important;
   }
 
   body.page-pamphlet #file-toolbar .menu-toggle-icon {
-    width: 18px !important;
-    height: 18px !important;
+    width: 27px !important;
+    height: 27px !important;
   }
 }
 
