@@ -97,6 +97,28 @@
   min-height: var(--control_min_height, 2.5rem);
 }
 
+.edebat__rounds-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.edebat__unlimited {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.edebat__surrender {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .edebat__field--rounds {
   width: 6.5rem;
 }

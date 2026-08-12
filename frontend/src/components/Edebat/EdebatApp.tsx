@@ -10,6 +10,9 @@ import { apiRequest, formatApiError } from "../../lib/api";
 import { createCorrelationId } from "../../lib/telemetry";
 import {
   EDEBAT_ROUTES,
+  EDEBAT_UNLIMITED_ROUNDS,
+  isEdebatFinished,
+  isEdebatUnlimited,
   type EdebatDocument,
   type EdebatRecord,
 } from "../../lib/edebat";
@@ -36,6 +39,13 @@ function winnerLabel(winner: string | undefined): string {
   if (winner === "opponent") return "Experto";
   if (winner === "draw") return "Empate";
   return winner ?? "—";
+}
+
+function roundsLabel(roundsTotal: number, completed: number): string {
+  if (isEdebatUnlimited(roundsTotal)) {
+    return `${completed}/∞`;
+  }
+  return `${completed}/${roundsTotal}`;
 }
 
 export default function EdebatApp() {
@@ -220,6 +230,33 @@ export default function EdebatApp() {
     await refreshList();
   }
 
+  async function surrender(side: "challenger" | "opponent") {
+    if (!doc.id) {
+      setError("Crea o abre un debate primero");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setStatus(side === "challenger" ? "Registrando tu rendición…" : "Registrando rendición del experto…");
+    const res = await apiRequest<{ document?: EdebatDocument }>(EDEBAT_ROUTES.surrender(doc.id), {
+      method: "POST",
+      body: { side },
+      correlationId: createCorrelationId(),
+      authToken: getAuthToken(),
+    });
+    setBusy(false);
+    if (res.error || !res.data?.document) {
+      setError(res.error ? formatApiError(res.error) : "No se pudo registrar la rendición");
+      setStatus("");
+      return;
+    }
+    setDoc(res.data.document);
+    setDraftArg("");
+    setShowWinner(true);
+    setStatus("Debate terminado por rendición");
+    await refreshList();
+  }
+
   function addRule() {
     const text = ruleDraft.trim();
     if (!text) return;
@@ -246,7 +283,8 @@ export default function EdebatApp() {
     );
   }
 
-  const finished = Boolean(doc.result) || doc.rounds.length >= doc.roundsTotal;
+  const finished = isEdebatFinished(doc);
+  const unlimited = isEdebatUnlimited(doc.roundsTotal);
 
   return (
     <section className="edebat">
@@ -280,9 +318,7 @@ export default function EdebatApp() {
                   onClick={() => void openDebate(item.debateId)}
                 >
                   <span>{item.title || item.debateId}</span>
-                  <small>
-                    {item.roundsCompleted}/{item.roundsTotal}
-                  </small>
+                  <small>{roundsLabel(item.roundsTotal, item.roundsCompleted)}</small>
                 </button>
               </li>
             ))}
@@ -300,22 +336,39 @@ export default function EdebatApp() {
             onChange={(e) => setDoc((prev) => ({ ...prev, topic: e.target.value }))}
           />
         </label>
-        <label className="edebat__field edebat__field--rounds">
-          <span>Rondas</span>
-          <input
-            type="number"
-            min={1}
-            max={20}
-            value={doc.roundsTotal}
-            disabled={busy || finished || doc.rounds.length > 0}
-            onChange={(e) =>
-              setDoc((prev) => ({
-                ...prev,
-                roundsTotal: Math.max(1, Math.min(20, Number(e.target.value) || 1)),
-              }))
-            }
-          />
-        </label>
+        <div className="edebat__rounds-block">
+          <label className="edebat__field edebat__field--rounds">
+            <span>Rondas</span>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={unlimited ? "" : doc.roundsTotal}
+              placeholder="∞"
+              disabled={busy || finished || doc.rounds.length > 0 || unlimited}
+              onChange={(e) =>
+                setDoc((prev) => ({
+                  ...prev,
+                  roundsTotal: Math.max(1, Math.min(20, Number(e.target.value) || 1)),
+                }))
+              }
+            />
+          </label>
+          <label className="edebat__unlimited">
+            <input
+              type="checkbox"
+              checked={unlimited}
+              disabled={busy || finished || doc.rounds.length > 0}
+              onChange={(e) =>
+                setDoc((prev) => ({
+                  ...prev,
+                  roundsTotal: e.target.checked ? EDEBAT_UNLIMITED_ROUNDS : 3,
+                }))
+              }
+            />
+            <span>Ilimitadas (hasta rendirse)</span>
+          </label>
+        </div>
       </div>
 
       <div className="edebat__rules">
@@ -385,6 +438,26 @@ export default function EdebatApp() {
           >
             Enviar ronda
           </button>
+          {!finished ? (
+            <div className="edebat__surrender">
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || !doc.id}
+                onClick={() => void surrender("challenger")}
+              >
+                Me rindo
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || !doc.id}
+                onClick={() => void surrender("opponent")}
+              >
+                Experto se rinde
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="edebat__transcript" aria-live="polite">

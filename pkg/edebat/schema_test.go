@@ -48,6 +48,35 @@ func TestNormalizeClampsRounds(t *testing.T) {
 	}
 }
 
+func TestNormalizeAllowsUnlimited(t *testing.T) {
+	doc := Document{RoundsTotal: UnlimitedRounds, Topic: "open"}
+	Normalize(&doc, "eduardooost@gmail.com")
+	if doc.RoundsTotal != UnlimitedRounds {
+		t.Fatalf("roundsTotal=%d want 0 (unlimited)", doc.RoundsTotal)
+	}
+	if IsFinished(doc) {
+		t.Fatal("unlimited unfinished debate should not be finished")
+	}
+}
+
+func TestApplySurrender(t *testing.T) {
+	doc := Document{
+		RoundsTotal: UnlimitedRounds,
+		Rounds: []Round{
+			{Referee: &Referee{ChallengerScore: 5, OpponentScore: 8}},
+		},
+	}
+	if err := ApplySurrender(&doc, "challenger"); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Result == nil || doc.Result.Winner != "opponent" {
+		t.Fatalf("result=%+v", doc.Result)
+	}
+	if doc.Result.EndedBy != "surrender_challenger" {
+		t.Fatalf("endedBy=%s", doc.Result.EndedBy)
+	}
+}
+
 func TestEdebatObjectKeyShape(t *testing.T) {
 	// Key helper lives in dynamodb package; schema package stays free of AWS imports.
 	_ = NewEmpty("eduardooost@gmail.com", "Eduardo")

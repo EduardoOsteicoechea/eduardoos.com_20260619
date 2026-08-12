@@ -35,6 +35,10 @@ type turnEdebatRequest struct {
 	Argument string `json:"argument"`
 }
 
+type surrenderEdebatRequest struct {
+	Side string `json:"side"` // challenger | opponent
+}
+
 type chatbotLLMRequest struct {
 	Role        string   `json:"role"`
 	Topic       string   `json:"topic"`
@@ -60,6 +64,7 @@ func registerEdebatRoutes(r chi.Router, cfg config, store ddb.EdebatStore) {
 	r.Get("/api/edebat/{debateId}", h.getEdebat())
 	r.Put("/api/edebat/{debateId}", h.saveEdebat())
 	r.Post("/api/edebat/{debateId}/turn", h.turnEdebat())
+	r.Post("/api/edebat/{debateId}/surrender", h.surrenderEdebat())
 }
 
 func (h edebatHandlers) requireEdebatAdmin(w http.ResponseWriter, r *http.Request, event string) (email string, cid string, ok bool) {
@@ -231,7 +236,7 @@ func (h edebatHandlers) turnEdebat() http.HandlerFunc {
 			common.WriteError(w, http.StatusBadRequest, "topic required before debating")
 			return
 		}
-		if doc.Result != nil || len(doc.Rounds) >= doc.RoundsTotal {
+		if doc.Result != nil || edebat.IsFinished(doc) {
 			common.WriteError(w, http.StatusConflict, "debate already finished")
 			return
 		}
@@ -257,7 +262,7 @@ func (h edebatHandlers) turnEdebat() http.HandlerFunc {
 		}
 
 		nextIndex := len(doc.Rounds) + 1
-		isFinal := nextIndex >= doc.RoundsTotal
+		isFinal := !edebat.IsUnlimited(doc) && nextIndex >= doc.RoundsTotal
 		role := "referee"
 		if isFinal {
 			role = "final"
@@ -307,6 +312,48 @@ func (h edebatHandlers) turnEdebat() http.HandlerFunc {
 			return
 		}
 		h.cfg.Telemetry.Emit(common.NewFlightLog(cid, "backend", "edebat.turn", "success"), cid)
+		common.WriteJSON(w, http.StatusOK, map[string]any{"document": doc})
+	}
+}
+
+func (h edebatHandlers) surrenderEdebat() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		email, cid, ok := h.requireEdebatAdmin(w, r, "edebat.surrender")
+		if !ok {
+			return
+		}
+		debateID := strings.TrimSpace(chi.URLParam(r, "debateId"))
+		if debateID == "" {
+			common.WriteError(w, http.StatusBadRequest, "debateId required")
+			return
+		}
+		raw, _ := io.ReadAll(r.Body)
+		var req surrenderEdebatRequest
+		if err := json.Unmarshal(raw, &req); err != nil {
+			common.WriteError(w, http.StatusBadRequest, "invalid body")
+			return
+		}
+		doc, err := h.loadDocument(r, cid, email, debateID)
+		if err != nil {
+			h.cfg.Telemetry.Emit(common.NewFlightLog(cid, "backend", "edebat.surrender", "error"), cid)
+			common.WriteError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		if err := edebat.ApplySurrender(&doc, req.Side); err != nil {
+			status := http.StatusBadRequest
+			if strings.Contains(err.Error(), "finished") {
+				status = http.StatusConflict
+			}
+			common.WriteError(w, status, err.Error())
+			return
+		}
+		edebat.Normalize(&doc, email)
+		if err := h.persistDocument(r, cid, email, &doc); err != nil {
+			h.cfg.Telemetry.Emit(common.NewFlightLog(cid, "backend", "edebat.surrender", "error"), cid)
+			common.WriteError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		h.cfg.Telemetry.Emit(common.NewFlightLog(cid, "backend", "edebat.surrender", "success"), cid)
 		common.WriteJSON(w, http.StatusOK, map[string]any{"document": doc})
 	}
 }

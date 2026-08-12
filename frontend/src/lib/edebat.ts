@@ -22,6 +22,7 @@ export type EdebatRound = {
 export type EdebatResult = {
   winner: "challenger" | "opponent" | "draw" | string;
   summary: string;
+  endedBy?: string;
   finalScores: {
     challenger: number;
     opponent: number;
@@ -33,6 +34,7 @@ export type EdebatDocument = {
   id: string;
   title: string;
   topic: string;
+  /** 0 = unlimited until surrender */
   roundsTotal: number;
   rules: string[];
   participants: EdebatParticipant[];
@@ -55,9 +57,22 @@ export type EdebatRecord = {
   updatedAt: string;
 };
 
+export const EDEBAT_UNLIMITED_ROUNDS = 0;
+
+export function isEdebatUnlimited(roundsTotal: number): boolean {
+  return roundsTotal === EDEBAT_UNLIMITED_ROUNDS;
+}
+
+export function isEdebatFinished(doc: EdebatDocument): boolean {
+  if (doc.result) return true;
+  if (isEdebatUnlimited(doc.roundsTotal)) return false;
+  return doc.rounds.length >= doc.roundsTotal;
+}
+
 export const EDEBAT_ROUTES = {
   list: "/api/edebat",
   create: "/api/edebat",
   item: (id: string) => `/api/edebat/${encodeURIComponent(id)}`,
   turn: (id: string) => `/api/edebat/${encodeURIComponent(id)}/turn`,
+  surrender: (id: string) => `/api/edebat/${encodeURIComponent(id)}/surrender`,
 } as const;

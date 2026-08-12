@@ -2,6 +2,7 @@
 package edebat
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -10,11 +11,30 @@ import (
 
 const SchemaVersion = 1
 
+// UnlimitedRounds means the debate continues until someone surrenders (roundsTotal == 0).
+const UnlimitedRounds = 0
+
 const AdminEmail = "eduardooost@gmail.com"
 
 // IsAllowedEmail gates the edebat product surface (v1: admin only).
 func IsAllowedEmail(email string) bool {
 	return strings.EqualFold(strings.TrimSpace(email), AdminEmail)
+}
+
+// IsUnlimited reports whether the debate has no fixed round cap.
+func IsUnlimited(doc Document) bool {
+	return doc.RoundsTotal == UnlimitedRounds
+}
+
+// IsFinished reports whether the debate already has a winner or reached its round cap.
+func IsFinished(doc Document) bool {
+	if doc.Result != nil {
+		return true
+	}
+	if IsUnlimited(doc) {
+		return false
+	}
+	return len(doc.Rounds) >= doc.RoundsTotal
 }
 
 // Document is the JSON body stored as {id}.edebat in S3.
@@ -56,6 +76,7 @@ type Referee struct {
 type Result struct {
 	Winner      string `json:"winner"` // challenger | opponent | draw
 	Summary     string `json:"summary"`
+	EndedBy     string `json:"endedBy,omitempty"` // rounds | surrender_challenger | surrender_opponent
 	FinalScores struct {
 		Challenger int `json:"challenger"`
 		Opponent   int `json:"opponent"`
@@ -91,8 +112,8 @@ func Normalize(doc *Document, ownerEmail string) {
 	if strings.TrimSpace(doc.ID) == "" {
 		doc.ID = uuid.NewString()
 	}
-	if doc.RoundsTotal < 1 {
-		doc.RoundsTotal = 1
+	if doc.RoundsTotal < 0 {
+		doc.RoundsTotal = UnlimitedRounds
 	}
 	if doc.RoundsTotal > 20 {
 		doc.RoundsTotal = 20
@@ -128,6 +149,11 @@ func Normalize(doc *Document, ownerEmail string) {
 
 // ComputeResult aggregates round scores into a final winner block.
 func ComputeResult(doc *Document, summary string) {
+	ComputeResultWithEnd(doc, summary, "rounds")
+}
+
+// ComputeResultWithEnd aggregates scores and records how the debate ended.
+func ComputeResultWithEnd(doc *Document, summary, endedBy string) {
 	var cTotal, oTotal int
 	for _, round := range doc.Rounds {
 		if round.Referee == nil {
@@ -142,8 +168,33 @@ func ComputeResult(doc *Document, summary string) {
 	} else if oTotal > cTotal {
 		winner = "opponent"
 	}
-	res := &Result{Winner: winner, Summary: strings.TrimSpace(summary)}
+	res := &Result{Winner: winner, Summary: strings.TrimSpace(summary), EndedBy: strings.TrimSpace(endedBy)}
 	res.FinalScores.Challenger = cTotal
 	res.FinalScores.Opponent = oTotal
 	doc.Result = res
+}
+
+// ApplySurrender ends the debate because one side gave up.
+// side must be "challenger" or "opponent"; the other side wins.
+func ApplySurrender(doc *Document, side string) error {
+	side = strings.ToLower(strings.TrimSpace(side))
+	if side != "challenger" && side != "opponent" {
+		return errors.New("side must be challenger or opponent")
+	}
+	if IsFinished(*doc) {
+		return errors.New("debate already finished")
+	}
+	winner := "opponent"
+	endedBy := "surrender_challenger"
+	summary := "El desafiante se rindió."
+	if side == "opponent" {
+		winner = "challenger"
+		endedBy = "surrender_opponent"
+		summary = "El experto se rindió."
+	}
+	ComputeResultWithEnd(doc, summary, endedBy)
+	if doc.Result != nil {
+		doc.Result.Winner = winner
+	}
+	return nil
 }

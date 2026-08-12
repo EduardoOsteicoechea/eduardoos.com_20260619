@@ -12,7 +12,6 @@ import {
 import { fetchAudioLibrary, isLocalTrackKey, makeLocalTrackKey, mediaObjectPlaybackUrl, persistableTrackIds, trackDisplayName, type AudioLibraryItem, } from "../../lib/mediaLibrary";
 import { countOfflineTracks, getOfflineTrackUrl, revokeOfflineTrackUrl, saveTrackOffline } from "../../lib/offlineAudio";
 import { getOfflineLibraryCatalog, saveOfflineLibraryCatalog } from "../../lib/offlineEmusic";
-import { fetchPlaylists, savePlaylist, type PlaylistRecord } from "../../lib/playlists";
 import PlaylistControls from "./PlaylistControls";
 import PlaylistLyrics from "./PlaylistLyrics";
 import { IconAddToPlaylist, IconChevronDown, IconChevronUp, IconRemove, } from "./PlaylistIcons";
@@ -31,9 +30,6 @@ export default function PlaylistBuilder() {
     const [library, setLibrary] = useState<AudioLibraryItem[]>([]);
     const [urlByKey, setUrlByKey] = useState<Map<string, string>>(() => new Map());
     const [activeTracks, setActiveTracks] = useState<string[]>([]);
-    const [playlistName, setPlaylistName] = useState("");
-    const [loadedPlaylistId, setLoadedPlaylistId] = useState("");
-    const [savedPlaylists, setSavedPlaylists] = useState<PlaylistRecord[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [volume, setVolume] = useState(1);
@@ -106,21 +102,12 @@ export default function PlaylistBuilder() {
             throw err;
         }
     }, [refreshOfflineCount]);
-    const loadSavedPlaylists = useCallback(async () => {
-        if (!getAuthToken()) {
-            setSavedPlaylists([]);
-            return;
-        }
-        const data = await fetchPlaylists();
-        setSavedPlaylists(data.playlists);
-    }, []);
     useEffect(() => {
         void (async () => {
             setLoading(true);
             setError("");
             try {
                 await loadLibrary();
-                await loadSavedPlaylists();
             }
             catch (err) {
                 setError(err instanceof Error ? err.message : "Failed to load playlist data");
@@ -129,7 +116,7 @@ export default function PlaylistBuilder() {
                 setLoading(false);
             }
         })();
-    }, [loadLibrary, loadSavedPlaylists]);
+    }, [loadLibrary]);
     const currentTrackKey = activeTracks[currentIndex] ?? "";
     const nowPlayingLabel = currentTrackKey
         ? `Now playing: ${trackDisplayName(currentTrackKey)}`
@@ -224,11 +211,11 @@ export default function PlaylistBuilder() {
         navigator.mediaSession.metadata = new MediaMetadata({
             title: trackDisplayName(currentTrackKey),
             artist: "Eduardo OS Playlist",
-            album: playlistName || "Worship Playlist",
+            album: "Worship Playlist",
         });
         navigator.mediaSession.setActionHandler("play", () => void playCurrent());
         navigator.mediaSession.setActionHandler("pause", () => audioRef.current?.pause());
-    }, [currentTrackKey, playlistName]);
+    }, [currentTrackKey]);
     function addTrack(key: string, insertAt?: number) {
         if (!key)
             return;
@@ -372,58 +359,6 @@ export default function PlaylistBuilder() {
         }
         addTrack(key, targetIndex);
         setDropTargetIndex(null);
-    }
-    async function handleSave() {
-        setError("");
-        setMessage("");
-        if (!getAuthToken()) {
-            setError("Sign in first — playlists require a JWT (Login after OTP verification).");
-            return;
-        }
-        if (!playlistName.trim()) {
-            setError("Enter a playlist name before saving.");
-            return;
-        }
-        const trackIds = persistableTrackIds(activeTracks);
-        const skippedLocal = activeTracks.length - trackIds.length;
-        if (trackIds.length === 0) {
-            setError("Nothing to save — local-only tracks are session temporary and are not stored.");
-            return;
-        }
-        try {
-            const saved = await savePlaylist({
-                playlistId: loadedPlaylistId || undefined,
-                name: playlistName.trim(),
-                trackIds,
-            });
-            setLoadedPlaylistId(saved.playlistId);
-            setMessage(
-                skippedLocal > 0
-                    ? `Saved playlist "${saved.name}" (${trackIds.length} site tracks; ${skippedLocal} local skipped).`
-                    : `Saved playlist "${saved.name}" (${saved.playlistId}).`,
-            );
-            await loadSavedPlaylists();
-        }
-        catch (err) {
-            setError(err instanceof Error ? err.message : "Save failed");
-        }
-    }
-    function handleLoadSelection(playlistId: string) {
-        const found = savedPlaylists.find((p) => p.playlistId === playlistId);
-        if (!found)
-            return;
-        setLoadedPlaylistId(found.playlistId);
-        setPlaylistName(found.name);
-        // Drop any previous local blobs; loaded playlists only contain site tracks.
-        for (const key of activeTracksRef.current) {
-            revokeLocalTrack(key);
-        }
-        setActiveTracks(persistableTrackIds(found.trackIds));
-        setCurrentIndex(0);
-        setCurrentTime(0);
-        setDuration(0);
-        setIsPlaying(false);
-        audioRef.current?.pause();
     }
     async function playCurrent() {
         const audio = audioRef.current;
@@ -597,25 +532,6 @@ export default function PlaylistBuilder() {
       {message && <p className="playlist-builder__status">{message}</p>}
 
       <div className="playlist-builder__toolbar">
-        <div className="playlist-builder__field">
-          <label htmlFor="playlist-name">Playlist name</label>
-          <input id="playlist-name" type="text" value={playlistName} onChange={(e) => setPlaylistName(e.target.value)} placeholder="Sunday Service"/>
-        </div>
-        <div className="playlist-builder__field">
-          <label htmlFor="playlist-load">Load saved</label>
-          <select id="playlist-load" value={loadedPlaylistId} onChange={(e) => handleLoadSelection(e.target.value)}>
-            <option value="">Select a playlist…</option>
-            {savedPlaylists.map((p) => (<option key={p.playlistId} value={p.playlistId}>
-                {p.name}
-              </option>))}
-          </select>
-        </div>
-        <button type="button" className="btn btn--primary" onClick={() => void handleSave()}>
-          Save
-        </button>
-        <button type="button" className="btn btn--secondary" onClick={() => void loadSavedPlaylists()}>
-          Refresh lists
-        </button>
         <button type="button" className="btn btn--secondary" onClick={() => localFileInputRef.current?.click()}>
           Add local audio
         </button>
@@ -632,19 +548,6 @@ export default function PlaylistBuilder() {
             e.target.value = "";
           }}
         />
-        <button type="button" className="btn btn--secondary" disabled={offlineDownloading || library.length === 0} onClick={() => void downloadLibraryOffline()}>
-          {offlineDownloading
-            ? `Packing… ${offlineProgress}`
-            : `Save library offline (${offlineReadyCount}/${library.length})`}
-        </button>
-        <button
-          type="button"
-          className="btn btn--secondary"
-          disabled={offlineDownloading}
-          onClick={() => emusicsFileInputRef.current?.click()}
-        >
-          Load .emusics
-        </button>
         <input
           ref={emusicsFileInputRef}
           type="file"
@@ -723,7 +626,7 @@ export default function PlaylistBuilder() {
       <PlaylistControls nowPlayingLabel={nowPlayingLabel} isPlaying={isPlaying} canPlay={Boolean(currentTrackKey)} volume={volume} playbackRate={playbackRate} currentTime={currentTime} duration={duration} loopPlaylist={loopPlaylist} onPlay={() => {
             isPlayingRef.current = true;
             void playCurrent();
-        }} onPause={() => audioRef.current?.pause()} onStop={stopPlayback} onPrevious={playPrevious} onNext={playNext} onVolumeChange={setVolume} onSpeedChange={setPlaybackRate} onSeek={handleSeek} onSeekStart={handleSeekStart} onSeekEnd={handleSeekEnd} onLoopToggle={() => setLoopPlaylist((loop) => !loop)}/>
+        }} onPause={() => audioRef.current?.pause()} onStop={stopPlayback} onPrevious={playPrevious} onNext={playNext} onVolumeChange={setVolume} onSpeedChange={setPlaybackRate} onSeek={handleSeek} onSeekStart={handleSeekStart} onSeekEnd={handleSeekEnd} onLoopToggle={() => setLoopPlaylist((loop) => !loop)} emusicsDownloading={offlineDownloading} emusicsProgress={offlineProgress} emusicsReadyCount={offlineReadyCount} emusicsLibraryCount={library.length} onDownloadEmusics={() => void downloadLibraryOffline()} onLoadEmusics={() => emusicsFileInputRef.current?.click()}/>
 
       <audio ref={audioRef} className="playlist-builder__audio" preload="metadata" onPlay={() => {
             setIsPlaying(true);

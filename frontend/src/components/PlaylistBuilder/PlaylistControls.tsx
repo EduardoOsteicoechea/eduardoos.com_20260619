@@ -23,6 +23,12 @@ export interface PlaylistControlsProps {
     onSeekStart: () => void;
     onSeekEnd: (seconds: number) => void;
     onLoopToggle: () => void;
+    emusicsDownloading?: boolean;
+    emusicsProgress?: string;
+    emusicsReadyCount?: number;
+    emusicsLibraryCount?: number;
+    onDownloadEmusics?: () => void;
+    onLoadEmusics?: () => void;
 }
 function SeekBar({ canPlay, currentTime, duration, onSeek, onSeekStart, onSeekEnd, }: Pick<PlaylistControlsProps, "canPlay" | "currentTime" | "duration" | "onSeek" | "onSeekStart" | "onSeekEnd">) {
     const maxDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
@@ -75,7 +81,7 @@ function MetaPanel({ nowPlayingLabel, volume, playbackRate, volumeId, speedId, o
       </div>
     </>);
 }
-export default function PlaylistControls({ nowPlayingLabel, isPlaying, canPlay, volume, playbackRate, currentTime, duration, loopPlaylist, onPlay, onPause, onStop, onPrevious, onNext, onVolumeChange, onSpeedChange, onSeek, onSeekStart, onSeekEnd, onLoopToggle, }: PlaylistControlsProps) {
+export default function PlaylistControls({ nowPlayingLabel, isPlaying, canPlay, volume, playbackRate, currentTime, duration, loopPlaylist, onPlay, onPause, onStop, onPrevious, onNext, onVolumeChange, onSpeedChange, onSeek, onSeekStart, onSeekEnd, onLoopToggle, emusicsDownloading = false, emusicsProgress = "", emusicsReadyCount = 0, emusicsLibraryCount = 0, onDownloadEmusics, onLoadEmusics, }: PlaylistControlsProps) {
     const [trayOpen, setTrayOpen] = useState(false);
     const trayRef = useRef<HTMLDivElement>(null);
     const trayToggleRef = useRef<HTMLButtonElement>(null);
@@ -112,6 +118,9 @@ export default function PlaylistControls({ nowPlayingLabel, isPlaying, canPlay, 
         document.addEventListener("pointerdown", onPointerDown);
         return () => document.removeEventListener("pointerdown", onPointerDown);
     }, [trayOpen]);
+    const downloadLabel = emusicsDownloading
+        ? `Packing… ${emusicsProgress}`
+        : `Descargar .emusics (${emusicsReadyCount}/${emusicsLibraryCount})`;
     return (<section className={`playlist-controls${trayOpen ? " playlist-controls--tray-open" : ""}`} aria-label="Playlist transport">
       <div className="playlist-controls__inner">
         <SeekBar {...seekProps}/>
@@ -132,6 +141,27 @@ export default function PlaylistControls({ nowPlayingLabel, isPlaying, canPlay, 
             </button>
             <button type="button" className={`playlist-controls__btn playlist-controls__btn--loop${loopPlaylist ? " playlist-controls__btn--loop-on" : ""}`} title={loopPlaylist ? "Loop playlist on" : "Loop playlist off"} aria-label={loopPlaylist ? "Loop playlist on" : "Loop playlist off"} aria-pressed={loopPlaylist} onClick={onLoopToggle}>
               <IconLoop />
+            </button>
+          </div>
+
+          <div className="playlist-controls__emusics">
+            <button
+              type="button"
+              className="btn btn--secondary playlist-controls__emusics-btn"
+              disabled={emusicsDownloading || emusicsLibraryCount === 0 || !onDownloadEmusics}
+              title={downloadLabel}
+              onClick={onDownloadEmusics}
+            >
+              {emusicsDownloading ? `Pack… ${emusicsProgress}` : "Descargar .emusics"}
+            </button>
+            <button
+              type="button"
+              className="btn btn--secondary playlist-controls__emusics-btn"
+              disabled={emusicsDownloading || !onLoadEmusics}
+              title="Cargar colección .emusics"
+              onClick={onLoadEmusics}
+            >
+              Cargar .emusics
             </button>
           </div>
 
