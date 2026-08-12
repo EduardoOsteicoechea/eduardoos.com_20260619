@@ -9,6 +9,7 @@ import {
 import { apiRequest, formatApiError } from "../../lib/api";
 import { createCorrelationId } from "../../lib/telemetry";
 import {
+  EDEBAT_MAX_ARGUMENT_CHARS,
   EDEBAT_ROUTES,
   EDEBAT_UNLIMITED_ROUNDS,
   isEdebatFinished,
@@ -162,6 +163,10 @@ export default function EdebatApp() {
     const argument = draftArg.trim();
     if (!argument) {
       setError("Escribe tu argumento");
+      return;
+    }
+    if ([...argument].length > EDEBAT_MAX_ARGUMENT_CHARS) {
+      setError(`El argumento no puede superar ${EDEBAT_MAX_ARGUMENT_CHARS} caracteres`);
       return;
     }
     if (!doc.topic.trim()) {
@@ -366,7 +371,9 @@ export default function EdebatApp() {
                 }))
               }
             />
-            <span>Ilimitadas (hasta rendirse)</span>
+            <span>
+              Ilimitadas (sigue hasta rendición o K.O. del árbitro)
+            </span>
           </label>
         </div>
       </div>
@@ -411,6 +418,10 @@ export default function EdebatApp() {
       {doc.result ? (
         <div className="edebat__result">
           <strong>Ganador: {winnerLabel(doc.result.winner)}</strong>
+          {doc.result.endedBy === "knockout" ? <p>Fin por K.O. del árbitro</p> : null}
+          {doc.result.endedBy === "surrender_challenger" || doc.result.endedBy === "surrender_opponent" ? (
+            <p>Fin por rendición</p>
+          ) : null}
           <p>{doc.result.summary}</p>
           <p>
             Marcador final: {doc.result.finalScores.challenger} – {doc.result.finalScores.opponent}
@@ -421,12 +432,18 @@ export default function EdebatApp() {
       <div className="edebat__debate">
         <div className="edebat__input-tray">
           <label className="edebat__field">
-            <span>Tu argumento</span>
+            <span>
+              Tu argumento{" "}
+              <small className="edebat__charcount">
+                {[...draftArg].length}/{EDEBAT_MAX_ARGUMENT_CHARS}
+              </small>
+            </span>
             <textarea
               value={draftArg}
               rows={6}
+              maxLength={EDEBAT_MAX_ARGUMENT_CHARS}
               disabled={busy || finished}
-              onChange={(e) => setDraftArg(e.target.value)}
+              onChange={(e) => setDraftArg(e.target.value.slice(0, EDEBAT_MAX_ARGUMENT_CHARS))}
               placeholder="Escribe tu argumento de esta ronda…"
             />
           </label>
@@ -447,14 +464,6 @@ export default function EdebatApp() {
                 onClick={() => void surrender("challenger")}
               >
                 Me rindo
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={busy || !doc.id}
-                onClick={() => void surrender("opponent")}
-              >
-                Experto se rinde
               </button>
             </div>
           ) : null}

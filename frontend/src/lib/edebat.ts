@@ -58,6 +58,7 @@ export type EdebatRecord = {
 };
 
 export const EDEBAT_UNLIMITED_ROUNDS = 0;
+export const EDEBAT_MAX_ARGUMENT_CHARS = 750;
 
 export function isEdebatUnlimited(roundsTotal: number): boolean {
   return roundsTotal === EDEBAT_UNLIMITED_ROUNDS;

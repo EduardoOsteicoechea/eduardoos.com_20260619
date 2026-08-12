@@ -40,6 +40,7 @@ type llmRequest struct {
 	History     []string `json:"history"`
 	UserArg     string   `json:"userArg"`
 	OpponentArg string   `json:"opponentArg"`
+	Unlimited   bool     `json:"unlimited,omitempty"`
 }
 
 type llmResponse struct {
@@ -49,6 +50,8 @@ type llmResponse struct {
 	Analysis        string `json:"analysis,omitempty"`
 	WinnerSummary   string `json:"winnerSummary,omitempty"`
 	Winner          string `json:"winner,omitempty"`
+	Surrender       bool   `json:"surrender,omitempty"`
+	Knockout        bool   `json:"knockout,omitempty"`
 }
 
 type chatCompletionRequest struct {
@@ -112,7 +115,7 @@ func handleLLM(cfg deepseekConfig) http.HandlerFunc {
 		var err error
 		switch role {
 		case "expert":
-			out.Text, err = callExpert(ctx, cfg, req)
+			out, err = callExpert(ctx, cfg, req)
 		case "referee":
 			out, err = callReferee(ctx, cfg, req, false)
 		case "final":
@@ -130,15 +133,36 @@ func handleLLM(cfg deepseekConfig) http.HandlerFunc {
 	}
 }
 
-func callExpert(ctx context.Context, cfg deepseekConfig, req llmRequest) (string, error) {
+func callExpert(ctx context.Context, cfg deepseekConfig, req llmRequest) (llmResponse, error) {
+	if req.Unlimited {
+		system := `You are an expert debater in an open-ended debate.
+Respond with ONLY compact JSON (no markdown):
+{"text":"your counter-argument","surrender":false}
+Set surrender=true only if you concede the debate (then text may briefly explain why).
+Otherwise keep debating with a concise counter-argument.`
+		user := buildDebatePrompt(req) + "\n\nChallenger argument:\n" + strings.TrimSpace(req.UserArg) +
+			"\n\nReply with JSON now."
+		content, err := deepseekChat(ctx, cfg, cfg.ExpertModel, system, user, false, "")
+		if err != nil {
+			return llmResponse{}, err
+		}
+		parsed, err := parseRefereeJSON(content)
+		if err != nil || strings.TrimSpace(parsed.Text) == "" {
+			// Fallback: treat raw content as plain argument.
+			return llmResponse{Text: strings.TrimSpace(content)}, nil
+		}
+		parsed.Text = strings.TrimSpace(parsed.Text)
+		return parsed, nil
+	}
+
 	system := "You are an expert debater. Reply with ONE concise counter-argument only. No preamble, no scores."
 	user := buildDebatePrompt(req) + "\n\nChallenger argument:\n" + strings.TrimSpace(req.UserArg) +
 		"\n\nWrite the opponent expert counter-argument now."
 	content, err := deepseekChat(ctx, cfg, cfg.ExpertModel, system, user, false, "")
 	if err != nil {
-		return "", err
+		return llmResponse{}, err
 	}
-	return strings.TrimSpace(content), nil
+	return llmResponse{Text: strings.TrimSpace(content)}, nil
 }
 
 func callReferee(ctx context.Context, cfg deepseekConfig, req llmRequest, withFinal bool) (llmResponse, error) {
@@ -149,6 +173,12 @@ Respond with ONLY compact JSON (no markdown):
 		system = `You are an impartial debate referee finishing a full debate.
 Respond with ONLY compact JSON (no markdown):
 {"challengerScore":N,"opponentScore":N,"analysis":"...","winner":"challenger|opponent|draw","winnerSummary":"..."}`
+	} else if req.Unlimited {
+		system = `You are an impartial debate referee in an open-ended debate.
+Score each side from 1 to 10. Declare knockout=true ONLY when one side is decisively crushed this round (clear K.O.), otherwise knockout=false.
+Respond with ONLY compact JSON (no markdown):
+{"challengerScore":N,"opponentScore":N,"analysis":"...","knockout":false,"winner":"","winnerSummary":""}
+When knockout=true, winner must be "challenger" or "opponent" and winnerSummary must explain the K.O.`
 	}
 	user := buildDebatePrompt(req) +
 		"\n\nChallenger argument:\n" + strings.TrimSpace(req.UserArg) +
@@ -173,6 +203,13 @@ Respond with ONLY compact JSON (no markdown):
 	}
 	if parsed.OpponentScore > 10 {
 		parsed.OpponentScore = 10
+	}
+	if parsed.Knockout {
+		w := strings.ToLower(strings.TrimSpace(parsed.Winner))
+		if w != "challenger" && w != "opponent" {
+			parsed.Knockout = false
+			parsed.Winner = ""
+		}
 	}
 	return parsed, nil
 }

@@ -46,6 +46,7 @@ type chatbotLLMRequest struct {
 	History     []string `json:"history"`
 	UserArg     string   `json:"userArg"`
 	OpponentArg string   `json:"opponentArg"`
+	Unlimited   bool     `json:"unlimited,omitempty"`
 }
 
 type chatbotLLMResponse struct {
@@ -55,6 +56,8 @@ type chatbotLLMResponse struct {
 	Analysis        string `json:"analysis"`
 	WinnerSummary   string `json:"winnerSummary"`
 	Winner          string `json:"winner"`
+	Surrender       bool   `json:"surrender"`
+	Knockout        bool   `json:"knockout"`
 }
 
 func registerEdebatRoutes(r chi.Router, cfg config, store ddb.EdebatStore) {
@@ -219,9 +222,9 @@ func (h edebatHandlers) turnEdebat() http.HandlerFunc {
 			common.WriteError(w, http.StatusBadRequest, "invalid body")
 			return
 		}
-		arg := strings.TrimSpace(req.Argument)
-		if arg == "" {
-			common.WriteError(w, http.StatusBadRequest, "argument required")
+		arg, err := edebat.ClipArgument(req.Argument)
+		if err != nil {
+			common.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
@@ -241,13 +244,15 @@ func (h edebatHandlers) turnEdebat() http.HandlerFunc {
 			return
 		}
 
+		unlimited := edebat.IsUnlimited(doc)
 		history := buildRoundHistory(doc)
 		expert, err := h.callChatbotLLM(r, cid, chatbotLLMRequest{
-			Role:    "expert",
-			Topic:   doc.Topic,
-			Rules:   doc.Rules,
-			History: history,
-			UserArg: arg,
+			Role:      "expert",
+			Topic:     doc.Topic,
+			Rules:     doc.Rules,
+			History:   history,
+			UserArg:   arg,
+			Unlimited: unlimited,
 		})
 		if err != nil {
 			log.Printf("[correlation=%s] edebat.turn expert error: %v", cid, err)
@@ -256,45 +261,76 @@ func (h edebatHandlers) turnEdebat() http.HandlerFunc {
 			return
 		}
 		opponentArg := strings.TrimSpace(expert.Text)
-		if opponentArg == "" {
+		if opponentArg == "" && !expert.Surrender {
 			common.WriteError(w, http.StatusBadGateway, "expert returned empty argument")
 			return
 		}
+		if expert.Surrender && opponentArg == "" {
+			opponentArg = "El experto se rinde."
+		}
 
 		nextIndex := len(doc.Rounds) + 1
-		isFinal := !edebat.IsUnlimited(doc) && nextIndex >= doc.RoundsTotal
-		role := "referee"
-		if isFinal {
-			role = "final"
-		}
-		ref, err := h.callChatbotLLM(r, cid, chatbotLLMRequest{
-			Role:        role,
-			Topic:       doc.Topic,
-			Rules:       doc.Rules,
-			History:     history,
-			UserArg:     arg,
-			OpponentArg: opponentArg,
-		})
-		if err != nil {
-			log.Printf("[correlation=%s] edebat.turn referee error: %v", cid, err)
-			h.cfg.Telemetry.Emit(common.NewFlightLog(cid, "backend", "edebat.turn", "error"), cid)
-			common.WriteError(w, http.StatusBadGateway, "referee scoring failed: "+err.Error())
-			return
+		var ref chatbotLLMResponse
+		isFinal := !unlimited && nextIndex >= doc.RoundsTotal
+
+		if !expert.Surrender {
+			role := "referee"
+			if isFinal {
+				role = "final"
+			}
+			var refErr error
+			ref, refErr = h.callChatbotLLM(r, cid, chatbotLLMRequest{
+				Role:        role,
+				Topic:       doc.Topic,
+				Rules:       doc.Rules,
+				History:     history,
+				UserArg:     arg,
+				OpponentArg: opponentArg,
+				Unlimited:   unlimited,
+			})
+			if refErr != nil {
+				log.Printf("[correlation=%s] edebat.turn referee error: %v", cid, refErr)
+				h.cfg.Telemetry.Emit(common.NewFlightLog(cid, "backend", "edebat.turn", "error"), cid)
+				common.WriteError(w, http.StatusBadGateway, "referee scoring failed: "+refErr.Error())
+				return
+			}
 		}
 
 		round := edebat.Round{
 			Index:         nextIndex,
 			ChallengerArg: arg,
 			OpponentArg:   opponentArg,
-			Referee: &edebat.Referee{
+			CompletedAt:   time.Now().UTC().Format(time.RFC3339),
+		}
+		if !expert.Surrender {
+			round.Referee = &edebat.Referee{
 				ChallengerScore: ref.ChallengerScore,
 				OpponentScore:   ref.OpponentScore,
 				Analysis:        strings.TrimSpace(ref.Analysis),
-			},
-			CompletedAt: time.Now().UTC().Format(time.RFC3339),
+			}
+		} else {
+			round.Referee = &edebat.Referee{
+				Analysis: "El experto se rindió.",
+			}
 		}
 		doc.Rounds = append(doc.Rounds, round)
-		if isFinal {
+
+		switch {
+		case expert.Surrender:
+			if err := edebat.ApplySurrender(&doc, "opponent"); err != nil {
+				common.WriteError(w, http.StatusConflict, err.Error())
+				return
+			}
+		case unlimited && ref.Knockout:
+			summary := strings.TrimSpace(ref.WinnerSummary)
+			if summary == "" {
+				summary = strings.TrimSpace(ref.Analysis)
+			}
+			if err := edebat.ApplyKnockout(&doc, ref.Winner, summary); err != nil {
+				common.WriteError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+		case isFinal:
 			summary := strings.TrimSpace(ref.WinnerSummary)
 			if summary == "" {
 				summary = strings.TrimSpace(ref.Analysis)
@@ -304,6 +340,7 @@ func (h edebatHandlers) turnEdebat() http.HandlerFunc {
 				doc.Result.Winner = ref.Winner
 			}
 		}
+
 		edebat.Normalize(&doc, email)
 		if err := h.persistDocument(r, cid, email, &doc); err != nil {
 			log.Printf("[correlation=%s] edebat.turn persist error: %v", cid, err)

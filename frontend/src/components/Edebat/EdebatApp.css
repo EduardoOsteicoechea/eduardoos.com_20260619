@@ -113,6 +113,11 @@
   user-select: none;
 }
 
+.edebat__charcount {
+  opacity: 0.7;
+  font-weight: 400;
+}
+
 .edebat__surrender {
   display: flex;
   flex-wrap: wrap;

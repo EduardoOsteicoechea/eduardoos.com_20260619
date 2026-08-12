@@ -1,6 +1,9 @@
 package edebat
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestIsAllowedEmail(t *testing.T) {
 	if !IsAllowedEmail("eduardooost@gmail.com") {
@@ -74,6 +77,30 @@ func TestApplySurrender(t *testing.T) {
 	}
 	if doc.Result.EndedBy != "surrender_challenger" {
 		t.Fatalf("endedBy=%s", doc.Result.EndedBy)
+	}
+}
+
+func TestApplyKnockout(t *testing.T) {
+	doc := Document{RoundsTotal: UnlimitedRounds}
+	if err := ApplyKnockout(&doc, "challenger", "K.O. técnico"); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Result == nil || doc.Result.Winner != "challenger" || doc.Result.EndedBy != "knockout" {
+		t.Fatalf("result=%+v", doc.Result)
+	}
+}
+
+func TestClipArgument(t *testing.T) {
+	if _, err := ClipArgument(""); err == nil {
+		t.Fatal("expected empty error")
+	}
+	ok, err := ClipArgument("hola")
+	if err != nil || ok != "hola" {
+		t.Fatalf("got %q %v", ok, err)
+	}
+	long := strings.Repeat("a", MaxArgumentChars+1)
+	if _, err := ClipArgument(long); err == nil {
+		t.Fatal("expected length error")
 	}
 }
 

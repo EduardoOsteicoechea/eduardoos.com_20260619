@@ -3,6 +3,7 @@ package edebat
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -11,8 +12,11 @@ import (
 
 const SchemaVersion = 1
 
-// UnlimitedRounds means the debate continues until someone surrenders (roundsTotal == 0).
+// UnlimitedRounds means the debate continues until surrender or referee KO (roundsTotal == 0).
 const UnlimitedRounds = 0
+
+// MaxArgumentChars is the hard cap for a single challenger argument.
+const MaxArgumentChars = 750
 
 const AdminEmail = "eduardooost@gmail.com"
 
@@ -76,7 +80,7 @@ type Referee struct {
 type Result struct {
 	Winner      string `json:"winner"` // challenger | opponent | draw
 	Summary     string `json:"summary"`
-	EndedBy     string `json:"endedBy,omitempty"` // rounds | surrender_challenger | surrender_opponent
+	EndedBy     string `json:"endedBy,omitempty"` // rounds | surrender_challenger | surrender_opponent | knockout
 	FinalScores struct {
 		Challenger int `json:"challenger"`
 		Opponent   int `json:"opponent"`
@@ -172,6 +176,39 @@ func ComputeResultWithEnd(doc *Document, summary, endedBy string) {
 	res.FinalScores.Challenger = cTotal
 	res.FinalScores.Opponent = oTotal
 	doc.Result = res
+}
+
+// ApplyKnockout ends an unlimited debate because the referee declared KO.
+// winner must be challenger or opponent.
+func ApplyKnockout(doc *Document, winner, summary string) error {
+	winner = strings.ToLower(strings.TrimSpace(winner))
+	if winner != "challenger" && winner != "opponent" {
+		return errors.New("knockout winner must be challenger or opponent")
+	}
+	if IsFinished(*doc) {
+		return errors.New("debate already finished")
+	}
+	if strings.TrimSpace(summary) == "" {
+		summary = "El árbitro decretó K.O."
+	}
+	ComputeResultWithEnd(doc, summary, "knockout")
+	if doc.Result != nil {
+		doc.Result.Winner = winner
+	}
+	return nil
+}
+
+// ClipArgument trims and enforces MaxArgumentChars.
+func ClipArgument(arg string) (string, error) {
+	arg = strings.TrimSpace(arg)
+	if arg == "" {
+		return "", errors.New("argument required")
+	}
+	runes := []rune(arg)
+	if len(runes) > MaxArgumentChars {
+		return "", fmt.Errorf("argument exceeds %d characters", MaxArgumentChars)
+	}
+	return arg, nil
 }
 
 // ApplySurrender ends the debate because one side gave up.
