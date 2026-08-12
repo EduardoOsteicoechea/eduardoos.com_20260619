@@ -8,6 +8,7 @@
   padding: 0;
   text-align: left;
   overflow: hidden;
+  color: var(--site-body-fg);
 }
 
 .home-hero__photo {
@@ -36,6 +37,8 @@
   margin-left: auto;
   margin-right: 1.25rem;
   padding: 1.5rem 1rem 2.5rem;
+  color: var(--site-body-fg);
+  background: transparent;
   animation: home-hero-copy-in 0.75s ease 0.12s both;
 }
 
@@ -63,6 +66,7 @@
   max-width: 32rem;
   font-size: var(--font-md);
   line-height: 1.55;
+  color: var(--site-body-fg);
 }
 
 .skill_cards {
@@ -76,9 +80,9 @@
 }
 
 .skill_cards__item {
-  border: var(--border_001);
+  border: 1px solid var(--site-body-fg);
   border-radius: 0;
-  background: color-mix(in srgb, var(--site-body-bg) 72%, transparent);
+  background: var(--site-body-bg);
   color: var(--site-body-fg);
   padding: 0.35rem 0.55rem;
   font-size: var(--font-sm);
@@ -88,6 +92,9 @@
 
 @media (max-width: 1023px) {
   .page-shell.hero.home-hero {
+    left: 0;
+    margin-left: 0;
+    padding-left: 0;
     min-height: 100dvh;
   }
 
@@ -95,11 +102,11 @@
     position: fixed;
     inset: auto;
     top: 20px;
-    left: 15px;
+    left: 0;
     right: 0;
     bottom: 0;
     z-index: 130;
-    width: calc(100vw - 15px);
+    width: 100vw;
     height: calc(100dvh - 20px);
   }
 
@@ -113,29 +120,18 @@
   .home-hero__copy {
     z-index: 135;
     margin-top: 20px;
-    margin-left: 30vw;
+    margin-left: 35vw;
     margin-right: 1rem;
     padding: 0 0 2rem;
     max-width: none;
-    background: linear-gradient(
-      to top,
-      color-mix(in srgb, var(--site-body-bg) 88%, transparent) 55%,
-      transparent
-    );
+    background: transparent;
   }
 }
 
 @media (min-width: 1024px) {
   .page-shell.hero.home-hero {
-    --home-pad-top: 30px;
-    --home-pad-bottom: 30px;
     --home-pad-left: 100px;
-    --home-pad-right: 48px;
-    --home-gap: 20px;
-    --home-img-height: calc(
-      100dvh - var(--header_height) - var(--home-pad-top) - var(--home-pad-bottom)
-    );
-    /* 9:16 portrait — height drives width; cover fills without letterboxing */
+    --home-img-height: calc(100dvh - var(--header_height));
     --home-img-width: calc(var(--home-img-height) * 9 / 16);
 
     position: relative;
@@ -152,7 +148,7 @@
   .home-hero__photo {
     position: absolute;
     inset: auto;
-    top: var(--home-pad-top);
+    top: 0;
     left: var(--home-pad-left);
     right: auto;
     bottom: auto;
@@ -175,16 +171,17 @@
 
   .home-hero__copy {
     position: absolute;
-    top: var(--home-pad-top);
-    left: calc(var(--home-pad-left) + var(--home-img-width) + var(--home-gap));
-    right: var(--home-pad-right);
+    top: 0;
+    left: calc(var(--home-pad-left) + var(--home-img-width));
+    right: auto;
+    width: 100%;
+    max-width: 600px;
     height: var(--home-img-height);
-    max-width: none;
     margin: 0;
     padding: 0;
     overflow: hidden;
     z-index: 2;
-    background: none;
+    background: transparent;
     box-sizing: border-box;
   }
 
