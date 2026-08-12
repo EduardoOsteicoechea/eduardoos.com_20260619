@@ -339,6 +339,36 @@ function convertPixelsToMillimeters(px: number): number {
     return px * (25.4 / 96);
 }
 
+/**
+ * Layout (pre-transform) height in mm. Prefer offsetHeight so mobile
+ * `transform: scale(... * --mm-visual-boost)` does not inflate reflow math.
+ */
+function measureLayoutHeightMm(el: HTMLElement): number {
+    return convertPixelsToMillimeters(el.offsetHeight);
+}
+
+function measureBlockMm(item: HTMLElement, spacer: HTMLElement | null): number {
+    const itemMm = measureLayoutHeightMm(item);
+    const spacerMm = spacer ? measureLayoutHeightMm(spacer) : 0;
+    return itemMm + spacerMm;
+}
+
+/** Probe how much vertical space a new starter item (+ spacer) and the + button need. */
+function measureAddControlsMm(host: HTMLElement): { newItemMm: number; buttonMm: number } {
+    const probeItem = createItemElement(createParagraphItem());
+    const probeSpacer = createItemSpacer();
+    const probeBtn = createAddItemButton(0);
+    host.appendChild(probeItem);
+    host.appendChild(probeSpacer);
+    host.appendChild(probeBtn);
+    const newItemMm = measureBlockMm(probeItem, probeSpacer);
+    const buttonMm = measureLayoutHeightMm(probeBtn);
+    probeItem.remove();
+    probeSpacer.remove();
+    probeBtn.remove();
+    return { newItemMm, buttonMm };
+}
+
 /** Keep #file-toolbar at a constant visual size when the user zooms the page. */
 function syncFixedChromeScale(): void {
     const dpr = window.devicePixelRatio || 1;
@@ -375,30 +405,6 @@ function clearError(): void {
 
 function setStatus(message: string, kind: ToastKind = "info"): void {
     showToast(message, kind);
-}
-
-function measureBlockMm(item: HTMLElement, spacer: HTMLElement | null): number {
-    const itemMm = convertPixelsToMillimeters(item.getBoundingClientRect().height);
-    const spacerMm = spacer
-        ? convertPixelsToMillimeters(spacer.getBoundingClientRect().height)
-        : 0;
-    return itemMm + spacerMm;
-}
-
-/** Probe how much vertical space a new starter item (+ spacer) and the + button need. */
-function measureAddControlsMm(host: HTMLElement): { newItemMm: number; buttonMm: number } {
-    const probeItem = createItemElement(createParagraphItem());
-    const probeSpacer = createItemSpacer();
-    const probeBtn = createAddItemButton(0);
-    host.appendChild(probeItem);
-    host.appendChild(probeSpacer);
-    host.appendChild(probeBtn);
-    const newItemMm = measureBlockMm(probeItem, probeSpacer);
-    const buttonMm = convertPixelsToMillimeters(probeBtn.getBoundingClientRect().height);
-    probeItem.remove();
-    probeSpacer.remove();
-    probeBtn.remove();
-    return { newItemMm, buttonMm };
 }
 
 function placeColumnAddButton(
@@ -469,6 +475,7 @@ function reflowAndReport(container: HTMLElement) {
             page1LeftColHeightMm, // cols 7–8: −footer gutter −footer
             columnWidth: "60.35mm",
             pxToMmFactor: 25.4 / 96,
+            heightSource: "offsetHeight (layout / pre-transform)",
         },
         columns: [] as {
             columnIndex: number;
@@ -531,8 +538,8 @@ function reflowAndReport(container: HTMLElement) {
         currentColumnDiv.appendChild(item);
         currentColumnDiv.appendChild(spacer);
 
-        const itemPx = item.getBoundingClientRect().height;
-        const spacerPx = spacer.getBoundingClientRect().height;
+        const itemPx = item.offsetHeight;
+        const spacerPx = spacer.offsetHeight;
         const itemMm = convertPixelsToMillimeters(itemPx);
         const spacerMm = convertPixelsToMillimeters(spacerPx);
         const blockMm = itemMm + spacerMm;
@@ -628,21 +635,24 @@ function reflowAndReport(container: HTMLElement) {
         for (const col of cols) {
             const match = /pamphlet-column-(\d+)/.exec(col.className);
             const index = match ? Number(match[1]) : -1;
-            const boxPx = col.getBoundingClientRect().height;
-            const boxMm = convertPixelsToMillimeters(boxPx);
+            const layoutPx = col.offsetHeight;
+            const layoutMm = convertPixelsToMillimeters(layoutPx);
+            const visualPx = col.getBoundingClientRect().height;
+            const visualMm = convertPixelsToMillimeters(visualPx);
             const summary = report.columns.find((c) => c.columnIndex === index);
             const reflowMaxMm = maxHeightForColumn(index);
+            const filled = summary?.filledHeightMm ?? 0;
             const row = {
                 columnIndex: index,
-                domHeightPx: Number(boxPx.toFixed(2)),
-                domHeightMm: Number(boxMm.toFixed(2)),
-                filledHeightMm: summary?.filledHeightMm ?? 0,
+                layoutHeightPx: Number(layoutPx.toFixed(2)),
+                layoutHeightMm: Number(layoutMm.toFixed(2)),
+                visualHeightPx: Number(visualPx.toFixed(2)),
+                visualHeightMm: Number(visualMm.toFixed(2)),
+                filledHeightMm: filled,
                 itemCount: summary?.itemCount ?? 0,
                 reflowMaxMm,
-                overflowVsDomMm: Number(((summary?.filledHeightMm ?? 0) - boxMm).toFixed(2)),
-                overflowVsReflowMaxMm: Number(
-                    ((summary?.filledHeightMm ?? 0) - reflowMaxMm).toFixed(2),
-                ),
+                overflowVsLayoutMm: Number((filled - layoutMm).toFixed(2)),
+                overflowVsReflowMaxMm: Number((filled - reflowMaxMm).toFixed(2)),
             };
             if (index === 1) {
                 console.warn("[reflow] column 1 height check", row);
@@ -650,6 +660,9 @@ function reflowAndReport(container: HTMLElement) {
                 console.log("[reflow] column height check", row);
             }
         }
+
+        // Transform does not change layout box; refresh scroll gap after reflow.
+        syncMobileViewScale();
     });
 }
 
