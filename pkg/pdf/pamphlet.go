@@ -38,6 +38,8 @@ const (
 	PamphletPage1BodyMm  = 136.4
 	PamphletPage2BodyMm  = 195.9
 	PamphletItemGapMm    = 2.0
+	// Extra space above heading_1 when it follows another item (PDF looks flush without this).
+	PamphletHeadingMarginTopMm = 3.0
 	// Helvetica average glyph width ≈ 0.50 × size. Using 0.35 let wrapped lines
 	// spill into the next column (visible overlap in the downloaded PDF).
 	helveticaAvgGlyph = 0.50
@@ -383,6 +385,9 @@ func drawFooter(s *strings.Builder, items []PamphletItem, x, top, width, heightM
 		if item.Type == "heading_1" {
 			size = pamphletFooterHeadPt
 			font = "F2"
+			if i > 0 {
+				y -= PamphletHeadingMarginTopMm
+			}
 		}
 		gap := 0.0
 		if i < len(items)-1 {
@@ -416,6 +421,10 @@ func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightM
 		if item.Type == "heading_1" {
 			size = pamphletHeadingSizePt
 			font = "F2"
+			// Headings need top margin when not the first block (editor spacer alone looks flush in PDF).
+			if i > 0 {
+				y -= PamphletHeadingMarginTopMm
+			}
 		}
 		// Bold range keeps paragraph size; Helvetica-Bold for the whole item when any bold span exists.
 		if hasBold(item) && item.Type != "heading_1" {
