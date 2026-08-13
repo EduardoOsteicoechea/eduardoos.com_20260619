@@ -1,6 +1,14 @@
 package pdf
 
-import "testing"
+import (
+	"bytes"
+	"encoding/base64"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"strings"
+	"testing"
+)
 
 func TestMmToPointsLetterLandscape(t *testing.T) {
 	w := MmToPoints(PamphletPageWidthMm)
@@ -33,24 +41,82 @@ func TestBuildPamphletPDFHasHeaderAndEOF(t *testing.T) {
 	}
 }
 
+func TestToWinAnsiSpanish(t *testing.T) {
+	got := toWinAnsi("¿Por qué más críticos?")
+	// Must be single-byte WinAnsi, not UTF-8 mojibake (Â¿ / Ã¡).
+	if strings.Contains(got, "Â") || strings.Contains(got, "Ã") {
+		t.Fatalf("mojibake in %q", got)
+	}
+	if !strings.Contains(got, "Por qu") {
+		t.Fatalf("unexpected %q", got)
+	}
+	// ¿ = 0xBF, é = 0xE9, á = 0xE1 in WinAnsi/Latin-1
+	if !bytes.Contains([]byte(got), []byte{0xBF}) {
+		t.Fatalf("missing inverted question mark byte in %q bytes=%v", got, []byte(got))
+	}
+	if !bytes.Contains([]byte(got), []byte{0xE9}) {
+		t.Fatalf("missing e-acute byte in %q bytes=%v", got, []byte(got))
+	}
+}
+
+func TestWrapWordsStaysInsideColumn(t *testing.T) {
+	text := toWinAnsi("Ignorar el enfoque correcto puede hacer que destruyas tu vida con la Biblia.")
+	sizePt := 7.1
+	maxW := MmToPoints(PamphletColWidthMm)
+	lines := wrapWordsToWidth(text, sizePt, maxW)
+	charW := sizePt * helveticaAvgGlyph
+	for _, line := range lines {
+		if float64(len(line))*charW > maxW+charW {
+			t.Fatalf("line too wide: %q width≈%.1f max=%.1f", line, float64(len(line))*charW, maxW)
+		}
+	}
+}
+
+func TestBuildPamphletPDFEmbedsJPEG(t *testing.T) {
+	dataURL := tinyJPEGDataURL(t)
+	data := BuildPamphletPDF(PamphletDocument{
+		Type: "pamphlet_single_sheet",
+		Header: PamphletHeader{
+			Title: "Con imagen",
+		},
+		Column1: []PamphletItem{{
+			Type:     "image",
+			Content:  dataURL,
+			HeightMm: 40,
+		}},
+	})
+	s := string(data)
+	if !strings.Contains(s, "/Subtype /Image") || !strings.Contains(s, "/DCTDecode") {
+		t.Fatalf("expected embedded JPEG XObject")
+	}
+	if !strings.Contains(s, "/Im1 Do") {
+		t.Fatalf("expected image paint operator")
+	}
+	if strings.Contains(s, "[imagen]") {
+		t.Fatalf("should not fall back to placeholder when JPEG decodes")
+	}
+}
+
+func tinyJPEGDataURL(t *testing.T) string {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 16, 16))
+	for y := 0; y < 16; y++ {
+		for x := 0; x < 16; x++ {
+			img.Set(x, y, color.RGBA{R: 200, G: 40, B: 40, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 80}); err != nil {
+		t.Fatal(err)
+	}
+	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
+}
+
 func containsAll(haystack string, needles ...string) bool {
 	for _, n := range needles {
-		if !stringContains(haystack, n) {
+		if !strings.Contains(haystack, n) {
 			return false
 		}
 	}
 	return true
-}
-
-func stringContains(s, sub string) bool {
-	return len(s) >= len(sub) && (s == sub || len(sub) == 0 || indexOf(s, sub) >= 0)
-}
-
-func indexOf(s, sub string) int {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return i
-		}
-	}
-	return -1
 }
