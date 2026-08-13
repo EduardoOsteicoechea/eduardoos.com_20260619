@@ -11,7 +11,7 @@ export const APP_ROUTES = {
     mediaPlaylist: "/media/musica",
     pamphlet: "/documents/pamphlet",
     articles: "/articulos",
-    article: (id: string) => `/articulos/${encodeURIComponent(id)}`,
+    article: (id: string) => `/articulos/ver?id=${encodeURIComponent(id)}`,
     apsAdmin: "/aps-admin",
     edebat: "/edebat",
 } as const;

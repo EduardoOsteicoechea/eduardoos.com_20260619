@@ -13,9 +13,12 @@ import "./ArticleView.css";
 
 type ChatMsg = { role: "user" | "assistant"; text: string };
 
-type Props = { epamId: string };
+export default function ArticleView() {
+  const epamId = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("id")?.trim() || "";
+  }, []);
 
-export default function ArticleView({ epamId }: Props) {
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState<ArticleBlock[]>([]);
   const [quiz, setQuiz] = useState<QuizDocument | null>(null);
@@ -35,7 +38,15 @@ export default function ArticleView({ epamId }: Props) {
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      window.location.href = `${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.article(epamId))}`;
+      const next = epamId
+        ? APP_ROUTES.article(epamId)
+        : APP_ROUTES.articles;
+      window.location.href = `${APP_ROUTES.login}?next=${encodeURIComponent(next)}`;
+      return;
+    }
+    if (!epamId) {
+      setError("Falta el id del artículo.");
+      setLoading(false);
       return;
     }
     let cancelled = false;

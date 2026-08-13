@@ -1,0 +1,19 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ArticleView from "../../components/Articles/ArticleView";
+---
+
+<BaseLayout title="Artículo — Eduardo Osteicoechea" requireAuth>
+  <div class="page-shell" data-page="articulo-ver">
+    <ArticleView client:load />
+  </div>
+</BaseLayout>
+
+<script is:inline>
+  (function () {
+    var path = location.pathname.replace(/\/$/, "") || "/";
+    if (path !== "/articulos/ver") return;
+    if (document.querySelector('[data-page="articulo-ver"]')) return;
+    location.reload();
+  })();
+</script>

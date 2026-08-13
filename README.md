@@ -111,7 +111,7 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | Monthly Basic Subscription | `/payments/subscription/montly/basic` |
 | Edebat (admin allowlist) | `/edebat` |
 | Pamphlet editor | `/documents/pamphlet` |
-| Artículos | `/articulos`, `/articulos/:id` |
+| Artículos | `/articulos`, `/articulos/ver?id=` |
 
 Authenticated Edebat APIs (JWT + `eduardooost@gmail.com`): `GET/POST /api/edebat`, `GET/PUT /api/edebat/:id`, `POST /api/edebat/:id/turn`. Bodies persist as `.edebat` under `media/edebats/{email}/` via S3; LLM turns use the chatbot service + DeepSeek (`DEEPSEEK_*`).
 
