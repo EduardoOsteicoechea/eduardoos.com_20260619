@@ -335,7 +335,7 @@
   --page1-right-col-height: 177.9mm;
   /* Cols 7–8 above footer: 195.9 − 4 − 37.5 = 154.4mm */
   --page1-left-col-height: 154.4mm;
-  /* Non-editable gap under each column/footer item; counted in reflow height */
+  /* Gap between items (not after the last in a column); counted in reflow height */
   --item-gap-height: 2mm;
   --b1: solid 1px rgb(231, 231, 231);
   --mobile-view-scale: 1;

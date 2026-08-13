@@ -128,7 +128,7 @@ export function createItemElement(item: PamphletItem): HTMLElement {
     return container;
 }
 
-/** Non-editable gap under each item; height counts toward column fill. */
+/** Non-editable gap between items (not after the last); height counts toward column fill. */
 export function createItemSpacer(): HTMLElement {
     const spacer = document.createElement("div");
     spacer.className = "pamphlet-item-spacer";
@@ -136,8 +136,14 @@ export function createItemSpacer(): HTMLElement {
     return spacer;
 }
 
-export function appendItemWithSpacer(parent: HTMLElement, item: HTMLElement): HTMLElement {
+/** Append item; add a spacer only when another item will follow in the same column. */
+export function appendItemWithSpacer(
+    parent: HTMLElement,
+    item: HTMLElement,
+    withTrailingSpacer = true,
+): HTMLElement | null {
     parent.appendChild(item);
+    if (!withTrailingSpacer) return null;
     const spacer = createItemSpacer();
     parent.appendChild(spacer);
     return spacer;
@@ -208,9 +214,10 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
 
     const footerEl = document.createElement("footer");
     footerEl.className = "pamphlet-page-footer dumb-column pamphlet-footer-column";
-    for (const item of data.footer.items) {
-        appendItemWithSpacer(footerEl, createItemElement(item));
-    }
+    const footerItems = data.footer.items;
+    footerItems.forEach((item, index) => {
+        appendItemWithSpacer(footerEl, createItemElement(item), index < footerItems.length - 1);
+    });
 
     main.appendChild(headerEl);
     main.appendChild(footerEl);
@@ -224,9 +231,10 @@ export function renderFromPamphlet(main: HTMLElement, data: PamphletStructure): 
         col.className = `dumb-column pamphlet-column-${index + 1}`;
         main.appendChild(col);
 
-        for (const item of data[key]) {
-            appendItemWithSpacer(col, createItemElement(item));
-        }
+        const colItems = data[key];
+        colItems.forEach((item, index) => {
+            appendItemWithSpacer(col, createItemElement(item), index < colItems.length - 1);
+        });
     });
 
     renderPageChrome(main, data);

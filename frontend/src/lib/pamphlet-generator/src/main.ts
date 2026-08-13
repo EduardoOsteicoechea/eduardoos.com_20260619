@@ -448,6 +448,15 @@ function measureBlockInSandbox(
     };
 }
 
+/** Last item in a column/footer must not keep a trailing spacer; return stripped mm. */
+function stripTrailingItemSpacer(parent: HTMLElement): number {
+    const last = parent.lastElementChild;
+    if (!last || !last.classList.contains("pamphlet-item-spacer")) return 0;
+    const mm = convertPixelsToMillimeters((last as HTMLElement).offsetHeight);
+    last.remove();
+    return mm;
+}
+
 function measureBlockMm(item: HTMLElement, spacer: HTMLElement | null): number {
     const prevParent = item.parentElement;
     const nextSibling = item.nextSibling;
@@ -654,11 +663,22 @@ function reflowAndReport(container: HTMLElement) {
         const { itemPx, spacerPx, itemMm, spacerMm, blockMm } = measured;
         const filledBeforeMm = currentColumnFilledMm;
         const currentMaxMm = maxHeightForColumn(columnIndex);
+        // Overflow uses item height only: the last item in a column has no trailing spacer.
         const wouldOverflow =
-            currentColumnFilledMm + blockMm > currentMaxMm && currentColumnItemsCount > 0;
+            currentColumnItemsCount > 0 && currentColumnFilledMm + itemMm > currentMaxMm;
         const preview = (item.textContent ?? "").trim().slice(0, 48);
 
         if (wouldOverflow) {
+            // Previous column's last item must not keep a spacer underneath.
+            const strippedMm = stripTrailingItemSpacer(currentColumnDiv);
+            currentColumnFilledMm -= strippedMm;
+            const prevLast = report.itemTrace.at(-1);
+            if (prevLast && prevLast.column === columnIndex && strippedMm > 0) {
+                prevLast.filledAfterMm = Number(currentColumnFilledMm.toFixed(3));
+                prevLast.spacerPx = 0;
+                prevLast.spacerMm = 0;
+                prevLast.blockMm = Number(prevLast.itemMm.toFixed(3));
+            }
             pushColumnSummary(columnIndex, currentColumnItemsCount, currentColumnFilledMm);
 
             columnIndex++;
@@ -704,6 +724,15 @@ function reflowAndReport(container: HTMLElement) {
     ensureMeasureRoot().column.replaceChildren();
 
     if (currentColumnItemsCount > 0) {
+        currentColumnFilledMm -= stripTrailingItemSpacer(currentColumnDiv);
+        // Trace filledAfter for the final item should match column summary (no trailing spacer).
+        const lastTrace = report.itemTrace.at(-1);
+        if (lastTrace && lastTrace.column === columnIndex) {
+            lastTrace.filledAfterMm = Number(currentColumnFilledMm.toFixed(3));
+            lastTrace.spacerPx = 0;
+            lastTrace.spacerMm = 0;
+            lastTrace.blockMm = Number(lastTrace.itemMm.toFixed(3));
+        }
         pushColumnSummary(columnIndex, currentColumnItemsCount, currentColumnFilledMm);
     }
 

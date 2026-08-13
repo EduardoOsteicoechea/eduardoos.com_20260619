@@ -360,9 +360,13 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 func drawFooter(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage) {
 	y := top - 3
 	floor := top - heightMm
-	for _, item := range items {
+	for i, item := range items {
 		if y <= floor {
 			break
+		}
+		gap := 0.0
+		if i < len(items)-1 {
+			gap = PamphletItemGapMm
 		}
 		if item.Type == "image" {
 			h := item.HeightMm
@@ -370,7 +374,7 @@ func drawFooter(s *strings.Builder, items []PamphletItem, x, top, width, heightM
 				h = 10
 			}
 			drawImageOrPlaceholder(s, item, x, y, width, h, images)
-			y -= h + PamphletItemGapMm
+			y -= h + gap
 			continue
 		}
 		size := 7.0
@@ -380,16 +384,20 @@ func drawFooter(s *strings.Builder, items []PamphletItem, x, top, width, heightM
 			font = "F2"
 		}
 		used := writeWrapped(s, font, size, x, y, width, item.Content, floor)
-		y -= used + PamphletItemGapMm
+		y -= used + gap
 	}
 }
 
 func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage) {
 	y := top - 2.5
 	floor := top - heightMm
-	for _, item := range items {
+	for i, item := range items {
 		if y <= floor {
 			break
+		}
+		gap := 0.0
+		if i < len(items)-1 {
+			gap = PamphletItemGapMm
 		}
 		if item.Type == "image" {
 			h := item.HeightMm
@@ -397,7 +405,7 @@ func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightM
 				h = 10
 			}
 			drawImageOrPlaceholder(s, item, x, y, width, h, images)
-			y -= h + PamphletItemGapMm
+			y -= h + gap
 			continue
 		}
 		size := 7.1 // ~2.5mm body
@@ -412,7 +420,7 @@ func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightM
 			size = 7.1
 		}
 		used := writeWrapped(s, font, size, x, y, width, item.Content, floor)
-		y -= used + PamphletItemGapMm
+		y -= used + gap
 	}
 }
 
