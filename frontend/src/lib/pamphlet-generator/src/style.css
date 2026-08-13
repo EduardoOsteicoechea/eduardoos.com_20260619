@@ -645,6 +645,16 @@ p {
   line-height: 1.25;
 }
 
+/* Bold in a paragraph stays body size (2.5mm) — never heading scale (3.75mm). */
+.pamphlet-app .pamphlet-item[data-item-type="paragraph"] p b,
+.pamphlet-app .pamphlet-item[data-item-type="paragraph"] p strong,
+.pamphlet-app .pamphlet-item[data-item-type="paragraph"] b,
+.pamphlet-app .pamphlet-item[data-item-type="paragraph"] strong {
+  font-size: 2.5mm;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
 /* Must beat paragraph p rule (header title also has data-item-type=paragraph) */
 .pamphlet-page-header .pamphlet-header-title p {
   font-size: 5mm;
@@ -856,8 +866,27 @@ p {
   box-sizing: border-box;
 }
 
+/* Same tray scale as text button row (zoom 0.5) so image +/− stay usable on phone/tablet. */
 .pamphlet-app[data-view-mode="mobile"] .edit_tray_image_controls {
   width: 100%;
+  box-sizing: border-box;
+  gap: calc(6px * var(--mobile-inv-scale, 1));
+  padding: calc(6px * var(--mobile-inv-scale, 1));
+  zoom: 0.5;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_file_label {
+  font-size: calc(14px * var(--mobile-inv-scale, 1));
+  padding: calc(6px * var(--mobile-inv-scale, 1)) calc(10px * var(--mobile-inv-scale, 1));
+  box-sizing: border-box;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_image_controls .edit_tray_height_button {
+  width: calc(44px * var(--mobile-inv-scale, 1));
+  height: calc(44px * var(--mobile-inv-scale, 1));
+  min-width: calc(44px * var(--mobile-inv-scale, 1));
+  min-height: calc(44px * var(--mobile-inv-scale, 1));
+  font-size: calc(18px * var(--mobile-inv-scale, 1));
   box-sizing: border-box;
 }
 

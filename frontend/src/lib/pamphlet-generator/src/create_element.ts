@@ -376,9 +376,17 @@ function editTray(
 
     if (editTrayTextArea) {
         editTrayTextArea.focus();
-        editTrayTextArea.setSelectionRange(
-            editTrayTextArea.value.length,
-            editTrayTextArea.value.length,
-        );
+        // New items default to "Escribe aquí" — select all so typing replaces the placeholder.
+        // rAF: some mobile browsers clear selection if applied synchronously after focus.
+        const area = editTrayTextArea;
+        const selectPlaceholder = area.value === "Escribe aquí";
+        requestAnimationFrame(() => {
+            area.focus();
+            if (selectPlaceholder) {
+                area.select();
+            } else {
+                area.setSelectionRange(area.value.length, area.value.length);
+            }
+        });
     }
 }

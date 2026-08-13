@@ -40,6 +40,9 @@ export const EPAM_ROUTES = {
     save: "/api/epams",
     item: (epamId: string) => `/api/epams/${encodeURIComponent(epamId)}`,
 } as const;
+export const DOCUMENT_ROUTES = {
+    pamphletPdf: "/api/documents/pamphlet/pdf",
+} as const;
 export const OBSERVABILITY_ROUTES = {
     logger: "/api/logger",
     logs: "/api/logger/logs",

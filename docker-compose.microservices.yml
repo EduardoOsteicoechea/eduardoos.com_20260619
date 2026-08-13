@@ -60,6 +60,8 @@ services:
       - telemetry
       - payments
       - s3
+      - documents
+      - chatbot
 
   authenticator:
     <<: *go-service

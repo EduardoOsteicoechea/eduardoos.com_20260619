@@ -25,6 +25,7 @@ type config struct {
 	PaymentsURL      string
 	S3URL            string
 	ChatbotURL       string
+	DocumentsURL     string
 	Telemetry        *common.TelemetryClient
 }
 
@@ -63,6 +64,7 @@ func Run(addr string) error {
 		PaymentsURL:      common.Env("PAYMENTS_URL", "http://payments:3000"),
 		S3URL:            common.Env("S3_URL", "http://s3:3000"),
 		ChatbotURL:       common.Env("CHATBOT_URL", "http://chatbot:3000"),
+		DocumentsURL:     common.Env("DOCUMENTS_URL", "http://documents:3000"),
 	}
 	cfg.Telemetry = common.NewTelemetryClient(cfg.TelemetryURL, cfg.InternalSecret)
 
@@ -122,6 +124,7 @@ func Run(addr string) error {
 	registerPlaylistRoutes(r, cfg, playlistStore)
 	registerEpamRoutes(r, cfg, epamStore)
 	registerEdebatRoutes(r, cfg, edebatStore)
+	registerDocumentsRoutes(r, cfg)
 	registerEmusicRoutes(r, cfg)
 	registerSubscriptionRoutes(r, cfg, entitlementStore)
 	registerAPSRoutes(r, cfg)

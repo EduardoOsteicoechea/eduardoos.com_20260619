@@ -30,6 +30,8 @@ import {
 } from "./pamphlet_file";
 import { fetchEpam, fetchEpams, saveEpamToCloud } from "../../epams";
 import { getAuthToken, isAuthenticated } from "../../auth";
+import { DOCUMENT_ROUTES } from "../../config/routes";
+import { createCorrelationId } from "../../telemetry";
 import {
     createAddItemButton,
     createItemElement,
@@ -238,10 +240,57 @@ function waitForNextPaint(): Promise<void> {
 
 async function printDocument(): Promise<void> {
     if (printBtn.disabled) return;
+    if (!currentDoc) {
+        setStatus("Abre o crea un panfleto antes de imprimir.", "error");
+        return;
+    }
+    const token = getAuthToken();
+    if (!token || !isAuthenticated()) {
+        setStatus("Inicia sesión para generar el PDF.", "error");
+        return;
+    }
+
     closeSidebar();
     beginPrintDesktopLayout();
     await waitForNextPaint();
-    window.print();
+
+    // Previous browser print path (kept for fallback / local preview):
+    // window.print();
+
+    setStatus("Generando PDF…", "info");
+    try {
+        const res = await fetch(DOCUMENT_ROUTES.pamphletPdf, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                "X-Correlation-ID": createCorrelationId(),
+            },
+            body: JSON.stringify(currentDoc),
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || `HTTP ${res.status}`);
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get("Content-Disposition") || "";
+        const match = /filename="?([^";]+)"?/i.exec(cd);
+        const filename = match?.[1]?.trim() || `${currentDoc.header.title || "panfleto"}.pdf`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setStatus("PDF descargado.", "success");
+    } catch (err) {
+        const message = err instanceof Error ? err.message : "No se pudo generar el PDF";
+        setStatus(message, "error");
+    } finally {
+        endPrintDesktopLayout();
+    }
 }
 
 const usLetterHeightInMillimeters = 215.9;

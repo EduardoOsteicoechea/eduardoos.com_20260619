@@ -55,5 +55,5 @@ handle.destroy();
 ## Notes
 
 - Client-only: do not SSR-render the editor logic.
-- Print uses `window.print()`; on a dedicated route, hide layout chrome with your own `@media print` if needed.
+- Print: Imprimir POSTs the pamphlet JSON to `/api/documents/pamphlet/pdf` (JWT) and downloads the PDF. The previous `window.print()` path is commented in `main.ts` as a local fallback.
 - Keep developing the root app as usual; refresh this portable copy when you want to re-export a snapshot.

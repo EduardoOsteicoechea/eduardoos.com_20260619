@@ -2,8 +2,10 @@ package documents
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"eduardoos/pkg/common"
 	"eduardoos/pkg/pdf"
@@ -34,7 +36,50 @@ func Run(addr string) error {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(data)
 		})
+		// Pamphlet PDF: exact US Letter landscape mm geometry (279.4 × 215.9), two pages.
+		r.Post("/pamphlet", handlePamphletPDF())
 	})
 	log.Printf("documents listening on %s", addr)
 	return http.ListenAndServe(addr, r)
+}
+
+func handlePamphletPDF() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		raw, err := io.ReadAll(r.Body)
+		if err != nil {
+			common.WriteError(w, http.StatusBadRequest, "could not read body")
+			return
+		}
+		var doc pdf.PamphletDocument
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			common.WriteError(w, http.StatusBadRequest, "document must be JSON pamphlet")
+			return
+		}
+		if strings.TrimSpace(doc.Type) != "" && doc.Type != "pamphlet_single_sheet" {
+			common.WriteError(w, http.StatusBadRequest, "document.type must be pamphlet_single_sheet")
+			return
+		}
+		data := pdf.BuildPamphletPDF(doc)
+		filename := "panfleto.pdf"
+		if t := strings.TrimSpace(doc.Header.Title); t != "" {
+			filename = sanitizeFilename(t) + ".pdf"
+		}
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
+	}
+}
+
+func sanitizeFilename(name string) string {
+	name = strings.TrimSpace(name)
+	replacer := strings.NewReplacer(`/`, `_`, `\`, `_`, `:`, `_`, `*`, `_`, `?`, `_`, `"`, `_`, `<`, `_`, `>`, `_`, `|`, `_`)
+	name = replacer.Replace(name)
+	if name == "" {
+		return "panfleto"
+	}
+	if len(name) > 80 {
+		name = name[:80]
+	}
+	return name
 }
