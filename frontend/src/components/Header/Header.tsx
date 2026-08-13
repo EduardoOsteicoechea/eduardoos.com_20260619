@@ -27,6 +27,7 @@ const NAV_LINKS = [
     { href: APP_ROUTES.home, label: "Home" },
     { href: APP_ROUTES.mediaPlaylist, label: "Música" },
     { href: APP_ROUTES.pamphlet, label: "Panfleto" },
+    { href: APP_ROUTES.articles, label: "Artículos" },
     { href: APP_ROUTES.apsAdmin, label: "APS" },
     { href: APP_ROUTES.edebat, label: "Edebat" },
     { href: APP_ROUTES.subscription, label: "Subscribe" },

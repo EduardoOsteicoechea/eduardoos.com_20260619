@@ -1,0 +1,13 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ArticleView from "../../components/Articles/ArticleView";
+
+const { id } = Astro.params;
+const epamId = id ?? "";
+---
+
+<BaseLayout title="Artículo — Eduardo Osteicoechea" requireAuth>
+  <div class="page-shell" data-page="articulo">
+    {epamId ? <ArticleView client:load epamId={epamId} /> : <p>Artículo no encontrado.</p>}
+  </div>
+</BaseLayout>

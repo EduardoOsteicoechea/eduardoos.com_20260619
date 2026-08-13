@@ -10,6 +10,8 @@ export const APP_ROUTES = {
     mediaGallery: "/media/gallery",
     mediaPlaylist: "/media/musica",
     pamphlet: "/documents/pamphlet",
+    articles: "/articulos",
+    article: (id: string) => `/articulos/${encodeURIComponent(id)}`,
     apsAdmin: "/aps-admin",
     edebat: "/edebat",
 } as const;
@@ -39,6 +41,12 @@ export const EPAM_ROUTES = {
     list: "/api/epams",
     save: "/api/epams",
     item: (epamId: string) => `/api/epams/${encodeURIComponent(epamId)}`,
+} as const;
+export const ARTICLE_ROUTES = {
+    list: "/api/articles",
+    item: (epamId: string) => `/api/articles/${encodeURIComponent(epamId)}`,
+    quiz: (epamId: string) => `/api/articles/${encodeURIComponent(epamId)}/quiz`,
+    ask: (epamId: string) => `/api/articles/${encodeURIComponent(epamId)}/ask`,
 } as const;
 export const DOCUMENT_ROUTES = {
     pamphletPdf: "/api/documents/pamphlet/pdf",

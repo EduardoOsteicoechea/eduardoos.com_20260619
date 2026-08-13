@@ -123,6 +123,7 @@ func Run(addr string) error {
 	r.Get("/api/media/file/*", cfg.proxyMediaFile())
 	registerPlaylistRoutes(r, cfg, playlistStore)
 	registerEpamRoutes(r, cfg, epamStore)
+	registerArticleRoutes(r, cfg, epamStore)
 	registerEdebatRoutes(r, cfg, edebatStore)
 	registerDocumentsRoutes(r, cfg)
 	registerEmusicRoutes(r, cfg)

@@ -34,24 +34,34 @@ func loadDeepseekConfig() deepseekConfig {
 }
 
 type llmRequest struct {
-	Role        string   `json:"role"` // expert | referee | final
+	Role        string   `json:"role"` // expert | referee | final | quiz | article_qa
 	Topic       string   `json:"topic"`
 	Rules       []string `json:"rules"`
 	History     []string `json:"history"`
 	UserArg     string   `json:"userArg"`
 	OpponentArg string   `json:"opponentArg"`
+	ArticleText string   `json:"articleText,omitempty"`
 	Unlimited   bool     `json:"unlimited,omitempty"`
 }
 
 type llmResponse struct {
-	Text            string `json:"text,omitempty"`
-	ChallengerScore int    `json:"challengerScore,omitempty"`
-	OpponentScore   int    `json:"opponentScore,omitempty"`
-	Analysis        string `json:"analysis,omitempty"`
-	WinnerSummary   string `json:"winnerSummary,omitempty"`
-	Winner          string `json:"winner,omitempty"`
-	Surrender       bool   `json:"surrender,omitempty"`
-	Knockout        bool   `json:"knockout,omitempty"`
+	Text            string         `json:"text,omitempty"`
+	ChallengerScore int            `json:"challengerScore,omitempty"`
+	OpponentScore   int            `json:"opponentScore,omitempty"`
+	Analysis        string         `json:"analysis,omitempty"`
+	WinnerSummary   string         `json:"winnerSummary,omitempty"`
+	Winner          string         `json:"winner,omitempty"`
+	Surrender       bool           `json:"surrender,omitempty"`
+	Knockout        bool           `json:"knockout,omitempty"`
+	Questions       []quizQuestion `json:"questions,omitempty"`
+}
+
+type quizQuestion struct {
+	ID          string   `json:"id"`
+	Prompt      string   `json:"prompt"`
+	Choices     []string `json:"choices"`
+	AnswerIndex int      `json:"answerIndex"`
+	Explanation string   `json:"explanation"`
 }
 
 type chatCompletionRequest struct {
@@ -120,8 +130,12 @@ func handleLLM(cfg deepseekConfig) http.HandlerFunc {
 			out, err = callReferee(ctx, cfg, req, false)
 		case "final":
 			out, err = callReferee(ctx, cfg, req, true)
+		case "quiz":
+			out, err = callQuiz(ctx, cfg, req)
+		case "article_qa":
+			out, err = callArticleQA(ctx, cfg, req)
 		default:
-			common.WriteError(w, http.StatusBadRequest, "role must be expert, referee, or final")
+			common.WriteError(w, http.StatusBadRequest, "role must be expert, referee, final, quiz, or article_qa")
 			return
 		}
 		if err != nil {
@@ -212,6 +226,118 @@ When knockout=true, winner must be "challenger" or "opponent" and winnerSummary 
 		}
 	}
 	return parsed, nil
+}
+
+func callQuiz(ctx context.Context, cfg deepseekConfig, req llmRequest) (llmResponse, error) {
+	article := strings.TrimSpace(req.ArticleText)
+	if article == "" {
+		article = strings.TrimSpace(req.OpponentArg)
+	}
+	if article == "" {
+		return llmResponse{}, fmt.Errorf("articleText is required for quiz")
+	}
+	if len(article) > 24000 {
+		article = article[:24000]
+	}
+	title := strings.TrimSpace(req.Topic)
+	system := `You are an educational quiz author for Spanish spiritual / Bible-study articles.
+Create an EXHAUSTIVE multiple-choice quiz that covers the article's main claims, definitions, examples, and conclusions.
+Respond with ONLY compact JSON (no markdown):
+{"questions":[{"id":"q1","prompt":"...","choices":["A","B","C","D"],"answerIndex":0,"explanation":"..."}]}
+Rules:
+- Language: Spanish
+- 8 to 15 questions when the article is long enough; fewer only if the text is very short
+- Exactly 4 choices per question
+- answerIndex is 0-based
+- explanations teach why the answer is correct
+- Do not invent facts absent from the article`
+	user := "Title: " + title + "\n\nArticle:\n" + article + "\n\nGenerate the quiz JSON now."
+	content, err := deepseekChat(ctx, cfg, cfg.ExpertModel, system, user, false, "")
+	if err != nil {
+		return llmResponse{}, err
+	}
+	questions, err := parseQuizJSON(content)
+	if err != nil {
+		return llmResponse{}, err
+	}
+	return llmResponse{Questions: questions}, nil
+}
+
+func callArticleQA(ctx context.Context, cfg deepseekConfig, req llmRequest) (llmResponse, error) {
+	article := strings.TrimSpace(req.ArticleText)
+	if article == "" {
+		article = strings.TrimSpace(req.OpponentArg)
+	}
+	question := strings.TrimSpace(req.UserArg)
+	if article == "" || question == "" {
+		return llmResponse{}, fmt.Errorf("articleText and userArg (question) are required")
+	}
+	if len(article) > 24000 {
+		article = article[:24000]
+	}
+	system := `You are a careful tutor answering questions about one article.
+Use ONLY the provided article as context. If the answer is not in the article, say so briefly.
+Reply in Spanish, concise, clear prose (no JSON).`
+	var b strings.Builder
+	b.WriteString("Article title: ")
+	b.WriteString(strings.TrimSpace(req.Topic))
+	b.WriteString("\n\nArticle:\n")
+	b.WriteString(article)
+	if len(req.History) > 0 {
+		b.WriteString("\n\nPrior Q&A:\n")
+		for _, line := range req.History {
+			b.WriteString(line)
+			b.WriteByte('\n')
+		}
+	}
+	b.WriteString("\n\nQuestion:\n")
+	b.WriteString(question)
+	content, err := deepseekChat(ctx, cfg, cfg.ExpertModel, system, b.String(), false, "")
+	if err != nil {
+		return llmResponse{}, err
+	}
+	return llmResponse{Text: strings.TrimSpace(content)}, nil
+}
+
+func parseQuizJSON(content string) ([]quizQuestion, error) {
+	trimmed := strings.TrimSpace(content)
+	trimmed = strings.TrimPrefix(trimmed, "```json")
+	trimmed = strings.TrimPrefix(trimmed, "```")
+	trimmed = strings.TrimSuffix(trimmed, "```")
+	trimmed = strings.TrimSpace(trimmed)
+	start := strings.Index(trimmed, "{")
+	end := strings.LastIndex(trimmed, "}")
+	if start >= 0 && end > start {
+		trimmed = trimmed[start : end+1]
+	}
+	var wrapper struct {
+		Questions []quizQuestion `json:"questions"`
+	}
+	if err := json.Unmarshal([]byte(trimmed), &wrapper); err != nil {
+		return nil, fmt.Errorf("quiz json: %w", err)
+	}
+	if len(wrapper.Questions) == 0 {
+		return nil, fmt.Errorf("quiz json: empty questions")
+	}
+	out := make([]quizQuestion, 0, len(wrapper.Questions))
+	for i, q := range wrapper.Questions {
+		q.Prompt = strings.TrimSpace(q.Prompt)
+		q.Explanation = strings.TrimSpace(q.Explanation)
+		if q.Prompt == "" || len(q.Choices) < 2 {
+			continue
+		}
+		if q.ID == "" {
+			q.ID = fmt.Sprintf("q%d", i+1)
+		}
+		if q.AnswerIndex < 0 || q.AnswerIndex >= len(q.Choices) {
+			q.AnswerIndex = 0
+		}
+		out = append(out, q)
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("quiz json: no valid questions")
+	}
+	return out, nil
 }
 
 func buildDebatePrompt(req llmRequest) string {

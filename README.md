@@ -111,10 +111,13 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | Monthly Basic Subscription | `/payments/subscription/montly/basic` |
 | Edebat (admin allowlist) | `/edebat` |
 | Pamphlet editor | `/documents/pamphlet` |
+| Artículos | `/articulos`, `/articulos/:id` |
 
 Authenticated Edebat APIs (JWT + `eduardooost@gmail.com`): `GET/POST /api/edebat`, `GET/PUT /api/edebat/:id`, `POST /api/edebat/:id/turn`. Bodies persist as `.edebat` under `media/edebats/{email}/` via S3; LLM turns use the chatbot service + DeepSeek (`DEEPSEEK_*`).
 
 Authenticated pamphlet PDF: `POST /api/documents/pamphlet/pdf` (JWT) → `documents` service `POST /pamphlet`. Body is the `.epam` pamphlet JSON; response is a two-page US Letter landscape PDF (279.4 × 215.9 mm, column width 60.35 mm) built by `pkg/pdf.BuildPamphletPDF` (no external PDF libs). Imprimir on the editor downloads that attachment; browser `window.print()` remains commented as fallback.
+
+Authenticated articles (JWT): `GET /api/articles`, `GET /api/articles/:epamId`, `GET /api/articles/:epamId/quiz` (DeepSeek quiz cached as `media/epams/{user}/{id}.quiz.json` beside the `.epam`; regenerates only when article text hash changes), `POST /api/articles/:epamId/ask` (Q&A with article context).
 
 ## Development Tests
 
