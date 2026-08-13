@@ -42,7 +42,7 @@ verify_node_modules() {
     "node_modules/react/package.json"
     "node_modules/react-dom/package.json"
     "node_modules/@astrojs/react/package.json"
-    "node_modules/toastify-js/package.json"
+    "node_modules/localforage/package.json"
   )
   local missing=0
   local path
