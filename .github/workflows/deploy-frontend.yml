@@ -2,6 +2,10 @@ name: CI/CD — Frontend fast deploy
 
 # Frontend-only changes: build check in CI, then rebuild static assets on EC2
 # without backend/Docker rebuilds.
+#
+# Mixed commits (frontend + backend) also match `paths:` below, but must NOT
+# take the shared EC2 lock — that cancelled the full deploy and skipped both
+# remotes. A gate job decides; only frontend-only pushes run the EC2 deploy job.
 
 on:
   push:
@@ -12,12 +16,6 @@ on:
       - "deploy/ec2/deploy-frontend-remote.sh"
       - ".github/workflows/deploy-frontend.yml"
   workflow_dispatch:
-
-concurrency:
-  # Share the EC2 deploy lock with the full deploy workflow so concurrent
-  # npm installs cannot corrupt frontend/node_modules on the same host.
-  group: deploy-ec2
-  cancel-in-progress: true
 
 jobs:
   build:
@@ -36,30 +34,46 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  deploy:
-    name: Deploy frontend to EC2
-    needs: build
+  # No deploy-ec2 concurrency here — mixed pushes must leave the lock free for deploy.yml.
+  gate:
+    name: Frontend-only gate
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    outputs:
+      deploy: ${{ steps.check.outputs.deploy }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-
-      - name: Skip when full EC2 deploy already covers this push
-        id: gate
+      - name: Decide whether this push should touch EC2
+        id: check
         run: |
-          # Mixed commits (frontend + backend) trigger deploy.yml too. Skip the
-          # fast path so only one remote npm build runs.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch — frontend fast deploy owns EC2."
+            exit 0
+          fi
+          # Same allowlist as paths: + markdown; anything else ⇒ full deploy.yml owns EC2.
           if git diff --name-only HEAD~1 HEAD | grep -Ev '^(frontend/|deploy/ec2/build-frontend\.sh|deploy/ec2/deploy-frontend-remote\.sh|\.github/workflows/deploy-frontend\.yml|.*\.md$)' | grep -q .; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Non-frontend paths changed — full deploy workflow owns EC2."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Non-frontend paths changed — skipping EC2; full deploy workflow owns the host."
           else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Frontend-only push — fast deploy may update EC2."
           fi
 
+  deploy:
+    name: Deploy frontend to EC2
+    needs: [build, gate]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && needs.gate.outputs.deploy == 'true'
+    # Only the job that SSHs to EC2 shares the lock with deploy.yml.
+    concurrency:
+      group: deploy-ec2
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Validate required secrets
-        if: steps.gate.outputs.skip != 'true'
         run: |
           missing=0
           for name in EC2_HOST EC2_USER EC2_SSH_PRIVATE_KEY; do
@@ -75,7 +89,6 @@ jobs:
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
       - name: Configure SSH
-        if: steps.gate.outputs.skip != 'true'
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
@@ -87,7 +100,6 @@ jobs:
           echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o ServerAliveInterval=30 -o ServerAliveCountMax=60" >> "$GITHUB_ENV"
 
       - name: Upload frontend deploy script
-        if: steps.gate.outputs.skip != 'true'
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -98,7 +110,6 @@ jobs:
             "${EC2_USER}@${EC2_HOST}:/tmp/"
 
       - name: Run frontend-only remote deploy
-        if: steps.gate.outputs.skip != 'true'
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
