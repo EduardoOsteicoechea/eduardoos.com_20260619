@@ -8,11 +8,6 @@ export default defineConfig({
   build: {
     assets: "assets",
   },
-  vite: {
-    optimizeDeps: {
-      include: ["toastify-js"],
-    },
-  },
   server: {
     port: 4321,
     /** Proxy API to nginx when Docker stack is up (https://localhost). */

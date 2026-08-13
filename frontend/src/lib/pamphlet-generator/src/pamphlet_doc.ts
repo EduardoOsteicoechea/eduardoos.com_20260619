@@ -181,8 +181,17 @@ export function applyBoldRange(
     if (item.type === "image") return;
     const a = Math.max(0, Math.min(start, end));
     const b = Math.min(item.content.length, Math.max(start, end));
+    if (b <= a) return;
     const styles = structuredClone(item.style_indexes) as StyleIndexes;
-    styles[0] = [a, b];
+    const [bs, be] = styles[0] ?? [0, 0];
+    const hasBold = Number.isFinite(bs) && Number.isFinite(be) && be > bs;
+    // Selection overlaps existing bold → clear bold; otherwise bold the selection.
+    const selectionHasBold = hasBold && !(be <= a || bs >= b);
+    if (selectionHasBold) {
+        styles[0] = [0, 0];
+    } else {
+        styles[0] = [a, b];
+    }
     item.style_indexes = styles;
 }
 

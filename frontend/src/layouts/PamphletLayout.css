@@ -3,14 +3,24 @@
  * Centers the letter sheet; restores fixed chrome broken by .pamphlet-app * { position: relative }.
  */
 
+html:has(body.page-pamphlet) {
+  /* Chrome/Safari pull-to-refresh listens on the root scroller */
+  overscroll-behavior-y: none;
+  overscroll-behavior: none;
+}
+
 body.page-pamphlet {
   max-width: none;
   width: 100%;
   margin: 0;
   overflow-x: auto;
   overflow-y: auto;
+  /* Kill browser pull-to-refresh / overscroll reload at top of page */
+  overscroll-behavior-y: none;
+  overscroll-behavior: none;
   background: var(--site-body-bg);
   color: var(--site-body-fg);
+  -webkit-overflow-scrolling: touch;
 }
 
 .pamphlet-layout-workspace {

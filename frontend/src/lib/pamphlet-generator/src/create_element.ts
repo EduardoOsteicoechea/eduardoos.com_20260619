@@ -194,8 +194,33 @@ function editTray(
     const editTrayButtonsTray = document.createElement("div");
     editTrayButtonsTray.className = "element_edit_tray_buttons_container";
 
+    let onOutsidePointer: (e: PointerEvent) => void = () => {};
+
+    const detachOutsideListener = () => {
+        document.removeEventListener("pointerdown", onOutsidePointer, true);
+    };
+
     const saveAndClose = () => {
+        detachOutsideListener();
         dispatchTrayAction(elContainer, { action: "close", container: elContainer });
+    };
+
+    const dispatchRemountAction = (detail: PamphletTrayAction) => {
+        // Remount paths destroy this tray — drop the outside listener first.
+        detachOutsideListener();
+        dispatchTrayAction(elContainer, detail);
+    };
+
+    onOutsidePointer = (e: PointerEvent) => {
+        if (!tray.isConnected) {
+            detachOutsideListener();
+            return;
+        }
+        const target = e.target as Node | null;
+        if (!target) return;
+        if (tray.contains(target)) return;
+        // Click outside the edit tray → same as OK / save-and-close.
+        saveAndClose();
     };
 
     const editTrayCloseButton = document.createElement("button");
@@ -224,7 +249,7 @@ function editTray(
             setImageHeightMm(elContainer, initialHeightMm);
             return;
         }
-        dispatchTrayAction(elContainer, { action: "undo", container: elContainer });
+        dispatchRemountAction({ action: "undo", container: elContainer });
     });
 
     editTrayButtonsTray.appendChild(editTrayCloseButton);
@@ -235,32 +260,32 @@ function editTray(
         const upButton = document.createElement("button");
         setButtonIcon(upButton, ICONS.arrowUp, "Move up");
         upButton.addEventListener("click", () => {
-            dispatchTrayAction(elContainer, { action: "move-up", container: elContainer });
+            dispatchRemountAction({ action: "move-up", container: elContainer });
         });
 
         const downButton = document.createElement("button");
         setButtonIcon(downButton, ICONS.arrowDown, "Move down");
         downButton.addEventListener("click", () => {
-            dispatchTrayAction(elContainer, { action: "move-down", container: elContainer });
+            dispatchRemountAction({ action: "move-down", container: elContainer });
         });
 
         const addUpButton = document.createElement("button");
         setButtonIcon(addUpButton, ICONS.addRowAbove, "Add above");
         addUpButton.addEventListener("click", () => {
-            dispatchTrayAction(elContainer, { action: "add-above", container: elContainer });
+            dispatchRemountAction({ action: "add-above", container: elContainer });
         });
 
         const addDownButton = document.createElement("button");
         setButtonIcon(addDownButton, ICONS.addRowBelow, "Add below");
         addDownButton.addEventListener("click", () => {
-            dispatchTrayAction(elContainer, { action: "add-below", container: elContainer });
+            dispatchRemountAction({ action: "add-below", container: elContainer });
         });
 
         const deleteButton = document.createElement("button");
         setButtonIcon(deleteButton, ICONS.delete, "Delete");
         deleteButton.classList.add("edit_tray_delete_button");
         deleteButton.addEventListener("click", () => {
-            dispatchTrayAction(elContainer, { action: "delete", container: elContainer });
+            dispatchRemountAction({ action: "delete", container: elContainer });
         });
 
         editTrayButtonsTray.appendChild(upButton);
@@ -277,7 +302,7 @@ function editTray(
             enboldButton.title = "Bold";
             enboldButton.addEventListener("click", () => {
                 if (!editTrayTextArea) return;
-                dispatchTrayAction(elContainer, {
+                dispatchRemountAction({
                     action: "bold",
                     container: elContainer,
                     start: editTrayTextArea.selectionStart,
@@ -389,4 +414,9 @@ function editTray(
             }
         });
     }
+
+    // Defer so the opening click does not immediately close the tray.
+    requestAnimationFrame(() => {
+        document.addEventListener("pointerdown", onOutsidePointer, true);
+    });
 }

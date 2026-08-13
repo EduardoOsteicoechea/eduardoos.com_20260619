@@ -264,54 +264,7 @@
   background: #333;
 }
 
-/* Toastify — top-left status toasts */
-.app-toast.toastify {
-  max-width: min(560px, calc(100vw - 24px));
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.35;
-  letter-spacing: 0.01em;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  max-height: min(50vh, 320px);
-  overflow-y: auto;
-  box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.16),
-    0 1px 0 rgba(255, 255, 255, 0.08) inset;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid transparent;
-  zoom: 0.5;
-}
-
-@media (max-width: 1023px) {
-  .app-toast.toastify {
-    zoom: 0.5;
-    padding-top: 6px;
-    padding-bottom: 6px;
-  }
-}
-
-.app-toast--info.toastify {
-  background: linear-gradient(135deg, rgba(28, 28, 30, 0.92), rgba(45, 45, 48, 0.9));
-  color: #f5f5f7;
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-.app-toast--success.toastify {
-  background: linear-gradient(135deg, rgba(16, 90, 54, 0.95), rgba(22, 120, 70, 0.9));
-  color: #f3fff7;
-  border-color: rgba(180, 255, 210, 0.18);
-}
-
-.app-toast--error.toastify {
-  background: linear-gradient(135deg, rgba(140, 20, 40, 0.96), rgba(176, 40, 55, 0.92));
-  color: #fff5f6;
-  border-color: rgba(255, 200, 210, 0.2);
-}
+/* Toastify removed — status UI disabled. */
 
 .pamphlet-app {
   /* US Letter landscape: 279.4mm × 215.9mm; two stacked sheets */
@@ -492,7 +445,7 @@
     width: 100%;
     min-width: 0;
     flex: 0 0 auto;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .pamphlet-header-meta-field {
@@ -504,6 +457,7 @@
     flex: 0 0 auto;
     width: max-content;
     white-space: nowrap;
+    overflow: visible;
 }
 
 .pamphlet-header-meta-label {
@@ -517,6 +471,12 @@
 .pamphlet-header-meta-field > .pamphlet-item {
     flex: 0 0 auto;
     width: auto;
+    min-width: 12mm;
+    overflow: visible;
+    /* Beat `.pamphlet-app * { border: none }` so meta fields read as inputs */
+    border: 1px solid #666 !important;
+    padding: 0.4mm 0.9mm !important;
+    background: #fff;
 }
 
 .pamphlet-header-field-hidden {
@@ -589,6 +549,8 @@
     font-size: 2.5mm;
     line-height: 1.2;
     opacity: 0.9;
+    overflow: visible;
+    color: inherit;
 }
 
 .pamphlet-image-frame {
@@ -660,6 +622,25 @@ p {
   font-size: 5mm;
   font-weight: 700;
   line-height: 1.1;
+  color: inherit;
+}
+
+/*
+  Headings must beat global headings.css (`h1 { color: var(--site-body-fg) }`).
+  That token is light in dark theme — on a white desktop sheet headings vanished.
+  Use inherit so desktop (#000 sheet) and mobile dark (column color) both work.
+*/
+.pamphlet-app main.pamphlet-sheet .pamphlet-item[data-item-type="heading_1"] h1,
+.pamphlet-app main.pamphlet-sheet .dumb-column h1,
+.pamphlet-app main.pamphlet-sheet h1 {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: visible;
+  font-size: 3.75mm;
+  font-weight: 700;
+  line-height: 1.2;
+  color: inherit;
 }
 
 .pamphlet-item[data-item-type="heading_1"] h1,
@@ -667,10 +648,11 @@ p {
   max-width: 100%;
   overflow-wrap: break-word;
   word-break: break-word;
-  overflow: hidden;
+  overflow: visible;
   font-size: 3.75mm;
   font-weight: 700;
   line-height: 1.2;
+  color: inherit;
 }
 
 /* Must beat `.pamphlet-app main.pamphlet-sheet * { position: relative }` or top:100%
@@ -692,6 +674,37 @@ p {
   background: #000;
   padding: 5px;
   align-items: center;
+}
+
+/* Desktop: compact edit-tray chrome (mobile keeps its own scaled rules). */
+.pamphlet-app[data-view-mode="desktop"] .element_edit_tray_buttons_container {
+  gap: 2px;
+  padding: 2px;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_icon_button,
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_close_button,
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_delete_button {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  padding: 1px;
+  border-radius: 2px;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_icon {
+  width: 14px;
+  height: 14px;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_text_button {
+  font-size: 11px;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_delete_button {
+  font-size: 10px;
+  padding: 1px 2px;
 }
 
 .edit_tray_icon_button{
@@ -1039,7 +1052,6 @@ p {
   .pamphlet-app .app-sidebar,
   .pamphlet-app .sidebar-backdrop,
   .pamphlet-app .menu-toggle,
-  .toastify,
   .pamphlet-app .pamphlet-add-item-button,
   .pamphlet-app .element_edit_tray {
     display: none !important;

@@ -117,6 +117,8 @@ Authenticated Edebat APIs (JWT + `eduardooost@gmail.com`): `GET/POST /api/edebat
 
 Authenticated pamphlet PDF: `POST /api/documents/pamphlet/pdf` (JWT) → `documents` service `POST /pamphlet`. Body is the `.epam` pamphlet JSON; response is a two-page US Letter landscape PDF (279.4 × 215.9 mm, column width 60.35 mm) built by `pkg/pdf.BuildPamphletPDF` (no external PDF libs). Imprimir on the editor downloads that attachment; browser `window.print()` remains commented as fallback.
 
+Editor UX (desktop): compact edit-tray button bar; click-outside saves/closes like OK; bold toggles off when the selection already overlaps bold; header meta fields show borders + `overflow: visible`; status toasts removed; pull-to-refresh/overscroll disabled on the pamphlet page.
+
 Authenticated articles (JWT): `GET /api/articles`, `GET /api/articles/:epamId`, `GET /api/articles/:epamId/quiz` (DeepSeek quiz cached as `media/epams/{user}/{id}.quiz.json` beside the `.epam`; regenerates only when article text hash changes), `POST /api/articles/:epamId/ask` (Q&A with article context).
 
 ## Development Tests

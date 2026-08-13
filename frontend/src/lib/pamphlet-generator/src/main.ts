@@ -1,6 +1,4 @@
 import "./style.css";
-import Toastify from "toastify-js";
-import "toastify-js/src/toastify.css";
 import { MENU_ICON } from "./icons";
 import { renderShell } from "./shell";
 import type { PamphletTrayAction } from "./create_element";
@@ -504,15 +502,7 @@ function syncFixedChromeScale(): void {
 type ToastKind = "info" | "success" | "error";
 
 function showToast(message: string, kind: ToastKind = "info"): void {
-    Toastify({
-        text: message,
-        duration: kind === "error" ? 20000 : 3200,
-        gravity: "top",
-        position: "left",
-        stopOnFocus: true,
-        close: true,
-        className: `app-toast app-toast--${kind}`,
-    }).showToast();
+    // Toasts disabled — keep console for errors only.
     if (kind === "error") {
         console.error("[pamphlet]", message);
     }
@@ -523,11 +513,11 @@ function setError(message: string): void {
 }
 
 function clearError(): void {
-    // Errors are ephemeral toasts; nothing persistent to clear.
+    // Status UI removed with toasts.
 }
 
-function setStatus(message: string, kind: ToastKind = "info"): void {
-    showToast(message, kind);
+function setStatus(_message: string, _kind: ToastKind = "info"): void {
+    // Status toasts removed.
 }
 
 function placeColumnAddButton(
