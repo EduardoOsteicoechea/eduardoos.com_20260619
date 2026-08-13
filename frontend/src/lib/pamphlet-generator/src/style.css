@@ -471,9 +471,16 @@
 .pamphlet-header-meta-field > .pamphlet-item {
     flex: 0 0 auto;
     width: auto;
-    min-width: 12mm;
+    min-width: 0;
     overflow: visible;
-    /* Beat `.pamphlet-app * { border: none }` so meta fields read as inputs */
+    border: none !important;
+    padding: 0 !important;
+    background: transparent;
+}
+
+/* Input chrome only while that meta field is being edited — not in pamphlet view. */
+.pamphlet-header-meta-field > .pamphlet-item:has(.element_edit_tray) {
+    min-width: 12mm;
     border: 1px solid #666 !important;
     padding: 0.4mm 0.9mm !important;
     background: #fff;
