@@ -30,7 +30,7 @@ import {
 } from "./pamphlet_file";
 import { fetchEpam, fetchEpams, saveEpamToCloud } from "../../epams";
 import { getAuthToken, isAuthenticated } from "../../auth";
-import { DOCUMENT_ROUTES } from "../../config/routes";
+import { DOCUMENT_ROUTES } from "../../../config/routes";
 import { createCorrelationId } from "../../telemetry";
 import {
     createAddItemButton,
