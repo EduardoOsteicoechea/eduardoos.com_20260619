@@ -21,9 +21,10 @@
   gap: 0.5rem;
   min-height: var(--header_bar_height);
   height: var(--header_bar_height);
-  padding: 0 1rem 0 0;
+  padding: 0 var(--page-inline-pad, 15px);
   position: relative;
   z-index: 140;
+  box-sizing: border-box;
 }
 
 .site-header__bar-spacer {
@@ -206,7 +207,7 @@ a.site-header__action.btn--primary:hover {
   height: 100vh;
   height: 100dvh;
   margin: 0;
-  padding: calc(var(--header_height, 55px) + 0.75rem) 1rem 1.25rem;
+  padding: calc(var(--header_height, 55px) + 0.75rem) var(--page-inline-pad, 15px) 1.25rem;
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
@@ -283,13 +284,13 @@ a.site-header__action.btn--primary:hover {
   display: none;
 }
 
-/* Phone: menu 10px from top + right; header height = 20px + button */
+/* Phone: menu 10px from top; 15px lateral via --page-inline-pad; header height = 20px + button */
 @media (max-width: 767px) {
   .site-header__bar {
     box-sizing: border-box;
     height: var(--header_bar_height);
     min-height: var(--header_bar_height);
-    padding: 10px 10px 10px 0;
+    padding: 10px var(--page-inline-pad, 15px);
     align-items: flex-start;
     justify-content: flex-end;
     gap: 0.35rem;

@@ -3,7 +3,8 @@
   width: 100%;
   max-width: min(100%, var(--max_desktop_width));
   margin-inline: auto;
-  padding: 1.5rem max(1.25rem, env(safe-area-inset-left)) 3rem max(1.25rem, env(safe-area-inset-right));
+  padding: 1.5rem max(var(--page-inline-pad, 15px), env(safe-area-inset-left)) 3rem
+    max(var(--page-inline-pad, 15px), env(safe-area-inset-right));
   overflow-x: clip;
 }
 

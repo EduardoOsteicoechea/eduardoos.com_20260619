@@ -21,7 +21,8 @@
   margin: 0 auto;
   min-height: var(--activity-bar-height);
   padding-block: 0.8rem;
-  padding-inline: max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-right));
+  padding-inline: max(var(--page-inline-pad, 15px), env(safe-area-inset-left))
+    max(var(--page-inline-pad, 15px), env(safe-area-inset-right));
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -177,7 +178,8 @@
     align-content: flex-start;
     gap: 0.35rem;
     height: 100%;
-    padding: 0.5rem max(1.25rem, env(safe-area-inset-left)) 0.5rem max(1.25rem, env(safe-area-inset-right));
+    padding: 0.5rem max(var(--page-inline-pad, 15px), env(safe-area-inset-left)) 0.5rem
+      max(var(--page-inline-pad, 15px), env(safe-area-inset-right));
     box-sizing: border-box;
     overflow-y: auto;
   }
@@ -191,6 +193,6 @@
 @media (min-width: 768px) {
   .site-activity-bar__shell {
     padding-block: 0;
-    padding-inline: 1.25rem;
+    padding-inline: var(--page-inline-pad, 15px);
   }
 }

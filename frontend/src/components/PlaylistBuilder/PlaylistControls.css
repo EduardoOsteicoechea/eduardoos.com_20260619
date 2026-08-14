@@ -23,7 +23,8 @@
   max-width: min(100%, var(--max_desktop_width));
   margin: 0 auto;
   padding-block: 0.8rem;
-  padding-inline: max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-right));
+  padding-inline: max(var(--page-inline-pad, 15px), env(safe-area-inset-left))
+    max(var(--page-inline-pad, 15px), env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -313,7 +314,7 @@
     gap: 0;
     min-height: 0;
     padding-block: 0.65rem;
-    padding-inline: 1.25rem;
+    padding-inline: var(--page-inline-pad, 15px);
   }
 
   .playlist-controls__deck {

@@ -49,8 +49,8 @@
   gap: 0.75rem;
   max-width: 36rem;
   margin-left: auto;
-  margin-right: 1.25rem;
-  padding: 1.5rem 1rem 2.5rem;
+  margin-right: var(--page-inline-pad, 15px);
+  padding: 1.5rem 0 2.5rem;
   color: var(--site-body-fg);
   background: transparent;
   animation: home-hero-copy-in 0.75s ease 0.12s both;
@@ -120,7 +120,7 @@
     z-index: 1;
     margin-top: 0.35rem;
     margin-left: calc(35vw + 10px);
-    margin-right: 1rem;
+    margin-right: var(--page-inline-pad, 15px);
     padding: 0 0 2rem;
     max-width: none;
     background: transparent;
