@@ -158,7 +158,7 @@ function toggleSidebar(): void {
 }
 
 /** Body column width in mm — never wider than print; scale down only if viewport is narrower. */
-const mobileColumnWidthMm = 60.35;
+const mobileColumnWidthMm = 57.85;
 
 function syncMobileViewScale(): void {
     if (viewMode !== "mobile") {
@@ -422,7 +422,7 @@ function ensureMeasureRoot(): { root: HTMLElement; column: HTMLElement } {
 
 /**
  * Layout height in CSS mm from offsetHeight (pre-transform), measured in the
- * dedicated 60.35mm sandbox when possible.
+ * dedicated 57.85mm sandbox when possible.
  */
 function measureLayoutHeightMm(el: HTMLElement): number {
     return convertPixelsToMillimeters(el.offsetHeight);
@@ -593,9 +593,9 @@ function reflowAndReport(container: HTMLElement) {
             page2ColHeightMm: columnContentHeightMm,
             page1RightColHeightMm, // cols 1–2: −header −gutter
             page1LeftColHeightMm, // cols 7–8: −footer gutter −footer
-            columnWidth: "60.35mm",
+            columnWidth: "57.85mm",
             pxToMmFactor: 25.4 / 96,
-            heightSource: "pamphlet-measure-root sandbox (60.35mm, pre-transform)",
+            heightSource: "pamphlet-measure-root sandbox (57.85mm, pre-transform)",
         },
         columns: [] as {
             columnIndex: number;

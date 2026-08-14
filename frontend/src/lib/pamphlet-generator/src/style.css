@@ -273,15 +273,16 @@
   --sheet-stack-height: 431.8mm; /* 215.9mm × 2 */
   --page-margin: 10mm;
   --col-gutter-narrow: 4mm;
-  --col-gutter-wide: 10mm;
+  /* Center fold gutter (page 1 left↔right / page 2 left↔right) */
+  --col-gutter-wide: 20mm;
   --page-header-height: 14mm;
   --page-footer-height: 37.5mm; /* 15mm × 2.5 */
   /* Page 1 body: 215.9 − 10 − 14 − 4 − 4 − 37.5 − 10 = 136.4mm */
   --page1-body-height: 136.4mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
-  /* Content column width: (279.4 − 10−4−10−4−10) / 4 = 60.35mm */
-  --column-content-width: 60.35mm;
+  /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
+  --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
   /* Cols 1–2 under header: 195.9 − 14 − 4 = 177.9mm */
@@ -432,7 +433,7 @@
 .pamphlet-page-header > .pamphlet-header-title {
     width: 100%;
     flex: 0 0 auto;
-    margin-bottom: 5px;
+    margin-bottom: 5mm;
 }
 
 .pamphlet-header-meta-bar {
@@ -985,7 +986,7 @@ p {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  /* Exact pamphlet body column width (60.35mm); never stretched wider */
+  /* Exact pamphlet body column width (57.85mm); never stretched wider */
   width: var(--column-content-width);
   max-width: var(--column-content-width);
   height: auto;

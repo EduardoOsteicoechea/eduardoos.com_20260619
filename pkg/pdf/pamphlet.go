@@ -4,7 +4,7 @@ package pdf
 //
 // Geometry matches the frontend sheet CSS exactly:
 //   page  279.4mm × 215.9mm (US Letter landscape)
-//   cols  60.35mm wide, gutters 4mm / 10mm, margins 10mm
+//   cols  57.85mm wide, gutters 4mm / 20mm (center), margins 10mm
 //   page1 left  cols 7–8 (154.4mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
@@ -31,13 +31,17 @@ const (
 	PamphletPageHeightMm = 215.9
 	PamphletMarginMm     = 10.0
 	PamphletGutterNarrow = 4.0
-	PamphletGutterWide   = 10.0
-	PamphletColWidthMm   = 60.35
-	PamphletHeaderHMm    = 14.0
-	PamphletFooterHMm    = 37.5
-	PamphletPage1BodyMm  = 136.4
-	PamphletPage2BodyMm  = 195.9
-	PamphletItemGapMm    = 2.5
+	// Center fold gutter (page 1 left↔right and page 2 left↔right).
+	PamphletGutterWide = 20.0
+	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
+	PamphletColWidthMm = 57.85
+	PamphletHeaderHMm  = 14.0
+	PamphletFooterHMm  = 37.5
+	PamphletPage1BodyMm = 136.4
+	PamphletPage2BodyMm = 195.9
+	PamphletItemGapMm   = 2.5
+	// Vertical gap between header title and the metadata row below it.
+	PamphletHeaderTitleMetaGapMm = 5.0
 	// Extra space above heading_1 when it follows another item (PDF looks flush without this).
 	PamphletHeadingMarginTopMm = 3.0
 	// Helvetica average glyph width ≈ 0.50 × size. Using 0.35 let wrapped lines
@@ -349,9 +353,11 @@ func buildPage2Content(doc PamphletDocument, images map[string]*pdfImage) string
 }
 
 func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm float64) {
+	// Title baseline near the top of the 14mm header band (CSS title is 5mm).
 	y := top - 4.5
 	writeText(s, "F2", 14, x, y, width, h.Title)
-	y -= 3.5
+	// 5mm margin between title and the metadata row (matches CSS margin-bottom).
+	y -= PamphletHeaderTitleMetaGapMm
 	meta := strings.TrimSpace(strings.Join([]string{
 		nonEmpty(h.Subtitle),
 		nonEmpty(h.Author),
