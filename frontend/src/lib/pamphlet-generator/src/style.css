@@ -695,7 +695,8 @@ p {
 /* Desktop: shrink edit-tray chrome so the full button row fits the 57.85mm column.
    Mobile keeps its own scaled rules (larger touch targets). */
 .pamphlet-app[data-view-mode="desktop"] .element_edit_tray {
-  --edit-tray-ctrl-size: 16px;
+  /* 16px × 0.75 — fit narrower desktop columns without overflowing */
+  --edit-tray-ctrl-size: 12px;
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -727,16 +728,16 @@ p {
 }
 
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_icon {
-  width: 11px;
-  height: 11px;
+  width: 8px;
+  height: 8px;
 }
 
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_text_button {
-  font-size: 10px;
+  font-size: 8px;
 }
 
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_delete_button {
-  font-size: 9px;
+  font-size: 7px;
   padding: 0;
 }
 
@@ -799,7 +800,7 @@ p {
   font-family: Arial, sans-serif;
   padding: 5px;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 0;
   background: #fff;
   color: #000;
   overflow: auto;
