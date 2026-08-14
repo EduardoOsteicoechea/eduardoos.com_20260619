@@ -44,8 +44,9 @@ const (
 	// spill into the next column (visible overlap in the downloaded PDF).
 	helveticaAvgGlyph = 0.50
 	// Body / heading sizes used when compensating image→text spacing (PDF y is baseline).
-	pamphletBodySizePt    = 7.1
-	pamphletHeadingSizePt = 10.6
+	// Match CSS: paragraph 3mm, heading_1 4.25mm (mm * 72/25.4).
+	pamphletBodySizePt    = 8.5
+	pamphletHeadingSizePt = 12.05
 	pamphletFooterBodyPt  = 7.0
 	pamphletFooterHeadPt  = 9.0
 )

@@ -615,16 +615,16 @@ p {
   overflow-wrap: break-word;
   word-break: break-word;
   overflow: hidden;
-  font-size: 2.5mm;
+  font-size: 3mm;
   line-height: 1.25;
 }
 
-/* Bold in a paragraph stays body size (2.5mm) — never heading scale (3.75mm). */
+/* Bold in a paragraph stays body size (3mm) — never heading scale (4.25mm). */
 .pamphlet-app .pamphlet-item[data-item-type="paragraph"] p b,
 .pamphlet-app .pamphlet-item[data-item-type="paragraph"] p strong,
 .pamphlet-app .pamphlet-item[data-item-type="paragraph"] b,
 .pamphlet-app .pamphlet-item[data-item-type="paragraph"] strong {
-  font-size: 2.5mm;
+  font-size: 3mm;
   font-weight: 700;
   line-height: 1.25;
 }
@@ -649,7 +649,7 @@ p {
   overflow-wrap: break-word;
   word-break: break-word;
   overflow: visible;
-  font-size: 3.75mm;
+  font-size: 4.25mm;
   font-weight: 700;
   line-height: 1.2;
   color: inherit;
@@ -661,7 +661,7 @@ p {
   overflow-wrap: break-word;
   word-break: break-word;
   overflow: visible;
-  font-size: 3.75mm;
+  font-size: 4.25mm;
   font-weight: 700;
   line-height: 1.2;
   color: inherit;

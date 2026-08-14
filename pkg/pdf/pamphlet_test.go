@@ -61,7 +61,7 @@ func TestToWinAnsiSpanish(t *testing.T) {
 
 func TestWrapWordsStaysInsideColumn(t *testing.T) {
 	text := toWinAnsi("Ignorar el enfoque correcto puede hacer que destruyas tu vida con la Biblia.")
-	sizePt := 7.1
+	sizePt := 8.5
 	maxW := MmToPoints(PamphletColWidthMm)
 	lines := wrapWordsToWidth(text, sizePt, maxW)
 	charW := sizePt * helveticaAvgGlyph
