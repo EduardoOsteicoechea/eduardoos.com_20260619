@@ -14,7 +14,9 @@
   --site-border: var(--site-medium);
   --glassed_background: var(--site-body-bg);
   --site-surface-muted: var(--site-body-bg);
-  --site-muted-fg: var(--site-body-fg);
+  --site-muted-fg: color-mix(in srgb, var(--site-body-fg) 55%, var(--site-body-bg) 45%);
+  /* Meta under titles: clearer secondary line that adapts to light and dark */
+  --site-meta-fg: color-mix(in srgb, var(--site-body-fg) 72%, var(--site-body-bg) 28%);
   --site-chrome-bar-bg: var(--site-body-bg);
   --site-chrome-bar-fg: var(--site-body-fg);
   --site-chrome-bar-border: var(--site-border);

@@ -54,7 +54,7 @@
 
 .articles__card-meta {
   font-size: 0.9rem;
-  opacity: 0.75;
+  color: var(--site-meta-fg);
 }
 
 .articles__status,

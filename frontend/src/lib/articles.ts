@@ -5,7 +5,7 @@ import { createCorrelationId } from "./telemetry";
 import type { EpamRecord } from "./epams";
 
 export interface ArticleBlock {
-    type: "heading_1" | "paragraph" | "image";
+    type: "heading_1" | "paragraph" | "image" | "meta";
     content: string;
 }
 

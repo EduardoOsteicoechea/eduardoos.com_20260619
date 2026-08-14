@@ -145,6 +145,13 @@ export default function ArticleView() {
               </h2>
             );
           }
+          if (block.type === "meta") {
+            return (
+              <p key={i} className="article-view__meta">
+                {block.content}
+              </p>
+            );
+          }
           if (block.type === "image") {
             return (
               <figure key={i} className="article-view__figure">

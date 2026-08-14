@@ -61,7 +61,7 @@ type Item struct {
 
 // Block is one rendered article segment for the frontend.
 type Block struct {
-	Type    string `json:"type"` // heading_1 | paragraph | image
+	Type    string `json:"type"` // heading_1 | paragraph | image | meta
 	Content string `json:"content"`
 }
 
@@ -93,7 +93,7 @@ func BlocksInReadingOrder(doc PamphletLite) []Block {
 		}
 	}
 	if len(metaBits) > 0 {
-		out = append(out, Block{Type: "paragraph", Content: strings.Join(metaBits, " · ")})
+		out = append(out, Block{Type: "meta", Content: strings.Join(metaBits, " · ")})
 	}
 	for _, col := range [][]Item{
 		doc.Column1, doc.Column2, doc.Column3, doc.Column4,
