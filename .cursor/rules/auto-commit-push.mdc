@@ -1,0 +1,28 @@
+---
+description: Mandatory commit+push after agentic work; never after plan-only; opt-out only if prompt says so
+alwaysApply: true
+---
+
+# Mandatory commit & push after agentic completion
+
+This rule **overrides** any preference that says “only commit when asked.”
+
+## Must commit + push
+When an **agentic action completes** (implementation, fix, refactor, config, or any durable repo change), before ending the turn:
+
+1. Check `git status`, `git diff`, recent `git log`
+2. Stage relevant files (never `.env` / secrets)
+3. Commit with a concise why-focused message
+4. `git push` to the tracked remote
+
+Do this even if the user did not say “commit” or “push.”
+
+## Must NOT commit/push
+- **Plan-only turns**: Plan mode / Phase 1 / design checklist with **no** repo mutations
+- **Explicit prompt opt-out** only: `no commit`, `don't commit`, `sin commit`, `no push`, `don't push`, `sin push`, `do not commit or push` (that turn only)
+
+## Edges
+- Clean tree → no empty commit; still verify status
+- Hook failure → fix and new commit (no amend unless commit-safety rules allow)
+- No force-push to main/master unless explicitly requested
+- Never update git config

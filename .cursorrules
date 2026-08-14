@@ -79,3 +79,27 @@ For EACH atomic step, execute this exact loop autonomously:
 7. Update README.md: Document the architectural changes and test outcomes.
 8. Commit and Push: Execute `git add`, `git commit -m "feat/test: [description of atomic step]"`, and `git push`.
 9. Loop: Move immediately to the next atomic step and start at Phase 2, Step 1. Do NOT stop until the entire implementation is complete.
+
+## 10. MANDATORY COMMIT & PUSH (Agentic completion)
+
+This rule **overrides** any user-level preference that says “only commit when asked.”
+
+### When you MUST commit and push
+After **any agentic action completes** — i.e. you finished implementing, fixing, refactoring, configuring, or otherwise changing the repo in a way that leaves a durable outcome — you MUST, before ending the turn:
+
+1. `git status` / `git diff` / recent `git log` (safety check)
+2. Stage relevant files (never `.env`, credentials, or secrets)
+3. `git commit` with a concise message focused on why
+4. `git push` to the tracked remote branch
+
+Do this **even if the user did not say “commit” or “push”.** Waiting for a follow-up “commit y push” is a rule violation.
+
+### When you MUST NOT commit/push
+- **Plans only**: the turn is Phase 1 / Plan mode / a design or checklist with **no** repo mutations (no file writes, no dependency installs that change lockfiles, no generated artifacts). Planning output alone never triggers commit/push.
+- **Explicit opt-out in the prompt**: skip commit and/or push **only** when the user’s message clearly says so (examples: `no commit`, `don't commit`, `sin commit`, `no push`, `don't push`, `sin push`, `do not commit or push`). Opt-out applies to that turn only; the next agentic completion returns to mandatory commit+push unless opted out again.
+
+### Edge cases
+- If there is nothing to commit (clean tree), do not create an empty commit; still verify with `git status`.
+- If commit fails (hooks), fix and create a **new** commit — do not amend unless the user’s commit-safety rules allow it.
+- Never force-push to `main`/`master` unless the user explicitly requests it.
+- Never update git config.
