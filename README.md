@@ -118,6 +118,7 @@ Home skill cards open a modal media viewer + timed checkbox gate (hold ~5s) befo
 | Edebat (admin allowlist) | `/edebat` |
 | Pamphlet editor | `/documents/pamphlet` |
 | Artículos | `/articulos`, `/articulos/ver?id=` |
+| Homescool | `/homescool` (artículos desde panfletos, recursos, formulario de interés → correo/WhatsApp) |
 | Contacto | `/contact` (email, WhatsApp `wa.me/584147281033`, agent chat) |
 
 Authenticated Edebat APIs (JWT + `eduardooost@gmail.com`): `GET/POST /api/edebat`, `GET/PUT /api/edebat/:id`, `POST /api/edebat/:id/turn`. Bodies persist as `.edebat` under `media/edebats/{email}/` via S3; LLM turns use the chatbot service + DeepSeek (`DEEPSEEK_*`).

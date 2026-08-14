@@ -13,6 +13,7 @@ export const APP_ROUTES = {
     pamphlet: "/documents/pamphlet",
     articles: "/articulos",
     article: (id: string) => `/articulos/ver?id=${encodeURIComponent(id)}`,
+    homescool: "/homescool",
     apsAdmin: "/aps-admin",
     edebat: "/edebat",
 } as const;

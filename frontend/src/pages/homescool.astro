@@ -1,0 +1,17 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import HomescoolPage from "../components/Homescool/HomescoolPage";
+---
+
+<BaseLayout title="Homescool — Eduardo Osteicoechea">
+  <HomescoolPage client:load />
+</BaseLayout>
+
+<script is:inline>
+  (function () {
+    var path = location.pathname.replace(/\/$/, "") || "/";
+    if (path !== "/homescool") return;
+    if (document.querySelector(".homescool-page")) return;
+    location.reload();
+  })();
+</script>

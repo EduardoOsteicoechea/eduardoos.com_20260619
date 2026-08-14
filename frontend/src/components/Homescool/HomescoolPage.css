@@ -1,0 +1,63 @@
+.homescool-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+  width: 100%;
+  max-width: var(--max_desktop_width, 1100px);
+  margin: 0 auto;
+  padding: 1.25rem var(--page-inline-pad, 15px) 3.5rem;
+  box-sizing: border-box;
+  color: var(--site-body-fg);
+}
+
+.homescool-page__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-width: 40rem;
+  position: relative;
+}
+
+.homescool-page__intro::before {
+  content: "";
+  position: absolute;
+  inset: -0.5rem -0.75rem auto;
+  height: 0.2rem;
+  max-width: 7rem;
+  background: linear-gradient(
+    90deg,
+    var(--site-accent, #1976d2),
+    color-mix(in srgb, var(--site-accent, #1976d2) 10%, transparent)
+  );
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.homescool-page__brand {
+  margin: 0.55rem 0 0;
+  font-family: Montserrat, Raleway, sans-serif;
+  font-size: clamp(1.55rem, 4.5vw, 2.15rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.homescool-page__title {
+  margin: 0;
+  font-size: clamp(1rem, 2.8vw, 1.2rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-meta-fg, var(--site-body-fg));
+}
+
+.homescool-page__lead {
+  margin: 0.15rem 0 0;
+  font-size: var(--font-md, 1rem);
+  line-height: 1.55;
+  max-width: 36rem;
+}
+
+.homescool-page__section {
+  scroll-margin-top: calc(var(--header_height, 60px) + 1rem);
+}
