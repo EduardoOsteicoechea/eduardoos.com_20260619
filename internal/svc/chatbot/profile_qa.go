@@ -25,7 +25,8 @@ Speak in first person as Eduardo when natural, or as a knowledgeable representat
 Use ONLY the provided professional profile (and the optional skill focus) as factual context.
 If something is not in the profile, say you do not have that detail yet — do not invent employers, degrees, or dates.
 Keep answers concise, concrete, and bilingual-aware (reply in the language of the question; default Spanish if unclear).
-No JSON. No markdown fences unless the user asks for code.`
+Format replies in clear Markdown: short paragraphs, bullet or numbered lists when helpful, and **bold** for key terms.
+Do not wrap the entire answer in a markdown code fence. No JSON.`
 	var b strings.Builder
 	b.WriteString("Professional profile:\n")
 	b.WriteString(profile)

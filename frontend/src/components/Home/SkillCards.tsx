@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest, formatApiError } from "../../lib/api";
+import { markdownToSafeHtml } from "../../lib/markdown";
 import {
   HOME_SKILLS,
   type HomeSkill,
@@ -25,6 +26,22 @@ function humanTokenFor(skillId: string, heldMs: number): string {
   return `ok:${skillId}:${bucket}`;
 }
 
+function ChatBubble({ role, text }: ChatMsg) {
+  if (role === "assistant") {
+    return (
+      <div
+        className="skill-modal__msg skill-modal__msg--assistant skill-modal__md"
+        dangerouslySetInnerHTML={{ __html: markdownToSafeHtml(text) }}
+      />
+    );
+  }
+  return (
+    <div className="skill-modal__msg skill-modal__msg--user">
+      {text}
+    </div>
+  );
+}
+
 export default function SkillCards() {
   const [active, setActive] = useState<HomeSkill | null>(null);
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -40,9 +57,11 @@ export default function SkillCards() {
   const [chat, setChat] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState("");
   const [asking, setAsking] = useState(false);
+  const threadRef = useRef<HTMLDivElement>(null);
 
   const progress = Math.min(1, heldMs / (HOLD_SECONDS * 1000));
   const current = media[mediaIndex] ?? null;
+  const chatStarted = chat.length > 0;
 
   useEffect(() => {
     if (!checked || chatUnlocked) {
@@ -108,6 +127,12 @@ export default function SkillCards() {
       cancelled = true;
     };
   }, [active]);
+
+  useEffect(() => {
+    if (!chatStarted) return;
+    const el = threadRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [chat, asking, chatStarted]);
 
   function openSkill(skill: HomeSkill) {
     setActive(skill);
@@ -192,7 +217,9 @@ export default function SkillCards() {
             if (e.target === e.currentTarget) closeModal();
           }}
         >
-          <div className="skill-modal__panel">
+          <div
+            className={`skill-modal__panel${chatStarted ? " skill-modal__panel--chat-only" : ""}`}
+          >
             <header className="skill-modal__head">
               <div>
                 <h2 className="skill-modal__title">{active.label}</h2>
@@ -208,106 +235,113 @@ export default function SkillCards() {
               </button>
             </header>
 
-            <section className="skill-modal__viewer" aria-label="Portfolio media">
-              {mediaLoading && <p className="skill-modal__status">Cargando media…</p>}
-              {mediaError && <p className="skill-modal__error">{mediaError}</p>}
-              {!mediaLoading && !mediaError && media.length === 0 && (
-                <p className="skill-modal__status">
-                  Pronto: imágenes y videos en <code>media/{active.mediaPrefix}/</code> (S3).
-                </p>
-              )}
-              {current && (
-                <div className="skill-modal__frame">
-                  {current.kind === "video" ? (
-                    <video
-                      key={current.url}
-                      className="skill-modal__media"
-                      src={current.url}
-                      controls
-                      playsInline
-                    />
-                  ) : (
-                    <img
-                      key={current.url}
-                      className="skill-modal__media"
-                      src={current.url}
-                      alt={current.name}
-                    />
+            {!chatStarted && (
+              <>
+                <section className="skill-modal__viewer" aria-label="Portfolio media">
+                  {mediaLoading && <p className="skill-modal__status">Cargando media…</p>}
+                  {mediaError && <p className="skill-modal__error">{mediaError}</p>}
+                  {!mediaLoading && !mediaError && media.length === 0 && (
+                    <p className="skill-modal__status">
+                      Pronto: imágenes y videos en <code>media/{active.mediaPrefix}/</code> (S3).
+                    </p>
                   )}
-                </div>
-              )}
-              {media.length > 1 && (
-                <div className="skill-modal__nav">
-                  <button
-                    type="button"
-                    className="skill-modal__nav-btn"
-                    onClick={() =>
-                      setMediaIndex((i) => (i === 0 ? media.length - 1 : i - 1))
-                    }
-                  >
-                    ←
-                  </button>
-                  <span className="skill-modal__nav-meta">
-                    {mediaIndex + 1} / {media.length}
-                  </span>
-                  <button
-                    type="button"
-                    className="skill-modal__nav-btn"
-                    onClick={() => setMediaIndex((i) => (i + 1) % media.length)}
-                  >
-                    →
-                  </button>
-                </div>
-              )}
-            </section>
+                  {current && (
+                    <div className="skill-modal__frame">
+                      {current.kind === "video" ? (
+                        <video
+                          key={current.url}
+                          className="skill-modal__media"
+                          src={current.url}
+                          controls
+                          playsInline
+                        />
+                      ) : (
+                        <img
+                          key={current.url}
+                          className="skill-modal__media"
+                          src={current.url}
+                          alt={current.name}
+                        />
+                      )}
+                    </div>
+                  )}
+                  {media.length > 1 && (
+                    <div className="skill-modal__nav">
+                      <button
+                        type="button"
+                        className="skill-modal__nav-btn"
+                        onClick={() =>
+                          setMediaIndex((i) => (i === 0 ? media.length - 1 : i - 1))
+                        }
+                      >
+                        ←
+                      </button>
+                      <span className="skill-modal__nav-meta">
+                        {mediaIndex + 1} / {media.length}
+                      </span>
+                      <button
+                        type="button"
+                        className="skill-modal__nav-btn"
+                        onClick={() => setMediaIndex((i) => (i + 1) % media.length)}
+                      >
+                        →
+                      </button>
+                    </div>
+                  )}
+                </section>
 
-            <section className="skill-modal__gate" aria-label="Verificación humana">
-              <label className="skill-modal__check">
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={chatUnlocked}
-                  onChange={(e) => {
-                    const on = e.target.checked;
-                    setChecked(on);
-                    if (!on) {
-                      setHeldMs(0);
-                      setChatUnlocked(false);
-                    }
-                  }}
-                />
-                <span>{gateLabel}</span>
-              </label>
-              <div
-                className="skill-modal__progress"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(progress * 100)}
-              >
-                <div
-                  className="skill-modal__progress-fill"
-                  style={{ width: `${progress * 100}%` }}
-                />
-              </div>
-            </section>
+                <section className="skill-modal__gate" aria-label="Verificación humana">
+                  <label className="skill-modal__check">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={chatUnlocked}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        setChecked(on);
+                        if (!on) {
+                          setHeldMs(0);
+                          setChatUnlocked(false);
+                        }
+                      }}
+                    />
+                    <span>{gateLabel}</span>
+                  </label>
+                  <div
+                    className="skill-modal__progress"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(progress * 100)}
+                  >
+                    <div
+                      className="skill-modal__progress-fill"
+                      style={{ width: `${progress * 100}%` }}
+                    />
+                  </div>
+                </section>
+              </>
+            )}
 
             {chatUnlocked && (
-              <section className="skill-modal__chat" aria-label="Chat profesional">
-                <div className="skill-modal__thread">
-                  {chat.length === 0 && (
+              <section
+                className={`skill-modal__chat${chatStarted ? " skill-modal__chat--active" : ""}`}
+                aria-label="Chat profesional"
+              >
+                <div ref={threadRef} className="skill-modal__thread">
+                  {!chatStarted && (
                     <p className="skill-modal__hint">
                       Pregunta sobre esta skill o el perfil profesional de Eduardo.
                     </p>
                   )}
                   {chat.map((m, i) => (
-                    <div
-                      key={i}
-                      className={`skill-modal__msg skill-modal__msg--${m.role}`}
-                    >
-                      {m.text}
-                    </div>
+                    <ChatBubble key={i} role={m.role} text={m.text} />
                   ))}
+                  {asking && (
+                    <p className="skill-modal__hint" aria-live="polite">
+                      Pensando…
+                    </p>
+                  )}
                 </div>
                 <form
                   className="skill-modal__form"
