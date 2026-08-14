@@ -14,18 +14,13 @@ import PamphletLayout from "../../layouts/PamphletLayout.astro";
 
   const host = document.getElementById("pamphlet-root");
   if (host) {
-    try {
-      const handle = mountPamphletGenerator(host);
-      document.addEventListener(
-        "astro:before-swap",
-        () => {
-          handle.destroy();
-        },
-        { once: true },
-      );
-    } catch (err) {
-      console.error("[pamphlet] mount failed", err);
-      host.textContent = "No se pudo cargar el editor de panfletos.";
-    }
+    const handle = mountPamphletGenerator(host);
+    document.addEventListener(
+      "astro:before-swap",
+      () => {
+        handle.destroy();
+      },
+      { once: true },
+    );
   }
 </script>

@@ -232,7 +232,7 @@ export function Header({ pathname }: HeaderProps) {
             key={href}
             className={navClass(href)}
             href={href}
-            {...(href === APP_ROUTES.apsAdmin || href === APP_ROUTES.edebat || href === APP_ROUTES.pamphlet
+            {...(href === APP_ROUTES.apsAdmin || href === APP_ROUTES.edebat
               ? { "data-astro-reload": true }
               : {})}
             onClick={closeMenu}

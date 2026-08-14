@@ -117,8 +117,6 @@ a.site-header__action.btn--primary:hover {
   height: 2rem;
   min-width: 2rem;
   min-height: 2rem;
-  max-width: 2rem;
-  max-height: 2rem;
   border-radius: 50%;
   border: 1px solid var(--site-border);
   background: var(--site-accent);
@@ -131,8 +129,6 @@ a.site-header__action.btn--primary:hover {
   cursor: pointer;
   overflow: hidden;
   box-sizing: border-box;
-  position: relative;
-  z-index: 160;
 }
 
 .site-header__profile-img {
@@ -313,8 +309,6 @@ a.site-header__action.btn--primary:hover {
     height: var(--header-menu-btn-size, 2rem);
     min-width: var(--header-menu-btn-size, 2rem);
     min-height: var(--header-menu-btn-size, 2rem);
-    max-width: var(--header-menu-btn-size, 2rem);
-    max-height: var(--header-menu-btn-size, 2rem);
   }
 }
 

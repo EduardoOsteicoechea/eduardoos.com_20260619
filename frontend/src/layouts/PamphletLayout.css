@@ -32,16 +32,6 @@ body.page-pamphlet {
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: relative;
-  z-index: 1;
-}
-
-body.page-pamphlet .site-header {
-  z-index: 300;
-}
-
-body.page-pamphlet .site-header__bar {
-  z-index: 301;
 }
 
 .pamphlet-route-root {
