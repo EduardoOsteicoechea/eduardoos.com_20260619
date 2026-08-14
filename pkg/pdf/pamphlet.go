@@ -37,7 +37,7 @@ const (
 	PamphletFooterHMm    = 37.5
 	PamphletPage1BodyMm  = 136.4
 	PamphletPage2BodyMm  = 195.9
-	PamphletItemGapMm    = 2.0
+	PamphletItemGapMm    = 2.5
 	// Extra space above heading_1 when it follows another item (PDF looks flush without this).
 	PamphletHeadingMarginTopMm = 3.0
 	// Helvetica average glyph width ≈ 0.50 × size. Using 0.35 let wrapped lines
@@ -443,7 +443,7 @@ func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightM
 
 // gapAfterImage returns space under an image before the next item.
 // Last item: 0 (no trailing spacer). Next text: item gap + font ascent so the
-// visual margin matches the 2mm spacer in the editor.
+// visual margin matches the 2.5mm spacer in the editor.
 func gapAfterImage(items []PamphletItem, i int, bodyPt, headingPt float64) float64 {
 	if i >= len(items)-1 {
 		return 0
