@@ -183,19 +183,18 @@ async function fileToDataUrl(file: File): Promise<string> {
         reader.readAsDataURL(file);
     });
 
-    return resizeDataUrlIfNeeded(rawUrl);
+    // Always re-encode to JPEG so the Go PDF builder can embed the bytes
+    // (WebP/AVIF/GIF data URLs otherwise become "[imagen]" placeholders).
+    return normalizeImageDataUrlToJpeg(rawUrl);
 }
 
-function resizeDataUrlIfNeeded(dataUrl: string): Promise<string> {
+/** Decode any browser-supported image and emit a JPEG data URL (optionally downscaled). */
+export function normalizeImageDataUrlToJpeg(dataUrl: string): Promise<string> {
     return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
             const maxEdge = Math.max(img.width, img.height);
-            if (maxEdge <= MAX_IMAGE_EDGE_PX) {
-                resolve(dataUrl);
-                return;
-            }
-            const scale = MAX_IMAGE_EDGE_PX / maxEdge;
+            const scale = maxEdge > MAX_IMAGE_EDGE_PX ? MAX_IMAGE_EDGE_PX / maxEdge : 1;
             const w = Math.max(1, Math.round(img.width * scale));
             const h = Math.max(1, Math.round(img.height * scale));
             const canvas = document.createElement("canvas");
@@ -206,8 +205,11 @@ function resizeDataUrlIfNeeded(dataUrl: string): Promise<string> {
                 resolve(dataUrl);
                 return;
             }
+            // White matte so transparent PNGs don't become black in JPEG.
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, w, h);
             ctx.drawImage(img, 0, 0, w, h);
-            resolve(canvas.toDataURL("image/jpeg", 0.85));
+            resolve(canvas.toDataURL("image/jpeg", 0.88));
         };
         img.onerror = () => resolve(dataUrl);
         img.src = dataUrl;

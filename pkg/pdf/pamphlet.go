@@ -19,10 +19,13 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image"
+	_ "image/gif"
 	"image/jpeg"
 	_ "image/png"
 	"strings"
 	"unicode"
+
+	_ "golang.org/x/image/webp"
 )
 
 // Letter landscape page size used by the pamphlet sheet (exact CSS mm).
@@ -37,16 +40,16 @@ const (
 	PamphletColWidthMm = 57.85
 	PamphletHeaderHMm  = 20.0 // title + 5mm gap + two gray meta rows
 	// Vertical gap between header band and cols 1–2 (CSS --header-body-gutter).
-	PamphletHeaderBodyGutterMm = 8.0
+	PamphletHeaderBodyGutterMm = 5.0
 	PamphletFooterHMm          = 37.5
-	// 215.9 − 10 − 20 − 8 − 4 − 37.5 − 10
-	PamphletPage1BodyMm = 126.4
+	// 215.9 − 10 − 20 − 5 − 4 − 37.5 − 10
+	PamphletPage1BodyMm = 129.4
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Vertical gap between header title and the first metadata row below it.
 	PamphletHeaderTitleMetaGapMm = 5.0
-	// Right-side cols 1–2 under header: 195.9 − 20 − 8
-	PamphletPage1RightColMm = 167.9
+	// Right-side cols 1–2 under header: 195.9 − 20 − 5
+	PamphletPage1RightColMm = 170.9
 	// Left-side cols 7–8 above footer: 195.9 − 4 − 37.5
 	PamphletPage1LeftColMm = 154.4
 	// Extra space above heading_1 when it follows another item (PDF looks flush without this).
@@ -271,7 +274,14 @@ func dataURLPayload(content string) ([]byte, error) {
 		meta := content[5:comma]
 		data := content[comma+1:]
 		if strings.Contains(meta, ";base64") {
-			return base64.StdEncoding.DecodeString(data)
+			// Strip whitespace that some serializers insert into long base64 blobs.
+			compact := strings.Map(func(r rune) rune {
+				if r == '\n' || r == '\r' || r == '\t' || r == ' ' {
+					return -1
+				}
+				return r
+			}, data)
+			return base64.StdEncoding.DecodeString(compact)
 		}
 		return []byte(data), nil
 	}

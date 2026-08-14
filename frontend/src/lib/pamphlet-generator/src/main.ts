@@ -2,6 +2,7 @@ import "./style.css";
 import { MENU_ICON } from "./icons";
 import { renderShell } from "./shell";
 import type { PamphletTrayAction } from "./create_element";
+import { normalizeImageDataUrlToJpeg } from "./create_element";
 import {
     appendItem,
     applyBoldRange,
@@ -266,6 +267,30 @@ function sanitizeDownloadFilename(name: string): string {
     return cleaned.length > 80 ? cleaned.slice(0, 80).trim() : cleaned;
 }
 
+/** Re-encode every image data URL to JPEG so the Go PDF embedder never sees WebP/AVIF. */
+async function ensurePamphletImagesAreJpeg(doc: PamphletStructure): Promise<void> {
+    const cols = [
+        doc.column_1,
+        doc.column_2,
+        doc.column_3,
+        doc.column_4,
+        doc.column_5,
+        doc.column_6,
+        doc.column_7,
+        doc.column_8,
+        doc.footer.items,
+    ];
+    for (const items of cols) {
+        for (const item of items) {
+            if (item.type !== "image") continue;
+            const src = (item.content || "").trim();
+            if (!src || !src.startsWith("data:")) continue;
+            if (/^data:image\/jpeg/i.test(src) || /^data:image\/jpg/i.test(src)) continue;
+            item.content = await normalizeImageDataUrlToJpeg(src);
+        }
+    }
+}
+
 async function printDocument(): Promise<void> {
     if (printBtn.disabled) return;
     if (!currentDoc) {
@@ -282,6 +307,7 @@ async function printDocument(): Promise<void> {
 
     // Capture pan/zoom/height from the live DOM BEFORE any desktop remount can wipe them.
     const live = serializePamphlet(main, currentDoc.last_edited_element, currentDoc);
+    await ensurePamphletImagesAreJpeg(live);
     currentDoc = live;
     currentHeader = { ...live.header };
 
@@ -334,12 +360,12 @@ const pageHeaderHeightMm = 20; // title + gap + two meta rows
 const pageFooterHeightMm = 37.5; // 15mm × 2.5
 const colGutterNarrowMm = 4;
 /** Gap between page header and cols 1–2 (matches --header-body-gutter). */
-const headerBodyGutterMm = 8;
+const headerBodyGutterMm = 5;
 /** Page 2 band / full page-1 chrome band: letter − 2×margin */
 const columnContentHeightMm = usLetterHeightInMillimeters - pageMarginMm * 2;
 /** Cols 1–2: under page header → discount header + header→body gutter */
 const page1RightColHeightMm =
-    columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 167.9
+    columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 170.9
 /** Cols 7–8: above page footer → discount gutter above footer + footer */
 const page1LeftColHeightMm =
     columnContentHeightMm - colGutterNarrowMm - pageFooterHeightMm; // 154.4
