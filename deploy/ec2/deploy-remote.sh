@@ -163,13 +163,32 @@ install_host_backend() {
   fi
 
   echo "==> Building host binary (go build ./cmd/eduardoos)"
-  mkdir -p "${APP_DIR}/bin"
+  mkdir -p "${APP_DIR}/bin" "${APP_DIR}/.cache/go-tmp" "${APP_DIR}/.cache/go-build"
   # Stop first so Windows/Linux file locks and old go-run children release :3000.
   sudo systemctl stop eduardoos.service 2>/dev/null || true
   # Free :3000 if a stale go-run / orphan process still holds it.
   if command -v fuser >/dev/null 2>&1; then
     fuser -k 3000/tcp 2>/dev/null || true
   fi
+  # EC2 /tmp is often a small tmpfs — keep Go work files on the root disk.
+  export GOTMPDIR="${APP_DIR}/.cache/go-tmp"
+  export GOCACHE="${APP_DIR}/.cache/go-build"
+  export GOMODCACHE="${APP_DIR}/.cache/go-mod"
+  mkdir -p "${GOMODCACHE}"
+  # Drop stale microservices containers that still hold disk + confuse ops.
+  docker rm -f \
+    eduardooscom_20260619-backend-1 \
+    eduardooscom_20260619-frontend-1 \
+    eduardooscom_20260619-payments-1 \
+    eduardooscom_20260619-tester-1 \
+    eduardooscom_20260619-authenticator-1 \
+    eduardooscom_20260619-documents-1 \
+    eduardooscom_20260619-chatbot-1 \
+    eduardooscom_20260619-s3-1 \
+    eduardooscom_20260619-telemetry-1 \
+    eduardooscom_20260619-database-1 \
+    2>/dev/null || true
+  df -h / /tmp "${APP_DIR}" 2>/dev/null || df -h /
   (cd "${APP_DIR}" && CGO_ENABLED=0 go build -o bin/eduardoos ./cmd/eduardoos)
 
   DEPLOY_USER="$(whoami)"
