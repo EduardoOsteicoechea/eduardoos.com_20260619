@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiRequest, formatApiError } from "../../lib/api";
+import {
+  applyContactActions,
+  humanTokenFor,
+  type ProfileAskResponse,
+} from "../../lib/contact";
 import { markdownToSafeHtml } from "../../lib/markdown";
 import {
   HOME_SKILLS,
@@ -20,12 +25,6 @@ type MediaItem = {
 };
 
 type ChatMsg = { role: "user" | "assistant"; text: string };
-
-function humanTokenFor(skillId: string, heldMs: number): string {
-  // Lightweight client proof: skill + held duration bucket (not a secret; slows bots).
-  const bucket = Math.floor(heldMs / 1000);
-  return `ok:${skillId}:${bucket}`;
-}
 
 function ChatBubble({ role, text }: ChatMsg) {
   if (role === "assistant") {
@@ -160,7 +159,7 @@ export default function SkillCards() {
     );
     try {
       const correlationId = createCorrelationId();
-      const result = await apiRequest<{ answer?: string }>("/api/profile/ask", {
+      const result = await apiRequest<ProfileAskResponse>("/api/profile/ask", {
         method: "POST",
         correlationId,
         body: {
@@ -171,6 +170,7 @@ export default function SkillCards() {
         },
       });
       if (result.error) throw new Error(formatApiError(result.error));
+      applyContactActions(result.data?.actions);
       setChat((prev) => [
         ...prev,
         { role: "assistant", text: result.data?.answer || "(sin respuesta)" },

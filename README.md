@@ -98,7 +98,9 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | GET | `/api/tester/runs` | Public | QA run history |
 | GET | `/api/tester/runs/:run_id` | Public | Single QA run detail |
 | GET | `/api/media/skills/:skillId` | Public | Skill portfolio media (images/videos under `media/skills/{skillId}/`) |
-| POST | `/api/profile/ask` | Public + humanToken | Home skill chat (DeepSeek `profile_qa` with professional profile context) |
+| POST | `/api/profile/ask` | Public + humanToken | Home skill chat (DeepSeek `profile_qa`); can email leads to `eduardooost@gmail.com` or return WhatsApp action `https://wa.me/584147281033` |
+| POST | `/api/contact/ask` | Public + humanToken | Contact-page chat (same profile/contact agent) |
+| POST | `/api/contact/notify` | Public + humanToken | Email a visitor lead to the site owner via authenticator SMTP |
 
 Home skill cards open a modal media viewer + timed checkbox gate (hold ~5s) before chat unlocks. Upload portfolio assets to S3 under `media/skills/{skillId}/` (e.g. `media/skills/architect/`).
 
@@ -116,6 +118,7 @@ Home skill cards open a modal media viewer + timed checkbox gate (hold ~5s) befo
 | Edebat (admin allowlist) | `/edebat` |
 | Pamphlet editor | `/documents/pamphlet` |
 | Artículos | `/articulos`, `/articulos/ver?id=` |
+| Contacto | `/contact` (email, WhatsApp `wa.me/584147281033`, agent chat) |
 
 Authenticated Edebat APIs (JWT + `eduardooost@gmail.com`): `GET/POST /api/edebat`, `GET/PUT /api/edebat/:id`, `POST /api/edebat/:id/turn`. Bodies persist as `.edebat` under `media/edebats/{email}/` via S3; LLM turns use the chatbot service + DeepSeek (`DEEPSEEK_*`).
 

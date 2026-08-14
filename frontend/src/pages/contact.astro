@@ -1,0 +1,34 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ContactAgent from "../components/Contact/ContactAgent";
+import "./contact.css";
+---
+
+<BaseLayout title="Contacto — Eduardo Osteicoechea">
+  <div class="page-shell contact-page">
+    <header class="contact-page__intro">
+      <p class="contact-page__brand">Eduardo Osteicoechea</p>
+      <h1 class="contact-page__title">Contacto</h1>
+      <p class="contact-page__lead">
+        Escríbeme por correo, ábreme WhatsApp, o habla con el agente: te pedirá tu correo o
+        teléfono y me avisará, o te redirigirá a WhatsApp si lo prefieres.
+      </p>
+      <ul class="contact-page__channels">
+        <li>
+          <span class="contact-page__label">Correo</span>
+          <a href="mailto:eduardooost@gmail.com">eduardooost@gmail.com</a>
+        </li>
+        <li>
+          <span class="contact-page__label">WhatsApp</span>
+          <a
+            href="https://wa.me/584147281033"
+            target="_blank"
+            rel="noopener noreferrer"
+          >wa.me/584147281033</a>
+        </li>
+      </ul>
+    </header>
+
+    <ContactAgent client:load />
+  </div>
+</BaseLayout>

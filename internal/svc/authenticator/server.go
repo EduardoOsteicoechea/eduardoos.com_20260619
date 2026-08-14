@@ -55,6 +55,7 @@ func Run(addr string) error {
 		r.Post("/user-exists", st.userExists)
 		r.Get("/profile", st.getProfile)
 		r.Put("/profile", st.putProfile)
+		r.Post("/notify-contact", st.notifyContact)
 	})
 
 	log.Printf("authenticator listening on %s", addr)
@@ -326,4 +327,73 @@ func (s *state) putProfile(w http.ResponseWriter, r *http.Request) {
 		"email":           user.Email,
 		"profileImageKey": user.ProfileImageKey,
 	})
+}
+
+// notifyContact emails the site owner (SMTP_USER) with a visitor lead from the public chat.
+func (s *state) notifyContact(w http.ResponseWriter, r *http.Request) {
+	cid := common.CorrelationFromRequest(r)
+	var body struct {
+		VisitorName  string `json:"visitorName"`
+		VisitorEmail string `json:"visitorEmail"`
+		VisitorPhone string `json:"visitorPhone"`
+		Message      string `json:"message"`
+		Channel      string `json:"channel"` // email | whatsapp | chat
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		common.WriteError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	email := strings.TrimSpace(body.VisitorEmail)
+	phone := strings.TrimSpace(body.VisitorPhone)
+	name := strings.TrimSpace(body.VisitorName)
+	msg := strings.TrimSpace(body.Message)
+	channel := strings.TrimSpace(body.Channel)
+	if channel == "" {
+		channel = "chat"
+	}
+	if email == "" && phone == "" && msg == "" {
+		common.WriteError(w, http.StatusBadRequest, "visitor email, phone, or message required")
+		return
+	}
+	if len(msg) > 4000 {
+		msg = msg[:4000]
+	}
+	to := s.smtpUser
+	if to == "" {
+		to = "eduardooost@gmail.com"
+	}
+	subject := "Eduardo OS — nuevo contacto desde el sitio"
+	var b strings.Builder
+	b.WriteString("Nuevo lead de contacto\r\n\r\n")
+	b.WriteString("Canal: " + channel + "\r\n")
+	if name != "" {
+		b.WriteString("Nombre: " + name + "\r\n")
+	}
+	if email != "" {
+		b.WriteString("Email visitante: " + email + "\r\n")
+	}
+	if phone != "" {
+		b.WriteString("Teléfono: " + phone + "\r\n")
+	}
+	if msg != "" {
+		b.WriteString("\r\nMensaje:\r\n" + msg + "\r\n")
+	}
+	if err := s.sendPlainMail(to, subject, b.String()); err != nil {
+		log.Printf("[correlation=%s] notify-contact smtp err=%v", cid, err)
+		common.WriteError(w, http.StatusBadGateway, "email send failed")
+		return
+	}
+	s.report(r, "auth.contact.notify", "success", email)
+	common.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "to": to})
+}
+
+func (s *state) sendPlainMail(to, subject, body string) error {
+	if s.smtpPass == "" {
+		log.Printf("SMTP_PASS empty — contact mail to=%s subject=%s\n%s", to, subject, body)
+		return nil
+	}
+	msg := []byte(fmt.Sprintf("To: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s\r\n",
+		to, subject, body))
+	auth := smtp.PlainAuth("", s.smtpUser, s.smtpPass, "smtp.gmail.com")
+	return smtp.SendMail("smtp.gmail.com:587", auth, s.smtpUser, []string{to}, msg)
 }

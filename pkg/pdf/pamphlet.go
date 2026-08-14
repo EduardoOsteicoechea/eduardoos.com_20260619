@@ -372,23 +372,37 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 	lastTitleBaseline := y - used + titleLineHMm
 	metaY := lastTitleBaseline - PamphletHeaderTitleMetaGapMm
 
-	// Two labeled rows (UI meta-bar): Serie/Capítulo then Autor/Fecha — gray.
+	// 2×2 gray meta grid: Serie | Capítulo / Autor | Fecha
 	const metaSizePt = 7.0 // ≈ 2.5mm
 	metaLineHMm := metaSizePt * 1.2 * 25.4 / 72.0
-	row1 := joinLabeledMeta(
-		labeledMeta("Serie", h.Series),
-		labeledMeta("Capítulo", h.SeriesChapter),
-	)
-	row2 := joinLabeledMeta(
-		labeledMeta("Autor", h.Author),
-		labeledMeta("Fecha", h.Date),
-	)
-	if row1 != "" && metaY > floor {
-		writeGrayText(s, "F1", metaSizePt, x, metaY, width, row1)
+	const colGapMm = 2.5
+	half := (width - colGapMm) / 2
+	if half < 10 {
+		half = width / 2
+	}
+	rightX := x + half + colGapMm
+
+	left1 := labeledMeta("Serie", h.Series)
+	right1 := labeledMeta("Capítulo", h.SeriesChapter)
+	left2 := labeledMeta("Autor", h.Author)
+	right2 := labeledMeta("Fecha", h.Date)
+
+	if (left1 != "" || right1 != "") && metaY > floor {
+		if left1 != "" {
+			writeGrayText(s, "F1", metaSizePt, x, metaY, half, left1)
+		}
+		if right1 != "" {
+			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right1)
+		}
 		metaY -= metaLineHMm
 	}
-	if row2 != "" && metaY > floor {
-		writeGrayText(s, "F1", metaSizePt, x, metaY, width, row2)
+	if (left2 != "" || right2 != "") && metaY > floor {
+		if left2 != "" {
+			writeGrayText(s, "F1", metaSizePt, x, metaY, half, left2)
+		}
+		if right2 != "" {
+			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right2)
+		}
 	}
 	_ = heightMm
 }
@@ -401,27 +415,28 @@ func labeledMeta(label, value string) string {
 	return label + ": " + value
 }
 
-func joinLabeledMeta(parts ...string) string {
-	var out []string
-	for _, p := range parts {
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return strings.Join(out, "   ")
-}
-
-// writeGrayText paints a single non-wrapped line in medium gray (UI meta color).
+// writeGrayText paints a single line in medium gray (UI meta color), clipped by width via wrap.
 func writeGrayText(s *strings.Builder, font string, sizePt float64, xMm, yMm, widthMm float64, text string) {
-	_ = widthMm
-	text = toWinAnsi(text)
+	text = strings.TrimSpace(toWinAnsi(text))
 	if text == "" {
 		return
+	}
+	lines := wrapWordsToWidth(text, sizePt, MmToPoints(widthMm))
+	if len(lines) == 0 {
+		return
+	}
+	// One visual line in the meta cell (ellipsis via truncation of wrap).
+	line := lines[0]
+	if len(lines) > 1 && len(line) > 3 {
+		runes := []rune(line)
+		if len(runes) > 3 {
+			line = string(runes[:len(runes)-3]) + "..."
+		}
 	}
 	// DeviceGray ≈ #666666
 	s.WriteString("0.4 0.4 0.4 rg\n")
 	s.WriteString(fmt.Sprintf("BT /%s %.2f Tf %.2f %.2f Td (%s) Tj ET\n",
-		font, sizePt, MmToPoints(xMm), MmToPoints(yMm), escape(text)))
+		font, sizePt, MmToPoints(xMm), MmToPoints(yMm), escape(line)))
 	s.WriteString("0 0 0 rg\n")
 }
 

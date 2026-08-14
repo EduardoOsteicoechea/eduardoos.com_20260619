@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"log"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"eduardoos/pkg/common"
+	"eduardoos/pkg/contact"
 	"eduardoos/pkg/s3store"
 
 	"github.com/go-chi/chi/v5"
@@ -186,47 +186,21 @@ func (c config) askProfessionalProfile() http.HandlerFunc {
 		if len(q) > 2000 {
 			q = q[:2000]
 		}
-		if c.ChatbotURL == "" {
-			common.WriteError(w, http.StatusServiceUnavailable, "CHATBOT_URL is not configured")
-			return
-		}
-		payload, _ := json.Marshal(map[string]any{
-			"role":        "profile_qa",
-			"topic":       strings.TrimSpace(body.Skill),
-			"userArg":     q,
-			"articleText": professionalProfileContext,
-			"history":     body.History,
-		})
-		req, err := http.NewRequest(http.MethodPost, strings.TrimRight(c.ChatbotURL, "/")+"/llm", bytes.NewReader(payload))
-		if err != nil {
-			common.WriteError(w, http.StatusBadGateway, err.Error())
-			return
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set(common.CorrelationHeader, cid)
-		req.Header.Set(common.InternalTokenHeader, common.SignInternalToken(c.InternalSecret, cid))
-		resp, err := http.DefaultClient.Do(req)
+		skill := strings.TrimSpace(body.Skill)
+		answer, actions, err := c.runProfileLLM(cid, q, skill, body.History)
 		if err != nil {
 			log.Printf("[correlation=%s] profile.ask llm error: %v", cid, err)
 			c.Telemetry.Emit(common.NewFlightLog(cid, "backend", "profile.ask", "error"), cid)
 			common.WriteError(w, http.StatusBadGateway, err.Error())
 			return
 		}
-		defer resp.Body.Close()
-		out, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode >= 400 {
-			c.Telemetry.Emit(common.NewFlightLog(cid, "backend", "profile.ask", "error"), cid)
-			common.WriteError(w, http.StatusBadGateway, string(out))
-			return
-		}
-		var parsed struct {
-			Text string `json:"text"`
-		}
-		if err := json.Unmarshal(out, &parsed); err != nil {
-			common.WriteError(w, http.StatusBadGateway, "invalid chatbot response")
-			return
-		}
+		c.applyContactActions(cid, actions, q)
 		c.Telemetry.Emit(common.NewFlightLog(cid, "backend", "profile.ask", "success"), cid)
-		common.WriteJSON(w, http.StatusOK, map[string]any{"answer": parsed.Text})
+		common.WriteJSON(w, http.StatusOK, map[string]any{
+			"answer":      answer,
+			"actions":     actions,
+			"whatsappUrl": contact.WhatsAppURL,
+			"ownerEmail":  contact.OwnerEmail,
+		})
 	}
 }

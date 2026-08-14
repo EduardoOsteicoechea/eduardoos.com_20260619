@@ -439,12 +439,11 @@
 }
 
 .pamphlet-header-meta-bar {
-    display: flex;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    align-items: stretch;
-    gap: 0.8mm;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 2.5mm;
+    row-gap: 0.8mm;
     width: 100%;
     min-width: 0;
     flex: 0 0 auto;
@@ -452,16 +451,9 @@
     color: #666666; /* GRIS — matches PDF meta */
 }
 
+/* Rows kept for DOM grouping; each is a 2-col subgrid aligned to the bar. */
 .pamphlet-header-meta-row {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    align-items: baseline;
-    gap: 2.5mm;
-    width: 100%;
-    min-width: 0;
-    overflow: hidden;
+    display: contents;
 }
 
 .pamphlet-header-meta-field {
@@ -470,11 +462,9 @@
     flex-wrap: nowrap;
     align-items: baseline;
     gap: 0.6mm;
-    flex: 0 1 auto;
     min-width: 0;
-    width: auto;
+    width: 100%;
     max-width: 100%;
-    white-space: nowrap;
     overflow: hidden;
 }
 
@@ -488,10 +478,10 @@
 }
 
 .pamphlet-header-meta-field > .pamphlet-item {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     width: auto;
     min-width: 0;
-    overflow: visible;
+    overflow: hidden;
     border: none !important;
     padding: 0 !important;
     background: transparent;
