@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { isAuthenticated } from "../../lib/auth";
 import { APP_ROUTES } from "../../config/routes";
 import {
@@ -12,6 +12,36 @@ import {
 import "./ArticleView.css";
 
 type ChatMsg = { role: "user" | "assistant"; text: string };
+
+/** Apply pamphlet bold range style_indexes[0] = [start, end). */
+function StyledArticleText({
+  content,
+  styleIndexes,
+}: {
+  content: string;
+  styleIndexes?: number[][];
+}): ReactNode {
+  const range = styleIndexes?.[0];
+  if (!range || range.length < 2) return content;
+  const start = Number(range[0]);
+  const end = Number(range[1]);
+  if (
+    !Number.isFinite(start) ||
+    !Number.isFinite(end) ||
+    end <= start ||
+    start < 0 ||
+    end > content.length
+  ) {
+    return content;
+  }
+  return (
+    <>
+      {start > 0 ? content.slice(0, start) : null}
+      <strong>{content.slice(start, end)}</strong>
+      {end < content.length ? content.slice(end) : null}
+    </>
+  );
+}
 
 export default function ArticleView() {
   const epamId = useMemo(() => {
@@ -141,7 +171,10 @@ export default function ArticleView() {
           if (block.type === "heading_1") {
             return (
               <h2 key={i} className="article-view__h">
-                {block.content}
+                <StyledArticleText
+                  content={block.content}
+                  styleIndexes={block.style_indexes}
+                />
               </h2>
             );
           }
@@ -161,7 +194,10 @@ export default function ArticleView() {
           }
           return (
             <p key={i} className="article-view__p">
-              {block.content}
+              <StyledArticleText
+                content={block.content}
+                styleIndexes={block.style_indexes}
+              />
             </p>
           );
         })}

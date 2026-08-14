@@ -44,6 +44,11 @@
   line-height: 1.55;
 }
 
+.article-view__p strong,
+.article-view__h strong {
+  font-weight: 700;
+}
+
 .article-view__figure {
   margin: 0;
 }

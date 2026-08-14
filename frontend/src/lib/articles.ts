@@ -7,6 +7,8 @@ import type { EpamRecord } from "./epams";
 export interface ArticleBlock {
     type: "heading_1" | "paragraph" | "image" | "meta";
     content: string;
+    /** Pamphlet bold range lives in style_indexes[0] as [start, end) char offsets. */
+    style_indexes?: number[][];
 }
 
 export interface ArticleResponse {

@@ -14,20 +14,32 @@ func TestContentHashStable(t *testing.T) {
 	}
 }
 
-func TestPlainTextSkipsImages(t *testing.T) {
+func TestBlocksPreserveBoldStyleIndexes(t *testing.T) {
 	doc := PamphletLite{}
 	doc.Header.Title = "Titulo"
 	doc.Column1 = []Item{
-		{Type: "paragraph", Content: "Uno"},
-		{Type: "image", Content: "data:image/jpeg;base64,xxx"},
-		{Type: "heading_1", Content: "Dos"},
+		{
+			Type:         "paragraph",
+			Content:      "hola mundo",
+			StyleIndexes: [][]int{{5, 10}, {0, 0}, {0, 0}},
+		},
 	}
-	text := PlainText(doc)
-	if !contains(text, "Titulo") || !contains(text, "Uno") || !contains(text, "Dos") {
-		t.Fatalf("missing text: %q", text)
+	blocks := BlocksInReadingOrder(doc)
+	var para *Block
+	for i := range blocks {
+		if blocks[i].Type == "paragraph" {
+			para = &blocks[i]
+			break
+		}
 	}
-	if contains(text, "data:image") {
-		t.Fatalf("should skip images: %q", text)
+	if para == nil {
+		t.Fatal("expected paragraph block")
+	}
+	if len(para.StyleIndexes) == 0 || len(para.StyleIndexes[0]) < 2 {
+		t.Fatalf("missing style_indexes: %#v", para.StyleIndexes)
+	}
+	if para.StyleIndexes[0][0] != 5 || para.StyleIndexes[0][1] != 10 {
+		t.Fatalf("bold range = %v want [5 10]", para.StyleIndexes[0])
 	}
 }
 

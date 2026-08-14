@@ -54,15 +54,17 @@ type PamphletLite struct {
 }
 
 type Item struct {
-	Type     string  `json:"type"`
-	Content  string  `json:"content"`
-	HeightMm float64 `json:"height_mm"`
+	Type         string    `json:"type"`
+	Content      string    `json:"content"`
+	HeightMm     float64   `json:"height_mm"`
+	StyleIndexes [][]int   `json:"style_indexes"`
 }
 
 // Block is one rendered article segment for the frontend.
 type Block struct {
-	Type    string `json:"type"` // heading_1 | paragraph | image | meta
-	Content string `json:"content"`
+	Type         string  `json:"type"` // heading_1 | paragraph | image | meta
+	Content      string  `json:"content"`
+	StyleIndexes [][]int `json:"style_indexes,omitempty"`
 }
 
 // QuizObjectKey builds the absolute S3 key for quiz JSON beside the .epam.
@@ -109,7 +111,7 @@ func BlocksInReadingOrder(doc PamphletLite) []Block {
 			if t != "paragraph" && t != "heading_1" && t != "image" {
 				continue
 			}
-			out = append(out, Block{Type: t, Content: c})
+			out = append(out, Block{Type: t, Content: c, StyleIndexes: it.StyleIndexes})
 		}
 	}
 	return out
