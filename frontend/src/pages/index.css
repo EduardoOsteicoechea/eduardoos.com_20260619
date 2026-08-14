@@ -1,17 +1,14 @@
 /**
- * Home hero — proportion-safe across browsers/phones.
- * Avoid position:fixed photo + display:contents (broke Safari/Android).
- * Use flex + aspect-ratio + dvh with % fallbacks.
+ * Home hero — restore proven mobile composition (full-bleed fixed photo +
+ * right-side copy at ~35vw), keep desktop side-by-side proportions.
  */
 
 .page-shell.hero.home-hero {
   --home-viewport-h: calc(100dvh - var(--header_height, 55px));
   --home-viewport-h-fallback: calc(100vh - var(--header_height, 55px));
-  --home-photo-ratio: 9 / 16;
 
   position: relative;
   display: block;
-  box-sizing: border-box;
   width: 100%;
   max-width: none;
   min-height: var(--home-viewport-h-fallback);
@@ -23,26 +20,15 @@
   color: var(--site-body-fg);
 }
 
+/* Phone/tablet: hoist children so absolute/fixed photo + copy rules apply cleanly */
 .home-hero__stage {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  box-sizing: border-box;
-  width: 100%;
-  max-width: min(100%, 1200px);
-  margin: 0 auto;
-  min-height: inherit;
+  display: contents;
 }
 
 .home-hero__photo {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 0;
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  aspect-ratio: var(--home-photo-ratio);
-  max-height: min(70dvh, var(--home-viewport-h));
-  overflow: hidden;
   pointer-events: none;
   animation: home-hero-photo-in 0.9s ease both;
 }
@@ -61,11 +47,10 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  box-sizing: border-box;
-  width: 100%;
   max-width: 36rem;
-  margin: -18% 0 0 auto;
-  padding: 0 1rem 2.5rem;
+  margin-left: auto;
+  margin-right: 1.25rem;
+  padding: 1.5rem 1rem 2.5rem;
   color: var(--site-body-fg);
   background: transparent;
   animation: home-hero-copy-in 0.75s ease 0.12s both;
@@ -74,7 +59,7 @@
 .home-hero__brand {
   margin: 0;
   font-family: Montserrat, Raleway, Roboto, sans-serif;
-  font-size: clamp(1.45rem, 6.5vw, 2.4rem);
+  font-size: clamp(1.6rem, 7vw, 2.4rem);
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.02em;
@@ -83,7 +68,7 @@
 
 .home-hero h1 {
   margin: 0;
-  font-size: clamp(1rem, 3.4vw, 1.35rem);
+  font-size: clamp(1.05rem, 3.6vw, 1.35rem);
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -93,38 +78,75 @@
 .home-hero .page-lead {
   margin: 0;
   max-width: 32rem;
-  font-size: clamp(0.85rem, 2.6vw, var(--font-md));
+  font-size: var(--font-md);
   line-height: 1.55;
   color: var(--site-body-fg);
 }
 
-/* Tablet */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .home-hero__stage {
-    flex-direction: row;
-    align-items: stretch;
-    max-width: min(100% - 2rem, 1100px);
-    min-height: var(--home-viewport-h-fallback);
-    min-height: var(--home-viewport-h);
+/* Phone + tablet: full-bleed side-placed photo with copy in the right gutter */
+@media (max-width: 1023px) {
+  .page-shell.hero.home-hero {
+    left: 0;
+    margin-left: 0;
+    padding-left: 0;
+    min-height: 100dvh;
+    min-height: 100svh;
   }
 
   .home-hero__photo {
-    flex: 0 0 auto;
-    width: min(42vw, calc(var(--home-viewport-h) * 9 / 16));
-    max-height: var(--home-viewport-h);
-    aspect-ratio: var(--home-photo-ratio);
-    height: auto;
+    position: fixed;
+    inset: auto;
+    top: var(--header_height, 55px);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 0;
+    width: 100%;
+    width: 100dvw;
+    max-width: 100%;
+    height: calc(100dvh - var(--header_height, 55px));
+    height: calc(100svh - var(--header_height, 55px));
+    overflow: hidden;
+  }
+
+  .home-hero__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
   }
 
   .home-hero__copy {
-    flex: 1 1 auto;
-    margin: 0;
-    padding: 1rem 1rem 1.5rem 0.75rem;
+    z-index: 1;
+    margin-top: 0.35rem;
+    margin-left: calc(35vw + 10px);
+    margin-right: 1rem;
+    padding: 0 0 2rem;
     max-width: none;
+    background: transparent;
   }
 }
 
-/* Desktop */
+/* Tablet only */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .home-hero__copy {
+    margin-left: calc(35vw + 10px);
+  }
+}
+
+/* Phone only */
+@media (max-width: 767px) {
+  .home-hero__copy {
+    margin-top: 0;
+    margin-left: calc(35vw + 10px);
+  }
+
+  .home-hero .page-lead {
+    font-size: calc(var(--font-md) * 0.75 * 1.15);
+  }
+}
+
+/* Desktop: photo + copy side by side, 9:16 photo height = viewport below header */
 @media (min-width: 1024px) {
   .page-shell.hero.home-hero {
     --home-img-height: var(--home-viewport-h);
@@ -137,23 +159,48 @@
   }
 
   .home-hero__stage {
+    display: flex;
     flex-direction: row;
     align-items: flex-start;
+    gap: 0;
+    box-sizing: border-box;
     width: fit-content;
     max-width: calc(100% - 2rem);
     height: var(--home-img-height);
-    min-height: 0;
+    margin: 0 auto;
+    position: relative;
   }
 
   .home-hero__photo {
+    position: relative;
+    inset: auto;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    z-index: 1;
     flex: 0 0 auto;
     width: calc(var(--home-img-height) * 9 / 16);
     height: var(--home-img-height);
     max-height: none;
-    aspect-ratio: auto;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .home-hero__photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    object-fit: cover;
+    object-position: top center;
   }
 
   .home-hero__copy {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
     flex: 0 0 auto;
     width: var(--home-info-width);
     max-width: var(--home-info-width);
@@ -161,6 +208,9 @@
     margin: 0;
     padding: 0 0 0 0.75rem;
     overflow: auto;
+    z-index: 2;
+    background: transparent;
+    box-sizing: border-box;
   }
 
   .home-hero .page-lead {

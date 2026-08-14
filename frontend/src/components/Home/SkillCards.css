@@ -57,7 +57,7 @@
   }
 
   .skill_cards__item {
-    font-size: clamp(0.78rem, 2.8vw, 0.95rem);
+    font-size: calc(var(--font-md) * 0.75 * 1.15);
     border-radius: 3px;
   }
 }

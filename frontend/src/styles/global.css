@@ -66,14 +66,12 @@ body {
 
 html.page-home,
 html.page-home body {
-  height: auto;
-  min-height: 100%;
-  overflow-x: clip;
-  overflow-y: auto;
+  height: 100%;
+  overflow: hidden;
 }
 
 html.page-home body {
-  max-height: none;
+  max-height: 100dvh;
 }
 
 body.page-editor {
