@@ -34,7 +34,7 @@ func loadDeepseekConfig() deepseekConfig {
 }
 
 type llmRequest struct {
-	Role        string   `json:"role"` // expert | referee | final | quiz | article_qa
+	Role        string   `json:"role"` // expert | referee | final | quiz | article_qa | profile_qa
 	Topic       string   `json:"topic"`
 	Rules       []string `json:"rules"`
 	History     []string `json:"history"`
@@ -134,8 +134,10 @@ func handleLLM(cfg deepseekConfig) http.HandlerFunc {
 			out, err = callQuiz(ctx, cfg, req)
 		case "article_qa":
 			out, err = callArticleQA(ctx, cfg, req)
+		case "profile_qa":
+			out, err = callProfileQA(ctx, cfg, req)
 		default:
-			common.WriteError(w, http.StatusBadRequest, "role must be expert, referee, final, quiz, or article_qa")
+			common.WriteError(w, http.StatusBadRequest, "role must be expert, referee, final, quiz, article_qa, or profile_qa")
 			return
 		}
 		if err != nil {

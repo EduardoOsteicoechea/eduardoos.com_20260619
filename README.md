@@ -97,6 +97,10 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | GET | `/api/logger/trace/:id` | Public | Distributed trace |
 | GET | `/api/tester/runs` | Public | QA run history |
 | GET | `/api/tester/runs/:run_id` | Public | Single QA run detail |
+| GET | `/api/media/skills/:skillId` | Public | Skill portfolio media (images/videos under `media/skills/{skillId}/`) |
+| POST | `/api/profile/ask` | Public + humanToken | Home skill chat (DeepSeek `profile_qa` with professional profile context) |
+
+Home skill cards open a modal media viewer + timed checkbox gate (hold ~5s) before chat unlocks. Upload portfolio assets to S3 under `media/skills/{skillId}/` (e.g. `media/skills/architect/`).
 
 ## Frontend Pages
 

@@ -38,6 +38,8 @@ var publicPaths = []string{
 	"/api/media/audio",
 	"/api/media/file",
 	"/api/media/images",
+	"/api/media/skills",
+	"/api/profile/ask",
 	"/api/payments/intents",
 	"/api/payments/status",
 	"/api/payments/webhook/paypal",
@@ -121,6 +123,7 @@ func Run(addr string) error {
 	r.Get("/api/media/images", cfg.listMediaImages())
 	r.Get("/api/media/audio", cfg.listMediaAudio())
 	r.Get("/api/media/file/*", cfg.proxyMediaFile())
+	registerProfilePublicRoutes(r, cfg)
 	registerPlaylistRoutes(r, cfg, playlistStore)
 	registerEpamRoutes(r, cfg, epamStore)
 	registerArticleRoutes(r, cfg, epamStore)
