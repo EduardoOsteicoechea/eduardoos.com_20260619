@@ -49,4 +49,4 @@ EC2 `/tmp` tmpfs ENOSPC was leaving nginx **502** on `/api/*`. Deploy builds wit
 
 ## Next up
 
-Title type only was 5 mm → **6.75 mm**. Band is **23 mm** so Serie/Capítulo **and** Autor/Fecha fit; cols 1–2 = **167.9 mm** (page grid still sums to 215.9 mm). Desktop header uses Helvetica/Arial to match PDF.
+Desktop sheet uses **Roboto** (same as the site) and scales to the viewport width so on-screen size matches the PDF viewer. PDF embeds Roboto Regular+Bold as TrueType (no Helvetica).

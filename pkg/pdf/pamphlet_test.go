@@ -13,6 +13,34 @@ import (
 	"testing"
 )
 
+func TestRobotoWidthsCoverSpanish(t *testing.T) {
+	if robotoRegular == nil || robotoBold == nil {
+		t.Fatal("Roboto faces not loaded")
+	}
+	for _, b := range []byte{'A', 'a', 'n', 0xF1, 0xE1, 0xBF} { // n, ñ, á, ¿
+		if robotoRegular.widths[b] < 100 {
+			t.Fatalf("regular width[%d]=%d too small", b, robotoRegular.widths[b])
+		}
+		if robotoBold.widths[b] < 100 {
+			t.Fatalf("bold width[%d]=%d too small", b, robotoBold.widths[b])
+		}
+	}
+}
+
+func TestBuildPamphletPDFEmbedsRoboto(t *testing.T) {
+	data := BuildPamphletPDF(PamphletDocument{
+		Type:   "pamphlet_single_sheet",
+		Header: PamphletHeader{Title: "Prueba"},
+	})
+	s := string(data)
+	if !strings.Contains(s, "/Subtype /TrueType") || !strings.Contains(s, "/Roboto-Regular") || !strings.Contains(s, "/Roboto-Bold") {
+		t.Fatalf("expected embedded Roboto TrueType fonts")
+	}
+	if strings.Contains(s, "/BaseFont /Helvetica") {
+		t.Fatalf("pamphlet PDF should not use built-in Helvetica")
+	}
+}
+
 func TestMmToPointsLetterLandscape(t *testing.T) {
 	w := MmToPoints(PamphletPageWidthMm)
 	h := MmToPoints(PamphletPageHeightMm)

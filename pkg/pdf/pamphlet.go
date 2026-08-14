@@ -8,7 +8,7 @@ package pdf
 //   page1 left  cols 7–8 (154.4mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
-// Text uses Helvetica / Helvetica-Bold with WinAnsiEncoding. Spanish and other
+// Text uses embedded Roboto / Roboto-Bold (website font) with WinAnsiEncoding.
 // Latin-1 glyphs are mapped to single WinAnsi bytes (never raw UTF-8 — that
 // produced the Ã¡ / Â¿ mojibake). Images from data:image/*;base64,… items are
 // decoded via stdlib image/jpeg+png, re-encoded as JPEG, and embedded as
@@ -159,8 +159,7 @@ func BuildPamphletPDF(doc PamphletDocument) []byte {
 	var b pdfBuilder
 	b.addString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
 	b.addString("2 0 obj\n<< /Type /Pages /Kids [] /Count 2 >>\nendobj\n") // patched below
-	b.addString("3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n")
-	b.addString("4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj\n")
+	f1, f2 := buildEmbeddedFontPair(&b)
 
 	xObjDecl := strings.Builder{}
 	for i := range images {
@@ -178,7 +177,7 @@ func BuildPamphletPDF(doc PamphletDocument) []byte {
 	content1 := buildPage1Content(doc, imgByContent)
 	content2 := buildPage2Content(doc, imgByContent)
 
-	resources := "/Font << /F1 3 0 R /F2 4 0 R >>"
+	resources := fmt.Sprintf("/Font << /F1 %d 0 R /F2 %d 0 R >>", f1, f2)
 	if xObjDecl.Len() > 0 {
 		resources += " /XObject << " + xObjDecl.String() + ">>"
 	}
@@ -715,7 +714,7 @@ func splitLongWord(word string, sizePt, maxWidthPt float64, bold bool) []string 
 }
 
 // toWinAnsi converts Unicode text to a single-byte WinAnsi string suitable for
-// Helvetica + /WinAnsiEncoding. Writing UTF-8 multi-byte sequences into the PDF
+// Roboto + /WinAnsiEncoding. Writing UTF-8 multi-byte sequences into the PDF
 // string (via WriteRune) was the source of Ã¡ / Â¿ mojibake.
 func toWinAnsi(s string) string {
 	var b strings.Builder

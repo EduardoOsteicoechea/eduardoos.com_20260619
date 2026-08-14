@@ -165,7 +165,9 @@ function syncMobileViewScale(): void {
     if (viewMode !== "mobile") {
         appRoot.style.setProperty("--mobile-view-scale", "1");
         appRoot.style.setProperty("--mobile-inv-scale", "1");
-        main.style.marginBottom = "";
+        if (viewMode !== "desktop") {
+            main.style.marginBottom = "";
+        }
         return;
     }
     const padPx = 16;
@@ -192,6 +194,30 @@ function syncMobileViewScale(): void {
     });
 }
 
+function syncDesktopViewScale(): void {
+    if (viewMode !== "desktop") {
+        appRoot.style.setProperty("--desktop-view-scale", "1");
+        return;
+    }
+    const layoutW = main.offsetWidth;
+    const layoutH = main.offsetHeight;
+    const viewportW = window.visualViewport?.width ?? window.innerWidth;
+    const pad = 32;
+    const available = Math.max(280, viewportW - pad);
+    const scale = layoutW > 0 ? available / layoutW : 1;
+    appRoot.style.setProperty("--desktop-view-scale", String(scale));
+    if (layoutH > 0 && scale !== 1) {
+        main.style.marginBottom = `${layoutH * scale - layoutH}px`;
+    } else {
+        main.style.marginBottom = "";
+    }
+}
+
+function syncSheetScale(): void {
+    syncMobileViewScale();
+    syncDesktopViewScale();
+}
+
 function applyViewMode(mode: ViewMode, options?: { closeSidebar?: boolean }): void {
     viewMode = mode;
     appRoot.setAttribute("data-view-mode", mode);
@@ -199,7 +225,7 @@ function applyViewMode(mode: ViewMode, options?: { closeSidebar?: boolean }): vo
     viewMobileBtn.classList.toggle("is-active", mode === "mobile");
     viewDesktopBtn.setAttribute("aria-pressed", mode === "desktop" ? "true" : "false");
     viewMobileBtn.setAttribute("aria-pressed", mode === "mobile" ? "true" : "false");
-    syncMobileViewScale();
+    syncSheetScale();
     if (options?.closeSidebar !== false) {
         closeSidebar();
     }
@@ -860,7 +886,7 @@ function reflowAndReport(container: HTMLElement) {
         }
 
         // Transform does not change layout box; refresh scroll gap after reflow.
-        syncMobileViewScale();
+        syncSheetScale();
     });
 }
 
@@ -912,7 +938,7 @@ function renderDocument(data: PamphletStructure, openEdit: boolean): void {
     currentHeader = { ...data.header };
     renderFromPamphlet(main, data);
     reflowAndReport(main);
-    syncMobileViewScale();
+    syncSheetScale();
     if (openEdit) {
         activateEditAt(data, data.last_edited_element);
     }
@@ -1513,12 +1539,12 @@ syncFixedChromeScale();
 applyViewMode(viewMode, { closeSidebar: false });
 on(window, "resize", () => {
     syncFixedChromeScale();
-    syncMobileViewScale();
+    syncSheetScale();
 });
 if (window.visualViewport) {
     on(window.visualViewport, "resize", () => {
         syncFixedChromeScale();
-        syncMobileViewScale();
+        syncSheetScale();
     });
     on(window.visualViewport, "scroll", syncFixedChromeScale);
 }
