@@ -38,21 +38,22 @@ const (
 	PamphletGutterWide = 20.0
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
 	PamphletColWidthMm = 57.85
-	// Max reserved header band (title + meta). Cols 1–2 start below *drawn*
-	// header content, not this full band — otherwise ~8–10mm of empty header
-	// plus the gutter became an exaggerated white gap under Autor/Fecha.
-	PamphletHeaderHMm = 14.0
+	// Reserved header band on the sheet (CSS --page-header-height). Must fit a
+	// wrapped title (~2×5mm) + two meta rows; 14mm caused desktop overlap.
+	// PDF cols 1–2 still start below *drawn* header content (see drawHeader),
+	// so unused space inside this band does not inflate the PDF gap.
+	PamphletHeaderHMm = 20.0
 	// Vertical gap between last header line and cols 1–2 (CSS --header-body-gutter).
 	PamphletHeaderBodyGutterMm = 3.0
 	PamphletFooterHMm          = 37.5
-	// 215.9 − 10 − 14 − 3 − 4 − 37.5 − 10
-	PamphletPage1BodyMm = 137.4
+	// 215.9 − 10 − 20 − 3 − 4 − 37.5 − 10
+	PamphletPage1BodyMm = 131.4
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Vertical gap between header title and the first metadata row (~5px on desktop ≈ 1.2mm).
 	PamphletHeaderTitleMetaGapMm = 1.2
-	// Right-side cols 1–2 under header band: 195.9 − 14 − 3 (floor when header is full).
-	PamphletPage1RightColMm = 178.9
+	// Right-side cols 1–2 under full header band: 195.9 − 20 − 3 (PDF may be taller when content is short).
+	PamphletPage1RightColMm = 172.9
 	// Left-side cols 7–8 above footer: 195.9 − 4 − 37.5
 	PamphletPage1LeftColMm = 154.4
 	// Extra space above heading_1 when it follows another item (PDF looks flush without this).
