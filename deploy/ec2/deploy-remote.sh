@@ -171,10 +171,14 @@ install_host_backend() {
     fuser -k 3000/tcp 2>/dev/null || true
   fi
   # EC2 /tmp is often a small tmpfs — keep Go work files on the root disk.
+  export TMPDIR="${APP_DIR}/.cache/tmp"
   export GOTMPDIR="${APP_DIR}/.cache/go-tmp"
   export GOCACHE="${APP_DIR}/.cache/go-build"
   export GOMODCACHE="${APP_DIR}/.cache/go-mod"
-  mkdir -p "${GOMODCACHE}"
+  mkdir -p "${TMPDIR}" "${GOTMPDIR}" "${GOCACHE}" "${GOMODCACHE}"
+  # Clear stale go-codehost / compile debris that fills the tiny /tmp tmpfs.
+  rm -rf /tmp/go-build* /tmp/go-codehost* /tmp/go-link-* 2>/dev/null || true
+  sudo rm -rf /tmp/go-build* /tmp/go-codehost* /tmp/go-link-* 2>/dev/null || true
   # Drop stale microservices containers that still hold disk + confuse ops.
   docker rm -f \
     eduardooscom_20260619-backend-1 \
