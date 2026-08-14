@@ -221,6 +221,16 @@ export function updateItemHeightMm(
     item.height_mm = heightMm;
 }
 
+export function updateItemStyleIndexes(
+    data: PamphletStructure,
+    loc: FlatRef,
+    styleIndexes: StyleIndexes,
+): void {
+    const items = getRegionItems(data, loc.column);
+    const item = items[loc.index];
+    item.style_indexes = structuredClone(styleIndexes) as StyleIndexes;
+}
+
 export function newSiblingItem(template: PamphletItem): PamphletItem {
     return createItemByType(template.type);
 }

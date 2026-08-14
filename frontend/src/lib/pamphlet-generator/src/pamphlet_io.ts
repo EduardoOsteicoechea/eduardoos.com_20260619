@@ -1,4 +1,4 @@
-import CreateElement, { openItemEditTray } from "./create_element";
+import CreateElement, { applyImageTransform, openItemEditTray } from "./create_element";
 import {
     COLUMN_KEYS,
     FOOTER_COLUMN,
@@ -100,11 +100,14 @@ function createImageItemElement(item: PamphletItem): HTMLElement {
     const img = document.createElement("img");
     img.className = "pamphlet-image";
     img.alt = "";
+    img.draggable = false;
     if (item.content) {
         img.src = item.content;
     }
     frame.appendChild(img);
     container.appendChild(frame);
+    // Cover + pan/zoom from style_indexes (must run after img is in the frame).
+    applyImageTransform(container);
 
     frame.addEventListener("click", () => {
         openItemEditTray(container);
@@ -405,7 +408,7 @@ export function syncItemContentFromTextarea(container: HTMLElement): void {
 
 export function syncImageItemFromDom(
     container: HTMLElement,
-): { content: string; heightMm: number } | null {
+): { content: string; heightMm: number; styleIndexes: StyleIndexes } | null {
     if (container.getAttribute(ITEM_TYPE_ATTR) !== "image") return null;
     const img = container.querySelector<HTMLImageElement>(":scope > .pamphlet-image-frame > img");
     const heightMm = clampImageHeightMm(
@@ -414,6 +417,7 @@ export function syncImageItemFromDom(
     return {
         content: img?.getAttribute("src") ?? "",
         heightMm,
+        styleIndexes: parseStyleIndexes(container.getAttribute(STYLE_INDEXES_ATTR)),
     };
 }
 

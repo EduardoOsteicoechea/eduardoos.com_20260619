@@ -1,10 +1,22 @@
 import {
     DEFAULT_IMAGE_HEIGHT_MM,
+    DEFAULT_IMAGE_SCALE,
+    DEFAULT_STYLE_INDEXES,
     IMAGE_HEIGHT_STEP_MM,
+    IMAGE_OFFSET_STEP_MM,
+    IMAGE_SCALE_STEP,
+    MAX_IMAGE_SCALE,
     MIN_IMAGE_HEIGHT_MM,
+    MIN_IMAGE_SCALE,
     clampImageHeightMm,
+    imageOffsetXMmFromStyles,
+    imageScaleFromStyles,
+    writeImageTransformToStyles,
+    type StyleIndexes,
 } from "./pamphlet_schema";
 import { ICONS } from "./icons";
+
+const STYLE_INDEXES_ATTR = "data-style-indexes";
 
 export type EditTrayMode = "full" | "header";
 
@@ -64,6 +76,33 @@ function getImageEl(container: HTMLElement): HTMLImageElement | null {
     return container.querySelector<HTMLImageElement>(":scope > .pamphlet-image-frame > img");
 }
 
+function readImageStyles(container: HTMLElement): StyleIndexes {
+    const raw = container.getAttribute(STYLE_INDEXES_ATTR);
+    if (!raw) return structuredClone(DEFAULT_STYLE_INDEXES);
+    try {
+        return JSON.parse(raw) as StyleIndexes;
+    } catch {
+        return structuredClone(DEFAULT_STYLE_INDEXES);
+    }
+}
+
+/** Apply cover + pan/zoom CSS variables on the image element. */
+export function applyImageTransform(container: HTMLElement): void {
+    const img = getImageEl(container);
+    if (!img) return;
+    const styles = readImageStyles(container);
+    const offsetXMm = imageOffsetXMmFromStyles(styles);
+    const scale = imageScaleFromStyles(styles);
+    img.style.setProperty("--img-offset-x", `${offsetXMm}mm`);
+    img.style.setProperty("--img-scale", String(scale));
+    // Clear leftover layout quirks from previous src / flex centering.
+    img.style.width = "100%";
+    img.style.height = "100%";
+    img.style.maxWidth = "none";
+    img.style.objectFit = "cover";
+    img.style.objectPosition = "center center";
+}
+
 function setImageHeightMm(container: HTMLElement, heightMm: number): void {
     const clamped = clampImageHeightMm(heightMm);
     container.setAttribute("data-height-mm", String(clamped));
@@ -71,6 +110,30 @@ function setImageHeightMm(container: HTMLElement, heightMm: number): void {
     if (frame) {
         frame.style.height = `${clamped}mm`;
     }
+}
+
+function setImageTransform(container: HTMLElement, offsetXMm: number, scale: number): void {
+    const next = writeImageTransformToStyles(readImageStyles(container), offsetXMm, scale);
+    container.setAttribute(STYLE_INDEXES_ATTR, JSON.stringify(next));
+    applyImageTransform(container);
+}
+
+function nudgeImageOffset(container: HTMLElement, deltaMm: number): void {
+    const styles = readImageStyles(container);
+    setImageTransform(
+        container,
+        imageOffsetXMmFromStyles(styles) + deltaMm,
+        imageScaleFromStyles(styles),
+    );
+}
+
+function nudgeImageScale(container: HTMLElement, delta: number): void {
+    const styles = readImageStyles(container);
+    const next = Math.min(
+        MAX_IMAGE_SCALE,
+        Math.max(MIN_IMAGE_SCALE, imageScaleFromStyles(styles) + delta),
+    );
+    setImageTransform(container, imageOffsetXMmFromStyles(styles), next);
 }
 
 async function fileToDataUrl(file: File): Promise<string> {
@@ -182,6 +245,9 @@ function editTray(
     const imageEl = getImageEl(elContainer);
     const initialContent = imageMode ? (imageEl?.getAttribute("src") ?? "") : (el.textContent || "");
     const initialHeightMm = Number(elContainer.getAttribute("data-height-mm") || DEFAULT_IMAGE_HEIGHT_MM);
+    const initialStyles = readImageStyles(elContainer);
+    const initialOffsetXMm = imageOffsetXMmFromStyles(initialStyles);
+    const initialScale = imageScaleFromStyles(initialStyles);
 
     const tray = document.createElement("div");
     if (id) tray.id = `${id}_edit_tray`;
@@ -247,6 +313,7 @@ function editTray(
                 else imageEl.removeAttribute("src");
             }
             setImageHeightMm(elContainer, initialHeightMm);
+            setImageTransform(elContainer, initialOffsetXMm, initialScale);
             return;
         }
         dispatchRemountAction({ action: "undo", container: elContainer });
@@ -324,6 +391,9 @@ function editTray(
         const imageControls = document.createElement("div");
         imageControls.className = "edit_tray_image_controls";
 
+        const rowPrimary = document.createElement("div");
+        rowPrimary.className = "edit_tray_image_row edit_tray_image_row--primary";
+
         const fileLabel = document.createElement("label");
         fileLabel.className = "edit_tray_file_label";
         fileLabel.textContent = "Elegir imagen";
@@ -336,10 +406,22 @@ function editTray(
             const file = fileInput.files?.[0];
             if (!file || !imageEl) return;
             void fileToDataUrl(file).then((dataUrl) => {
+                // Reset pan/zoom so a new asset is always cover-centered.
+                setImageTransform(elContainer, 0, DEFAULT_IMAGE_SCALE);
+                const onReady = () => {
+                    applyImageTransform(elContainer);
+                    imageEl.removeEventListener("load", onReady);
+                };
+                imageEl.addEventListener("load", onReady);
                 imageEl.src = dataUrl;
+                // Cached data URLs may fire load before the listener attaches.
+                if (imageEl.complete) onReady();
             });
         });
         fileLabel.appendChild(fileInput);
+
+        const heightBtns = document.createElement("div");
+        heightBtns.className = "edit_tray_image_btn_group";
 
         const tallerBtn = document.createElement("button");
         tallerBtn.type = "button";
@@ -361,9 +443,61 @@ function editTray(
             setImageHeightMm(elContainer, Math.max(MIN_IMAGE_HEIGHT_MM, current - IMAGE_HEIGHT_STEP_MM));
         });
 
-        imageControls.appendChild(fileLabel);
-        imageControls.appendChild(tallerBtn);
-        imageControls.appendChild(shorterBtn);
+        heightBtns.appendChild(tallerBtn);
+        heightBtns.appendChild(shorterBtn);
+        rowPrimary.appendChild(fileLabel);
+        rowPrimary.appendChild(heightBtns);
+
+        const rowTransform = document.createElement("div");
+        rowTransform.className = "edit_tray_image_row edit_tray_image_row--transform";
+
+        const panLeftBtn = document.createElement("button");
+        panLeftBtn.type = "button";
+        panLeftBtn.className = "edit_tray_height_button";
+        panLeftBtn.textContent = "←";
+        panLeftBtn.setAttribute("aria-label", "Mover imagen 2mm a la izquierda");
+        panLeftBtn.title = "Mover 2mm izquierda";
+        panLeftBtn.addEventListener("click", () => {
+            nudgeImageOffset(elContainer, -IMAGE_OFFSET_STEP_MM);
+        });
+
+        const panRightBtn = document.createElement("button");
+        panRightBtn.type = "button";
+        panRightBtn.className = "edit_tray_height_button";
+        panRightBtn.textContent = "→";
+        panRightBtn.setAttribute("aria-label", "Mover imagen 2mm a la derecha");
+        panRightBtn.title = "Mover 2mm derecha";
+        panRightBtn.addEventListener("click", () => {
+            nudgeImageOffset(elContainer, IMAGE_OFFSET_STEP_MM);
+        });
+
+        const zoomInBtn = document.createElement("button");
+        zoomInBtn.type = "button";
+        zoomInBtn.className = "edit_tray_height_button";
+        zoomInBtn.textContent = "＋";
+        zoomInBtn.setAttribute("aria-label", "Acercar imagen");
+        zoomInBtn.title = "Zoom in";
+        zoomInBtn.addEventListener("click", () => {
+            nudgeImageScale(elContainer, IMAGE_SCALE_STEP);
+        });
+
+        const zoomOutBtn = document.createElement("button");
+        zoomOutBtn.type = "button";
+        zoomOutBtn.className = "edit_tray_height_button";
+        zoomOutBtn.textContent = "－";
+        zoomOutBtn.setAttribute("aria-label", "Alejar imagen");
+        zoomOutBtn.title = "Zoom out";
+        zoomOutBtn.addEventListener("click", () => {
+            nudgeImageScale(elContainer, -IMAGE_SCALE_STEP);
+        });
+
+        rowTransform.appendChild(panLeftBtn);
+        rowTransform.appendChild(panRightBtn);
+        rowTransform.appendChild(zoomOutBtn);
+        rowTransform.appendChild(zoomInBtn);
+
+        imageControls.appendChild(rowPrimary);
+        imageControls.appendChild(rowTransform);
         tray.appendChild(imageControls);
 
         tray.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -376,6 +510,10 @@ function editTray(
         editTrayTextArea = document.createElement("textarea");
         editTrayTextArea.value = initialContent;
         editTrayTextArea.classList.add("edit_tray_text_area");
+        // Suppress OS / browser selection chrome (copy/paste/select-all bars).
+        editTrayTextArea.addEventListener("contextmenu", (e: MouseEvent) => {
+            e.preventDefault();
+        });
 
         editTrayTextArea.addEventListener("input", (e: Event) => {
             const target = e.target as HTMLTextAreaElement;

@@ -74,6 +74,48 @@ export const DEFAULT_STYLE_INDEXES: StyleIndexes = [[0, 0], [0, 0], [0, 0]];
 export const DEFAULT_IMAGE_HEIGHT_MM = 30;
 export const MIN_IMAGE_HEIGHT_MM = 10;
 export const IMAGE_HEIGHT_STEP_MM = 2;
+/** Horizontal pan step inside the image frame. */
+export const IMAGE_OFFSET_STEP_MM = 2;
+/** Zoom step as a multiplier delta (0.1 = 10%). */
+export const IMAGE_SCALE_STEP = 0.1;
+export const MIN_IMAGE_SCALE = 0.5;
+export const MAX_IMAGE_SCALE = 3;
+export const DEFAULT_IMAGE_SCALE = 1;
+
+/**
+ * Image pan/zoom reuse unused style_indexes slots (text bold uses [0]):
+ *   [1][0] = offset_x_mm * 100 (signed centi-mm)
+ *   [2][0] = scale * 100 (100 = 1.0×)
+ */
+export function imageOffsetXMmFromStyles(styles: StyleIndexes): number {
+    const raw = styles[1]?.[0];
+    if (typeof raw !== "number" || !Number.isFinite(raw)) return 0;
+    return raw / 100;
+}
+
+export function imageScaleFromStyles(styles: StyleIndexes): number {
+    const raw = styles[2]?.[0];
+    if (typeof raw !== "number" || !Number.isFinite(raw) || raw <= 0) {
+        return DEFAULT_IMAGE_SCALE;
+    }
+    return Math.min(MAX_IMAGE_SCALE, Math.max(MIN_IMAGE_SCALE, raw / 100));
+}
+
+export function writeImageTransformToStyles(
+    styles: StyleIndexes,
+    offsetXMm: number,
+    scale: number,
+): StyleIndexes {
+    const next = structuredClone(styles) as StyleIndexes;
+    const clampedScale = Math.min(
+        MAX_IMAGE_SCALE,
+        Math.max(MIN_IMAGE_SCALE, Number.isFinite(scale) ? scale : DEFAULT_IMAGE_SCALE),
+    );
+    const clampedOffset = Number.isFinite(offsetXMm) ? offsetXMm : 0;
+    next[1] = [Math.round(clampedOffset * 100), 0];
+    next[2] = [Math.round(clampedScale * 100), 0];
+    return next;
+}
 
 const ROOT_REQUIRED_KEYS = ["type", "header", "footer", "last_edited_element", ...COLUMN_KEYS] as const;
 const ROOT_OPTIONAL_KEYS = ["id", "ownerUserId"] as const;

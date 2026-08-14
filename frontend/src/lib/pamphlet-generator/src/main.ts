@@ -15,6 +15,7 @@ import {
     resolveLocation,
     updateItemContent,
     updateItemHeightMm,
+    updateItemStyleIndexes,
 } from "./pamphlet_doc";
 import {
     createPamphletFile,
@@ -945,6 +946,7 @@ function syncContentIntoDoc(
         if (!image) return null;
         updateItemContent(data, resolved, image.content);
         updateItemHeightMm(data, resolved, image.heightMm);
+        updateItemStyleIndexes(data, resolved, image.styleIndexes);
         return resolved;
     }
 

@@ -563,19 +563,24 @@
 .pamphlet-image-frame {
     width: 100%;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    position: relative;
+    display: block;
     background: #f3f3f3;
     flex: 0 0 auto;
 }
 
 .pamphlet-image-frame .pamphlet-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
     height: 100%;
-    width: auto;
     max-width: none;
     display: block;
     object-fit: cover;
+    object-position: center center;
+    /* Pan (mm) + zoom; origin stays frame center for stable re-centering on src change */
+    transform: translateX(var(--img-offset-x, 0mm)) scale(var(--img-scale, 1));
+    transform-origin: center center;
 }
 
 .pamphlet-page-footer .pamphlet-item {
@@ -779,15 +784,55 @@ p {
   overflow: auto;
   white-space: pre-wrap;
   line-height: 1.5;
+  /* Keep text selectable for bold; hide OS selection callout / copy-paste bar */
+  -webkit-touch-callout: none;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .edit_tray_image_controls {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px;
   background: #111;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.edit_tray_image_row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.edit_tray_image_row--primary .edit_tray_file_label {
+  flex: 0 0 60%;
+  max-width: 60%;
+  min-width: 0;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.edit_tray_image_btn_group {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.edit_tray_image_row--transform {
+  justify-content: space-between;
+}
+
+.edit_tray_image_row--transform .edit_tray_height_button {
+  flex: 1 1 0;
 }
 
 .edit_tray_file_label {
@@ -886,7 +931,7 @@ p {
   box-sizing: border-box;
 }
 
-/* Same tray scale as text button row (zoom 0.5) so image +/− stay usable on phone/tablet. */
+/* Same tray scale as text button row (zoom 0.5) so image controls stay usable on phone/tablet. */
 .pamphlet-app[data-view-mode="mobile"] .edit_tray_image_controls {
   width: 100%;
   box-sizing: border-box;
