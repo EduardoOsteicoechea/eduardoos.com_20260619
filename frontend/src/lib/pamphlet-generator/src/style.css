@@ -692,16 +692,25 @@ p {
   align-items: center;
 }
 
-/* Desktop: compact edit-tray chrome (mobile keeps its own scaled rules). */
+/* Desktop: shrink edit-tray chrome so the full button row fits the 57.85mm column.
+   Mobile keeps its own scaled rules (larger touch targets). */
 .pamphlet-app[data-view-mode="desktop"] .element_edit_tray {
-  --edit-tray-ctrl-size: 20px;
+  --edit-tray-ctrl-size: 16px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .pamphlet-app[data-view-mode="desktop"] .element_edit_tray_buttons_container {
-  gap: 2px;
-  padding: 2px;
+  gap: 1px;
+  padding: 1px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
+.pamphlet-app[data-view-mode="desktop"] .element_edit_tray_buttons_container > button,
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_icon_button,
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_close_button,
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_delete_button {
@@ -709,22 +718,26 @@ p {
   height: var(--edit-tray-ctrl-size);
   min-width: var(--edit-tray-ctrl-size);
   min-height: var(--edit-tray-ctrl-size);
-  padding: 1px;
+  max-width: var(--edit-tray-ctrl-size);
+  max-height: var(--edit-tray-ctrl-size);
+  padding: 0;
   border-radius: 2px;
+  box-sizing: border-box;
+  flex: 0 0 var(--edit-tray-ctrl-size);
 }
 
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_icon {
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
 }
 
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_text_button {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_delete_button {
-  font-size: 10px;
-  padding: 1px 2px;
+  font-size: 9px;
+  padding: 0;
 }
 
 .edit_tray_icon_button{
