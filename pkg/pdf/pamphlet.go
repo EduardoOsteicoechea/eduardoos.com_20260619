@@ -502,7 +502,9 @@ func drawStackedItems(
 	cursorTop := top
 	floor := top - heightMm
 	for i, item := range items {
-		if cursorTop <= floor {
+		// CSS .dumb-column { overflow: visible } — the last sheet line may start
+		// just below the grid floor and still sit in the 10mm page margin.
+		if cursorTop < floor-pamphletBodySizeMm*pamphletBodyLH {
 			break
 		}
 		if item.Type == "image" {
@@ -629,14 +631,17 @@ func writeWrapped(s *strings.Builder, font string, sizePt, lineHeight, xMm, yMm,
 	maxWidthPt := MmToPoints(widthMm)
 	lines := wrapWordsToWidth(text, sizePt, maxWidthPt, font == "F2")
 	lineH := sizePt * lineHeight * 25.4 / 72.0 // mm
+	sizeMm := sizePt * 25.4 / 72.0
+	offset := cssBaselineOffsetMm(sizeMm, lineHeight)
 	used := 0.0
 	y := yMm
 	for _, line := range lines {
-		// y is the alphabetic baseline. CSS columns are overflow:visible, so
-		// paint any line whose baseline is still above the band floor. The old
-		// y-lineH check demanded a full extra line box under the baseline and
-		// dropped the last heading/paragraph of a filled column.
-		if y < floorMm {
+		// y is the alphabetic baseline. Desktop columns are overflow:visible, so
+		// paint a line whose line-box still intersects the band or starts at most
+		// one line into the page margin — that is the last sheet line the PDF
+		// was dropping ("para santificae" / "Mira cómo dice Romanos…").
+		lineBoxTop := y + offset
+		if lineBoxTop < floorMm-lineH {
 			break
 		}
 		s.WriteString(fmt.Sprintf("BT /%s %.2f Tf %.2f %.2f Td (%s) Tj ET\n",

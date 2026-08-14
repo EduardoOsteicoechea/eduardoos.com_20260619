@@ -210,6 +210,39 @@ func TestWriteWrappedKeepsLastLineAboveFloor(t *testing.T) {
 	}
 }
 
+func TestWriteWrappedPaintsOverflowVisibleLastLine(t *testing.T) {
+	floor := 10.0
+	offset := cssBaselineOffsetMm(pamphletBodySizeMm, pamphletBodyLH)
+	// Line box starts 1mm below the column floor (inside the page margin), matching desktop.
+	cursorTop := floor - 1.0
+	y := cursorTop - offset
+	var s strings.Builder
+	used := writeWrapped(&s, "F1", pamphletBodySizePt, pamphletBodyLH, 10, y, PamphletColWidthMm, "para santificae", floor)
+	if used <= 0 || !strings.Contains(s.String(), "santificae") {
+		t.Fatalf("overflow-visible last line clipped: cursor=%.2f y=%.2f used=%v %q", cursorTop, y, used, s.String())
+	}
+}
+
+func TestDrawColumnKeepsParagraphInPageMargin(t *testing.T) {
+	// Heading sits on the column floor; CSS still shows the next paragraph in the margin.
+	const top = 40.0
+	headLine := pamphletHeadingSizeMm * pamphletHeadingLH
+	height := headLine + 0.2
+	items := []PamphletItem{
+		{Type: "heading_1", Content: "1. Un libro para afianzar"},
+		{Type: "paragraph", Content: "Mira como dice Romanos"},
+	}
+	var s strings.Builder
+	drawColumn(&s, items, 10, top, PamphletColWidthMm, height, nil)
+	out := s.String()
+	if !strings.Contains(out, "afianzar") {
+		t.Fatalf("heading missing: %q", out)
+	}
+	if !strings.Contains(out, "Romanos") {
+		t.Fatalf("margin paragraph clipped: %q", out)
+	}
+}
+
 func TestDrawColumnKeepsTrailingHeadingAndParagraph(t *testing.T) {
 	// Desktop CSS: only 2.5mm item gap, heading lh 1.2, no extra heading margin.
 	// A packed column must still paint the last heading + following line (the
