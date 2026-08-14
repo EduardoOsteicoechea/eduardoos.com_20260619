@@ -146,15 +146,18 @@
   }
 }
 
-/* Desktop: photo + copy in one stage; 9:16 photo, info column 400px */
+/* Desktop: photo flush left (complete 9:16), info column 400px */
 @media (min-width: 1024px) {
   .page-shell.hero.home-hero {
     --home-img-height: var(--home-viewport-h);
     --home-info-width: 400px;
+    left: 0;
     height: var(--home-viewport-h-fallback);
     height: var(--home-viewport-h);
     min-height: 0;
     max-height: var(--home-viewport-h);
+    margin: 0;
+    padding: 0;
     overflow: hidden;
   }
 
@@ -162,38 +165,43 @@
     display: flex;
     flex-direction: row;
     align-items: stretch;
+    justify-content: flex-start;
     gap: 0;
     box-sizing: border-box;
-    width: fit-content;
-    max-width: calc(100% - 2rem);
+    width: 100%;
+    max-width: none;
     height: var(--home-img-height);
-    margin: 0 auto;
+    margin: 0;
+    padding: 0;
     position: relative;
+    left: 0;
   }
 
   .home-hero__photo {
     position: relative;
     inset: auto;
-    top: auto;
-    left: auto;
+    top: 0;
+    left: 0;
     right: auto;
     bottom: auto;
     z-index: 1;
     flex: 0 0 auto;
-    width: calc(var(--home-img-height) * 9 / 16);
+    width: auto;
     height: var(--home-img-height);
     max-height: none;
-    overflow: hidden;
+    margin: 0;
+    overflow: visible;
     pointer-events: none;
   }
 
   .home-hero__photo img {
     display: block;
-    width: 100%;
+    width: auto;
     height: 100%;
+    max-width: none;
     max-height: none;
     object-fit: contain;
-    object-position: center top;
+    object-position: left top;
   }
 
   .home-hero__copy {
