@@ -277,17 +277,19 @@
   --col-gutter-wide: 20mm;
   /* Title + 5mm gap (PDF) + two meta rows ≈ 20mm */
   --page-header-height: 20mm;
+  /* Vertical gap between header and cols 1–2 (not the inter-column 4mm gutters). */
+  --header-body-gutter: 8mm;
   --page-footer-height: 37.5mm; /* 15mm × 2.5 */
-  /* Page 1 body: 215.9 − 10 − 20 − 4 − 4 − 37.5 − 10 = 130.4mm */
-  --page1-body-height: 130.4mm;
+  /* Page 1 body: 215.9 − 10 − 20 − 8 − 4 − 37.5 − 10 = 126.4mm */
+  --page1-body-height: 126.4mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
   --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
-  /* Cols 1–2 under header: 195.9 − 20 − 4 = 171.9mm */
-  --page1-right-col-height: 171.9mm;
+  /* Cols 1–2 under header: 195.9 − 20 − 8 = 167.9mm */
+  --page1-right-col-height: 167.9mm;
   /* Cols 7–8 above footer: 195.9 − 4 − 37.5 = 154.4mm */
   --page1-left-col-height: 154.4mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
@@ -374,7 +376,7 @@
     grid-template-rows:
         var(--page-margin)
         var(--page-header-height)
-        var(--col-gutter-narrow)
+        var(--header-body-gutter)
         var(--page1-body-height)
         var(--col-gutter-narrow)
         var(--page-footer-height)
@@ -1179,7 +1181,7 @@ p {
     grid-template-rows:
         var(--page-margin)
         var(--page-header-height)
-        var(--col-gutter-narrow)
+        var(--header-body-gutter)
         var(--page1-body-height)
         var(--col-gutter-narrow)
         var(--page-footer-height)

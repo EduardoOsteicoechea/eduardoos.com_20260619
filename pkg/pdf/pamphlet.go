@@ -36,14 +36,17 @@ const (
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
 	PamphletColWidthMm = 57.85
 	PamphletHeaderHMm  = 20.0 // title + 5mm gap + two gray meta rows
-	PamphletFooterHMm  = 37.5
-	PamphletPage1BodyMm = 130.4
+	// Vertical gap between header band and cols 1–2 (CSS --header-body-gutter).
+	PamphletHeaderBodyGutterMm = 8.0
+	PamphletFooterHMm          = 37.5
+	// 215.9 − 10 − 20 − 8 − 4 − 37.5 − 10
+	PamphletPage1BodyMm = 126.4
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Vertical gap between header title and the first metadata row below it.
 	PamphletHeaderTitleMetaGapMm = 5.0
-	// Right-side cols 1–2 under header: 195.9 − 20 − 4
-	PamphletPage1RightColMm = 171.9
+	// Right-side cols 1–2 under header: 195.9 − 20 − 8
+	PamphletPage1RightColMm = 167.9
 	// Left-side cols 7–8 above footer: 195.9 − 4 − 37.5
 	PamphletPage1LeftColMm = 154.4
 	// Extra space above heading_1 when it follows another item (PDF looks flush without this).
@@ -336,7 +339,7 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, PamphletPage1LeftColMm, images)
 	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, PamphletPage1LeftColMm, images)
 
-	rightTop := PamphletPageHeightMm - PamphletMarginMm - PamphletHeaderHMm - PamphletGutterNarrow
+	rightTop := PamphletPageHeightMm - PamphletMarginMm - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
 	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
 	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
 
@@ -357,8 +360,8 @@ func buildPage2Content(doc PamphletDocument, images map[string]*pdfImage) string
 }
 
 func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm float64) {
-	// Stay inside header + narrow gutter; never paint into cols 1–2.
-	floor := top - heightMm - PamphletGutterNarrow
+	// Stay inside header band; may use header→body gutter but never paint into cols 1–2.
+	floor := top - heightMm - PamphletHeaderBodyGutterMm
 	const titleSizePt = 14.0 // ≈ 5mm — matches .pamphlet-header-title
 	titleLineHMm := titleSizePt * 1.15 * 25.4 / 72.0
 	y := top - (titleSizePt * 25.4 / 72.0)
