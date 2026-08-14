@@ -60,8 +60,8 @@ func TestToWinAnsiSpanish(t *testing.T) {
 }
 
 func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
-	if PamphletHeaderTitleMetaGapMm != 5.0 {
-		t.Fatalf("header title→meta gap want 5mm, got %v", PamphletHeaderTitleMetaGapMm)
+	if PamphletHeaderTitleMetaGapMm < 1.0 || PamphletHeaderTitleMetaGapMm > 2.0 {
+		t.Fatalf("header title→meta gap want ~1.2mm (match desktop), got %v", PamphletHeaderTitleMetaGapMm)
 	}
 	var s strings.Builder
 	drawHeader(&s, PamphletHeader{

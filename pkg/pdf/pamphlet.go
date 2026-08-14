@@ -46,8 +46,9 @@ const (
 	PamphletPage1BodyMm = 129.4
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
-	// Vertical gap between header title and the first metadata row below it.
-	PamphletHeaderTitleMetaGapMm = 5.0
+	// Vertical gap between header title and the first metadata row (~5px on desktop ≈ 1.2mm).
+	// Was 5mm and looked exaggerated vs the editor.
+	PamphletHeaderTitleMetaGapMm = 1.2
 	// Right-side cols 1–2 under header: 195.9 − 20 − 5
 	PamphletPage1RightColMm = 170.9
 	// Left-side cols 7–8 above footer: 195.9 − 4 − 37.5
