@@ -10,6 +10,7 @@ import {
     MIN_IMAGE_SCALE,
     clampImageHeightMm,
     imageOffsetXMmFromStyles,
+    imageOffsetYMmFromStyles,
     imageScaleFromStyles,
     writeImageTransformToStyles,
     type StyleIndexes,
@@ -92,8 +93,10 @@ export function applyImageTransform(container: HTMLElement): void {
     if (!img) return;
     const styles = readImageStyles(container);
     const offsetXMm = imageOffsetXMmFromStyles(styles);
+    const offsetYMm = imageOffsetYMmFromStyles(styles);
     const scale = imageScaleFromStyles(styles);
     img.style.setProperty("--img-offset-x", `${offsetXMm}mm`);
+    img.style.setProperty("--img-offset-y", `${offsetYMm}mm`);
     img.style.setProperty("--img-scale", String(scale));
     // Clear leftover layout quirks from previous src / flex centering.
     img.style.width = "100%";
@@ -112,17 +115,28 @@ function setImageHeightMm(container: HTMLElement, heightMm: number): void {
     }
 }
 
-function setImageTransform(container: HTMLElement, offsetXMm: number, scale: number): void {
-    const next = writeImageTransformToStyles(readImageStyles(container), offsetXMm, scale);
+function setImageTransform(
+    container: HTMLElement,
+    offsetXMm: number,
+    offsetYMm: number,
+    scale: number,
+): void {
+    const next = writeImageTransformToStyles(
+        readImageStyles(container),
+        offsetXMm,
+        offsetYMm,
+        scale,
+    );
     container.setAttribute(STYLE_INDEXES_ATTR, JSON.stringify(next));
     applyImageTransform(container);
 }
 
-function nudgeImageOffset(container: HTMLElement, deltaMm: number): void {
+function nudgeImageOffset(container: HTMLElement, deltaXMm: number, deltaYMm: number): void {
     const styles = readImageStyles(container);
     setImageTransform(
         container,
-        imageOffsetXMmFromStyles(styles) + deltaMm,
+        imageOffsetXMmFromStyles(styles) + deltaXMm,
+        imageOffsetYMmFromStyles(styles) + deltaYMm,
         imageScaleFromStyles(styles),
     );
 }
@@ -133,7 +147,32 @@ function nudgeImageScale(container: HTMLElement, delta: number): void {
         MAX_IMAGE_SCALE,
         Math.max(MIN_IMAGE_SCALE, imageScaleFromStyles(styles) + delta),
     );
-    setImageTransform(container, imageOffsetXMmFromStyles(styles), next);
+    setImageTransform(
+        container,
+        imageOffsetXMmFromStyles(styles),
+        imageOffsetYMmFromStyles(styles),
+        next,
+    );
+}
+
+async function copyTextareaSelectionOrAll(area: HTMLTextAreaElement): Promise<void> {
+    const start = area.selectionStart;
+    const end = area.selectionEnd;
+    const text = end > start ? area.value.slice(start, end) : area.value;
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch {
+        // Fallback when clipboard permission is denied.
+        const prevStart = area.selectionStart;
+        const prevEnd = area.selectionEnd;
+        area.focus();
+        if (end <= start) area.select();
+        try {
+            document.execCommand("copy");
+        } finally {
+            area.setSelectionRange(prevStart, prevEnd);
+        }
+    }
 }
 
 async function fileToDataUrl(file: File): Promise<string> {
@@ -247,6 +286,7 @@ function editTray(
     const initialHeightMm = Number(elContainer.getAttribute("data-height-mm") || DEFAULT_IMAGE_HEIGHT_MM);
     const initialStyles = readImageStyles(elContainer);
     const initialOffsetXMm = imageOffsetXMmFromStyles(initialStyles);
+    const initialOffsetYMm = imageOffsetYMmFromStyles(initialStyles);
     const initialScale = imageScaleFromStyles(initialStyles);
 
     const tray = document.createElement("div");
@@ -313,7 +353,7 @@ function editTray(
                 else imageEl.removeAttribute("src");
             }
             setImageHeightMm(elContainer, initialHeightMm);
-            setImageTransform(elContainer, initialOffsetXMm, initialScale);
+            setImageTransform(elContainer, initialOffsetXMm, initialOffsetYMm, initialScale);
             return;
         }
         dispatchRemountAction({ action: "undo", container: elContainer });
@@ -377,11 +417,40 @@ function editTray(
                 });
             });
             editTrayButtonsTray.appendChild(enboldButton);
+
+            const copyButton = document.createElement("button");
+            copyButton.type = "button";
+            copyButton.classList.add("edit_tray_icon_button", "edit_tray_text_button");
+            copyButton.textContent = "⎘";
+            copyButton.setAttribute("aria-label", "Copiar");
+            copyButton.title = "Copiar selección (o todo el texto)";
+            copyButton.addEventListener("click", () => {
+                const area =
+                    editTrayTextArea ??
+                    tray.querySelector<HTMLTextAreaElement>(".edit_tray_text_area");
+                if (!area) return;
+                void copyTextareaSelectionOrAll(area);
+            });
+            editTrayButtonsTray.appendChild(copyButton);
         }
 
         editTrayButtonsTray.appendChild(undoButton);
         editTrayButtonsTray.appendChild(deleteButton);
     } else {
+        const copyButton = document.createElement("button");
+        copyButton.type = "button";
+        copyButton.classList.add("edit_tray_icon_button", "edit_tray_text_button");
+        copyButton.textContent = "⎘";
+        copyButton.setAttribute("aria-label", "Copiar");
+        copyButton.title = "Copiar selección (o todo el texto)";
+        copyButton.addEventListener("click", () => {
+            const area =
+                editTrayTextArea ??
+                tray.querySelector<HTMLTextAreaElement>(".edit_tray_text_area");
+            if (!area) return;
+            void copyTextareaSelectionOrAll(area);
+        });
+        editTrayButtonsTray.appendChild(copyButton);
         editTrayButtonsTray.appendChild(undoButton);
     }
 
@@ -407,7 +476,7 @@ function editTray(
             if (!file || !imageEl) return;
             void fileToDataUrl(file).then((dataUrl) => {
                 // Reset pan/zoom so a new asset is always cover-centered.
-                setImageTransform(elContainer, 0, DEFAULT_IMAGE_SCALE);
+                setImageTransform(elContainer, 0, 0, DEFAULT_IMAGE_SCALE);
                 const onReady = () => {
                     applyImageTransform(elContainer);
                     imageEl.removeEventListener("load", onReady);
@@ -458,7 +527,17 @@ function editTray(
         panLeftBtn.setAttribute("aria-label", "Mover imagen 2mm a la izquierda");
         panLeftBtn.title = "Mover 2mm izquierda";
         panLeftBtn.addEventListener("click", () => {
-            nudgeImageOffset(elContainer, -IMAGE_OFFSET_STEP_MM);
+            nudgeImageOffset(elContainer, -IMAGE_OFFSET_STEP_MM, 0);
+        });
+
+        const panUpBtn = document.createElement("button");
+        panUpBtn.type = "button";
+        panUpBtn.className = "edit_tray_height_button";
+        panUpBtn.textContent = "↑";
+        panUpBtn.setAttribute("aria-label", "Mover imagen 2mm arriba");
+        panUpBtn.title = "Mover 2mm arriba";
+        panUpBtn.addEventListener("click", () => {
+            nudgeImageOffset(elContainer, 0, -IMAGE_OFFSET_STEP_MM);
         });
 
         const panRightBtn = document.createElement("button");
@@ -468,7 +547,17 @@ function editTray(
         panRightBtn.setAttribute("aria-label", "Mover imagen 2mm a la derecha");
         panRightBtn.title = "Mover 2mm derecha";
         panRightBtn.addEventListener("click", () => {
-            nudgeImageOffset(elContainer, IMAGE_OFFSET_STEP_MM);
+            nudgeImageOffset(elContainer, IMAGE_OFFSET_STEP_MM, 0);
+        });
+
+        const panDownBtn = document.createElement("button");
+        panDownBtn.type = "button";
+        panDownBtn.className = "edit_tray_height_button";
+        panDownBtn.textContent = "↓";
+        panDownBtn.setAttribute("aria-label", "Mover imagen 2mm abajo");
+        panDownBtn.title = "Mover 2mm abajo";
+        panDownBtn.addEventListener("click", () => {
+            nudgeImageOffset(elContainer, 0, IMAGE_OFFSET_STEP_MM);
         });
 
         const zoomInBtn = document.createElement("button");
@@ -492,7 +581,9 @@ function editTray(
         });
 
         rowTransform.appendChild(panLeftBtn);
+        rowTransform.appendChild(panUpBtn);
         rowTransform.appendChild(panRightBtn);
+        rowTransform.appendChild(panDownBtn);
         rowTransform.appendChild(zoomOutBtn);
         rowTransform.appendChild(zoomInBtn);
 

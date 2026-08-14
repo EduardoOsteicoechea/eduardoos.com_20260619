@@ -84,11 +84,18 @@ export const DEFAULT_IMAGE_SCALE = 1;
 
 /**
  * Image pan/zoom reuse unused style_indexes slots (text bold uses [0]):
- *   [1][0] = offset_x_mm * 100 (signed centi-mm)
+ *   [1][0] = offset_x_mm * 100 (signed centi-mm; + = right)
+ *   [1][1] = offset_y_mm * 100 (signed centi-mm; + = down)
  *   [2][0] = scale * 100 (100 = 1.0×)
  */
 export function imageOffsetXMmFromStyles(styles: StyleIndexes): number {
     const raw = styles[1]?.[0];
+    if (typeof raw !== "number" || !Number.isFinite(raw)) return 0;
+    return raw / 100;
+}
+
+export function imageOffsetYMmFromStyles(styles: StyleIndexes): number {
+    const raw = styles[1]?.[1];
     if (typeof raw !== "number" || !Number.isFinite(raw)) return 0;
     return raw / 100;
 }
@@ -104,6 +111,7 @@ export function imageScaleFromStyles(styles: StyleIndexes): number {
 export function writeImageTransformToStyles(
     styles: StyleIndexes,
     offsetXMm: number,
+    offsetYMm: number,
     scale: number,
 ): StyleIndexes {
     const next = structuredClone(styles) as StyleIndexes;
@@ -111,8 +119,9 @@ export function writeImageTransformToStyles(
         MAX_IMAGE_SCALE,
         Math.max(MIN_IMAGE_SCALE, Number.isFinite(scale) ? scale : DEFAULT_IMAGE_SCALE),
     );
-    const clampedOffset = Number.isFinite(offsetXMm) ? offsetXMm : 0;
-    next[1] = [Math.round(clampedOffset * 100), 0];
+    const clampedOffsetX = Number.isFinite(offsetXMm) ? offsetXMm : 0;
+    const clampedOffsetY = Number.isFinite(offsetYMm) ? offsetYMm : 0;
+    next[1] = [Math.round(clampedOffsetX * 100), Math.round(clampedOffsetY * 100)];
     next[2] = [Math.round(clampedScale * 100), 0];
     return next;
 }

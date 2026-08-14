@@ -579,7 +579,7 @@
     object-fit: cover;
     object-position: center center;
     /* Pan (mm) + zoom; origin stays frame center for stable re-centering on src change */
-    transform: translateX(var(--img-offset-x, 0mm)) scale(var(--img-scale, 1));
+    transform: translate(var(--img-offset-x, 0mm), var(--img-offset-y, 0mm)) scale(var(--img-scale, 1));
     transform-origin: center center;
 }
 
@@ -678,6 +678,8 @@ p {
   left: 0;
   z-index: 1000;
   overflow: visible;
+  /* Shared control size: activity bar, file label, height + pan/zoom buttons */
+  --edit-tray-ctrl-size: 28px;
 }
 
 .element_edit_tray_buttons_container{
@@ -689,6 +691,10 @@ p {
 }
 
 /* Desktop: compact edit-tray chrome (mobile keeps its own scaled rules). */
+.pamphlet-app[data-view-mode="desktop"] .element_edit_tray {
+  --edit-tray-ctrl-size: 20px;
+}
+
 .pamphlet-app[data-view-mode="desktop"] .element_edit_tray_buttons_container {
   gap: 2px;
   padding: 2px;
@@ -697,10 +703,10 @@ p {
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_icon_button,
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_close_button,
 .pamphlet-app[data-view-mode="desktop"] .edit_tray_delete_button {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
+  width: var(--edit-tray-ctrl-size);
+  height: var(--edit-tray-ctrl-size);
+  min-width: var(--edit-tray-ctrl-size);
+  min-height: var(--edit-tray-ctrl-size);
   padding: 1px;
   border-radius: 2px;
 }
@@ -810,15 +816,22 @@ p {
 }
 
 .edit_tray_image_row--primary .edit_tray_file_label {
-  flex: 0 0 60%;
-  max-width: 60%;
+  flex: 1 1 auto;
+  width: auto;
+  max-width: none;
   min-width: 0;
+  height: var(--edit-tray-ctrl-size);
+  min-height: var(--edit-tray-ctrl-size);
+  max-height: var(--edit-tray-ctrl-size);
+  padding: 0 8px;
+  font-size: calc(var(--edit-tray-ctrl-size) * 0.55);
+  line-height: 1;
   justify-content: center;
   box-sizing: border-box;
 }
 
 .edit_tray_image_btn_group {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -839,12 +852,13 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 0 8px;
   background: #333;
   color: #fff;
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .edit_tray_file_input {
@@ -856,17 +870,21 @@ p {
 }
 
 .edit_tray_height_button {
-  width: 32px;
-  height: 32px;
+  width: var(--edit-tray-ctrl-size, 28px);
+  height: var(--edit-tray-ctrl-size, 28px);
+  min-width: var(--edit-tray-ctrl-size, 28px);
+  min-height: var(--edit-tray-ctrl-size, 28px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: #1976d2;
   color: #fff;
   border-radius: 4px;
-  font-size: 18px;
+  font-size: calc(var(--edit-tray-ctrl-size, 28px) * 0.65);
   font-weight: 700;
   cursor: pointer;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .edit_tray_height_button:hover {
@@ -882,6 +900,7 @@ p {
   transform: none;
   z-index: 1200;
   overflow: visible;
+  --edit-tray-ctrl-size: calc(44px * var(--mobile-inv-scale, 1));
 }
 
 /* Mobile: + item matches pamphlet menu (30px visual) after column scale */

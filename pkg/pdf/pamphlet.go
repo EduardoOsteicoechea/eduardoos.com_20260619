@@ -470,7 +470,8 @@ func drawImageOrPlaceholder(s *strings.Builder, item PamphletItem, x, y, width, 
 	if img, ok := images[item.Content]; ok && img != nil && len(img.jpeg) > 0 {
 		// Fit image into the reserved frame (object-fit: cover → scale to fill, clip via clip rect).
 		// Optional pan/zoom from style_indexes (mirrors frontend):
-		//   [1][0] = offset_x_mm * 100
+		//   [1][0] = offset_x_mm * 100 (+ right)
+		//   [1][1] = offset_y_mm * 100 (+ down in CSS; PDF y is inverted)
 		//   [2][0] = scale * 100 (100 = 1.0×)
 		s.WriteString("q\n")
 		s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re W n\n", bx, by, bw, bh))
@@ -501,6 +502,10 @@ func drawImageOrPlaceholder(s *strings.Builder, item PamphletItem, x, y, width, 
 		dy := by + (bh-dh)/2
 		if len(item.StyleIndexes) > 1 && len(item.StyleIndexes[1]) > 0 {
 			dx += MmToPoints(float64(item.StyleIndexes[1][0]) / 100.0)
+			if len(item.StyleIndexes[1]) > 1 {
+				// CSS +Y is down; PDF +Y is up → subtract.
+				dy -= MmToPoints(float64(item.StyleIndexes[1][1]) / 100.0)
+			}
 		}
 		s.WriteString(fmt.Sprintf("%.2f 0 0 %.2f %.2f %.2f cm /%s Do\n", dw, dh, dx, dy, img.name))
 		s.WriteString("Q\n")
