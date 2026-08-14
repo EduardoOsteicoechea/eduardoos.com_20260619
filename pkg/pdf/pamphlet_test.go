@@ -199,6 +199,44 @@ func TestPamphletPageGeometrySums(t *testing.T) {
 	}
 }
 
+func TestWriteWrappedKeepsLastLineAboveFloor(t *testing.T) {
+	var s strings.Builder
+	floor := 10.0
+	// Baseline only 1.5mm above the floor — the old y-lineH gate needed ~3.75mm
+	// of clearance and dropped this last sheet line.
+	used := writeWrapped(&s, "F1", pamphletBodySizePt, pamphletBodyLH, 10, 11.5, PamphletColWidthMm, "salvacion, todo es gracia.", floor)
+	if used <= 0 || !strings.Contains(s.String(), "gracia") {
+		t.Fatalf("last line above floor was clipped: used=%v stream=%q", used, s.String())
+	}
+}
+
+func TestDrawColumnKeepsTrailingHeadingAndParagraph(t *testing.T) {
+	// Desktop CSS: only 2.5mm item gap, heading lh 1.2, no extra heading margin.
+	// A packed column must still paint the last heading + following line (the
+	// band the PDF used to eat at the page bottom).
+	const top = 40.0
+	bodyLine := pamphletBodySizeMm * pamphletBodyLH
+	headLine := pamphletHeadingSizeMm * pamphletHeadingLH
+	// 3 one-line paras + heading + para + 4 gaps
+	height := 3*bodyLine + headLine + bodyLine + 4*PamphletItemGapMm + 0.4
+	items := []PamphletItem{
+		{Type: "paragraph", Content: "aaa"},
+		{Type: "paragraph", Content: "bbb"},
+		{Type: "paragraph", Content: "ccc"},
+		{Type: "heading_1", Content: "1. Un libro para afianzar"},
+		{Type: "paragraph", Content: "Mira como dice Romanos"},
+	}
+	var s strings.Builder
+	drawColumn(&s, items, 10, top, PamphletColWidthMm, height, nil)
+	out := s.String()
+	if !strings.Contains(out, "afianzar") {
+		t.Fatalf("trailing heading clipped: %q", out)
+	}
+	if !strings.Contains(out, "Romanos") {
+		t.Fatalf("trailing paragraph clipped: %q", out)
+	}
+}
+
 func TestWrapWordsStaysInsideColumn(t *testing.T) {
 	text := toWinAnsi("Ignorar el enfoque correcto puede hacer que destruyas tu vida con la Biblia.")
 	sizePt := 8.5

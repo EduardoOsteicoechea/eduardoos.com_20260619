@@ -56,8 +56,6 @@ const (
 	PamphletPage1RightColMm = 170.9
 	// Left-side cols 7–8 above footer: 195.9 − 4 − 37.5
 	PamphletPage1LeftColMm = 154.4
-	// Extra space above heading_1 when it follows another item (PDF looks flush without this).
-	PamphletHeadingMarginTopMm = 3.0
 	// Exact CSS type sizes on the sheet (source of truth for PDF).
 	pamphletTitleSizeMm = 5.0  // .pamphlet-header-title p { font-size: 5mm; line-height: 1.1 }
 	pamphletTitleLH     = 1.1
@@ -65,7 +63,8 @@ const (
 	pamphletMetaLH      = 1.2
 	pamphletBodySizeMm  = 3.0  // paragraph { font-size: 3mm; line-height: 1.25 }
 	pamphletBodyLH      = 1.25
-	// Body / heading sizes used when compensating image→text spacing (PDF y is baseline).
+	pamphletHeadingSizeMm = 4.25 // h1 { font-size: 4.25mm; line-height: 1.2 }
+	pamphletHeadingLH     = 1.2
 	pamphletBodySizePt    = 8.503937007874016 // 3mm
 	pamphletHeadingSizePt = 12.04724409448819 // 4.25mm
 	pamphletFooterBodyPt  = 7.0
@@ -482,44 +481,28 @@ func writeGrayText(s *strings.Builder, font string, sizePt float64, xMm, yMm, wi
 }
 
 func drawFooter(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage) {
-	y := top - 3
-	floor := top - heightMm
-	for i, item := range items {
-		if y <= floor {
-			break
-		}
-		if item.Type == "image" {
-			h := item.HeightMm
-			if h < 10 {
-				h = 10
-			}
-			drawImageOrPlaceholder(s, item, x, y, width, h, images)
-			y -= h + gapAfterImage(items, i, pamphletFooterBodyPt, pamphletFooterHeadPt)
-			continue
-		}
-		size := pamphletFooterBodyPt
-		font := "F1"
-		if item.Type == "heading_1" {
-			size = pamphletFooterHeadPt
-			font = "F2"
-			if i > 0 {
-				y -= PamphletHeadingMarginTopMm
-			}
-		}
-		gap := 0.0
-		if i < len(items)-1 {
-			gap = PamphletItemGapMm
-		}
-		used := writeWrapped(s, font, size, 1.25, x, y, width, item.Content, floor)
-		y -= used + gap
-	}
+	drawStackedItems(s, items, x, top, width, heightMm, images, pamphletFooterBodyPt, pamphletFooterHeadPt, 1.25, 1.25)
 }
 
 func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage) {
-	y := top - cssBaselineOffsetMm(pamphletBodySizeMm, pamphletBodyLH)
+	drawStackedItems(s, items, x, top, width, heightMm, images, pamphletBodySizePt, pamphletHeadingSizePt, pamphletBodyLH, pamphletHeadingLH)
+}
+
+// drawStackedItems walks items from the CSS box top (not the first baseline).
+// Desktop columns use overflow:visible and only --item-gap-height between
+// blocks — no extra heading margin. Tracking the item-top cursor keeps the
+// last heading+paragraph inside the band instead of eating them at the floor.
+func drawStackedItems(
+	s *strings.Builder,
+	items []PamphletItem,
+	x, top, width, heightMm float64,
+	images map[string]*pdfImage,
+	bodyPt, headingPt, bodyLH, headingLH float64,
+) {
+	cursorTop := top
 	floor := top - heightMm
 	for i, item := range items {
-		if y <= floor {
+		if cursorTop <= floor {
 			break
 		}
 		if item.Type == "image" {
@@ -527,55 +510,39 @@ func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightM
 			if h < 10 {
 				h = 10
 			}
-			drawImageOrPlaceholder(s, item, x, y, width, h, images)
-			// Item gap + ascent so the next line is not flush under the bitmap
-			// (PDF text operators place the baseline, not the glyph top).
-			y -= h + gapAfterImage(items, i, pamphletBodySizePt, pamphletHeadingSizePt)
+			drawImageOrPlaceholder(s, item, x, cursorTop, width, h, images)
+			cursorTop -= h
+			if i < len(items)-1 {
+				cursorTop -= PamphletItemGapMm
+			}
 			continue
 		}
-		size := pamphletBodySizePt
+		sizePt := bodyPt
+		sizeMm := bodyPt * 25.4 / 72.0
+		lh := bodyLH
 		font := "F1"
 		if item.Type == "heading_1" {
-			size = pamphletHeadingSizePt
+			sizePt = headingPt
+			sizeMm = headingPt * 25.4 / 72.0
+			lh = headingLH
 			font = "F2"
-			// Headings need top margin when not the first block (editor spacer alone looks flush in PDF).
-			if i > 0 {
-				y -= PamphletHeadingMarginTopMm
-			}
 		}
-		// Bold range keeps paragraph size; Helvetica-Bold for the whole item when any bold span exists.
 		if hasBold(item) && item.Type != "heading_1" {
 			font = "F2"
-			size = pamphletBodySizePt
+			sizePt = bodyPt
+			sizeMm = bodyPt * 25.4 / 72.0
+			lh = bodyLH
 		}
-		gap := 0.0
+		y := cursorTop - cssBaselineOffsetMm(sizeMm, lh)
+		used := writeWrapped(s, font, sizePt, lh, x, y, width, item.Content, floor)
+		if used <= 0 {
+			break
+		}
+		cursorTop -= used
 		if i < len(items)-1 {
-			gap = PamphletItemGapMm
+			cursorTop -= PamphletItemGapMm
 		}
-		used := writeWrapped(s, font, size, 1.25, x, y, width, item.Content, floor)
-		y -= used + gap
 	}
-}
-
-// gapAfterImage returns space under an image before the next item.
-// Last item: 0 (no trailing spacer). Next text: item gap + font ascent so the
-// visual margin matches the 2.5mm spacer in the editor.
-func gapAfterImage(items []PamphletItem, i int, bodyPt, headingPt float64) float64 {
-	if i >= len(items)-1 {
-		return 0
-	}
-	gap := PamphletItemGapMm
-	next := items[i+1]
-	if next.Type == "image" {
-		return gap
-	}
-	size := bodyPt
-	if next.Type == "heading_1" {
-		size = headingPt
-	}
-	// ~0.8 of em ≈ capital height sitting above the baseline.
-	gap += size * 0.8 * 25.4 / 72.0
-	return gap
 }
 
 func drawImageOrPlaceholder(s *strings.Builder, item PamphletItem, x, y, width, heightMm float64, images map[string]*pdfImage) {
@@ -665,7 +632,11 @@ func writeWrapped(s *strings.Builder, font string, sizePt, lineHeight, xMm, yMm,
 	used := 0.0
 	y := yMm
 	for _, line := range lines {
-		if y-lineH < floorMm {
+		// y is the alphabetic baseline. CSS columns are overflow:visible, so
+		// paint any line whose baseline is still above the band floor. The old
+		// y-lineH check demanded a full extra line box under the baseline and
+		// dropped the last heading/paragraph of a filled column.
+		if y < floorMm {
 			break
 		}
 		s.WriteString(fmt.Sprintf("BT /%s %.2f Tf %.2f %.2f Td (%s) Tj ET\n",
