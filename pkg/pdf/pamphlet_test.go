@@ -6,6 +6,9 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -64,7 +67,7 @@ func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 		t.Fatalf("header title→meta gap want ~1.2mm (match desktop), got %v", PamphletHeaderTitleMetaGapMm)
 	}
 	var s strings.Builder
-	drawHeader(&s, PamphletHeader{
+	bottom := drawHeader(&s, PamphletHeader{
 		Title:         "Titulo corto",
 		Author:        "Eduardo",
 		Series:        "Serie X",
@@ -84,6 +87,55 @@ func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	// Title + at least two meta text ops
 	if strings.Count(out, "Tj") < 3 {
 		t.Fatalf("expected title + 2 meta lines, got %q", out)
+	}
+	// Content bottom must sit well above the empty remainder of a tall reserved band
+	// (the old bug: cols started at top−20−5 even when meta ended ~8mm higher).
+	bandFloor := 200.0 - PamphletHeaderHMm
+	if bottom <= bandFloor+0.5 {
+		t.Fatalf("header content bottom=%.2f should be above band floor %.2f (unused header space)", bottom, bandFloor)
+	}
+	if bottom > 200-4 {
+		t.Fatalf("header content bottom=%.2f unexpectedly high (title alone?)", bottom)
+	}
+}
+
+func TestPamphletPage1BodyStartsUnderHeaderContent(t *testing.T) {
+	data := BuildPamphletPDF(PamphletDocument{
+		Type: "pamphlet_single_sheet",
+		Header: PamphletHeader{
+			Title:         "Como sabemos",
+			Author:        "Eduardo",
+			Series:        "Romanos",
+			SeriesChapter: "1",
+			Date:          "2024-08-10",
+		},
+		Column1: []PamphletItem{{Type: "paragraph", Content: "Primera linea del cuerpo"}},
+	})
+	s := string(data)
+	// Parse Td y positions: last meta and first body on the right half (x>~400pt).
+	re := regexp.MustCompile(`([\d.]+)\s+([\d.]+)\s+Td`)
+	matches := re.FindAllStringSubmatch(s, -1)
+	var rightYs []float64
+	for _, m := range matches {
+		x, _ := strconv.ParseFloat(m[1], 64)
+		y, _ := strconv.ParseFloat(m[2], 64)
+		if x > 400 && y > 480 {
+			rightYs = append(rightYs, y)
+		}
+	}
+	if len(rightYs) < 3 {
+		t.Fatalf("expected title/meta/body Td ops on right half, got %v", rightYs)
+	}
+	// Highest cluster ≈ title/meta; first body is the lowest among the top group after a jump.
+	// Gap from second-lowest high meta to body must stay under ~10mm (≈28pt), not the old ~18mm.
+	sort.Float64s(rightYs)
+	// rightYs ascending: body first, then meta, then title near top
+	bodyY := rightYs[0]
+	metaY := rightYs[1]
+	gapPt := metaY - bodyY
+	maxGapPt := MmToPoints(10.0) // body may sit ~3mm gutter + 2.5mm inset + descents under meta
+	if gapPt > maxGapPt {
+		t.Fatalf("meta→body gap=%.1fpt (%.1fmm) too large; want ≤10mm. ys=%v", gapPt, gapPt*25.4/72.0, rightYs)
 	}
 }
 

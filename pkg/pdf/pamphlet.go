@@ -38,19 +38,21 @@ const (
 	PamphletGutterWide = 20.0
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
 	PamphletColWidthMm = 57.85
-	PamphletHeaderHMm  = 20.0 // title + 5mm gap + two gray meta rows
-	// Vertical gap between header band and cols 1–2 (CSS --header-body-gutter).
-	PamphletHeaderBodyGutterMm = 5.0
+	// Max reserved header band (title + meta). Cols 1–2 start below *drawn*
+	// header content, not this full band — otherwise ~8–10mm of empty header
+	// plus the gutter became an exaggerated white gap under Autor/Fecha.
+	PamphletHeaderHMm = 14.0
+	// Vertical gap between last header line and cols 1–2 (CSS --header-body-gutter).
+	PamphletHeaderBodyGutterMm = 3.0
 	PamphletFooterHMm          = 37.5
-	// 215.9 − 10 − 20 − 5 − 4 − 37.5 − 10
-	PamphletPage1BodyMm = 129.4
+	// 215.9 − 10 − 14 − 3 − 4 − 37.5 − 10
+	PamphletPage1BodyMm = 137.4
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Vertical gap between header title and the first metadata row (~5px on desktop ≈ 1.2mm).
-	// Was 5mm and looked exaggerated vs the editor.
 	PamphletHeaderTitleMetaGapMm = 1.2
-	// Right-side cols 1–2 under header: 195.9 − 20 − 5
-	PamphletPage1RightColMm = 170.9
+	// Right-side cols 1–2 under header band: 195.9 − 14 − 3 (floor when header is full).
+	PamphletPage1RightColMm = 178.9
 	// Left-side cols 7–8 above footer: 195.9 − 4 − 37.5
 	PamphletPage1LeftColMm = 154.4
 	// Extra space above heading_1 when it follows another item (PDF looks flush without this).
@@ -344,15 +346,23 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	var s strings.Builder
 	headerX := colX(6)
 	headerTop := PamphletPageHeightMm - PamphletMarginMm
-	drawHeader(&s, doc.Header, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
+	// Content bottom (mm from page bottom) — columns hug the real header, not the
+	// empty remainder of the reserved 14mm band.
+	headerContentBottom := drawHeader(&s, doc.Header, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
 
 	leftTop := PamphletPageHeightMm - PamphletMarginMm
 	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, PamphletPage1LeftColMm, images)
 	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, PamphletPage1LeftColMm, images)
 
-	rightTop := PamphletPageHeightMm - PamphletMarginMm - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
-	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
-	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
+	rightTop := headerContentBottom - PamphletHeaderBodyGutterMm
+	// Never start lower than the classic band floor (full header used).
+	bandFloor := headerTop - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
+	if rightTop < bandFloor {
+		rightTop = bandFloor
+	}
+	rightH := rightTop - PamphletMarginMm
+	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, rightH, images)
+	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, rightH, images)
 
 	footerTop := PamphletMarginMm + PamphletFooterHMm
 	drawFooter(&s, doc.Footer.Items, colX(2), footerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm, images)
@@ -370,25 +380,34 @@ func buildPage2Content(doc PamphletDocument, images map[string]*pdfImage) string
 	return s.String()
 }
 
-func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm float64) {
-	// Stay inside header band; may use header→body gutter but never paint into cols 1–2.
-	floor := top - heightMm - PamphletHeaderBodyGutterMm
+// drawHeader paints title + 2×2 gray meta and returns the Y (mm from page bottom)
+// of the bottom edge of the drawn header content. Callers start cols 1–2 just
+// below this value (+ PamphletHeaderBodyGutterMm) so unused space inside the
+// reserved header band does not inflate the visual gap under Autor/Fecha.
+func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm float64) float64 {
+	// Stay inside the reserved header band (do not paint into the body gutter).
+	floor := top - heightMm
+	emptyBottom := floor
 	const titleSizePt = 14.0 // ≈ 5mm — matches .pamphlet-header-title
 	titleLineHMm := titleSizePt * 1.15 * 25.4 / 72.0
 	y := top - (titleSizePt * 25.4 / 72.0)
 	used := writeWrapped(s, "F2", titleSizePt, x, y, width, h.Title, floor)
 	if used <= 0 {
 		if strings.TrimSpace(h.Title) == "" {
-			return
+			return emptyBottom
 		}
 		used = titleLineHMm
 	}
 	lastTitleBaseline := y - used + titleLineHMm
+	// Approximate glyph descent so "content bottom" sits under the ink, not on the baseline.
+	titleDescentMm := titleSizePt * 0.2 * 25.4 / 72.0
+	contentBottom := lastTitleBaseline - titleDescentMm
 	metaY := lastTitleBaseline - PamphletHeaderTitleMetaGapMm
 
 	// 2×2 gray meta grid: Serie | Capítulo / Autor | Fecha
 	const metaSizePt = 7.0 // ≈ 2.5mm
 	metaLineHMm := metaSizePt * 1.2 * 25.4 / 72.0
+	metaDescentMm := metaSizePt * 0.2 * 25.4 / 72.0
 	const colGapMm = 2.5
 	half := (width - colGapMm) / 2
 	if half < 10 {
@@ -408,6 +427,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 		if right1 != "" {
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right1)
 		}
+		contentBottom = metaY - metaDescentMm
 		metaY -= metaLineHMm
 	}
 	if (left2 != "" || right2 != "") && metaY > floor {
@@ -417,8 +437,12 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 		if right2 != "" {
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right2)
 		}
+		contentBottom = metaY - metaDescentMm
 	}
-	_ = heightMm
+	if contentBottom < emptyBottom {
+		return emptyBottom
+	}
+	return contentBottom
 }
 
 func labeledMeta(label, value string) string {
