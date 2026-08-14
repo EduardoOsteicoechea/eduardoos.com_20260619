@@ -38,28 +38,28 @@ const (
 	PamphletGutterWide = 20.0
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
 	PamphletColWidthMm = 57.85
-	// Reserved header band — 20mm × 1.35 so title/meta match the signed-off PDF, larger.
-	PamphletHeaderHMm = 27.0
-	// Gap under the header band before cols 1–2 — CSS --header-body-gutter (unchanged).
+	// Reserved header band — must match CSS --page-header-height (title may wrap).
+	PamphletHeaderHMm = 20.0
+	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	// Same value in PDF so sheet and print stay identical (do not hug drawn content).
 	PamphletHeaderBodyGutterMm = 5.0
 	PamphletFooterHMm          = 37.5
-	// 215.9 − 10 − 27 − 5 − 4 − 37.5 − 10
-	PamphletPage1BodyMm = 122.4
+	// 215.9 − 10 − 20 − 5 − 4 − 37.5 − 10
+	PamphletPage1BodyMm = 129.4
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
-	// CSS .pamphlet-page-header { gap } between title block and meta bar (0.6 × 1.35).
-	PamphletHeaderTitleMetaGapMm = 0.81
-	// CSS .pamphlet-header-meta-bar { row-gap } (0.8 × 1.35).
-	PamphletHeaderMetaRowGapMm = 1.08
-	// Right-side cols 1–2: 195.9 − 27 − 5
-	PamphletPage1RightColMm = 163.9
+	// CSS .pamphlet-page-header { gap } between title block and meta bar.
+	PamphletHeaderTitleMetaGapMm = 0.6
+	// CSS .pamphlet-header-meta-bar { row-gap }.
+	PamphletHeaderMetaRowGapMm = 0.8
+	// Right-side cols 1–2: 195.9 − 20 − 5
+	PamphletPage1RightColMm = 170.9
 	// Left-side cols 7–8 above footer: 195.9 − 4 − 37.5
 	PamphletPage1LeftColMm = 154.4
-	// Exact CSS type sizes on the sheet (source of truth for PDF). 1.35× the 5mm/2.5mm pair.
-	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p { font-size: 6.75mm; line-height: 1.1 }
+	// Exact CSS type sizes on the sheet (source of truth for PDF).
+	pamphletTitleSizeMm = 5.0  // .pamphlet-header-title p { font-size: 5mm; line-height: 1.1 }
 	pamphletTitleLH     = 1.1
-	pamphletMetaSizeMm  = 3.375 // .pamphlet-header-meta-label { font-size: 3.375mm; line-height: 1.2 }
+	pamphletMetaSizeMm  = 2.5  // .pamphlet-header-meta-label { font-size: 2.5mm; line-height: 1.2 }
 	pamphletMetaLH      = 1.2
 	pamphletBodySizeMm  = 3.0  // paragraph { font-size: 3mm; line-height: 1.25 }
 	pamphletBodyLH      = 1.25
@@ -349,7 +349,7 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	var s strings.Builder
 	headerX := colX(6)
 	headerTop := PamphletPageHeightMm - PamphletMarginMm
-	// Same vertical tracks as CSS grid: margin → 27mm header → gutter → cols.
+	// Same vertical tracks as CSS grid: margin → 20mm header → gutter → cols.
 	_ = drawHeader(&s, doc.Header, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
 
 	leftTop := PamphletPageHeightMm - PamphletMarginMm
@@ -383,8 +383,8 @@ func cssBaselineOffsetMm(sizeMm, lineHeight float64) float64 {
 }
 
 // drawHeader paints title + 2×2 gray meta with the same box model as the sheet:
-//   title line-boxes (6.75mm × 1.1) → flex gap 0.81mm → meta line-boxes (3.375mm × 1.2)
-//   with row-gap 1.08mm, clipped to the 27mm header track.
+//   title line-boxes (5mm × 1.1) → flex gap 0.6mm → meta line-boxes (2.5mm × 1.2)
+//   with row-gap 0.8mm, clipped to the 20mm header track.
 func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm float64) float64 {
 	floor := top - heightMm
 	titleSizePt := MmToPoints(pamphletTitleSizeMm)

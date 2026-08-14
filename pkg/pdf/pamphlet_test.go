@@ -63,11 +63,11 @@ func TestToWinAnsiSpanish(t *testing.T) {
 }
 
 func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
-	if PamphletHeaderTitleMetaGapMm < 0.7 || PamphletHeaderTitleMetaGapMm > 1.0 {
-		t.Fatalf("header title→meta CSS gap want ~0.81mm, got %v", PamphletHeaderTitleMetaGapMm)
+	if PamphletHeaderTitleMetaGapMm < 0.5 || PamphletHeaderTitleMetaGapMm > 1.0 {
+		t.Fatalf("header title→meta CSS gap want ~0.6mm, got %v", PamphletHeaderTitleMetaGapMm)
 	}
-	if PamphletHeaderMetaRowGapMm < 0.9 || PamphletHeaderMetaRowGapMm > 1.3 {
-		t.Fatalf("header meta row-gap want ~1.08mm, got %v", PamphletHeaderMetaRowGapMm)
+	if PamphletHeaderMetaRowGapMm < 0.6 || PamphletHeaderMetaRowGapMm > 1.0 {
+		t.Fatalf("header meta row-gap want ~0.8mm, got %v", PamphletHeaderMetaRowGapMm)
 	}
 	var s strings.Builder
 	bottom := drawHeader(&s, PamphletHeader{
@@ -119,8 +119,8 @@ func TestDesktopTitleWrapsTwoLinesLikeSheet(t *testing.T) {
 	sizePt := MmToPoints(pamphletTitleSizeMm)
 	maxW := MmToPoints(PamphletColWidthMm*2 + PamphletGutterNarrow)
 	lines := wrapWordsToWidth(title, sizePt, maxW, true)
-	if len(lines) < 2 || len(lines) > 3 {
-		t.Fatalf("1.35× title must wrap to 2–3 lines in the header band, got %d %q", len(lines), lines)
+	if len(lines) != 2 {
+		t.Fatalf("desktop title must wrap to 2 lines in the header band, got %d %q", len(lines), lines)
 	}
 }
 
@@ -136,9 +136,9 @@ func TestLongTitleFillsHeaderBandLikeDesktop(t *testing.T) {
 		Date:          "2026-08-10",
 	}, 100, top, width, PamphletHeaderHMm)
 	used := top - bottom
-	// 1.35×: 2×6.75mm×1.1 title + 0.81mm gap + 2×3.375mm×1.2 meta + 1.08mm row-gap ≈ 24.8mm
-	if used < 22.0 || used > PamphletHeaderHMm {
-		t.Fatalf("header content height=%.2fmm want ~24.8mm (scaled title fills the 27mm band)", used)
+	// Desktop: 2×5mm×1.1 title + 0.6mm gap + 2×2.5mm×1.2 meta + 0.8mm row-gap ≈ 18.4mm
+	if used < 17.0 || used > 20.0 {
+		t.Fatalf("header content height=%.2fmm want ~18.4mm (2-line title fills the 20mm band)", used)
 	}
 }
 
@@ -160,7 +160,7 @@ func TestPamphletPage1BodyMatchesSheetBand(t *testing.T) {
 	for _, m := range re.FindAllStringSubmatch(s, -1) {
 		x, _ := strconv.ParseFloat(m[1], 64)
 		y, _ := strconv.ParseFloat(m[2], 64)
-		if x > 400 && y > 430 {
+		if x > 400 && y > 480 {
 			rightYs = append(rightYs, y)
 		}
 	}
