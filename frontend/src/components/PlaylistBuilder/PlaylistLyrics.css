@@ -33,14 +33,14 @@
 
 .playlist-lyrics__title {
   margin: 0 0 0.85rem;
-  font-size: calc(var(--font-base) * 1.35);
+  font-size: calc(var(--font-base) * 1.35 * 0.85);
   font-weight: 700;
-  line-height: 1.25;
+  line-height: calc(1.25 * 0.85);
 }
 
 .playlist-lyrics__save-status {
   margin: -0.45rem 0 0.75rem;
-  font-size: var(--font-sm);
+  font-size: calc(var(--font-sm) * 0.85);
   opacity: 0.75;
 }
 
@@ -54,16 +54,17 @@
 
 .playlist-lyrics__section-label {
   margin: 0 0 0.35rem;
-  font-size: var(--font-sm);
+  font-size: calc(var(--font-sm) * 0.85);
   font-weight: 600;
   letter-spacing: 0.04em;
+  line-height: calc(1.35 * 0.85);
   color: color-mix(in srgb, var(--site-body-fg) 55%, transparent);
 }
 
 .playlist-lyrics__section-words {
   margin: 0;
-  line-height: 1.75;
-  font-size: calc(var(--font-base) * 1.05);
+  line-height: calc(1.75 * 0.85);
+  font-size: calc(var(--font-base) * 1.05 * 0.85);
 }
 
 .playlist-lyrics__section-words + .playlist-lyrics__section-words {
