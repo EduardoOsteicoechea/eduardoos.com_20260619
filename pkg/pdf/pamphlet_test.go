@@ -65,20 +65,41 @@ func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	}
 	var s strings.Builder
 	drawHeader(&s, PamphletHeader{
-		Title:  "Titulo corto",
-		Author: "Eduardo",
-		Series: "Serie",
+		Title:         "Titulo corto",
+		Author:        "Eduardo",
+		Series:        "Serie X",
+		SeriesChapter: "1",
+		Date:          "2026-08-14",
 	}, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
 	out := s.String()
 	if !strings.Contains(out, "Titulo corto") {
 		t.Fatalf("missing title in stream: %q", out)
 	}
-	if !strings.Contains(out, "Eduardo") {
-		t.Fatalf("missing meta in stream: %q", out)
+	if !strings.Contains(out, "Serie:") || !strings.Contains(out, "Autor:") {
+		t.Fatalf("missing labeled meta rows in stream: %q", out)
 	}
-	// Two text objects: title then meta — both must appear.
-	if strings.Count(out, "Tj") < 2 {
-		t.Fatalf("expected title + meta text ops, got %q", out)
+	if !strings.Contains(out, "0.4 0.4 0.4 rg") {
+		t.Fatalf("expected gray meta color ops, got %q", out)
+	}
+	// Title + at least two meta text ops
+	if strings.Count(out, "Tj") < 3 {
+		t.Fatalf("expected title + 2 meta lines, got %q", out)
+	}
+}
+
+func TestPamphletPageGeometrySums(t *testing.T) {
+	// Horizontal: margin + 4 cols + 2 narrow + 1 wide + margin = page width
+	sum := PamphletMarginMm*2 +
+		PamphletColWidthMm*4 +
+		PamphletGutterNarrow*2 +
+		PamphletGutterWide
+	if sum < PamphletPageWidthMm-0.01 || sum > PamphletPageWidthMm+0.01 {
+		t.Fatalf("horizontal sum=%.2f want %.2f", sum, PamphletPageWidthMm)
+	}
+	// Right cols under header
+	right := PamphletPage2BodyMm - PamphletHeaderHMm - PamphletGutterNarrow
+	if right != PamphletPage1RightColMm {
+		t.Fatalf("right col height=%.2f want %.2f", PamphletPage1RightColMm, right)
 	}
 }
 

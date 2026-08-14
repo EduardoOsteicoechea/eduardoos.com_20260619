@@ -35,13 +35,17 @@ const (
 	PamphletGutterWide = 20.0
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
 	PamphletColWidthMm = 57.85
-	PamphletHeaderHMm  = 14.0
+	PamphletHeaderHMm  = 20.0 // title + 5mm gap + two gray meta rows
 	PamphletFooterHMm  = 37.5
-	PamphletPage1BodyMm = 136.4
+	PamphletPage1BodyMm = 130.4
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
-	// Vertical gap between header title and the metadata row below it.
+	// Vertical gap between header title and the first metadata row below it.
 	PamphletHeaderTitleMetaGapMm = 5.0
+	// Right-side cols 1–2 under header: 195.9 − 20 − 4
+	PamphletPage1RightColMm = 171.9
+	// Left-side cols 7–8 above footer: 195.9 − 4 − 37.5
+	PamphletPage1LeftColMm = 154.4
 	// Extra space above heading_1 when it follows another item (PDF looks flush without this).
 	PamphletHeadingMarginTopMm = 3.0
 	// Helvetica average glyph width ≈ 0.50 × size. Using 0.35 let wrapped lines
@@ -329,12 +333,12 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	drawHeader(&s, doc.Header, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
 
 	leftTop := PamphletPageHeightMm - PamphletMarginMm
-	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, 154.4, images)
-	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, 154.4, images)
+	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, PamphletPage1LeftColMm, images)
+	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, PamphletPage1LeftColMm, images)
 
 	rightTop := PamphletPageHeightMm - PamphletMarginMm - PamphletHeaderHMm - PamphletGutterNarrow
-	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, 177.9, images)
-	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, 177.9, images)
+	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
+	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
 
 	footerTop := PamphletMarginMm + PamphletFooterHMm
 	drawFooter(&s, doc.Footer.Items, colX(2), footerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm, images)
@@ -353,11 +357,10 @@ func buildPage2Content(doc PamphletDocument, images map[string]*pdfImage) string
 }
 
 func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm float64) {
-	// May use the narrow gutter under the header, but must not paint into cols 1–2.
+	// Stay inside header + narrow gutter; never paint into cols 1–2.
 	floor := top - heightMm - PamphletGutterNarrow
 	const titleSizePt = 14.0 // ≈ 5mm — matches .pamphlet-header-title
 	titleLineHMm := titleSizePt * 1.15 * 25.4 / 72.0
-	// First baseline ≈ one em below the top of the header band.
 	y := top - (titleSizePt * 25.4 / 72.0)
 	used := writeWrapped(s, "F2", titleSizePt, x, y, width, h.Title, floor)
 	if used <= 0 {
@@ -366,19 +369,60 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 		}
 		used = titleLineHMm
 	}
-	// Last title baseline, then 5mm clear margin before the metadata baseline (PDF-only).
 	lastTitleBaseline := y - used + titleLineHMm
 	metaY := lastTitleBaseline - PamphletHeaderTitleMetaGapMm
-	meta := strings.TrimSpace(strings.Join([]string{
-		nonEmpty(h.Subtitle),
-		nonEmpty(h.Author),
-		nonEmpty(h.Series),
-		nonEmpty(h.SeriesChapter),
-		nonEmpty(h.Date),
-	}, "  ·  "))
-	if meta != "" && metaY > floor {
-		writeWrapped(s, "F1", 7, x, metaY, width, meta, floor)
+
+	// Two labeled rows (UI meta-bar): Serie/Capítulo then Autor/Fecha — gray.
+	const metaSizePt = 7.0 // ≈ 2.5mm
+	metaLineHMm := metaSizePt * 1.2 * 25.4 / 72.0
+	row1 := joinLabeledMeta(
+		labeledMeta("Serie", h.Series),
+		labeledMeta("Capítulo", h.SeriesChapter),
+	)
+	row2 := joinLabeledMeta(
+		labeledMeta("Autor", h.Author),
+		labeledMeta("Fecha", h.Date),
+	)
+	if row1 != "" && metaY > floor {
+		writeGrayText(s, "F1", metaSizePt, x, metaY, width, row1)
+		metaY -= metaLineHMm
 	}
+	if row2 != "" && metaY > floor {
+		writeGrayText(s, "F1", metaSizePt, x, metaY, width, row2)
+	}
+	_ = heightMm
+}
+
+func labeledMeta(label, value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	return label + ": " + value
+}
+
+func joinLabeledMeta(parts ...string) string {
+	var out []string
+	for _, p := range parts {
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return strings.Join(out, "   ")
+}
+
+// writeGrayText paints a single non-wrapped line in medium gray (UI meta color).
+func writeGrayText(s *strings.Builder, font string, sizePt float64, xMm, yMm, widthMm float64, text string) {
+	_ = widthMm
+	text = toWinAnsi(text)
+	if text == "" {
+		return
+	}
+	// DeviceGray ≈ #666666
+	s.WriteString("0.4 0.4 0.4 rg\n")
+	s.WriteString(fmt.Sprintf("BT /%s %.2f Tf %.2f %.2f Td (%s) Tj ET\n",
+		font, sizePt, MmToPoints(xMm), MmToPoints(yMm), escape(text)))
+	s.WriteString("0 0 0 rg\n")
 }
 
 func drawFooter(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage) {

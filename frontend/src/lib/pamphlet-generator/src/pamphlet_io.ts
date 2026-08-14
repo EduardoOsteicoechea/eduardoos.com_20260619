@@ -203,10 +203,21 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
 
     const metaBar = document.createElement("div");
     metaBar.className = "pamphlet-header-meta-bar";
-    for (const { field, label } of HEADER_META_FIELDS) {
-        metaBar.appendChild(
-            createLabeledHeaderMetaField(field, label, data.header[field] ?? ""),
-        );
+
+    // Two rows so Serie/Capítulo/Autor/Fecha fit the header band (one row overflows).
+    const metaRows: { field: HeaderFieldKey; label: string }[][] = [
+        HEADER_META_FIELDS.slice(0, 2),
+        HEADER_META_FIELDS.slice(2, 4),
+    ];
+    for (const rowFields of metaRows) {
+        const row = document.createElement("div");
+        row.className = "pamphlet-header-meta-row";
+        for (const { field, label } of rowFields) {
+            row.appendChild(
+                createLabeledHeaderMetaField(field, label, data.header[field] ?? ""),
+            );
+        }
+        metaBar.appendChild(row);
     }
     headerEl.appendChild(metaBar);
 

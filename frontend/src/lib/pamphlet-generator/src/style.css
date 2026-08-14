@@ -275,18 +275,19 @@
   --col-gutter-narrow: 4mm;
   /* Center fold gutter (page 1 left↔right / page 2 left↔right) */
   --col-gutter-wide: 20mm;
-  --page-header-height: 14mm;
+  /* Title + 5mm gap (PDF) + two meta rows ≈ 20mm */
+  --page-header-height: 20mm;
   --page-footer-height: 37.5mm; /* 15mm × 2.5 */
-  /* Page 1 body: 215.9 − 10 − 14 − 4 − 4 − 37.5 − 10 = 136.4mm */
-  --page1-body-height: 136.4mm;
+  /* Page 1 body: 215.9 − 10 − 20 − 4 − 4 − 37.5 − 10 = 130.4mm */
+  --page1-body-height: 130.4mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
   --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
-  /* Cols 1–2 under header: 195.9 − 14 − 4 = 177.9mm */
-  --page1-right-col-height: 177.9mm;
+  /* Cols 1–2 under header: 195.9 − 20 − 4 = 171.9mm */
+  --page1-right-col-height: 171.9mm;
   /* Cols 7–8 above footer: 195.9 − 4 − 37.5 = 154.4mm */
   --page1-left-col-height: 154.4mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
@@ -439,6 +440,20 @@
 
 .pamphlet-header-meta-bar {
     display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: stretch;
+    gap: 0.8mm;
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+    overflow: hidden;
+    color: #666666; /* GRIS — matches PDF meta */
+}
+
+.pamphlet-header-meta-row {
+    display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
     justify-content: flex-start;
@@ -446,8 +461,7 @@
     gap: 2.5mm;
     width: 100%;
     min-width: 0;
-    flex: 0 0 auto;
-    overflow: visible;
+    overflow: hidden;
 }
 
 .pamphlet-header-meta-field {
@@ -456,17 +470,20 @@
     flex-wrap: nowrap;
     align-items: baseline;
     gap: 0.6mm;
-    flex: 0 0 auto;
-    width: max-content;
+    flex: 0 1 auto;
+    min-width: 0;
+    width: auto;
+    max-width: 100%;
     white-space: nowrap;
-    overflow: visible;
+    overflow: hidden;
 }
 
 .pamphlet-header-meta-label {
     flex: 0 0 auto;
     font-size: 2.5mm;
     line-height: 1.2;
-    opacity: 0.75;
+    color: #666666;
+    opacity: 1;
     white-space: nowrap;
 }
 
@@ -557,9 +574,11 @@
 .pamphlet-header-meta-bar .pamphlet-header-item p {
     font-size: 2.5mm;
     line-height: 1.2;
-    opacity: 0.9;
-    overflow: visible;
-    color: inherit;
+    opacity: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #666666;
 }
 
 .pamphlet-image-frame {
