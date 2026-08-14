@@ -1,8 +1,7 @@
 /* Portable pamphlet generator — styles scoped to .pamphlet-app for Astro layout embed */
 
-/* ./style.css */
-
-#file-toolbar {
+/* Chrome is teleported to document.body; keep selectors off other routes. */
+body.page-pamphlet #file-toolbar {
   /* Fixed within the browser viewport on the dedicated Astro route */
   position: fixed;
   top: auto;
@@ -19,7 +18,7 @@
   transform-origin: bottom right;
 }
 
-.menu-toggle {
+body.page-pamphlet .menu-toggle {
   position: absolute;
   bottom: 15px;
   right: 15px;
@@ -35,33 +34,32 @@
   border-radius: 0px;
   cursor: pointer;
   pointer-events: auto;
-  /*box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);*/
 }
 
-.menu-toggle[aria-expanded="true"] {
+body.page-pamphlet .menu-toggle[aria-expanded="true"] {
   background: var(--site-medium, #444);
   border-color: var(--site-medium, #444);
 }
 
-.menu-toggle-icon {
+body.page-pamphlet .menu-toggle-icon {
   width: 24px;
   height: 24px;
   display: block;
   pointer-events: none;
 }
 
-.sidebar-backdrop {
+body.page-pamphlet .sidebar-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.35);
   z-index: 40;
 }
 
-.sidebar-backdrop[hidden] {
+body.page-pamphlet .sidebar-backdrop[hidden] {
   display: none !important;
 }
 
-.app-sidebar {
+body.page-pamphlet .app-sidebar {
   position: fixed;
   top: 0;
   right: 0;
@@ -77,7 +75,7 @@
   border-radius: 0;
 }
 
-.app-sidebar.is-open {
+body.page-pamphlet .app-sidebar.is-open {
   transform: translateX(0);
 }
 
@@ -410,8 +408,7 @@
     align-items: stretch;
     /* Match PDF PamphletHeaderTitleMetaGapMm */
     gap: 0.6mm;
-    /* Clip ink to the 20mm band so meta never paints over cols 1–2. */
-    overflow: hidden;
+    overflow: visible;
     min-width: 0;
     min-height: 0;
     z-index: 5;
@@ -628,8 +625,8 @@
 .pamphlet-column-5 { grid-column: 6; grid-row: 9; }
 .pamphlet-column-6 { grid-column: 8; grid-row: 9; }
 
-.pamphlet-item[data-item-type="paragraph"] p,
-p {
+.pamphlet-app .pamphlet-item[data-item-type="paragraph"] p,
+.pamphlet-app main.pamphlet-sheet p {
   max-width: 100%;
   overflow-wrap: break-word;
   word-break: break-word;
