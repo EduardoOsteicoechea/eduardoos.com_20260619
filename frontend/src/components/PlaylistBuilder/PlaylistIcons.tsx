@@ -14,6 +14,9 @@ const ICON_URLS = {
   stop: "/stop_circle_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg",
   previous: "/skip_previous_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg",
   next: "/skip_next_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg",
+  seekBack: "/arrow_left_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg",
+  seekForward: "/arrow_right_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg",
+  volume: "/volume_down_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg",
   download: "/download_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg",
   upload: "/upload_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg",
   loop: "/autorenew_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg",
@@ -64,6 +67,18 @@ export function IconStop({ className }: IconProps) {
 
 export function IconNext({ className }: IconProps) {
   return <MaskIcon src={ICON_URLS.next} className={className} />;
+}
+
+export function IconSeekBack({ className }: IconProps) {
+  return <MaskIcon src={ICON_URLS.seekBack} className={className} />;
+}
+
+export function IconSeekForward({ className }: IconProps) {
+  return <MaskIcon src={ICON_URLS.seekForward} className={className} />;
+}
+
+export function IconVolume({ className }: IconProps) {
+  return <MaskIcon src={ICON_URLS.volume} className={className} />;
 }
 
 export function IconLoop({ className }: IconProps) {
