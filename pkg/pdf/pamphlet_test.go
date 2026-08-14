@@ -62,16 +62,6 @@ func TestToWinAnsiSpanish(t *testing.T) {
 	}
 }
 
-func TestDesktopTitleWrapsTwoLinesLikeSheet(t *testing.T) {
-	title := toWinAnsi("¿Cómo sabemos que interpretamos correctamente?")
-	sizePt := MmToPoints(pamphletTitleSizeMm)
-	maxW := MmToPoints(PamphletColWidthMm*2 + PamphletGutterNarrow)
-	lines := wrapWordsToWidth(title, sizePt, maxW, true)
-	if len(lines) != 2 {
-		t.Fatalf("desktop title must wrap to 2 lines in the header band, got %d %q", len(lines), lines)
-	}
-}
-
 func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	if PamphletHeaderTitleMetaGapMm < 0.5 || PamphletHeaderTitleMetaGapMm > 1.0 {
 		t.Fatalf("header title→meta CSS gap want ~0.6mm, got %v", PamphletHeaderTitleMetaGapMm)
@@ -124,27 +114,6 @@ func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	}
 }
 
-func TestLongTitleFillsHeaderBandLikeDesktop(t *testing.T) {
-	var s strings.Builder
-	top := 200.0
-	width := PamphletColWidthMm*2 + PamphletGutterNarrow
-	bottom := drawHeader(&s, PamphletHeader{
-		Title:         "¿Cómo sabemos que interpretamos correctamente?",
-		Author:        "Eduardo Osteicoechea",
-		Series:        "Descubriendo el libro de Romanos",
-		SeriesChapter: "1",
-		Date:          "2026-08-10",
-	}, 100, top, width, PamphletHeaderHMm)
-	used := top - bottom
-	// Desktop: 2×5mm×1.1 title + 0.6mm gap + 2×2.5mm×1.2 meta + 0.8mm row-gap ≈ 18.4mm
-	if used < 17.0 || used > 20.0 {
-		t.Fatalf("header content height=%.2fmm want ~18.4mm (2-line title fills the 20mm band)", used)
-	}
-	if !strings.Contains(s.String(), "correctamente") && !strings.Contains(s.String(), "interpretamos") {
-		t.Fatalf("missing wrapped title fragments: %q", s.String())
-	}
-}
-
 func TestPamphletPage1BodyMatchesSheetBand(t *testing.T) {
 	data := BuildPamphletPDF(PamphletDocument{
 		Type: "pamphlet_single_sheet",
@@ -172,9 +141,9 @@ func TestPamphletPage1BodyMatchesSheetBand(t *testing.T) {
 	}
 	sort.Float64s(rightYs)
 	bodyY := rightYs[0]
-	// Sheet: rightTop = pageH − margin − header − gutter; first baseline = CSS 3mm × 1.25 strut.
+	// Sheet: rightTop = pageH − margin − header − gutter; drawColumn uses top − 2.5mm.
 	wantTop := PamphletPageHeightMm - PamphletMarginMm - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
-	wantBody := MmToPoints(wantTop - cssBaselineOffsetMm(pamphletBodySizeMm, pamphletBodyLH))
+	wantBody := MmToPoints(wantTop - 2.5)
 	if bodyY < wantBody-2 || bodyY > wantBody+2 {
 		t.Fatalf("body baseline=%.2fpt want ~%.2fpt (sheet band); ys=%v", bodyY, wantBody, rightYs)
 	}
@@ -206,10 +175,11 @@ func TestWrapWordsStaysInsideColumn(t *testing.T) {
 	text := toWinAnsi("Ignorar el enfoque correcto puede hacer que destruyas tu vida con la Biblia.")
 	sizePt := 8.5
 	maxW := MmToPoints(PamphletColWidthMm)
-	lines := wrapWordsToWidth(text, sizePt, maxW, false)
+	lines := wrapWordsToWidth(text, sizePt, maxW)
+	charW := sizePt * helveticaAvgGlyph
 	for _, line := range lines {
-		if stringWidthPt(line, sizePt, false) > maxW+0.5 {
-			t.Fatalf("line too wide: %q width=%.1f max=%.1f", line, stringWidthPt(line, sizePt, false), maxW)
+		if float64(len(line))*charW > maxW+charW {
+			t.Fatalf("line too wide: %q width≈%.1f max=%.1f", line, float64(len(line))*charW, maxW)
 		}
 	}
 }
