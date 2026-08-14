@@ -97,6 +97,44 @@ func TestBuildPamphletPDFEmbedsJPEG(t *testing.T) {
 	}
 }
 
+func TestDrawImageAppliesPanDownOffset(t *testing.T) {
+	dataURL := tinyJPEGDataURL(t)
+	base := BuildPamphletPDF(PamphletDocument{
+		Type:   "pamphlet_single_sheet",
+		Header: PamphletHeader{Title: "Pan"},
+		Column1: []PamphletItem{{
+			Type:     "image",
+			Content:  dataURL,
+			HeightMm: 40,
+			StyleIndexes: [][]int{
+				{0, 0},
+				{0, 0},
+				{100, 0},
+			},
+		}},
+	})
+	panned := BuildPamphletPDF(PamphletDocument{
+		Type:   "pamphlet_single_sheet",
+		Header: PamphletHeader{Title: "Pan"},
+		Column1: []PamphletItem{{
+			Type:     "image",
+			Content:  dataURL,
+			HeightMm: 40,
+			StyleIndexes: [][]int{
+				{0, 0},
+				{0, 1000}, // +10mm CSS down → PDF y decreases
+				{100, 0},
+			},
+		}},
+	})
+	if string(base) == string(panned) {
+		t.Fatal("expected pan-down style_indexes to change PDF content stream")
+	}
+	if !strings.Contains(string(panned), "cm /Im1 Do") {
+		t.Fatal("expected image paint in panned PDF")
+	}
+}
+
 func tinyJPEGDataURL(t *testing.T) string {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, 16, 16))

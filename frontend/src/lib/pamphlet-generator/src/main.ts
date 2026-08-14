@@ -250,6 +250,12 @@ async function printDocument(): Promise<void> {
     }
 
     closeSidebar();
+
+    // Capture pan/zoom/height from the live DOM BEFORE any desktop remount can wipe them.
+    const live = serializePamphlet(main, currentDoc.last_edited_element, currentDoc);
+    currentDoc = live;
+    currentHeader = { ...live.header };
+
     beginPrintDesktopLayout();
     await waitForNextPaint();
 
@@ -265,7 +271,7 @@ async function printDocument(): Promise<void> {
                 Authorization: `Bearer ${token}`,
                 "X-Correlation-ID": createCorrelationId(),
             },
-            body: JSON.stringify(currentDoc),
+            body: JSON.stringify(live),
         });
         if (!res.ok) {
             const text = await res.text();
