@@ -58,13 +58,16 @@ const (
 	PamphletPage1LeftColMm = 154.4
 	// Extra space above heading_1 when it follows another item (PDF looks flush without this).
 	PamphletHeadingMarginTopMm = 3.0
-	// Helvetica average glyph width ≈ 0.50 × size. Using 0.35 let wrapped lines
-	// spill into the next column (visible overlap in the downloaded PDF).
-	helveticaAvgGlyph = 0.50
+	// Exact CSS type sizes on the sheet (source of truth for PDF).
+	pamphletTitleSizeMm = 5.0  // .pamphlet-header-title p { font-size: 5mm; line-height: 1.1 }
+	pamphletTitleLH     = 1.1
+	pamphletMetaSizeMm  = 2.5  // .pamphlet-header-meta-label { font-size: 2.5mm; line-height: 1.2 }
+	pamphletMetaLH      = 1.2
+	pamphletBodySizeMm  = 3.0  // paragraph { font-size: 3mm; line-height: 1.25 }
+	pamphletBodyLH      = 1.25
 	// Body / heading sizes used when compensating image→text spacing (PDF y is baseline).
-	// Match CSS: paragraph 3mm, heading_1 4.25mm (mm * 72/25.4).
-	pamphletBodySizePt    = 8.5
-	pamphletHeadingSizePt = 12.05
+	pamphletBodySizePt    = 8.503937007874016 // 3mm
+	pamphletHeadingSizePt = 12.04724409448819 // 4.25mm
 	pamphletFooterBodyPt  = 7.0
 	pamphletFooterHeadPt  = 9.0
 )
@@ -374,35 +377,37 @@ func buildPage2Content(doc PamphletDocument, images map[string]*pdfImage) string
 	return s.String()
 }
 
-// drawHeader paints title + 2×2 gray meta using the same rhythm as the sheet CSS
-// (title line-height 1.1, flex gap, meta line-height 1.2 + row-gap). Returns the
-// Y (mm from page bottom) of the bottom edge of drawn ink (for tests).
+// cssBaselineOffsetMm is the distance from the top of a CSS line box to the
+// alphabetic baseline: half-leading + ~0.8em (Latin sans).
+func cssBaselineOffsetMm(sizeMm, lineHeight float64) float64 {
+	return sizeMm*(lineHeight-1.0)/2.0 + sizeMm*0.80
+}
+
+// drawHeader paints title + 2×2 gray meta with the same box model as the sheet:
+//   title line-boxes (5mm × 1.1) → flex gap 0.6mm → meta line-boxes (2.5mm × 1.2)
+//   with row-gap 0.8mm, clipped to the 20mm header track.
 func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm float64) float64 {
 	floor := top - heightMm
-	emptyBottom := floor
-	const titleSizePt = 14.0 // ≈ 5mm — matches .pamphlet-header-title
-	const titleLineHeight = 1.1
-	titleLineHMm := titleSizePt * titleLineHeight * 25.4 / 72.0
-	y := top - (titleSizePt * 25.4 / 72.0)
-	used := writeWrapped(s, "F2", titleSizePt, titleLineHeight, x, y, width, h.Title, floor)
-	if used <= 0 {
-		if strings.TrimSpace(h.Title) == "" {
-			return emptyBottom
+	titleSizePt := MmToPoints(pamphletTitleSizeMm)
+	titleLineHMm := pamphletTitleSizeMm * pamphletTitleLH
+	y := top - cssBaselineOffsetMm(pamphletTitleSizeMm, pamphletTitleLH)
+	used := writeWrapped(s, "F2", titleSizePt, pamphletTitleLH, x, y, width, h.Title, floor)
+	nTitle := 1
+	if used > 0 {
+		nTitle = int(used/titleLineHMm + 0.5)
+		if nTitle < 1 {
+			nTitle = 1
 		}
-		used = titleLineHMm
+	} else if strings.TrimSpace(h.Title) == "" {
+		return floor
 	}
-	lastTitleBaseline := y - used + titleLineHMm
-	// CSS: title line-box, then flex-gap, then meta. Subtract title descent + meta
-	// ascent so meta ink does not collide with the title (old bug: gap from baseline only).
-	titleDescentMm := titleSizePt * 0.2 * 25.4 / 72.0
-	contentBottom := lastTitleBaseline - titleDescentMm
+	// Bottom of the title line-box stack (CSS flex item), then the 0.6mm gap.
+	titleBoxBottom := top - float64(nTitle)*titleLineHMm
+	metaLineTop := titleBoxBottom - PamphletHeaderTitleMetaGapMm
 
-	const metaSizePt = 7.0 // ≈ 2.5mm
-	const metaLineHeight = 1.2
-	metaLineHMm := metaSizePt * metaLineHeight * 25.4 / 72.0
-	metaAscentMm := metaSizePt * 0.75 * 25.4 / 72.0
-	metaDescentMm := metaSizePt * 0.2 * 25.4 / 72.0
-	metaY := lastTitleBaseline - titleDescentMm - PamphletHeaderTitleMetaGapMm - metaAscentMm
+	metaSizePt := MmToPoints(pamphletMetaSizeMm)
+	metaLineHMm := pamphletMetaSizeMm * pamphletMetaLH
+	metaY := metaLineTop - cssBaselineOffsetMm(pamphletMetaSizeMm, pamphletMetaLH)
 
 	const colGapMm = 2.5
 	half := (width - colGapMm) / 2
@@ -416,8 +421,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 	left2 := labeledMeta("Autor", h.Author)
 	right2 := labeledMeta("Fecha", h.Date)
 
-	metaRowPitchMm := metaLineHMm + PamphletHeaderMetaRowGapMm
-
+	contentBottom := titleBoxBottom
 	if (left1 != "" || right1 != "") && metaY > floor {
 		if left1 != "" {
 			writeGrayText(s, "F1", metaSizePt, x, metaY, half, left1)
@@ -425,8 +429,9 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 		if right1 != "" {
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right1)
 		}
-		contentBottom = metaY - metaDescentMm
-		metaY -= metaRowPitchMm
+		contentBottom = metaLineTop - metaLineHMm
+		metaLineTop -= metaLineHMm + PamphletHeaderMetaRowGapMm
+		metaY = metaLineTop - cssBaselineOffsetMm(pamphletMetaSizeMm, pamphletMetaLH)
 	}
 	if (left2 != "" || right2 != "") && metaY > floor {
 		if left2 != "" {
@@ -435,10 +440,10 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 		if right2 != "" {
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right2)
 		}
-		contentBottom = metaY - metaDescentMm
+		contentBottom = metaLineTop - metaLineHMm
 	}
-	if contentBottom < emptyBottom {
-		return emptyBottom
+	if contentBottom < floor {
+		return floor
 	}
 	return contentBottom
 }
@@ -457,7 +462,7 @@ func writeGrayText(s *strings.Builder, font string, sizePt float64, xMm, yMm, wi
 	if text == "" {
 		return
 	}
-	lines := wrapWordsToWidth(text, sizePt, MmToPoints(widthMm))
+	lines := wrapWordsToWidth(text, sizePt, MmToPoints(widthMm), false)
 	if len(lines) == 0 {
 		return
 	}
@@ -511,7 +516,7 @@ func drawFooter(s *strings.Builder, items []PamphletItem, x, top, width, heightM
 }
 
 func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage) {
-	y := top - 2.5
+	y := top - cssBaselineOffsetMm(pamphletBodySizeMm, pamphletBodyLH)
 	floor := top - heightMm
 	for i, item := range items {
 		if y <= floor {
@@ -655,7 +660,7 @@ func writeWrapped(s *strings.Builder, font string, sizePt, lineHeight, xMm, yMm,
 		lineHeight = 1.25
 	}
 	maxWidthPt := MmToPoints(widthMm)
-	lines := wrapWordsToWidth(text, sizePt, maxWidthPt)
+	lines := wrapWordsToWidth(text, sizePt, maxWidthPt, font == "F2")
 	lineH := sizePt * lineHeight * 25.4 / 72.0 // mm
 	used := 0.0
 	y := yMm
@@ -671,24 +676,20 @@ func writeWrapped(s *strings.Builder, font string, sizePt, lineHeight, xMm, yMm,
 	return used
 }
 
-func wrapWordsToWidth(text string, sizePt, maxWidthPt float64) []string {
+func wrapWordsToWidth(text string, sizePt, maxWidthPt float64, bold bool) []string {
 	words := strings.Fields(text)
 	if len(words) == 0 {
 		return nil
 	}
-	charW := sizePt * helveticaAvgGlyph
-	if charW < 0.1 {
-		charW = 0.1
-	}
+	spaceW := glyphWidthEm(' ', bold) * sizePt
 	var lines []string
 	var cur strings.Builder
 	curWidth := 0.0
 	for _, w := range words {
-		ww := float64(len(w)) * charW
+		ww := stringWidthPt(w, sizePt, bold)
 		if cur.Len() == 0 {
-			// Hard-break overlong single words so they cannot paint into the next column.
 			if ww > maxWidthPt {
-				lines = append(lines, splitLongWord(w, maxWidthPt, charW)...)
+				lines = append(lines, splitLongWord(w, sizePt, maxWidthPt, bold)...)
 				cur.Reset()
 				curWidth = 0
 				continue
@@ -697,12 +698,11 @@ func wrapWordsToWidth(text string, sizePt, maxWidthPt float64) []string {
 			curWidth = ww
 			continue
 		}
-		space := charW
-		if curWidth+space+ww > maxWidthPt {
+		if curWidth+spaceW+ww > maxWidthPt {
 			lines = append(lines, cur.String())
 			cur.Reset()
 			if ww > maxWidthPt {
-				lines = append(lines, splitLongWord(w, maxWidthPt, charW)...)
+				lines = append(lines, splitLongWord(w, sizePt, maxWidthPt, bold)...)
 				curWidth = 0
 				continue
 			}
@@ -712,7 +712,7 @@ func wrapWordsToWidth(text string, sizePt, maxWidthPt float64) []string {
 		}
 		cur.WriteByte(' ')
 		cur.WriteString(w)
-		curWidth += space + ww
+		curWidth += spaceW + ww
 	}
 	if cur.Len() > 0 {
 		lines = append(lines, cur.String())
@@ -720,19 +720,21 @@ func wrapWordsToWidth(text string, sizePt, maxWidthPt float64) []string {
 	return lines
 }
 
-func splitLongWord(word string, maxWidthPt, charW float64) []string {
-	maxChars := int(maxWidthPt / charW)
-	if maxChars < 1 {
-		maxChars = 1
-	}
+func splitLongWord(word string, sizePt, maxWidthPt float64, bold bool) []string {
 	var lines []string
-	for len(word) > 0 {
-		n := maxChars
-		if n > len(word) {
-			n = len(word)
+	start := 0
+	w := 0.0
+	for i := 0; i < len(word); i++ {
+		gw := glyphWidthEm(word[i], bold) * sizePt
+		if w+gw > maxWidthPt && i > start {
+			lines = append(lines, word[start:i])
+			start = i
+			w = 0
 		}
-		lines = append(lines, word[:n])
-		word = word[n:]
+		w += gw
+	}
+	if start < len(word) {
+		lines = append(lines, word[start:])
 	}
 	return lines
 }
