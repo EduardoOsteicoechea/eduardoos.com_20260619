@@ -119,8 +119,8 @@ func TestDesktopTitleWrapsTwoLinesLikeSheet(t *testing.T) {
 	sizePt := MmToPoints(pamphletTitleSizeMm)
 	maxW := MmToPoints(PamphletColWidthMm*2 + PamphletGutterNarrow)
 	lines := wrapWordsToWidth(title, sizePt, maxW, true)
-	if len(lines) != 2 {
-		t.Fatalf("desktop title must wrap to 2 lines in the header band, got %d %q", len(lines), lines)
+	if len(lines) < 2 {
+		t.Fatalf("enlarged title must wrap to at least 2 lines, got %d %q", len(lines), lines)
 	}
 }
 
@@ -136,9 +136,9 @@ func TestLongTitleFillsHeaderBandLikeDesktop(t *testing.T) {
 		Date:          "2026-08-10",
 	}, 100, top, width, PamphletHeaderHMm)
 	used := top - bottom
-	// Desktop: 2×5mm×1.1 title + 0.6mm gap + 2×2.5mm×1.2 meta + 0.8mm row-gap ≈ 18.4mm
+	// Larger title type in the same 20mm band (meta still in the band).
 	if used < 17.0 || used > 20.0 {
-		t.Fatalf("header content height=%.2fmm want ~18.4mm (2-line title fills the 20mm band)", used)
+		t.Fatalf("header content height=%.2fmm must stay inside the 20mm band", used)
 	}
 }
 

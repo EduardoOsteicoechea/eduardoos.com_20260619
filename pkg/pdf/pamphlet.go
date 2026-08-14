@@ -57,7 +57,7 @@ const (
 	// Left-side cols 7–8 above footer: 195.9 − 4 − 37.5
 	PamphletPage1LeftColMm = 154.4
 	// Exact CSS type sizes on the sheet (source of truth for PDF).
-	pamphletTitleSizeMm = 5.0  // .pamphlet-header-title p { font-size: 5mm; line-height: 1.1 }
+	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band stays 20mm
 	pamphletTitleLH     = 1.1
 	pamphletMetaSizeMm  = 2.5  // .pamphlet-header-meta-label { font-size: 2.5mm; line-height: 1.2 }
 	pamphletMetaLH      = 1.2

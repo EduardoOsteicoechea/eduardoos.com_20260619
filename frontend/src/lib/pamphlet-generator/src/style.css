@@ -647,7 +647,7 @@ body.page-pamphlet .app-sidebar.is-open {
 
 /* Must beat paragraph p rule (header title also has data-item-type=paragraph) */
 .pamphlet-page-header .pamphlet-header-title p {
-  font-size: 5mm;
+  font-size: 6.75mm;
   font-weight: 700;
   line-height: 1.1;
   color: inherit;
