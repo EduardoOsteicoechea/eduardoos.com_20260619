@@ -283,6 +283,34 @@ a.site-header__action.btn--primary:hover {
   display: none;
 }
 
+/* Phone: menu 10px from top + right; header height = 20px + button */
+@media (max-width: 767px) {
+  .site-header__bar {
+    box-sizing: border-box;
+    height: var(--header_bar_height);
+    min-height: var(--header_bar_height);
+    padding: 10px 10px 10px 0;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 0.35rem;
+  }
+
+  .site-header__menu {
+    height: var(--header-menu-btn-size, 2rem);
+    min-height: var(--header-menu-btn-size, 2rem);
+    min-width: var(--header-menu-btn-size, 2rem);
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .site-header__profile {
+    width: var(--header-menu-btn-size, 2rem);
+    height: var(--header-menu-btn-size, 2rem);
+    min-width: var(--header-menu-btn-size, 2rem);
+    min-height: var(--header-menu-btn-size, 2rem);
+  }
+}
+
 /* Tablet + desktop: tray max 300px */
 @media (min-width: 768px) {
   .site-header__nav {
