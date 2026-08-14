@@ -8,7 +8,8 @@ Type=simple
 User=@DEPLOY_USER@
 WorkingDirectory=@APP_DIR@
 EnvironmentFile=@APP_DIR@/.env
-ExecStart=/usr/bin/go run ./cmd/eduardoos
+# Prebuilt by deploy/ec2/deploy-remote.sh — never `go run` (compile races / OOM → 502).
+ExecStart=@APP_DIR@/bin/eduardoos
 Restart=on-failure
 RestartSec=5
 Environment=PORT=3000

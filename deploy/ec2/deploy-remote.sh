@@ -162,6 +162,16 @@ install_host_backend() {
     exit 1
   fi
 
+  echo "==> Building host binary (go build ./cmd/eduardoos)"
+  mkdir -p "${APP_DIR}/bin"
+  # Stop first so Windows/Linux file locks and old go-run children release :3000.
+  sudo systemctl stop eduardoos.service 2>/dev/null || true
+  # Free :3000 if a stale go-run / orphan process still holds it.
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -k 3000/tcp 2>/dev/null || true
+  fi
+  (cd "${APP_DIR}" && CGO_ENABLED=0 go build -o bin/eduardoos ./cmd/eduardoos)
+
   DEPLOY_USER="$(whoami)"
   SERVICE_FILE="/etc/systemd/system/eduardoos.service"
   sed \
@@ -172,12 +182,22 @@ install_host_backend() {
   sudo systemctl daemon-reload
   sudo systemctl enable eduardoos.service
   sudo systemctl restart eduardoos.service
-  sleep 3
-  if ! curl -sf "http://127.0.0.1:3000/health" >/dev/null; then
-    echo "WARNING: monolith /health not ready — check: sudo journalctl -u eduardoos -n 50"
-  else
-    echo "==> Monolith backend healthy on :3000"
+
+  echo "==> Waiting for monolith /health on :3000"
+  ready=0
+  for i in $(seq 1 30); do
+    if curl -sf "http://127.0.0.1:3000/health" >/dev/null; then
+      ready=1
+      break
+    fi
+    sleep 2
+  done
+  if [ "${ready}" -ne 1 ]; then
+    echo "ERROR: monolith /health not ready after build+restart"
+    sudo journalctl -u eduardoos -n 80 --no-pager || true
+    exit 1
   fi
+  echo "==> Monolith backend healthy on :3000"
 }
 
 # Backend first so API fixes (e.g. .epam uploads) ship even if Astro build fails.
