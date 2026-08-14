@@ -356,7 +356,7 @@ async function printDocument(): Promise<void> {
 
 const usLetterHeightInMillimeters = 215.9;
 const pageMarginMm = 10;
-const pageHeaderHeightMm = 20; // title (may wrap) + meta — matches --page-header-height
+const pageHeaderHeightMm = 27; // 20mm × 1.35 — matches --page-header-height
 const pageFooterHeightMm = 37.5; // 15mm × 2.5
 const colGutterNarrowMm = 4;
 /** Gap between page header and cols 1–2 (matches --header-body-gutter). */
@@ -365,7 +365,7 @@ const headerBodyGutterMm = 5;
 const columnContentHeightMm = usLetterHeightInMillimeters - pageMarginMm * 2;
 /** Cols 1–2: under page header → discount header + header→body gutter */
 const page1RightColHeightMm =
-    columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 170.9
+    columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 163.9
 /** Cols 7–8: above page footer → discount gutter above footer + footer */
 const page1LeftColHeightMm =
     columnContentHeightMm - colGutterNarrowMm - pageFooterHeightMm; // 154.4

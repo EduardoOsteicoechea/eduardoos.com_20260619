@@ -272,21 +272,21 @@ body.page-pamphlet .app-sidebar.is-open {
   --col-gutter-narrow: 4mm;
   /* Center fold gutter (page 1 left↔right / page 2 left↔right) */
   --col-gutter-wide: 20mm;
-  /* Title (may wrap 2 lines) + two meta rows — must not overflow into cols 1–2. */
-  --page-header-height: 20mm;
+  /* Title + two meta rows at 1.35× the signed-off PDF header (5mm/2.5mm → 6.75/3.375). */
+  --page-header-height: 27mm;
   /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
   --header-body-gutter: 5mm;
   --page-footer-height: 37.5mm; /* 15mm × 2.5 */
-  /* Page 1 body: 215.9 − 10 − 20 − 5 − 4 − 37.5 − 10 = 129.4mm */
-  --page1-body-height: 129.4mm;
+  /* Page 1 body: 215.9 − 10 − 27 − 5 − 4 − 37.5 − 10 = 122.4mm */
+  --page1-body-height: 122.4mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
   --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
-  /* Cols 1–2 under header: 195.9 − 20 − 5 = 170.9mm */
-  --page1-right-col-height: 170.9mm;
+  /* Cols 1–2 under header: 195.9 − 27 − 5 = 163.9mm */
+  --page1-right-col-height: 163.9mm;
   /* Cols 7–8 above footer: 195.9 − 4 − 37.5 = 154.4mm */
   --page1-left-col-height: 154.4mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
@@ -406,8 +406,8 @@ body.page-pamphlet .app-sidebar.is-open {
     justify-content: flex-start;
     align-items: stretch;
     /* Match PDF PamphletHeaderTitleMetaGapMm */
-    gap: 0.6mm;
-    /* Clip ink to the 20mm band so meta never paints over cols 1–2. */
+    gap: 0.81mm;
+    /* Clip ink to the header band so meta never paints over cols 1–2. */
     overflow: hidden;
     min-width: 0;
     min-height: 0;
@@ -448,7 +448,7 @@ body.page-pamphlet .app-sidebar.is-open {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto;
     column-gap: 2.5mm;
-    row-gap: 0.8mm;
+    row-gap: 1.08mm;
     width: 100%;
     min-width: 0;
     flex: 0 0 auto;
@@ -475,7 +475,8 @@ body.page-pamphlet .app-sidebar.is-open {
 
 .pamphlet-header-meta-label {
     flex: 0 0 auto;
-    font-size: 2.5mm;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 3.375mm;
     line-height: 1.2;
     color: #666666;
     opacity: 1;
@@ -567,7 +568,8 @@ body.page-pamphlet .app-sidebar.is-open {
 }
 
 .pamphlet-header-meta-bar .pamphlet-header-item p {
-    font-size: 2.5mm;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 3.375mm;
     line-height: 1.2;
     opacity: 1;
     overflow: hidden;
@@ -647,7 +649,8 @@ body.page-pamphlet .app-sidebar.is-open {
 
 /* Must beat paragraph p rule (header title also has data-item-type=paragraph) */
 .pamphlet-page-header .pamphlet-header-title p {
-  font-size: 5mm;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 6.75mm;
   font-weight: 700;
   line-height: 1.1;
   color: inherit;
