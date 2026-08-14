@@ -59,6 +59,29 @@ func TestToWinAnsiSpanish(t *testing.T) {
 	}
 }
 
+func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
+	if PamphletHeaderTitleMetaGapMm != 5.0 {
+		t.Fatalf("header title→meta gap want 5mm, got %v", PamphletHeaderTitleMetaGapMm)
+	}
+	var s strings.Builder
+	drawHeader(&s, PamphletHeader{
+		Title:  "Titulo corto",
+		Author: "Eduardo",
+		Series: "Serie",
+	}, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
+	out := s.String()
+	if !strings.Contains(out, "Titulo corto") {
+		t.Fatalf("missing title in stream: %q", out)
+	}
+	if !strings.Contains(out, "Eduardo") {
+		t.Fatalf("missing meta in stream: %q", out)
+	}
+	// Two text objects: title then meta — both must appear.
+	if strings.Count(out, "Tj") < 2 {
+		t.Fatalf("expected title + meta text ops, got %q", out)
+	}
+}
+
 func TestWrapWordsStaysInsideColumn(t *testing.T) {
 	text := toWinAnsi("Ignorar el enfoque correcto puede hacer que destruyas tu vida con la Biblia.")
 	sizePt := 8.5

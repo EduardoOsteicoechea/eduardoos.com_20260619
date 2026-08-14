@@ -353,11 +353,22 @@ func buildPage2Content(doc PamphletDocument, images map[string]*pdfImage) string
 }
 
 func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm float64) {
-	// Title baseline near the top of the 14mm header band (CSS title is 5mm).
-	y := top - 4.5
-	writeText(s, "F2", 14, x, y, width, h.Title)
-	// 5mm margin between title and the metadata row (matches CSS margin-bottom).
-	y -= PamphletHeaderTitleMetaGapMm
+	// May use the narrow gutter under the header, but must not paint into cols 1–2.
+	floor := top - heightMm - PamphletGutterNarrow
+	const titleSizePt = 14.0 // ≈ 5mm — matches .pamphlet-header-title
+	titleLineHMm := titleSizePt * 1.15 * 25.4 / 72.0
+	// First baseline ≈ one em below the top of the header band.
+	y := top - (titleSizePt * 25.4 / 72.0)
+	used := writeWrapped(s, "F2", titleSizePt, x, y, width, h.Title, floor)
+	if used <= 0 {
+		if strings.TrimSpace(h.Title) == "" {
+			return
+		}
+		used = titleLineHMm
+	}
+	// Last title baseline, then 5mm clear margin before the metadata baseline (PDF-only).
+	lastTitleBaseline := y - used + titleLineHMm
+	metaY := lastTitleBaseline - PamphletHeaderTitleMetaGapMm
 	meta := strings.TrimSpace(strings.Join([]string{
 		nonEmpty(h.Subtitle),
 		nonEmpty(h.Author),
@@ -365,10 +376,9 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 		nonEmpty(h.SeriesChapter),
 		nonEmpty(h.Date),
 	}, "  ·  "))
-	if meta != "" {
-		writeText(s, "F1", 7, x, y, width, meta)
+	if meta != "" && metaY > floor {
+		writeWrapped(s, "F1", 7, x, metaY, width, meta, floor)
 	}
-	_ = heightMm
 }
 
 func drawFooter(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage) {

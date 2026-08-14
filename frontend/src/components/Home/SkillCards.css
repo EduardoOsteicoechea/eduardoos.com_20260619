@@ -82,7 +82,7 @@
   }
 }
 
-/* —— Modal —— */
+/* —— Modal (ported to document.body — escapes hero transform containing block) —— */
 .skill-modal {
   position: fixed;
   inset: 0;
@@ -117,14 +117,16 @@
   box-sizing: border-box;
 }
 
-/* Phone + tablet: full-screen dimmed backdrop, centered panel */
+/* Phone + tablet: full-viewport overlay on body, centered panel */
 @media (max-width: 1023px) {
   .skill-modal {
-    padding: 0.75rem;
+    position: fixed;
+    inset: 0;
     width: 100vw;
     width: 100dvw;
     height: 100vh;
     height: 100dvh;
+    padding: 0.75rem;
     /* Sit above home fixed photo / header chrome */
     z-index: 10000;
   }

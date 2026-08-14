@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { apiRequest, formatApiError } from "../../lib/api";
 import { markdownToSafeHtml } from "../../lib/markdown";
 import {
@@ -207,7 +208,8 @@ export default function SkillCards() {
         ))}
       </ul>
 
-      {active && (
+      {active &&
+        createPortal(
         <div
           className="skill-modal"
           role="dialog"
@@ -369,8 +371,9 @@ export default function SkillCards() {
               </section>
             )}
           </div>
-        </div>
-      )}
+        </div>,
+        document.body,
+        )}
     </>
   );
 }

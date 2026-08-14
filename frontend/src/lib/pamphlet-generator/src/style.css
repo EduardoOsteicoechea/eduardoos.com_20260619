@@ -433,7 +433,8 @@
 .pamphlet-page-header > .pamphlet-header-title {
     width: 100%;
     flex: 0 0 auto;
-    margin-bottom: 5mm;
+    /* Desktop UI spacing — PDF title→meta gap is PamphletHeaderTitleMetaGapMm in Go. */
+    margin-bottom: 5px;
 }
 
 .pamphlet-header-meta-bar {
