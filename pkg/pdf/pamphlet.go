@@ -38,22 +38,22 @@ const (
 	PamphletGutterWide = 20.0
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
 	PamphletColWidthMm = 57.85
-	// Reserved header band on the sheet (CSS --page-header-height). Must fit a
-	// wrapped title (~2×5mm) + two meta rows; 14mm caused desktop overlap.
-	// PDF cols 1–2 still start below *drawn* header content (see drawHeader),
-	// so unused space inside this band does not inflate the PDF gap.
+	// Reserved header band — must match CSS --page-header-height (title may wrap).
 	PamphletHeaderHMm = 20.0
-	// Vertical gap between last header line and cols 1–2 (CSS --header-body-gutter).
-	PamphletHeaderBodyGutterMm = 3.0
+	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
+	// Same value in PDF so sheet and print stay identical (do not hug drawn content).
+	PamphletHeaderBodyGutterMm = 5.0
 	PamphletFooterHMm          = 37.5
-	// 215.9 − 10 − 20 − 3 − 4 − 37.5 − 10
-	PamphletPage1BodyMm = 131.4
+	// 215.9 − 10 − 20 − 5 − 4 − 37.5 − 10
+	PamphletPage1BodyMm = 129.4
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
-	// Vertical gap between header title and the first metadata row (~5px on desktop ≈ 1.2mm).
-	PamphletHeaderTitleMetaGapMm = 1.2
-	// Right-side cols 1–2 under full header band: 195.9 − 20 − 3 (PDF may be taller when content is short).
-	PamphletPage1RightColMm = 172.9
+	// CSS .pamphlet-page-header { gap } between title block and meta bar.
+	PamphletHeaderTitleMetaGapMm = 0.6
+	// CSS .pamphlet-header-meta-bar { row-gap }.
+	PamphletHeaderMetaRowGapMm = 0.8
+	// Right-side cols 1–2: 195.9 − 20 − 5
+	PamphletPage1RightColMm = 170.9
 	// Left-side cols 7–8 above footer: 195.9 − 4 − 37.5
 	PamphletPage1LeftColMm = 154.4
 	// Extra space above heading_1 when it follows another item (PDF looks flush without this).
@@ -347,23 +347,16 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	var s strings.Builder
 	headerX := colX(6)
 	headerTop := PamphletPageHeightMm - PamphletMarginMm
-	// Content bottom (mm from page bottom) — columns hug the real header, not the
-	// empty remainder of the reserved 14mm band.
-	headerContentBottom := drawHeader(&s, doc.Header, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
+	// Same vertical tracks as CSS grid: margin → 20mm header → gutter → cols.
+	_ = drawHeader(&s, doc.Header, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
 
 	leftTop := PamphletPageHeightMm - PamphletMarginMm
 	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, PamphletPage1LeftColMm, images)
 	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, PamphletPage1LeftColMm, images)
 
-	rightTop := headerContentBottom - PamphletHeaderBodyGutterMm
-	// Never start lower than the classic band floor (full header used).
-	bandFloor := headerTop - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
-	if rightTop < bandFloor {
-		rightTop = bandFloor
-	}
-	rightH := rightTop - PamphletMarginMm
-	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, rightH, images)
-	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, rightH, images)
+	rightTop := headerTop - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
+	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
+	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
 
 	footerTop := PamphletMarginMm + PamphletFooterHMm
 	drawFooter(&s, doc.Footer.Items, colX(2), footerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm, images)
@@ -381,18 +374,17 @@ func buildPage2Content(doc PamphletDocument, images map[string]*pdfImage) string
 	return s.String()
 }
 
-// drawHeader paints title + 2×2 gray meta and returns the Y (mm from page bottom)
-// of the bottom edge of the drawn header content. Callers start cols 1–2 just
-// below this value (+ PamphletHeaderBodyGutterMm) so unused space inside the
-// reserved header band does not inflate the visual gap under Autor/Fecha.
+// drawHeader paints title + 2×2 gray meta using the same rhythm as the sheet CSS
+// (title line-height 1.1, flex gap, meta line-height 1.2 + row-gap). Returns the
+// Y (mm from page bottom) of the bottom edge of drawn ink (for tests).
 func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm float64) float64 {
-	// Stay inside the reserved header band (do not paint into the body gutter).
 	floor := top - heightMm
 	emptyBottom := floor
 	const titleSizePt = 14.0 // ≈ 5mm — matches .pamphlet-header-title
-	titleLineHMm := titleSizePt * 1.15 * 25.4 / 72.0
+	const titleLineHeight = 1.1
+	titleLineHMm := titleSizePt * titleLineHeight * 25.4 / 72.0
 	y := top - (titleSizePt * 25.4 / 72.0)
-	used := writeWrapped(s, "F2", titleSizePt, x, y, width, h.Title, floor)
+	used := writeWrapped(s, "F2", titleSizePt, titleLineHeight, x, y, width, h.Title, floor)
 	if used <= 0 {
 		if strings.TrimSpace(h.Title) == "" {
 			return emptyBottom
@@ -400,15 +392,18 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 		used = titleLineHMm
 	}
 	lastTitleBaseline := y - used + titleLineHMm
-	// Approximate glyph descent so "content bottom" sits under the ink, not on the baseline.
+	// CSS: title line-box, then flex-gap, then meta. Subtract title descent + meta
+	// ascent so meta ink does not collide with the title (old bug: gap from baseline only).
 	titleDescentMm := titleSizePt * 0.2 * 25.4 / 72.0
 	contentBottom := lastTitleBaseline - titleDescentMm
-	metaY := lastTitleBaseline - PamphletHeaderTitleMetaGapMm
 
-	// 2×2 gray meta grid: Serie | Capítulo / Autor | Fecha
 	const metaSizePt = 7.0 // ≈ 2.5mm
-	metaLineHMm := metaSizePt * 1.2 * 25.4 / 72.0
+	const metaLineHeight = 1.2
+	metaLineHMm := metaSizePt * metaLineHeight * 25.4 / 72.0
+	metaAscentMm := metaSizePt * 0.75 * 25.4 / 72.0
 	metaDescentMm := metaSizePt * 0.2 * 25.4 / 72.0
+	metaY := lastTitleBaseline - titleDescentMm - PamphletHeaderTitleMetaGapMm - metaAscentMm
+
 	const colGapMm = 2.5
 	half := (width - colGapMm) / 2
 	if half < 10 {
@@ -421,6 +416,8 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 	left2 := labeledMeta("Autor", h.Author)
 	right2 := labeledMeta("Fecha", h.Date)
 
+	metaRowPitchMm := metaLineHMm + PamphletHeaderMetaRowGapMm
+
 	if (left1 != "" || right1 != "") && metaY > floor {
 		if left1 != "" {
 			writeGrayText(s, "F1", metaSizePt, x, metaY, half, left1)
@@ -429,7 +426,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right1)
 		}
 		contentBottom = metaY - metaDescentMm
-		metaY -= metaLineHMm
+		metaY -= metaRowPitchMm
 	}
 	if (left2 != "" || right2 != "") && metaY > floor {
 		if left2 != "" {
@@ -508,7 +505,7 @@ func drawFooter(s *strings.Builder, items []PamphletItem, x, top, width, heightM
 		if i < len(items)-1 {
 			gap = PamphletItemGapMm
 		}
-		used := writeWrapped(s, font, size, x, y, width, item.Content, floor)
+		used := writeWrapped(s, font, size, 1.25, x, y, width, item.Content, floor)
 		y -= used + gap
 	}
 }
@@ -550,7 +547,7 @@ func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightM
 		if i < len(items)-1 {
 			gap = PamphletItemGapMm
 		}
-		used := writeWrapped(s, font, size, x, y, width, item.Content, floor)
+		used := writeWrapped(s, font, size, 1.25, x, y, width, item.Content, floor)
 		y -= used + gap
 	}
 }
@@ -649,14 +646,17 @@ func writeText(s *strings.Builder, font string, sizePt float64, xMm, yMm, widthM
 		font, sizePt, MmToPoints(xMm), MmToPoints(yMm), escape(text)))
 }
 
-func writeWrapped(s *strings.Builder, font string, sizePt float64, xMm, yMm, widthMm float64, text string, floorMm float64) float64 {
+func writeWrapped(s *strings.Builder, font string, sizePt, lineHeight, xMm, yMm, widthMm float64, text string, floorMm float64) float64 {
 	text = strings.TrimSpace(toWinAnsi(text))
 	if text == "" {
 		return 0
 	}
+	if lineHeight < 1.0 {
+		lineHeight = 1.25
+	}
 	maxWidthPt := MmToPoints(widthMm)
 	lines := wrapWordsToWidth(text, sizePt, maxWidthPt)
-	lineH := sizePt * 1.25 * 25.4 / 72.0 // mm
+	lineH := sizePt * lineHeight * 25.4 / 72.0 // mm
 	used := 0.0
 	y := yMm
 	for _, line := range lines {

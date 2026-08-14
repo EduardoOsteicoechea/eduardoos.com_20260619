@@ -277,19 +277,19 @@
   --col-gutter-wide: 20mm;
   /* Title (may wrap 2 lines) + two meta rows — must not overflow into cols 1–2. */
   --page-header-height: 20mm;
-  /* Vertical gap between header band and cols 1–2 (PDF also uses 3mm under drawn content). */
-  --header-body-gutter: 3mm;
+  /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
+  --header-body-gutter: 5mm;
   --page-footer-height: 37.5mm; /* 15mm × 2.5 */
-  /* Page 1 body: 215.9 − 10 − 20 − 3 − 4 − 37.5 − 10 = 131.4mm */
-  --page1-body-height: 131.4mm;
+  /* Page 1 body: 215.9 − 10 − 20 − 5 − 4 − 37.5 − 10 = 129.4mm */
+  --page1-body-height: 129.4mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
   --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
-  /* Cols 1–2 under header: 195.9 − 20 − 3 = 172.9mm */
-  --page1-right-col-height: 172.9mm;
+  /* Cols 1–2 under header: 195.9 − 20 − 5 = 170.9mm */
+  --page1-right-col-height: 170.9mm;
   /* Cols 7–8 above footer: 195.9 − 4 − 37.5 = 154.4mm */
   --page1-left-col-height: 154.4mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
@@ -408,6 +408,7 @@
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
+    /* Match PDF PamphletHeaderTitleMetaGapMm */
     gap: 0.6mm;
     /* Clip ink to the 20mm band so meta never paints over cols 1–2. */
     overflow: hidden;

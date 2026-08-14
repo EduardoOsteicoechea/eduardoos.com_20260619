@@ -360,12 +360,12 @@ const pageHeaderHeightMm = 20; // title (may wrap) + meta — matches --page-hea
 const pageFooterHeightMm = 37.5; // 15mm × 2.5
 const colGutterNarrowMm = 4;
 /** Gap between page header and cols 1–2 (matches --header-body-gutter). */
-const headerBodyGutterMm = 3;
+const headerBodyGutterMm = 5;
 /** Page 2 band / full page-1 chrome band: letter − 2×margin */
 const columnContentHeightMm = usLetterHeightInMillimeters - pageMarginMm * 2;
 /** Cols 1–2: under page header → discount header + header→body gutter */
 const page1RightColHeightMm =
-    columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 172.9
+    columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 170.9
 /** Cols 7–8: above page footer → discount gutter above footer + footer */
 const page1LeftColHeightMm =
     columnContentHeightMm - colGutterNarrowMm - pageFooterHeightMm; // 154.4

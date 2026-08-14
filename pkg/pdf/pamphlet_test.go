@@ -63,8 +63,11 @@ func TestToWinAnsiSpanish(t *testing.T) {
 }
 
 func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
-	if PamphletHeaderTitleMetaGapMm < 1.0 || PamphletHeaderTitleMetaGapMm > 2.0 {
-		t.Fatalf("header title→meta gap want ~1.2mm (match desktop), got %v", PamphletHeaderTitleMetaGapMm)
+	if PamphletHeaderTitleMetaGapMm < 0.5 || PamphletHeaderTitleMetaGapMm > 1.0 {
+		t.Fatalf("header title→meta CSS gap want ~0.6mm, got %v", PamphletHeaderTitleMetaGapMm)
+	}
+	if PamphletHeaderMetaRowGapMm < 0.6 || PamphletHeaderMetaRowGapMm > 1.0 {
+		t.Fatalf("header meta row-gap want ~0.8mm, got %v", PamphletHeaderMetaRowGapMm)
 	}
 	var s strings.Builder
 	bottom := drawHeader(&s, PamphletHeader{
@@ -84,22 +87,34 @@ func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	if !strings.Contains(out, "0.4 0.4 0.4 rg") {
 		t.Fatalf("expected gray meta color ops, got %q", out)
 	}
-	// Title + at least two meta text ops
 	if strings.Count(out, "Tj") < 3 {
 		t.Fatalf("expected title + 2 meta lines, got %q", out)
 	}
-	// Content bottom must sit well above the empty remainder of a tall reserved band
-	// (the old bug: cols started at top−20−5 even when meta ended ~8mm higher).
+	// Parse baselines: title must sit above first meta with clearance (no overlap).
+	re := regexp.MustCompile(`([\d.]+)\s+([\d.]+)\s+Td`)
+	var ys []float64
+	for _, m := range re.FindAllStringSubmatch(out, -1) {
+		y, _ := strconv.ParseFloat(m[2], 64)
+		ys = append(ys, y)
+	}
+	if len(ys) < 3 {
+		t.Fatalf("expected ≥3 Td ops, got %v", ys)
+	}
+	sort.Float64s(ys)
+	titleY := ys[len(ys)-1]
+	metaY := ys[len(ys)-2]
+	gapMm := (titleY - metaY) * 25.4 / 72.0
+	// Title baseline → meta baseline includes descent + 0.6mm gap + meta ascent ≈ 3mm+
+	if gapMm < 2.5 {
+		t.Fatalf("title→meta baseline gap=%.2fmm too tight (overlap risk); ys=%v", gapMm, ys)
+	}
 	bandFloor := 200.0 - PamphletHeaderHMm
 	if bottom <= bandFloor+0.5 {
-		t.Fatalf("header content bottom=%.2f should be above band floor %.2f (unused header space)", bottom, bandFloor)
-	}
-	if bottom > 200-4 {
-		t.Fatalf("header content bottom=%.2f unexpectedly high (title alone?)", bottom)
+		t.Fatalf("header content bottom=%.2f should be above band floor %.2f", bottom, bandFloor)
 	}
 }
 
-func TestPamphletPage1BodyStartsUnderHeaderContent(t *testing.T) {
+func TestPamphletPage1BodyMatchesSheetBand(t *testing.T) {
 	data := BuildPamphletPDF(PamphletDocument{
 		Type: "pamphlet_single_sheet",
 		Header: PamphletHeader{
@@ -112,11 +127,9 @@ func TestPamphletPage1BodyStartsUnderHeaderContent(t *testing.T) {
 		Column1: []PamphletItem{{Type: "paragraph", Content: "Primera linea del cuerpo"}},
 	})
 	s := string(data)
-	// Parse Td y positions: last meta and first body on the right half (x>~400pt).
 	re := regexp.MustCompile(`([\d.]+)\s+([\d.]+)\s+Td`)
-	matches := re.FindAllStringSubmatch(s, -1)
 	var rightYs []float64
-	for _, m := range matches {
+	for _, m := range re.FindAllStringSubmatch(s, -1) {
 		x, _ := strconv.ParseFloat(m[1], 64)
 		y, _ := strconv.ParseFloat(m[2], 64)
 		if x > 400 && y > 480 {
@@ -126,16 +139,13 @@ func TestPamphletPage1BodyStartsUnderHeaderContent(t *testing.T) {
 	if len(rightYs) < 3 {
 		t.Fatalf("expected title/meta/body Td ops on right half, got %v", rightYs)
 	}
-	// Highest cluster ≈ title/meta; first body is the lowest among the top group after a jump.
-	// Gap from second-lowest high meta to body must stay under ~10mm (≈28pt), not the old ~18mm.
 	sort.Float64s(rightYs)
-	// rightYs ascending: body first, then meta, then title near top
 	bodyY := rightYs[0]
-	metaY := rightYs[1]
-	gapPt := metaY - bodyY
-	maxGapPt := MmToPoints(10.0) // body may sit ~3mm gutter + 2.5mm inset + descents under meta
-	if gapPt > maxGapPt {
-		t.Fatalf("meta→body gap=%.1fpt (%.1fmm) too large; want ≤10mm. ys=%v", gapPt, gapPt*25.4/72.0, rightYs)
+	// Sheet: rightTop = pageH − margin − header − gutter; drawColumn uses top − 2.5mm.
+	wantTop := PamphletPageHeightMm - PamphletMarginMm - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
+	wantBody := MmToPoints(wantTop - 2.5)
+	if bodyY < wantBody-2 || bodyY > wantBody+2 {
+		t.Fatalf("body baseline=%.2fpt want ~%.2fpt (sheet band); ys=%v", bodyY, wantBody, rightYs)
 	}
 }
 
