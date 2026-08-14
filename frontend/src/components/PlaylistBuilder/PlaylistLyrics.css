@@ -1,5 +1,6 @@
 .playlist-lyrics {
-  margin-top: 1rem;
+  /* Spacing comes from .playlist-builder gap (--playlist-panel-gap). */
+  margin-top: 0;
   width: 100%;
   border: var(--border_001);
   background: var(--site-body-bg);

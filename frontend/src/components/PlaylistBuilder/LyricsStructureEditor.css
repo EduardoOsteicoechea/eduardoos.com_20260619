@@ -1,5 +1,6 @@
 .lyrics-structure-editor {
-  margin-top: 1rem;
+  /* Same gap as library ↔ playlist ↔ lyrics (--playlist-panel-gap via parent). */
+  margin-top: 0;
   width: 100%;
   border: var(--border_001);
   background: var(--site-body-bg);

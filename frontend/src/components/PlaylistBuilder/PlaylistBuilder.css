@@ -1,10 +1,11 @@
 .playlist-builder {
   --playlist-control-size: 2rem;
-  
+  /* Same spacing: vertical stack on phone, lateral between library/playlist on desktop. */
+  --playlist-panel-gap: 0.75rem;
   --playlist-row-height: calc(var(--playlist-control-size) + 0.6rem);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--playlist-panel-gap);
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -76,7 +77,7 @@
 .playlist-builder__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+  gap: var(--playlist-panel-gap);
   width: 100%;
   max-width: 100%;
   min-width: 0;
