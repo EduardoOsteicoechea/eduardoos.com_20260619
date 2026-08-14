@@ -237,6 +237,35 @@ function waitForNextPaint(): Promise<void> {
     });
 }
 
+/** Prefer RFC 5987 filename*=UTF-8''… so accents/ñ survive the download name. */
+function filenameFromContentDisposition(header: string): string {
+    const star = /filename\*\s*=\s*(?:UTF-8''|utf-8'')([^;]+)/i.exec(header);
+    if (star?.[1]) {
+        try {
+            return decodeURIComponent(star[1].trim().replace(/^"+|"+$/g, ""));
+        } catch {
+            /* fall through */
+        }
+    }
+    // Legacy filename= is ASCII-only in our backend; skip mojibake UTF-8 blobs.
+    const plain = /filename\s*=\s*"((?:\\.|[^"\\])*)"|filename\s*=\s*([^;]+)/i.exec(header);
+    const raw = (plain?.[1] ?? plain?.[2] ?? "").trim();
+    if (!raw) return "";
+    // If it already looks like mojibake (Â¿ / Ã³), ignore and use the title instead.
+    if (/Â.|Ã./.test(raw)) return "";
+    return raw.replace(/^UTF-8''/i, "");
+}
+
+function sanitizeDownloadFilename(name: string): string {
+    const cleaned = name
+        .trim()
+        .replace(/[\\/:*?"<>|\r\n\t]+/g, "_")
+        .replace(/^\.+/, "")
+        .trim();
+    if (!cleaned) return "";
+    return cleaned.length > 80 ? cleaned.slice(0, 80).trim() : cleaned;
+}
+
 async function printDocument(): Promise<void> {
     if (printBtn.disabled) return;
     if (!currentDoc) {
@@ -279,12 +308,13 @@ async function printDocument(): Promise<void> {
         }
         const blob = await res.blob();
         const cd = res.headers.get("Content-Disposition") || "";
-        const match = /filename="?([^";]+)"?/i.exec(cd);
-        const filename = match?.[1]?.trim() || `${currentDoc.header.title || "panfleto"}.pdf`;
+        const fromHeader = filenameFromContentDisposition(cd);
+        const fromTitle = sanitizeDownloadFilename(currentDoc.header.title || "");
+        const filename = fromHeader || (fromTitle ? `${fromTitle}.pdf` : "panfleto.pdf");
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
+        a.download = filename.toLowerCase().endsWith(".pdf") ? filename : `${filename}.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();

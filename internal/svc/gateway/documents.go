@@ -68,8 +68,9 @@ func (c config) generatePamphletPDF() http.HandlerFunc {
 		if cd := resp.Header.Get("Content-Disposition"); cd != "" {
 			w.Header().Set("Content-Disposition", cd)
 		} else {
-			w.Header().Set("Content-Disposition", `attachment; filename="panfleto.pdf"`)
+			w.Header().Set("Content-Disposition", common.ContentDispositionAttachment("panfleto.pdf"))
 		}
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(out)
 	}

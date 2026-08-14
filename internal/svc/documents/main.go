@@ -60,26 +60,15 @@ func handlePamphletPDF() http.HandlerFunc {
 			return
 		}
 		data := pdf.BuildPamphletPDF(doc)
-		filename := "panfleto.pdf"
+		downloadName := "panfleto.pdf"
 		if t := strings.TrimSpace(doc.Header.Title); t != "" {
-			filename = sanitizeFilename(t) + ".pdf"
+			downloadName = t + ".pdf"
 		}
 		w.Header().Set("Content-Type", "application/pdf")
-		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+		w.Header().Set("Content-Disposition", common.ContentDispositionAttachment(downloadName))
+		// Let browsers / fetch() read the UTF-8 filename* parameter.
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(data)
 	}
-}
-
-func sanitizeFilename(name string) string {
-	name = strings.TrimSpace(name)
-	replacer := strings.NewReplacer(`/`, `_`, `\`, `_`, `:`, `_`, `*`, `_`, `?`, `_`, `"`, `_`, `<`, `_`, `>`, `_`, `|`, `_`)
-	name = replacer.Replace(name)
-	if name == "" {
-		return "panfleto"
-	}
-	if len(name) > 80 {
-		name = name[:80]
-	}
-	return name
 }
