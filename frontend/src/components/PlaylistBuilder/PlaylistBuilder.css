@@ -9,17 +9,17 @@
   max-width: 100%;
   min-width: 0;
   overflow-x: clip;
-  /* Room for fixed transport under the header + optional lyric edit tray */
-  padding-top: 0.5rem;
-  padding-bottom: 2rem;
-  margin-bottom: 0;
+  /* Library flush under header; bottom room for fixed transport + lyric tray */
+  padding-top: 0;
+  padding-bottom: 8rem;
+  margin-bottom: 2rem;
 }
 
 .playlist-builder:has(.lyrics-edit-tray),
 .playlist-builder:has(.lyrics-structure-editor) {
-  padding-top: 0.5rem;
-  padding-bottom: 3rem;
-  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 16rem;
+  margin-bottom: 3rem;
 }
 
 @media (min-width: 768px) {

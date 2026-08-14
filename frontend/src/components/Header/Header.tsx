@@ -153,7 +153,7 @@ export function Header({ pathname }: HeaderProps) {
     }, [pathname]);
     useEffect(() => {
         const syncHeaderHeight = () => {
-            const height = headerRef.current?.offsetHeight ?? 50;
+            const height = headerRef.current?.offsetHeight ?? 55;
             document.documentElement.style.setProperty("--header_height", `${height}px`);
         };
         syncHeaderHeight();

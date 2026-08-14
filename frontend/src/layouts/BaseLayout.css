@@ -7,39 +7,36 @@ body.page-editor {
   max-width: 100%;
 }
 
-/* Transport is fixed under the in-flow header — pad main, not body (keep header at top). */
+/* Transport is bottom-fixed — reserve space under content, keep library flush under header. */
 body.page-playlist {
-  padding-bottom: 0;
+  padding-bottom: var(--chrome-bar-mobile);
 }
 
 body.page-playlist main {
-  padding-top: var(--chrome-bar-mobile);
+  padding-top: 0;
 }
 
 body.page-playlist:has(.playlist-controls--tray-open) {
   --chrome-bar-mobile: 12rem;
 }
 
-body.page-playlist:has(.lyrics-edit-tray) main {
-  padding-top: calc(var(--chrome-bar-mobile) + 9rem);
+body.page-playlist:has(.lyrics-edit-tray) {
+  padding-bottom: calc(var(--chrome-bar-mobile) + 9rem);
 }
 
 @media (min-width: 768px) {
   body.page-playlist {
     /* Match mobile: full player height (seek above buttons), not a single activity row. */
     --chrome-bar-desktop: var(--site-chrome-bar-mobile, 6.65rem);
-  }
-
-  body.page-playlist main {
-    padding-top: var(--chrome-bar-desktop);
+    padding-bottom: var(--chrome-bar-desktop);
   }
 
   body.page-playlist:has(.playlist-controls--tray-open) {
     --chrome-bar-desktop: 12rem;
   }
 
-  body.page-playlist:has(.lyrics-edit-tray) main {
-    padding-top: calc(var(--chrome-bar-desktop) + 9rem);
+  body.page-playlist:has(.lyrics-edit-tray) {
+    padding-bottom: calc(var(--chrome-bar-desktop) + 9rem);
   }
 }
 
@@ -51,4 +48,10 @@ body.page-editor .page-shell {
   margin-inline: auto;
   padding-inline: max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-right));
   overflow-x: clip;
+}
+
+/* First content (audio library) sits flush under the header — no page-shell top gap. */
+body.page-playlist .page-shell {
+  padding-top: 0;
+  padding-bottom: 1.5rem;
 }

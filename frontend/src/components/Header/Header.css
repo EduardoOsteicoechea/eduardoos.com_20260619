@@ -206,7 +206,7 @@ a.site-header__action.btn--primary:hover {
   height: 100vh;
   height: 100dvh;
   margin: 0;
-  padding: calc(var(--header_height, 50px) + 0.75rem) 1rem 1.25rem;
+  padding: calc(var(--header_height, 55px) + 0.75rem) 1rem 1.25rem;
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;

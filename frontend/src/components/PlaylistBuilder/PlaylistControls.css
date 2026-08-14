@@ -1,16 +1,16 @@
 .playlist-controls {
   position: fixed;
-  /* Flush under the site header (top edge of the header chrome = 0 offset below it). */
-  top: var(--header_height, 50px);
-  bottom: auto;
+  /* Activity / transport chrome stays bottom-fixed on all viewports. */
+  bottom: 0;
+  top: auto;
   left: 0;
   right: 0;
   z-index: 9999;
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
-  border-bottom: var(--border_001);
-  border-top: none;
+  border-top: var(--border_001);
+  border-bottom: none;
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   overflow-x: clip;

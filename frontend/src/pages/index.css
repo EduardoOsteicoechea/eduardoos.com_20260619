@@ -5,8 +5,8 @@
  */
 
 .page-shell.hero.home-hero {
-  --home-viewport-h: calc(100dvh - var(--header_height, 50px));
-  --home-viewport-h-fallback: calc(100vh - var(--header_height, 50px));
+  --home-viewport-h: calc(100dvh - var(--header_height, 55px));
+  --home-viewport-h-fallback: calc(100vh - var(--header_height, 55px));
   --home-photo-ratio: 9 / 16;
 
   position: relative;

@@ -17,8 +17,17 @@
   --border_radius_001: 4px;
   --border_001: solid 1px var(--site-border);
   --max_desktop_width: 1920px;
-  --header_bar_height: calc(50px * var(--ui-scale, 1.5));
-  --header_height: calc(50px * var(--ui-scale, 1.5));
+  /* Phone header height (explicit; not scaled with --ui-scale). */
+  --header_bar_height: 55px;
+  --header_height: 55px;
+}
+
+/* Tablet + desktop: 60px header */
+@media (min-width: 768px) {
+  :root {
+    --header_bar_height: 60px;
+    --header_height: 60px;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -27,8 +36,8 @@
     font-size: 12px;
     --control_min_height: 35px;
     --control_min_width: 35px;
-    --header_bar_height: 50px;
-    --header_height: 50px;
+    --header_bar_height: 60px;
+    --header_height: 60px;
   }
 }
 
