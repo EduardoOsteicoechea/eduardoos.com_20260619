@@ -23,6 +23,15 @@ body.page-pamphlet {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Keep site header/avatar above teleported pamphlet chrome. */
+body.page-pamphlet .site-header {
+  z-index: 300;
+}
+
+body.page-pamphlet .site-header__bar {
+  z-index: 301;
+}
+
 .pamphlet-layout-workspace {
   box-sizing: border-box;
   width: 100%;
