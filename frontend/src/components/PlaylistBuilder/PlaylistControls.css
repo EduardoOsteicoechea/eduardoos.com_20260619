@@ -1,13 +1,16 @@
 .playlist-controls {
   position: fixed;
-  bottom: 0;
+  /* Flush under the site header (top edge of the header chrome = 0 offset below it). */
+  top: var(--header_height, 50px);
+  bottom: auto;
   left: 0;
   right: 0;
   z-index: 9999;
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
-  border-top: var(--border_001);
+  border-bottom: var(--border_001);
+  border-top: none;
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   overflow-x: clip;
@@ -70,11 +73,8 @@
   margin-left: 0.25rem;
 }
 
-.playlist-controls__emusics-btn {
-  white-space: nowrap;
-  font-size: 0.8rem;
-  padding-inline: 0.55rem;
-  min-height: var(--control_min_height, 2.25rem);
+.playlist-controls__emusics-btn:disabled .playlist-icon {
+  opacity: 0.55;
 }
 
 .playlist-controls__tray-toggle {
@@ -215,9 +215,10 @@
 }
 
 .playlist-controls__btn .playlist-icon {
-  width: calc(var(--playlist-control-size, 2rem) * 0.5);
-  height: calc(var(--playlist-control-size, 2rem) * 0.5);
+  width: calc(var(--playlist-control-size, 2rem) * 0.55);
+  height: calc(var(--playlist-control-size, 2rem) * 0.55);
   display: block;
+  flex-shrink: 0;
 }
 
 .playlist-controls__btn:hover:not(:disabled) {
@@ -342,20 +343,13 @@
 
 @media (max-width: 820px) {
   .playlist-controls__emusics {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .playlist-controls__emusics-btn {
-    font-size: 0.72rem;
-    padding-inline: 0.4rem;
+    flex-direction: row;
+    align-items: center;
   }
 }
 
 @media (max-width: 720px) {
-  .playlist-controls__emusics-btn {
-    max-width: 7.5rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .playlist-controls__emusics {
+    flex-shrink: 0;
   }
 }

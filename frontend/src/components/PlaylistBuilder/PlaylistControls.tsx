@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { formatPlaybackTime } from "../../lib/formatTime";
-import { IconLoop, IconMixer, IconNext, IconPause, IconPlay, IconPrevious, IconStop, } from "./PlaylistIcons";
+import { IconDownload, IconLoop, IconMixer, IconNext, IconPause, IconPlay, IconPrevious, IconStop, IconUpload, } from "./PlaylistIcons";
 import "./PlaylistControls.css";
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 export interface PlaylistControlsProps {
@@ -147,21 +147,23 @@ export default function PlaylistControls({ nowPlayingLabel, isPlaying, canPlay, 
           <div className="playlist-controls__emusics">
             <button
               type="button"
-              className="btn btn--secondary playlist-controls__emusics-btn"
+              className="playlist-controls__btn playlist-controls__emusics-btn"
               disabled={emusicsDownloading || emusicsLibraryCount === 0 || !onDownloadEmusics}
               title={downloadLabel}
+              aria-label={downloadLabel}
               onClick={onDownloadEmusics}
             >
-              {emusicsDownloading ? `Pack… ${emusicsProgress}` : "Descargar .emusics"}
+              <IconDownload />
             </button>
             <button
               type="button"
-              className="btn btn--secondary playlist-controls__emusics-btn"
+              className="playlist-controls__btn playlist-controls__emusics-btn"
               disabled={emusicsDownloading || !onLoadEmusics}
               title="Cargar colección .emusics"
+              aria-label="Cargar colección .emusics"
               onClick={onLoadEmusics}
             >
-              Cargar .emusics
+              <IconUpload />
             </button>
           </div>
 

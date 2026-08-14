@@ -7,31 +7,39 @@ body.page-editor {
   max-width: 100%;
 }
 
+/* Transport is fixed under the in-flow header — pad main, not body (keep header at top). */
 body.page-playlist {
-  padding-bottom: var(--chrome-bar-mobile);
+  padding-bottom: 0;
+}
+
+body.page-playlist main {
+  padding-top: var(--chrome-bar-mobile);
 }
 
 body.page-playlist:has(.playlist-controls--tray-open) {
   --chrome-bar-mobile: 12rem;
 }
 
-body.page-playlist:has(.lyrics-edit-tray) {
-  padding-bottom: calc(var(--chrome-bar-mobile) + 9rem);
+body.page-playlist:has(.lyrics-edit-tray) main {
+  padding-top: calc(var(--chrome-bar-mobile) + 9rem);
 }
 
 @media (min-width: 768px) {
   body.page-playlist {
     /* Match mobile: full player height (seek above buttons), not a single activity row. */
     --chrome-bar-desktop: var(--site-chrome-bar-mobile, 6.65rem);
-    padding-bottom: var(--chrome-bar-desktop);
+  }
+
+  body.page-playlist main {
+    padding-top: var(--chrome-bar-desktop);
   }
 
   body.page-playlist:has(.playlist-controls--tray-open) {
     --chrome-bar-desktop: 12rem;
   }
 
-  body.page-playlist:has(.lyrics-edit-tray) {
-    padding-bottom: calc(var(--chrome-bar-desktop) + 9rem);
+  body.page-playlist:has(.lyrics-edit-tray) main {
+    padding-top: calc(var(--chrome-bar-desktop) + 9rem);
   }
 }
 

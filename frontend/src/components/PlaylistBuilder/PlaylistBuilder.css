@@ -9,15 +9,17 @@
   max-width: 100%;
   min-width: 0;
   overflow-x: clip;
-  /* Room for fixed transport + optional lyric edit tray */
-  padding-bottom: 8rem;
-  margin-bottom: 2rem;
+  /* Room for fixed transport under the header + optional lyric edit tray */
+  padding-top: 0.5rem;
+  padding-bottom: 2rem;
+  margin-bottom: 0;
 }
 
 .playlist-builder:has(.lyrics-edit-tray),
 .playlist-builder:has(.lyrics-structure-editor) {
-  padding-bottom: 16rem;
-  margin-bottom: 3rem;
+  padding-top: 0.5rem;
+  padding-bottom: 3rem;
+  margin-bottom: 0;
 }
 
 @media (min-width: 768px) {
@@ -108,6 +110,27 @@
   border: none;
   background: transparent;
   min-height: 0;
+  /* Full-bleed options: no inset padding on the library shell */
+  padding: 0;
+}
+
+.playlist-builder__panel--library h2 {
+  padding: 0.45rem 0;
+}
+
+.playlist-builder__panel--library .playlist-builder__list {
+  padding: 0;
+}
+
+.playlist-builder__panel--library .playlist-builder__item {
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.playlist-builder__panel--library .playlist-builder__empty {
+  padding-inline: 0;
 }
 
 .playlist-builder__panel h2 {
