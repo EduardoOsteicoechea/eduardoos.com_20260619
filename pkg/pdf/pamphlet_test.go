@@ -136,9 +136,14 @@ func TestLongTitleFillsHeaderBandLikeDesktop(t *testing.T) {
 		Date:          "2026-08-10",
 	}, 100, top, width, PamphletHeaderHMm)
 	used := top - bottom
-	// Larger title type in the same 20mm band (meta still in the band).
-	if used < 17.0 || used > 20.0 {
-		t.Fatalf("header content height=%.2fmm must stay inside the 20mm band", used)
+	if used < 21.0 || used > PamphletHeaderHMm {
+		t.Fatalf("header content height=%.2fmm must fill the 23mm band (title + both meta rows), got vs cap %v", used, PamphletHeaderHMm)
+	}
+	out := s.String()
+	for _, needle := range []string{"Serie:", "Cap", "Autor:", "Fecha:"} {
+		if !strings.Contains(out, needle) {
+			t.Fatalf("header clipped meta %q in stream: %q", needle, out)
+		}
 	}
 }
 

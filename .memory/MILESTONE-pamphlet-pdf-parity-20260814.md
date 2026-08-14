@@ -49,4 +49,4 @@ EC2 `/tmp` tmpfs ENOSPC was leaving nginx **502** on `/api/*`. Deploy builds wit
 
 ## Next up
 
-Title type only (not the 20 mm band / page margin): 5 mm → **6.75 mm**. Band, gutter, and cols 1–2 stay as signed off.
+Title type only was 5 mm → **6.75 mm**. Band is **23 mm** so Serie/Capítulo **and** Autor/Fecha fit; cols 1–2 = **167.9 mm** (page grid still sums to 215.9 mm). Desktop header uses Helvetica/Arial to match PDF.
