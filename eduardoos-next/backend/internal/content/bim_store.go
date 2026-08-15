@@ -77,6 +77,13 @@ func (m *memoryBIMStore) Save(_ context.Context, record IfcBimRecord, file []byt
 	if len(file) == 0 {
 		file = []byte("ISO-10303-21;\n/* eduardoos-next memory placeholder IFC */\nEND-ISO-10303-21;\n")
 	}
+	record.ContentSizeBytes = int64(len(file))
+	if record.ContentType == "" {
+		record.ContentType = "application/octet-stream"
+	}
+	if record.FileName == "" {
+		record.FileName = record.Name
+	}
 	m.mu.Lock()
 	if m.byUser[record.UserID] == nil {
 		m.byUser[record.UserID] = map[string]IfcBimRecord{}
@@ -256,19 +263,24 @@ func ifcBimFromItem(item map[string]types.AttributeValue) (IfcBimRecord, bool) {
 	return r, r.UserID != "" && r.ModelID != ""
 }
 
-// OpenBIMStore selects memory or DynamoDB from IFCBIM_BACKEND.
+// OpenBIMStore selects memory or DynamoDB from IFCBIM_BACKEND, then optionally
+// wraps with S3 file storage when IFCBIM_S3_BUCKET (or S3_BUCKET) is set.
 func OpenBIMStore(ctx context.Context) BIMStore {
 	mode := strings.ToLower(strings.TrimSpace(httpx.Env("IFCBIM_BACKEND", "memory")))
+	var base BIMStore
 	if mode != "dynamodb" {
 		log.Printf("ifcbim store backend=memory")
-		return NewMemoryBIMStore()
+		base = NewMemoryBIMStore()
+	} else {
+		cfg, err := awsx.LoadConfig(ctx)
+		if err != nil {
+			log.Printf("ifcbim IFCBIM_BACKEND=dynamodb but AWS unavailable (%v); falling back to memory", err)
+			base = NewMemoryBIMStore()
+		} else {
+			table := httpx.Env("IFCBIM_TABLE", "eduardoos_ifcbim")
+			log.Printf("ifcbim store backend=dynamodb table=%s", table)
+			base = &dynamoBIMStore{client: dynamodb.NewFromConfig(cfg), table: table}
+		}
 	}
-	cfg, err := awsx.LoadConfig(ctx)
-	if err != nil {
-		log.Printf("ifcbim IFCBIM_BACKEND=dynamodb but AWS unavailable (%v); falling back to memory", err)
-		return NewMemoryBIMStore()
-	}
-	table := httpx.Env("IFCBIM_TABLE", "eduardoos_ifcbim")
-	log.Printf("ifcbim store backend=dynamodb table=%s", table)
-	return &dynamoBIMStore{client: dynamodb.NewFromConfig(cfg), table: table}
+	return maybeWrapS3(ctx, base)
 }

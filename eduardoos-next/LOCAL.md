@@ -50,10 +50,12 @@ Open [http://127.0.0.1:4322](http://127.0.0.1:4322). Browser calls stay same-ori
 ## Smoke checklist
 
 1. Register / login under `/auth/*` (token key: `eduardoos-next-auth-token`).
-2. `/documents/pamphlet` — list/create EPAMs.
+2. `/documents/pamphlet` — visual pamphlet generator (create/open local + cloud EPAMs from toolbar).
 3. `/media/musica` — list/create playlists (name only).
-4. `/bim` — list/create placeholder IFC models (auth required).
+4. `/bim` — upload real IFC bytes (multipart), list, download; placeholder create still works.
 5. `/aps-admin` — admin email only; needs APS credentials for live Autodesk calls.
+
+Optional BIM S3: set `IFCBIM_S3_BUCKET` (or `S3_BUCKET`) plus AWS creds so IFC objects land under `ifcbim/`.
 
 ## Build (CI-local)
 

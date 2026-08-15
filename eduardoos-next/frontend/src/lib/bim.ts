@@ -1,6 +1,6 @@
 /**
- * BIM / IFC client for Eduardo OS Next memory (and later Dynamo/S3) backend.
- * Create is JSON { name }; file download is octet-stream placeholder IFC.
+ * BIM / IFC client for Eduardo OS Next.
+ * Upload sends real file bytes via multipart; download returns stored octet-stream.
  */
 
 import { BIM_ROUTES } from "../config/routes";
@@ -12,6 +12,8 @@ export type BimModel = {
   modelId: string;
   userId?: string;
   name: string;
+  fileName?: string;
+  contentSizeBytes?: number;
   updatedAt?: string;
 };
 
@@ -31,10 +33,13 @@ export async function fetchBimModels(): Promise<BimModel[]> {
     authToken: requireToken(),
   });
   if (result.error) throw new Error(formatApiError(result.error));
-  return result.data?.items ?? [];
+  return (result.data?.items ?? []).map((m) => ({
+    ...m,
+    name: m.name || m.fileName || m.modelId,
+  }));
 }
 
-/** Registers a model metadata row; memory backend stores a placeholder IFC body. */
+/** Registers metadata only (placeholder IFC body on the server). */
 export async function createBimModel(name: string): Promise<BimModel> {
   const result = await apiRequest<BimModel>(BIM_ROUTES.upload, {
     method: "POST",
@@ -44,11 +49,46 @@ export async function createBimModel(name: string): Promise<BimModel> {
   });
   if (result.error) throw new Error(formatApiError(result.error));
   if (!result.data?.modelId) throw new Error("Empty BIM create response");
-  return result.data;
+  return {
+    ...result.data,
+    name: result.data.name || result.data.fileName || result.data.modelId,
+  };
 }
 
-export async function fetchBimFileText(modelId: string): Promise<{
-  text: string;
+/** Uploads real IFC bytes via multipart/form-data (field "file"). */
+export async function uploadBimModel(file: File): Promise<BimModel> {
+  const token = requireToken();
+  const form = new FormData();
+  form.append("file", file, file.name);
+  form.append("name", file.name);
+  const response = await fetch(BIM_ROUTES.upload, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Correlation-ID": createCorrelationId(),
+    },
+    body: form,
+  });
+  const text = await response.text();
+  let data: BimModel | null = null;
+  try {
+    data = text ? (JSON.parse(text) as BimModel) : null;
+  } catch {
+    data = null;
+  }
+  if (!response.ok) {
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  if (!data?.modelId) throw new Error("Empty BIM upload response");
+  return {
+    ...data,
+    name: data.name || data.fileName || data.modelId,
+  };
+}
+
+export async function fetchBimFileBytes(modelId: string): Promise<{
+  bytes: Uint8Array;
+  textPreview: string;
   byteLength: number;
   contentType: string;
 }> {
@@ -66,16 +106,41 @@ export async function fetchBimFileText(modelId: string): Promise<{
     throw new Error(text || `HTTP ${response.status}`);
   }
   const bytes = new Uint8Array(buffer);
-  const text = new TextDecoder().decode(bytes);
-  return { text, byteLength: bytes.byteLength, contentType };
+  // Preview first ~8 KiB as text for the lightweight canvas panel.
+  const previewLen = Math.min(bytes.byteLength, 8 * 1024);
+  const textPreview = new TextDecoder().decode(bytes.subarray(0, previewLen));
+  return { bytes, textPreview, byteLength: bytes.byteLength, contentType };
 }
 
-export function downloadBimBlob(modelId: string, fileName: string, text: string): void {
-  const blob = new Blob([text], { type: "application/octet-stream" });
+/** @deprecated Prefer fetchBimFileBytes; kept for any residual callers. */
+export async function fetchBimFileText(modelId: string): Promise<{
+  text: string;
+  byteLength: number;
+  contentType: string;
+}> {
+  const file = await fetchBimFileBytes(modelId);
+  return {
+    text: file.textPreview,
+    byteLength: file.byteLength,
+    contentType: file.contentType,
+  };
+}
+
+export function downloadBimBytes(
+  modelId: string,
+  fileName: string,
+  bytes: Uint8Array,
+): void {
+  const blob = new Blob([bytes], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = fileName.endsWith(".ifc") ? fileName : `${fileName || modelId}.ifc`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/** @deprecated Prefer downloadBimBytes. */
+export function downloadBimBlob(modelId: string, fileName: string, text: string): void {
+  downloadBimBytes(modelId, fileName, new TextEncoder().encode(text));
 }

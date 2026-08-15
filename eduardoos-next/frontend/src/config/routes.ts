@@ -65,6 +65,11 @@ export const EPAM_ROUTES = {
   item: (epamId: string) => `/api/epams/${encodeURIComponent(epamId)}`,
 } as const;
 
+/** Server PDF print for the pamphlet generator (Next may stub until documents service lands). */
+export const DOCUMENT_ROUTES = {
+  pamphletPdf: "/api/documents/pamphlet/pdf",
+} as const;
+
 export const PLAYLIST_ROUTES = {
   list: "/api/playlists",
   save: "/api/playlists",

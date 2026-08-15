@@ -39,8 +39,9 @@ Usable UI shell with production IA:
 - **Auth**: login / register / verify-otp / reset-password forms
 - **Contact**: `ContactAgent` (docked optional on home desktop)
 - **APS admin**: workitem trigger + registry panel + hub explorer
-- **Wired**: pamphlet EPAM JSON shell, music playlist list/create, OpenBIM list/create/download (memory)
+- **Wired**: pamphlet visual generator (`src/lib/pamphlet-generator`, mount on `/documents/pamphlet` with cloud EPAMs via `/api/epams`), music playlist list/create, OpenBIM upload/list/download of real IFC bytes (memory; optional `IFCBIM_S3_BUCKET`)
 - **Stubs**: articles, edebat, homescool, gallery, subscription, profile
+- **Deferred**: That Open / web-ifc 3D viewer (build-memory risk); pamphlet PDF print route until documents service lands
 
 `npm run build` must stay green for frontend changes.
 

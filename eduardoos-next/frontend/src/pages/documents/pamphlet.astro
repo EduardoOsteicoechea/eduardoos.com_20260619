@@ -1,8 +1,37 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import PamphletPage from "../../components/Pamphlet/PamphletPage";
+/**
+ * Panfleto editor — dedicated PamphletLayout + client-only mount.
+ * Remounts on every Astro page-load so ClientRouter soft navigations work.
+ */
+import PamphletLayout from "../../layouts/PamphletLayout.astro";
 ---
 
-<BaseLayout title="Pamphlet — Eduardo OS Next">
-  <PamphletPage client:load />
-</BaseLayout>
+<PamphletLayout title="Pamphlet — Eduardo OS Next">
+  <div id="pamphlet-root" class="pamphlet-route-root"></div>
+</PamphletLayout>
+
+<script>
+  import {
+    mountPamphletGenerator,
+    type PamphletMountHandle,
+  } from "../../lib/pamphlet-generator/src/index.ts";
+
+  let handle: PamphletMountHandle | null = null;
+
+  function mount() {
+    const host = document.getElementById("pamphlet-root");
+    if (!host) return;
+    handle?.destroy();
+    handle = mountPamphletGenerator(host);
+  }
+
+  function destroy() {
+    handle?.destroy();
+    handle = null;
+  }
+
+  // Initial load + every ClientRouter navigation that lands on this page.
+  document.addEventListener("astro:page-load", mount);
+  document.addEventListener("astro:before-swap", destroy);
+  mount();
+</script>

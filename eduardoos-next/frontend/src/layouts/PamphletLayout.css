@@ -1,0 +1,341 @@
+/**
+ * PamphletLayout — full-bleed editor workspace under the site header.
+ * Centers the letter sheet; restores fixed chrome broken by .pamphlet-app * { position: relative }.
+ */
+
+html:has(body.page-pamphlet) {
+  /* Chrome/Safari pull-to-refresh listens on the root scroller */
+  overscroll-behavior-y: none;
+  overscroll-behavior: none;
+}
+
+body.page-pamphlet {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  /* Kill browser pull-to-refresh / overscroll reload at top of page */
+  overscroll-behavior-y: none;
+  overscroll-behavior: none;
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Keep site header/avatar above teleported pamphlet chrome. */
+body.page-pamphlet .site-header {
+  z-index: 300;
+}
+
+body.page-pamphlet .site-header__bar {
+  z-index: 301;
+}
+
+.pamphlet-layout-workspace {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: calc(100vh - var(--header_height, 50px));
+  margin-top: 0;
+  padding: 1rem 0 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pamphlet-route-root {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: transparent;
+  color: var(--site-body-fg);
+}
+
+.pamphlet-route-root .pamphlet-app {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+}
+
+/*
+ * Chrome is teleported to document.body (see main.ts).
+ * Menu: 15px from bottom-right (desktop + mobile).
+ */
+body.page-pamphlet #file-toolbar {
+  position: fixed !important;
+  top: auto !important;
+  right: max(15px, env(safe-area-inset-right, 0px)) !important;
+  left: auto !important;
+  bottom: max(15px, env(safe-area-inset-bottom, 0px)) !important;
+  width: 40px !important;
+  height: 40px !important;
+  z-index: 200;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: none;
+  transform: none !important;
+}
+
+body.page-pamphlet #file-toolbar .menu-toggle {
+  position: absolute !important;
+  top: auto !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+  transform: none !important;
+  width: 40px;
+  height: 40px;
+  background: var(--site-body-fg);
+  color: var(--site-body-bg);
+  border: 1px solid var(--site-body-fg);
+  border-radius: 0;
+  pointer-events: auto;
+  z-index: 201;
+}
+
+@media (max-width: 1023px) {
+  body.page-pamphlet #file-toolbar {
+    top: auto !important;
+    right: max(15px, env(safe-area-inset-right, 0px)) !important;
+    bottom: max(15px, env(safe-area-inset-bottom, 0px)) !important;
+    width: 45px !important;
+    height: 45px !important;
+  }
+
+  /* 1.5× of the previous 30px mobile/tablet control */
+  body.page-pamphlet #file-toolbar .menu-toggle {
+    width: 45px !important;
+    height: 45px !important;
+    min-width: 45px !important;
+    min-height: 45px !important;
+    max-width: 45px !important;
+    max-height: 45px !important;
+    padding: 0 !important;
+  }
+
+  body.page-pamphlet #file-toolbar .menu-toggle-icon {
+    width: 27px !important;
+    height: 27px !important;
+  }
+}
+
+body.page-pamphlet #file-toolbar .menu-toggle[aria-expanded="true"] {
+  background: var(--site-medium);
+  border-color: var(--site-medium);
+}
+
+body.page-pamphlet #file-toolbar .menu-toggle-icon {
+  /* SVG is light (#E3E3E3); on light theme fg is black so bars already read as bg-ish.
+     On dark theme fg is white — invert so bars become near-black (= bg). */
+  filter: none;
+  width: 24px;
+  height: 24px;
+}
+
+html.dark body.page-pamphlet #file-toolbar .menu-toggle-icon,
+html[data-theme="dark"] body.page-pamphlet #file-toolbar .menu-toggle-icon {
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) body.page-pamphlet #file-toolbar .menu-toggle-icon {
+    filter: invert(1);
+  }
+}
+
+body.page-pamphlet .sidebar-backdrop {
+  position: fixed !important;
+  inset: 0;
+  z-index: 190;
+}
+
+body.page-pamphlet .app-sidebar {
+  position: fixed !important;
+  top: 0;
+  right: 0;
+  left: auto;
+  width: min(280px, 85vw);
+  height: 100vh;
+  height: 100dvh;
+  z-index: 195;
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  box-shadow: -8px 0 24px color-mix(in srgb, var(--site-body-fg) 18%, transparent);
+  padding: 28px 20px 32px;
+  border-radius: 0;
+}
+
+body.page-pamphlet .app-sidebar-nav button,
+body.page-pamphlet .item-type-options button {
+  background: color-mix(in srgb, var(--site-body-fg) 12%, var(--site-body-bg));
+  color: var(--site-body-fg);
+  border: var(--border_001);
+  border-radius: 0;
+  padding: 14px 16px;
+}
+
+body.page-pamphlet .app-sidebar-nav button.is-active {
+  outline: 1px solid var(--site-border);
+  background: color-mix(in srgb, var(--site-body-fg) 22%, var(--site-body-bg));
+}
+
+body.page-pamphlet .app-sidebar-nav button:hover:not(:disabled),
+body.page-pamphlet .item-type-options button:hover {
+  background: color-mix(in srgb, var(--site-body-fg) 22%, var(--site-body-bg));
+}
+
+body.page-pamphlet .create-modal {
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  border-color: var(--site-border);
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(90vh, calc(100dvh - 32px));
+  padding: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+body.page-pamphlet .pamphlet-app .create-modal .create-modal-form {
+  padding: 24px;
+}
+
+body.page-pamphlet .pamphlet-app .create-modal.item-type-modal .create-modal-form {
+  padding: 28px;
+}
+
+body.page-pamphlet .create-modal-hint {
+  color: var(--site-muted-fg);
+}
+
+body.page-pamphlet .create-modal-form input {
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  border-color: var(--site-border);
+}
+
+body.page-pamphlet #modal-cancel,
+body.page-pamphlet #item-type-cancel {
+  background: color-mix(in srgb, var(--site-body-fg) 10%, var(--site-body-bg));
+  color: var(--site-body-fg);
+}
+
+body.page-pamphlet #modal-confirm {
+  background: var(--site-accent);
+  color: var(--site-accent-fg);
+}
+
+/* Sheet paper (desktop). Mobile stack uses transparent canvas so page theme shows. */
+body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  background: #ffffff;
+  color: #000000;
+  flex-shrink: 0;
+}
+
+body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet {
+  background: transparent !important;
+  color: var(--site-body-fg);
+  /* Center the mm-width column stack in the viewport */
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/*
+ * Phones/tablets: CSS `mm` is tied to the 96dpi reference pixel, so true physical mm look smaller.
+ * Boost only the on-screen transform (print/desktop unchanged). Height_mm math stays identical.
+ * Phone boost is the baseline; tablet is 1.75× that visual size.
+ */
+@media (max-width: 1024px) {
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] {
+    --mm-visual-boost: calc(1.35 * 1.75);
+  }
+}
+
+@media (max-width: 640px) {
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] {
+    --mm-visual-boost: 1.35;
+  }
+}
+
+/* Mobile stack: light = paper white; dark = no fill, theme text */
+body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid color-mix(in srgb, var(--site-body-fg) 28%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+    background: transparent;
+    color: var(--site-body-fg);
+    border-color: color-mix(in srgb, var(--site-body-fg) 35%, transparent);
+  }
+
+  body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-image-frame {
+    background: color-mix(in srgb, var(--site-body-fg) 8%, transparent);
+  }
+}
+
+html.dark body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+html.dark body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+html.dark body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"],
+html[data-theme="dark"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+html[data-theme="dark"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+html[data-theme="dark"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+  background: transparent;
+  color: var(--site-body-fg);
+  border-color: color-mix(in srgb, var(--site-body-fg) 35%, transparent);
+}
+
+html[data-theme="light"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+html[data-theme="light"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+html[data-theme="light"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+  background: #ffffff;
+  color: #000000;
+}
+
+@media print {
+  .site-header {
+    display: none !important;
+  }
+
+  html,
+  body.page-pamphlet,
+  .pamphlet-layout-workspace,
+  .pamphlet-route-root,
+  .pamphlet-app {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .pamphlet-layout-workspace {
+    margin-top: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
+    margin: 0 auto !important;
+    transform: none !important;
+  }
+
+  body.page-pamphlet #file-toolbar,
+  body.page-pamphlet .menu-toggle,
+  body.page-pamphlet .app-sidebar,
+  body.page-pamphlet .sidebar-backdrop {
+    display: none !important;
+  }
+}

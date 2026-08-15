@@ -1,0 +1,1242 @@
+/* Portable pamphlet generator — styles scoped to .pamphlet-app for Astro layout embed */
+
+/* Chrome is teleported to document.body; never leak onto other routes. */
+body.page-pamphlet #file-toolbar {
+  position: fixed;
+  top: auto;
+  bottom: 0;
+  right: 0;
+  left: auto;
+  width: calc(100% * var(--ui-zoom, 1));
+  height: 55px;
+  z-index: 30;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  transform: scale(var(--ui-inv-zoom, 1));
+  transform-origin: bottom right;
+}
+
+body.page-pamphlet .menu-toggle {
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+  top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  background: var(--site-body-fg, #222);
+  border: 1px solid var(--site-body-fg, #222);
+  border-radius: 0px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+body.page-pamphlet .menu-toggle[aria-expanded="true"] {
+  background: var(--site-medium, #444);
+  border-color: var(--site-medium, #444);
+}
+
+body.page-pamphlet .menu-toggle-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  pointer-events: none;
+}
+
+body.page-pamphlet .sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 40;
+}
+
+body.page-pamphlet .sidebar-backdrop[hidden] {
+  display: none !important;
+}
+
+body.page-pamphlet .app-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(280px, 85vw);
+  height: 100vh;
+  background: #1e1e1e;
+  color: #f2f2f2;
+  z-index: 50;
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25);
+  padding: 72px 20px 32px;
+  border-radius: 0;
+}
+
+body.page-pamphlet .app-sidebar.is-open {
+  transform: translateX(0);
+}
+
+.app-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.app-sidebar-nav button {
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+  background: #333;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 0;
+  font-size: 14px;
+}
+
+.app-sidebar-nav button:hover:not(:disabled) {
+  background: #454545;
+}
+
+.app-sidebar-nav button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.app-sidebar-nav button.is-active {
+  background: #555;
+  outline: 1px solid #888;
+}
+
+.create-modal {
+  border: 1px solid #c8c8c8;
+  border-radius: 0;
+  padding: 0;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(90vh, calc(100dvh - 32px));
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  /* Center in the viewport (beats .pamphlet-app * { margin: 0 }) */
+  position: fixed;
+  inset: 0;
+  margin: auto;
+}
+
+.create-modal::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.pamphlet-app .create-modal .create-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.pamphlet-app .create-modal.item-type-modal .create-modal-form {
+  padding: 28px;
+  gap: 14px;
+}
+
+.create-modal-form h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.create-modal-hint {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.4;
+}
+
+.create-modal-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.create-modal-form input {
+  padding: 8px 10px;
+  border: 1px solid #aaa;
+  background: #fff;
+  font-size: 14px;
+}
+
+.create-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.create-modal-actions button {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.open-cloud-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: min(50vh, 320px);
+  overflow: auto;
+}
+
+.open-cloud-list__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.open-cloud-list__item:hover {
+  border-color: #1976d2;
+}
+
+.open-cloud-list__title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.open-cloud-list__meta {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.open-cloud-list__empty {
+  font-size: 13px;
+  opacity: 0.75;
+  padding: 8px 0;
+}
+
+#modal-cancel,
+#item-type-cancel {
+  background: #e8e8e8;
+  color: #222;
+}
+
+#modal-confirm {
+  background: #333;
+  color: #fff;
+}
+
+.item-type-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item-type-options button {
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  background: #333;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 0;
+  font-size: 14px;
+}
+
+.item-type-options button:hover {
+  background: #454545;
+}
+
+.item-type-options button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.item-type-options button:disabled:hover {
+  background: #333;
+}
+
+/* Toastify removed — status UI disabled. */
+
+.pamphlet-app {
+  /* US Letter landscape: 279.4mm × 215.9mm; two stacked sheets */
+  --letter-landscape-width: 279.4mm;
+  --letter-landscape-height: 215.9mm;
+  --sheet-stack-height: 431.8mm; /* 215.9mm × 2 */
+  --page-margin: 10mm;
+  --col-gutter-narrow: 4mm;
+  /* Center fold gutter (page 1 left↔right / page 2 left↔right) */
+  --col-gutter-wide: 20mm;
+  /* 6.75mm 2-line title + 0.6mm gap + two meta rows (~22.3mm). Same as PDF PamphletHeaderHMm. */
+  --page-header-height: 23mm;
+  /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
+  --header-body-gutter: 5mm;
+  --page-footer-height: 37.5mm; /* 15mm × 2.5 */
+  /* Page 1 body: 215.9 − 10 − 23 − 5 − 4 − 37.5 − 10 = 126.4mm */
+  --page1-body-height: 126.4mm;
+  /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
+  --column-content-height: 195.9mm;
+  /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
+  --column-content-width: 57.85mm;
+  /* Header/footer band: two content cols + narrow gutter */
+  --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
+  /* Cols 1–2 under header: 195.9 − 23 − 5 = 167.9mm */
+  --page1-right-col-height: 167.9mm;
+  /* Cols 7–8 above footer: 195.9 − 4 − 37.5 = 154.4mm */
+  --page1-left-col-height: 154.4mm;
+  /* Gap between items (not after the last in a column); counted in reflow height */
+  --item-gap-height: 2.5mm;
+  --b1: solid 1px rgb(231, 231, 231);
+  --mobile-view-scale: 1;
+  --mobile-inv-scale: 1;
+  --desktop-view-scale: 1;
+  /* Screen-only: CSS mm under-reads on phone/tablet; boost visual size without changing layout math. */
+  --mm-visual-boost: 1;
+}
+
+.pamphlet-app,
+.pamphlet-app * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  border: none;
+  font-family: Roboto, Raleway, Montserrat, sans-serif;
+}
+
+/* position:relative only on sheet descendants — not chrome (fixed toolbar/sidebar) */
+.pamphlet-app main.pamphlet-sheet,
+.pamphlet-app main.pamphlet-sheet * {
+  position: relative;
+}
+
+.pamphlet-app {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  isolation: isolate;
+}
+
+/*
+ * Dedicated reflow measure host: real column width in CSS mm, never transformed.
+ * Lives under .pamphlet-app but outside main.pamphlet-sheet (which may be scaled).
+ */
+.pamphlet-measure-root {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  visibility: hidden;
+  pointer-events: none;
+  transform: none !important;
+  zoom: 1 !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.pamphlet-measure-root .pamphlet-measure-column {
+  display: flex;
+  flex-direction: column;
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
+  min-width: 0;
+  height: auto;
+  overflow: visible;
+}
+
+
+.pamphlet-app main.pamphlet-sheet {
+    /* Two US Letter landscape sheets stacked (no extra padding/gap — margins are grid tracks) */
+    width: var(--letter-landscape-width);
+    height: var(--sheet-stack-height);
+    box-sizing: border-box;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    display: grid;
+    grid-template-columns:
+        var(--page-margin)
+        var(--column-content-width)
+        var(--col-gutter-narrow)
+        var(--column-content-width)
+        var(--col-gutter-wide)
+        var(--column-content-width)
+        var(--col-gutter-narrow)
+        var(--column-content-width)
+        var(--page-margin);
+    grid-template-rows:
+        var(--page-margin)
+        var(--page-header-height)
+        var(--header-body-gutter)
+        var(--page1-body-height)
+        var(--col-gutter-narrow)
+        var(--page-footer-height)
+        var(--page-margin)
+        var(--page-margin)
+        var(--column-content-height)
+        var(--page-margin);
+    padding: 0;
+    border: var(--b1);
+    margin: 10px auto 10px auto;
+}
+
+/* Desktop: scale the letter sheet to the viewport width (PDF-viewer fit-to-width).
+   Layout mm math stays 279.4×215.9; only the on-screen transform changes. */
+.pamphlet-app[data-view-mode="desktop"] main.pamphlet-sheet {
+    transform: scale(var(--desktop-view-scale, 1));
+    transform-origin: top center;
+}
+
+.dumb-column {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    /*border: solid 1px blue;*/
+}
+
+/* Page 1: left = cols 7–8 + footer; right = header + cols 1–2 */
+.pamphlet-page-header {
+    grid-column: 6 / 9;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    /* Match PDF PamphletHeaderTitleMetaGapMm */
+    gap: 0.6mm;
+    /* Clip ink to the header band so meta never paints over cols 1–2. */
+    overflow: hidden;
+    min-width: 0;
+    min-height: 0;
+    z-index: 5;
+}
+
+.pamphlet-page-header:has(.element_edit_tray) {
+    overflow: visible;
+}
+
+.pamphlet-page-footer {
+    grid-column: 2 / 5;
+    grid-row: 6;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 0;
+    overflow: hidden;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    z-index: 5;
+}
+
+.pamphlet-page-footer:has(.element_edit_tray) {
+    overflow: visible;
+}
+
+.pamphlet-page-header > .pamphlet-header-title {
+    width: 100%;
+    flex: 0 0 auto;
+    /* Keep title→meta tight on desktop; PDF uses PamphletHeaderTitleMetaGapMm (~1.2mm). */
+    margin-bottom: 0;
+}
+
+.pamphlet-header-meta-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 2.5mm;
+    row-gap: 0.8mm;
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+    overflow: hidden;
+    color: #666666; /* GRIS — matches PDF meta */
+}
+
+/* Rows kept for DOM grouping; each is a 2-col subgrid aligned to the bar. */
+.pamphlet-header-meta-row {
+    display: contents;
+}
+
+.pamphlet-header-meta-field {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: baseline;
+    gap: 0.6mm;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.pamphlet-header-meta-label {
+    flex: 0 0 auto;
+    font-family: Roboto, sans-serif;
+    font-size: 2.5mm;
+    line-height: 1.2;
+    color: #666666;
+    opacity: 1;
+    white-space: nowrap;
+}
+
+.pamphlet-header-meta-field > .pamphlet-item {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    overflow: hidden;
+    border: none !important;
+    padding: 0 !important;
+    background: transparent;
+}
+
+/* Input chrome only while that meta field is being edited — not in pamphlet view. */
+.pamphlet-header-meta-field > .pamphlet-item:has(.element_edit_tray) {
+    min-width: 12mm;
+    border: 1px solid #666 !important;
+    padding: 0.4mm 0.9mm !important;
+    background: #fff;
+}
+
+.pamphlet-header-field-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.pamphlet-page-footer > .pamphlet-item {
+    flex: 0 0 auto;
+    width: 100%;
+}
+
+.pamphlet-item {
+    overflow: visible;
+}
+
+.pamphlet-item-spacer {
+    flex: 0 0 auto;
+    width: 100%;
+    height: var(--item-gap-height);
+    pointer-events: none;
+    user-select: none;
+}
+
+.pamphlet-add-item-button {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    width: 9mm;
+    height: 9mm;
+    margin-top: 0.5mm;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid #1565c0;
+    background: #1976d2;
+    color: #fff;
+    font-size: 0;
+    line-height: 0;
+    cursor: pointer;
+    z-index: 6;
+}
+
+.pamphlet-add-item-button::before {
+    content: "+";
+    font-size: 6mm;
+    font-weight: 700;
+    line-height: 1;
+    /* Optical center: + glyphs sit slightly high/left in most UI fonts */
+    transform: translate(0.02em, -0.06em);
+}
+
+.pamphlet-add-item-button:hover {
+    background: #1565c0;
+}
+
+.pamphlet-header-item {
+    max-width: 100%;
+    overflow: visible;
+    overflow-wrap: break-word;
+}
+
+.pamphlet-header-meta-bar .pamphlet-header-item p {
+    font-family: Roboto, sans-serif;
+    font-size: 2.5mm;
+    line-height: 1.2;
+    opacity: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #666666;
+}
+
+.pamphlet-image-frame {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    display: block;
+    background: #f3f3f3;
+    flex: 0 0 auto;
+}
+
+.pamphlet-image-frame .pamphlet-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    display: block;
+    object-fit: cover;
+    object-position: center center;
+    /* Pan (mm) + zoom; origin stays frame center for stable re-centering on src change */
+    transform: translate(var(--img-offset-x, 0mm), var(--img-offset-y, 0mm)) scale(var(--img-scale, 1));
+    transform-origin: center center;
+}
+
+.pamphlet-page-footer .pamphlet-item {
+    font-size: 9px;
+    line-height: 1.25;
+}
+
+.pamphlet-page-footer .pamphlet-item h1 {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/*
+  Page 1 (rows 1–7):
+  - Left: 7 & 8 (header + gutter + body), footer under them
+  - Right: header above 1 & 2; 1 & 2 (body + gutter + footer)
+  Page 2 (row 9): columns 3,4,5,6
+*/
+.pamphlet-column-7 { grid-column: 2; grid-row: 2 / 5; }
+.pamphlet-column-8 { grid-column: 4; grid-row: 2 / 5; }
+.pamphlet-column-1 { grid-column: 6; grid-row: 4 / 7; }
+.pamphlet-column-2 { grid-column: 8; grid-row: 4 / 7; }
+
+.pamphlet-column-3 { grid-column: 2; grid-row: 9; }
+.pamphlet-column-4 { grid-column: 4; grid-row: 9; }
+.pamphlet-column-5 { grid-column: 6; grid-row: 9; }
+.pamphlet-column-6 { grid-column: 8; grid-row: 9; }
+
+.pamphlet-app .pamphlet-item[data-item-type="paragraph"] p,
+.pamphlet-app main.pamphlet-sheet p {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+  font-size: 3mm;
+  line-height: 1.25;
+}
+
+/* Bold in a paragraph stays body size (3mm) — never heading scale (4.25mm). */
+.pamphlet-app .pamphlet-item[data-item-type="paragraph"] p b,
+.pamphlet-app .pamphlet-item[data-item-type="paragraph"] p strong,
+.pamphlet-app .pamphlet-item[data-item-type="paragraph"] b,
+.pamphlet-app .pamphlet-item[data-item-type="paragraph"] strong {
+  font-size: 3mm;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/* Must beat paragraph p rule (header title also has data-item-type=paragraph) */
+.pamphlet-page-header .pamphlet-header-title p {
+  font-family: Roboto, sans-serif;
+  font-size: 6.75mm;
+  font-weight: 700;
+  line-height: 1.1;
+  color: inherit;
+}
+
+/*
+  Headings must beat global headings.css (`h1 { color: var(--site-body-fg) }`).
+  That token is light in dark theme — on a white desktop sheet headings vanished.
+  Use inherit so desktop (#000 sheet) and mobile dark (column color) both work.
+*/
+.pamphlet-app main.pamphlet-sheet .pamphlet-item[data-item-type="heading_1"] h1,
+.pamphlet-app main.pamphlet-sheet .dumb-column h1,
+.pamphlet-app main.pamphlet-sheet h1 {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: visible;
+  font-size: 4.25mm;
+  font-weight: 700;
+  line-height: 1.2;
+  color: inherit;
+}
+
+.pamphlet-item[data-item-type="heading_1"] h1,
+.dumb-column h1 {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: visible;
+  font-size: 4.25mm;
+  font-weight: 700;
+  line-height: 1.2;
+  color: inherit;
+}
+
+/* Must beat `.pamphlet-app main.pamphlet-sheet * { position: relative }` or top:100%
+   becomes a relative offset and the tray jumps one full item-height below the content. */
+.pamphlet-app main.pamphlet-sheet .element_edit_tray {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  overflow: visible;
+  /* Shared control size: activity bar, file label, height + pan/zoom buttons */
+  --edit-tray-ctrl-size: 28px;
+}
+
+.element_edit_tray_buttons_container{
+  display: flex;
+  gap: 5px;
+  background: #000;
+  padding: 5px;
+  align-items: center;
+}
+
+/* Desktop: shrink edit-tray chrome so the full button row fits the 57.85mm column.
+   Mobile keeps its own scaled rules (larger touch targets). */
+.pamphlet-app[data-view-mode="desktop"] .element_edit_tray {
+  /* 16px × 0.75 — fit narrower desktop columns without overflowing */
+  --edit-tray-ctrl-size: 12px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .element_edit_tray_buttons_container {
+  gap: 1px;
+  padding: 1px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .element_edit_tray_buttons_container > button,
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_icon_button,
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_close_button,
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_delete_button {
+  width: var(--edit-tray-ctrl-size);
+  height: var(--edit-tray-ctrl-size);
+  min-width: var(--edit-tray-ctrl-size);
+  min-height: var(--edit-tray-ctrl-size);
+  max-width: var(--edit-tray-ctrl-size);
+  max-height: var(--edit-tray-ctrl-size);
+  padding: 0;
+  border-radius: 2px;
+  box-sizing: border-box;
+  flex: 0 0 var(--edit-tray-ctrl-size);
+}
+
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_icon {
+  width: 8px;
+  height: 8px;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_text_button {
+  font-size: 8px;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .edit_tray_delete_button {
+  font-size: 7px;
+  padding: 0;
+}
+
+.edit_tray_icon_button{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.edit_tray_icon_button:hover{
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.edit_tray_icon{
+  width: 20px;
+  height: 20px;
+  display: block;
+  pointer-events: none;
+}
+
+.edit_tray_text_button{
+  color: #e3e3e3;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.edit_tray_close_button{
+  background: green;
+}
+
+.edit_tray_delete_button:hover{
+  background: rgba(176, 0, 32, 0.35);
+}
+
+.edit_tray_delete_button{
+  background: red;
+  color: white;
+  border: none;
+  padding: 2px 3px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.edit_tray_text_area{
+  width: 100%;
+  height: 30mm;
+  resize: none;
+  font-size: 12px;
+  font-family: Arial, sans-serif;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 0;
+  background: #fff;
+  color: #000;
+  overflow: auto;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  /* Keep text selectable for bold; hide OS selection callout / copy-paste bar */
+  -webkit-touch-callout: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.edit_tray_image_controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #111;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.edit_tray_image_row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.edit_tray_image_row--primary .edit_tray_file_label {
+  flex: 1 1 auto;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  height: var(--edit-tray-ctrl-size);
+  min-height: var(--edit-tray-ctrl-size);
+  max-height: var(--edit-tray-ctrl-size);
+  padding: 0 8px;
+  font-size: calc(var(--edit-tray-ctrl-size) * 0.55);
+  line-height: 1;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.edit_tray_image_btn_group {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.edit_tray_image_row--transform {
+  justify-content: space-between;
+}
+
+.edit_tray_image_row--transform .edit_tray_height_button {
+  flex: 1 1 0;
+}
+
+.edit_tray_file_label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  background: #333;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.edit_tray_file_input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.edit_tray_height_button {
+  width: var(--edit-tray-ctrl-size, 28px);
+  height: var(--edit-tray-ctrl-size, 28px);
+  min-width: var(--edit-tray-ctrl-size, 28px);
+  min-height: var(--edit-tray-ctrl-size, 28px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #1976d2;
+  color: #fff;
+  border-radius: 4px;
+  font-size: calc(var(--edit-tray-ctrl-size, 28px) * 0.65);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.edit_tray_height_button:hover {
+  background: #1565c0;
+}
+
+/* Mobile view: keep tray usable after column scale-to-fit (sizes are pre-scale) */
+.pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet .element_edit_tray {
+  width: 100%;
+  max-width: 100%;
+  left: 0;
+  right: auto;
+  transform: none;
+  z-index: 1200;
+  overflow: visible;
+  --edit-tray-ctrl-size: calc(44px * var(--mobile-inv-scale, 1));
+}
+
+/* Mobile: + item matches pamphlet menu (30px visual) after column scale */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-add-item-button {
+  width: calc(30px * var(--mobile-inv-scale, 1));
+  height: calc(30px * var(--mobile-inv-scale, 1));
+  min-width: calc(30px * var(--mobile-inv-scale, 1));
+  min-height: calc(30px * var(--mobile-inv-scale, 1));
+  max-width: calc(30px * var(--mobile-inv-scale, 1));
+  max-height: calc(30px * var(--mobile-inv-scale, 1));
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-add-item-button::before {
+  font-size: calc(18px * var(--mobile-inv-scale, 1));
+}
+
+.pamphlet-app[data-view-mode="mobile"] .element_edit_tray_buttons_container {
+  width: 100%;
+  box-sizing: border-box;
+  gap: calc(6px * var(--mobile-inv-scale, 1));
+  padding: calc(6px * var(--mobile-inv-scale, 1));
+  zoom: 0.5;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_icon_button,
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_close_button,
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_delete_button,
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_height_button {
+  width: calc(44px * var(--mobile-inv-scale, 1));
+  height: calc(44px * var(--mobile-inv-scale, 1));
+  min-width: calc(44px * var(--mobile-inv-scale, 1));
+  min-height: calc(44px * var(--mobile-inv-scale, 1));
+  box-sizing: border-box;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_icon {
+  width: calc(22px * var(--mobile-inv-scale, 1));
+  height: calc(22px * var(--mobile-inv-scale, 1));
+}
+
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_text_area {
+  width: 100%;
+  height: calc(120px * var(--mobile-inv-scale, 1));
+  font-size: calc(16px * var(--mobile-inv-scale, 1));
+  box-sizing: border-box;
+}
+
+/* Same tray scale as text button row (zoom 0.5) so image controls stay usable on phone/tablet. */
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_image_controls {
+  width: 100%;
+  box-sizing: border-box;
+  gap: calc(6px * var(--mobile-inv-scale, 1));
+  padding: calc(6px * var(--mobile-inv-scale, 1));
+  zoom: 0.5;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_file_label {
+  font-size: calc(14px * var(--mobile-inv-scale, 1));
+  padding: calc(6px * var(--mobile-inv-scale, 1)) calc(10px * var(--mobile-inv-scale, 1));
+  box-sizing: border-box;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .edit_tray_image_controls .edit_tray_height_button {
+  width: calc(44px * var(--mobile-inv-scale, 1));
+  height: calc(44px * var(--mobile-inv-scale, 1));
+  min-width: calc(44px * var(--mobile-inv-scale, 1));
+  min-height: calc(44px * var(--mobile-inv-scale, 1));
+  font-size: calc(18px * var(--mobile-inv-scale, 1));
+  box-sizing: border-box;
+}
+
+@page {
+  size: letter landscape;
+  margin: 0;
+}
+
+/* —— Mobile stacked view (screen only; print stays desktop sheet) —— */
+.pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  /* Exact pamphlet body column width (57.85mm); never stretched wider */
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
+  height: auto;
+  min-height: 0;
+  border: none;
+  margin: 10px auto;
+  padding: 0;
+  grid-template-columns: none;
+  grid-template-rows: none;
+  transform: scale(calc(var(--mobile-view-scale, 1) * var(--mm-visual-boost, 1)));
+  transform-origin: top center;
+  background: transparent;
+  color: inherit;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Image item should hug the frame so the edit tray sits flush under the image */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-item[data-item-type="image"] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  height: auto;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+.pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+  grid-column: auto !important;
+  grid-row: auto !important;
+  flex: 0 0 auto;
+  border: 1px solid rgba(128, 128, 128, 0.45);
+  background: #ffffff;
+  color: #000000;
+  box-sizing: border-box;
+}
+
+/* Header/footer clip; body columns keep exact print heights */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer {
+  overflow: hidden;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+  overflow: hidden;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer:has(.element_edit_tray),
+.pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"]:has(.element_edit_tray),
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header:has(.element_edit_tray) {
+  overflow: visible !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+  .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+    background: transparent;
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-image-frame {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header {
+  order: 1;
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
+  height: var(--page-header-height);
+  min-height: var(--page-header-height);
+  max-height: var(--page-header-height);
+  padding: 0;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer {
+  order: 2;
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
+  height: var(--page-footer-height);
+  min-height: var(--page-footer-height);
+  max-height: var(--page-footer-height);
+}
+
+/* Cols 1–2: page-1 right band (under header) */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-1,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-2 {
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
+  height: var(--page1-right-col-height);
+  min-height: var(--page1-right-col-height);
+  max-height: var(--page1-right-col-height);
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-1 { order: 3; }
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-2 { order: 4; }
+
+/* Cols 3–6: full page-2 content band */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-3,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-4,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-5,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-6 {
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
+  height: var(--column-content-height);
+  min-height: var(--column-content-height);
+  max-height: var(--column-content-height);
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-3 { order: 5; }
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-4 { order: 6; }
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-5 { order: 7; }
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-6 { order: 8; }
+
+/* Cols 7–8: page-1 left band (above footer) */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-7,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-8 {
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
+  height: var(--page1-left-col-height);
+  min-height: var(--page1-left-col-height);
+  max-height: var(--page1-left-col-height);
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-7 { order: 9; }
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-column-8 { order: 10; }
+
+@media print {
+  .pamphlet-app #file-toolbar,
+  .pamphlet-app .app-sidebar,
+  .pamphlet-app .sidebar-backdrop,
+  .pamphlet-app .menu-toggle,
+  .pamphlet-app .pamphlet-add-item-button,
+  .pamphlet-app .element_edit_tray {
+    display: none !important;
+  }
+
+  /* Always print the desktop letter sheet, even if mobile view is active on screen */
+  .pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet,
+  .pamphlet-app main.pamphlet-sheet {
+    display: grid !important;
+    flex-direction: unset !important;
+    align-items: unset !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    width: var(--letter-landscape-width) !important;
+    height: var(--sheet-stack-height) !important;
+    transform: none !important;
+    background: #ffffff !important;
+    grid-template-columns:
+        var(--page-margin)
+        var(--column-content-width)
+        var(--col-gutter-narrow)
+        var(--column-content-width)
+        var(--col-gutter-wide)
+        var(--column-content-width)
+        var(--col-gutter-narrow)
+        var(--column-content-width)
+        var(--page-margin) !important;
+    grid-template-rows:
+        var(--page-margin)
+        var(--page-header-height)
+        var(--header-body-gutter)
+        var(--page1-body-height)
+        var(--col-gutter-narrow)
+        var(--page-footer-height)
+        var(--page-margin)
+        var(--page-margin)
+        var(--column-content-height)
+        var(--page-margin) !important;
+  }
+
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
+  .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
+    order: unset !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    border: none !important;
+  }
+
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header {
+    grid-column: 6 / 9 !important;
+    grid-row: 2 !important;
+  }
+
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer {
+    grid-column: 2 / 5 !important;
+    grid-row: 6 !important;
+    height: 100% !important;
+  }
+
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-7 { grid-column: 2 !important; grid-row: 2 / 5 !important; }
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-8 { grid-column: 4 !important; grid-row: 2 / 5 !important; }
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-1 { grid-column: 6 !important; grid-row: 4 / 7 !important; }
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-2 { grid-column: 8 !important; grid-row: 4 / 7 !important; }
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-3 { grid-column: 2 !important; grid-row: 9 !important; }
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-4 { grid-column: 4 !important; grid-row: 9 !important; }
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-5 { grid-column: 6 !important; grid-row: 9 !important; }
+  .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-6 { grid-column: 8 !important; grid-row: 9 !important; }
+
+  .pamphlet-app .dumb-column {
+    border: none;
+  }
+}

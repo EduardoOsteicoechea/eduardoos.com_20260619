@@ -1,15 +1,16 @@
 /**
- * OpenBIM library: list models, register upload (memory placeholder IFC),
- * preview file text, download. No heavy 3D deps — keeps build memory low.
+ * OpenBIM library: list models, upload real IFC bytes, preview text head, download.
+ * Lightweight — no That Open / web-ifc / three (keeps Astro build memory low).
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
   createBimModel,
-  downloadBimBlob,
-  fetchBimFileText,
+  downloadBimBytes,
+  fetchBimFileBytes,
   fetchBimModels,
+  uploadBimModel,
   type BimModel,
 } from "../../lib/bim";
 import { isAuthenticated } from "../../lib/auth";
@@ -29,6 +30,7 @@ export default function BimPage() {
   const [uploading, setUploading] = useState(false);
   const [activeId, setActiveId] = useState("");
   const [preview, setPreview] = useState("");
+  const [fileBytes, setFileBytes] = useState<Uint8Array | null>(null);
   const [previewMeta, setPreviewMeta] = useState("");
   const [viewerStatus, setViewerStatus] = useState("");
 
@@ -62,7 +64,7 @@ export default function BimPage() {
     setError("");
     setUploading(true);
     try {
-      const saved = await createBimModel(file.name);
+      const saved = await uploadBimModel(file);
       setModels((prev) => [saved, ...prev.filter((m) => m.modelId !== saved.modelId)]);
       await openModel(saved);
     } catch (err) {
@@ -91,14 +93,20 @@ export default function BimPage() {
     setActiveId(model.modelId);
     setViewerStatus("Downloading IFC…");
     setPreview("");
+    setFileBytes(null);
     setPreviewMeta("");
     try {
-      const file = await fetchBimFileText(model.modelId);
-      setPreview(file.text);
+      const file = await fetchBimFileBytes(model.modelId);
+      setFileBytes(file.bytes);
+      setPreview(file.textPreview);
+      const truncated =
+        file.byteLength > file.textPreview.length
+          ? ` · preview ${formatBytes(file.textPreview.length)} of ${formatBytes(file.byteLength)}`
+          : "";
       setPreviewMeta(
-        `${formatBytes(file.byteLength)} · ${file.contentType} · memory placeholder until S3 wire-up`,
+        `${formatBytes(file.byteLength)} · ${file.contentType}${truncated}`,
       );
-      setViewerStatus("File ready");
+      setViewerStatus("File ready — text preview (no 3D viewer in this build)");
     } catch (err) {
       setViewerStatus("");
       setError(err instanceof Error ? err.message : "Could not open IFC");
@@ -113,8 +121,9 @@ export default function BimPage() {
         <header className="bim-page__library-head">
           <h1 className="bim-page__title">OpenBIM</h1>
           <p className="bim-page__lead">
-            Your IFC models via <code>/api/bim/models</code>. Memory backend returns a
-            placeholder IFC body so list, create, and download can be exercised now.
+            Upload real IFC bytes to <code>/api/bim/models</code>. Memory store keeps
+            them in-process; set <code>IFCBIM_S3_BUCKET</code> on the Next backend for
+            S3-backed objects under <code>ifcbim/</code>.
           </p>
           <div className="bim-page__actions">
             <label className="bim-page__upload">
@@ -128,7 +137,7 @@ export default function BimPage() {
                   void onUpload(file);
                 }}
               />
-              <span>{uploading ? "Working…" : "Upload IFC name"}</span>
+              <span>{uploading ? "Working…" : "Upload IFC"}</span>
             </label>
             <button
               type="button"
@@ -143,7 +152,7 @@ export default function BimPage() {
         {loading ? <p className="bim-page__status">Loading models…</p> : null}
         {error ? <p className="bim-page__error">{error}</p> : null}
         {!loading && models.length === 0 ? (
-          <p className="bim-page__status">No models yet. Upload or create a placeholder.</p>
+          <p className="bim-page__status">No models yet. Upload an IFC or create a placeholder.</p>
         ) : null}
         <ul className="bim-page__list">
           {models.map((model) => (
@@ -155,7 +164,15 @@ export default function BimPage() {
               >
                 <span className="bim-page__item-title">{model.name || model.modelId}</span>
                 <span className="bim-page__item-meta">
-                  {[model.modelId.slice(0, 8), model.updatedAt].filter(Boolean).join(" · ")}
+                  {[
+                    model.modelId.slice(0, 8),
+                    model.contentSizeBytes
+                      ? formatBytes(model.contentSizeBytes)
+                      : null,
+                    model.updatedAt,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
               </button>
             </li>
@@ -174,17 +191,23 @@ export default function BimPage() {
                 {previewMeta ? <p className="bim-page__viewer-meta">{previewMeta}</p> : null}
                 {viewerStatus ? <p className="bim-page__viewer-status">{viewerStatus}</p> : null}
               </div>
-              {preview ? (
+              {fileBytes ? (
                 <button
                   type="button"
                   className="btn btn--primary"
                   onClick={() =>
-                    downloadBimBlob(activeId, active?.name || activeId, preview)
+                    downloadBimBytes(activeId, active?.name || activeId, fileBytes)
                   }
                 >
                   Download IFC
                 </button>
               ) : null}
+            </div>
+            <div className="bim-page__canvas" role="status">
+              <p className="bim-page__canvas-msg">
+                Lightweight preview — full That Open / web-ifc 3D viewer is deferred to
+                keep build memory predictable.
+              </p>
             </div>
             {preview ? (
               <pre className="bim-page__preview" tabIndex={0}>
