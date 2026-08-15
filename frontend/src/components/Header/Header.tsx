@@ -188,8 +188,15 @@ function PersonalMenu({ pathname, navClass, onNavigate }: PersonalMenuProps) {
                 role="menuitem"
                 href={href}
                 {...(needsAstroReload(href) ? { "data-astro-reload": true } : {})}
-                onClick={() => {
-                  setOpen(false);
+                onClick={(event) => {
+                  // Never unmount this <a> before navigation — closing the
+                  // dropdown mid-click cancels ClientRouter / full reloads.
+                  if (needsAstroReload(href)) {
+                    event.preventDefault();
+                    onNavigate();
+                    window.location.assign(href);
+                    return;
+                  }
                   onNavigate();
                 }}
               >

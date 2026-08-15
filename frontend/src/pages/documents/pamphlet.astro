@@ -1,6 +1,7 @@
 ---
 /**
  * Panfleto editor — dedicated PamphletLayout + client-only mount.
+ * Remounts on every Astro page-load so ClientRouter soft navigations work.
  */
 import PamphletLayout from "../../layouts/PamphletLayout.astro";
 ---
@@ -10,17 +11,24 @@ import PamphletLayout from "../../layouts/PamphletLayout.astro";
 </PamphletLayout>
 
 <script>
-  import { mountPamphletGenerator } from "../../lib/pamphlet-generator/src/index.ts";
+  import { mountPamphletGenerator, type PamphletMountHandle } from "../../lib/pamphlet-generator/src/index.ts";
 
-  const host = document.getElementById("pamphlet-root");
-  if (host) {
-    const handle = mountPamphletGenerator(host);
-    document.addEventListener(
-      "astro:before-swap",
-      () => {
-        handle.destroy();
-      },
-      { once: true },
-    );
+  let handle: PamphletMountHandle | null = null;
+
+  function mount() {
+    const host = document.getElementById("pamphlet-root");
+    if (!host) return;
+    handle?.destroy();
+    handle = mountPamphletGenerator(host);
   }
+
+  function destroy() {
+    handle?.destroy();
+    handle = null;
+  }
+
+  // Initial load + every ClientRouter navigation that lands on this page.
+  document.addEventListener("astro:page-load", mount);
+  document.addEventListener("astro:before-swap", destroy);
+  mount();
 </script>
