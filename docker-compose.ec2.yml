@@ -4,12 +4,22 @@
 #
 # Host: frontend/dist (npm build), cmd/eduardoos (:3000)
 # Docker: nginx + certbot only
+# Staging: eduardoos-next on :8080 via extra conf.d file (does not replace default.conf)
 
 services:
   nginx:
     platform: linux/arm64
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
     volumes:
       - ./nginx/default.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/eduardoos-next-staging.conf:/etc/nginx/conf.d/eduardoos-next-staging.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./eduardoos-next/frontend/dist:/usr/share/nginx/eduardoos-next:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - certbot_www:/var/www/certbot:ro
 
   certbot:
     platform: linux/arm64

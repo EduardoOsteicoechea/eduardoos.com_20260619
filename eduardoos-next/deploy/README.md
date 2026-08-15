@@ -2,65 +2,77 @@
 
 These scripts deploy **Eduardo OS Next** as a **secondary** stack. They never replace production.
 
+## Staging URL
+
+After a successful staging deploy:
+
+```text
+http://<EC2_IP>:8080/
+http://<EC2_IP>:8080/health
+```
+
+Replace `<EC2_IP>` with the value of GitHub secret `EC2_HOST` (or your instance public IP). Production remains on HTTPS `:443` / API `:3000`.
+
+Open **Security Group TCP 8080** inbound for staging access.
+
 ## Isolation rules
 
-- Live under `eduardoos-next/deploy/` only.
-- Do **not** edit parent `deploy/ec2/deploy-remote.sh`, `.github/workflows/deploy.yml`, or `nginx/default.conf`.
+- Live under `eduardoos-next/deploy/` only (plus a non-destructive nginx include).
+- Do **not** edit parent `deploy/ec2/deploy-remote.sh`, `.github/workflows/deploy.yml`, or overwrite `nginx/default.conf`.
 - Production keeps serving the current app on its existing ports until an explicit cutover (`CUTOVER.md` / T099).
 
-## Typical layouts
+## How nginx staging is wired
 
-1. **Same EC2, secondary ports** — Next API on `:3001`, static frontend from a separate root or `:4322`/nginx vhost; production stays on `:3000` / existing vhost.
-2. **Separate host** — point DNS for a staging hostname at another instance; still use these scripts only.
+This repo runs edge nginx in Docker (`docker-compose.yml` + `docker-compose.ec2.yml`). Staging uses a **second** conf.d file — never replacing `default.conf`:
+
+| File | Role |
+|------|------|
+| `eduardoos-next/deploy/nginx-staging.conf` | Source-of-truth template in Next deploy |
+| `nginx/eduardoos-next-staging.conf` | Mounted into the nginx container as `/etc/nginx/conf.d/eduardoos-next-staging.conf` |
+
+Compose publishes `8080:8080` and mounts:
+
+- `./nginx/eduardoos-next-staging.conf` → conf.d (alongside default)
+- `./eduardoos-next/frontend/dist` → `/usr/share/nginx/eduardoos-next`
+
+`deploy-remote-staging.sh` prefers host `/etc/nginx/conf.d/` when host nginx exists; otherwise it writes/refreshes the monorepo conf and reloads Docker nginx.
+
+## CI workflow
+
+`.github/workflows/deploy-next-staging.yml`
+
+- Triggers: `workflow_dispatch` + push to `master` when `eduardoos-next/**` changes
+- Concurrency: `deploy-next-staging` (independent of production `deploy-ec2`)
+- Builds Next `.env` (ADDR `:3001`, DynamoDB/S3 backends, `DEV_RETURN_OTP=0`)
+- SCP `.env` + `deploy-remote-staging.sh`, then runs remote deploy
+- Smoke: `http://$EC2_HOST:8080/health` and `/` (warnings only if fail)
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
+| `deploy-remote-staging.sh` | Full EC2 staging deploy (build, systemd, nginx :8080) |
 | `build-frontend.sh` | `npm ci` + `npm run build` with `NODE_OPTIONS=--max-old-space-size=4096` |
 | `run-backend.sh` | Loads `.env`, builds `backend/bin/eduardoos-next` if needed, listens on `ADDR` / `PORT` (default `:3001`) |
-| `eduardoos-next-backend.service` | Optional systemd unit template for the Next binary |
+| `eduardoos-next-backend.service` | systemd unit template → installed as `eduardoos-next.service` |
+| `nginx-staging.conf` | HTTP :8080 snippet (Docker paths) |
 | `smoke.sh` | `curl` `/health` (+ home if `SMOKE_HOME=1`); requires `BASE_URL` |
 
 ## Quick start (EC2 secondary)
 
 ```bash
-cd /opt/eduardoos-next   # or your clone path to eduardoos-next
-cp .env.example .env     # set JWT_SECRET, SMTP_*, etc.
-./deploy/build-frontend.sh
-./deploy/run-backend.sh  # foreground; or install the systemd unit
-BASE_URL=http://127.0.0.1:3001 ./deploy/smoke.sh
-```
-
-## Optional nginx snippet (comments only — do not apply to parent default.conf)
-
-```nginx
-# OPTIONAL staging vhost example — keep in staging config only.
-# server {
-#   listen 443 ssl http2;
-#   server_name staging.eduardoos.com;
-#   # ssl_certificate ...;
-#   # ssl_certificate_key ...;
-#
-#   root /opt/eduardoos-next/frontend/dist;
-#   location / {
-#     try_files $uri $uri/ /index.html;
-#   }
-#   location /api/ {
-#     proxy_pass http://127.0.0.1:3001;
-#     proxy_set_header Host $host;
-#     proxy_set_header X-Correlation-ID $request_id;
-#   }
-#   location /health {
-#     proxy_pass http://127.0.0.1:3001/health;
-#   }
-# }
+# Prefer CI: gh workflow run deploy-next-staging.yml
+# Or manually on the host:
+cd ~/eduardoos.com_20260619
+# ensure eduardoos-next/.env exists
+APP_DIR=~/eduardoos.com_20260619 bash eduardoos-next/deploy/deploy-remote-staging.sh
+BASE_URL=http://127.0.0.1:8080 ./eduardoos-next/deploy/smoke.sh
 ```
 
 ## Smoke checklist (T051)
 
-- [ ] Backend process up on `:3001` (or staging `PORT`)
-- [ ] `BASE_URL=... ./deploy/smoke.sh` → `/health` OK
-- [ ] Frontend `dist` served (direct or staging vhost)
-- [ ] Register / login against Next API (SMTP or `DEV_RETURN_OTP=1` locally)
-- [ ] Confirm production site and parent nginx unchanged
+- [ ] Backend process up on `:3001` (`systemctl status eduardoos-next`)
+- [ ] `http://<EC2_IP>:8080/health` OK
+- [ ] Frontend served at `http://<EC2_IP>:8080/`
+- [ ] Register / login against Next API
+- [ ] Confirm production HTTPS site and parent `nginx/default.conf` unchanged

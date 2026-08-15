@@ -1,10 +1,9 @@
 # Optional systemd unit for Eduardo OS Next backend (staging / secondary port).
-# Install example (does NOT replace production units):
-#   sudo cp eduardoos-next-backend.service /etc/systemd/system/
-#   sudo systemctl daemon-reload
-#   sudo systemctl enable --now eduardoos-next-backend
+# Install via deploy-remote-staging.sh (does NOT replace production units):
+#   sed -e "s|@NEXT_DIR@|$NEXT_DIR|g" -e "s|@DEPLOY_USER@|$USER|g" \
+#     eduardoos-next-backend.service | sudo tee /etc/systemd/system/eduardoos-next.service
 #
-# Adjust WorkingDirectory, EnvironmentFile, and ExecStart paths for your host.
+# Placeholders @NEXT_DIR@ and @DEPLOY_USER@ are substituted on install.
 
 [Unit]
 Description=Eduardo OS Next backend (staging secondary)
@@ -13,10 +12,11 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/eduardoos-next
-EnvironmentFile=-/opt/eduardoos-next/.env
+User=@DEPLOY_USER@
+WorkingDirectory=@NEXT_DIR@
+EnvironmentFile=-@NEXT_DIR@/.env
 Environment=ADDR=:3001
-ExecStart=/opt/eduardoos-next/backend/bin/eduardoos-next
+ExecStart=@NEXT_DIR@/backend/bin/eduardoos-next
 Restart=on-failure
 RestartSec=5
 

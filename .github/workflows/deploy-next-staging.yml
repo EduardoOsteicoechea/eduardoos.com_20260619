@@ -1,0 +1,144 @@
+name: Deploy Eduardo OS Next (staging)
+
+# Secondary stack only — never uses concurrency group deploy-ec2.
+on:
+  push:
+    branches: [master]
+    paths:
+      - "eduardoos-next/**"
+      - ".github/workflows/deploy-next-staging.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy-next-staging:
+    name: Deploy Next staging to EC2
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    concurrency:
+      group: deploy-next-staging
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        run: |
+          missing=0
+          for name in EC2_HOST EC2_USER EC2_SSH_PRIVATE_KEY JWT_SECRET INTERNAL_SERVICE_SECRET SMTP_USER SMTP_PASS DOMAIN; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing secret: ${name}"
+              missing=1
+            fi
+          done
+          exit "${missing}"
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          INTERNAL_SERVICE_SECRET: ${{ secrets.INTERNAL_SERVICE_SECRET }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o ServerAliveInterval=30 -o ServerAliveCountMax=120" >> "$GITHUB_ENV"
+
+      - name: Build Next staging .env
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          INTERNAL_SERVICE_SECRET: ${{ secrets.INTERNAL_SERVICE_SECRET }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+          PAYPAL_HOSTED_BUTTON_ID: ${{ secrets.PAYPAL_HOSTED_BUTTON_ID != '' && secrets.PAYPAL_HOSTED_BUTTON_ID || 'QEVGD66SG7LXN' }}
+          PAYPAL_BUSINESS_EMAIL: ${{ secrets.PAYPAL_BUSINESS_EMAIL }}
+          PAYPAL_CHECKOUT_URL: ${{ secrets.PAYPAL_CHECKOUT_URL != '' && secrets.PAYPAL_CHECKOUT_URL || 'https://www.paypal.com/cgi-bin/webscr' }}
+          PAYPAL_IPN_VERIFY_URL: ${{ secrets.PAYPAL_IPN_VERIFY_URL != '' && secrets.PAYPAL_IPN_VERIFY_URL || 'https://ipnpb.paypal.com/cgi-bin/webscr' }}
+          APS_CLIENT_ID: ${{ secrets.APS_CLIENT_ID }}
+          APS_CLIENT_SECRET: ${{ secrets.APS_CLIENT_SECRET }}
+          APS_ACTIVITY_ID: ${{ secrets.APS_ACTIVITY_ID }}
+        run: |
+          {
+            printf 'ADDR=:3001\n'
+            printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+            printf 'INTERNAL_SERVICE_SECRET=%s\n' "$INTERNAL_SERVICE_SECRET"
+            printf 'SMTP_USER=%s\n' "$SMTP_USER"
+            printf 'SMTP_PASS=%s\n' "$SMTP_PASS"
+            printf 'DOMAIN=%s\n' "$DOMAIN"
+            printf 'DEV_RETURN_OTP=0\n'
+            printf 'AWS_REGION=us-east-1\n'
+            printf 'S3_BACKEND=aws\n'
+            printf 'S3_BUCKET=eduardoos20260607\n'
+            printf 'IFCBIM_S3_BUCKET=eduardoos20260607\n'
+            printf 'DATABASE_BACKEND=dynamodb\n'
+            printf 'DYNAMODB_TABLE_PREFIX=eduardoos\n'
+            printf 'EPAMS_BACKEND=dynamodb\n'
+            printf 'EPAMS_TABLE=eduardoos_epams\n'
+            printf 'IFCBIM_BACKEND=dynamodb\n'
+            printf 'IFCBIM_TABLE=eduardoos_ifcbim\n'
+            printf 'PAYPAL_HOSTED_BUTTON_ID=%s\n' "$PAYPAL_HOSTED_BUTTON_ID"
+            printf 'PAYPAL_BUSINESS_EMAIL=%s\n' "${PAYPAL_BUSINESS_EMAIL:-}"
+            printf 'PAYPAL_CHECKOUT_URL=%s\n' "$PAYPAL_CHECKOUT_URL"
+            printf 'PAYPAL_IPN_VERIFY_URL=%s\n' "$PAYPAL_IPN_VERIFY_URL"
+            printf 'APS_CLIENT_ID=%s\n' "${APS_CLIENT_ID:-}"
+            printf 'APS_CLIENT_SECRET=%s\n' "${APS_CLIENT_SECRET:-}"
+            printf 'APS_ACTIVITY_ID=%s\n' "${APS_ACTIVITY_ID:-}"
+            printf 'APS_S3_BUCKET=aps20250806\n'
+            printf 'APS_S3_REGION=us-east-1\n'
+          } > .env.next-staging
+
+      - name: Prepare EC2 paths
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key $SSH_OPTS \
+            "${EC2_USER}@${EC2_HOST}" \
+            "mkdir -p ~/eduardoos.com_20260619/eduardoos-next/deploy"
+
+      - name: Upload .env and staging deploy script
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          scp -i ~/.ssh/deploy_key $SSH_OPTS \
+            .env.next-staging \
+            "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/eduardoos-next/.env"
+          scp -i ~/.ssh/deploy_key $SSH_OPTS \
+            eduardoos-next/deploy/deploy-remote-staging.sh \
+            "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/eduardoos-next/deploy/deploy-remote-staging.sh"
+
+      - name: Run remote staging deploy
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key $SSH_OPTS \
+            "${EC2_USER}@${EC2_HOST}" \
+            "cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x eduardoos-next/deploy/*.sh && APP_DIR=~/eduardoos.com_20260619 bash eduardoos-next/deploy/deploy-remote-staging.sh"
+
+      - name: Smoke check staging :8080
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+        run: |
+          sleep 10
+          base="http://${EC2_HOST}:8080"
+          health=$(curl -s -o /dev/null -w "%{http_code}" "${base}/health" || true)
+          home=$(curl -s -o /dev/null -w "%{http_code}" "${base}/" || true)
+          echo "Staging smoke ${base}/health => ${health}"
+          echo "Staging smoke ${base}/ => ${home}"
+          if [ "${health}" != "200" ]; then
+            echo "::warning::Staging /health did not return 200 (open SG TCP 8080? nginx mount?)"
+          fi
+          if [ "${home}" != "200" ] && [ "${home}" != "301" ] && [ "${home}" != "302" ]; then
+            echo "::warning::Staging / did not return 200 (frontend dist / nginx root?)"
+          fi
