@@ -66,13 +66,24 @@ jobs:
           APS_CLIENT_SECRET: ${{ secrets.APS_CLIENT_SECRET }}
           APS_ACTIVITY_ID: ${{ secrets.APS_ACTIVITY_ID }}
         run: |
+          # systemd EnvironmentFile-safe quoting: wrap in double quotes and escape
+          # \, ", and `. Strip spaces from SMTP_PASS (Gmail app passwords are 16
+          # chars; UI spaces break smtp.gmail.com auth if left in).
+          quote_env() {
+            local val="${1-}"
+            val="${val//\\/\\\\}"
+            val="${val//\"/\\\"}"
+            val="${val//\`/\\\`}"
+            printf '"%s"' "$val"
+          }
+          SMTP_PASS_NORM="${SMTP_PASS// /}"
           {
             printf 'ADDR=:3001\n'
-            printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
-            printf 'INTERNAL_SERVICE_SECRET=%s\n' "$INTERNAL_SERVICE_SECRET"
-            printf 'SMTP_USER=%s\n' "$SMTP_USER"
-            printf 'SMTP_PASS=%s\n' "$SMTP_PASS"
-            printf 'DOMAIN=%s\n' "$DOMAIN"
+            printf 'JWT_SECRET=%s\n' "$(quote_env "$JWT_SECRET")"
+            printf 'INTERNAL_SERVICE_SECRET=%s\n' "$(quote_env "$INTERNAL_SERVICE_SECRET")"
+            printf 'SMTP_USER=%s\n' "$(quote_env "$SMTP_USER")"
+            printf 'SMTP_PASS=%s\n' "$(quote_env "$SMTP_PASS_NORM")"
+            printf 'DOMAIN=%s\n' "$(quote_env "$DOMAIN")"
             printf 'DEV_RETURN_OTP=0\n'
             printf 'AWS_REGION=us-east-1\n'
             printf 'S3_BACKEND=aws\n'
@@ -84,16 +95,18 @@ jobs:
             printf 'EPAMS_TABLE=eduardoos_epams\n'
             printf 'IFCBIM_BACKEND=dynamodb\n'
             printf 'IFCBIM_TABLE=eduardoos_ifcbim\n'
-            printf 'PAYPAL_HOSTED_BUTTON_ID=%s\n' "$PAYPAL_HOSTED_BUTTON_ID"
-            printf 'PAYPAL_BUSINESS_EMAIL=%s\n' "${PAYPAL_BUSINESS_EMAIL:-}"
-            printf 'PAYPAL_CHECKOUT_URL=%s\n' "$PAYPAL_CHECKOUT_URL"
-            printf 'PAYPAL_IPN_VERIFY_URL=%s\n' "$PAYPAL_IPN_VERIFY_URL"
-            printf 'APS_CLIENT_ID=%s\n' "${APS_CLIENT_ID:-}"
-            printf 'APS_CLIENT_SECRET=%s\n' "${APS_CLIENT_SECRET:-}"
-            printf 'APS_ACTIVITY_ID=%s\n' "${APS_ACTIVITY_ID:-}"
+            printf 'PAYPAL_HOSTED_BUTTON_ID=%s\n' "$(quote_env "$PAYPAL_HOSTED_BUTTON_ID")"
+            printf 'PAYPAL_BUSINESS_EMAIL=%s\n' "$(quote_env "${PAYPAL_BUSINESS_EMAIL:-}")"
+            printf 'PAYPAL_CHECKOUT_URL=%s\n' "$(quote_env "$PAYPAL_CHECKOUT_URL")"
+            printf 'PAYPAL_IPN_VERIFY_URL=%s\n' "$(quote_env "$PAYPAL_IPN_VERIFY_URL")"
+            printf 'APS_CLIENT_ID=%s\n' "$(quote_env "${APS_CLIENT_ID:-}")"
+            printf 'APS_CLIENT_SECRET=%s\n' "$(quote_env "${APS_CLIENT_SECRET:-}")"
+            printf 'APS_ACTIVITY_ID=%s\n' "$(quote_env "${APS_ACTIVITY_ID:-}")"
             printf 'APS_S3_BUCKET=aps20250806\n'
             printf 'APS_S3_REGION=us-east-1\n'
           } > .env.next-staging
+          # Metadata-only sanity (never print secret values).
+          echo "SMTP_PASS normalized length=${#SMTP_PASS_NORM} (spaces stripped for Gmail)"
 
       - name: Prepare EC2 paths
         env:

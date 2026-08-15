@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
@@ -179,6 +180,7 @@ func (h *Handler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
 	var body struct {
 		Email string `json:"email"`
 	}
@@ -197,7 +199,12 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusBadGateway, "could not store reset code")
 			return
 		}
+		// Delivery errors are logged inside sendResetOTP; generic success avoids enumeration.
 		h.sendResetOTP(email, otp)
+		log.Printf("[correlation=%s] forgot-password reset code issued email=%s smtp_pass_set=%t",
+			cid, email, normalizeSMTPPass(h.SMTPPass) != "")
+	} else {
+		log.Printf("[correlation=%s] forgot-password no account email=%s (generic ok)", cid, email)
 	}
 	// Always return a generic success message (no account enumeration).
 	httpx.WriteJSON(w, http.StatusOK, h.maybeOTPField(map[string]any{
@@ -206,16 +213,24 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	// Frontend historically sends "password"; older clients may send "newPassword".
+	// Accept either so reset works regardless of which field the client used.
 	var body struct {
 		Email       string `json:"email"`
 		OTP         string `json:"otp"`
+		Password    string `json:"password"`
 		NewPassword string `json:"newPassword"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
 		return
 	}
-	if len(body.NewPassword) < minPasswordLen {
+	newPassword := body.NewPassword
+	if newPassword == "" {
+		newPassword = body.Password
+	}
+	if len(newPassword) < minPasswordLen {
 		httpx.WriteError(w, http.StatusBadRequest, "password too short")
 		return
 	}
@@ -226,6 +241,7 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !ok || stored != strings.TrimSpace(body.OTP) {
+		log.Printf("[correlation=%s] reset-password rejected invalid_otp email=%s", cid, email)
 		httpx.WriteError(w, http.StatusUnauthorized, "invalid otp")
 		return
 	}
@@ -234,12 +250,13 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, "user not found")
 		return
 	}
-	user.PasswordHash = HashPassword(body.NewPassword)
+	user.PasswordHash = HashPassword(newPassword)
 	if err := h.Store.PutUser(r.Context(), user); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, "could not update password")
 		return
 	}
 	_ = h.Store.DeleteResetOTP(r.Context(), email)
+	log.Printf("[correlation=%s] reset-password success email=%s", cid, email)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"message": "password updated"})
 }
 

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"eduardoos.nex/internal/aps"
 	"eduardoos.nex/internal/auth"
@@ -73,6 +74,10 @@ func main() {
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
 	log.Printf("stores: auth=%s epams=%s ifcbim=%s", userStore.BackendName(), epamStore.BackendName(), bimStore.BackendName())
-	log.Printf("smtp: user=%s pass_set=%t dev_return_otp=%t", authHandler.SMTPUser, authHandler.SMTPPass != "", authHandler.DevReturnOTP)
+	// pass_set uses normalized password (spaces stripped) so Gmail display-spaced
+	// app passwords still count as configured; never log the secret itself.
+	smtpPassSet := strings.ReplaceAll(strings.TrimSpace(authHandler.SMTPPass), " ", "") != ""
+	log.Printf("smtp: user=%s pass_set=%t pass_raw_len=%d dev_return_otp=%t",
+		authHandler.SMTPUser, smtpPassSet, len(authHandler.SMTPPass), authHandler.DevReturnOTP)
 	log.Fatal(http.ListenAndServe(addr, r))
 }

@@ -159,3 +159,73 @@ func TestSendPlainMailEmptyPassSucceeds(t *testing.T) {
 		t.Fatalf("empty SMTP_PASS must not error: %v", err)
 	}
 }
+
+func TestNormalizeSMTPPassStripsSpaces(t *testing.T) {
+	got := normalizeSMTPPass(" abcd efgh ijkl mnop ")
+	want := "abcdefghijklmnop"
+	if got != want {
+		t.Fatalf("normalizeSMTPPass=%q want %q", got, want)
+	}
+	if normalizeSMTPPass("   ") != "" {
+		t.Fatal("whitespace-only pass must normalize to empty")
+	}
+}
+
+func TestResetPasswordAcceptsPasswordField(t *testing.T) {
+	store := NewMemoryStore()
+	h := &Handler{Store: store, JWTSecret: "test-jwt-secret", SMTPPass: ""}
+	if err := store.PutUser(context.Background(), User{
+		Email:        "reset2@example.com",
+		PasswordHash: HashPassword("password123"),
+		Verified:     true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutResetOTP(context.Background(), "reset2@example.com", "654321"); err != nil {
+		t.Fatal(err)
+	}
+
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	// Frontend sends "password" (not "newPassword").
+	body := `{"email":"reset2@example.com","otp":"654321","password":"newpass99"}`
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/reset-password", bytes.NewBufferString(body)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("reset with password field status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	user, ok, err := store.GetUser(context.Background(), "reset2@example.com")
+	if err != nil || !ok || !CheckPassword("newpass99", user.PasswordHash) {
+		t.Fatalf("password not updated ok=%v err=%v", ok, err)
+	}
+}
+
+func TestResetPasswordAcceptsNewPasswordField(t *testing.T) {
+	store := NewMemoryStore()
+	h := &Handler{Store: store, JWTSecret: "test-jwt-secret", SMTPPass: ""}
+	if err := store.PutUser(context.Background(), User{
+		Email:        "reset3@example.com",
+		PasswordHash: HashPassword("password123"),
+		Verified:     true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutResetOTP(context.Background(), "reset3@example.com", "111222"); err != nil {
+		t.Fatal(err)
+	}
+
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	body := `{"email":"reset3@example.com","otp":"111222","newPassword":"newerpass1"}`
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/reset-password", bytes.NewBufferString(body)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("reset with newPassword field status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	user, ok, err := store.GetUser(context.Background(), "reset3@example.com")
+	if err != nil || !ok || !CheckPassword("newerpass1", user.PasswordHash) {
+		t.Fatalf("password not updated ok=%v err=%v", ok, err)
+	}
+}

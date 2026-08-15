@@ -363,13 +363,17 @@ func (s *state) issueJWT(email string) (string, error) {
 }
 
 func (s *state) sendOTP(email, otp string) {
-	_ = s.sendPlainMail(email, "Eduardo OS OTP", "Your code: "+otp+"\r\n")
+	if err := s.sendPlainMail(email, "Eduardo OS OTP", "Your code: "+otp+"\r\n"); err != nil {
+		log.Printf("auth smtp sendOTP failed email=%s err=%v", email, err)
+	}
 }
 
 func (s *state) sendResetOTP(email, otp string) {
 	body := "Use this code to reset your Eduardo OS password:\r\n\r\n" + otp +
 		"\r\n\r\nIf you did not request this, you can ignore this email.\r\n"
-	_ = s.sendPlainMail(email, "Eduardo OS password reset", body)
+	if err := s.sendPlainMail(email, "Eduardo OS password reset", body); err != nil {
+		log.Printf("auth smtp sendResetOTP failed email=%s err=%v", email, err)
+	}
 }
 
 func (s *state) report(r *http.Request, event, status, email string) {
@@ -500,12 +504,17 @@ func (s *state) notifyContact(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *state) sendPlainMail(to, subject, body string) error {
-	if s.smtpPass == "" {
+	// Gmail app passwords are 16 chars; UI display spaces must not be sent to SMTP.
+	pass := strings.ReplaceAll(strings.TrimSpace(s.smtpPass), " ", "")
+	if pass == "" {
 		log.Printf("SMTP_PASS empty — contact mail to=%s subject=%s\n%s", to, subject, body)
 		return nil
 	}
 	msg := []byte(fmt.Sprintf("To: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s\r\n",
 		to, subject, body))
-	auth := smtp.PlainAuth("", s.smtpUser, s.smtpPass, "smtp.gmail.com")
-	return smtp.SendMail("smtp.gmail.com:587", auth, s.smtpUser, []string{to}, msg)
+	auth := smtp.PlainAuth("", s.smtpUser, pass, "smtp.gmail.com")
+	if err := smtp.SendMail("smtp.gmail.com:587", auth, s.smtpUser, []string{to}, msg); err != nil {
+		return fmt.Errorf("smtp send to=%s subject=%q: %w", to, subject, err)
+	}
+	return nil
 }

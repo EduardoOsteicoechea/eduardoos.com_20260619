@@ -173,9 +173,15 @@ export async function confirmPasswordReset(
   fetchFn?: typeof fetch,
 ): Promise<{ result: AuthSuccess | null; correlationId: string; error?: ApiError }> {
   const correlationId = createCorrelationId();
+  // Send both field names so older/newer backends both accept the new password.
   const response = await apiRequest<AuthSuccess>(AUTH_API_ROUTES.resetPassword, {
     method: "POST",
-    body: payload,
+    body: {
+      email: payload.email,
+      otp: payload.otp,
+      password: payload.password,
+      newPassword: payload.password,
+    },
     correlationId,
     fetchFn,
   });

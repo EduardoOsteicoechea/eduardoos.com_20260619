@@ -43,11 +43,23 @@ Compose publishes `8080:8080` and mounts:
 
 `.github/workflows/deploy-next-staging.yml`
 
-- Triggers: `workflow_dispatch` + push to `master` when `eduardoos-next/**` changes
+- Triggers: `workflow_dispatch` + push to `master` when `eduardoos-next/**` or this workflow changes
 - Concurrency: `deploy-next-staging` (independent of production `deploy-ec2`)
 - Builds Next `.env` (ADDR `:3001`, DynamoDB/S3 backends, `DEV_RETURN_OTP=0`)
+  - Secrets are **double-quoted** for systemd `EnvironmentFile` safety (`#`, spaces, `$`)
+  - `SMTP_PASS` spaces are stripped (Gmail app passwords are 16 chars; UI spaces break SMTP auth)
 - SCP `.env` + `deploy-remote-staging.sh`, then runs remote deploy
-- Smoke: `http://$EC2_HOST:8080/health` and `/` (warnings only if fail)
+- Smoke: on-box `:8080` required; public `:8080` warns if SG blocks
+
+### Auth email troubleshooting
+
+On the EC2 host:
+
+```bash
+journalctl -u eduardoos-next -b | grep -E 'smtp:|sendResetOTP|SMTP_PASS empty'
+```
+
+Look for `pass_set=true` at boot and `auth smtp sendResetOTP ok` / `failed` after a reset request. UI trace IDs (`eosn-…`) are preserved when the client sends `X-Correlation-ID` (staging nginx no longer overwrites with `$request_id`).
 
 ## Scripts
 
