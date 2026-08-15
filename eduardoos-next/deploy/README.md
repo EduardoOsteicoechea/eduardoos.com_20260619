@@ -61,6 +61,8 @@ journalctl -u eduardoos-next -b | grep -E 'smtp:|sendResetOTP|SMTP_PASS empty'
 
 Look for `pass_set=true` at boot and `auth smtp sendResetOTP ok` / `failed` after a reset request. UI trace IDs (`eosn-…`) are preserved when the client sends `X-Correlation-ID` (staging nginx no longer overwrites with `$request_id`).
 
+If logs show `535 5.7.8 Username and Password not accepted`, regenerate a Gmail **App Password** for `SMTP_USER`, set GitHub secret `SMTP_PASS` to the **16 characters with no spaces**, then re-run `deploy-next-staging`.
+
 ## Scripts
 
 | Script | Purpose |
