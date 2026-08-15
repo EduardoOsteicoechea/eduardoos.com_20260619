@@ -1,4 +1,4 @@
-﻿package auth
+package auth
 
 import (
 	"encoding/json"
@@ -13,9 +13,14 @@ import (
 const minPasswordLen = 8
 
 // Handler wires auth routes against a UserStore and JWT secret.
+// SMTP fields mirror production authenticator (SMTP_USER / SMTP_PASS).
+// DevReturnOTP enables including the OTP in JSON responses (DEV_RETURN_OTP=1).
 type Handler struct {
-	Store     UserStore
-	JWTSecret string
+	Store        UserStore
+	JWTSecret    string
+	SMTPUser     string
+	SMTPPass     string
+	DevReturnOTP bool
 }
 
 // Routes mounts the public auth API under /api/auth/*.
@@ -44,6 +49,14 @@ func (h *Handler) RequireJWT(next http.Handler) http.Handler {
 // UserEmailFromRequest returns the email injected by RequireJWT.
 func UserEmailFromRequest(r *http.Request) string {
 	return NormalizeEmail(r.Header.Get("X-User-Email"))
+}
+
+// maybeOTPField returns a response map with optional "otp" when DevReturnOTP is set.
+func (h *Handler) maybeOTPField(base map[string]any, otp string) map[string]any {
+	if h.DevReturnOTP && otp != "" {
+		base["otp"] = otp
+	}
+	return base
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
@@ -81,11 +94,12 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, "could not store otp")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+	// Deliver via SMTP when configured; otherwise log OTP for local/dev.
+	h.sendOTP(email, otp)
+	httpx.WriteJSON(w, http.StatusOK, h.maybeOTPField(map[string]any{
 		"message": "OTP sent to email",
 		"token":   nil,
-		"otp":     otp,
-	})
+	}, otp))
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
@@ -173,14 +187,22 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := NormalizeEmail(body.Email)
-	otp := GenerateOTP()
-	if _, ok, err := h.Store.GetUser(r.Context(), email); err == nil && ok {
-		_ = h.Store.PutResetOTP(r.Context(), email, otp)
+	var otp string
+	if _, ok, err := h.Store.GetUser(r.Context(), email); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "store error")
+		return
+	} else if ok {
+		otp = GenerateOTP()
+		if err := h.Store.PutResetOTP(r.Context(), email, otp); err != nil {
+			httpx.WriteError(w, http.StatusBadGateway, "could not store reset code")
+			return
+		}
+		h.sendResetOTP(email, otp)
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+	// Always return a generic success message (no account enumeration).
+	httpx.WriteJSON(w, http.StatusOK, h.maybeOTPField(map[string]any{
 		"message": "If the account exists, a reset code was sent",
-		"otp":     otp,
-	})
+	}, otp))
 }
 
 func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
