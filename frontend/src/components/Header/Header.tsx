@@ -3,6 +3,7 @@ import { APP_ROUTES } from "../../config/routes";
 import { AUTH_SESSION_EXPIRED_EVENT, getAuthToken, isAuthenticated, logoutUser, } from "../../lib/auth";
 import { fetchUserProfile, PROFILE_IMAGE_UPDATED_EVENT } from "../../lib/profile";
 import "./Header.css";
+
 function profileInitialFromToken(token: string): string {
     try {
         const parts = token.split(".");
@@ -20,26 +21,42 @@ function profileInitialFromToken(token: string): string {
         return "?";
     }
 }
+
 interface HeaderProps {
     pathname: string;
 }
-const NAV_LINKS = [
+
+const PRIMARY_LINKS = [
     { href: APP_ROUTES.home, label: "Home" },
     { href: APP_ROUTES.contact, label: "Contact" },
+    { href: APP_ROUTES.bim, label: "OpenBIM" },
+    { href: APP_ROUTES.apsAdmin, label: "APS" },
+] as const;
+
+const PERSONAL_LINKS = [
     { href: APP_ROUTES.homescool, label: "Homescool" },
     { href: APP_ROUTES.mediaPlaylist, label: "Music" },
     { href: APP_ROUTES.pamphlet, label: "Pamphlet" },
     { href: APP_ROUTES.articles, label: "Articles" },
-    { href: APP_ROUTES.bim, label: "BIM" },
-    { href: APP_ROUTES.apsAdmin, label: "APS" },
+    { href: APP_ROUTES.mediaGallery, label: "Videos" },
     { href: APP_ROUTES.edebat, label: "Edebat" },
     { href: APP_ROUTES.subscription, label: "Subscribe" },
 ] as const;
+
+function needsAstroReload(href: string): boolean {
+    return (
+        href === APP_ROUTES.apsAdmin ||
+        href === APP_ROUTES.edebat ||
+        href === APP_ROUTES.pamphlet
+    );
+}
+
 interface AccountMenuProps {
     initial: string;
     profileImageUrl: string;
     onLogout: () => void;
 }
+
 function AccountMenu({ initial, profileImageUrl, onLogout }: AccountMenuProps) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -75,10 +92,12 @@ function AccountMenu({ initial, profileImageUrl, onLogout }: AccountMenuProps) {
         </div>) : null}
     </div>);
 }
+
 interface LoggedOutActionsProps {
     loginClassName?: string;
     onNavigate?: () => void;
 }
+
 function LoggedOutActions({ loginClassName = "", onNavigate }: LoggedOutActionsProps) {
     return (<>
       <a className="site-header__auth-link" href={APP_ROUTES.register} onClick={onNavigate}>
@@ -89,6 +108,7 @@ function LoggedOutActions({ loginClassName = "", onNavigate }: LoggedOutActionsP
       </a>
     </>);
 }
+
 interface AuthControlsProps {
     loggedIn: boolean;
     profileInitial: string;
@@ -97,6 +117,7 @@ interface AuthControlsProps {
     onNavigate?: () => void;
     variant: "bar" | "nav";
 }
+
 function AuthControls({ loggedIn, profileInitial, profileImageUrl, onLogout, onNavigate, variant }: AuthControlsProps) {
     let content: ReactNode;
     if (loggedIn) {
@@ -109,6 +130,78 @@ function AuthControls({ loggedIn, profileInitial, profileImageUrl, onLogout, onN
       {content}
     </div>);
 }
+
+interface PersonalMenuProps {
+    pathname: string;
+    navClass: (href: string) => string;
+    onNavigate: () => void;
+}
+
+function PersonalMenu({ pathname, navClass, onNavigate }: PersonalMenuProps) {
+    const [open, setOpen] = useState(false);
+    const rootRef = useRef<HTMLDivElement>(null);
+    const personalActive = PERSONAL_LINKS.some(
+        ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
+    );
+
+    useEffect(() => {
+        setOpen(false);
+    }, [pathname]);
+
+    useEffect(() => {
+        if (!open) return;
+        function handlePointerDown(event: MouseEvent) {
+            if (!rootRef.current?.contains(event.target as Node)) {
+                setOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handlePointerDown);
+        return () => document.removeEventListener("mousedown", handlePointerDown);
+    }, [open]);
+
+    return (
+      <div className="site-header__personal" ref={rootRef}>
+        <button
+          type="button"
+          className={`site-header__personal-toggle${personalActive ? " is-active" : ""}`}
+          aria-expanded={open}
+          aria-controls="site-header-personal-menu"
+          aria-haspopup="menu"
+          onClick={() => setOpen((current) => !current)}
+        >
+          Personal
+          <span className="site-header__personal-caret" aria-hidden="true">
+            {open ? "▴" : "▾"}
+          </span>
+        </button>
+        {open ? (
+          <div
+            id="site-header-personal-menu"
+            className="site-header__personal-menu"
+            role="menu"
+            aria-label="Personal"
+          >
+            {PERSONAL_LINKS.map(({ href, label }) => (
+              <a
+                key={href}
+                className={`site-header__personal-item${navClass(href) ? ` ${navClass(href)}` : ""}`}
+                role="menuitem"
+                href={href}
+                {...(needsAstroReload(href) ? { "data-astro-reload": true } : {})}
+                onClick={() => {
+                  setOpen(false);
+                  onNavigate();
+                }}
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+}
+
 export function Header({ pathname }: HeaderProps) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [loggedIn, setLoggedIn] = useState(false);
@@ -118,6 +211,7 @@ export function Header({ pathname }: HeaderProps) {
     const headerRef = useRef<HTMLElement>(null);
     const trayRef = useRef<HTMLElement>(null);
     const menuBtnRef = useRef<HTMLButtonElement>(null);
+
     function navClass(href: string) {
         if (href === APP_ROUTES.home) {
             return pathname === "/" ? "is-active" : "";
@@ -126,12 +220,15 @@ export function Header({ pathname }: HeaderProps) {
             ? "is-active"
             : "";
     }
+
     function closeMenu() {
         setMenuOpen(false);
     }
+
     function toggleMenu() {
         setMenuOpen((open) => !open);
     }
+
     function syncAuthState() {
         const authed = isAuthenticated();
         setLoggedIn(authed);
@@ -145,15 +242,18 @@ export function Header({ pathname }: HeaderProps) {
             setProfileImageUrl(profile?.profileImageUrl ?? "");
         });
     }
+
     async function handleLogout() {
         closeMenu();
         await logoutUser();
         syncAuthState();
         window.location.replace(APP_ROUTES.login);
     }
+
     useEffect(() => {
         setMenuOpen(false);
     }, [pathname]);
+
     useEffect(() => {
         const syncHeaderHeight = () => {
             const height = headerRef.current?.offsetHeight ?? 55;
@@ -163,10 +263,12 @@ export function Header({ pathname }: HeaderProps) {
         window.addEventListener("resize", syncHeaderHeight);
         return () => window.removeEventListener("resize", syncHeaderHeight);
     }, [menuOpen, pathname, loggedIn]);
+
     useEffect(() => {
         setClientReady(true);
         syncAuthState();
     }, [pathname]);
+
     useEffect(() => {
         function handleProfileImageUpdated(event: Event) {
             const detail = (event as CustomEvent<{
@@ -180,6 +282,7 @@ export function Header({ pathname }: HeaderProps) {
         window.addEventListener(PROFILE_IMAGE_UPDATED_EVENT, handleProfileImageUpdated);
         return () => window.removeEventListener(PROFILE_IMAGE_UPDATED_EVENT, handleProfileImageUpdated);
     }, []);
+
     useEffect(() => {
         function handleAuthSessionExpired() {
             syncAuthState();
@@ -187,6 +290,7 @@ export function Header({ pathname }: HeaderProps) {
         window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleAuthSessionExpired);
         return () => window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleAuthSessionExpired);
     }, []);
+
     useEffect(() => {
         if (!menuOpen) {
             return;
@@ -213,6 +317,7 @@ export function Header({ pathname }: HeaderProps) {
             document.removeEventListener("keydown", handleKeyDown);
         };
     }, [menuOpen]);
+
     const showAuth = clientReady;
     return (<header ref={headerRef} className={`site-header${menuOpen ? " site-header--open" : ""}`}>
       <div className="site-header__bar">
@@ -229,19 +334,18 @@ export function Header({ pathname }: HeaderProps) {
         onClick={closeMenu}
       />
       <nav ref={trayRef} id="site-header-nav" className="site-header__nav" aria-label="Main" hidden={!menuOpen}>
-        {NAV_LINKS.map(({ href, label }) => (
+        {PRIMARY_LINKS.map(({ href, label }) => (
           <a
             key={href}
             className={navClass(href)}
             href={href}
-            {...(href === APP_ROUTES.apsAdmin || href === APP_ROUTES.edebat || href === APP_ROUTES.pamphlet
-              ? { "data-astro-reload": true }
-              : {})}
+            {...(needsAstroReload(href) ? { "data-astro-reload": true } : {})}
             onClick={closeMenu}
           >
             {label}
           </a>
         ))}
+        <PersonalMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
         {showAuth ? (
           <AuthControls
             variant="nav"
