@@ -72,13 +72,18 @@
 @media (min-width: 1024px) {
   .skill_cards {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.4rem;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
     width: 100%;
     flex: 1 1 auto;
     min-height: 0;
     align-content: start;
     overflow: auto;
+  }
+
+  .skill_cards__item {
+    padding: 0.3rem 0.45rem;
+    font-size: calc(var(--font-sm) * 0.95);
   }
 }
 

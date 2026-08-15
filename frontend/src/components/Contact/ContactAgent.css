@@ -20,6 +20,43 @@
   height: 100%;
 }
 
+.contact-agent--docked {
+  gap: 0.65rem;
+  height: 100%;
+  min-height: 0;
+}
+
+.contact-agent--docked .contact-agent__head {
+  flex: 0 0 auto;
+}
+
+.contact-agent--docked .contact-agent__title {
+  font-size: 1.05rem;
+}
+
+.contact-agent--docked .contact-agent__gate {
+  flex: 0 0 auto;
+}
+
+.contact-agent--docked .contact-agent__chat {
+  border: 1px solid var(--site-border);
+  background: color-mix(in srgb, var(--site-body-bg) 94%, transparent);
+  padding: 0.65rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.contact-agent--docked .contact-agent__thread {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.contact-agent--docked .contact-agent__input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .contact-agent__head {
   display: flex;
   flex-direction: column;

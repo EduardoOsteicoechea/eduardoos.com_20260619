@@ -13,6 +13,9 @@ import "./ContactAgent.css";
 
 const HOLD_SECONDS = 5;
 
+const DEFAULT_WELCOME =
+  "Hello — I am Eduardo’s assistant. Confirm you are not a bot below, then ask about architecture, BIM, software, or how to reach him.";
+
 type ChatMsg = { role: "user" | "assistant"; text: string };
 
 function ChatBubble({ role, text }: ChatMsg) {
@@ -36,20 +39,31 @@ type ContactAgentProps = {
   skillLabel?: string;
   /** Direct mailto / WhatsApp links above the gate. Off on /contact (copy lives left). */
   showDirectLinks?: boolean;
+  /**
+   * Always show the chat tray (welcome + thread + input). The gate stays visible
+   * until verified; the textarea stays disabled until then.
+   */
+  alwaysShowChat?: boolean;
+  /** First assistant bubble when alwaysShowChat is on. */
+  welcomeMessage?: string;
 };
 
 export default function ContactAgent({
   scopeId = "contact",
   title = "Talk through the agent",
-  blurb = "Confirm you are not a bot, then the chat tray opens. Leave an email or phone number and I will be notified, or ask to continue on WhatsApp.",
+  blurb = "Confirm you are not a bot, then chat. Leave an email or phone number and I will be notified, or ask to continue on WhatsApp.",
   askPath = "/api/contact/ask",
   skillLabel = "Contact",
   showDirectLinks = true,
+  alwaysShowChat = false,
+  welcomeMessage = DEFAULT_WELCOME,
 }: ContactAgentProps) {
   const [checked, setChecked] = useState(false);
   const [heldMs, setHeldMs] = useState(0);
   const [chatUnlocked, setChatUnlocked] = useState(false);
-  const [chat, setChat] = useState<ChatMsg[]>([]);
+  const [chat, setChat] = useState<ChatMsg[]>(() =>
+    alwaysShowChat ? [{ role: "assistant", text: welcomeMessage }] : [],
+  );
   const [draft, setDraft] = useState("");
   const [asking, setAsking] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
@@ -85,6 +99,10 @@ export default function ContactAgent({
     const left = Math.max(0, HOLD_SECONDS - Math.floor(heldMs / 1000));
     return `Wait ${left}s… (anti-bot)`;
   }, [chatUnlocked, checked, heldMs]);
+
+  const showGate = !chatUnlocked;
+  const showChat = alwaysShowChat || chatUnlocked;
+  const inputEnabled = chatUnlocked && !asking;
 
   async function sendChat() {
     if (!chatUnlocked || asking) return;
@@ -124,15 +142,25 @@ export default function ContactAgent({
 
   return (
     <section
-      className={`contact-agent${chatUnlocked ? " contact-agent--tray" : ""}`}
+      className={`contact-agent${showChat ? " contact-agent--tray" : ""}${
+        alwaysShowChat ? " contact-agent--docked" : ""
+      }`}
       aria-label={chatUnlocked ? "Chat tray" : title}
     >
-      {!chatUnlocked && (
+      {showGate && (
         <>
-          <header className="contact-agent__head">
-            <h2 className="contact-agent__title">{title}</h2>
-            <p className="contact-agent__blurb">{blurb}</p>
-          </header>
+          {!alwaysShowChat && (
+            <header className="contact-agent__head">
+              <h2 className="contact-agent__title">{title}</h2>
+              <p className="contact-agent__blurb">{blurb}</p>
+            </header>
+          )}
+
+          {alwaysShowChat && (
+            <header className="contact-agent__head">
+              <h2 className="contact-agent__title">{title}</h2>
+            </header>
+          )}
 
           {showDirectLinks && (
             <div className="contact-agent__links" aria-label="Direct channels">
@@ -182,10 +210,10 @@ export default function ContactAgent({
         </>
       )}
 
-      {chatUnlocked && (
+      {showChat && (
         <div className="contact-agent__chat">
           <div ref={threadRef} className="contact-agent__thread">
-            {chat.length === 0 && (
+            {!alwaysShowChat && chat.length === 0 && (
               <p className="contact-agent__hint">
                 Ask what you need. To reach me, leave your email or phone number,
                 or request WhatsApp and I will open the chat.
@@ -211,14 +239,17 @@ export default function ContactAgent({
               className="contact-agent__input"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Write your message…"
-              disabled={asking}
+              placeholder={
+                chatUnlocked ? "Write your message…" : "Verify above to chat…"
+              }
+              disabled={!inputEnabled}
               autoComplete="off"
+              aria-disabled={!chatUnlocked}
             />
             <button
               type="submit"
               className="btn btn--primary contact-agent__send"
-              disabled={asking || !draft.trim()}
+              disabled={!inputEnabled || !draft.trim()}
             >
               {asking ? "…" : "Send"}
             </button>
