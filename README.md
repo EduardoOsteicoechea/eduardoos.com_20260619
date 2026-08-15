@@ -87,6 +87,8 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | POST | `/api/auth/register` | Public | Register + send OTP |
 | POST | `/api/auth/login` | Public | Login (verified users) |
 | POST | `/api/auth/verify-otp` | Public | Verify email OTP |
+| POST | `/api/auth/forgot-password` | Public | Email a password-reset code (does not reveal whether the account exists) |
+| POST | `/api/auth/reset-password` | Public | Set a new password with email + OTP |
 | POST | `/api/logger` | Public | Flight log ingestion proxy |
 | POST | `/api/tester` | Public | QA engine proxy |
 | POST | `/api/payments/intents` | Public | Create PayPal payment intent (verified user) |
@@ -114,6 +116,7 @@ Home skill cards open a modal media viewer + timed checkbox gate (hold ~5s) befo
 | Home | `/` |
 | Register | `/auth/register` |
 | Login | `/auth/login` |
+| Reset password | `/auth/reset-password` |
 | Verify OTP | `/auth/verify-otp` |
 | Flight Logger UI | `/observability/logger` |
 | QA Tester UI | `/observability/tester` |

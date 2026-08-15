@@ -32,6 +32,7 @@ type config struct {
 var publicPaths = []string{
 	"/health",
 	"/api/auth/login", "/api/auth/register", "/api/auth/verify-otp",
+	"/api/auth/forgot-password", "/api/auth/reset-password",
 	"/api/playlists",
 	"/api/logger",
 	"/api/tester",
@@ -108,6 +109,8 @@ func Run(addr string) error {
 	r.Post("/api/auth/register", cfg.proxyAuth("/register"))
 	r.Post("/api/auth/login", cfg.proxyAuth("/login"))
 	r.Post("/api/auth/verify-otp", cfg.proxyAuth("/verify-otp"))
+	r.Post("/api/auth/forgot-password", cfg.proxyAuth("/forgot-password"))
+	r.Post("/api/auth/reset-password", cfg.proxyAuth("/reset-password"))
 	r.Post("/api/auth/logout", cfg.proxyAuthLogout())
 	r.Get("/api/auth/profile", cfg.getUserProfile())
 	r.Post("/api/auth/profile/image", cfg.uploadProfileImage())

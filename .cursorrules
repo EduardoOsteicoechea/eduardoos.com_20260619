@@ -33,7 +33,7 @@
 ## 4. Network & Gateway Architecture
 - Nginx & Certbot: Nginx acts as the primary reverse proxy and entry point. Port 80 redirects to HTTPS (Port 443).
 - Backend (API Gateway): The `backend` is the only public-facing API. 
-- Public Endpoints: The gateway MUST explicitly bypass authentication for `/api/auth/login`, `/api/auth/register`, `/api/auth/verify-otp`, service `/health`, the observability endpoints `/api/tester` and `/api/logger`, and payment routes `/api/payments/intents`, `/api/payments/status/*`, and `/api/payments/webhook/paypal`.
+- Public Endpoints: The gateway MUST explicitly bypass authentication for `/api/auth/login`, `/api/auth/register`, `/api/auth/verify-otp`, `/api/auth/forgot-password`, `/api/auth/reset-password`, service `/health`, the observability endpoints `/api/tester` and `/api/logger`, and payment routes `/api/payments/intents`, `/api/payments/status/*`, and `/api/payments/webhook/paypal`.
 - Observability Proxy: `/api/tester` proxies to the internal `tester` microservice. `/api/logger` proxies to the `telemetry` microservice.
 - Payments Proxy: `/api/payments/*` proxies to the internal `payments` microservice. PayPal IPN hits `/api/payments/webhook/paypal`.
 

@@ -63,6 +63,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
         if (next && next.startsWith("/")) {
             setRedirectTo(next);
         }
+        if (params.get("reset") === "1") {
+            setMessage("Password updated. Sign in with your new password.");
+        }
         const fromUrl = readOtpStepFromUrl();
         if (fromUrl.step === "otp") {
             setStep("otp");
@@ -204,5 +207,10 @@ export default function AuthForm({ mode }: AuthFormProps) {
             Back
           </button>)}
       </div>
+      {mode === "login" && !showOtpField && (
+        <p className="auth-form__links">
+          <a href={APP_ROUTES.resetPassword}>Forgot password?</a>
+        </p>
+      )}
     </form>);
 }

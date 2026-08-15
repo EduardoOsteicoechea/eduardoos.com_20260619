@@ -19,3 +19,14 @@
   letter-spacing: 0.2em;
   text-align: center;
 }
+
+.auth-form__links {
+  margin: 1rem 0 0;
+  font-size: var(--font-sm);
+}
+
+.auth-form__links a {
+  color: var(--site-accent, var(--site-body-fg));
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}

@@ -26,6 +26,9 @@ type Store interface {
 	GetOTP(ctx context.Context, email string) (string, bool, error)
 	PutOTP(ctx context.Context, email, otp string) error
 	DeleteOTP(ctx context.Context, email string) error
+	GetResetOTP(ctx context.Context, email string) (string, bool, error)
+	PutResetOTP(ctx context.Context, email, otp string) error
+	DeleteResetOTP(ctx context.Context, email string) error
 	BackendName() string
 }
 
@@ -35,7 +38,7 @@ func NormalizeEmail(email string) string {
 
 func New(databaseURL, internalSecret string) Store {
 	if strings.TrimSpace(databaseURL) == "" {
-		return &memoryStore{users: map[string]User{}, otps: map[string]string{}}
+		return &memoryStore{users: map[string]User{}, otps: map[string]string{}, resetOtps: map[string]string{}}
 	}
 	return &databaseStore{
 		baseURL: strings.TrimRight(databaseURL, "/"),
@@ -44,9 +47,10 @@ func New(databaseURL, internalSecret string) Store {
 }
 
 type memoryStore struct {
-	mu    sync.RWMutex
-	users map[string]User
-	otps  map[string]string
+	mu        sync.RWMutex
+	users     map[string]User
+	otps      map[string]string
+	resetOtps map[string]string
 }
 
 func (m *memoryStore) BackendName() string { return "memory" }
@@ -92,6 +96,30 @@ func (m *memoryStore) DeleteOTP(_ context.Context, email string) error {
 	return nil
 }
 
+func (m *memoryStore) GetResetOTP(_ context.Context, email string) (string, bool, error) {
+	email = NormalizeEmail(email)
+	m.mu.RLock()
+	otp, ok := m.resetOtps[email]
+	m.mu.RUnlock()
+	return otp, ok, nil
+}
+
+func (m *memoryStore) PutResetOTP(_ context.Context, email, otp string) error {
+	email = NormalizeEmail(email)
+	m.mu.Lock()
+	m.resetOtps[email] = otp
+	m.mu.Unlock()
+	return nil
+}
+
+func (m *memoryStore) DeleteResetOTP(_ context.Context, email string) error {
+	email = NormalizeEmail(email)
+	m.mu.Lock()
+	delete(m.resetOtps, email)
+	m.mu.Unlock()
+	return nil
+}
+
 type databaseStore struct {
 	baseURL string
 	secret  string
@@ -133,8 +161,28 @@ func (d *databaseStore) DeleteOTP(ctx context.Context, email string) error {
 	return d.putJSON(ctx, otpKey(NormalizeEmail(email)), "")
 }
 
-func userKey(email string) string { return "user:" + NormalizeEmail(email) }
-func otpKey(email string) string  { return "otp:" + NormalizeEmail(email) }
+func (d *databaseStore) GetResetOTP(ctx context.Context, email string) (string, bool, error) {
+	email = NormalizeEmail(email)
+	var otp string
+	ok, err := d.getJSON(ctx, resetOtpKey(email), &otp)
+	if err != nil || !ok || strings.TrimSpace(otp) == "" {
+		return "", false, err
+	}
+	return otp, true, nil
+}
+
+func (d *databaseStore) PutResetOTP(ctx context.Context, email, otp string) error {
+	email = NormalizeEmail(email)
+	return d.putJSON(ctx, resetOtpKey(email), otp)
+}
+
+func (d *databaseStore) DeleteResetOTP(ctx context.Context, email string) error {
+	return d.putJSON(ctx, resetOtpKey(NormalizeEmail(email)), "")
+}
+
+func userKey(email string) string     { return "user:" + NormalizeEmail(email) }
+func otpKey(email string) string      { return "otp:" + NormalizeEmail(email) }
+func resetOtpKey(email string) string { return "otp-reset:" + NormalizeEmail(email) }
 
 func (d *databaseStore) getJSON(ctx context.Context, key string, dest any) (bool, error) {
 	payload, _ := json.Marshal(map[string]string{"key": key})

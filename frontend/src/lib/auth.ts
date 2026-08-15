@@ -19,6 +19,8 @@ export const AUTH_ROUTES = {
     register: "/api/auth/register",
     login: "/api/auth/login",
     verifyOtp: "/api/auth/verify-otp",
+    forgotPassword: "/api/auth/forgot-password",
+    resetPassword: "/api/auth/reset-password",
     logout: "/api/auth/logout",
     profile: "/api/auth/profile",
     profileImage: "/api/auth/profile/image",
@@ -169,6 +171,50 @@ export async function verifyOtp(payload: OtpVerification, fetchFn?: typeof fetch
         saveAuthToken(response.data!.token!.trim());
     }
     return { result: response.data ?? null, log };
+}
+export async function requestPasswordReset(email: string, fetchFn?: typeof fetch): Promise<{
+    result: AuthSuccess | null;
+    log: FlightLogEntry;
+    error?: ApiError;
+}> {
+    const correlationId = createCorrelationId();
+    const started = buildFlightLog("auth.forgot-password", "started", correlationId, { email });
+    await emitFlightLog(started, fetchFn);
+    const response = await apiRequest<AuthSuccess>(AUTH_ROUTES.forgotPassword, {
+        method: "POST",
+        body: { email },
+        correlationId,
+        fetchFn,
+    });
+    const log = buildFlightLog("auth.forgot-password", response.error ? "error" : "success", correlationId, { email });
+    await emitFlightLog(log, fetchFn);
+    return { result: response.data ?? null, log, error: response.error };
+}
+export async function confirmPasswordReset(payload: {
+    email: string;
+    otp: string;
+    password: string;
+}, fetchFn?: typeof fetch): Promise<{
+    result: AuthSuccess | null;
+    log: FlightLogEntry;
+    error?: ApiError;
+}> {
+    const correlationId = createCorrelationId();
+    const started = buildFlightLog("auth.reset-password", "started", correlationId, {
+        email: payload.email,
+    });
+    await emitFlightLog(started, fetchFn);
+    const response = await apiRequest<AuthSuccess>(AUTH_ROUTES.resetPassword, {
+        method: "POST",
+        body: payload,
+        correlationId,
+        fetchFn,
+    });
+    const log = buildFlightLog("auth.reset-password", response.error ? "error" : "success", correlationId, {
+        email: payload.email,
+    });
+    await emitFlightLog(log, fetchFn);
+    return { result: response.data ?? null, log, error: response.error };
 }
 export async function logoutUser(fetchFn?: typeof fetch): Promise<{
     result: AuthSuccess | null;

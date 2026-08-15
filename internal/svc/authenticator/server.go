@@ -1,12 +1,13 @@
 package authenticator
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"net/smtp"
 	"strings"
@@ -19,6 +20,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+const minPasswordLen = 8
 
 type state struct {
 	store     authstore.Store
@@ -51,6 +54,8 @@ func Run(addr string) error {
 		r.Post("/register", st.register)
 		r.Post("/login", st.login)
 		r.Post("/verify-otp", st.verifyOTP)
+		r.Post("/forgot-password", st.forgotPassword)
+		r.Post("/reset-password", st.resetPassword)
 		r.Post("/logout", st.logout)
 		r.Post("/user-exists", st.userExists)
 		r.Get("/profile", st.getProfile)
@@ -67,6 +72,14 @@ func hashPassword(pw string) string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
+func generateOTP() string {
+	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return fmt.Sprintf("%06d", time.Now().UnixNano()%1000000)
+	}
+	return fmt.Sprintf("%06d", n.Int64())
+}
+
 func (s *state) register(w http.ResponseWriter, r *http.Request) {
 	cid := common.CorrelationFromRequest(r)
 	var body struct {
@@ -81,7 +94,7 @@ func (s *state) register(w http.ResponseWriter, r *http.Request) {
 	email := authstore.NormalizeEmail(body.Email)
 	log.Printf("[correlation=%s] register started email=%s store=%s", cid, email, s.store.BackendName())
 
-	otp := fmt.Sprintf("%06d", rand.Intn(1000000))
+	otp := generateOTP()
 	user := authstore.User{
 		Email:        email,
 		PasswordHash: hashPassword(body.Password),
@@ -101,6 +114,107 @@ func (s *state) register(w http.ResponseWriter, r *http.Request) {
 	s.report(r, "auth.register", "success", email)
 	log.Printf("[correlation=%s] register success email=%s verified=false", cid, email)
 	common.WriteJSON(w, http.StatusOK, map[string]any{"message": "OTP sent to email", "token": nil})
+}
+
+func (s *state) forgotPassword(w http.ResponseWriter, r *http.Request) {
+	cid := common.CorrelationFromRequest(r)
+	var body struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		common.WriteError(w, http.StatusBadRequest, "invalid request")
+		return
+	}
+	email := authstore.NormalizeEmail(body.Email)
+	if !strings.Contains(email, "@") {
+		common.WriteError(w, http.StatusBadRequest, "invalid email")
+		return
+	}
+	log.Printf("[correlation=%s] forgot-password started email=%s", cid, email)
+
+	user, ok, err := s.store.GetUser(r.Context(), email)
+	if err != nil {
+		log.Printf("[correlation=%s] forgot-password get user failed email=%s err=%v", cid, email, err)
+		common.WriteError(w, http.StatusInternalServerError, "reset unavailable")
+		return
+	}
+	if ok && user.Email != "" {
+		otp := generateOTP()
+		if err := s.store.PutResetOTP(r.Context(), email, otp); err != nil {
+			log.Printf("[correlation=%s] forgot-password put otp failed email=%s err=%v", cid, email, err)
+			common.WriteError(w, http.StatusInternalServerError, "could not store reset code")
+			return
+		}
+		s.sendResetOTP(email, otp)
+		s.report(r, "auth.forgot-password", "success", email)
+		log.Printf("[correlation=%s] forgot-password code sent email=%s", cid, email)
+	} else {
+		s.report(r, "auth.forgot-password", "success", email)
+		log.Printf("[correlation=%s] forgot-password no account email=%s (generic ok)", cid, email)
+	}
+	common.WriteJSON(w, http.StatusOK, map[string]any{
+		"message": "If that email is registered, we sent a reset code.",
+	})
+}
+
+func (s *state) resetPassword(w http.ResponseWriter, r *http.Request) {
+	cid := common.CorrelationFromRequest(r)
+	var body struct {
+		Email    string `json:"email"`
+		OTP      string `json:"otp"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		common.WriteError(w, http.StatusBadRequest, "invalid request")
+		return
+	}
+	email := authstore.NormalizeEmail(body.Email)
+	otp := strings.TrimSpace(body.OTP)
+	password := body.Password
+	if !strings.Contains(email, "@") {
+		common.WriteError(w, http.StatusBadRequest, "invalid email")
+		return
+	}
+	if len(otp) != 6 {
+		common.WriteError(w, http.StatusBadRequest, "invalid otp")
+		return
+	}
+	if len(password) < minPasswordLen {
+		common.WriteError(w, http.StatusBadRequest, "password must be at least 8 characters")
+		return
+	}
+	log.Printf("[correlation=%s] reset-password attempt email=%s", cid, email)
+
+	storedOTP, ok, err := s.store.GetResetOTP(r.Context(), email)
+	if err != nil {
+		log.Printf("[correlation=%s] reset-password get otp failed email=%s err=%v", cid, email, err)
+		common.WriteError(w, http.StatusInternalServerError, "reset unavailable")
+		return
+	}
+	if !ok || storedOTP != otp {
+		log.Printf("[correlation=%s] reset-password rejected invalid_otp email=%s", cid, email)
+		common.WriteError(w, http.StatusUnauthorized, "invalid otp")
+		return
+	}
+	user, found, err := s.store.GetUser(r.Context(), email)
+	if err != nil || !found {
+		log.Printf("[correlation=%s] reset-password user missing email=%s found=%t err=%v", cid, email, found, err)
+		common.WriteError(w, http.StatusUnauthorized, "account not found")
+		return
+	}
+	user.PasswordHash = hashPassword(password)
+	user.Verified = true
+	if err := s.store.PutUser(r.Context(), user); err != nil {
+		log.Printf("[correlation=%s] reset-password put user failed email=%s err=%v", cid, email, err)
+		common.WriteError(w, http.StatusInternalServerError, "could not update password")
+		return
+	}
+	_ = s.store.DeleteResetOTP(r.Context(), email)
+	s.report(r, "auth.reset-password", "success", email)
+	log.Printf("[correlation=%s] reset-password success email=%s", cid, email)
+	common.WriteJSON(w, http.StatusOK, map[string]any{
+		"message": "Password updated. You can sign in.",
+	})
 }
 
 func (s *state) login(w http.ResponseWriter, r *http.Request) {
@@ -249,15 +363,13 @@ func (s *state) issueJWT(email string) (string, error) {
 }
 
 func (s *state) sendOTP(email, otp string) {
-	if s.smtpPass == "" {
-		log.Printf("OTP for %s: %s (SMTP_PASS empty)", email, otp)
-		return
-	}
-	msg := []byte(fmt.Sprintf("To: %s\r\nSubject: Eduardo OS OTP\r\n\r\nYour code: %s\r\n", email, otp))
-	auth := smtp.PlainAuth("", s.smtpUser, s.smtpPass, "smtp.gmail.com")
-	if err := smtp.SendMail("smtp.gmail.com:587", auth, s.smtpUser, []string{email}, msg); err != nil {
-		log.Printf("smtp send failed email=%s err=%v", email, err)
-	}
+	_ = s.sendPlainMail(email, "Eduardo OS OTP", "Your code: "+otp+"\r\n")
+}
+
+func (s *state) sendResetOTP(email, otp string) {
+	body := "Use this code to reset your Eduardo OS password:\r\n\r\n" + otp +
+		"\r\n\r\nIf you did not request this, you can ignore this email.\r\n"
+	_ = s.sendPlainMail(email, "Eduardo OS password reset", body)
 }
 
 func (s *state) report(r *http.Request, event, status, email string) {

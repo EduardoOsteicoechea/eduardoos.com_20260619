@@ -4,6 +4,7 @@ export const APP_ROUTES = {
     login: "/auth/login",
     register: "/auth/register",
     verifyOtp: "/auth/verify-otp",
+    resetPassword: "/auth/reset-password",
     logger: "/observability/logger",
     tester: "/observability/tester",
     subscription: "/payments/subscription",
