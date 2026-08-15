@@ -41,11 +41,9 @@ export const APS_ROUTES = {
   hubs: "/api/aps/hubs",
   projects: (hubId: string) =>
     `/api/aps/hubs/${encodeURIComponent(hubId)}/projects`,
-  contents: (hubId: string, projectId: string, folderId?: string) => {
-    const base = `/api/aps/hubs/${encodeURIComponent(hubId)}/projects/${encodeURIComponent(projectId)}/contents`;
-    if (!folderId) return base;
-    return `${base}?folderId=${encodeURIComponent(folderId)}`;
-  },
+  /** Matches Next backend: GET /api/aps/projects/{projectId}/contents?folderId= */
+  contents: (projectId: string, folderId: string) =>
+    `/api/aps/projects/${encodeURIComponent(projectId)}/contents?folderId=${encodeURIComponent(folderId)}`,
 } as const;
 
 export const CONTACT_API_ROUTES = {
@@ -59,6 +57,17 @@ export const BIM_ROUTES = {
   file: (modelId: string) =>
     `/api/bim/models/${encodeURIComponent(modelId)}/file`,
   item: (modelId: string) => `/api/bim/models/${encodeURIComponent(modelId)}`,
+} as const;
+
+export const EPAM_ROUTES = {
+  list: "/api/epams",
+  save: "/api/epams",
+  item: (epamId: string) => `/api/epams/${encodeURIComponent(epamId)}`,
+} as const;
+
+export const PLAYLIST_ROUTES = {
+  list: "/api/playlists",
+  save: "/api/playlists",
 } as const;
 
 export const PAYMENT_ROUTES = {

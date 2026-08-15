@@ -1,16 +1,8 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import BimPage from "../components/Bim/BimPage";
 ---
 
 <BaseLayout title="OpenBIM — Eduardo OS Next" requireAuth={true}>
-  <div class="page-shell">
-    <div class="page-stub">
-      <p class="page-stub__brand">OpenBIM</p>
-      <h1 class="page-stub__title">IFC models</h1>
-      <p class="page-stub__lead">
-        Authenticated BIM viewer and model library will mount here. Upload and
-        list routes target <code>/api/bim/models</code>.
-      </p>
-    </div>
-  </div>
+  <BimPage client:load />
 </BaseLayout>

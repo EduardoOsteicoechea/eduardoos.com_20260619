@@ -1,0 +1,129 @@
+.pamphlet-page {
+  display: grid;
+  gap: 1rem;
+  width: min(100%, var(--max_desktop_width));
+  margin: 0 auto;
+  padding: 1rem var(--page-inline-pad) 2.5rem;
+}
+
+.pamphlet-page--gate {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 36rem;
+}
+
+.pamphlet-page__brand {
+  margin: 0;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-meta-fg);
+}
+
+.pamphlet-page__title {
+  margin: 0;
+  font-family: Montserrat, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.pamphlet-page__lead {
+  margin: 0;
+  line-height: 1.55;
+  color: var(--site-meta-fg);
+  font-size: var(--font-sm);
+}
+
+.pamphlet-page__cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 900px) {
+  .pamphlet-page:not(.pamphlet-page--gate) {
+    grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr);
+  }
+}
+
+.pamphlet-page__list-pane,
+.pamphlet-page__editor {
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  padding: 1rem;
+  background: var(--glassed_background);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pamphlet-page__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pamphlet-page__status {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--site-meta-fg);
+}
+
+.pamphlet-page__error {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--site-danger);
+  white-space: pre-wrap;
+}
+
+.pamphlet-page__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: min(50vh, 28rem);
+  overflow: auto;
+}
+
+.pamphlet-page__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  border-radius: var(--border_radius_001);
+  background: transparent;
+  color: var(--site-body-fg);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pamphlet-page__item:hover,
+.pamphlet-page__item.is-active {
+  background: color-mix(in srgb, var(--site-accent) 14%, transparent);
+}
+
+.pamphlet-page__item-title {
+  font-size: var(--font-sm);
+  font-weight: 700;
+}
+
+.pamphlet-page__item-meta {
+  font-size: var(--font-xs);
+  color: var(--site-muted-fg);
+}
+
+.pamphlet-page__textarea {
+  min-height: 18rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  resize: vertical;
+}

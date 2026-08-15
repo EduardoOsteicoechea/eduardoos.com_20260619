@@ -217,3 +217,52 @@
 .contact-page__channels a {
   color: var(--site-body-fg);
 }
+
+.product-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 40rem;
+}
+
+.product-page__brand {
+  margin: 0;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-meta-fg);
+}
+
+.product-page__title {
+  margin: 0;
+  font-family: Montserrat, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.product-page__lead {
+  margin: 0;
+  line-height: 1.55;
+  color: var(--site-meta-fg);
+}
+
+.product-page__list {
+  margin: 0;
+  padding-left: 1.1rem;
+  line-height: 1.55;
+  color: var(--site-meta-fg);
+}
+
+.product-page__cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.product-page__note {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--site-muted-fg);
+}

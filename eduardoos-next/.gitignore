@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+.DS_Store
+*.exe
+.env
+.env.*
+!.env.example
+backend/bin/

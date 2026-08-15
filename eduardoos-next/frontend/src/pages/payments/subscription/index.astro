@@ -1,16 +1,35 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { APP_ROUTES } from "../../../config/routes";
 ---
 
 <BaseLayout title="Subscribe — Eduardo OS Next">
   <div class="page-shell">
-    <div class="page-stub">
-      <p class="page-stub__brand">Payments</p>
-      <h1 class="page-stub__title">Subscription</h1>
-      <p class="page-stub__lead">
-        PayPal subscription intents and entitlements stub. Intents:
+    <article class="product-page">
+      <p class="product-page__brand">Payments</p>
+      <h1 class="product-page__title">Subscription</h1>
+      <p class="product-page__lead">
+        Monthly basic access is sold through PayPal hosted buttons. Sign in so
+        payment intents can attach to your verified email via
         <code>/api/payments/intents</code>.
       </p>
-    </div>
+      <ul class="product-page__list">
+        <li>Intent creation linked to your account email</li>
+        <li>Status polling after checkout</li>
+        <li>Entitlements unlock product surfaces</li>
+      </ul>
+      <div class="product-page__cta-row">
+        <a
+          class="btn btn--primary"
+          href={`${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.subscription)}`}
+        >
+          Sign in to subscribe
+        </a>
+        <a class="btn" href={APP_ROUTES.contact}>Talk to Eduardo</a>
+      </div>
+      <p class="product-page__note">
+        PayPal button embed and intent form mount when the payments Next routes are fully enabled.
+      </p>
+    </article>
   </div>
 </BaseLayout>

@@ -2,7 +2,7 @@
  * APS admin panel (allowlisted email):
  * 1) Trigger Design Automation workitem + poll
  * 2) Registry: app bundles / activities / engines
- * 3) Hub explorer: hubs → projects → folder contents
+ * 3) Hub explorer: hubs → projects → folder contents (folderId required)
  */
 
 import { useEffect, useState } from "react";
@@ -13,7 +13,7 @@ import {
   isApsAdminEmail,
   isAuthenticated,
 } from "../../lib/auth";
-import { apiRequest, formatApiError } from "../../lib/api";
+import { apiRequest, formatApiError, type ApiError } from "../../lib/api";
 import { createCorrelationId } from "../../lib/correlation";
 import "./ApsAdminPage.css";
 
@@ -66,17 +66,27 @@ type ContentItem = {
   };
 };
 
-type ListResponse<T> = {
-  data?: T[];
-  items?: T[];
-  message?: string;
-};
-
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function itemName(item: { name?: string; attributes?: { name?: string; displayName?: string } }) {
+function formatApsError(error: ApiError): string {
+  if (error.status === 503) {
+    return [
+      "APS not configured (HTTP 503).",
+      "Set APS_CLIENT_ID, APS_CLIENT_SECRET, and APS_ACTIVITY_ID on the Next backend, then retry.",
+      error.message,
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
+  return formatApiError(error);
+}
+
+function itemName(item: {
+  name?: string;
+  attributes?: { name?: string; displayName?: string };
+}) {
   return (
     item.name ||
     item.attributes?.displayName ||
@@ -86,10 +96,12 @@ function itemName(item: { name?: string; attributes?: { name?: string; displayNa
   );
 }
 
-function unwrapList<T>(payload: ListResponse<T> | undefined): T[] {
+function unwrapList<T>(payload: unknown): T[] {
   if (!payload) return [];
-  if (Array.isArray(payload.data)) return payload.data;
-  if (Array.isArray(payload.items)) return payload.items;
+  if (Array.isArray(payload)) return payload as T[];
+  const obj = payload as { data?: T[]; items?: T[] };
+  if (Array.isArray(obj.data)) return obj.data;
+  if (Array.isArray(obj.items)) return obj.items;
   return [];
 }
 
@@ -109,6 +121,7 @@ export default function ApsAdminPage() {
   const [contents, setContents] = useState<ContentItem[]>([]);
   const [selectedHubId, setSelectedHubId] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [folderIdInput, setFolderIdInput] = useState("");
   const [folderStack, setFolderStack] = useState<Array<{ id: string; name: string }>>([]);
   const [explorerLoading, setExplorerLoading] = useState(false);
   const [explorerError, setExplorerError] = useState("");
@@ -129,19 +142,18 @@ export default function ApsAdminPage() {
     setPayload(null);
     setStatusLabel("Submitting WorkItem…");
     const authToken = getAuthToken();
-    const correlationId = createCorrelationId();
 
     const submitted = await apiRequest<TriggerResponse>(APS_ROUTES.triggerWorkItem, {
       method: "POST",
       body: { inputObjectKey: DEFAULT_INPUT_KEY },
-      correlationId,
+      correlationId: createCorrelationId(),
       authToken,
     });
 
     if (submitted.error || !submitted.data?.workItemId) {
       const detail = submitted.error
-        ? formatApiError(submitted.error)
-        : "WorkItem submit failed";
+        ? formatApsError(submitted.error)
+        : "WorkItem submit failed — no workItemId in response";
       setError(detail);
       setPayload({ error: submitted.error, data: submitted.data ?? null });
       setLoading(false);
@@ -166,7 +178,7 @@ export default function ApsAdminPage() {
       );
 
       if (statusRes.error) {
-        setError(formatApiError(statusRes.error));
+        setError(formatApsError(statusRes.error));
         setPayload({ error: statusRes.error, data: statusRes.data ?? null });
         setLoading(false);
         setStatusLabel("");
@@ -192,14 +204,13 @@ export default function ApsAdminPage() {
   async function loadRegistry() {
     setRegistryLoading(true);
     setRegistryError("");
-    const authToken = getAuthToken();
     const res = await apiRequest<RegistryResponse>(APS_ROUTES.registry, {
       method: "GET",
       correlationId: createCorrelationId(),
-      authToken,
+      authToken: getAuthToken(),
     });
     if (res.error) {
-      setRegistryError(formatApiError(res.error));
+      setRegistryError(formatApsError(res.error));
       setRegistry(null);
     } else {
       setRegistry(res.data ?? null);
@@ -215,17 +226,17 @@ export default function ApsAdminPage() {
     setSelectedHubId("");
     setSelectedProjectId("");
     setFolderStack([]);
-    const authToken = getAuthToken();
-    const res = await apiRequest<ListResponse<HubItem>>(APS_ROUTES.hubs, {
+    setFolderIdInput("");
+    const res = await apiRequest<unknown>(APS_ROUTES.hubs, {
       method: "GET",
       correlationId: createCorrelationId(),
-      authToken,
+      authToken: getAuthToken(),
     });
     if (res.error) {
-      setExplorerError(formatApiError(res.error));
+      setExplorerError(formatApsError(res.error));
       setHubs([]);
     } else {
-      setHubs(unwrapList(res.data));
+      setHubs(unwrapList<HubItem>(res.data));
     }
     setExplorerLoading(false);
   }
@@ -237,61 +248,68 @@ export default function ApsAdminPage() {
     setSelectedProjectId("");
     setContents([]);
     setFolderStack([]);
-    const authToken = getAuthToken();
-    const res = await apiRequest<ListResponse<ProjectItem>>(APS_ROUTES.projects(hubId), {
+    setFolderIdInput("");
+    const res = await apiRequest<unknown>(APS_ROUTES.projects(hubId), {
       method: "GET",
       correlationId: createCorrelationId(),
-      authToken,
+      authToken: getAuthToken(),
     });
     if (res.error) {
-      setExplorerError(formatApiError(res.error));
+      setExplorerError(formatApsError(res.error));
       setProjects([]);
     } else {
-      setProjects(unwrapList(res.data));
+      setProjects(unwrapList<ProjectItem>(res.data));
     }
     setExplorerLoading(false);
   }
 
-  async function loadContents(hubId: string, projectId: string, folderId?: string) {
+  async function loadContents(projectId: string, folderId: string) {
+    const trimmed = folderId.trim();
+    if (!trimmed) {
+      setExplorerError(
+        "folderId is required. Paste a Data Management folder URN, then load contents.",
+      );
+      return;
+    }
     setExplorerLoading(true);
     setExplorerError("");
     setSelectedProjectId(projectId);
-    const authToken = getAuthToken();
-    const res = await apiRequest<ListResponse<ContentItem>>(
-      APS_ROUTES.contents(hubId, projectId, folderId),
-      {
-        method: "GET",
-        correlationId: createCorrelationId(),
-        authToken,
-      },
-    );
+    const res = await apiRequest<unknown>(APS_ROUTES.contents(projectId, trimmed), {
+      method: "GET",
+      correlationId: createCorrelationId(),
+      authToken: getAuthToken(),
+    });
     if (res.error) {
-      setExplorerError(formatApiError(res.error));
+      setExplorerError(formatApsError(res.error));
       setContents([]);
     } else {
-      setContents(unwrapList(res.data));
+      setContents(unwrapList<ContentItem>(res.data));
     }
     setExplorerLoading(false);
   }
 
   function openFolder(item: ContentItem) {
-    if (!selectedHubId || !selectedProjectId || !item.id) return;
+    if (!selectedProjectId || !item.id) return;
     const name = itemName(item);
     setFolderStack((stack) => [...stack, { id: item.id!, name }]);
-    void loadContents(selectedHubId, selectedProjectId, item.id);
+    setFolderIdInput(item.id);
+    void loadContents(selectedProjectId, item.id);
   }
 
   function goToFolderDepth(depth: number) {
-    if (!selectedHubId || !selectedProjectId) return;
+    if (!selectedProjectId) return;
     if (depth < 0) {
       setFolderStack([]);
-      void loadContents(selectedHubId, selectedProjectId);
+      if (folderIdInput.trim()) {
+        void loadContents(selectedProjectId, folderIdInput);
+      }
       return;
     }
     const next = folderStack.slice(0, depth + 1);
     setFolderStack(next);
-    const folderId = next[next.length - 1]?.id;
-    void loadContents(selectedHubId, selectedProjectId, folderId);
+    const folderId = next[next.length - 1]?.id ?? "";
+    setFolderIdInput(folderId);
+    void loadContents(selectedProjectId, folderId);
   }
 
   function isFolder(item: ContentItem): boolean {
@@ -310,7 +328,8 @@ export default function ApsAdminPage() {
           Unauthorized
         </h1>
         <p className="aps-admin__lead">
-          This page is restricted. Your account does not have access.
+          This page is restricted to the APS admin allowlist
+          (<code>eduardooost@gmail.com</code>).
         </p>
       </section>
     );
@@ -326,14 +345,15 @@ export default function ApsAdminPage() {
         APS Design Automation
       </h1>
       <p className="aps-admin__lead">
-        Trigger Revit Design Automation, inspect the DA registry, and browse ACC/BIM 360 hubs
-        so you can see how Autodesk Platform Services is wired.
+        Trigger Revit Design Automation, inspect the DA registry, and browse ACC/BIM 360 hubs.
+        Without APS credentials the Next backend returns <strong>HTTP 503</strong> with a clear
+        message — that is expected until env vars are set.
       </p>
 
       <div className="aps-admin__section">
         <h2 className="aps-admin__section-title">Trigger workitem</h2>
         <p className="aps-admin__lead">
-          Runs extraction on <code>{DEFAULT_INPUT_KEY}</code> in bucket <code>aps20250806</code>.
+          Submits activity work against <code>{DEFAULT_INPUT_KEY}</code> when credentials exist.
         </p>
         <button
           type="button"
@@ -349,7 +369,7 @@ export default function ApsAdminPage() {
               "Waiting for Autodesk Design Automation (can take several minutes)…"}
           </p>
         ) : null}
-        {error ? <p className="aps-admin__error">{error}</p> : null}
+        {error ? <p className="aps-admin__error" role="alert">{error}</p> : null}
         {payload !== null ? (
           <pre className="aps-admin__payload" tabIndex={0}>
             {JSON.stringify(payload, null, 2)}
@@ -370,7 +390,11 @@ export default function ApsAdminPage() {
         >
           {registryLoading ? "Loading registry…" : "Fetch registry"}
         </button>
-        {registryError ? <p className="aps-admin__error">{registryError}</p> : null}
+        {registryError ? (
+          <p className="aps-admin__error" role="alert">
+            {registryError}
+          </p>
+        ) : null}
         {registry ? (
           <div className="aps-admin__registry-grid">
             <div>
@@ -415,7 +439,8 @@ export default function ApsAdminPage() {
       <div className="aps-admin__section">
         <h2 className="aps-admin__section-title">Hub explorer</h2>
         <p className="aps-admin__lead">
-          Click hubs → projects → folders/files to understand the Data Management tree.
+          Click hubs → projects, then provide a <code>folderId</code> URN to list contents
+          (<code>GET /api/aps/projects/…/contents?folderId=</code>).
         </p>
         <button
           type="button"
@@ -425,7 +450,11 @@ export default function ApsAdminPage() {
         >
           {explorerLoading ? "Loading…" : "Load hubs"}
         </button>
-        {explorerError ? <p className="aps-admin__error">{explorerError}</p> : null}
+        {explorerError ? (
+          <p className="aps-admin__error" role="alert">
+            {explorerError}
+          </p>
+        ) : null}
 
         <div className="aps-admin__explorer">
           <div className="aps-admin__explorer-col">
@@ -473,7 +502,12 @@ export default function ApsAdminPage() {
                         disabled={!id || explorerLoading}
                         onClick={() => {
                           setFolderStack([]);
-                          void loadContents(selectedHubId, id);
+                          setContents([]);
+                          setSelectedProjectId(id);
+                          setFolderIdInput("");
+                          setExplorerError(
+                            "Enter a folderId URN below, then load contents for this project.",
+                          );
                         }}
                       >
                         {itemName(project)}
@@ -488,14 +522,30 @@ export default function ApsAdminPage() {
           <div className="aps-admin__explorer-col">
             <h3 className="aps-admin__subhead">Contents</h3>
             {selectedProjectId ? (
-              <nav className="aps-admin__crumbs" aria-label="Folder path">
+              <div className="aps-admin__folder-form">
+                <label htmlFor="aps-folder-id">folderId</label>
+                <input
+                  id="aps-folder-id"
+                  value={folderIdInput}
+                  onChange={(e) => setFolderIdInput(e.target.value)}
+                  placeholder="urn:adsk.wipprod:fs.folder:…"
+                  disabled={explorerLoading}
+                />
                 <button
                   type="button"
-                  className="aps-admin__crumb"
-                  onClick={() => goToFolderDepth(-1)}
+                  className="btn"
+                  disabled={explorerLoading || !folderIdInput.trim()}
+                  onClick={() => {
+                    setFolderStack([]);
+                    void loadContents(selectedProjectId, folderIdInput);
+                  }}
                 >
-                  Root
+                  Load folder
                 </button>
+              </div>
+            ) : null}
+            {selectedProjectId && folderStack.length > 0 ? (
+              <nav className="aps-admin__crumbs" aria-label="Folder path">
                 {folderStack.map((folder, index) => (
                   <button
                     key={folder.id}
@@ -503,7 +553,7 @@ export default function ApsAdminPage() {
                     className="aps-admin__crumb"
                     onClick={() => goToFolderDepth(index)}
                   >
-                    / {folder.name}
+                    {index === 0 ? folder.name : `/ ${folder.name}`}
                   </button>
                 ))}
               </nav>
@@ -512,7 +562,7 @@ export default function ApsAdminPage() {
               {!selectedProjectId ? (
                 <li className="aps-admin__muted">Select a project</li>
               ) : contents.length === 0 ? (
-                <li className="aps-admin__muted">Empty / unavailable</li>
+                <li className="aps-admin__muted">Empty / not loaded</li>
               ) : (
                 contents.map((item) => {
                   const folder = isFolder(item);

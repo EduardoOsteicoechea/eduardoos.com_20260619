@@ -1,0 +1,16 @@
+---
+description: Eduardo OS Next isolation — never touch production tree
+globs:
+  - eduardoos-next/**
+alwaysApply: false
+---
+
+# Eduardo OS Next
+
+When working under `eduardoos-next/`:
+
+1. Do **not** edit parent production paths (`frontend/`, `cmd/`, `internal/`, `pkg/`, `deploy/`, `.github/workflows/deploy.yml`, `nginx/`).
+2. Follow `.specify/memory/constitution.md` and the active feature in `.specify/feature.json`.
+3. Order: **spec → tests → code**.
+4. Preserve DynamoDB/S3 contracts in `specs/001-platform-parity/data-contracts.md`.
+5. Cutover only via `CUTOVER.md` after human approval.

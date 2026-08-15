@@ -1,15 +1,28 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { APP_ROUTES } from "../../config/routes";
 ---
 
 <BaseLayout title="Articles — Eduardo OS Next">
   <div class="page-shell">
-    <div class="page-stub">
-      <p class="page-stub__brand">Writing</p>
-      <h1 class="page-stub__title">Articles</h1>
-      <p class="page-stub__lead">
-        Article list and EPAM-backed readers will live here.
+    <article class="product-page">
+      <p class="product-page__brand">Writing</p>
+      <h1 class="product-page__title">Articles</h1>
+      <p class="product-page__lead">
+        Long-form notes on architecture, BIM, and software. The production
+        article API will feed this list; until then, open pamphlets for editable
+        cloud documents or sign in to prepare your session.
       </p>
-    </div>
+      <div class="product-page__cta-row">
+        <a class="btn btn--primary" href={`${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.articles)}`}>
+          Sign in for articles
+        </a>
+        <a class="btn" href={APP_ROUTES.pamphlet}>Cloud pamphlets</a>
+        <a class="btn" href={APP_ROUTES.homescool}>Homescool</a>
+      </div>
+      <p class="product-page__note">
+        Endpoint target: <code>/api/articles</code> (parity with production EPAM readers).
+      </p>
+    </article>
   </div>
 </BaseLayout>

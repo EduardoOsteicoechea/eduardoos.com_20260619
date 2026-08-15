@@ -1,16 +1,8 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import PamphletPage from "../../components/Pamphlet/PamphletPage";
 ---
 
 <BaseLayout title="Pamphlet — Eduardo OS Next">
-  <div class="page-shell">
-    <div class="page-stub">
-      <p class="page-stub__brand">Documents</p>
-      <h1 class="page-stub__title">Pamphlet editor</h1>
-      <p class="page-stub__lead">
-        Local-file pamphlet generator stub. Public for editor workflow; full
-        EPAM + PDF pipeline comes in a later Next task.
-      </p>
-    </div>
-  </div>
+  <PamphletPage client:load />
 </BaseLayout>

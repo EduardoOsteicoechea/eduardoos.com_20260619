@@ -1,16 +1,26 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { APP_ROUTES } from "../../config/routes";
 ---
 
 <BaseLayout title="Videos — Eduardo OS Next">
   <div class="page-shell">
-    <div class="page-stub">
-      <p class="page-stub__brand">Media</p>
-      <h1 class="page-stub__title">Gallery</h1>
-      <p class="page-stub__lead">
-        Media gallery stub for images and video objects from
-        <code>/api/media</code>.
+    <article class="product-page">
+      <p class="product-page__brand">Media</p>
+      <h1 class="product-page__title">Gallery</h1>
+      <p class="product-page__lead">
+        Images and short videos from the media library. Cloud objects will list
+        from <code>/api/media</code>; sign in to prepare upload entitlements.
       </p>
-    </div>
+      <div class="product-page__cta-row">
+        <a
+          class="btn btn--primary"
+          href={`${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.mediaGallery)}`}
+        >
+          Sign in
+        </a>
+        <a class="btn" href={APP_ROUTES.mediaPlaylist}>Music playlists</a>
+      </div>
+    </article>
   </div>
 </BaseLayout>
