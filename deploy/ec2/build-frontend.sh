@@ -98,6 +98,10 @@ df -h . || true
 install_deps
 
 export NODE_ENV=production
+# Small EC2 instances OOM on the Vite client pass (Three / That Open). Cap heap
+# explicitly; override with NODE_OPTIONS in the environment if needed.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1536}"
+echo "==> Astro build with NODE_OPTIONS=${NODE_OPTIONS}"
 # Tests run in GitHub Actions; EC2 deploy only builds static assets.
 npm run build
 

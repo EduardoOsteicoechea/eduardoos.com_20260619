@@ -226,6 +226,17 @@ install_host_backend() {
 # Backend first so API fixes (e.g. .epam uploads) ship even if Astro build fails.
 install_host_backend
 
+# DynamoDB / S3 markers before frontend so a Vite OOM cannot skip table creation.
+echo "==> Ensuring DynamoDB observability tables exist"
+bash deploy/aws/create-observability-tables.sh || echo "WARNING: could not create observability tables (check IAM)"
+
+echo "==> Ensuring DynamoDB edebats table exists"
+bash deploy/aws/create-edebats-table.sh || echo "WARNING: could not create eduardoos_edebats (check IAM)"
+
+echo "==> Ensuring DynamoDB ifcbim table and S3 ifcbim/ prefix exist"
+bash deploy/aws/create-ifcbim-table.sh || echo "WARNING: could not create eduardoos_ifcbim (check IAM)"
+bash deploy/aws/create-ifcbim-prefix.sh || echo "WARNING: could not create s3 ifcbim/ prefix (check IAM)"
+
 build_host_frontend() {
   chmod +x deploy/ec2/build-frontend.sh
   APP_DIR="${APP_DIR}" bash deploy/ec2/build-frontend.sh
@@ -237,16 +248,6 @@ docker builder prune -af || true
 "${COMPOSE[@]}" up -d
 
 issue_letsencrypt_cert || true
-
-echo "==> Ensuring DynamoDB observability tables exist"
-bash deploy/aws/create-observability-tables.sh || echo "WARNING: could not create observability tables (check IAM)"
-
-echo "==> Ensuring DynamoDB edebats table exists"
-bash deploy/aws/create-edebats-table.sh || echo "WARNING: could not create eduardoos_edebats (check IAM)"
-
-echo "==> Ensuring DynamoDB ifcbim table and S3 ifcbim/ prefix exist"
-bash deploy/aws/create-ifcbim-table.sh || echo "WARNING: could not create eduardoos_ifcbim (check IAM)"
-bash deploy/aws/create-ifcbim-prefix.sh || echo "WARNING: could not create s3 ifcbim/ prefix (check IAM)"
 
 echo "==> Deploy complete"
 "${COMPOSE[@]}" ps

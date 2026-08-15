@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import { isAuthenticated } from "../../lib/auth";
 import {
@@ -7,9 +7,9 @@ import {
   uploadBimModel,
   type IfcBimRecord,
 } from "../../lib/bim";
-import IfcViewer from "./IfcViewer";
 import "./BimPage.css";
 
+const IfcViewer = lazy(() => import("./IfcViewer"));
 function formatBytes(n: number): string {
   if (!n) return "";
   if (n < 1024) return `${n} B`;
@@ -127,10 +127,12 @@ export default function BimPage() {
       </aside>
       <section className="bim-page__viewer" aria-label="IFC viewer">
         {viewerStatus && <p className="bim-page__viewer-status">{viewerStatus}</p>}
-        <IfcViewer
-          buffer={ifcBytes}
-          modelName={models.find((m) => m.modelId === activeId)?.fileName || "model"}
-        />
+        <Suspense fallback={<p className="bim-page__viewer-status">Loading viewer…</p>}>
+          <IfcViewer
+            buffer={ifcBytes}
+            modelName={models.find((m) => m.modelId === activeId)?.fileName || "model"}
+          />
+        </Suspense>
       </section>
     </div>
   );

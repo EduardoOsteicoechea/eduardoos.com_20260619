@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# create-ifcbim-prefix.sh — S3 has no real folders; this writes a marker so prefix ifcbim/ exists.
+# create-ifcbim-prefix.sh — marker object under eduardoos20260607/ifcbim/
+# (NOT a separate S3 bucket named ifcbim).
 set -euo pipefail
 
 REGION="${AWS_REGION:-us-east-1}"

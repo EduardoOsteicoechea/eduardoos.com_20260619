@@ -4,7 +4,7 @@ This stack runs on **Graviton (arm64)** EC2 instances in **us-east-1** and uses:
 
 | Resource | Name | Purpose |
 |----------|------|---------|
-| S3 bucket | `eduardoos20260607` | Media under `media/`; IFC models under `ifcbim/` |
+| S3 bucket | `eduardoos20260607` | Media under `media/`; IFC models under **prefix** `ifcbim/` (not a separate bucket) |
 | DynamoDB | `eduardoos_catalog` | Generic app KV (payments, catalog) |
 | DynamoDB | `eduardoos_users` | Keys prefixed `user:` |
 | DynamoDB | `eduardoos_posts` | Keys prefixed `post:` |
@@ -42,6 +42,10 @@ bash deploy/aws/create-entitlements-table.sh
 bash deploy/aws/create-ifcbim-table.sh
 bash deploy/aws/create-ifcbim-prefix.sh
 ```
+
+**Do not create an S3 bucket named `ifcbim`.** IFC files live as keys
+`ifcbim/{user}/{modelId}.ifc` inside **`eduardoos20260607`**. The DynamoDB table
+you need is **`eduardoos_ifcbim`** (console: DynamoDB → Tables, not S3).
 
 Deploy on EC2 also runs this script when the instance role includes
 `CreateTable` / `UpdateTimeToLive` (see [`ec2-iam-policy.json`](./ec2-iam-policy.json)).
