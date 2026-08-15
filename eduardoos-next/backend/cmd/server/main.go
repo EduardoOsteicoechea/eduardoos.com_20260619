@@ -9,6 +9,8 @@ import (
 	"eduardoos.nex/internal/aps"
 	"eduardoos.nex/internal/auth"
 	"eduardoos.nex/internal/content"
+	"eduardoos.nex/internal/documents"
+	"eduardoos.nex/internal/edebat"
 	"eduardoos.nex/internal/health"
 	"eduardoos.nex/internal/httpx"
 	"eduardoos.nex/internal/payments"
@@ -52,6 +54,8 @@ func main() {
 		Client:    aps.NewClient(aps.LoadConfig()),
 	}
 	paymentsHandler := payments.NewHandler(jwtSecret, httpx.Env("PAYPAL_HOSTED_BUTTON_ID", "PLACEHOLDER_HOSTED_BUTTON"))
+	documentsHandler := documents.NewHandler(jwtSecret)
+	edebatHandler := edebat.NewHandler(jwtSecret)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -64,6 +68,8 @@ func main() {
 	contentHandler.Routes(r)
 	apsHandler.Routes(r)
 	paymentsHandler.Routes(r)
+	documentsHandler.Routes(r)
+	edebatHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
 	log.Printf("stores: auth=%s epams=%s ifcbim=%s", userStore.BackendName(), epamStore.BackendName(), bimStore.BackendName())

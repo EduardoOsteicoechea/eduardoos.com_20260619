@@ -50,11 +50,12 @@ Open [http://127.0.0.1:4322](http://127.0.0.1:4322). Browser calls stay same-ori
 ## Smoke checklist
 
 1. Register / login under `/auth/*` (token key: `eduardoos-next-auth-token`).
-2. `/documents/pamphlet` — visual pamphlet generator (create/open local + cloud EPAMs from toolbar).
+2. `/documents/pamphlet` — visual pamphlet generator (create/open local + cloud EPAMs from toolbar); Print downloads a stub PDF from `POST /api/documents/pamphlet/pdf`.
 3. `/media/musica` — list/create playlists; add track title/url; HTML5 audio when URL present.
 4. `/payments/subscription` — JWT prepare intent + PayPal hosted button (`PAYPAL_HOSTED_BUTTON_ID`).
 5. `/bim` — upload real IFC bytes (multipart), list, download; placeholder create still works.
-6. `/aps-admin` — admin email only; needs APS credentials for live Autodesk calls.
+6. `/edebat` — JWT list/create debates + append role/text turns (memory store).
+7. `/aps-admin` — admin email only; needs APS credentials for live Autodesk calls.
 
 Optional BIM S3: set `IFCBIM_S3_BUCKET` (or `S3_BUCKET`) plus AWS creds so IFC objects land under `ifcbim/`.
 

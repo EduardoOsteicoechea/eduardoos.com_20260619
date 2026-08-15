@@ -1,27 +1,8 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { APP_ROUTES } from "../config/routes";
+import EdebatPage from "../components/Edebat/EdebatPage";
 ---
 
 <BaseLayout title="Edebat — Eduardo OS Next">
-  <div class="page-shell">
-    <article class="product-page">
-      <p class="product-page__brand">Personal</p>
-      <h1 class="product-page__title">Edebat</h1>
-      <p class="product-page__lead">
-        Structured debates with turns, surrender, and transcript history.
-        Authentication is required before opening a room; the Next API surface
-        mirrors production <code>/api/edebat</code> once that handler lands.
-      </p>
-      <div class="product-page__cta-row">
-        <a class="btn btn--primary" href={`${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.edebat)}`}>
-          Sign in to debate
-        </a>
-        <a class="btn" href={APP_ROUTES.contact}>Ask via contact</a>
-      </div>
-      <p class="product-page__note">
-        Until the edebat service is wired in Next, this page is the product chrome and entry gate.
-      </p>
-    </article>
-  </div>
+  <EdebatPage client:load />
 </BaseLayout>

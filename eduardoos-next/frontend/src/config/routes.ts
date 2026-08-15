@@ -70,6 +70,13 @@ export const DOCUMENT_ROUTES = {
   pamphletPdf: "/api/documents/pamphlet/pdf",
 } as const;
 
+export const EDEBAT_ROUTES = {
+  list: "/api/edebat",
+  create: "/api/edebat",
+  item: (id: string) => `/api/edebat/${encodeURIComponent(id)}`,
+  turn: (id: string) => `/api/edebat/${encodeURIComponent(id)}/turn`,
+} as const;
+
 export const PLAYLIST_ROUTES = {
   list: "/api/playlists",
   save: "/api/playlists",

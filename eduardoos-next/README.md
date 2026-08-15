@@ -39,9 +39,9 @@ Usable UI shell with production IA:
 - **Auth**: login / register / verify-otp / reset-password forms
 - **Contact**: `ContactAgent` (docked optional on home desktop)
 - **APS admin**: workitem trigger + registry panel + hub explorer
-- **Wired**: pamphlet visual generator (`src/lib/pamphlet-generator`, mount on `/documents/pamphlet` with cloud EPAMs via `/api/epams`), music playlist list/create/add-track + HTML5 audio, subscription intents + PayPal hosted button placeholder, OpenBIM upload/list/download of real IFC bytes (memory; optional `IFCBIM_S3_BUCKET`)
-- **Stubs**: articles, edebat, homescool, gallery, profile
-- **Deferred**: That Open / web-ifc 3D viewer (build-memory risk); pamphlet PDF print route until documents service lands; PayPal IPN webhook + Dynamo payment/entitlement stores
+- **Wired**: pamphlet visual generator (`src/lib/pamphlet-generator`, mount on `/documents/pamphlet` with cloud EPAMs via `/api/epams`; Print → stub `POST /api/documents/pamphlet/pdf`), music playlist list/create/add-track + HTML5 audio, subscription intents + PayPal hosted button placeholder, OpenBIM upload/list/download of real IFC bytes (memory; optional `IFCBIM_S3_BUCKET`), edebat list/create/turn (memory)
+- **Stubs**: articles, homescool, gallery, profile
+- **Deferred**: That Open / web-ifc 3D viewer (build-memory risk); full pamphlet PDF layout parity with production `pkg/pdf`; PayPal IPN webhook + Dynamo payment/entitlement stores; edebat LLM referee / S3 persistence
 
 `npm run build` must stay green for frontend changes.
 
