@@ -8,6 +8,11 @@ export default defineConfig({
   build: {
     assets: "assets",
   },
+  vite: {
+    optimizeDeps: {
+      exclude: ["web-ifc"],
+    },
+  },
   server: {
     port: 4321,
     /** Proxy API to nginx when Docker stack is up (https://localhost). */

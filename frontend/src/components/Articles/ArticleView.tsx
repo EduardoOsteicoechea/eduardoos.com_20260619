@@ -75,7 +75,7 @@ export default function ArticleView() {
       return;
     }
     if (!epamId) {
-      setError("Falta el id del artículo.");
+      setError("Article id is missing.");
       setLoading(false);
       return;
     }
@@ -84,7 +84,7 @@ export default function ArticleView() {
       try {
         const article = await fetchArticle(epamId);
         if (cancelled) return;
-        setTitle(article.title || article.meta.title || "Artículo");
+        setTitle(article.title || article.meta.title || "Article");
         setBlocks(article.blocks ?? []);
         setQuizLoading(true);
         try {
@@ -155,7 +155,7 @@ export default function ArticleView() {
   if (loading) {
     return (
       <div className="article-view">
-        <p className="article-view__status">Cargando artículo…</p>
+        <p className="article-view__status">Loading article…</p>
       </div>
     );
   }
@@ -163,7 +163,7 @@ export default function ArticleView() {
   return (
     <div className="article-view">
       <a className="article-view__back" href={APP_ROUTES.articles}>
-        ← Artículos
+        ← Articles
       </a>
       <article className="article-view__sheet">
         {error && <p className="article-view__error">{error}</p>}
@@ -202,9 +202,9 @@ export default function ArticleView() {
           );
         })}
 
-        <section className="article-quiz" aria-label="Quiz del artículo">
+        <section className="article-quiz" aria-label="Article quiz">
           <h2 className="article-quiz__title">Quiz</h2>
-          {quizLoading && <p className="article-view__status">Generando preguntas con IA…</p>}
+          {quizLoading && <p className="article-view__status">Generating questions with AI…</p>}
           {!quizLoading && quiz?.questions?.map((q) => (
             <fieldset key={q.id} className="article-quiz__q">
               <legend className="article-quiz__prompt">{q.prompt}</legend>
@@ -232,25 +232,25 @@ export default function ArticleView() {
       <button
         type="button"
         className="article-view__fab"
-        aria-label="Preguntar sobre el artículo"
+        aria-label="Ask about this article"
         onClick={() => setSidebarOpen(true)}
       >
         ?
       </button>
 
       {sidebarOpen && (
-        <div className="article-ask" role="dialog" aria-modal="true" aria-label="Preguntas sobre el artículo">
+        <div className="article-ask" role="dialog" aria-modal="true" aria-label="Questions about this article">
           <div className="article-ask__panel">
             <header className="article-ask__head">
-              <h2 className="article-ask__title">Preguntar</h2>
-              <p className="article-ask__context">Contexto: {title}</p>
+              <h2 className="article-ask__title">Ask</h2>
+              <p className="article-ask__context">Context: {title}</p>
               <button type="button" className="article-ask__close" onClick={() => setSidebarOpen(false)}>
-                Cerrar
+                Close
               </button>
             </header>
             <div className="article-ask__thread">
               {chat.length === 0 && (
-                <p className="article-ask__hint">Pregunta lo que quieras sobre este artículo.</p>
+                <p className="article-ask__hint">Ask anything you want about this article.</p>
               )}
               {chat.map((m, i) => (
                 <div key={i} className={`article-ask__msg article-ask__msg--${m.role}`}>
@@ -270,11 +270,11 @@ export default function ArticleView() {
                 rows={3}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Escribe tu pregunta…"
+                placeholder="Write your question…"
                 disabled={asking}
               />
               <button type="submit" className="btn btn--primary" disabled={asking || !draft.trim()}>
-                {asking ? "Pensando…" : "Enviar"}
+                {asking ? "Thinking…" : "Send"}
               </button>
             </form>
           </div>
@@ -291,26 +291,26 @@ export default function ArticleView() {
               {modal.passed ? "✓" : "✕"}
             </div>
             <h2 className="article-quiz-modal__title">
-              {modal.passed ? "Aprobado" : "Hay que repasar"}
+              {modal.passed ? "Passed" : "Needs review"}
             </h2>
             <p className="article-quiz-modal__score">
-              {modal.score} / {modal.total} correctas
+              {modal.score} / {modal.total} correct
             </p>
             {!modal.passed && (
               <ul className="article-quiz-modal__misses">
                 {modal.misses.map((q) => (
                   <li key={q.id}>
                     <strong>{q.prompt}</strong>
-                    <span>{q.explanation || `Respuesta: ${q.choices[q.answerIndex]}`}</span>
+                    <span>{q.explanation || `Answer: ${q.choices[q.answerIndex]}`}</span>
                   </li>
                 ))}
               </ul>
             )}
             {modal.passed && (
-              <p className="article-quiz-modal__ok">Dominaste el contenido de este artículo.</p>
+              <p className="article-quiz-modal__ok">You mastered this article.</p>
             )}
             <button type="button" className="btn btn--primary" onClick={restoreQuiz}>
-              Restaurar quiz
+              Restore quiz
             </button>
           </div>
         </div>

@@ -1,34 +1,49 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ContactAgent from "../components/Contact/ContactAgent";
+import { CONTACT_OWNER_EMAIL, CONTACT_WHATSAPP_URL } from "../lib/contact";
 import "./contact.css";
 ---
 
-<BaseLayout title="Contacto — Eduardo Osteicoechea">
+<BaseLayout title="Contact — Eduardo Osteicoechea">
   <div class="page-shell contact-page">
-    <header class="contact-page__intro">
+    <section class="contact-page__intro" aria-labelledby="contact-page-title">
       <p class="contact-page__brand">Eduardo Osteicoechea</p>
-      <h1 class="contact-page__title">Contacto</h1>
+      <h1 id="contact-page-title" class="contact-page__title">Contact</h1>
       <p class="contact-page__lead">
-        Escríbeme por correo, ábreme WhatsApp, o habla con el agente: te pedirá tu correo o
-        teléfono y me avisará, o te redirigirá a WhatsApp si lo prefieres.
+        I welcome professional inquiries in architecture, building information
+        modeling, and full-stack AEC software. If you need a licensed building
+        architect, a BIM practitioner, or an engineer who can take a problem from
+        the job site to the browser and the cloud, write directly or use the
+        assistant on this page.
+      </p>
+      <p class="contact-page__lead">
+        The assistant will request a reachable email or telephone number and
+        notify me, or open WhatsApp when you prefer an immediate conversation.
+        Engagements are handled in English or Spanish.
       </p>
       <ul class="contact-page__channels">
         <li>
-          <span class="contact-page__label">Correo</span>
-          <a href="mailto:eduardooost@gmail.com">eduardooost@gmail.com</a>
+          <span class="contact-page__label">Email</span>
+          <a href={`mailto:${CONTACT_OWNER_EMAIL}`}>{CONTACT_OWNER_EMAIL}</a>
         </li>
         <li>
           <span class="contact-page__label">WhatsApp</span>
-          <a
-            href="https://wa.me/584147281033"
-            target="_blank"
-            rel="noopener noreferrer"
-          >wa.me/584147281033</a>
+          <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+            wa.me/584147281033
+          </a>
         </li>
       </ul>
-    </header>
+    </section>
 
-    <ContactAgent client:load />
+    <div class="contact-page__agent">
+      <ContactAgent
+        client:load
+        showDirectLinks={false}
+        title="Talk through the agent"
+        blurb="Confirm you are not a bot, then the chat tray opens. Leave an email or phone number and I will be notified, or ask to continue on WhatsApp."
+        skillLabel="Contact"
+      />
+    </div>
   </div>
 </BaseLayout>

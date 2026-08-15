@@ -1,0 +1,150 @@
+.bim-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  color: var(--site-body-fg);
+  background: var(--site-body-bg);
+}
+
+.bim-page__library {
+  flex: 0 0 auto;
+  width: 100%;
+  max-height: 40%;
+  overflow: auto;
+  border-bottom: 1px solid var(--site-border);
+  box-sizing: border-box;
+  padding: 0.85rem var(--page-inline-pad, 15px) 1rem;
+}
+
+.bim-page__library-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.bim-page__title {
+  margin: 0;
+  font-family: Montserrat, Raleway, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.bim-page__lead {
+  margin: 0;
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  opacity: 0.85;
+}
+
+.bim-page__lead code {
+  font-size: 0.95em;
+}
+
+.bim-page__upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control_min_height);
+  padding: 0 0.85rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  width: fit-content;
+}
+
+.bim-page__upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.bim-page__status,
+.bim-page__error,
+.bim-page__viewer-status {
+  margin: 0 0 0.65rem;
+  font-size: var(--font-sm);
+}
+
+.bim-page__error {
+  color: var(--site-accent, var(--site-body-fg));
+}
+
+.bim-page__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bim-page__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.55rem;
+  border: 1px solid var(--site-border);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.bim-page__item.is-active {
+  background: color-mix(in srgb, var(--site-body-fg) 10%, transparent);
+}
+
+.bim-page__item-title {
+  font-weight: 600;
+  font-size: var(--font-sm);
+}
+
+.bim-page__item-meta {
+  font-size: calc(var(--font-sm) * 0.9);
+  opacity: 0.75;
+}
+
+.bim-page__viewer {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 16rem;
+  min-width: 0;
+}
+
+.bim-page__viewer-status {
+  position: absolute;
+  z-index: 2;
+  top: 0.75rem;
+  left: 0.75rem;
+}
+
+@media (min-width: 1024px) {
+  .bim-page {
+    flex-direction: row;
+  }
+
+  .bim-page__library {
+    flex: 0 0 33vw;
+    width: 33vw;
+    max-height: none;
+    height: 100%;
+    border-bottom: none;
+    border-right: 1px solid var(--site-border);
+  }
+
+  /* Remaining viewport after the 33vw library (33 + 77 would overflow). */
+  .bim-page__viewer {
+    flex: 0 0 67vw;
+    width: 67vw;
+    height: 100%;
+  }
+}

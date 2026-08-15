@@ -34,7 +34,7 @@ export async function fetchEpams(): Promise<EpamsListResponse> {
     const correlationId = createCorrelationId();
     const token = getAuthToken();
     if (!token) {
-        throw new Error("Inicia sesión para abrir desde la nube.");
+        throw new Error("Sign in to open from the cloud.");
     }
     const result = await apiRequest<EpamsListResponse>(EPAM_ROUTES.list, {
         correlationId,
@@ -53,7 +53,7 @@ export async function fetchEpam(epamId: string): Promise<EpamDocumentResponse> {
     const correlationId = createCorrelationId();
     const token = getAuthToken();
     if (!token) {
-        throw new Error("Inicia sesión para abrir desde la nube.");
+        throw new Error("Sign in to open from the cloud.");
     }
     const result = await apiRequest<EpamDocumentResponse>(EPAM_ROUTES.item(epamId), {
         correlationId,
@@ -76,7 +76,7 @@ export async function saveEpamToCloud(payload: {
     const correlationId = createCorrelationId();
     const token = getAuthToken();
     if (!token) {
-        throw new Error("Inicia sesión para guardar en la nube.");
+        throw new Error("Sign in to save to the cloud.");
     }
     // PUT only when updating an existing cloud id; otherwise POST /api/epams.
     const updateId = payload.epamId?.trim();

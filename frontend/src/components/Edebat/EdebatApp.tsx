@@ -36,7 +36,7 @@ function emptyLocalDoc(): EdebatDocument {
 }
 
 function winnerLabel(winner: string | undefined): string {
-  if (winner === "challenger") return "Tú";
+  if (winner === "challenger") return "You";
   if (winner === "opponent") return "Experto";
   if (winner === "draw") return "Empate";
   return winner ?? "—";
@@ -200,7 +200,7 @@ export default function EdebatApp() {
       setDoc(working);
     }
 
-    setStatus("Guardando y esperando experto/árbitro…");
+    setStatus("Saving and waiting for expert/referee…");
     // Persist setup fields before the turn so topic/rules/rounds are current.
     const saved = await apiRequest<{ document?: EdebatDocument }>(EDEBAT_ROUTES.item(working.id), {
       method: "PUT",
@@ -222,7 +222,7 @@ export default function EdebatApp() {
     });
     setBusy(false);
     if (turn.error || !turn.data?.document) {
-      setError(turn.error ? formatApiError(turn.error) : "Turno falló");
+      setError(turn.error ? formatApiError(turn.error) : "Turn failed");
       setStatus("");
       return;
     }
@@ -242,7 +242,7 @@ export default function EdebatApp() {
     }
     setBusy(true);
     setError("");
-    setStatus(side === "challenger" ? "Registrando tu rendición…" : "Registrando rendición del experto…");
+    setStatus(side === "challenger" ? "Recording your surrender…" : "Recording the expert’s surrender…");
     const res = await apiRequest<{ document?: EdebatDocument }>(EDEBAT_ROUTES.surrender(doc.id), {
       method: "POST",
       body: { side },
@@ -251,14 +251,14 @@ export default function EdebatApp() {
     });
     setBusy(false);
     if (res.error || !res.data?.document) {
-      setError(res.error ? formatApiError(res.error) : "No se pudo registrar la rendición");
+      setError(res.error ? formatApiError(res.error) : "Could not record the surrender");
       setStatus("");
       return;
     }
     setDoc(res.data.document);
     setDraftArg("");
     setShowWinner(true);
-    setStatus("Debate terminado por rendición");
+    setStatus("Debate ended by surrender");
     await refreshList();
   }
 
@@ -277,13 +277,13 @@ export default function EdebatApp() {
   }
 
   if (authorized === null) {
-    return <p className="edebat__status">Comprobando acceso…</p>;
+    return <p className="edebat__status">Checking access…</p>;
   }
   if (!authorized) {
     return (
       <section className="edebat edebat--denied">
         <h1 className="edebat__title">Edebat</h1>
-        <p className="edebat__lead">No tienes permiso para esta app.</p>
+        <p className="edebat__lead">You do not have permission for this app.</p>
       </section>
     );
   }
@@ -300,18 +300,18 @@ export default function EdebatApp() {
           aria-expanded={sidebarOpen}
           onClick={() => setSidebarOpen((v) => !v)}
         >
-          Menú
+          Menu
         </button>
         <h1 className="edebat__title">Edebat</h1>
         <button type="button" className="btn btn--primary" disabled={busy || !doc.id} onClick={() => void saveDebate()}>
-          Guardar
+          Save
         </button>
       </header>
 
       {sidebarOpen ? (
         <aside className="edebat__sidebar" aria-label="Lista de debates">
           <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void createDebate()}>
-            Nuevo
+            New
           </button>
           <ul className="edebat__list">
             {list.map((item) => (
@@ -372,7 +372,7 @@ export default function EdebatApp() {
               }
             />
             <span>
-              Ilimitadas (sigue hasta rendición o K.O. del árbitro)
+              Unlimited (continues until surrender or referee K.O.)
             </span>
           </label>
         </div>
@@ -382,7 +382,7 @@ export default function EdebatApp() {
         <div className="edebat__rules-add">
           <input
             type="text"
-            placeholder="Nueva regla"
+            placeholder="New rule"
             value={ruleDraft}
             disabled={busy || finished}
             onChange={(e) => setRuleDraft(e.target.value)}
@@ -418,9 +418,9 @@ export default function EdebatApp() {
       {doc.result ? (
         <div className="edebat__result">
           <strong>Ganador: {winnerLabel(doc.result.winner)}</strong>
-          {doc.result.endedBy === "knockout" ? <p>Fin por K.O. del árbitro</p> : null}
+          {doc.result.endedBy === "knockout" ? <p>Ended by referee K.O.</p> : null}
           {doc.result.endedBy === "surrender_challenger" || doc.result.endedBy === "surrender_opponent" ? (
-            <p>Fin por rendición</p>
+            <p>Ended by surrender</p>
           ) : null}
           <p>{doc.result.summary}</p>
           <p>
@@ -471,14 +471,14 @@ export default function EdebatApp() {
 
         <div className="edebat__transcript" aria-live="polite">
           {doc.rounds.length === 0 ? (
-            <p className="edebat__empty">Aún no hay rondas.</p>
+            <p className="edebat__empty">No rounds yet.</p>
           ) : (
             doc.rounds.map((round) => (
               <article key={round.index} className="edebat__round">
                 <header>Ronda {round.index}</header>
                 <div className="edebat__round-cols">
                   <div>
-                    <h3>Tú</h3>
+                    <h3>You</h3>
                     <p>{round.challengerArg}</p>
                   </div>
                   <div>
@@ -489,7 +489,7 @@ export default function EdebatApp() {
                 {round.referee ? (
                   <footer className="edebat__referee">
                     <strong>
-                      Árbitro · {round.referee.challengerScore} – {round.referee.opponentScore}
+                      Referee · {round.referee.challengerScore} – {round.referee.opponentScore}
                     </strong>
                     <p>{round.referee.analysis}</p>
                   </footer>
@@ -513,7 +513,7 @@ export default function EdebatApp() {
               {doc.result.finalScores.challenger} – {doc.result.finalScores.opponent}
             </p>
             <button type="button" className="btn btn--primary" onClick={() => setShowWinner(false)}>
-              Cerrar
+              Close
             </button>
           </div>
         </div>

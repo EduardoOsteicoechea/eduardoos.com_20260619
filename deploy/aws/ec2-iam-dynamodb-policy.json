@@ -49,7 +49,9 @@
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_payments",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_payments/index/*",
         "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_entitlements",
-        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_entitlements/index/*"
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_entitlements/index/*",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_ifcbim",
+        "arn:aws:dynamodb:us-east-1:241533144630:table/eduardoos_ifcbim/index/*"
       ]
     },
     {

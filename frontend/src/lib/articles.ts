@@ -41,7 +41,7 @@ export interface ArticlesListResponse {
 async function authed<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
     const correlationId = createCorrelationId();
     const token = getAuthToken();
-    if (!token) throw new Error("Inicia sesión para ver artículos.");
+    if (!token) throw new Error("Sign in to view articles.");
     const result = await apiRequest<T>(path, {
         method: init?.method,
         body: init?.body,

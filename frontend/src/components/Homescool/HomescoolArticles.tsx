@@ -27,7 +27,7 @@ export default function HomescoolArticles() {
         const res: ArticlesListResponse = await fetchArticles();
         if (!cancelled) setItems(res.articles ?? []);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "No se pudieron cargar");
+        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -42,31 +42,31 @@ export default function HomescoolArticles() {
   return (
     <section className="homescool-articles" aria-labelledby="homescool-articles-title">
       <h2 id="homescool-articles-title" className="homescool-articles__title">
-        Artículos
+        Articles
       </h2>
       <p className="homescool-articles__lead">
-        Contenido que sale de panfletos guardados en la nube: lectura continua, quiz y preguntas al
-        margen.
+        Content published from pamphlets stored in the cloud: continuous reading, a quiz, and
+        margin questions.
       </p>
 
       {needsAuth && (
         <>
           <p className="homescool-articles__status">
-            Inicia sesión para ver los artículos publicados desde Panfleto.
+            Sign in to see articles published from Pamphlet.
           </p>
           <a className="btn btn--primary homescool-articles__cta" href={loginHref}>
-            Iniciar sesión
+            Sign in
           </a>
         </>
       )}
 
-      {!needsAuth && loading && <p className="homescool-articles__status">Cargando…</p>}
+      {!needsAuth && loading && <p className="homescool-articles__status">Loading…</p>}
       {!needsAuth && error && <p className="homescool-articles__error">{error}</p>}
       {!needsAuth && !loading && !error && items.length === 0 && (
         <p className="homescool-articles__status">
-          Aún no hay panfletos en la nube. Guarda uno desde{" "}
+          No pamphlets in the cloud yet. Save one from{" "}
           <a href={APP_ROUTES.pamphlet} data-astro-reload>
-            Panfleto
+            Pamphlet
           </a>
           .
         </p>
@@ -78,7 +78,7 @@ export default function HomescoolArticles() {
             <li key={item.epamId}>
               <a className="homescool-articles__card" href={APP_ROUTES.article(item.epamId)}>
                 <span className="homescool-articles__card-title">
-                  {item.title || item.fileName || "Sin título"}
+                  {item.title || item.fileName || "Untitled"}
                 </span>
                 <span className="homescool-articles__card-meta">
                   {[item.author, item.series, item.seriesChapter, item.date]

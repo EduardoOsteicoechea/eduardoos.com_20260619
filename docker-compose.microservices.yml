@@ -50,6 +50,8 @@ services:
       EPAMS_TABLE: ${EPAMS_TABLE:-eduardoos_epams}
       EDEBATS_BACKEND: ${EDEBATS_BACKEND:-memory}
       EDEBATS_TABLE: ${EDEBATS_TABLE:-eduardoos_edebats}
+      IFCBIM_BACKEND: ${IFCBIM_BACKEND:-memory}
+      IFCBIM_TABLE: ${IFCBIM_TABLE:-eduardoos_ifcbim}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       CHATBOT_URL: http://chatbot:3000
       PAYMENTS_URL: http://payments:3000

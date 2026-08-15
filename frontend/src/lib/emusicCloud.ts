@@ -18,7 +18,7 @@ export async function saveEmusicToCloud(
 ): Promise<EmusicDocument> {
     const token = getAuthToken();
     if (!token) {
-        throw new Error("Inicia sesión para guardar .emusic en la nube.");
+        throw new Error("Sign in to save .emusic to the cloud.");
     }
     const correlationId = createCorrelationId();
     const result = await apiRequest<{ document: EmusicDocument }>(emusicApiUrl(slug), {

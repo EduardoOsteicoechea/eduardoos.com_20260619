@@ -1,3 +1,8 @@
+/**
+ * Contact — two-column desktop: formal copy left, agent/chat tray right.
+ * Phone and tablet stay a single stacked column.
+ */
+
 .contact-page {
   display: flex;
   flex-direction: column;
@@ -66,4 +71,37 @@
   color: var(--site-accent, var(--site-body-fg));
   text-decoration: underline;
   text-underline-offset: 0.15em;
+}
+
+.contact-page__agent {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .contact-page {
+    display: grid;
+    grid-template-columns: minmax(18rem, 1fr) minmax(22rem, 1.15fr);
+    gap: 2.25rem 2.75rem;
+    align-items: stretch;
+    min-height: calc(100dvh - var(--header_height, 60px) - 3rem);
+  }
+
+  .contact-page__intro {
+    max-width: none;
+    padding-top: 0.35rem;
+  }
+
+  .contact-page__lead {
+    max-width: none;
+  }
+
+  .contact-page__agent {
+    display: flex;
+    min-height: 28rem;
+    border: 1px solid var(--site-border);
+    background: color-mix(in srgb, var(--site-body-bg) 88%, transparent);
+    padding: 1rem 1.1rem 1.15rem;
+    box-sizing: border-box;
+  }
 }

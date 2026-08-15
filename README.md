@@ -100,7 +100,10 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | GET | `/api/media/skills/:skillId` | Public | Skill portfolio media (images/videos under `media/skills/{skillId}/`) |
 | POST | `/api/profile/ask` | Public + humanToken | Home skill chat (DeepSeek `profile_qa`); can email leads to `eduardooost@gmail.com` or return WhatsApp action `https://wa.me/584147281033` |
 | POST | `/api/contact/ask` | Public + humanToken | Contact-page chat (same profile/contact agent) |
-| POST | `/api/contact/notify` | Public + humanToken | Email a visitor lead to the site owner via authenticator SMTP |
+| GET | `/api/bim/models` | JWT | List IFC models for the signed-in user |
+| POST | `/api/bim/models` | JWT | Upload `.ifc` to S3 `ifcbim/` + DynamoDB `eduardoos_ifcbim` |
+| GET | `/api/bim/models/:id/file` | JWT | Download IFC bytes for the viewer |
+| DELETE | `/api/bim/models/:id` | JWT | Unlink model metadata |
 
 Home skill cards open a modal media viewer + timed checkbox gate (hold ~5s) before chat unlocks. Upload portfolio assets to S3 under `media/skills/{skillId}/` (e.g. `media/skills/architect/`).
 
@@ -117,9 +120,10 @@ Home skill cards open a modal media viewer + timed checkbox gate (hold ~5s) befo
 | Monthly Basic Subscription | `/payments/subscription/montly/basic` |
 | Edebat (admin allowlist) | `/edebat` |
 | Pamphlet editor | `/documents/pamphlet` |
-| Artículos | `/articulos`, `/articulos/ver?id=` |
-| Homescool | `/homescool` (artículos desde panfletos, recursos, formulario de interés → correo/WhatsApp) |
-| Contacto | `/contact` (email, WhatsApp `wa.me/584147281033`, agent chat) |
+| Articles | `/articulos`, `/articulos/ver?id=` |
+| Homescool | `/homescool` (articles from pamphlets, resources, interest form → email/WhatsApp) |
+| Contact | `/contact` (email, WhatsApp, agent chat) |
+| BIM | `/bim` (signed-in IFC library + That Open viewer) |
 
 Authenticated Edebat APIs (JWT + `eduardooost@gmail.com`): `GET/POST /api/edebat`, `GET/PUT /api/edebat/:id`, `POST /api/edebat/:id/turn`. Bodies persist as `.edebat` under `media/edebats/{email}/` via S3; LLM turns use the chatbot service + DeepSeek (`DEEPSEEK_*`).
 
@@ -157,6 +161,8 @@ go test ./...
 | `DYNAMODB_TABLE_PREFIX` | Table prefix (`eduardoos`) |
 | `EDEBATS_BACKEND` | `memory` (local) or `dynamodb` (EC2) |
 | `EDEBATS_TABLE` | Debate metadata table (`eduardoos_edebats`) |
+| `IFCBIM_BACKEND` | `memory` (local) or `dynamodb` (EC2) |
+| `IFCBIM_TABLE` | IFC model metadata table (`eduardoos_ifcbim`) |
 | `DEEPSEEK_API_KEY` | DeepSeek API key (chatbot only) |
 | `DEEPSEEK_BASE_URL` | Default `https://api.deepseek.com` |
 | `DEEPSEEK_MODEL_EXPERT` | Opponent model (`deepseek-v4-flash`) |

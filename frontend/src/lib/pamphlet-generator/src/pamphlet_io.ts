@@ -188,7 +188,7 @@ export function createAddItemButton(column: number): HTMLButtonElement {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "pamphlet-add-item-button";
-    btn.setAttribute("aria-label", "Añadir elemento");
+    btn.setAttribute("aria-label", "Add element");
     btn.dataset.addColumn = String(column);
     return btn;
 }

@@ -4,7 +4,7 @@ This stack runs on **Graviton (arm64)** EC2 instances in **us-east-1** and uses:
 
 | Resource | Name | Purpose |
 |----------|------|---------|
-| S3 bucket | `eduardoos20260607` | Media uploads under `media/`; profile avatars under `media/profiles/` |
+| S3 bucket | `eduardoos20260607` | Media under `media/`; IFC models under `ifcbim/` |
 | DynamoDB | `eduardoos_catalog` | Generic app KV (payments, catalog) |
 | DynamoDB | `eduardoos_users` | Keys prefixed `user:` |
 | DynamoDB | `eduardoos_posts` | Keys prefixed `post:` |
@@ -16,6 +16,7 @@ This stack runs on **Graviton (arm64)** EC2 instances in **us-east-1** and uses:
 | DynamoDB | `eduardoos_edebats` | Cloud .edebat debate metadata (PK `userId`, SK `debateId`; body in S3 `media/edebats/`) |
 | DynamoDB | `eduardoos_payments` | PayPal intents and completed payments (PK `intentId`, GSI `userEmail` + `createdAt`) |
 | DynamoDB | `eduardoos_entitlements` | Active service access per user (PK `userEmail`, SK `serviceId`) |
+| DynamoDB | `eduardoos_ifcbim` | IFC models per user (PK `userId`, SK `modelId`; body in S3 `ifcbim/`) |
 
 ## Observability tables (flight logs + test runs)
 
@@ -38,6 +39,8 @@ bash deploy/aws/create-edebats-table.sh
 bash deploy/aws/ensure-ec2-iam-policy.sh
 bash deploy/aws/create-payments-table.sh
 bash deploy/aws/create-entitlements-table.sh
+bash deploy/aws/create-ifcbim-table.sh
+bash deploy/aws/create-ifcbim-prefix.sh
 ```
 
 Deploy on EC2 also runs this script when the instance role includes
@@ -51,16 +54,17 @@ Production uses **two inline policies** on role **`eduardoos-ec2-s3-role`**:
 
 | Policy file | Covers |
 |-------------|--------|
-| [`ec2-iam-s3-policy.json`](./ec2-iam-s3-policy.json) | `ListBucket` (prefix `media/`) + `GetObject`/`PutObject` on `media/*` |
+| [`ec2-iam-s3-policy.json`](./ec2-iam-s3-policy.json) | `ListBucket` (`media/`, `ifcbim/`) + object access on `media/*` and `ifcbim/*` |
 | [`ec2-iam-dynamodb-policy.json`](./ec2-iam-dynamodb-policy.json) | All Eduardo OS DynamoDB tables |
 
-All app objects live under **`media/`**:
+App objects live under **`media/`** (gallery, avatars, audio) and **`ifcbim/`** (IFC models):
 
 | Path | Feature |
 |------|---------|
 | `media/` | Gallery images |
 | `media/profiles/` | Profile avatars |
 | `media/worship_playlists/` | Playlist audio |
+| `ifcbim/{user}/{modelId}.ifc` | Signed-in BIM models |
 
 Your S3 policy shape is correct. Add **`media/`** alongside **`media/*`** in the `s3:prefix` condition (see `ec2-iam-s3-policy.json`) so `ListObjects` with prefix `media/` is allowed.
 

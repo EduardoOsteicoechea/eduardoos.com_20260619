@@ -326,7 +326,7 @@ export interface CreatePamphletMeta {
     author: string;
 }
 
-export function createParagraphItem(content = "Escribe aquí"): PamphletItem {
+export function createParagraphItem(content = "Write here"): PamphletItem {
     return {
         type: "paragraph",
         content,
@@ -335,7 +335,7 @@ export function createParagraphItem(content = "Escribe aquí"): PamphletItem {
     };
 }
 
-export function createHeadingItem(content = "Escribe aquí"): PamphletItem {
+export function createHeadingItem(content = "Write here"): PamphletItem {
     return {
         type: "heading_1",
         content,

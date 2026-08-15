@@ -9,10 +9,10 @@ export default function HomescoolPage() {
     <div className="homescool-page">
       <header className="homescool-page__intro">
         <p className="homescool-page__brand">Homescool</p>
-        <h1 className="homescool-page__title">Material, recursos e información</h1>
+        <h1 className="homescool-page__title">Material, resources, and information</h1>
         <p className="homescool-page__lead">
-          Artículos que nacen de panfletos, tarjetas de recursos para empezar, y un formulario si
-          estás interesado y requieres más información.
+          Articles that begin as pamphlets, resource cards to get started, and a form if you
+          are interested and need more information.
         </p>
       </header>
 
@@ -24,7 +24,7 @@ export default function HomescoolPage() {
         <HomescoolResources />
       </div>
 
-      <div className="homescool-page__section" id="interes">
+      <div className="homescool-page__section" id="interest">
         <HomescoolInterestForm />
       </div>
     </div>

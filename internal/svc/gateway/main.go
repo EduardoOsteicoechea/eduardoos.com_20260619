@@ -88,10 +88,15 @@ func Run(addr string) error {
 	if err != nil {
 		log.Fatalf("entitlement store: %v", err)
 	}
+	ifcBimStore, err := ddb.NewIfcBimStore(ctx)
+	if err != nil {
+		log.Fatalf("ifcbim store: %v", err)
+	}
 	log.Printf("playlist store backend=%s", playlistStore.BackendName())
 	log.Printf("epam store backend=%s", epamStore.BackendName())
 	log.Printf("edebat store backend=%s", edebatStore.BackendName())
 	log.Printf("entitlement store backend=%s", entitlementStore.BackendName())
+	log.Printf("ifcbim store backend=%s", ifcBimStore.BackendName())
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -135,6 +140,7 @@ func Run(addr string) error {
 	registerEmusicRoutes(r, cfg)
 	registerSubscriptionRoutes(r, cfg, entitlementStore)
 	registerAPSRoutes(r, cfg)
+	registerBimRoutes(r, cfg, ifcBimStore)
 
 	log.Printf("backend listening on %s", addr)
 	return http.ListenAndServe(addr, r)

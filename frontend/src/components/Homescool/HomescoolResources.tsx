@@ -6,10 +6,10 @@ export default function HomescoolResources() {
   return (
     <section className="homescool-resources" aria-labelledby="homescool-resources-title">
       <h2 id="homescool-resources-title" className="homescool-resources__title">
-        Recursos
+        Resources
       </h2>
       <p className="homescool-resources__lead">
-        Accesos directos a material, herramientas y canales para empezar o pedir más información.
+        Shortcuts to material, tools, and channels to get started or request more information.
       </p>
       <ul className="homescool-resources__grid">
         {HOMESCOOL_RESOURCES.map((item) => (

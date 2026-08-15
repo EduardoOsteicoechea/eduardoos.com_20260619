@@ -244,5 +244,9 @@ bash deploy/aws/create-observability-tables.sh || echo "WARNING: could not creat
 echo "==> Ensuring DynamoDB edebats table exists"
 bash deploy/aws/create-edebats-table.sh || echo "WARNING: could not create eduardoos_edebats (check IAM)"
 
+echo "==> Ensuring DynamoDB ifcbim table and S3 ifcbim/ prefix exist"
+bash deploy/aws/create-ifcbim-table.sh || echo "WARNING: could not create eduardoos_ifcbim (check IAM)"
+bash deploy/aws/create-ifcbim-prefix.sh || echo "WARNING: could not create s3 ifcbim/ prefix (check IAM)"
+
 echo "==> Deploy complete"
 "${COMPOSE[@]}" ps

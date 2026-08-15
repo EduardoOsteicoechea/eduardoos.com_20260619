@@ -325,7 +325,7 @@ async function printDocument(): Promise<void> {
     }
     const token = getAuthToken();
     if (!token || !isAuthenticated()) {
-        setStatus("Inicia sesión para generar el PDF.", "error");
+        setStatus("Sign in to generate the PDF.", "error");
         return;
     }
 
@@ -1300,7 +1300,7 @@ on(openSourceCloudBtn, "click", async () => {
     closeOpenSourceModal();
     clearError();
     if (!getAuthToken() || !isAuthenticated()) {
-        setError("Inicia sesión para abrir desde la nube.");
+        setError("Sign in to open from the cloud.");
         return;
     }
     openCloudHint.textContent = "Cargando…";
@@ -1313,7 +1313,7 @@ on(openSourceCloudBtn, "click", async () => {
             openCloudHint.textContent = "No hay panfletos en la nube para esta cuenta.";
             const empty = document.createElement("p");
             empty.className = "open-cloud-list__empty";
-            empty.textContent = "Guarda un panfleto con “Guardar en la nube”.";
+            empty.textContent = "Save a pamphlet with “Save to cloud”.";
             openCloudList.appendChild(empty);
             return;
         }
@@ -1363,7 +1363,7 @@ on(saveCloudBtn, "click", async () => {
         return;
     }
     if (!getAuthToken() || !isAuthenticated()) {
-        setError("Inicia sesión para guardar en la nube.");
+        setError("Sign in to save to the cloud.");
         return;
     }
     try {
@@ -1422,7 +1422,7 @@ on(createForm, "submit", (event) => {
     const author = modalAuthor.value.trim();
 
     if (!title || !series || !series_chapter || !author) {
-        setError("Completa título, serie, capítulo y autor.");
+        setError("Fill in title, series, chapter, and author.");
         return;
     }
 
@@ -1459,7 +1459,7 @@ on(createSaveCloudBtn, "click", async () => {
     if (!meta) return;
     clearError();
     if (!getAuthToken() || !isAuthenticated()) {
-        setError("Inicia sesión para guardar en la nube.");
+        setError("Sign in to save to the cloud.");
         return;
     }
     try {

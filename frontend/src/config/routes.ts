@@ -14,6 +14,7 @@ export const APP_ROUTES = {
     articles: "/articulos",
     article: (id: string) => `/articulos/ver?id=${encodeURIComponent(id)}`,
     homescool: "/homescool",
+    bim: "/bim",
     apsAdmin: "/aps-admin",
     edebat: "/edebat",
 } as const;
@@ -43,6 +44,12 @@ export const EPAM_ROUTES = {
     list: "/api/epams",
     save: "/api/epams",
     item: (epamId: string) => `/api/epams/${encodeURIComponent(epamId)}`,
+} as const;
+export const BIM_ROUTES = {
+    list: "/api/bim/models",
+    upload: "/api/bim/models",
+    file: (modelId: string) => `/api/bim/models/${encodeURIComponent(modelId)}/file`,
+    item: (modelId: string) => `/api/bim/models/${encodeURIComponent(modelId)}`,
 } as const;
 export const ARTICLE_ROUTES = {
     list: "/api/articles",

@@ -425,7 +425,7 @@ function editTray(
             copyButton.classList.add("edit_tray_icon_button", "edit_tray_text_button");
             copyButton.textContent = "⎘";
             copyButton.setAttribute("aria-label", "Copiar");
-            copyButton.title = "Copiar selección (o todo el texto)";
+            copyButton.title = "Copy selection (or all text)";
             copyButton.addEventListener("click", () => {
                 const area =
                     editTrayTextArea ??
@@ -444,7 +444,7 @@ function editTray(
         copyButton.classList.add("edit_tray_icon_button", "edit_tray_text_button");
         copyButton.textContent = "⎘";
         copyButton.setAttribute("aria-label", "Copiar");
-        copyButton.title = "Copiar selección (o todo el texto)";
+        copyButton.title = "Copy selection (or all text)";
         copyButton.addEventListener("click", () => {
             const area =
                 editTrayTextArea ??
@@ -498,7 +498,7 @@ function editTray(
         tallerBtn.type = "button";
         tallerBtn.className = "edit_tray_height_button";
         tallerBtn.textContent = "+";
-        tallerBtn.setAttribute("aria-label", "Hacer imagen más alta");
+        tallerBtn.setAttribute("aria-label", "Make image taller");
         tallerBtn.addEventListener("click", () => {
             const current = Number(elContainer.getAttribute("data-height-mm") || DEFAULT_IMAGE_HEIGHT_MM);
             setImageHeightMm(elContainer, current + IMAGE_HEIGHT_STEP_MM);
@@ -635,7 +635,7 @@ function editTray(
         // New items default to "Escribe aquí" — select all so typing replaces the placeholder.
         // rAF: some mobile browsers clear selection if applied synchronously after focus.
         const area = editTrayTextArea;
-        const selectPlaceholder = area.value === "Escribe aquí";
+        const selectPlaceholder = area.value === "Write here";
         requestAnimationFrame(() => {
             area.focus();
             if (selectPlaceholder) {

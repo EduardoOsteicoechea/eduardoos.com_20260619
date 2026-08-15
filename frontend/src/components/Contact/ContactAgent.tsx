@@ -34,14 +34,17 @@ type ContactAgentProps = {
   blurb?: string;
   askPath?: "/api/contact/ask" | "/api/profile/ask";
   skillLabel?: string;
+  /** Direct mailto / WhatsApp links above the gate. Off on /contact (copy lives left). */
+  showDirectLinks?: boolean;
 };
 
 export default function ContactAgent({
   scopeId = "contact",
-  title = "Habla conmigo",
-  blurb = "El agente puede enviarme tu correo o teléfono, o abrirte WhatsApp.",
+  title = "Talk through the agent",
+  blurb = "Confirm you are not a bot, then the chat tray opens. Leave an email or phone number and I will be notified, or ask to continue on WhatsApp.",
   askPath = "/api/contact/ask",
-  skillLabel = "Contacto",
+  skillLabel = "Contact",
+  showDirectLinks = true,
 }: ContactAgentProps) {
   const [checked, setChecked] = useState(false);
   const [heldMs, setHeldMs] = useState(0);
@@ -77,10 +80,10 @@ export default function ContactAgent({
 
   const progress = Math.min(1, heldMs / (HOLD_SECONDS * 1000));
   const gateLabel = useMemo(() => {
-    if (chatUnlocked) return "Verificado — puedes chatear";
-    if (!checked) return "Confirma que no eres un bot";
+    if (chatUnlocked) return "Verified — you can chat";
+    if (!checked) return "Confirm you are not a bot";
     const left = Math.max(0, HOLD_SECONDS - Math.floor(heldMs / 1000));
-    return `Espera ${left}s… (anti-bot)`;
+    return `Wait ${left}s… (anti-bot)`;
   }, [chatUnlocked, checked, heldMs]);
 
   async function sendChat() {
@@ -91,7 +94,7 @@ export default function ContactAgent({
     setDraft("");
     setChat((prev) => [...prev, { role: "user", text: q }]);
     const history = chat.flatMap((m) =>
-      m.role === "user" ? [`P: ${m.text}`] : [`R: ${m.text}`],
+      m.role === "user" ? [`Q: ${m.text}`] : [`A: ${m.text}`],
     );
     try {
       const correlationId = createCorrelationId();
@@ -106,7 +109,7 @@ export default function ContactAgent({
         },
       });
       if (result.error) throw new Error(formatApiError(result.error));
-      const answer = result.data?.answer || "(sin respuesta)";
+      const answer = result.data?.answer || "(no reply)";
       applyContactActions(result.data?.actions);
       setChat((prev) => [...prev, { role: "assistant", text: answer }]);
     } catch (err) {
@@ -120,56 +123,63 @@ export default function ContactAgent({
   }
 
   return (
-    <section className="contact-agent" aria-label={title}>
-      <header className="contact-agent__head">
-        <h2 className="contact-agent__title">{title}</h2>
-        <p className="contact-agent__blurb">{blurb}</p>
-      </header>
-
-      <div className="contact-agent__links" aria-label="Canales directos">
-        <a className="contact-agent__link" href={`mailto:${CONTACT_OWNER_EMAIL}`}>
-          {CONTACT_OWNER_EMAIL}
-        </a>
-        <a
-          className="contact-agent__link"
-          href={CONTACT_WHATSAPP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          WhatsApp
-        </a>
-      </div>
-
+    <section
+      className={`contact-agent${chatUnlocked ? " contact-agent--tray" : ""}`}
+      aria-label={chatUnlocked ? "Chat tray" : title}
+    >
       {!chatUnlocked && (
-        <div className="contact-agent__gate" aria-label="Verificación humana">
-          <label className="contact-agent__check">
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={(e) => {
-                const on = e.target.checked;
-                setChecked(on);
-                if (!on) {
-                  setHeldMs(0);
-                  setChatUnlocked(false);
-                }
-              }}
-            />
-            <span>{gateLabel}</span>
-          </label>
-          <div
-            className="contact-agent__progress"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(progress * 100)}
-          >
+        <>
+          <header className="contact-agent__head">
+            <h2 className="contact-agent__title">{title}</h2>
+            <p className="contact-agent__blurb">{blurb}</p>
+          </header>
+
+          {showDirectLinks && (
+            <div className="contact-agent__links" aria-label="Direct channels">
+              <a className="contact-agent__link" href={`mailto:${CONTACT_OWNER_EMAIL}`}>
+                {CONTACT_OWNER_EMAIL}
+              </a>
+              <a
+                className="contact-agent__link"
+                href={CONTACT_WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                WhatsApp
+              </a>
+            </div>
+          )}
+
+          <div className="contact-agent__gate" aria-label="Human verification">
+            <label className="contact-agent__check">
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setChecked(on);
+                  if (!on) {
+                    setHeldMs(0);
+                    setChatUnlocked(false);
+                  }
+                }}
+              />
+              <span>{gateLabel}</span>
+            </label>
             <div
-              className="contact-agent__progress-fill"
-              style={{ width: `${progress * 100}%` }}
-            />
+              className="contact-agent__progress"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress * 100)}
+            >
+              <div
+                className="contact-agent__progress-fill"
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {chatUnlocked && (
@@ -177,8 +187,8 @@ export default function ContactAgent({
           <div ref={threadRef} className="contact-agent__thread">
             {chat.length === 0 && (
               <p className="contact-agent__hint">
-                Pregunta lo que necesites. Si quieres contactarme, deja tu correo o teléfono,
-                o pide WhatsApp y te abro el chat.
+                Ask what you need. To reach me, leave your email or phone number,
+                or request WhatsApp and I will open the chat.
               </p>
             )}
             {chat.map((m, i) => (
@@ -186,7 +196,7 @@ export default function ContactAgent({
             ))}
             {asking && (
               <p className="contact-agent__hint" aria-live="polite">
-                Pensando…
+                Thinking…
               </p>
             )}
           </div>
@@ -201,7 +211,7 @@ export default function ContactAgent({
               className="contact-agent__input"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Escribe tu mensaje…"
+              placeholder="Write your message…"
               disabled={asking}
               autoComplete="off"
             />
@@ -210,7 +220,7 @@ export default function ContactAgent({
               className="btn btn--primary contact-agent__send"
               disabled={asking || !draft.trim()}
             >
-              {asking ? "…" : "Enviar"}
+              {asking ? "…" : "Send"}
             </button>
           </form>
         </div>

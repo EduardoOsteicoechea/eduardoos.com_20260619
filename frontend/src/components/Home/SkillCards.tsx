@@ -173,7 +173,7 @@ export default function SkillCards() {
       applyContactActions(result.data?.actions);
       setChat((prev) => [
         ...prev,
-        { role: "assistant", text: result.data?.answer || "(sin respuesta)" },
+        { role: "assistant", text: result.data?.answer || "(no reply)" },
       ]);
     } catch (err) {
       setChat((prev) => [
@@ -186,10 +186,10 @@ export default function SkillCards() {
   }
 
   const gateLabel = useMemo(() => {
-    if (chatUnlocked) return "Verificado — puedes chatear";
-    if (!checked) return `Mantén marcado ${HOLD_SECONDS}s para desbloquear el chat`;
+    if (chatUnlocked) return "Verified — you can chat";
+    if (!checked) return `Keep checked for ${HOLD_SECONDS}s to unlock chat`;
     const left = Math.max(0, HOLD_SECONDS - Math.floor(heldMs / 1000));
-    return `Espera ${left}s… (anti-bot)`;
+    return `Wait ${left}s… (anti-bot)`;
   }, [chatUnlocked, checked, heldMs]);
 
   return (
@@ -230,7 +230,7 @@ export default function SkillCards() {
               <button
                 type="button"
                 className="skill-modal__close"
-                aria-label="Cerrar"
+                aria-label="Close"
                 onClick={closeModal}
               >
                 ×
@@ -240,11 +240,11 @@ export default function SkillCards() {
             {!chatStarted && (
               <>
                 <section className="skill-modal__viewer" aria-label="Portfolio media">
-                  {mediaLoading && <p className="skill-modal__status">Cargando media…</p>}
+                  {mediaLoading && <p className="skill-modal__status">Loading media…</p>}
                   {mediaError && <p className="skill-modal__error">{mediaError}</p>}
                   {!mediaLoading && !mediaError && media.length === 0 && (
                     <p className="skill-modal__status">
-                      Pronto: imágenes y videos en <code>media/{active.mediaPrefix}/</code> (S3).
+                      Pronto: images and videos in <code>media/{active.mediaPrefix}/</code> (S3).
                     </p>
                   )}
                   {current && (
@@ -292,7 +292,7 @@ export default function SkillCards() {
                   )}
                 </section>
 
-                <section className="skill-modal__gate" aria-label="Verificación humana">
+                <section className="skill-modal__gate" aria-label="Human verification">
                   <label className="skill-modal__check">
                     <input
                       type="checkbox"
@@ -328,12 +328,12 @@ export default function SkillCards() {
             {chatUnlocked && (
               <section
                 className={`skill-modal__chat${chatStarted ? " skill-modal__chat--active" : ""}`}
-                aria-label="Chat profesional"
+                aria-label="Professional chat"
               >
                 <div ref={threadRef} className="skill-modal__thread">
                   {!chatStarted && (
                     <p className="skill-modal__hint">
-                      Pregunta sobre esta skill o el perfil profesional de Eduardo.
+                      Ask about this skill or Eduardo’s professional profile.
                     </p>
                   )}
                   {chat.map((m, i) => (
@@ -341,7 +341,7 @@ export default function SkillCards() {
                   ))}
                   {asking && (
                     <p className="skill-modal__hint" aria-live="polite">
-                      Pensando…
+                      Thinking…
                     </p>
                   )}
                 </div>
@@ -356,7 +356,7 @@ export default function SkillCards() {
                     className="skill-modal__input"
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
-                    placeholder="Escribe tu pregunta…"
+                    placeholder="Write your question…"
                     disabled={asking}
                     autoComplete="off"
                   />
@@ -365,7 +365,7 @@ export default function SkillCards() {
                     className="btn btn--primary skill-modal__send"
                     disabled={asking || !draft.trim()}
                   >
-                    {asking ? "…" : "Enviar"}
+                    {asking ? "…" : "Send"}
                   </button>
                 </form>
               </section>

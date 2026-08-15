@@ -12,7 +12,7 @@ import "./HomescoolInterestForm.css";
 
 const HOLD_SECONDS = 5;
 const DEFAULT_MESSAGE =
-  "Estoy interesado en Homescool y requiero más información.";
+  "I am interested in Homescool and would like more information.";
 
 type Channel = "email" | "whatsapp";
 
@@ -24,10 +24,10 @@ type NotifyResponse = {
 
 function whatsappHrefWithMessage(name: string, email: string, phone: string, message: string): string {
   const lines = [
-    "Hola Eduardo — Homescool",
-    name.trim() ? `Nombre: ${name.trim()}` : "",
-    email.trim() ? `Correo: ${email.trim()}` : "",
-    phone.trim() ? `Teléfono: ${phone.trim()}` : "",
+    "Hello Eduardo — Homescool",
+    name.trim() ? `Name: ${name.trim()}` : "",
+    email.trim() ? `Email: ${email.trim()}` : "",
+    phone.trim() ? `Phone: ${phone.trim()}` : "",
     "",
     message.trim() || DEFAULT_MESSAGE,
   ].filter((line, i, arr) => !(line === "" && arr[i - 1] === ""));
@@ -69,10 +69,10 @@ export default function HomescoolInterestForm() {
 
   const progress = Math.min(1, heldMs / (HOLD_SECONDS * 1000));
   const gateLabel = useMemo(() => {
-    if (unlocked) return "Verificado — puedes enviar";
-    if (!checked) return "Confirma que no eres un bot";
+    if (unlocked) return "Verified — you can send";
+    if (!checked) return "Confirm you are not a bot";
     const left = Math.max(0, HOLD_SECONDS - Math.floor(heldMs / 1000));
-    return `Espera ${left}s… (anti-bot)`;
+    return `Wait ${left}s… (anti-bot)`;
   }, [unlocked, checked, heldMs]);
 
   async function onSubmit(event: FormEvent) {
@@ -82,7 +82,7 @@ export default function HomescoolInterestForm() {
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setStatus({ kind: "err", text: "El nombre es obligatorio." });
+      setStatus({ kind: "err", text: "Name is required." });
       return;
     }
     const emailError = validateEmail(email);
@@ -92,7 +92,7 @@ export default function HomescoolInterestForm() {
     }
     const trimmedMessage = message.trim();
     if (!trimmedMessage) {
-      setStatus({ kind: "err", text: "Escribe un mensaje breve." });
+      setStatus({ kind: "err", text: "Write a short message." });
       return;
     }
 
@@ -122,7 +122,7 @@ export default function HomescoolInterestForm() {
       openWhatsAppChat(waHref);
       setStatus({
         kind: "ok",
-        text: "Abriendo WhatsApp. También intenté avisarte por correo.",
+        text: "Opening WhatsApp. I also tried to notify you by email.",
       });
       return;
     }
@@ -145,13 +145,13 @@ export default function HomescoolInterestForm() {
       if (result.error) throw new Error(formatApiError(result.error));
       setStatus({
         kind: "ok",
-        text: `Listo. Te contactaré pronto en ${CONTACT_OWNER_EMAIL}.`,
+        text: `Done. I will contact you soon at ${CONTACT_OWNER_EMAIL}.`,
       });
       setMessage(DEFAULT_MESSAGE);
     } catch (err) {
       setStatus({
         kind: "err",
-        text: err instanceof Error ? err.message : "No se pudo enviar. Prueba WhatsApp.",
+        text: err instanceof Error ? err.message : "Could not send. Try WhatsApp.",
       });
     } finally {
       setSubmitting(false);
@@ -161,16 +161,16 @@ export default function HomescoolInterestForm() {
   return (
     <section className="homescool-interest" aria-labelledby="homescool-interest-title">
       <h2 id="homescool-interest-title" className="homescool-interest__title">
-        Estoy interesado
+        I am interested
       </h2>
       <p className="homescool-interest__lead">
-        Déjame tus datos y te envío información a mi correo ({CONTACT_OWNER_EMAIL}), o ábreme
-        WhatsApp si prefieres hablar ahora.
+        Leave your details and I will send information to my email ({CONTACT_OWNER_EMAIL}), or open
+        WhatsApp if you prefer to talk now.
       </p>
 
       <form className="homescool-interest__form" onSubmit={(e) => void onSubmit(e)} noValidate>
         <div className="homescool-interest__field">
-          <label htmlFor="homescool-name">Nombre</label>
+          <label htmlFor="homescool-name">Name</label>
           <input
             id="homescool-name"
             name="name"
@@ -181,7 +181,7 @@ export default function HomescoolInterestForm() {
           />
         </div>
         <div className="homescool-interest__field">
-          <label htmlFor="homescool-email">Correo</label>
+          <label htmlFor="homescool-email">Email</label>
           <input
             id="homescool-email"
             name="email"
@@ -193,7 +193,7 @@ export default function HomescoolInterestForm() {
           />
         </div>
         <div className="homescool-interest__field">
-          <label htmlFor="homescool-phone">Teléfono (opcional)</label>
+          <label htmlFor="homescool-phone">Phone (optional)</label>
           <input
             id="homescool-phone"
             name="phone"
@@ -204,7 +204,7 @@ export default function HomescoolInterestForm() {
           />
         </div>
         <div className="homescool-interest__field">
-          <label htmlFor="homescool-message">Mensaje</label>
+          <label htmlFor="homescool-message">Message</label>
           <textarea
             id="homescool-message"
             name="message"
@@ -215,15 +215,15 @@ export default function HomescoolInterestForm() {
           />
         </div>
         <div className="homescool-interest__field">
-          <label htmlFor="homescool-channel">Cómo prefieres continuar</label>
+          <label htmlFor="homescool-channel">How you prefer to continue</label>
           <select
             id="homescool-channel"
             name="channel"
             value={channel}
             onChange={(e) => setChannel(e.target.value as Channel)}
           >
-            <option value="email">Enviar a mi correo ({CONTACT_OWNER_EMAIL})</option>
-            <option value="whatsapp">Abrir WhatsApp</option>
+            <option value="email">Send to my email ({CONTACT_OWNER_EMAIL})</option>
+            <option value="whatsapp">Open WhatsApp</option>
           </select>
         </div>
 
@@ -240,7 +240,7 @@ export default function HomescoolInterestForm() {
                 }
               }}
             />
-            No soy un bot
+            I am not a bot
           </label>
           <div className="homescool-interest__progress" aria-hidden="true">
             <div
@@ -253,7 +253,7 @@ export default function HomescoolInterestForm() {
 
         <div className="homescool-interest__actions">
           <button className="btn btn--primary" type="submit" disabled={!unlocked || submitting}>
-            {submitting ? "Enviando…" : channel === "whatsapp" ? "Abrir WhatsApp" : "Enviar interés"}
+            {submitting ? "Sending…" : channel === "whatsapp" ? "Open WhatsApp" : "Send interest"}
           </button>
         </div>
 
@@ -268,8 +268,8 @@ export default function HomescoolInterestForm() {
       </form>
 
       <p className="homescool-interest__alt">
-        Atajos:{" "}
-        <a href={`mailto:${CONTACT_OWNER_EMAIL}?subject=${encodeURIComponent("Homescool — información")}`}>
+        Shortcuts:{" "}
+        <a href={`mailto:${CONTACT_OWNER_EMAIL}?subject=${encodeURIComponent("Homescool — information")}`}>
           {CONTACT_OWNER_EMAIL}
         </a>
         {" · "}

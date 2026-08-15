@@ -107,6 +107,8 @@ jobs:
             printf 'PAYMENTS_TABLE=eduardoos_payments\n'
             printf 'ENTITLEMENTS_BACKEND=dynamodb\n'
             printf 'ENTITLEMENTS_TABLE=eduardoos_entitlements\n'
+            printf 'IFCBIM_BACKEND=dynamodb\n'
+            printf 'IFCBIM_TABLE=eduardoos_ifcbim\n'
             printf 'S3_AUDIO_PREFIX=worship_playlists\n'
             printf 'APS_S3_BUCKET=aps20250806\n'
             printf 'APS_S3_REGION=us-east-1\n'
