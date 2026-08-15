@@ -140,10 +140,12 @@ jobs:
           echo "${onbox}" | grep -q 'api=200' || { echo "::error::Next backend :3001 unhealthy"; exit 1; }
           echo "${onbox}" | grep -q 'health=200' || { echo "::error::Staging nginx :8080 /health failed"; exit 1; }
           base="http://${EC2_HOST}:8080"
-          pub=$(curl -s -o /dev/null -w "%{http_code}" "${base}/health" || true)
+          pub=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "${base}/health" || true)
+          home=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "${base}/" || true)
           echo "Public smoke ${base}/health => ${pub}"
+          echo "Public smoke ${base}/ => ${home}"
           if [ "${pub}" != "200" ]; then
-            echo "::warning::Open AWS Security Group inbound TCP 8080 to browse ${base}/ from the internet."
+            echo "::warning::Public :8080 unreachable (got ${pub}). On-box smoke passed — open AWS Security Group inbound TCP 8080 to browse ${base}/ from the internet."
           else
             echo "Staging public OK: ${base}/"
           fi

@@ -15,6 +15,8 @@ Replace `<EC2_IP>` with the value of GitHub secret `EC2_HOST` (or your instance 
 
 Open **Security Group TCP 8080** inbound for staging access.
 
+CI smoke treats **on-box** `127.0.0.1:8080` as the required check. Public `http://$EC2_HOST:8080` returning `000` almost always means the SG (or host firewall) still blocks TCP 8080 — not a bad nginx root. Production `:443` / `default.conf` stays untouched.
+
 ## Isolation rules
 
 - Live under `eduardoos-next/deploy/` only (plus a non-destructive nginx include).

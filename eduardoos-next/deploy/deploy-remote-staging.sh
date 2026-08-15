@@ -219,12 +219,21 @@ install_staging_nginx() {
     fi
     cd "${APP_DIR}"
     mkdir -p "${NEXT_DIR}/frontend/dist"
-    "${compose[@]}" up -d nginx 2>/dev/null || "${compose[@]}" up -d
-    "${compose[@]}" exec -T nginx nginx -t 2>/dev/null \
-      && "${compose[@]}" exec -T nginx nginx -s reload 2>/dev/null \
+    # Reconcile port/volume mounts without touching unrelated services.
+    "${compose[@]}" up -d --no-deps nginx
+    if ! "${compose[@]}" port nginx "${STAGING_PORT}" >/dev/null 2>&1; then
+      echo "ERROR: nginx container does not publish host port ${STAGING_PORT}"
+      "${compose[@]}" ps nginx || true
+      exit 1
+    fi
+    if ! "${compose[@]}" exec -T nginx nginx -t; then
+      echo "ERROR: nginx -t failed after mounting staging conf"
+      exit 1
+    fi
+    "${compose[@]}" exec -T nginx nginx -s reload \
       || "${compose[@]}" restart nginx
     echo "==> Docker nginx staging conf active (see ${repo_conf})"
-    echo "    Ensure compose publishes ${STAGING_PORT}:${STAGING_PORT} and mounts:"
+    echo "    Published ${STAGING_PORT}; mounts:"
     echo "      ./nginx/${conf_name} -> /etc/nginx/conf.d/${conf_name}"
     echo "      ./eduardoos-next/frontend/dist -> /usr/share/nginx/eduardoos-next"
     rm -f "${tmp_conf}"
@@ -237,6 +246,25 @@ install_staging_nginx() {
 }
 
 install_staging_nginx
+
+echo "==> Verifying staging on localhost:${STAGING_PORT}"
+ready_edge=0
+for i in $(seq 1 15); do
+  if curl -sf --connect-timeout 2 "http://127.0.0.1:${STAGING_PORT}/health" >/dev/null; then
+    ready_edge=1
+    break
+  fi
+  sleep 2
+done
+if [[ "${ready_edge}" -ne 1 ]]; then
+  echo "ERROR: http://127.0.0.1:${STAGING_PORT}/health not ready after nginx staging install"
+  echo "---- diagnostics ----"
+  (command -v ss >/dev/null && sudo ss -tlnp | grep -E ":8080|:3001" || true)
+  (cd "${APP_DIR}" && docker compose -f docker-compose.yml -f docker-compose.ec2.yml ps nginx 2>/dev/null || docker compose ps nginx 2>/dev/null || true)
+  (cd "${APP_DIR}" && docker compose -f docker-compose.yml -f docker-compose.ec2.yml port nginx 8080 2>/dev/null || true)
+  exit 1
+fi
+echo "==> Staging edge healthy on :${STAGING_PORT}"
 
 echo "==> Staging deploy complete"
 echo "    Backend: http://127.0.0.1:3001/health (systemd eduardoos-next)"
