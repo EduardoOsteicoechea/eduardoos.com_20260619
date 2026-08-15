@@ -1,0 +1,41 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ContactAgent from "../components/Contact/ContactAgent";
+
+const CONTACT_OWNER_EMAIL = "eduardooost@gmail.com";
+const CONTACT_WHATSAPP_URL = "https://wa.me/584147281033";
+---
+
+<BaseLayout title="Contact — Eduardo OS Next">
+  <div class="page-shell contact-page">
+    <section class="contact-page__intro" aria-labelledby="contact-page-title">
+      <p class="contact-page__brand">Eduardo Osteicoechea</p>
+      <h1 id="contact-page-title" class="contact-page__title">Contact</h1>
+      <p class="contact-page__lead">
+        Professional inquiries in architecture, BIM, and full-stack AEC software.
+        Write directly or use the assistant on this page.
+      </p>
+      <ul class="contact-page__channels">
+        <li>
+          <span class="contact-page__label">Email</span>
+          <a href={`mailto:${CONTACT_OWNER_EMAIL}`}>{CONTACT_OWNER_EMAIL}</a>
+        </li>
+        <li>
+          <span class="contact-page__label">WhatsApp</span>
+          <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+            wa.me/584147281033
+          </a>
+        </li>
+      </ul>
+    </section>
+    <div class="contact-page__agent">
+      <ContactAgent
+        client:load
+        showDirectLinks={false}
+        title="Talk through the agent"
+        blurb="Confirm you are not a bot, then chat. Leave an email or phone number and I will be notified."
+        skillLabel="Contact"
+      />
+    </div>
+  </div>
+</BaseLayout>

@@ -1,0 +1,37 @@
+@import "./theme.css";
+@import "./buttons.css";
+@import "./pages.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font-family: var(--font-sans);
+}
+
+a {
+  color: inherit;
+}
+
+body > main {
+  padding-top: 0;
+  min-height: calc(100dvh - var(--header_height));
+}
+
+html.page-home body {
+  background:
+    radial-gradient(
+      ellipse 80% 55% at 15% 0%,
+      color-mix(in srgb, var(--site-body-fg) 8%, transparent),
+      transparent 60%
+    ),
+    var(--site-body-bg);
+}

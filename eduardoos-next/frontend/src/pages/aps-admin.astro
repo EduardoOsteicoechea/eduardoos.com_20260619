@@ -1,0 +1,8 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ApsAdminPage from "../components/ApsAdmin/ApsAdminPage";
+---
+
+<BaseLayout title="APS Admin — Eduardo OS Next" requireAuth={true}>
+  <ApsAdminPage client:load />
+</BaseLayout>

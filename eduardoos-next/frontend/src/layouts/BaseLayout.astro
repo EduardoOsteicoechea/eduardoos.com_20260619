@@ -1,0 +1,100 @@
+---
+/**
+ * Shared shell: fonts, theme bootstrap, Header, optional AuthGate / requireAuth.
+ */
+import "../styles/global.css";
+import { Header } from "../components/Header/Header";
+import { AuthGate } from "../components/AuthGate/AuthGate";
+import { APP_ROUTES } from "../config/routes";
+
+/** Must match AUTH_TOKEN_KEY in src/lib/auth.ts */
+const AUTH_TOKEN_KEY = "eduardoos-next-auth-token";
+
+interface Props {
+  title?: string;
+  requireAuth?: boolean;
+  pageHome?: boolean;
+}
+
+const {
+  title = "Eduardo OS Next",
+  requireAuth = false,
+  pageHome = false,
+} = Astro.props;
+
+const pathname = Astro.url.pathname;
+---
+
+<!doctype html>
+<html
+  lang="en"
+  class:list={{ "page-home": pageHome }}
+  data-auth-check={requireAuth ? "pending" : undefined}
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Eduardo OS Next — greenfield rebuild of Eduardo Osteicoechea’s AEC platform."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Raleway:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <title>{title}</title>
+    {
+      requireAuth && (
+        <>
+          <style is:inline>
+            {`html[data-auth-check="pending"] body { visibility: hidden !important; }`}
+          </style>
+          <script
+            is:inline
+            define:vars={{ loginPath: APP_ROUTES.login, tokenKey: AUTH_TOKEN_KEY }}
+          >
+            {`(function () {
+  try {
+    if (!localStorage.getItem(tokenKey)) {
+      var next = encodeURIComponent(location.pathname + location.search);
+      location.replace(loginPath + "?next=" + next);
+      return;
+    }
+  } catch (_) {
+    location.replace(loginPath);
+    return;
+  }
+  document.documentElement.setAttribute("data-auth-check", "ok");
+})();`}
+          </script>
+        </>
+      )
+    }
+    <script is:inline>
+      (function () {
+        try {
+          var key = "eduardoos-theme";
+          var stored = localStorage.getItem(key);
+          var theme =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.setAttribute("data-theme", theme);
+          document.documentElement.classList.toggle("dark", theme === "dark");
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <AuthGate client:load pathname={pathname} />
+    <Header client:load pathname={pathname} />
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>

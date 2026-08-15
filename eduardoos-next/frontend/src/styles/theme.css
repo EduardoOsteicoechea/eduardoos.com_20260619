@@ -1,0 +1,68 @@
+/**
+ * Theme tokens for Eduardo OS Next.
+ * Light/dark via html[data-theme] (and prefers-color-scheme fallback on :root).
+ */
+
+:root {
+  --ui-scale: 1.5;
+  --header_height: 60px;
+  --header_bar_height: 55px;
+  --control_min_height: 2.25rem;
+  --control_min_width: 2.25rem;
+  --border_radius_001: 6px;
+  --max_desktop_width: 72rem;
+  --page-inline-pad: 15px;
+  --font-sans: Montserrat, Raleway, Roboto, system-ui, sans-serif;
+
+  --site-body-bg: #f7f7f5;
+  --site-body-fg: #121212;
+  --site-accent: #121212;
+  --site-accent-fg: #f7f7f5;
+  --site-medium: color-mix(in srgb, var(--site-body-bg) 50%, var(--site-body-fg) 50%);
+  --site-medium-fg: var(--site-body-fg);
+  --site-border: color-mix(in srgb, var(--site-body-fg) 28%, transparent);
+  --glassed_background: color-mix(in srgb, var(--site-body-bg) 88%, transparent);
+  --site-surface-muted: color-mix(in srgb, var(--site-body-fg) 6%, var(--site-body-bg));
+  --site-muted-fg: color-mix(in srgb, var(--site-body-fg) 55%, var(--site-body-bg) 45%);
+  --site-meta-fg: color-mix(in srgb, var(--site-body-fg) 72%, var(--site-body-bg) 28%);
+  --site-danger: #b42318;
+  --border_001: 1px solid var(--site-border);
+
+  --font-xs: 0.65rem;
+  --font-sm: 0.77rem;
+  --font-md: 0.9rem;
+  --font-base: 1rem;
+  --font-lg: 1.25rem;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --site-body-bg: #0a0a0a;
+    --site-body-fg: #f2f2f2;
+    --site-accent: #e8e8e8;
+    --site-accent-fg: #0a0a0a;
+  }
+}
+
+html[data-theme="light"] {
+  --site-body-bg: #f7f7f5;
+  --site-body-fg: #121212;
+  --site-accent: #121212;
+  --site-accent-fg: #f7f7f5;
+}
+
+html[data-theme="dark"],
+html.dark {
+  --site-body-bg: #0a0a0a;
+  --site-body-fg: #f2f2f2;
+  --site-accent: #e8e8e8;
+  --site-accent-fg: #0a0a0a;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --ui-scale: 1;
+  }
+}

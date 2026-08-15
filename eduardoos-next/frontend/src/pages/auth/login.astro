@@ -1,0 +1,10 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import AuthForm from "../../components/AuthForm";
+---
+
+<BaseLayout title="Login — Eduardo OS Next">
+  <div class="page-shell">
+    <AuthForm client:load mode="login" />
+  </div>
+</BaseLayout>

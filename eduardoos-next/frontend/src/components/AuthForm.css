@@ -1,0 +1,32 @@
+.auth-form__otp-field {
+  margin-top: 0.25rem;
+}
+
+.auth-form__otp-hint {
+  margin: 0.35rem 0 0.5rem;
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  color: var(--site-body-fg);
+  opacity: 0.9;
+}
+
+.auth-form .btn--primary {
+  color: var(--site-accent-fg);
+}
+
+.auth-form__otp-field input {
+  font-size: 1.25rem;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+
+.auth-form__links {
+  margin: 1rem 0 0;
+  font-size: var(--font-sm);
+}
+
+.auth-form__links a {
+  color: var(--site-accent, var(--site-body-fg));
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
