@@ -17,7 +17,9 @@ Greenfield rewrite of Eduardo OS. **Isolated from the production monorepo tree.*
 3. Development order: **spec → tests → code → converge**.
 4. Reuse existing AWS data (S3 + DynamoDB) by preserving table names, key schemas, and object key prefixes — see `specs/001-platform-parity/`.
 
-## Local quick start (scaffold)
+## Local quick start
+
+See **[LOCAL.md](./LOCAL.md)** for the full runbook (backend `:3001` + frontend `:4322`).
 
 ```bash
 # Backend
@@ -32,12 +34,13 @@ cd frontend && npm install && npm run dev
 
 Usable UI shell with production IA:
 
-- **Libs**: `src/config/routes.ts`, `src/lib/api.ts`, `src/lib/auth.ts` (token key `eduardoos-next-auth-token`), `src/lib/validation.ts`
+- **Libs**: `src/config/routes.ts`, `src/lib/api.ts`, `src/lib/auth.ts` (token key `eduardoos-next-auth-token`), `src/lib/validation.ts`, `epams` / `playlists` / `bim` clients
 - **Chrome**: `Header` (Home, Contact, OpenBIM, APS, Personal dropdown), `AuthGate`, `BaseLayout`
 - **Auth**: login / register / verify-otp / reset-password forms
 - **Contact**: `ContactAgent` (docked optional on home desktop)
 - **APS admin**: workitem trigger + registry panel + hub explorer
-- **Stubs**: bim, pamphlet, music, articles, edebat, homescool, gallery, subscription, profile
+- **Wired**: pamphlet EPAM JSON shell, music playlist list/create, OpenBIM list/create/download (memory)
+- **Stubs**: articles, edebat, homescool, gallery, subscription, profile
 
 `npm run build` must stay green for frontend changes.
 

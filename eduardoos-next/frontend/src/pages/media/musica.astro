@@ -1,30 +1,8 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { APP_ROUTES } from "../../config/routes";
+import PlaylistPage from "../../components/Playlist/PlaylistPage";
 ---
 
 <BaseLayout title="Music — Eduardo OS Next">
-  <div class="page-shell">
-    <article class="product-page">
-      <p class="product-page__brand">Media</p>
-      <h1 class="product-page__title">Music</h1>
-      <p class="product-page__lead">
-        Build worship and study playlists with lyrics structure and cloud sync.
-        Sign in to create playlists against <code>/api/playlists</code> on the
-        Next backend (memory store today, Dynamo later).
-      </p>
-      <div class="product-page__cta-row">
-        <a
-          class="btn btn--primary"
-          href={`${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.mediaPlaylist)}`}
-        >
-          Sign in to sync playlists
-        </a>
-        <a class="btn" href={APP_ROUTES.mediaGallery}>Videos gallery</a>
-      </div>
-      <p class="product-page__note">
-        Playlist builder UI ports next; API list/create routes are already mounted on the backend.
-      </p>
-    </article>
-  </div>
+  <PlaylistPage client:load />
 </BaseLayout>
