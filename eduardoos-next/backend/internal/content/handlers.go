@@ -13,24 +13,29 @@ import (
 	"github.com/google/uuid"
 )
 
-// Handler serves epams, playlists, and BIM model APIs from in-memory stores
-// shaped like production Dynamo/S3 responses so the Next frontend can wire up.
+// Handler serves epams, playlists, and BIM model APIs.
 type Handler struct {
 	JWTSecret string
-	Epams     *EpamStore
+	Epams     EpamStore
 	Playlists *PlaylistStore
-	BIM       *BIMStore
+	BIM       BIMStore
 	auth      *auth.Handler
 }
 
-// NewHandler constructs content handlers with empty memory stores.
-func NewHandler(jwtSecret string) *Handler {
+// NewHandler constructs content handlers with the given stores (or memory defaults).
+func NewHandler(jwtSecret string, epams EpamStore, bim BIMStore) *Handler {
+	if epams == nil {
+		epams = NewMemoryEpamStore()
+	}
+	if bim == nil {
+		bim = NewMemoryBIMStore()
+	}
 	ah := &auth.Handler{JWTSecret: jwtSecret}
 	return &Handler{
 		JWTSecret: jwtSecret,
-		Epams:     NewEpamStore(),
+		Epams:     epams,
 		Playlists: NewPlaylistStore(),
-		BIM:       NewBIMStore(),
+		BIM:       bim,
 		auth:      ah,
 	}
 }
@@ -53,41 +58,23 @@ func (h *Handler) Routes(r chi.Router) {
 	})
 }
 
-// --- Epams ---
-
-// Epam is production-shaped pamphlet metadata (body may live in S3 later).
-type Epam struct {
-	ID        string         `json:"id"`
-	UserID    string         `json:"userId"`
-	Title     string         `json:"title"`
-	UpdatedAt string         `json:"updatedAt"`
-	Body      map[string]any `json:"body,omitempty"`
-}
-
-type EpamStore struct {
-	mu   sync.RWMutex
-	byID map[string]Epam
-}
-
-func NewEpamStore() *EpamStore {
-	return &EpamStore{byID: make(map[string]Epam)}
-}
-
 func (h *Handler) ListEpams(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
-	h.Epams.mu.RLock()
-	defer h.Epams.mu.RUnlock()
-	out := make([]Epam, 0)
-	for _, e := range h.Epams.byID {
-		if e.UserID == email {
-			out = append(out, e)
-		}
+	cid := httpx.CorrelationFromRequest(r)
+	out, err := h.Epams.ListByUser(r.Context(), email, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if out == nil {
+		out = []EpamRecord{}
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
 func (h *Handler) CreateEpam(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
+	cid := httpx.CorrelationFromRequest(r)
 	var body struct {
 		Title string         `json:"title"`
 		Body  map[string]any `json:"body"`
@@ -96,39 +83,44 @@ func (h *Handler) CreateEpam(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
 		return
 	}
-	e := Epam{
-		ID:        uuid.NewString(),
-		UserID:    email,
-		Title:     body.Title,
-		UpdatedAt: time.Now().UTC().Format(time.RFC3339),
-		Body:      body.Body,
+	saved, err := h.Epams.Save(r.Context(), EpamRecord{
+		UserID: email,
+		Title:  body.Title,
+		Body:   body.Body,
+	}, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
 	}
-	h.Epams.mu.Lock()
-	h.Epams.byID[e.ID] = e
-	h.Epams.mu.Unlock()
-	httpx.WriteJSON(w, http.StatusCreated, e)
+	httpx.WriteJSON(w, http.StatusCreated, saved)
 }
 
 func (h *Handler) GetEpam(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
+	cid := httpx.CorrelationFromRequest(r)
 	id := chi.URLParam(r, "id")
-	h.Epams.mu.RLock()
-	e, ok := h.Epams.byID[id]
-	h.Epams.mu.RUnlock()
-	if !ok || e.UserID != email {
+	rec, ok, err := h.Epams.Get(r.Context(), email, id, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if !ok {
 		httpx.WriteError(w, http.StatusNotFound, "not found")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, e)
+	httpx.WriteJSON(w, http.StatusOK, rec)
 }
 
 func (h *Handler) UpdateEpam(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
+	cid := httpx.CorrelationFromRequest(r)
 	id := chi.URLParam(r, "id")
-	h.Epams.mu.Lock()
-	defer h.Epams.mu.Unlock()
-	e, ok := h.Epams.byID[id]
-	if !ok || e.UserID != email {
+	existing, ok, err := h.Epams.Get(r.Context(), email, id, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if !ok {
 		httpx.WriteError(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -141,17 +133,20 @@ func (h *Handler) UpdateEpam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if body.Title != "" {
-		e.Title = body.Title
+		existing.Title = body.Title
 	}
 	if body.Body != nil {
-		e.Body = body.Body
+		existing.Body = body.Body
 	}
-	e.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-	h.Epams.byID[id] = e
-	httpx.WriteJSON(w, http.StatusOK, e)
+	saved, err := h.Epams.Save(r.Context(), existing, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, saved)
 }
 
-// --- Playlists ---
+// --- Playlists (memory-only for now) ---
 
 type Playlist struct {
 	PlaylistID string           `json:"playlistId"`
@@ -163,7 +158,7 @@ type Playlist struct {
 
 type PlaylistStore struct {
 	mu    sync.RWMutex
-	items map[string]Playlist // key userID|playlistId
+	items map[string]Playlist
 }
 
 func NewPlaylistStore() *PlaylistStore {
@@ -211,46 +206,23 @@ func (h *Handler) CreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, p)
 }
 
-// --- BIM / IFC ---
-
-type BIMModel struct {
-	ModelID   string `json:"modelId"`
-	UserID    string `json:"userId"`
-	Name      string `json:"name"`
-	UpdatedAt string `json:"updatedAt"`
-	// fileBytes is memory-mode IFC payload (placeholder when empty on create).
-	fileBytes []byte
-}
-
-type BIMStore struct {
-	mu    sync.RWMutex
-	items map[string]BIMModel
-}
-
-func NewBIMStore() *BIMStore {
-	return &BIMStore{items: make(map[string]BIMModel)}
-}
-
 func (h *Handler) ListBIMModels(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
-	h.BIM.mu.RLock()
-	defer h.BIM.mu.RUnlock()
-	out := make([]map[string]any, 0)
-	for _, m := range h.BIM.items {
-		if m.UserID == email {
-			out = append(out, map[string]any{
-				"modelId":   m.ModelID,
-				"userId":    m.UserID,
-				"name":      m.Name,
-				"updatedAt": m.UpdatedAt,
-			})
-		}
+	cid := httpx.CorrelationFromRequest(r)
+	out, err := h.BIM.ListByUser(r.Context(), email, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if out == nil {
+		out = []IfcBimRecord{}
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
 func (h *Handler) CreateBIMModel(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
+	cid := httpx.CorrelationFromRequest(r)
 	var body struct {
 		Name string `json:"name"`
 	}
@@ -258,37 +230,37 @@ func (h *Handler) CreateBIMModel(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
 		return
 	}
-	id := uuid.NewString()
-	m := BIMModel{
-		ModelID:   id,
-		UserID:    email,
-		Name:      body.Name,
-		UpdatedAt: time.Now().UTC().Format(time.RFC3339),
-		fileBytes: []byte("ISO-10303-21;\n/* eduardoos-next memory placeholder IFC */\nEND-ISO-10303-21;\n"),
+	saved, err := h.BIM.Save(r.Context(), IfcBimRecord{
+		UserID: email,
+		Name:   body.Name,
+		Title:  body.Name,
+	}, nil, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
 	}
-	h.BIM.mu.Lock()
-	h.BIM.items[playlistKey(email, id)] = m
-	h.BIM.mu.Unlock()
-	httpx.WriteJSON(w, http.StatusCreated, map[string]any{
-		"modelId":   m.ModelID,
-		"userId":    m.UserID,
-		"name":      m.Name,
-		"updatedAt": m.UpdatedAt,
-	})
+	httpx.WriteJSON(w, http.StatusCreated, saved)
 }
 
 func (h *Handler) GetBIMFile(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
 	id := chi.URLParam(r, "id")
-	h.BIM.mu.RLock()
-	m, ok := h.BIM.items[playlistKey(email, id)]
-	h.BIM.mu.RUnlock()
-	if !ok {
+	_, ok, err := h.BIM.Get(r.Context(), email, id, httpx.CorrelationFromRequest(r))
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if !ok && h.BIM.BackendName() == "memory" {
+		httpx.WriteError(w, http.StatusNotFound, "not found")
+		return
+	}
+	b, ok, err := h.BIM.GetFile(r.Context(), email, id)
+	if err != nil || !ok {
 		httpx.WriteError(w, http.StatusNotFound, "not found")
 		return
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+id+`.ifc"`)
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(m.fileBytes)
+	_, _ = w.Write(b)
 }

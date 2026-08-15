@@ -12,9 +12,9 @@ import (
 
 const minPasswordLen = 8
 
-// Handler wires auth routes against an in-memory store and JWT secret.
+// Handler wires auth routes against a UserStore and JWT secret.
 type Handler struct {
-	Store     *Store
+	Store     UserStore
 	JWTSecret string
 }
 
@@ -29,8 +29,6 @@ func (h *Handler) Routes(r chi.Router) {
 }
 
 // RequireJWT is middleware that rejects requests without a valid Bearer JWT.
-// On success it sets X-User-Email so downstream handlers can read the subject
-// without re-parsing the token.
 func (h *Handler) RequireJWT(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		email, err := EmailFromBearer(r.Header.Get("Authorization"), h.JWTSecret)
@@ -63,19 +61,26 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := NormalizeEmail(body.Email)
-	if _, exists := h.Store.GetUser(email); exists {
+	if _, exists, err := h.Store.GetUser(r.Context(), email); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "store error")
+		return
+	} else if exists {
 		httpx.WriteError(w, http.StatusConflict, "account already exists")
 		return
 	}
 	otp := GenerateOTP()
-	h.Store.PutUser(User{
+	if err := h.Store.PutUser(r.Context(), User{
 		Email:        email,
 		PasswordHash: HashPassword(body.Password),
 		Verified:     false,
-	})
-	h.Store.PutOTP(email, otp)
-	// Local/memory mode: OTP is returned so tests and local UI can verify
-	// without SMTP. Production Next should omit this field once SMTP lands.
+	}); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not create account")
+		return
+	}
+	if err := h.Store.PutOTP(r.Context(), email, otp); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not store otp")
+		return
+	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"message": "OTP sent to email",
 		"token":   nil,
@@ -93,7 +98,11 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := NormalizeEmail(body.Email)
-	user, ok := h.Store.GetUser(email)
+	user, ok, err := h.Store.GetUser(r.Context(), email)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "store error")
+		return
+	}
 	if !ok || !CheckPassword(body.Password, user.PasswordHash) {
 		httpx.WriteError(w, http.StatusUnauthorized, "invalid credentials")
 		return
@@ -123,16 +132,26 @@ func (h *Handler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := NormalizeEmail(body.Email)
-	stored, ok := h.Store.GetOTP(email)
+	stored, ok, err := h.Store.GetOTP(r.Context(), email)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "store error")
+		return
+	}
 	if !ok || stored != strings.TrimSpace(body.OTP) {
 		httpx.WriteError(w, http.StatusUnauthorized, "invalid otp")
 		return
 	}
-	if !h.Store.SetVerified(email, true) {
+	user, exists, err := h.Store.GetUser(r.Context(), email)
+	if err != nil || !exists {
 		httpx.WriteError(w, http.StatusNotFound, "user not found")
 		return
 	}
-	h.Store.ClearOTP(email)
+	user.Verified = true
+	if err := h.Store.PutUser(r.Context(), user); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not verify")
+		return
+	}
+	_ = h.Store.DeleteOTP(r.Context(), email)
 	token, err := IssueJWT(email, h.JWTSecret)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "could not issue token")
@@ -154,14 +173,13 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := NormalizeEmail(body.Email)
-	// Always return OK to avoid account enumeration; only store OTP if user exists.
 	otp := GenerateOTP()
-	if _, ok := h.Store.GetUser(email); ok {
-		h.Store.PutResetOTP(email, otp)
+	if _, ok, err := h.Store.GetUser(r.Context(), email); err == nil && ok {
+		_ = h.Store.PutResetOTP(r.Context(), email, otp)
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"message": "If the account exists, a reset code was sent",
-		"otp":     otp, // local/memory convenience; strip when SMTP is wired
+		"otp":     otp,
 	})
 }
 
@@ -180,20 +198,29 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := NormalizeEmail(body.Email)
-	stored, ok := h.Store.GetResetOTP(email)
+	stored, ok, err := h.Store.GetResetOTP(r.Context(), email)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "store error")
+		return
+	}
 	if !ok || stored != strings.TrimSpace(body.OTP) {
 		httpx.WriteError(w, http.StatusUnauthorized, "invalid otp")
 		return
 	}
-	if !h.Store.UpdatePassword(email, HashPassword(body.NewPassword)) {
+	user, exists, err := h.Store.GetUser(r.Context(), email)
+	if err != nil || !exists {
 		httpx.WriteError(w, http.StatusNotFound, "user not found")
 		return
 	}
-	h.Store.ClearResetOTP(email)
+	user.PasswordHash = HashPassword(body.NewPassword)
+	if err := h.Store.PutUser(r.Context(), user); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not update password")
+		return
+	}
+	_ = h.Store.DeleteResetOTP(r.Context(), email)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"message": "password updated"})
 }
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
-	// Stateless JWT: client discards the token. Endpoint exists for API parity.
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"message": "logged out"})
 }

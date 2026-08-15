@@ -50,9 +50,9 @@ func (h *Handler) ensureClient() error {
 }
 
 // TriggerWorkItem submits a Design Automation workitem.
-// When APS credentials are missing it returns 503 with a clear message.
-// Full S3 presign can be added later; this stub creates a minimal workitem
-// payload using the configured activity id when creds are present.
+// Required env (see Config.RequiredEnvDocs / Validate): APS_CLIENT_ID,
+// APS_CLIENT_SECRET, APS_ACTIVITY_ID. Missing creds return HTTP 503 with that list.
+// When creds are present, posts a minimal DA workitem (S3 GET/PUT args TBD).
 func (h *Handler) TriggerWorkItem(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	if _, ok := h.requireAdmin(w, r); !ok {
@@ -208,3 +208,4 @@ func (h *Handler) ListContents(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.WriteJSON(w, http.StatusOK, contents)
 }
+

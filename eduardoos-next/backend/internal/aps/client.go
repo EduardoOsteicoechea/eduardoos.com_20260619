@@ -40,6 +40,9 @@ func LoadConfig() Config {
 	}
 }
 
+// RequiredEnvDocs lists env vars needed for Design Automation workitems.
+const RequiredEnvDocs = "Required env: APS_CLIENT_ID, APS_CLIENT_SECRET, APS_ACTIVITY_ID (optional overrides: APS_TOKEN_URL, APS_WORKITEMS_URL, APS_OAUTH_SCOPE, APS_DA_BASE_URL, APS_DM_BASE_URL, APS_DATA_BASE_URL). S3 presign I/O (APS_S3_BUCKET / input object) can be wired later."
+
 // Validate returns an error when required credentials are missing.
 func (c Config) Validate() error {
 	var missing []string
@@ -55,7 +58,7 @@ func (c Config) Validate() error {
 	if len(missing) == 0 {
 		return nil
 	}
-	return fmt.Errorf("aps config incomplete: missing %s", strings.Join(missing, ", "))
+	return fmt.Errorf("aps config incomplete: missing %s. %s", strings.Join(missing, ", "), RequiredEnvDocs)
 }
 
 // Client talks to Autodesk APS (token + Design Automation + Data Management).
@@ -215,3 +218,4 @@ func truncate(s string, n int) string {
 	}
 	return s[:n] + "..."
 }
+

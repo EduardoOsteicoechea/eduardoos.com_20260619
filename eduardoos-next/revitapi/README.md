@@ -1,13 +1,23 @@
-# Revit / APS Design Automation assets for Eduardo OS Next
+﻿# Revit / APS Design Automation assets for Eduardo OS Next
 
-This folder will hold:
+This folder is a **copy** of the parent repo `aps_app/` tree (not a move).
+The parent `aps_app/` remains the production source until cutover.
 
-- Revit add-in / Design Automation AppBundle sources
-- Packaging scripts (`pack-bundle`, activity registration)
-- Notes linking to backend APS client under `../backend`
+## Contents (copied from `aps_app/`)
 
-Nothing here is wired into production deploy yet.
+| Path | Role |
+|------|------|
+| `RevitHello/` | Revit Design Automation AppBundle sources |
+| `pack-bundle.ps1` | Package the AppBundle zip |
+| `register-revit-activity.mjs` | Register / update Autodesk DA activity |
 
-Until Phase P3 tasks land, treat this as the home for APS/Revit code migrated
-from the parent repo’s `aps_app/` **by copy**, never by deleting the parent copy
-before cutover.
+## Backend pairing
+
+Next backend APS routes live under `../backend/internal/aps`:
+
+- `POST /api/aps/trigger-workitem` — requires JWT admin (`eduardooost@gmail.com`) and env:
+  `APS_CLIENT_ID`, `APS_CLIENT_SECRET`, `APS_ACTIVITY_ID` (HTTP 503 if missing)
+- `GET /api/aps/workitems/{id}`, `GET /api/aps/registry`, hubs/projects/contents
+
+Nothing in this folder is wired into production deploy yet. Update scripts here
+first; copy back to parent `aps_app/` only as part of an explicit cutover plan.

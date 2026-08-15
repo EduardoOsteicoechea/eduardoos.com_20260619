@@ -1,6 +1,7 @@
 ﻿package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -15,17 +16,22 @@ import (
 )
 
 // main boots the Eduardo OS Next monolith on ADDR (default :3001).
-// Routes mirror production gateway surfaces for auth, content, and APS admin
-// while staying isolated under eduardoos-next (never touches parent prod ports).
+// Store backends are selected via DATABASE_BACKEND / EPAMS_BACKEND / IFCBIM_BACKEND
+// (memory default). DynamoDB mode falls back to memory when AWS creds are missing.
 func main() {
+	ctx := context.Background()
 	addr := httpx.Env("ADDR", ":3001")
 	jwtSecret := httpx.Env("JWT_SECRET", "dev-jwt-secret")
 
+	userStore := auth.OpenUserStore(ctx)
+	epamStore := content.OpenEpamStore(ctx)
+	bimStore := content.OpenBIMStore(ctx)
+
 	authHandler := &auth.Handler{
-		Store:     auth.NewMemoryStore(),
+		Store:     userStore,
 		JWTSecret: jwtSecret,
 	}
-	contentHandler := content.NewHandler(jwtSecret)
+	contentHandler := content.NewHandler(jwtSecret, epamStore, bimStore)
 	apsHandler := &aps.Handler{
 		JWTSecret: jwtSecret,
 		Client:    aps.NewClient(aps.LoadConfig()),
@@ -43,5 +49,6 @@ func main() {
 	apsHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
+	log.Printf("stores: auth=%s epams=%s ifcbim=%s", userStore.BackendName(), epamStore.BackendName(), bimStore.BackendName())
 	log.Fatal(http.ListenAndServe(addr, r))
 }
