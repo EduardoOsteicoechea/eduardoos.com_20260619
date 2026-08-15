@@ -62,7 +62,7 @@ async function writeHandle(handle: FileSystemFileHandle, data: PamphletStructure
 export async function openPamphletFile(): Promise<PamphletStructure> {
     if (!isFileSystemAccessSupported()) {
         throw new Error(
-            "File System Access API is not supported in this browser. Use Chrome or Edge.",
+            "Local device files need HTTPS (or localhost) in Chrome or Edge.",
         );
     }
 
@@ -81,7 +81,7 @@ export async function openPamphletFile(): Promise<PamphletStructure> {
 export async function createPamphletFile(meta: CreatePamphletMeta): Promise<PamphletStructure> {
     if (!isFileSystemAccessSupported()) {
         throw new Error(
-            "File System Access API is not supported in this browser. Use Chrome or Edge.",
+            "Local device files need HTTPS (or localhost) in Chrome or Edge.",
         );
     }
 

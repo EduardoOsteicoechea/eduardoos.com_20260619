@@ -412,6 +412,11 @@ let suppressEditOpenSave = false;
 let pendingInsert: PendingInsert | null = null;
 /** When set, edits can persist to DynamoDB/S3 without a local FileSystem handle. */
 let cloudEpamId: string | null = null;
+/** In-browser session with no File System Access handle (HTTP staging, unsupported browsers). */
+let memorySession = false;
+
+const FSA_HTTPS_HINT =
+    "Local device files need HTTPS (or localhost) in Chrome or Edge. You can still create in this browser or use the cloud.";
 
 const LAST_EPAM_STORAGE_KEY = "eduardoos-pamphlet-last-epam-id";
 
@@ -439,6 +444,7 @@ function readLastEpamId(): string | null {
 async function openCloudDocumentById(epamId: string): Promise<void> {
     const loaded = await fetchEpam(epamId);
     clearOpenFile();
+    memorySession = false;
     cloudEpamId = loaded.meta.epamId;
     setOpenFileName(loaded.meta.fileName);
     loadPamphlet(loaded.document);
@@ -945,7 +951,7 @@ function renderDocument(data: PamphletStructure, openEdit: boolean): void {
 }
 
 function hasEditableSession(): boolean {
-    return hasOpenFile() || cloudEpamId !== null;
+    return hasOpenFile() || cloudEpamId !== null || memorySession || currentDoc !== null;
 }
 
 function ensureDocumentId(data: PamphletStructure): PamphletStructure {
@@ -978,16 +984,17 @@ async function commitDocument(data: PamphletStructure, openEdit: boolean): Promi
         let next = ensureDocumentId(data);
         if (hasOpenFile()) {
             await savePamphlet(next);
+            renderDocument(next, openEdit);
+            setStatus(`Saved: ${getOpenFileName() || "document"}`, "success");
+        } else if (cloudEpamId) {
+            next = await persistCloud(next);
+            renderDocument(next, openEdit);
+            setStatus(`Saved to cloud: ${getOpenFileName() || cloudEpamId}`, "success");
+        } else {
+            // Memory-only: keep the sheet editable without a disk/cloud write.
+            renderDocument(next, openEdit);
+            setStatus("Updated in browser — use Save to cloud to keep a copy.", "info");
         }
-        if (cloudEpamId || (!hasOpenFile() && isAuthenticated())) {
-            // Cloud-only sessions always sync; local sessions sync when already linked to cloud.
-            if (cloudEpamId || !hasOpenFile()) {
-                next = await persistCloud(next);
-            }
-        }
-        renderDocument(next, openEdit);
-        const label = getOpenFileName() || cloudEpamId || "document";
-        setStatus(`Saved: ${label}`, "success");
         clearError();
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -1121,6 +1128,8 @@ async function handleTrayAction(detail: PamphletTrayAction): Promise<void> {
             } else if (cloudEpamId) {
                 await persistCloud(next);
                 setStatus(`Saved to cloud: ${getOpenFileName() || cloudEpamId}`, "success");
+            } else if (memorySession || currentDoc) {
+                setStatus("Updated in browser — use Save to cloud to keep a copy.", "info");
             } else {
                 setError("No pamphlet file is open. Open or create a file first.");
                 return;
@@ -1263,9 +1272,24 @@ on(sidebarBackdrop, "click", () => {
     closeSidebar();
 });
 
+function syncOpenSourceModalForFsa(): void {
+    const fsaOk = isFileSystemAccessSupported();
+    openSourceLocalBtn.disabled = !fsaOk;
+    openSourceLocalBtn.title = fsaOk
+        ? ""
+        : "Opening files from this device needs HTTPS (or localhost) in Chrome or Edge.";
+    const hint = openSourceModal.querySelector<HTMLElement>(".create-modal-hint");
+    if (hint) {
+        hint.textContent = fsaOk
+            ? "Choose where to load the .epam file from."
+            : "Device files need HTTPS (or localhost). Open from the cloud if you are signed in.";
+    }
+}
+
 on(openBtn, "click", () => {
     closeSidebar();
     clearError();
+    syncOpenSourceModalForFsa();
     openSourceModal.showModal();
 });
 
@@ -1286,6 +1310,7 @@ on(openSourceLocalBtn, "click", async () => {
     clearError();
     try {
         const data = await openPamphletFile();
+        memorySession = false;
         cloudEpamId = data.id?.trim() || null;
         rememberLastEpamId(cloudEpamId);
         loadPamphlet(data);
@@ -1369,7 +1394,9 @@ on(saveCloudBtn, "click", async () => {
     try {
         const live = serializePamphlet(main, currentDoc.last_edited_element, currentDoc);
         const savedDoc = await persistCloud({ ...live });
+        memorySession = false;
         renderDocument(savedDoc, false);
+        updatePrintAvailability();
         setStatus(`Saved to cloud: ${getOpenFileName() || cloudEpamId}`, "success");
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -1398,8 +1425,21 @@ function closeCreateSaveModal(): void {
 
 function openCreateSaveModal(): void {
     const loggedIn = Boolean(getAuthToken() && isAuthenticated());
+    const fsaOk = isFileSystemAccessSupported();
     createSaveCloudBtn.disabled = !loggedIn;
     createSaveCloudHint.hidden = loggedIn;
+    // Keep local create available: FSA picks a file; without FSA we start an in-browser session.
+    createSaveLocalBtn.disabled = false;
+    createSaveLocalBtn.textContent = fsaOk ? "On this device" : "In this browser";
+    createSaveLocalBtn.title = fsaOk
+        ? ""
+        : "Starts an editable session in this tab. Device file pickers need HTTPS (or localhost).";
+    const hint = createSaveModal.querySelector<HTMLElement>(".create-modal-hint:not([id])");
+    if (hint) {
+        hint.textContent = fsaOk
+            ? "Choose where to save the new .epam file."
+            : "Device file save needs HTTPS (or localhost). Use “In this browser” or “In the cloud”.";
+    }
     createSaveModal.showModal();
 }
 
@@ -1441,12 +1481,29 @@ on(createSaveLocalBtn, "click", async () => {
     if (!meta) return;
     clearError();
     try {
-        const data = await createPamphletFile(meta);
-        pendingCreateMeta = null;
+        if (isFileSystemAccessSupported()) {
+            const data = await createPamphletFile(meta);
+            pendingCreateMeta = null;
+            memorySession = false;
+            cloudEpamId = null;
+            closeCreateSaveModal();
+            loadPamphlet(data);
+            openItemTypeModal({ mode: "end", column: 1 });
+            return;
+        }
+        // No FSA (typical on http://host:port): editable blank sheet in this tab only.
+        clearOpenFile();
         cloudEpamId = null;
+        memorySession = true;
+        const blank = createEmptyPamphlet(meta);
+        setOpenFileName(
+            `${meta.series.trim().replace(/[^\w.-]+/g, "_") || "pamphlet"}_ch${meta.series_chapter.trim().replace(/[^\w.-]+/g, "_") || "1"}.epam`,
+        );
+        pendingCreateMeta = null;
         closeCreateSaveModal();
-        loadPamphlet(data);
+        loadPamphlet(blank);
         openItemTypeModal({ mode: "end", column: 1 });
+        setStatus("Editing in this browser — Save to cloud to keep a copy. Device files need HTTPS.", "info");
     } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         const message = err instanceof Error ? err.message : String(err);
@@ -1464,6 +1521,7 @@ on(createSaveCloudBtn, "click", async () => {
     }
     try {
         clearOpenFile();
+        memorySession = false;
         cloudEpamId = null;
         const blank = createEmptyPamphlet(meta);
         setOpenFileName(
@@ -1549,10 +1607,10 @@ if (window.visualViewport) {
     on(window.visualViewport, "scroll", syncFixedChromeScale);
 }
 
-if (!isFileSystemAccessSupported()) {
-        setError("File System Access API is not supported. Use Chrome or Edge.");
-        openBtn.disabled = true;
-        createBtn.disabled = true;
+syncOpenSourceModalForFsa();
+    if (!isFileSystemAccessSupported()) {
+        // Keep Open/New usable: cloud + in-browser create still work without FSA.
+        setStatus(FSA_HTTPS_HINT, "info");
     } else {
         setStatus("No file open — open an existing .epam or create a new one.");
     }
