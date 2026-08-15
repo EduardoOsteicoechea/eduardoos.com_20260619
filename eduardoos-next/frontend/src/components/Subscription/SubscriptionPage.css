@@ -1,0 +1,131 @@
+.subscription-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: min(100%, 40rem);
+  margin: 0 auto;
+  padding: 1rem var(--page-inline-pad) 2.5rem;
+}
+
+.subscription-page--gate {
+  max-width: 36rem;
+}
+
+.subscription-page__brand {
+  margin: 0;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-meta-fg);
+}
+
+.subscription-page__title {
+  margin: 0;
+  font-family: Montserrat, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.subscription-page__lead {
+  margin: 0;
+  line-height: 1.55;
+  color: var(--site-meta-fg);
+  font-size: var(--font-sm);
+}
+
+.subscription-page__cta-row,
+.subscription-page__period,
+.subscription-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.subscription-page__services {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.subscription-page__service {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--glassed_background);
+  cursor: pointer;
+}
+
+.subscription-page__service--selected {
+  border-color: var(--site-accent);
+}
+
+.subscription-page__service-desc {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: var(--font-sm);
+  color: var(--site-meta-fg);
+}
+
+.subscription-page__total {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.subscription-page__prepare,
+.subscription-page__checkout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.subscription-page__paypal-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.subscription-page__paypal-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.subscription-page__paypal-btn img {
+  display: block;
+  max-width: 180px;
+}
+
+.subscription-page__error {
+  margin: 0;
+  color: var(--site-danger);
+  font-size: var(--font-sm);
+  white-space: pre-wrap;
+}
+
+.subscription-page__status,
+.subscription-page__hint {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--site-meta-fg);
+}
+
+.subscription-page__entitlements {
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  padding: 1rem;
+  background: var(--glassed_background);
+}
+
+.subscription-page__entitlements h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.subscription-page__entitlements ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}

@@ -1,4 +1,4 @@
-# Tasks — 001 Platform parity
+﻿# Tasks — 001 Platform parity
 
 Status: **partial** (see Remaining for parity). Cutover **T099** stays blocked.
 
@@ -36,7 +36,7 @@ Status: **partial** (see Remaining for parity). Cutover **T099** stays blocked.
 
 - [x] T040 Home + contact assistant
 - [x] T041 Pamphlet generator mount (`eduardoos-next/frontend/src/lib/pamphlet-generator` + PamphletLayout; cloud open/save via `/api/epams`). PDF print route still pending documents service.
-- [x] T042 Music, articles, edebat, subscribe, OpenBIM pages (stubs + playlist list/create)
+- [x] T042 Music, articles, edebat, subscribe, OpenBIM pages (stubs + playlist list/create/tracks + subscription intents UI)
 
 ## Phase P5 — Staging only
 
@@ -53,9 +53,9 @@ Honest gaps vs production / full product surface:
 
 - **Pamphlet PDF print** — visual editor + EPAM cloud toolbar are mounted; `/api/documents/pamphlet/pdf` not yet in Next backend.
 - **That Open / OpenBIM 3D viewer** — multipart upload stores real IFC bytes in memory (GET returns them); optional S3 when `IFCBIM_S3_BUCKET`/`S3_BUCKET` + AWS creds; no That Open / web-ifc / three viewer yet (deferred for build memory).
-- **Playlists** — GET/POST list + create-by-name only; no track library, drag-and-drop builder, player, or Dynamo `eduardoos_playlists` persistence.
-- **Payments / PayPal** — subscription page chrome only; no hosted button, intents, webhook, or entitlement checks.
+- **Playlists** — memory GET/POST list/create + `POST /api/playlists/{id}/tracks` (title/url) with HTML5 audio when URL present; no drag-and-drop worship builder, S3 audio library, or Dynamo `eduardoos_playlists` persistence.
+- **Payments / PayPal** — JWT `POST /api/payments/intents`, public `GET /api/payments/status/{id}`, entitlements list/preview (memory store); subscription UI prepares intent + hosted button via `PAYPAL_HOSTED_BUTTON_ID`. No PayPal IPN webhook, Dynamo `eduardoos_payments`, or real entitlement grants after checkout.
 - **Edebat AI** — product stub/gate only; no debate rooms, turns, or AI transcript APIs.
-- **Auth OTP/SMTP** - SMTP_USER/SMTP_PASS + DEV_RETURN_OTP wired (T010); empty SMTP_PASS logs OTP; real Gmail delivery needs SMTP_PASS set on host.
+- **Auth OTP/SMTP** — SMTP_USER/SMTP_PASS + DEV_RETURN_OTP wired (T010); empty SMTP_PASS logs OTP; real Gmail delivery needs SMTP_PASS set on host.
 - **Articles / Homescool / gallery** — IA stubs, not full content pipelines.
-- **Staging + cutover** - T050/T051 next-only scripts + smoke checklist under `eduardoos-next/deploy/`; T099 remains blocked until explicit approval.
+- **Staging + cutover** — T050/T051 next-only scripts + smoke checklist under `eduardoos-next/deploy/`; T099 remains blocked until explicit approval.

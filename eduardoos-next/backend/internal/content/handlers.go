@@ -54,6 +54,8 @@ func (h *Handler) Routes(r chi.Router) {
 
 		r.Get("/api/playlists", h.ListPlaylists)
 		r.Post("/api/playlists", h.CreatePlaylist)
+		r.Post("/api/playlists/{id}/tracks", h.AddPlaylistTrack)
+		r.Put("/api/playlists/{id}", h.UpdatePlaylist)
 
 		r.Get("/api/bim/models", h.ListBIMModels)
 		r.Post("/api/bim/models", h.CreateBIMModel)
@@ -205,12 +207,20 @@ func (h *Handler) UpdateEpam(w http.ResponseWriter, r *http.Request) {
 
 // --- Playlists (memory-only for now) ---
 
+// PlaylistTrack is a single audio entry (title + optional URL for HTML5 audio).
+type PlaylistTrack struct {
+	TrackID string `json:"trackId"`
+	Title   string `json:"title"`
+	URL     string `json:"url,omitempty"`
+}
+
+// Playlist is a named list of tracks owned by a user.
 type Playlist struct {
-	PlaylistID string           `json:"playlistId"`
-	UserID     string           `json:"userId"`
-	Name       string           `json:"name"`
-	Tracks     []map[string]any `json:"tracks"`
-	UpdatedAt  string           `json:"updatedAt"`
+	PlaylistID string          `json:"playlistId"`
+	UserID     string          `json:"userId"`
+	Name       string          `json:"name"`
+	Tracks     []PlaylistTrack `json:"tracks"`
+	UpdatedAt  string          `json:"updatedAt"`
 }
 
 type PlaylistStore struct {
@@ -224,6 +234,26 @@ func NewPlaylistStore() *PlaylistStore {
 
 func playlistKey(userID, id string) string { return userID + "|" + id }
 
+func normalizeTracks(raw []PlaylistTrack) []PlaylistTrack {
+	out := make([]PlaylistTrack, 0, len(raw))
+	for _, t := range raw {
+		title := strings.TrimSpace(t.Title)
+		url := strings.TrimSpace(t.URL)
+		if title == "" && url == "" {
+			continue
+		}
+		if title == "" {
+			title = "Untitled track"
+		}
+		id := strings.TrimSpace(t.TrackID)
+		if id == "" {
+			id = uuid.NewString()
+		}
+		out = append(out, PlaylistTrack{TrackID: id, Title: title, URL: url})
+	}
+	return out
+}
+
 func (h *Handler) ListPlaylists(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
 	h.Playlists.mu.RLock()
@@ -234,33 +264,117 @@ func (h *Handler) ListPlaylists(w http.ResponseWriter, r *http.Request) {
 			out = append(out, p)
 		}
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"items":     out,
+		"playlists": out,
+		"count":     len(out),
+	})
 }
 
 func (h *Handler) CreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
 	var body struct {
-		Name   string           `json:"name"`
-		Tracks []map[string]any `json:"tracks"`
+		Name   string          `json:"name"`
+		Tracks []PlaylistTrack `json:"tracks"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
 		return
 	}
-	if body.Tracks == nil {
-		body.Tracks = []map[string]any{}
+	name := strings.TrimSpace(body.Name)
+	if name == "" {
+		name = "Untitled playlist"
 	}
 	p := Playlist{
 		PlaylistID: uuid.NewString(),
 		UserID:     email,
-		Name:       body.Name,
-		Tracks:     body.Tracks,
+		Name:       name,
+		Tracks:     normalizeTracks(body.Tracks),
 		UpdatedAt:  time.Now().UTC().Format(time.RFC3339),
 	}
 	h.Playlists.mu.Lock()
 	h.Playlists.items[playlistKey(email, p.PlaylistID)] = p
 	h.Playlists.mu.Unlock()
 	httpx.WriteJSON(w, http.StatusCreated, p)
+}
+
+// UpdatePlaylist replaces name and/or full track list for an owned playlist.
+func (h *Handler) UpdatePlaylist(w http.ResponseWriter, r *http.Request) {
+	email := auth.UserEmailFromRequest(r)
+	id := chi.URLParam(r, "id")
+	key := playlistKey(email, id)
+
+	h.Playlists.mu.Lock()
+	defer h.Playlists.mu.Unlock()
+	existing, ok := h.Playlists.items[key]
+	if !ok {
+		httpx.WriteError(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	var body struct {
+		Name   *string          `json:"name"`
+		Tracks *[]PlaylistTrack `json:"tracks"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	if body.Name != nil {
+		name := strings.TrimSpace(*body.Name)
+		if name == "" {
+			name = "Untitled playlist"
+		}
+		existing.Name = name
+	}
+	if body.Tracks != nil {
+		existing.Tracks = normalizeTracks(*body.Tracks)
+	}
+	existing.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	h.Playlists.items[key] = existing
+	httpx.WriteJSON(w, http.StatusOK, existing)
+}
+
+// AddPlaylistTrack appends one title/url track to an existing playlist.
+func (h *Handler) AddPlaylistTrack(w http.ResponseWriter, r *http.Request) {
+	email := auth.UserEmailFromRequest(r)
+	id := chi.URLParam(r, "id")
+	key := playlistKey(email, id)
+
+	var body struct {
+		Title string `json:"title"`
+		URL   string `json:"url"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	title := strings.TrimSpace(body.Title)
+	url := strings.TrimSpace(body.URL)
+	if title == "" && url == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "title or url required")
+		return
+	}
+	if title == "" {
+		title = "Untitled track"
+	}
+
+	h.Playlists.mu.Lock()
+	defer h.Playlists.mu.Unlock()
+	existing, ok := h.Playlists.items[key]
+	if !ok {
+		httpx.WriteError(w, http.StatusNotFound, "not found")
+		return
+	}
+	track := PlaylistTrack{
+		TrackID: uuid.NewString(),
+		Title:   title,
+		URL:     url,
+	}
+	existing.Tracks = append(existing.Tracks, track)
+	existing.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	h.Playlists.items[key] = existing
+	httpx.WriteJSON(w, http.StatusCreated, existing)
 }
 
 func (h *Handler) ListBIMModels(w http.ResponseWriter, r *http.Request) {

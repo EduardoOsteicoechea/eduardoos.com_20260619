@@ -89,10 +89,19 @@
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  width: 100%;
+  text-align: left;
   padding: 0.65rem 0.75rem;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
   background: var(--site-body-bg);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.playlist-page__item--selected {
+  border-color: var(--site-accent);
 }
 
 .playlist-page__item-name {
@@ -103,4 +112,44 @@
 .playlist-page__item-meta {
   font-size: 0.75rem;
   color: var(--site-meta-fg);
+}
+
+.playlist-page__section-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.playlist-page__track-form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.playlist-page__tracks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.playlist-page__track {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.65rem 0.75rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+}
+
+.playlist-page__track-title {
+  font-weight: 600;
+  font-size: var(--font-sm);
+}
+
+.playlist-page__audio {
+  width: 100%;
+  max-width: 100%;
+  height: 2.25rem;
 }

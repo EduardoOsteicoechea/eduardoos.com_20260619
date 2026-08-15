@@ -11,6 +11,7 @@ import (
 	"eduardoos.nex/internal/content"
 	"eduardoos.nex/internal/health"
 	"eduardoos.nex/internal/httpx"
+	"eduardoos.nex/internal/payments"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -50,6 +51,7 @@ func main() {
 		JWTSecret: jwtSecret,
 		Client:    aps.NewClient(aps.LoadConfig()),
 	}
+	paymentsHandler := payments.NewHandler(jwtSecret, httpx.Env("PAYPAL_HOSTED_BUTTON_ID", "PLACEHOLDER_HOSTED_BUTTON"))
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -61,6 +63,7 @@ func main() {
 	authHandler.Routes(r)
 	contentHandler.Routes(r)
 	apsHandler.Routes(r)
+	paymentsHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
 	log.Printf("stores: auth=%s epams=%s ifcbim=%s", userStore.BackendName(), epamStore.BackendName(), bimStore.BackendName())

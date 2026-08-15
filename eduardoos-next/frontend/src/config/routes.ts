@@ -73,9 +73,15 @@ export const DOCUMENT_ROUTES = {
 export const PLAYLIST_ROUTES = {
   list: "/api/playlists",
   save: "/api/playlists",
+  item: (playlistId: string) =>
+    `/api/playlists/${encodeURIComponent(playlistId)}`,
+  tracks: (playlistId: string) =>
+    `/api/playlists/${encodeURIComponent(playlistId)}/tracks`,
 } as const;
 
 export const PAYMENT_ROUTES = {
   intents: "/api/payments/intents",
   status: "/api/payments/status",
+  entitlements: "/api/subscriptions/entitlements",
+  entitlementsPreview: "/api/subscriptions/entitlements/preview",
 } as const;
