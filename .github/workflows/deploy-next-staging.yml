@@ -125,20 +125,25 @@ jobs:
             "${EC2_USER}@${EC2_HOST}" \
             "cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x eduardoos-next/deploy/*.sh && APP_DIR=~/eduardoos.com_20260619 bash eduardoos-next/deploy/deploy-remote-staging.sh"
 
-      - name: Smoke check staging :8080
+      - name: Smoke check staging (on-box + public)
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
-          DOMAIN: ${{ secrets.DOMAIN }}
+          EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          sleep 10
+          sleep 5
+          onbox=$(ssh -i ~/.ssh/deploy_key $SSH_OPTS "${EC2_USER}@${EC2_HOST}" \
+            'api=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3001/health || true); \
+             hl=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/health || true); \
+             web=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/ || true); \
+             echo "api=${api} health=${hl} web=${web}"')
+          echo "On-box smoke: ${onbox}"
+          echo "${onbox}" | grep -q 'api=200' || { echo "::error::Next backend :3001 unhealthy"; exit 1; }
+          echo "${onbox}" | grep -q 'health=200' || { echo "::error::Staging nginx :8080 /health failed"; exit 1; }
           base="http://${EC2_HOST}:8080"
-          health=$(curl -s -o /dev/null -w "%{http_code}" "${base}/health" || true)
-          home=$(curl -s -o /dev/null -w "%{http_code}" "${base}/" || true)
-          echo "Staging smoke ${base}/health => ${health}"
-          echo "Staging smoke ${base}/ => ${home}"
-          if [ "${health}" != "200" ]; then
-            echo "::warning::Staging /health did not return 200 (open SG TCP 8080? nginx mount?)"
-          fi
-          if [ "${home}" != "200" ] && [ "${home}" != "301" ] && [ "${home}" != "302" ]; then
-            echo "::warning::Staging / did not return 200 (frontend dist / nginx root?)"
+          pub=$(curl -s -o /dev/null -w "%{http_code}" "${base}/health" || true)
+          echo "Public smoke ${base}/health => ${pub}"
+          if [ "${pub}" != "200" ]; then
+            echo "::warning::Open AWS Security Group inbound TCP 8080 to browse ${base}/ from the internet."
+          else
+            echo "Staging public OK: ${base}/"
           fi
