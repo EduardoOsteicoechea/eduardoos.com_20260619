@@ -1,24 +1,16 @@
 name: CI/CD — Deploy to EC2
 
+# One push to master → one deploy job on EC2 (backend + frontend).
 on:
   push:
     branches: [master]
-    # Frontend-only pushes use deploy-frontend.yml (faster). Mixed/backend pushes still hit this job.
-    paths-ignore:
-      - "frontend/**"
-      - "deploy/ec2/build-frontend.sh"
-      - "deploy/ec2/deploy-frontend-remote.sh"
-      - ".github/workflows/deploy-frontend.yml"
-      - ".github/workflows/frontend.yml"
-      - "**.md"
   workflow_dispatch:
 
 jobs:
   deploy:
-    name: Deploy to EC2 (arm64)
+    name: Deploy to EC2
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
-    # Job-level lock shared with frontend fast deploy (only when that job actually SSHs).
     concurrency:
       group: deploy-ec2
       cancel-in-progress: true

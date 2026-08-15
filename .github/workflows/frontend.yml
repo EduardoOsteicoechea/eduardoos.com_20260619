@@ -1,7 +1,6 @@
 name: CI — Frontend
 
-# PR-only build check. Master pushes use CI/CD — Frontend fast deploy
-# (build + deploy) so we do not run npm build twice on every push.
+# Optional PR build check only. Master pushes use deploy.yml (single Deploy to EC2 job).
 
 on:
   pull_request:
