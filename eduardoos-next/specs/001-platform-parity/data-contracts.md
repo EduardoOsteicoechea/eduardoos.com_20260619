@@ -28,7 +28,7 @@ These names and shapes come from the production Eduardo OS deployment.
 | `eduardoos_flight_logs` | Telemetry |
 | `eduardoos_test_runs` | Tester |
 | `eduardoos_playlists` | PK `userId`, SK `playlistId` |
-| `eduardoos_epams` | Pamphlet metadata; body in S3 |
+| `eduardoos_epams` | Pamphlet metadata; body in S3. Fields include `series`, `seriesChapter` for tree grouping. |
 | `eduardoos_edebats` | Debates |
 | `eduardoos_payments` | PayPal intents |
 | `eduardoos_entitlements` | Entitlements |
@@ -45,3 +45,37 @@ Next auth **must** verify the same format for existing users.
 
 Env: `APS_CLIENT_ID`, `APS_CLIENT_SECRET`, `APS_ACTIVITY_ID`.
 Admin allowlist email: `eduardooost@gmail.com`.
+
+## Pamphlet series tree (derived, no new table)
+
+Tree is **computed** from `eduardoos_epams` list items (and document header on save). Shape:
+
+```json
+{
+  "count": 2,
+  "series": [
+    {
+      "name": "Cánticos espirituales",
+      "chapters": [
+        {
+          "name": "1",
+          "items": [
+            {
+              "epamId": "…",
+              "title": "…",
+              "fileName": "…",
+              "series": "Cánticos espirituales",
+              "seriesChapter": "1",
+              "updatedAt": "…"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+- Unassigned pamphlets group under series name `"(sin serie)"` and chapter `"(sin capítulo)"`.
+- `PUT /api/epams/{id}` with `document.header` (or explicit `series` / `seriesChapter`) updates Dynamo meta so the tree stays in sync.
+- Route: `GET /api/epams/series-tree` (JWT). Register **before** `/api/epams/{id}`.
