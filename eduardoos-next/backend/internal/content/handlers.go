@@ -54,6 +54,8 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(h.auth.RequireJWT)
 		r.Put("/api/emusic/{slug}", h.PutEmusic)
+		// Admin-only mic/recording upload into media/worship_playlists/.
+		r.Post("/api/media/audio/upload", h.UploadMediaAudio)
 
 		// series-tree before {id} so "series-tree" is not captured as an epam id.
 		r.Get("/api/epams/series-tree", h.ListEpamSeriesTree)
