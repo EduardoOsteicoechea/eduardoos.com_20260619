@@ -12,6 +12,29 @@
   max-width: none;
 }
 
+/* Contact tray: fill the right column / agent shell top-to-bottom. */
+.contact-page__agent .contact-agent--tray {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+}
+
+.contact-page__agent .contact-agent--tray .contact-agent__chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.contact-page__agent .contact-agent--tray .contact-agent__thread {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .contact-agent--tray {
   gap: 0;
   min-height: 0;
@@ -157,20 +180,35 @@
 .contact-agent__form {
   display: flex;
   gap: 0.5rem;
-  align-items: center;
+  align-items: stretch;
+  flex-shrink: 0;
 }
 
 .contact-agent__input {
   flex: 1 1 auto;
-  min-height: var(--control_min_height);
-  padding: 0.4rem 0.65rem;
+  min-height: 4.5rem;
+  max-height: 10rem;
+  padding: 0.55rem 0.65rem;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   font: inherit;
+  font-family: var(--font-body, Raleway, sans-serif);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.contact-agent__input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .contact-agent__send {
   flex-shrink: 0;
+  align-self: stretch;
+  min-width: var(--control_min_height);
+  min-height: 4.5rem;
+  padding-inline: 0.85rem;
 }

@@ -95,7 +95,7 @@ const ContactAgent = forwardRef<ContactAgentHandle, ContactAgentProps>(
     const sectionRef = useRef<HTMLElement>(null);
     const threadRef = useRef<HTMLDivElement>(null);
     const checkboxRef = useRef<HTMLInputElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
     const holdStart = useRef<number | null>(null);
     const pendingFocusAfterUnlock = useRef(false);
     const chatUnlockedRef = useRef(chatUnlocked);
@@ -301,15 +301,23 @@ const ContactAgent = forwardRef<ContactAgentHandle, ContactAgentProps>(
                 void sendChat();
               }}
             >
-              <input
+              <textarea
                 ref={inputRef}
                 className="contact-agent__input"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" || e.shiftKey) return;
+                  e.preventDefault();
+                  if (!inputEnabled || !draft.trim()) return;
+                  void sendChat();
+                }}
                 placeholder={chatUnlocked ? "Write your message…" : "Verify above to chat…"}
                 disabled={!inputEnabled}
+                rows={3}
                 autoComplete="off"
                 aria-disabled={!chatUnlocked}
+                aria-label="Message"
               />
               <button
                 type="submit"
