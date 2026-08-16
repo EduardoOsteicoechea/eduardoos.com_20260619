@@ -132,8 +132,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
+	// Unverified accounts must not receive a JWT — same message/status as legacy authenticator.
 	if !user.Verified {
-		httpx.WriteError(w, http.StatusForbidden, "email not verified")
+		httpx.WriteError(w, http.StatusUnauthorized, "email not verified")
 		return
 	}
 	token, err := IssueJWT(email, h.JWTSecret)
@@ -142,8 +143,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"token": token,
-		"email": email,
+		"message": "Login successful",
+		"token":   token,
+		"email":   email,
 	})
 }
 

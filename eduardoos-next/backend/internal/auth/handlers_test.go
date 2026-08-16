@@ -63,6 +63,63 @@ func TestRegisterLoginHappyPath(t *testing.T) {
 	}
 }
 
+func TestLoginRejectsUnverified(t *testing.T) {
+	store := NewMemoryStore()
+	h := &Handler{Store: store, JWTSecret: "test-jwt-secret"}
+	if err := store.PutUser(context.Background(), User{
+		Email:        "pending@example.com",
+		PasswordHash: HashPassword("password123"),
+		Verified:     false,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/login",
+		bytes.NewBufferString(`{"email":"pending@example.com","password":"password123"}`)))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("login status=%d body=%s want 401", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	msg, _ := resp["error"].(string)
+	if msg != "email not verified" {
+		t.Fatalf("expected email not verified, got %#v", resp)
+	}
+	if token, ok := resp["token"]; ok && token != nil && token != "" {
+		t.Fatalf("unverified login must not issue token, got %#v", resp)
+	}
+}
+
+func TestRegisterDoesNotIssueToken(t *testing.T) {
+	h := &Handler{Store: NewMemoryStore(), JWTSecret: "test-jwt-secret", DevReturnOTP: true}
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/register",
+		bytes.NewBufferString(`{"email":"new@example.com","password":"password123"}`)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("register status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if token := resp["token"]; token != nil {
+		t.Fatalf("register must not issue a usable session token, got %#v", resp)
+	}
+	user, ok, err := h.Store.GetUser(context.Background(), "new@example.com")
+	if err != nil || !ok || user.Verified {
+		t.Fatalf("new user must exist unverified ok=%v verified=%v err=%v", ok, user.Verified, err)
+	}
+}
+
 func TestRegisterOmitsOTPWithoutDevFlag(t *testing.T) {
 	store := NewMemoryStore()
 	h := &Handler{

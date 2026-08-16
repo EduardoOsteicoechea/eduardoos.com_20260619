@@ -4,10 +4,23 @@
 
 import { useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../config/routes";
+import { formatApiError, type ApiError } from "../lib/api";
 import { confirmPasswordReset, requestPasswordReset } from "../lib/auth";
 import { validateEmail, validateOtp, validatePassword } from "../lib/validation";
 import PasswordField from "./PasswordField/PasswordField";
+import { openApiErrorModal } from "./ServerErrorModal/ServerErrorModal";
 import "./AuthForm.css";
+
+function showResetApiError(apiError: ApiError | undefined, fallback: string) {
+  const message = apiError?.message ?? fallback;
+  if (apiError) {
+    openApiErrorModal(formatApiError(apiError), {
+      title: "Password reset failed",
+      summary: message,
+    });
+  }
+  return message;
+}
 
 type ResetStep = "email" | "code";
 
@@ -52,7 +65,7 @@ export default function ResetPasswordForm() {
       try {
         const { result, correlationId, error: apiError } = await requestPasswordReset(email);
         if (!result) {
-          setError(apiError?.message ?? "Could not send reset code");
+          setError(showResetApiError(apiError, "Could not send reset code"));
           return;
         }
         setMessage(`${result.message} (trace: ${correlationId})`);
@@ -60,8 +73,13 @@ export default function ResetPasswordForm() {
         setOtp("");
         setPassword("");
         setConfirm("");
-      } catch {
-        setError("Network error — is the Next backend running on :3001?");
+      } catch (err) {
+        const networkMsg = "Network error — is the Next backend running on :3001?";
+        openApiErrorModal(err instanceof Error ? err.message : networkMsg, {
+          title: "Password reset network error",
+          summary: networkMsg,
+        });
+        setError(networkMsg);
       } finally {
         setLoading(false);
       }
@@ -77,13 +95,18 @@ export default function ResetPasswordForm() {
         password,
       });
       if (!result) {
-        setError(apiError?.message ?? "Could not reset password");
+        setError(showResetApiError(apiError, "Could not reset password"));
         return;
       }
       setMessage(`${result.message} (trace: ${correlationId})`);
       window.location.href = `${APP_ROUTES.login}?reset=1`;
-    } catch {
-      setError("Network error — is the Next backend running on :3001?");
+    } catch (err) {
+      const networkMsg = "Network error — is the Next backend running on :3001?";
+      openApiErrorModal(err instanceof Error ? err.message : networkMsg, {
+        title: "Password reset network error",
+        summary: networkMsg,
+      });
+      setError(networkMsg);
     } finally {
       setLoading(false);
     }

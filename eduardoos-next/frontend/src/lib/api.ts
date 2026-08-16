@@ -80,10 +80,12 @@ export async function apiRequest<T>(
 
   if (!response.ok) {
     const payload = data as
-      | { message?: string; correlation_id?: string; debug_logs?: string[] }
+      | { message?: string; error?: string; correlation_id?: string; debug_logs?: string[] }
       | undefined;
     const message =
-      payload?.message ?? (text.trim() || response.statusText || "request failed");
+      payload?.message ??
+      payload?.error ??
+      (text.trim() || response.statusText || "request failed");
 
     if (response.status === 401) {
       const normalized = message.toLowerCase();

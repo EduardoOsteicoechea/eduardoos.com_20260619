@@ -4,10 +4,23 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../config/routes";
+import { formatApiError, type ApiError } from "../lib/api";
 import { hasIssuedToken, loginUser, registerUser, verifyOtp } from "../lib/auth";
 import { validateEmail, validateOtp, validatePassword } from "../lib/validation";
 import PasswordField from "./PasswordField/PasswordField";
+import { openApiErrorModal } from "./ServerErrorModal/ServerErrorModal";
 import "./AuthForm.css";
+
+function showAuthApiError(apiError: ApiError | undefined, fallback: string) {
+  const message = apiError?.message ?? fallback;
+  if (apiError) {
+    openApiErrorModal(formatApiError(apiError), {
+      title: "Auth request failed",
+      summary: message,
+    });
+  }
+  return message;
+}
 
 export type AuthMode = "login" | "register" | "verify-otp";
 
@@ -125,10 +138,15 @@ export default function AuthForm({ mode }: AuthFormProps) {
           otp,
         });
         if (!hasIssuedToken(result)) {
-          setError(apiError?.message ?? "OTP verification failed — check the code and try again");
+          setError(
+            showAuthApiError(
+              apiError,
+              "OTP verification failed — check the code and try again",
+            ),
+          );
           return;
         }
-        finishAuth(result!.message, correlationId);
+        finishAuth(result!.message || "Email verified", correlationId);
         return;
       }
 
@@ -138,7 +156,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           password,
         });
         if (!result) {
-          setError(apiError?.message ?? "Registration failed");
+          setError(showAuthApiError(apiError, "Registration failed"));
           return;
         }
         if (!hasIssuedToken(result)) {
@@ -148,7 +166,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           );
           return;
         }
-        finishAuth(result.message, correlationId);
+        finishAuth(result.message || "Account ready", correlationId);
         return;
       }
 
@@ -158,6 +176,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
       });
       if (!result) {
         const apiMessage = apiError?.message ?? "";
+        // Expected gate: prompt for the registration OTP instead of treating as a hard error.
         if (apiMessage.toLowerCase().includes("not verified")) {
           goToOtpStep(
             correlationId,
@@ -165,12 +184,17 @@ export default function AuthForm({ mode }: AuthFormProps) {
           );
           return;
         }
-        setError(apiMessage || "Login failed");
+        setError(showAuthApiError(apiError, "Login failed"));
         return;
       }
-      finishAuth(result.message, correlationId);
-    } catch {
-      setError("Network error — is the Next backend running on :3001?");
+      finishAuth(result.message || "Signed in", correlationId);
+    } catch (err) {
+      const networkMsg = "Network error — is the Next backend running on :3001?";
+      openApiErrorModal(err instanceof Error ? err.message : networkMsg, {
+        title: "Auth network error",
+        summary: networkMsg,
+      });
+      setError(networkMsg);
     } finally {
       setLoading(false);
     }

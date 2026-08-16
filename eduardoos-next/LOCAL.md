@@ -33,7 +33,12 @@ Useful env (see `.env.example` at the Next root):
 set ADDR=:3001
 set JWT_SECRET=change-me
 set DATABASE_BACKEND=memory
+set SMTP_USER=eduardooost@gmail.com
+set SMTP_PASS=
+set DEV_RETURN_OTP=1
 ```
+
+With empty `SMTP_PASS`, OTP codes are printed to the backend stdout. `DEV_RETURN_OTP=1` also includes `"otp"` in register / forgot-password JSON (never enable in production).
 
 ## 2. Frontend
 
@@ -49,11 +54,15 @@ Open [http://127.0.0.1:4322](http://127.0.0.1:4322). Browser calls stay same-ori
 
 ## Smoke checklist
 
-1. Register / login under `/auth/*` (token key: `eduardoos-next-auth-token`).
+1. **Auth email verification (required before login)**  
+   - Register at `/auth/register` → SMTP sends a 6-digit OTP (`SMTP_USER` / `SMTP_PASS`; empty pass logs the code).  
+   - Local only: `DEV_RETURN_OTP=1` also returns `"otp"` in the register JSON.  
+   - Confirm at `/auth/verify-otp` (or the in-form OTP step). Until verified, `POST /api/auth/login` returns **401** `email not verified` and **no JWT**.  
+   - Token key: `eduardoos-next-auth-token`.
 2. `/documents/pamphlet` — visual pamphlet generator (create/open local + cloud EPAMs from toolbar); Print downloads a stub PDF from `POST /api/documents/pamphlet/pdf`.
 3. `/media/musica` — worship library + session playlist + lyrics; timed lyric editor for `eduardooost@gmail.com` (no create-playlist stub).
 4. `/payments/subscription` — JWT prepare intent + PayPal hosted button (`PAYPAL_HOSTED_BUTTON_ID`).
-5. `/bim` — upload real IFC bytes (multipart), list, download; placeholder create still works.
+5. `/bim` — upload real IFC bytes (multipart), list, download, open in That Open / Three.js viewer (orbit + fit); placeholder create still works. WASM served from `/web-ifc/` (copied on `npm install` / `prebuild`).
 6. `/debate-app` (Debate App) — JWT list/create debates + append role/text turns (memory store; `.edebat` / `/api/edebat`). Legacy `/edebat` redirects here.
 7. `/aps-admin` — admin email only; needs APS credentials for live Autodesk calls.
 
