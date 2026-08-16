@@ -140,17 +140,27 @@ export default function InstrumentalistPage() {
   }
 
   function handleAddIdea() {
-    const node = newIdeaNode({
-      position: { x: 80 + tree.nodes.length * 24, y: 60 + tree.nodes.length * 18 },
+    // Functional update so Add idea/group never drops nodes if tree state is mid-flight
+    // (e.g. concurrent canvas sync after a mistaken keyboard delete).
+    setTree((prev) => {
+      const node = newIdeaNode({
+        position: { x: 80 + prev.nodes.length * 24, y: 60 + prev.nodes.length * 18 },
+      });
+      const next = { ...prev, nodes: [...prev.nodes, node] };
+      scheduleSave({ beliefTree: next });
+      return next;
     });
-    handleTreeChange({ ...tree, nodes: [...tree.nodes, node] });
   }
 
   function handleAddGroup() {
-    const node = newGroupNode({
-      position: { x: 40 + tree.nodes.length * 20, y: 40 + tree.nodes.length * 16 },
+    setTree((prev) => {
+      const node = newGroupNode({
+        position: { x: 40 + prev.nodes.length * 20, y: 40 + prev.nodes.length * 16 },
+      });
+      const next = { ...prev, nodes: [...prev.nodes, node] };
+      scheduleSave({ beliefTree: next });
+      return next;
     });
-    handleTreeChange({ ...tree, nodes: [...tree.nodes, node] });
   }
 
   async function handleAnalyze() {
@@ -322,7 +332,8 @@ export default function InstrumentalistPage() {
             </div>
             <p className="instru-panel__hint">
               Drag from the dots on a card to connect. Hierarchy stays inside a group; use group
-              cables for membership. Delete with × or Backspace/Delete on a selected node.
+              cables for membership. Delete with ×, or Backspace/Delete only while the canvas
+              (not an idea text/weight field or toolbar button) is focused.
             </p>
             <div className="instru-panel__canvas">
               <BeliefTreeEditor tree={tree} onChange={handleTreeChange} connectKind={connectKind} />

@@ -10,7 +10,8 @@
     "build": "astro build",
     "preview": "astro preview --port 4322",
     "test:aps-registry": "node --test src/lib/apsRegistry.test.mjs",
-    "test:profile": "node --test src/lib/profile.test.mjs"
+    "test:profile": "node --test src/lib/profile.test.mjs",
+    "test:belief-tree": "node --test src/lib/beliefTreeDeleteGuard.test.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^4.2.0",

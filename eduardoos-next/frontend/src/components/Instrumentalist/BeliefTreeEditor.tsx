@@ -1,6 +1,13 @@
 /**
  * Belief tree canvas — @xyflow/react nodes (idea/group) with weight edit trays,
  * hierarchy/group cables, keyboard + button delete (removes connected edges).
+ *
+ * Delete keys: React Flow's default `deleteKeyCode` ('Backspace') is a document-
+ * level listener. It deletes selected nodes even when focus is on toolbar
+ * buttons (e.g. Add group) or after leaving an idea textarea — see xyflow
+ * `useGlobalKeyHandler` / docs for `deleteKeyCode`. We set `deleteKeyCode={null}`
+ * and only delete when the event originates inside this canvas and is not an
+ * editable / interactive target (see beliefTreeDeleteGuard).
  */
 
 import {
@@ -30,6 +37,10 @@ import {
   type OnNodeDrag,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import {
+  isFlowDeleteKey,
+  shouldIgnoreFlowDeleteKey,
+} from "../../lib/beliefTreeDeleteGuard";
 import type { BeliefEdge, BeliefNode, BeliefTree } from "../../lib/instrumentalist";
 import "./BeliefTreeEditor.css";
 
@@ -69,8 +80,8 @@ function IdeaCardNode({ id, data, selected }: NodeProps<Node<IdeaNodeData>>) {
         <div className="instru-node__label">{isGroup ? "Group" : "Idea"}</div>
         <button
           type="button"
-          className="instru-node__delete"
-          title="Delete (also Backspace / Delete)"
+          className="instru-node__delete nokey"
+          title="Delete node"
           aria-label="Delete node"
           onClick={(e) => {
             e.stopPropagation();
@@ -84,7 +95,7 @@ function IdeaCardNode({ id, data, selected }: NodeProps<Node<IdeaNodeData>>) {
       <label className="instru-node__field">
         <span className="instru-node__field-label">Text</span>
         <textarea
-          className="instru-node__input nodrag nopan"
+          className="instru-node__input nodrag nopan nokey"
           value={data.text}
           rows={isGroup ? 2 : 3}
           onChange={(e) => data.onChangeText(id, e.target.value)}
@@ -95,7 +106,7 @@ function IdeaCardNode({ id, data, selected }: NodeProps<Node<IdeaNodeData>>) {
         <label className="instru-node__field">
           <span className="instru-node__field-label">Weight</span>
           <input
-            className="instru-node__input instru-node__input--weight nodrag nopan"
+            className="instru-node__input instru-node__input--weight nodrag nopan nokey"
             type="number"
             min={0}
             step={0.1}
@@ -399,8 +410,42 @@ export default function BeliefTreeEditor({
     [commitPositions, edges],
   );
 
+  const flowWrapRef = useRef<HTMLDivElement>(null);
+
+  // Canvas-scoped delete: never use React Flow's global deleteKeyCode.
+  // Repro (fixed): select idea → focus Add group / leave textarea → Backspace
+  // used to remove the still-selected idea via document-level useKeyPress.
+  useEffect(() => {
+    const wrap = flowWrapRef.current;
+    if (!wrap) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isFlowDeleteKey(event.key)) return;
+      const active = document.activeElement;
+      if (!active || !wrap.contains(active)) return;
+      if (shouldIgnoreFlowDeleteKey(active)) return;
+
+      const selectedNodeIds = nodes.filter((n) => n.selected).map((n) => n.id);
+      const selectedEdgeIds = edges.filter((e) => e.selected).map((e) => e.id);
+      if (selectedNodeIds.length === 0 && selectedEdgeIds.length === 0) return;
+
+      event.preventDefault();
+      let next = treeRef.current;
+      if (selectedNodeIds.length > 0) {
+        next = removeNodesFromTree(next, new Set(selectedNodeIds));
+      }
+      if (selectedEdgeIds.length > 0) {
+        next = removeEdgesFromTree(next, new Set(selectedEdgeIds));
+      }
+      onChange(next);
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [nodes, edges, onChange]);
+
   return (
-    <div className="instru-flow">
+    <div className="instru-flow" ref={flowWrapRef}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -421,7 +466,7 @@ export default function BeliefTreeEditor({
         snapToGrid
         snapGrid={[12, 12]}
         proOptions={{ hideAttribution: true }}
-        deleteKeyCode={["Backspace", "Delete"]}
+        deleteKeyCode={null}
         multiSelectionKeyCode="Shift"
         selectionOnDrag={false}
         panOnDrag
