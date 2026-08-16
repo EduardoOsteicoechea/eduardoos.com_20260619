@@ -303,7 +303,6 @@ export function Header({ pathname }: HeaderProps) {
   const [clientReady, setClientReady] = useState(false);
   const [theme, setTheme] = useState<SiteTheme>("light");
   const [isAdmin, setIsAdmin] = useState(false);
-  const headerRef = useRef<HTMLElement>(null);
   const trayRef = useRef<HTMLElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -352,16 +351,25 @@ export function Header({ pathname }: HeaderProps) {
   }, [pathname]);
 
   useEffect(() => {
-    // Keep layout tokens in sync: mobile uses bar height; desktop rail uses fixed width.
+    /*
+     * Sync width/height chrome tokens only. Never measure `.site-header`:
+     * its children are position:fixed, so offsetHeight is 0 and previously
+     * collapsed --header_height → bar height 0 → logo/menu clipped above the viewport.
+     * Mobile bar height stays the CSS token (60px); --header_offset adds safe-area.
+     */
     const syncChromeTokens = () => {
+      const root = document.documentElement;
       const isDesktop = window.matchMedia("(min-width: 768px)").matches;
       if (isDesktop) {
-        document.documentElement.style.setProperty("--header_width", "60px");
-        document.documentElement.style.setProperty("--header_height", "0px");
+        root.style.setProperty("--header_width", "60px");
+        root.style.setProperty("--header_height", "0px");
+        root.style.setProperty("--header_safe_top", "0px");
+        root.style.setProperty("--header_offset", "0px");
       } else {
-        const height = headerRef.current?.offsetHeight ?? 60;
-        document.documentElement.style.setProperty("--header_height", `${height}px`);
-        document.documentElement.style.setProperty("--header_width", "0px");
+        root.style.setProperty("--header_width", "0px");
+        root.style.removeProperty("--header_height");
+        root.style.removeProperty("--header_safe_top");
+        root.style.removeProperty("--header_offset");
       }
     };
     syncChromeTokens();
@@ -418,7 +426,7 @@ export function Header({ pathname }: HeaderProps) {
   const showAuth = clientReady;
 
   return (
-    <header ref={headerRef} className={`site-header${menuOpen ? " site-header--open" : ""}`}>
+    <header className={`site-header${menuOpen ? " site-header--open" : ""}`}>
       <div className="site-header__bar">
         <a className="site-header__logo" href={APP_ROUTES.home} aria-label="Eduardo OS home">
           <img className="site-header__logo-img" src="/favicon-48.png" alt="" width={28} height={28} />

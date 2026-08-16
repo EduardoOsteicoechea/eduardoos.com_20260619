@@ -20,20 +20,28 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  /* Content row stays --header_height; padding clears the notch/status bar. */
-  min-height: var(--header_offset, var(--header_height, 60px));
-  height: var(--header_offset, var(--header_height, 60px));
-  padding: var(--header_safe_top, env(safe-area-inset-top, 0px))
-    var(--page-inline-pad, 15px) 0;
+  /*
+   * Content row = --header_height (60px). padding-top clears notch/status bar.
+   * Total chrome height = --header_offset. Use explicit calc so a bad JS token
+   * cannot collapse the bar to 0 and clip logo/menu above the viewport.
+   */
+  --_bar_pad_top: var(--header_safe_top, env(safe-area-inset-top, 0px));
+  --_bar_row: var(--header_bar_height, var(--header_height, 60px));
+  min-height: calc(var(--_bar_row) + var(--_bar_pad_top));
+  height: calc(var(--_bar_row) + var(--_bar_pad_top));
+  padding: var(--_bar_pad_top) var(--page-inline-pad, 15px) 0;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 160;
   box-sizing: border-box;
+  margin: 0;
+  transform: none;
   background: var(--glassed_background, var(--site-body-bg));
   border-bottom: var(--border_001);
   backdrop-filter: blur(12px);
+  overflow: visible;
 }
 
 .site-header__logo {
@@ -272,7 +280,10 @@
 /* Mobile: tray from the left, below the top bar (includes safe-area). */
 .site-header__nav {
   position: fixed;
-  top: var(--header_offset, var(--header_height, 60px));
+  top: var(
+    --header_offset,
+    calc(var(--header_bar_height, 60px) + var(--header_safe_top, env(safe-area-inset-top, 0px)))
+  );
   left: 0;
   right: auto;
   bottom: 0;
@@ -471,8 +482,10 @@
     bottom: 0;
     width: var(--header_width, 60px);
     min-width: var(--header_width, 60px);
+    /* Full-height rail — do not inherit the mobile top-bar height calc. */
     height: 100dvh;
     min-height: 100dvh;
+    max-height: none;
     padding: 0.75rem 0.35rem 0.85rem;
     border-bottom: none;
     border-right: var(--border_001);
