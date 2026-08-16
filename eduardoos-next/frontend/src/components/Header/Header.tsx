@@ -1,8 +1,9 @@
 /**
  * Site chrome: desktop left rail (60px) + mobile top bar.
- * Logo (favicon) → home; hamburger opens the nav tray from the left;
- * avatar (when logged in) keeps the account menu. Services, Theme, and
- * auth links live inside the tray.
+ * Desktop rail (top → bottom): logo (favicon → home), menu button, avatar.
+ * Mobile bar: logo left; avatar then menu on the right. Hamburger opens the
+ * nav tray from the left (after the 60px rail on desktop). Services, Theme,
+ * and auth links live inside the tray.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
