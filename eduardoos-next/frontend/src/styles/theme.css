@@ -14,6 +14,10 @@
   --header_height: 60px;
   --header_width: 0px;
   --header_bar_height: 60px;
+  /* Notch / status-bar inset (iOS etc.). Zeroed on desktop so the left rail stays flush. */
+  --header_safe_top: env(safe-area-inset-top, 0px);
+  /* Total vertical chrome reserved above main on mobile. */
+  --header_offset: calc(var(--header_height) + var(--header_safe_top));
   --control_min_height: 2.25rem;
   --control_min_width: 2.25rem;
   --border_radius_001: 3px;
@@ -114,6 +118,8 @@ html.dark {
   :root {
     --header_height: 0px;
     --header_width: 60px;
+    --header_safe_top: 0px;
+    --header_offset: 0px;
   }
 }
 

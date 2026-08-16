@@ -54,11 +54,11 @@ select:focus-visible,
   outline-offset: 2px;
 }
 
-/* Reserve chrome: top bar on mobile, left rail on desktop (--header_width). */
+/* Reserve chrome: top bar (+ safe-area) on mobile, left rail on desktop. */
 body > main {
-  padding-top: var(--header_height);
+  padding-top: var(--header_offset, var(--header_height));
   padding-left: var(--header_width);
-  min-height: calc(100dvh - var(--header_height));
+  min-height: calc(100dvh - var(--header_offset, var(--header_height)));
   box-sizing: border-box;
 }
 
@@ -86,9 +86,9 @@ html.page-home body {
   background-size: auto, auto, 100% 72px;
   background-attachment: fixed;
   background-position:
-    var(--header_width) var(--header_height),
-    var(--header_width) var(--header_height),
-    var(--header_width) var(--header_height);
+    var(--header_width) var(--header_offset, var(--header_height)),
+    var(--header_width) var(--header_offset, var(--header_height)),
+    var(--header_width) var(--header_offset, var(--header_height));
 }
 
 h1,

@@ -36,11 +36,11 @@ body.page-pamphlet .site-header__bar {
 .pamphlet-layout-workspace {
   box-sizing: border-box;
   width: calc(100% - var(--header_width, 0px));
-  min-height: calc(100vh - var(--header_height, 0px));
+  min-height: calc(100vh - var(--header_offset, var(--header_height, 0px)));
   margin-top: 0;
   margin-left: var(--header_width, 0px);
   padding: 1rem 0 2rem;
-  padding-top: calc(1rem + var(--header_height, 0px));
+  padding-top: calc(1rem + var(--header_offset, var(--header_height, 0px)));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -68,7 +68,7 @@ body.page-pamphlet .site-header__bar {
  * No extra top offset for a second toolbar; no bottom Activity Bar.
  */
 body.page-pamphlet .pamphlet-layout-workspace {
-  padding-top: calc(1rem + var(--header_height, 0px));
+  padding-top: calc(1rem + var(--header_offset, var(--header_height, 0px)));
   padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
 }
 

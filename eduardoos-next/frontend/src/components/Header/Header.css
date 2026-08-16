@@ -20,9 +20,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  min-height: var(--header_height, 60px);
-  height: var(--header_height, 60px);
-  padding: 0 var(--page-inline-pad, 15px);
+  /* Content row stays --header_height; padding clears the notch/status bar. */
+  min-height: var(--header_offset, var(--header_height, 60px));
+  height: var(--header_offset, var(--header_height, 60px));
+  padding: var(--header_safe_top, env(safe-area-inset-top, 0px))
+    var(--page-inline-pad, 15px) 0;
   position: fixed;
   top: 0;
   left: 0;
@@ -267,10 +269,10 @@
   display: none !important;
 }
 
-/* Mobile: tray from the left, below the top bar */
+/* Mobile: tray from the left, below the top bar (includes safe-area). */
 .site-header__nav {
   position: fixed;
-  top: var(--header_height, 60px);
+  top: var(--header_offset, var(--header_height, 60px));
   left: 0;
   right: auto;
   bottom: 0;
