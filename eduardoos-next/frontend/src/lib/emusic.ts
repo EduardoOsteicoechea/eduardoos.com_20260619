@@ -585,6 +585,28 @@ export function removeEmusicLineWord(
     });
 }
 
+/**
+ * Delete many words in one mutation. Targets are sorted descending by
+ * (unit, line, word) so earlier splices do not shift later indices.
+ */
+export function removeEmusicLineWords(
+    doc: EmusicDocument,
+    targets: Array<{ unitIndex: number; lineIndex: number; wordIndex: number }>,
+): EmusicDocument {
+    const ordered = [...targets].sort((a, b) => {
+        if (a.unitIndex !== b.unitIndex) return b.unitIndex - a.unitIndex;
+        if (a.lineIndex !== b.lineIndex) return b.lineIndex - a.lineIndex;
+        return b.wordIndex - a.wordIndex;
+    });
+    return mutateNormalized(doc, (unidades) => {
+        for (const target of ordered) {
+            const line = unidades[target.unitIndex]?.l[target.lineIndex];
+            if (!line || target.wordIndex < 0 || target.wordIndex >= line.p.length) continue;
+            line.p.splice(target.wordIndex, 1);
+        }
+    });
+}
+
 export function updateEmusicLineWord(
     doc: EmusicDocument,
     unitIndex: number,

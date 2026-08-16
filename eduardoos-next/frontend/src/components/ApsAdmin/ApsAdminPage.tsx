@@ -3,9 +3,13 @@
  * 1) Trigger Design Automation workitem + poll
  * 2) Registry: app bundles / activities / engines
  * 3) Hub explorer: hubs → projects → folder contents (folderId required)
+ *
+ * Registry note: Autodesk DA list endpoints return { data: [], pagination }.
+ * Always normalize via normalizeRegistryLists / unwrapList before .map —
+ * a non-array .map throws and React blanks the entire admin UI.
  */
 
-import { useEffect, useState } from "react";
+import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react";
 import { APP_ROUTES, APS_ROUTES } from "../../config/routes";
 import {
   APS_ADMIN_EMAIL,
@@ -16,6 +20,11 @@ import {
 } from "../../lib/auth";
 import { apiRequest, formatApiError, type ApiError } from "../../lib/api";
 import { createCorrelationId } from "../../lib/correlation";
+import {
+  normalizeRegistryLists,
+  unwrapList,
+  type RegistryPayload,
+} from "../../lib/apsRegistry";
 import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import "./ApsAdminPage.css";
 
@@ -36,14 +45,6 @@ type StatusResponse = {
   message?: string;
   extractedData?: unknown;
   workItemStatus?: unknown;
-};
-
-type RegistryResponse = {
-  bundles?: unknown[];
-  appbundles?: unknown[];
-  activities?: unknown[];
-  engines?: unknown[];
-  message?: string;
 };
 
 type HubItem = {
@@ -68,6 +69,52 @@ type ContentItem = {
     extension?: { type?: string };
   };
 };
+
+type ApsRenderGuardProps = {
+  children: ReactNode;
+  label: string;
+};
+
+type ApsRenderGuardState = {
+  failed: boolean;
+};
+
+/**
+ * Keeps page chrome mounted if a child section throws during render
+ * (e.g. unexpected registry shape). Surfaces details via ServerErrorModal.
+ */
+class ApsRenderGuard extends Component<ApsRenderGuardProps, ApsRenderGuardState> {
+  state: ApsRenderGuardState = { failed: false };
+
+  static getDerivedStateFromError(): ApsRenderGuardState {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    const details = [
+      `APS admin render failed (${this.props.label}).`,
+      error?.message || String(error),
+      info?.componentStack || "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    openApiErrorModal(details, {
+      title: "APS UI render error",
+      summary: "A section failed to render. The rest of the page stays available.",
+    });
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <p className="aps-admin__error" role="alert">
+          This section failed to render. Use the error modal to copy details, then retry.
+        </p>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -123,15 +170,6 @@ function itemName(item: {
   );
 }
 
-function unwrapList<T>(payload: unknown): T[] {
-  if (!payload) return [];
-  if (Array.isArray(payload)) return payload as T[];
-  const obj = payload as { data?: T[]; items?: T[] };
-  if (Array.isArray(obj.data)) return obj.data;
-  if (Array.isArray(obj.items)) return obj.items;
-  return [];
-}
-
 export default function ApsAdminPage() {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [accessEmail, setAccessEmail] = useState<string | null>(null);
@@ -142,7 +180,7 @@ export default function ApsAdminPage() {
 
   const [registryLoading, setRegistryLoading] = useState(false);
   const [registryError, setRegistryError] = useState("");
-  const [registry, setRegistry] = useState<RegistryResponse | null>(null);
+  const [registry, setRegistry] = useState<RegistryPayload | null>(null);
 
   const [hubs, setHubs] = useState<HubItem[]>([]);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
@@ -259,20 +297,27 @@ export default function ApsAdminPage() {
   async function loadRegistry() {
     setRegistryLoading(true);
     setRegistryError("");
-    const res = await apiRequest<RegistryResponse>(APS_ROUTES.registry, {
-      method: "GET",
-      correlationId: createCorrelationId(),
-      authToken: getAuthToken(),
-    });
-    if (res.error) {
-      const detail = formatApsError(res.error);
-      setRegistryError(detail);
-      reportApsError(detail, "DA registry request failed.");
-      setRegistry(null);
-    } else {
+    try {
+      const res = await apiRequest<RegistryPayload>(APS_ROUTES.registry, {
+        method: "GET",
+        correlationId: createCorrelationId(),
+        authToken: getAuthToken(),
+      });
+      if (res.error) {
+        const detail = formatApsError(res.error);
+        setRegistryError(detail);
+        reportApsError(detail, "DA registry request failed.");
+        // Keep prior registry data so chrome/lists stay visible on retry failures.
+        return;
+      }
       setRegistry(res.data ?? null);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      setRegistryError(detail);
+      reportApsError(detail, "DA registry request failed unexpectedly.");
+    } finally {
+      setRegistryLoading(false);
     }
-    setRegistryLoading(false);
   }
 
   async function loadHubs() {
@@ -284,20 +329,28 @@ export default function ApsAdminPage() {
     setSelectedProjectId("");
     setFolderStack([]);
     setFolderIdInput("");
-    const res = await apiRequest<unknown>(APS_ROUTES.hubs, {
-      method: "GET",
-      correlationId: createCorrelationId(),
-      authToken: getAuthToken(),
-    });
-    if (res.error) {
-      const detail = formatApsError(res.error);
+    try {
+      const res = await apiRequest<unknown>(APS_ROUTES.hubs, {
+        method: "GET",
+        correlationId: createCorrelationId(),
+        authToken: getAuthToken(),
+      });
+      if (res.error) {
+        const detail = formatApsError(res.error);
+        setExplorerError(detail);
+        reportApsError(detail, "Hub list failed.");
+        setHubs([]);
+      } else {
+        setHubs(unwrapList<HubItem>(res.data));
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
       setExplorerError(detail);
-      reportApsError(detail, "Hub list failed.");
+      reportApsError(detail, "Hub list failed unexpectedly.");
       setHubs([]);
-    } else {
-      setHubs(unwrapList<HubItem>(res.data));
+    } finally {
+      setExplorerLoading(false);
     }
-    setExplorerLoading(false);
   }
 
   async function loadProjects(hubId: string) {
@@ -308,20 +361,28 @@ export default function ApsAdminPage() {
     setContents([]);
     setFolderStack([]);
     setFolderIdInput("");
-    const res = await apiRequest<unknown>(APS_ROUTES.projects(hubId), {
-      method: "GET",
-      correlationId: createCorrelationId(),
-      authToken: getAuthToken(),
-    });
-    if (res.error) {
-      const detail = formatApsError(res.error);
+    try {
+      const res = await apiRequest<unknown>(APS_ROUTES.projects(hubId), {
+        method: "GET",
+        correlationId: createCorrelationId(),
+        authToken: getAuthToken(),
+      });
+      if (res.error) {
+        const detail = formatApsError(res.error);
+        setExplorerError(detail);
+        reportApsError(detail, "Project list failed.");
+        setProjects([]);
+      } else {
+        setProjects(unwrapList<ProjectItem>(res.data));
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
       setExplorerError(detail);
-      reportApsError(detail, "Project list failed.");
+      reportApsError(detail, "Project list failed unexpectedly.");
       setProjects([]);
-    } else {
-      setProjects(unwrapList<ProjectItem>(res.data));
+    } finally {
+      setExplorerLoading(false);
     }
-    setExplorerLoading(false);
   }
 
   async function loadContents(projectId: string, folderId: string) {
@@ -335,20 +396,28 @@ export default function ApsAdminPage() {
     setExplorerLoading(true);
     setExplorerError("");
     setSelectedProjectId(projectId);
-    const res = await apiRequest<unknown>(APS_ROUTES.contents(projectId, trimmed), {
-      method: "GET",
-      correlationId: createCorrelationId(),
-      authToken: getAuthToken(),
-    });
-    if (res.error) {
-      const detail = formatApsError(res.error);
+    try {
+      const res = await apiRequest<unknown>(APS_ROUTES.contents(projectId, trimmed), {
+        method: "GET",
+        correlationId: createCorrelationId(),
+        authToken: getAuthToken(),
+      });
+      if (res.error) {
+        const detail = formatApsError(res.error);
+        setExplorerError(detail);
+        reportApsError(detail, "Folder contents request failed.");
+        setContents([]);
+      } else {
+        setContents(unwrapList<ContentItem>(res.data));
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
       setExplorerError(detail);
-      reportApsError(detail, "Folder contents request failed.");
+      reportApsError(detail, "Folder contents request failed unexpectedly.");
       setContents([]);
-    } else {
-      setContents(unwrapList<ContentItem>(res.data));
+    } finally {
+      setExplorerLoading(false);
     }
-    setExplorerLoading(false);
   }
 
   function openFolder(item: ContentItem) {
@@ -409,9 +478,7 @@ export default function ApsAdminPage() {
     );
   }
 
-  const bundles = registry?.bundles ?? registry?.appbundles ?? [];
-  const activities = registry?.activities ?? [];
-  const engines = registry?.engines ?? [];
+  const { bundles, activities, engines } = normalizeRegistryLists(registry);
 
   return (
     <section className="aps-admin" aria-labelledby="aps-admin-title">
@@ -469,45 +536,51 @@ export default function ApsAdminPage() {
             {registryError}
           </p>
         ) : null}
-        {registry ? (
-          <div className="aps-admin__registry-grid">
-            <div>
-              <h3 className="aps-admin__subhead">Bundles ({bundles.length})</h3>
-              <ul className="aps-admin__list">
-                {bundles.length === 0 ? <li className="aps-admin__muted">None returned</li> : null}
-                {bundles.map((b, i) => (
-                  <li key={`bundle-${i}`}>
-                    <code>{typeof b === "string" ? b : JSON.stringify(b)}</code>
-                  </li>
-                ))}
-              </ul>
+        <ApsRenderGuard label="DA registry">
+          {registry ? (
+            <div className="aps-admin__registry-grid">
+              <div>
+                <h3 className="aps-admin__subhead">Bundles ({bundles.length})</h3>
+                <ul className="aps-admin__list">
+                  {bundles.length === 0 ? (
+                    <li className="aps-admin__muted">None returned</li>
+                  ) : null}
+                  {bundles.map((b, i) => (
+                    <li key={`bundle-${i}`}>
+                      <code>{typeof b === "string" ? b : JSON.stringify(b)}</code>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h3 className="aps-admin__subhead">Activities ({activities.length})</h3>
+                <ul className="aps-admin__list">
+                  {activities.length === 0 ? (
+                    <li className="aps-admin__muted">None returned</li>
+                  ) : null}
+                  {activities.map((a, i) => (
+                    <li key={`activity-${i}`}>
+                      <code>{typeof a === "string" ? a : JSON.stringify(a)}</code>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h3 className="aps-admin__subhead">Engines ({engines.length})</h3>
+                <ul className="aps-admin__list">
+                  {engines.length === 0 ? (
+                    <li className="aps-admin__muted">None returned</li>
+                  ) : null}
+                  {engines.map((e, i) => (
+                    <li key={`engine-${i}`}>
+                      <code>{typeof e === "string" ? e : JSON.stringify(e)}</code>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            <div>
-              <h3 className="aps-admin__subhead">Activities ({activities.length})</h3>
-              <ul className="aps-admin__list">
-                {activities.length === 0 ? (
-                  <li className="aps-admin__muted">None returned</li>
-                ) : null}
-                {activities.map((a, i) => (
-                  <li key={`activity-${i}`}>
-                    <code>{typeof a === "string" ? a : JSON.stringify(a)}</code>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="aps-admin__subhead">Engines ({engines.length})</h3>
-              <ul className="aps-admin__list">
-                {engines.length === 0 ? <li className="aps-admin__muted">None returned</li> : null}
-                {engines.map((e, i) => (
-                  <li key={`engine-${i}`}>
-                    <code>{typeof e === "string" ? e : JSON.stringify(e)}</code>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        ) : null}
+          ) : null}
+        </ApsRenderGuard>
       </div>
 
       <div className="aps-admin__section">
@@ -530,137 +603,139 @@ export default function ApsAdminPage() {
           </p>
         ) : null}
 
-        <div className="aps-admin__explorer">
-          <div className="aps-admin__explorer-col">
-            <h3 className="aps-admin__subhead">Hubs</h3>
-            <ul className="aps-admin__list aps-admin__list--clickable">
-              {hubs.length === 0 ? (
-                <li className="aps-admin__muted">No hubs loaded</li>
-              ) : (
-                hubs.map((hub) => {
-                  const id = hub.id ?? "";
-                  return (
-                    <li key={id || itemName(hub)}>
-                      <button
-                        type="button"
-                        className={`aps-admin__tree-btn${selectedHubId === id ? " is-active" : ""}`}
-                        disabled={!id || explorerLoading}
-                        onClick={() => void loadProjects(id)}
-                      >
-                        {itemName(hub)}
-                      </button>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          </div>
-
-          <div className="aps-admin__explorer-col">
-            <h3 className="aps-admin__subhead">Projects</h3>
-            <ul className="aps-admin__list aps-admin__list--clickable">
-              {!selectedHubId ? (
-                <li className="aps-admin__muted">Select a hub</li>
-              ) : projects.length === 0 ? (
-                <li className="aps-admin__muted">No projects</li>
-              ) : (
-                projects.map((project) => {
-                  const id = project.id ?? "";
-                  return (
-                    <li key={id || itemName(project)}>
-                      <button
-                        type="button"
-                        className={`aps-admin__tree-btn${
-                          selectedProjectId === id ? " is-active" : ""
-                        }`}
-                        disabled={!id || explorerLoading}
-                        onClick={() => {
-                          setFolderStack([]);
-                          setContents([]);
-                          setSelectedProjectId(id);
-                          setFolderIdInput("");
-                          setExplorerError(
-                            "Enter a folderId URN below, then load contents for this project.",
-                          );
-                        }}
-                      >
-                        {itemName(project)}
-                      </button>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          </div>
-
-          <div className="aps-admin__explorer-col">
-            <h3 className="aps-admin__subhead">Contents</h3>
-            {selectedProjectId ? (
-              <div className="aps-admin__folder-form">
-                <label htmlFor="aps-folder-id">folderId</label>
-                <input
-                  id="aps-folder-id"
-                  value={folderIdInput}
-                  onChange={(e) => setFolderIdInput(e.target.value)}
-                  placeholder="urn:adsk.wipprod:fs.folder:…"
-                  disabled={explorerLoading}
-                />
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={explorerLoading || !folderIdInput.trim()}
-                  onClick={() => {
-                    setFolderStack([]);
-                    void loadContents(selectedProjectId, folderIdInput);
-                  }}
-                >
-                  Load folder
-                </button>
-              </div>
-            ) : null}
-            {selectedProjectId && folderStack.length > 0 ? (
-              <nav className="aps-admin__crumbs" aria-label="Folder path">
-                {folderStack.map((folder, index) => (
-                  <button
-                    key={folder.id}
-                    type="button"
-                    className="aps-admin__crumb"
-                    onClick={() => goToFolderDepth(index)}
-                  >
-                    {index === 0 ? folder.name : `/ ${folder.name}`}
-                  </button>
-                ))}
-              </nav>
-            ) : null}
-            <ul className="aps-admin__list aps-admin__list--clickable">
-              {!selectedProjectId ? (
-                <li className="aps-admin__muted">Select a project</li>
-              ) : contents.length === 0 ? (
-                <li className="aps-admin__muted">Empty / not loaded</li>
-              ) : (
-                contents.map((item) => {
-                  const folder = isFolder(item);
-                  return (
-                    <li key={item.id || itemName(item)}>
-                      {folder ? (
+        <ApsRenderGuard label="Hub explorer">
+          <div className="aps-admin__explorer">
+            <div className="aps-admin__explorer-col">
+              <h3 className="aps-admin__subhead">Hubs</h3>
+              <ul className="aps-admin__list aps-admin__list--clickable">
+                {hubs.length === 0 ? (
+                  <li className="aps-admin__muted">No hubs loaded</li>
+                ) : (
+                  hubs.map((hub) => {
+                    const id = hub.id ?? "";
+                    return (
+                      <li key={id || itemName(hub)}>
                         <button
                           type="button"
-                          className="aps-admin__tree-btn"
-                          disabled={explorerLoading}
-                          onClick={() => openFolder(item)}
+                          className={`aps-admin__tree-btn${selectedHubId === id ? " is-active" : ""}`}
+                          disabled={!id || explorerLoading}
+                          onClick={() => void loadProjects(id)}
                         >
-                          [folder] {itemName(item)}
+                          {itemName(hub)}
                         </button>
-                      ) : (
-                        <span className="aps-admin__file">[file] {itemName(item)}</span>
-                      )}
-                    </li>
-                  );
-                })
-              )}
-            </ul>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+
+            <div className="aps-admin__explorer-col">
+              <h3 className="aps-admin__subhead">Projects</h3>
+              <ul className="aps-admin__list aps-admin__list--clickable">
+                {!selectedHubId ? (
+                  <li className="aps-admin__muted">Select a hub</li>
+                ) : projects.length === 0 ? (
+                  <li className="aps-admin__muted">No projects</li>
+                ) : (
+                  projects.map((project) => {
+                    const id = project.id ?? "";
+                    return (
+                      <li key={id || itemName(project)}>
+                        <button
+                          type="button"
+                          className={`aps-admin__tree-btn${
+                            selectedProjectId === id ? " is-active" : ""
+                          }`}
+                          disabled={!id || explorerLoading}
+                          onClick={() => {
+                            setFolderStack([]);
+                            setContents([]);
+                            setSelectedProjectId(id);
+                            setFolderIdInput("");
+                            setExplorerError(
+                              "Enter a folderId URN below, then load contents for this project.",
+                            );
+                          }}
+                        >
+                          {itemName(project)}
+                        </button>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+
+            <div className="aps-admin__explorer-col">
+              <h3 className="aps-admin__subhead">Contents</h3>
+              {selectedProjectId ? (
+                <div className="aps-admin__folder-form">
+                  <label htmlFor="aps-folder-id">folderId</label>
+                  <input
+                    id="aps-folder-id"
+                    value={folderIdInput}
+                    onChange={(e) => setFolderIdInput(e.target.value)}
+                    placeholder="urn:adsk.wipprod:fs.folder:…"
+                    disabled={explorerLoading}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={explorerLoading || !folderIdInput.trim()}
+                    onClick={() => {
+                      setFolderStack([]);
+                      void loadContents(selectedProjectId, folderIdInput);
+                    }}
+                  >
+                    Load folder
+                  </button>
+                </div>
+              ) : null}
+              {selectedProjectId && folderStack.length > 0 ? (
+                <nav className="aps-admin__crumbs" aria-label="Folder path">
+                  {folderStack.map((folder, index) => (
+                    <button
+                      key={folder.id}
+                      type="button"
+                      className="aps-admin__crumb"
+                      onClick={() => goToFolderDepth(index)}
+                    >
+                      {index === 0 ? folder.name : `/ ${folder.name}`}
+                    </button>
+                  ))}
+                </nav>
+              ) : null}
+              <ul className="aps-admin__list aps-admin__list--clickable">
+                {!selectedProjectId ? (
+                  <li className="aps-admin__muted">Select a project</li>
+                ) : contents.length === 0 ? (
+                  <li className="aps-admin__muted">Empty / not loaded</li>
+                ) : (
+                  contents.map((item) => {
+                    const folder = isFolder(item);
+                    return (
+                      <li key={item.id || itemName(item)}>
+                        {folder ? (
+                          <button
+                            type="button"
+                            className="aps-admin__tree-btn"
+                            disabled={explorerLoading}
+                            onClick={() => openFolder(item)}
+                          >
+                            [folder] {itemName(item)}
+                          </button>
+                        ) : (
+                          <span className="aps-admin__file">[file] {itemName(item)}</span>
+                        )}
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
           </div>
-        </div>
+        </ApsRenderGuard>
       </div>
     </section>
   );

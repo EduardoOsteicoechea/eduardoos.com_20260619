@@ -147,10 +147,12 @@ func (h *Handler) Registry(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, "engines: "+err.Error())
 		return
 	}
+	// ExtractDataList: DA returns {data,pagination}; clients must get real arrays
+	// (calling .map on the raw object blanked the APS admin React tree).
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"appbundles": bundles,
-		"activities": activities,
-		"engines":    engines,
+		"appbundles": ExtractDataList(bundles),
+		"activities": ExtractDataList(activities),
+		"engines":    ExtractDataList(engines),
 	})
 }
 
