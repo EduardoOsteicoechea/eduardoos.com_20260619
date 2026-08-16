@@ -1,12 +1,13 @@
 /**
  * Client-side gate: redirect unauthenticated users off protected paths.
- * Uses the same expiry-aware check as the rest of Next auth (not raw token presence).
+ * Admin-only paths require sign-in; non-admins stay so the page can show the
+ * same denied UI as APS admin. Backend still returns 403 on /api/admin/*.
  */
 
 import { useEffect } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import { isAuthenticated } from "../../lib/auth";
-import { isPublicPagePath } from "../../lib/routeAccess";
+import { isAdminOnlyPagePath, isPublicPagePath } from "../../lib/routeAccess";
 
 interface AuthGateProps {
   pathname: string;
@@ -15,6 +16,15 @@ interface AuthGateProps {
 export function AuthGate({ pathname }: AuthGateProps) {
   useEffect(() => {
     if (isPublicPagePath(pathname)) return;
+
+    if (isAdminOnlyPagePath(pathname)) {
+      if (!isAuthenticated()) {
+        const next = encodeURIComponent(pathname);
+        window.location.replace(`${APP_ROUTES.login}?next=${next}`);
+      }
+      return;
+    }
+
     if (isAuthenticated()) return;
     const next = encodeURIComponent(pathname);
     window.location.replace(`${APP_ROUTES.login}?next=${next}`);

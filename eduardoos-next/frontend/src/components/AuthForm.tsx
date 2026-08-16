@@ -1,8 +1,9 @@
 /**
  * Login / register / verify-otp form island.
+ * Register requires the Contact-style “not a bot” hold before submit.
  */
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../config/routes";
 import { formatApiError, type ApiError } from "../lib/api";
 import { hasIssuedToken, loginUser, registerUser, verifyOtp } from "../lib/auth";
@@ -10,6 +11,12 @@ import { validateEmail, validateOtp, validatePassword } from "../lib/validation"
 import PasswordField from "./PasswordField/PasswordField";
 import { openApiErrorModal } from "./ServerErrorModal/ServerErrorModal";
 import "./AuthForm.css";
+
+const HOLD_SECONDS = 5;
+
+function humanTokenFor(heldMs: number): string {
+  return `h1:register:${Math.floor(heldMs)}`;
+}
 
 function showAuthApiError(apiError: ApiError | undefined, fallback: string) {
   const message = apiError?.message ?? fallback;
@@ -32,6 +39,7 @@ interface FieldErrors {
   email?: string;
   password?: string;
   otp?: string;
+  bot?: string;
 }
 
 type FormStep = "credentials" | "otp";
@@ -77,6 +85,10 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [redirectTo, setRedirectTo] = useState(APP_ROUTES.home);
+  const [botChecked, setBotChecked] = useState(false);
+  const [heldMs, setHeldMs] = useState(0);
+  const [botUnlocked, setBotUnlocked] = useState(false);
+  const holdStart = useRef<number | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -92,6 +104,25 @@ export default function AuthForm({ mode }: AuthFormProps) {
     }
   }, []);
 
+  useEffect(() => {
+    if (mode !== "register" || !botChecked || botUnlocked) {
+      holdStart.current = null;
+      return;
+    }
+    holdStart.current = Date.now();
+    const id = window.setInterval(() => {
+      const start = holdStart.current;
+      if (!start) return;
+      const ms = Date.now() - start;
+      setHeldMs(ms);
+      if (ms >= HOLD_SECONDS * 1000) {
+        setBotUnlocked(true);
+        window.clearInterval(id);
+      }
+    }, 200);
+    return () => window.clearInterval(id);
+  }, [mode, botChecked, botUnlocked]);
+
   function finishAuth(messageText: string, traceId: string) {
     clearOtpStepFromUrl();
     setMessage(`${messageText} (trace: ${traceId})`);
@@ -100,6 +131,14 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
   const showOtpField = step === "otp";
   const showPasswordField = !showOtpField && mode !== "verify-otp";
+  const showBotGate = mode === "register" && !showOtpField;
+  const progress = Math.min(1, heldMs / (HOLD_SECONDS * 1000));
+  const botGateLabel = useMemo(() => {
+    if (botUnlocked) return "Verified — you can create an account";
+    if (!botChecked) return "Confirm you are not a bot";
+    const left = Math.max(0, HOLD_SECONDS - Math.floor(heldMs / 1000));
+    return `Wait ${left}s… (anti-bot)`;
+  }, [botUnlocked, botChecked, heldMs]);
 
   function validateForm(): boolean {
     const errors: FieldErrors = {
@@ -111,8 +150,11 @@ export default function AuthForm({ mode }: AuthFormProps) {
     if (showOtpField) {
       errors.otp = validateOtp(otp) ?? undefined;
     }
+    if (showBotGate && !botUnlocked) {
+      errors.bot = "Confirm you are not a bot";
+    }
     setFieldErrors(errors);
-    return !errors.email && !errors.password && !errors.otp;
+    return !errors.email && !errors.password && !errors.otp && !errors.bot;
   }
 
   function goToOtpStep(traceId: string, hint: string) {
@@ -154,6 +196,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
         const { result, correlationId, error: apiError } = await registerUser({
           email,
           password,
+          notABot: true,
+          humanToken: humanTokenFor(heldMs),
         });
         if (!result) {
           setError(showAuthApiError(apiError, "Registration failed"));
@@ -206,6 +250,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
     "verify-otp": "Verify email",
   };
   const submitLabel = showOtpField ? "Verify email" : titles[mode];
+  const submitDisabled =
+    loading || (showBotGate && !botUnlocked);
 
   return (
     <form className="auth-form panel" onSubmit={(e) => void handleSubmit(e)}>
@@ -237,6 +283,43 @@ export default function AuthForm({ mode }: AuthFormProps) {
         />
       ) : null}
 
+      {showBotGate ? (
+        <div className="auth-form__bot-gate" aria-label="Human verification">
+          <label className="auth-form__bot-check">
+            <input
+              type="checkbox"
+              checked={botChecked}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setBotChecked(on);
+                if (!on) {
+                  setHeldMs(0);
+                  setBotUnlocked(false);
+                }
+              }}
+            />
+            <span>{botGateLabel}</span>
+          </label>
+          {!botUnlocked ? (
+            <div
+              className="auth-form__bot-progress"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress * 100)}
+            >
+              <div
+                className="auth-form__bot-progress-fill"
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
+          ) : null}
+          {fieldErrors.bot ? (
+            <span className="field-error">{fieldErrors.bot}</span>
+          ) : null}
+        </div>
+      ) : null}
+
       {showOtpField ? (
         <div
           className={`form-field auth-form__otp-field ${fieldErrors.otp ? "form-field--error" : ""}`}
@@ -266,7 +349,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
       {message ? <p className="status-message status-message--success">{message}</p> : null}
 
       <div className="panel__actions">
-        <button className="btn btn--primary" type="submit" disabled={loading}>
+        <button className="btn btn--primary" type="submit" disabled={submitDisabled}>
           {loading ? "Working…" : submitLabel}
         </button>
         {showOtpField && mode !== "verify-otp" ? (

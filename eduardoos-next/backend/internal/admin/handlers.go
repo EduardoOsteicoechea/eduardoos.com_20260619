@@ -36,6 +36,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Use(h.auth.RequireJWT)
 		r.Use(h.requireAdmin)
 		r.Get("/api/admin/users", h.ListUsers)
+		r.Delete("/api/admin/users/{email}", h.DeleteUser)
 		r.Put("/api/admin/users/{email}/entitlements", h.PutUserEntitlements)
 		r.Get("/api/admin/services", h.ListServices)
 	})
@@ -44,6 +45,8 @@ func (h *Handler) Routes(r chi.Router) {
 func (h *Handler) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		email := auth.UserEmailFromRequest(r)
+		// Defense in depth: JWT subject must match IsAdminEmail allowlist
+		// or stored role admin (ResolveRole never weakens AdminEmail).
 		role := auth.RoleUser
 		if u, ok, err := h.Users.GetUser(r.Context(), email); err == nil && ok {
 			role = u.Role
@@ -165,5 +168,54 @@ func (h *Handler) PutUserEntitlements(w http.ResponseWriter, r *http.Request) {
 		"email":        target,
 		"entitlements": ents,
 		"serviceIds":   services,
+	})
+}
+
+// DeleteUser removes an account (admin only). Blocks self-delete and bootstrap /
+// role admin so the platform cannot lock out the sole admin.
+func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	if h.Users == nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "user store not configured")
+		return
+	}
+	target := auth.NormalizeEmail(chi.URLParam(r, "email"))
+	if target == "" || !strings.Contains(target, "@") {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid email")
+		return
+	}
+	actor := auth.UserEmailFromRequest(r)
+	if target == actor {
+		httpx.WriteError(w, http.StatusForbidden, "cannot delete your own account")
+		return
+	}
+	if auth.IsAdminEmail(target) {
+		httpx.WriteError(w, http.StatusForbidden, "cannot delete the platform admin")
+		return
+	}
+
+	existing, ok, err := h.Users.GetUser(r.Context(), target)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "store error")
+		return
+	}
+	if !ok {
+		httpx.WriteError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	if auth.IsAdmin(existing.Email, existing.Role) {
+		httpx.WriteError(w, http.StatusForbidden, "cannot delete an admin account")
+		return
+	}
+
+	if err := h.Users.DeleteUser(r.Context(), target); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not delete user")
+		return
+	}
+	if h.Payments != nil {
+		h.Payments.PutEntitlements(target, nil)
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"deleted": true,
+		"email":   target,
 	})
 }

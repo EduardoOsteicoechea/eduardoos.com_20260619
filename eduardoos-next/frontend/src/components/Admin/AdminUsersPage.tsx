@@ -1,21 +1,36 @@
 /**
  * Admin users dashboard — list accounts, roles, registration dates, services.
- * Visible only to eduardooost@gmail.com (platform admin).
+ * Visible only to eduardooost@gmail.com (platform admin). Delete requires
+ * an accessible confirm dialog; self / platform admin cannot be deleted.
  *
  * Spec: every failed API call opens ServerErrorModal (copyable). Access check
  * must never hang on “Checking access…”.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
+  deleteAdminUser,
   fetchAdminServices,
   fetchAdminUsers,
   putUserEntitlements,
   type AdminServiceRow,
   type AdminUserRow,
 } from "../../lib/admin";
-import { isApsAdminEmail, getAuthEmailFromToken, isAuthenticated } from "../../lib/auth";
+import {
+  APS_ADMIN_EMAIL,
+  isApsAdminEmail,
+  getAuthEmailFromToken,
+  isAuthenticated,
+} from "../../lib/auth";
+import { hasServiceAccess } from "../../lib/payments";
 import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import "./AdminUsersPage.css";
 
@@ -31,6 +46,11 @@ export default function AdminUsersPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loadingList, setLoadingList] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<AdminUserRow | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const confirmTitleId = useId();
+  const confirmDescId = useId();
+  const selfEmail = getAuthEmailFromToken();
 
   const refresh = useCallback(async () => {
     setLoadingList(true);
@@ -86,6 +106,16 @@ export default function AdminUsersPage() {
     };
   }, [refresh]);
 
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (pendingDelete) {
+      if (!dialog.open) dialog.showModal();
+    } else if (dialog.open) {
+      dialog.close();
+    }
+  }, [pendingDelete]);
+
   function selectUser(row: AdminUserRow) {
     setSelectedEmail(row.email);
     setDraftServices([...row.serviceIds]);
@@ -97,6 +127,65 @@ export default function AdminUsersPage() {
     setDraftServices((current) =>
       current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
     );
+  }
+
+  function canDelete(row: AdminUserRow): boolean {
+    const email = row.email.trim().toLowerCase();
+    if (!email) return false;
+    if (selfEmail && email === selfEmail) return false;
+    if (isApsAdminEmail(email)) return false;
+    if (row.role.trim().toLowerCase() === "admin") return false;
+    return true;
+  }
+
+  function requestDelete(row: AdminUserRow, event: MouseEvent) {
+    event.stopPropagation();
+    if (!canDelete(row) || busy) return;
+    setPendingDelete(row);
+    setError("");
+    setMessage("");
+  }
+
+  function isPlatformAdminUser(row: AdminUserRow): boolean {
+    return (
+      isApsAdminEmail(row.email) || row.role.trim().toLowerCase() === "admin"
+    );
+  }
+
+  function effectiveAccess(row: AdminUserRow, serviceId: string): boolean {
+    if (isPlatformAdminUser(row)) return true;
+    return hasServiceAccess(serviceId, row.entitlements, row.email);
+  }
+
+  function cancelDelete() {
+    setPendingDelete(null);
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const target = pendingDelete.email;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      await deleteAdminUser(target);
+      setPendingDelete(null);
+      if (selectedEmail === target) {
+        setSelectedEmail("");
+        setDraftServices([]);
+      }
+      await refresh();
+      setMessage(`Deleted ${target}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Delete failed";
+      setError(msg);
+      openApiErrorModal(msg, {
+        title: "Admin users — server error",
+        summary: "Could not delete user. Copy the block below when reporting.",
+      });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveEntitlements() {
@@ -126,11 +215,13 @@ export default function AdminUsersPage() {
 
   if (gate === "denied") {
     return (
-      <section className="admin-users admin-users--denied">
-        <h1 className="admin-users__title">Admin — Users</h1>
+      <section className="admin-users admin-users--denied" aria-labelledby="admin-denied-title">
+        <h1 id="admin-denied-title" className="admin-users__title">
+          Admin — Users
+        </h1>
         <p className="admin-users__lead">
           This dashboard is restricted to the platform admin (
-          <code>{/* keep literal for operators */}eduardooost@gmail.com</code>).
+          <code>{APS_ADMIN_EMAIL}</code>). Non-admins receive the same denial as APS admin.
         </p>
         <a className="btn btn--primary" href={APP_ROUTES.login}>
           Sign in
@@ -147,8 +238,9 @@ export default function AdminUsersPage() {
         <p className="admin-users__brand">Admin</p>
         <h1 className="admin-users__title">Users & subscriptions</h1>
         <p className="admin-users__lead">
-          Role and registration date per account. Grant Music, Pamphlet, Debate,
-          Homescool, or Videos entitlements (admin always has full access).
+          Role and registration date per account. Access shows effective product
+          reach; Subscriptions are grantable entitlements. Admin always has full
+          access regardless of subscriptions.
         </p>
       </header>
 
@@ -163,7 +255,7 @@ export default function AdminUsersPage() {
           <h2 className="admin-users__section-title">Accounts ({users.length})</h2>
           <ul className="admin-users__list">
             {users.map((row) => (
-              <li key={row.email}>
+              <li key={row.email} className="admin-users__card">
                 <button
                   type="button"
                   className={`admin-users__row${
@@ -184,6 +276,20 @@ export default function AdminUsersPage() {
                       : "no services"}
                   </span>
                 </button>
+                {canDelete(row) ? (
+                  <button
+                    type="button"
+                    className="btn admin-users__delete"
+                    disabled={busy}
+                    onClick={(e) => requestDelete(row, e)}
+                  >
+                    Delete
+                  </button>
+                ) : (
+                  <span className="admin-users__delete-hint" title="Protected account">
+                    Protected
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -217,24 +323,62 @@ export default function AdminUsersPage() {
                   <dd>{selected.verified ? "yes" : "no"}</dd>
                 </div>
               </dl>
-              <ul className="admin-users__service-toggles">
-                {services.map((svc) => (
-                  <li key={svc.id}>
-                    <label className="admin-users__service">
-                      <input
-                        type="checkbox"
-                        checked={draftServices.includes(svc.id)}
-                        onChange={() => toggleService(svc.id)}
-                        disabled={busy}
-                      />
-                      <span>
-                        <strong>{svc.label}</strong> — ${svc.monthly_usd}/mo
-                        <em>{svc.description}</em>
-                      </span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              <p className="admin-users__access-note">
+                {isPlatformAdminUser(selected)
+                  ? "Admin always has full access regardless of subscriptions. Access is inherent (read-only); Subscriptions stay grantable and may be empty."
+                  : "Access reflects effective reach (active entitlement). Subscriptions are grantable entitlements you can edit."}
+              </p>
+              <div className="admin-users__service-table" role="table" aria-label="Service access">
+                <div className="admin-users__service-head" role="row">
+                  <span className="admin-users__service-label" role="columnheader">
+                    Service
+                  </span>
+                  <span role="columnheader">Access</span>
+                  <span role="columnheader">Subscriptions</span>
+                </div>
+                <ul className="admin-users__service-toggles">
+                  {services.map((svc) => {
+                    const accessOn = effectiveAccess(selected, svc.id);
+                    const subOn = draftServices.includes(svc.id);
+                    return (
+                      <li key={svc.id} className="admin-users__service-row" role="row">
+                        <span className="admin-users__service-label" role="cell">
+                          <strong>{svc.label}</strong> — ${svc.monthly_usd}/mo
+                          <em>{svc.description}</em>
+                        </span>
+                        <label
+                          className="admin-users__service-check"
+                          role="cell"
+                          title={
+                            isPlatformAdminUser(selected)
+                              ? "Admin always has full access"
+                              : "Effective access from entitlements"
+                          }
+                        >
+                          <span className="visually-hidden">Access — {svc.label}</span>
+                          <input
+                            type="checkbox"
+                            checked={accessOn}
+                            disabled
+                            readOnly
+                          />
+                        </label>
+                        <label className="admin-users__service-check" role="cell">
+                          <span className="visually-hidden">
+                            Subscription — {svc.label}
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={subOn}
+                            onChange={() => toggleService(svc.id)}
+                            disabled={busy}
+                          />
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
               <button
                 type="button"
                 className="btn btn--primary"
@@ -247,6 +391,45 @@ export default function AdminUsersPage() {
           )}
         </section>
       </div>
+
+      <dialog
+        ref={dialogRef}
+        className="admin-users__confirm"
+        aria-labelledby={confirmTitleId}
+        aria-describedby={confirmDescId}
+        onCancel={(e) => {
+          e.preventDefault();
+          cancelDelete();
+        }}
+        onClose={cancelDelete}
+      >
+        <h2 id={confirmTitleId} className="admin-users__confirm-title">
+          Delete user?
+        </h2>
+        <p id={confirmDescId} className="admin-users__confirm-body">
+          Permanently remove{" "}
+          <strong>{pendingDelete?.email ?? "this account"}</strong> and clear their
+          entitlements. This cannot be undone.
+        </p>
+        <div className="admin-users__confirm-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={cancelDelete}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn--primary admin-users__confirm-delete"
+            disabled={busy || !pendingDelete}
+            onClick={() => void confirmDelete()}
+          >
+            {busy ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </dialog>
     </div>
   );
 }

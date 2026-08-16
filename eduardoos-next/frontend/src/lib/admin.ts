@@ -1,5 +1,5 @@
 /**
- * Admin API client — list users + grant subscription entitlements.
+ * Admin API client — list users, grant entitlements, delete accounts.
  */
 
 import { ADMIN_ROUTES } from "../config/routes";
@@ -68,4 +68,16 @@ export async function putUserEntitlements(
   );
   if (result.error) throw new Error(formatApiError(result.error));
   return result.data?.entitlements ?? [];
+}
+
+export async function deleteAdminUser(email: string): Promise<void> {
+  const result = await apiRequest<{ deleted?: boolean }>(
+    ADMIN_ROUTES.deleteUser(email),
+    {
+      method: "DELETE",
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) throw new Error(formatApiError(result.error));
 }

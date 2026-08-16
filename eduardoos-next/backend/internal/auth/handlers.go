@@ -65,8 +65,10 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	log.Printf("[correlation=%s] auth.register begin", cid)
 	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email      string `json:"email"`
+		Password   string `json:"password"`
+		HumanToken string `json:"humanToken"`
+		NotABot    bool   `json:"notABot"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || !strings.Contains(body.Email, "@") {
 		log.Printf("[correlation=%s] auth.register reject invalid_email", cid)
@@ -79,6 +81,17 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := NormalizeEmail(body.Email)
+	if IsSpammyLocalPart(email) {
+		log.Printf("[correlation=%s] auth.register reject spammy_local_part email=%s", cid, email)
+		httpx.WriteError(w, http.StatusBadRequest, "email not accepted")
+		return
+	}
+	// Client bot gate: register form sends notABot after the hold checkbox (Contact pattern).
+	if !body.NotABot && strings.TrimSpace(body.HumanToken) == "" {
+		log.Printf("[correlation=%s] auth.register reject missing_bot_check", cid)
+		httpx.WriteError(w, http.StatusBadRequest, "confirm you are not a bot")
+		return
+	}
 	log.Printf("[correlation=%s] auth.register lookup email=%s", cid, email)
 	if _, exists, err := h.Store.GetUser(r.Context(), email); err != nil {
 		log.Printf("[correlation=%s] auth.register store_error err=%v", cid, err)

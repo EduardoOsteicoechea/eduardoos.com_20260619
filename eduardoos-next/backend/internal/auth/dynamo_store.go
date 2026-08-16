@@ -91,6 +91,28 @@ func (d *dynamoUserStore) PutUser(ctx context.Context, user User) error {
 	return d.putJSON(ctx, userKey(user.Email), user)
 }
 
+func (d *dynamoUserStore) deleteItem(ctx context.Context, sk string) error {
+	_, err := d.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(d.table),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "APP"},
+			"SK": &types.AttributeValueMemberS{Value: sk},
+		},
+	})
+	return err
+}
+
+// DeleteUser removes the user record and related OTP keys from DynamoDB.
+func (d *dynamoUserStore) DeleteUser(ctx context.Context, email string) error {
+	email = NormalizeEmail(email)
+	if err := d.deleteItem(ctx, userKey(email)); err != nil {
+		return err
+	}
+	_ = d.deleteItem(ctx, otpKey(email))
+	_ = d.deleteItem(ctx, resetOtpKey(email))
+	return nil
+}
+
 // ListUsers queries PK=APP with SK prefix user: (production key shape).
 func (d *dynamoUserStore) ListUsers(ctx context.Context) ([]User, error) {
 	out, err := d.client.Query(ctx, &dynamodb.QueryInput{

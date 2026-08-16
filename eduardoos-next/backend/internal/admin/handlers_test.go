@@ -100,6 +100,10 @@ func (f *failingUserStore) PutUser(ctx context.Context, user auth.User) error {
 	return f.inner.PutUser(ctx, user)
 }
 
+func (f *failingUserStore) DeleteUser(ctx context.Context, email string) error {
+	return f.inner.DeleteUser(ctx, email)
+}
+
 func (f *failingUserStore) ListUsers(context.Context) ([]auth.User, error) {
 	return nil, errors.New("dynamo query failed")
 }
@@ -195,5 +199,72 @@ func TestListUsersNilPaymentsDoesNotPanic(t *testing.T) {
 	users, ok := listed["users"].([]any)
 	if !ok || len(users) < 1 {
 		t.Fatalf("users=%v", listed["users"])
+	}
+}
+
+func TestDeleteUserAdminOnlyBlocksSelfAndAdmin(t *testing.T) {
+	secret := "admin-secret"
+	store := auth.NewMemoryStore()
+	_ = store.PutUser(nil, auth.User{
+		Email:        auth.AdminEmail,
+		PasswordHash: auth.HashPassword("password12"),
+		Verified:     true,
+		Role:         auth.RoleAdmin,
+		CreatedAt:    auth.NowRFC3339(),
+	})
+	_ = store.PutUser(nil, auth.User{
+		Email:        "spam@example.com",
+		PasswordHash: auth.HashPassword("password12"),
+		Verified:     true,
+		Role:         auth.RoleUser,
+		CreatedAt:    auth.NowRFC3339(),
+	})
+	pay := payments.NewStore()
+	pay.PutEntitlements("spam@example.com", []payments.Entitlement{{
+		ServiceID:     "debate",
+		ServiceLabel:  "Debate",
+		BillingPeriod: "monthly",
+	}})
+	h := NewHandler(secret, store, pay)
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	memberToken, err := auth.IssueJWT("spam@example.com", secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	denied := httptest.NewRequest(http.MethodDelete, "/api/admin/users/spam@example.com", nil)
+	denied.Header.Set("Authorization", "Bearer "+memberToken)
+	deniedRec := httptest.NewRecorder()
+	r.ServeHTTP(deniedRec, denied)
+	if deniedRec.Code != http.StatusForbidden {
+		t.Fatalf("member delete status=%d want 403", deniedRec.Code)
+	}
+
+	adminToken, err := auth.IssueJWT(auth.AdminEmail, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	self := httptest.NewRequest(http.MethodDelete, "/api/admin/users/"+auth.AdminEmail, nil)
+	self.Header.Set("Authorization", "Bearer "+adminToken)
+	selfRec := httptest.NewRecorder()
+	r.ServeHTTP(selfRec, self)
+	if selfRec.Code != http.StatusForbidden {
+		t.Fatalf("self delete status=%d want 403 body=%s", selfRec.Code, selfRec.Body.String())
+	}
+
+	okDel := httptest.NewRequest(http.MethodDelete, "/api/admin/users/spam@example.com", nil)
+	okDel.Header.Set("Authorization", "Bearer "+adminToken)
+	okRec := httptest.NewRecorder()
+	r.ServeHTTP(okRec, okDel)
+	if okRec.Code != http.StatusOK {
+		t.Fatalf("delete status=%d body=%s", okRec.Code, okRec.Body.String())
+	}
+	if _, exists, err := store.GetUser(nil, "spam@example.com"); err != nil || exists {
+		t.Fatalf("user should be gone exists=%v err=%v", exists, err)
+	}
+	if ents := pay.ListEntitlements("spam@example.com"); len(ents) != 0 {
+		t.Fatalf("entitlements should be cleared, got %d", len(ents))
 	}
 }

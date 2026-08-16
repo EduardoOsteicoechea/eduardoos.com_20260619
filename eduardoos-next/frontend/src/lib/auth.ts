@@ -11,6 +11,9 @@ import { createCorrelationId } from "./correlation";
 export interface AuthCredentials {
   email: string;
   password: string;
+  /** Set true after register anti-bot hold (Contact pattern). */
+  notABot?: boolean;
+  humanToken?: string;
 }
 
 export interface OtpVerification {

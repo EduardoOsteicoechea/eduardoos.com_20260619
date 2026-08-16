@@ -21,6 +21,7 @@ type UserStore interface {
 	BackendName() string
 	GetUser(ctx context.Context, email string) (User, bool, error)
 	PutUser(ctx context.Context, user User) error
+	DeleteUser(ctx context.Context, email string) error
 	ListUsers(ctx context.Context) ([]User, error)
 	GetOTP(ctx context.Context, email string) (string, bool, error)
 	PutOTP(ctx context.Context, email, otp string) error
@@ -69,6 +70,17 @@ func (s *MemoryStore) PutUser(_ context.Context, u User) error {
 		u.CreatedAt = NowRFC3339()
 	}
 	s.users[email] = u
+	return nil
+}
+
+// DeleteUser removes the account and clears OTP / reset-OTP rows for that email.
+func (s *MemoryStore) DeleteUser(_ context.Context, email string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key := NormalizeEmail(email)
+	delete(s.users, key)
+	delete(s.otp, key)
+	delete(s.resetOTP, key)
 	return nil
 }
 

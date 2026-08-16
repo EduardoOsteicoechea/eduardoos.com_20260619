@@ -1,7 +1,7 @@
 /**
  * Which page paths are public without a JWT.
  * Subscription-gated product surfaces require sign-in (entitlement checked in-page).
- * Admin users dashboard is never public.
+ * Admin users dashboard is never public — admin-only (APS allowlist).
  */
 
 import { APP_ROUTES } from "../config/routes";
@@ -13,8 +13,19 @@ function normalizePath(pathname: string): string {
   return trimmed || "/";
 }
 
+/** Platform-admin-only surfaces (IsAdminEmail / APS allowlist on the client). */
+export function isAdminOnlyPagePath(pathname: string): boolean {
+  const path = normalizePath(pathname);
+  return (
+    path === normalizePath(APP_ROUTES.adminUsers) ||
+    path.startsWith(`${normalizePath(APP_ROUTES.adminUsers)}/`)
+  );
+}
+
 export function isPublicPagePath(pathname: string): boolean {
   const path = normalizePath(pathname);
+
+  if (isAdminOnlyPagePath(path)) return false;
 
   if (path === "/") return true;
   if (path.startsWith("/auth/")) return true;

@@ -20,7 +20,7 @@ func TestRegisterLoginHappyPath(t *testing.T) {
 	r := chi.NewRouter()
 	h.Routes(r)
 
-	regBody := `{"email":"user@example.com","password":"password123"}`
+	regBody := `{"email":"user@example.com","password":"password123","notABot":true}`
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewBufferString(regBody)))
 	if rec.Code != http.StatusOK {
@@ -103,7 +103,7 @@ func TestRegisterDoesNotIssueToken(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/register",
-		bytes.NewBufferString(`{"email":"new@example.com","password":"password123"}`)))
+		bytes.NewBufferString(`{"email":"new@example.com","password":"password123","notABot":true}`)))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register status=%d body=%s", rec.Code, rec.Body.String())
 	}
@@ -132,7 +132,7 @@ func TestRegisterOmitsOTPWithoutDevFlag(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/register",
-		bytes.NewBufferString(`{"email":"nodev@example.com","password":"password123"}`)))
+		bytes.NewBufferString(`{"email":"nodev@example.com","password":"password123","notABot":true}`)))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register status=%d body=%s", rec.Code, rec.Body.String())
 	}
@@ -146,6 +146,47 @@ func TestRegisterOmitsOTPWithoutDevFlag(t *testing.T) {
 	stored, ok, err := store.GetOTP(context.Background(), "nodev@example.com")
 	if err != nil || !ok || len(stored) != 6 {
 		t.Fatalf("otp should still be stored err=%v ok=%v otp=%q", err, ok, stored)
+	}
+}
+
+func TestRegisterRejectsMissingBotCheck(t *testing.T) {
+	h := &Handler{Store: NewMemoryStore(), JWTSecret: "test-jwt-secret", DevReturnOTP: true}
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/register",
+		bytes.NewBufferString(`{"email":"bot@example.com","password":"password123"}`)))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d want 400 body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRegisterRejectsSpammyLocalPart(t *testing.T) {
+	h := &Handler{Store: NewMemoryStore(), JWTSecret: "test-jwt-secret", DevReturnOTP: true}
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/auth/register",
+		bytes.NewBufferString(`{"email":"b.ero.h.iy.ed.o6.2.0@gmail.com","password":"password123","notABot":true}`)))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d want 400 body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestIsSpammyLocalPart(t *testing.T) {
+	if !IsSpammyLocalPart("b.ero.h.iy.ed.o6.2.0@gmail.com") {
+		t.Fatal("expected spammy")
+	}
+	if IsSpammyLocalPart("user.name@gmail.com") {
+		t.Fatal("one dot should be fine")
+	}
+	if IsSpammyLocalPart("a.b.c.d@example.com") {
+		t.Fatal("three dots is at threshold, should pass")
+	}
+	if !IsSpammyLocalPart("a.b.c.d.e@example.com") {
+		t.Fatal("four dots should fail")
 	}
 }
 

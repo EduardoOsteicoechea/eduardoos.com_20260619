@@ -106,4 +106,6 @@ export const ADMIN_ROUTES = {
   services: "/api/admin/services",
   userEntitlements: (email: string) =>
     `/api/admin/users/${encodeURIComponent(email)}/entitlements`,
+  deleteUser: (email: string) =>
+    `/api/admin/users/${encodeURIComponent(email)}`,
 } as const;
