@@ -23,7 +23,7 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
 
 ## Users
 
-- **Visitor:** home, contact/assistant, public media where applicable.
+- **Visitor:** home, contact/AI agent, public media where applicable.
 - **Signed-in user:** pamphlets (epams), playlists, articles, BIM, subscriptions, profile.
 - **APS admin** (`eduardooost@gmail.com`): Design Automation trigger + hub/registry explorer.
 
@@ -35,8 +35,8 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
 - JWT sessions compatible with existing hash scheme (`sha256:` prefix as today) OR documented migration
 
 ### Content & tools
-- Home (brand + assistant gate)
-- Contact
+- Home (brand + AI agent gate; agent never impersonates Eduardo)
+- Contact (channels + AI agent; same identity rules)
 - Pamphlet editor (open/create local `.epam` + cloud epams)
 - Music / playlists
 - Articles
@@ -64,6 +64,13 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
 - Theme tokens live in `frontend/src/styles/theme.css` (`--site-*`). Plain CSS only.
 - Theme persistence: `localStorage` key `eduardoos-theme`; apply via `html[data-theme="light"|"dark"]` and `html.dark`. Bootstrapped inline in `BaseLayout` and `PamphletLayout`; helpers in `frontend/src/lib/theme.ts`.
 - Global menu **Theme** control in `Header` toggles light/dark on every layout (including pamphlet).
+
+### Visitor AI agents (identity + voice)
+- Every visitor-facing chat agent (home dock, contact, profile/skill Q&A via `profile_qa`) **is an AI agent**, never Eduardo or the site owner.
+- Do not speak in first person as Eduardo; refer to him in the third person; disclose the AI/agent role when relevant.
+- Voice: **professional, relaxed, concrete, didactic** (see `.cursor/skills/agent-voice/SKILL.md`).
+- System prompt source of truth (production chatbot): `pkg/contact/agent_identity.go` (`ProfileQASystemPrompt`). Frontend welcome copy: `frontend/src/lib/agentVoice.ts` (eduardoos-next).
+- Routes: `/api/profile/ask` (home), `/api/contact/ask` (contact) — both use chatbot role `profile_qa`.
 
 ### Frontend chrome (site Header)
 - **Desktop (≥768px):** fixed **left rail** (`--header_width: 60px`). Top = favicon logo → home; near bottom = hamburger; bottom = avatar (when logged in) with account menu. Nav tray slides in **from the left**, starting after the rail.

@@ -14,6 +14,9 @@ import {
 } from "react";
 import { CONTACT_API_ROUTES } from "../../config/routes";
 import { apiRequest, formatApiError } from "../../lib/api";
+import {
+  DEFAULT_AGENT_WELCOME,
+} from "../../lib/agentVoice";
 import { createCorrelationId } from "../../lib/correlation";
 import "./ContactAgent.css";
 
@@ -24,8 +27,7 @@ const CONTACT_WHATSAPP_URL = "https://wa.me/584147281033";
 /** Dispatched by ContactChannels so the agent island can start bot check + chat. */
 const CONTACT_START_AGENT_EVENT = "eduardoos:contact-start-agent";
 
-const DEFAULT_WELCOME =
-  "Hello — I am Eduardo’s assistant. Confirm you are not a bot below, then ask about architecture, BIM, software, or how to reach him.";
+const DEFAULT_WELCOME = DEFAULT_AGENT_WELCOME;
 
 type ChatMsg = { role: "user" | "assistant"; text: string };
 
@@ -68,7 +70,7 @@ const ContactAgent = forwardRef<ContactAgentHandle, ContactAgentProps>(
     {
       scopeId = "contact",
       title = "Talk through the agent",
-      blurb = "Confirm you are not a bot, then chat. Leave an email or phone number and I will be notified, or ask to continue on WhatsApp.",
+      blurb = "Confirm you are not a bot, then chat with Eduardo’s AI agent (not Eduardo). Leave an email or phone number and the agent will notify him, or ask to continue on WhatsApp.",
       askPath = CONTACT_API_ROUTES.ask,
       skillLabel = "Contact",
       showDirectLinks = true,

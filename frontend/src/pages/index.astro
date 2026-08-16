@@ -31,16 +31,16 @@ import "./index.css";
         <SkillCards client:load />
       </div>
 
-      <aside class="home-hero__chat" aria-label="Assistant">
+      <aside class="home-hero__chat" aria-label="AI agent">
         <ContactAgent
           client:load
           alwaysShowChat={true}
           showDirectLinks={false}
           scopeId="home"
-          title="Assistant"
+          title="AI agent"
           askPath="/api/profile/ask"
           skillLabel="Home"
-          welcomeMessage="Hello — I am Eduardo’s assistant. Confirm you are not a bot below, then ask about his work, skills, or how to get in touch."
+          welcomeMessage="Hello — I am Eduardo’s AI agent (not Eduardo). Confirm you are not a bot below, then ask about his work, skills, or how to get in touch."
         />
       </aside>
     </div>

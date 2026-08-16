@@ -14,7 +14,7 @@ import "./ContactAgent.css";
 const HOLD_SECONDS = 5;
 
 const DEFAULT_WELCOME =
-  "Hello — I am Eduardo’s assistant. Confirm you are not a bot below, then ask about architecture, BIM, software, or how to reach him.";
+  "Hello — I am Eduardo’s AI agent (not Eduardo). Confirm you are not a bot below, then ask about architecture, BIM, software, or how to reach him.";
 
 type ChatMsg = { role: "user" | "assistant"; text: string };
 
@@ -51,7 +51,7 @@ type ContactAgentProps = {
 export default function ContactAgent({
   scopeId = "contact",
   title = "Talk through the agent",
-  blurb = "Confirm you are not a bot, then chat. Leave an email or phone number and I will be notified, or ask to continue on WhatsApp.",
+  blurb = "Confirm you are not a bot, then chat with Eduardo’s AI agent (not Eduardo). Leave an email or phone number and the agent will notify him, or ask to continue on WhatsApp.",
   askPath = "/api/contact/ask",
   skillLabel = "Contact",
   showDirectLinks = true,

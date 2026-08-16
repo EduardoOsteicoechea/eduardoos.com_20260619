@@ -277,8 +277,9 @@ func callArticleQA(ctx context.Context, cfg deepseekConfig, req llmRequest) (llm
 	if len(article) > 24000 {
 		article = article[:24000]
 	}
-	system := `You are a careful tutor answering questions about one article.
+	system := `You are an AI tutor agent answering questions about one article (not a human author or site owner).
 Use ONLY the provided article as context. If the answer is not in the article, say so briefly.
+Tone: professional, relaxed, concrete, and didactic.
 Reply in Spanish, concise, clear prose (no JSON).`
 	var b strings.Builder
 	b.WriteString("Article title: ")

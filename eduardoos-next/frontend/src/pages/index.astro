@@ -2,6 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ContactAgent from "../components/Contact/ContactAgent";
 import { APP_ROUTES, CONTACT_API_ROUTES } from "../config/routes";
+import { HOME_AGENT_WELCOME } from "../lib/agentVoice";
 ---
 
 <BaseLayout title="Eduardo Osteicoechea — Eduardo OS Next" pageHome={true}>
@@ -21,16 +22,16 @@ import { APP_ROUTES, CONTACT_API_ROUTES } from "../config/routes";
           <a class="btn" href={APP_ROUTES.apsAdmin}>APS</a>
         </div>
       </div>
-      <aside class="home-hero__chat" aria-label="Assistant">
+      <aside class="home-hero__chat" aria-label="AI agent">
         <ContactAgent
           client:load
           alwaysShowChat={true}
           showDirectLinks={false}
           scopeId="home"
-          title="Assistant"
+          title="AI agent"
           askPath={CONTACT_API_ROUTES.profileAsk}
           skillLabel="Home"
-          welcomeMessage="Hello — I am Eduardo’s assistant. Confirm you are not a bot below, then ask about his work, skills, or how to get in touch."
+          welcomeMessage={HOME_AGENT_WELCOME}
         />
       </aside>
     </div>
