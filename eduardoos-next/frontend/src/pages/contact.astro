@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ContactAgent from "../components/Contact/ContactAgent";
+import ContactChannels from "../components/Contact/ContactChannels";
 
 const CONTACT_OWNER_EMAIL = "eduardooost@gmail.com";
 const CONTACT_WHATSAPP_URL = "https://wa.me/584147281033";
@@ -15,18 +16,11 @@ const CONTACT_WHATSAPP_URL = "https://wa.me/584147281033";
         Professional inquiries in architecture, BIM, and full-stack AEC software.
         Write directly or use the assistant on this page.
       </p>
-      <ul class="contact-page__channels">
-        <li>
-          <span class="contact-page__label">Email</span>
-          <a href={`mailto:${CONTACT_OWNER_EMAIL}`}>{CONTACT_OWNER_EMAIL}</a>
-        </li>
-        <li>
-          <span class="contact-page__label">WhatsApp</span>
-          <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
-            wa.me/584147281033
-          </a>
-        </li>
-      </ul>
+      <ContactChannels
+        client:load
+        email={CONTACT_OWNER_EMAIL}
+        whatsappUrl={CONTACT_WHATSAPP_URL}
+      />
     </section>
     <div class="contact-page__agent">
       <ContactAgent
