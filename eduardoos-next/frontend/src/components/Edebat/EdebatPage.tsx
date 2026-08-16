@@ -119,7 +119,7 @@ export default function EdebatPage() {
   if (!authed) {
     return (
       <section className="edebat-page edebat-page--gate">
-        <p className="edebat-page__brand">Personal</p>
+        <p className="edebat-page__brand">Services</p>
         <h1 className="edebat-page__title">Debate App</h1>
         <p className="edebat-page__lead">
           Sign in to create debates, list yours, and append role+text turns. Documents use the{" "}

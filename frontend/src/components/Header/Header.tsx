@@ -33,7 +33,7 @@ const PRIMARY_LINKS = [
     { href: APP_ROUTES.apsAdmin, label: "APS" },
 ] as const;
 
-const PERSONAL_LINKS = [
+const SERVICES_LINKS = [
     { href: APP_ROUTES.homescool, label: "Homescool" },
     { href: APP_ROUTES.mediaPlaylist, label: "Music" },
     { href: APP_ROUTES.pamphlet, label: "Pamphlet" },
@@ -132,16 +132,16 @@ function AuthControls({ loggedIn, profileInitial, profileImageUrl, onLogout, onN
     </div>);
 }
 
-interface PersonalMenuProps {
+interface ServicesMenuProps {
     pathname: string;
     navClass: (href: string) => string;
     onNavigate: () => void;
 }
 
-function PersonalMenu({ pathname, navClass, onNavigate }: PersonalMenuProps) {
+function ServicesMenu({ pathname, navClass, onNavigate }: ServicesMenuProps) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
-    const personalActive = PERSONAL_LINKS.some(
+    const servicesActive = SERVICES_LINKS.some(
         ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
     );
 
@@ -161,31 +161,31 @@ function PersonalMenu({ pathname, navClass, onNavigate }: PersonalMenuProps) {
     }, [open]);
 
     return (
-      <div className="site-header__personal" ref={rootRef}>
+      <div className="site-header__services" ref={rootRef}>
         <button
           type="button"
-          className={`site-header__personal-toggle${personalActive ? " is-active" : ""}`}
+          className={`site-header__services-toggle${servicesActive ? " is-active" : ""}`}
           aria-expanded={open}
-          aria-controls="site-header-personal-menu"
+          aria-controls="site-header-services-menu"
           aria-haspopup="menu"
           onClick={() => setOpen((current) => !current)}
         >
-          Personal
-          <span className="site-header__personal-caret" aria-hidden="true">
+          Services
+          <span className="site-header__services-caret" aria-hidden="true">
             {open ? "▴" : "▾"}
           </span>
         </button>
         {open ? (
           <div
-            id="site-header-personal-menu"
-            className="site-header__personal-menu"
+            id="site-header-services-menu"
+            className="site-header__services-menu"
             role="menu"
-            aria-label="Personal"
+            aria-label="Services"
           >
-            {PERSONAL_LINKS.map(({ href, label }) => (
+            {SERVICES_LINKS.map(({ href, label }) => (
               <a
                 key={href}
-                className={`site-header__personal-item${navClass(href) ? ` ${navClass(href)}` : ""}`}
+                className={`site-header__services-item${navClass(href) ? ` ${navClass(href)}` : ""}`}
                 role="menuitem"
                 href={href}
                 {...(needsAstroReload(href) ? { "data-astro-reload": true } : {})}
@@ -353,7 +353,7 @@ export function Header({ pathname }: HeaderProps) {
             {label}
           </a>
         ))}
-        <PersonalMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
+        <ServicesMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
         {showAuth ? (
           <AuthControls
             variant="nav"

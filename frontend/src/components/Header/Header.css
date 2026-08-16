@@ -248,14 +248,14 @@ a.site-header__action.btn--primary:hover {
   text-decoration: none;
 }
 
-.site-header__personal {
+.site-header__services {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   width: 100%;
 }
 
-.site-header__personal-toggle {
+.site-header__services-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -275,17 +275,17 @@ a.site-header__action.btn--primary:hover {
   box-sizing: border-box;
 }
 
-.site-header__personal-toggle:hover,
-.site-header__personal-toggle.is-active {
+.site-header__services-toggle:hover,
+.site-header__services-toggle.is-active {
   background: color-mix(in srgb, var(--site-accent) 12%, transparent);
 }
 
-.site-header__personal-caret {
+.site-header__services-caret {
   font-size: 0.75rem;
   opacity: 0.75;
 }
 
-.site-header__personal-menu {
+.site-header__services-menu {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -294,7 +294,7 @@ a.site-header__action.btn--primary:hover {
   border-left: 1px solid var(--site-border);
 }
 
-.site-header__personal-item {
+.site-header__services-item {
   display: block;
   width: 100%;
   color: var(--site-body-fg);
@@ -307,12 +307,12 @@ a.site-header__action.btn--primary:hover {
   box-sizing: border-box;
 }
 
-.site-header__personal-item:hover {
+.site-header__services-item:hover {
   background: color-mix(in srgb, var(--site-accent) 12%, transparent);
   text-decoration: none;
 }
 
-.site-header__personal-item.is-active {
+.site-header__services-item.is-active {
   background: var(--site-accent);
   color: var(--site-accent-fg);
   text-decoration: none;
