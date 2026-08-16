@@ -19,7 +19,8 @@
 |------|--------|
 | Default view | Topic + formal-logic chat only |
 | Header menu | Beliefs toggle in `#header-dynamic-menu-host` (Pamphlet pattern; does not break Pamphlet) |
-| Tree panel | Opens on Beliefs; Analyze when open |
+| Tree panel | Opens on Beliefs; full-width above agent (vertical stack); Analyze below when open |
+| Page inset | Extra lateral + bottom padding on Instrumentalist page |
 | Delete | × on nodes + Backspace/Delete; edges pruned |
 | Cables | Larger handles, Loose connection mode, hierarchy/group validation |
 | Persistence | Single default `.instru` per user (newest on open; upsert save) |
