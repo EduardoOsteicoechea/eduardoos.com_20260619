@@ -53,6 +53,7 @@ Compose publishes `8080:8080` and mounts:
   - `SMTP_PASS` spaces are stripped (Gmail app passwords are 16 chars; UI spaces break SMTP auth)
 - SCP `.env` + `deploy-remote-staging.sh`, then runs remote deploy
 - Smoke: on-box `:8080` required; public `:8080` warns if SG blocks
+  - SSH uses `-n -T`, short `ServerAlive*`, and `timeout 45` around the on-box probe so the step exits immediately after success (no hung half-closed SSH)
 
 ### Auth email troubleshooting
 

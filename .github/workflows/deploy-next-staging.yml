@@ -49,7 +49,12 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o ServerAliveInterval=30 -o ServerAliveCountMax=120" >> "$GITHUB_ENV"
+          # Keepalives must be short: ServerAliveCountMax=120 × 30s could leave a half-closed
+          # SSH session alive for up to an hour after the remote command already finished.
+          # -n / BatchMode are applied per-invocation so stdin never keeps the channel open.
+          {
+            echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=5 -o ServerAliveCountMax=4"
+          } >> "$GITHUB_ENV"
 
       - name: Build Next staging .env
         env:
@@ -113,7 +118,7 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          ssh -i ~/.ssh/deploy_key $SSH_OPTS \
+          ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
             "mkdir -p ~/eduardoos.com_20260619/eduardoos-next/deploy"
 
@@ -134,31 +139,38 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          ssh -i ~/.ssh/deploy_key $SSH_OPTS \
+          # -n: do not read stdin (prevents SSH from hanging the step after remote exits).
+          ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
             "cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x eduardoos-next/deploy/*.sh && APP_DIR=~/eduardoos.com_20260619 bash eduardoos-next/deploy/deploy-remote-staging.sh"
 
       - name: Smoke check staging (on-box + public)
+        timeout-minutes: 2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          sleep 5
-          onbox=$(ssh -i ~/.ssh/deploy_key $SSH_OPTS "${EC2_USER}@${EC2_HOST}" \
-            'api=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3001/health || true); \
-             hl=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/health || true); \
-             web=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/ || true); \
-             echo "api=${api} health=${hl} web=${web}"')
+          set -euo pipefail
+          sleep 3
+          # Bound the whole remote probe; -n closes stdin; remote curls use --max-time so nothing waits forever.
+          onbox=$(timeout 45 ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS \
+            "${EC2_USER}@${EC2_HOST}" \
+            "api=\$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 8 http://127.0.0.1:3001/health || printf 000); \
+             hl=\$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 8 http://127.0.0.1:8080/health || printf 000); \
+             web=\$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 8 http://127.0.0.1:8080/ || printf 000); \
+             printf 'api=%s health=%s web=%s\n' \"\$api\" \"\$hl\" \"\$web\"; exit 0")
           echo "On-box smoke: ${onbox}"
           echo "${onbox}" | grep -q 'api=200' || { echo "::error::Next backend :3001 unhealthy"; exit 1; }
           echo "${onbox}" | grep -q 'health=200' || { echo "::error::Staging nginx :8080 /health failed"; exit 1; }
           base="http://${EC2_HOST}:8080"
-          pub=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "${base}/health" || true)
-          home=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "${base}/" || true)
+          pub=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "${base}/health" || printf '000')
+          home=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "${base}/" || printf '000')
           echo "Public smoke ${base}/health => ${pub}"
           echo "Public smoke ${base}/ => ${home}"
           if [ "${pub}" != "200" ]; then
-            echo "::warning::Public :8080 unreachable (got ${pub}). On-box smoke passed — open AWS Security Group inbound TCP 8080 to browse ${base}/ from the internet."
+            echo "::warning::Public :8080 unreachable (got ${pub}). On-box smoke passed - open AWS Security Group inbound TCP 8080 to browse ${base}/ from the internet."
           else
             echo "Staging public OK: ${base}/"
           fi
+          # Force a clean step exit so a leftover SSH/curl FD cannot keep the job yellow forever.
+          exit 0
