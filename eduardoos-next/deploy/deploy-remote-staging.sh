@@ -33,8 +33,19 @@ fi
 
 cd "${APP_DIR}"
 echo "==> Syncing ${BRANCH}"
-git fetch origin "${BRANCH}"
-git reset --hard "origin/${BRANCH}"
+sync_ok=0
+for attempt in 1 2 3 4 5; do
+  if git fetch origin "${BRANCH}" && git reset --hard "origin/${BRANCH}"; then
+    sync_ok=1
+    break
+  fi
+  echo "WARNING: git sync attempt ${attempt} failed (likely concurrent deploy); retrying..."
+  sleep $((attempt * 2))
+done
+if [[ "${sync_ok}" -ne 1 ]]; then
+  echo "ERROR: could not sync ${BRANCH} after retries"
+  exit 1
+fi
 
 ensure_go() {
   if command -v go >/dev/null 2>&1; then

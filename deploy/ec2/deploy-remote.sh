@@ -48,8 +48,19 @@ fi
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.ec2.yml)
 
 echo "==> Pulling latest ${BRANCH}"
-git fetch origin "${BRANCH}"
-git reset --hard "origin/${BRANCH}"
+sync_ok=0
+for attempt in 1 2 3 4 5; do
+  if git fetch origin "${BRANCH}" && git reset --hard "origin/${BRANCH}"; then
+    sync_ok=1
+    break
+  fi
+  echo "WARNING: git sync attempt ${attempt} failed (likely concurrent deploy); retrying..."
+  sleep $((attempt * 2))
+done
+if [ "${sync_ok}" -ne 1 ]; then
+  echo "ERROR: could not sync ${BRANCH} after retries"
+  exit 1
+fi
 
 echo "==> Rendering nginx config for DOMAIN=${DOMAIN}"
 sed "s/localhost/${DOMAIN}/g" nginx/default.conf > nginx/default.prod.conf
