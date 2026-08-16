@@ -2,7 +2,7 @@
  * Header Dynamic Menu — optional per-route tool section *inside* Header chrome.
  *
  * Header always renders an empty host in the rail / mobile bar. Product
- * surfaces (Pamphlet) mount their tool buttons into `#header-dynamic-menu-host`.
+ * surfaces (Pamphlet, Instrumentalist) mount tool buttons into `#header-dynamic-menu-host`.
  * Music keeps the bottom Activity Bar and does not use this host.
  *
  * Desktop: stacked vertically in the 60px left rail (after avatar + separator).

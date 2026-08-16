@@ -7,3 +7,4 @@
 - [x] T005 Frontend `@xyflow/react` tree + analyze + chat
 - [x] T006 Route `/instrumentalist`, Header Services, ServiceGate
 - [x] T007 README / constitution note; go test + npm build; commit push
+- [x] T008 UX: Beliefs header toggle; chat-first; delete + cable fixes; single default `.instru`

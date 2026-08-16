@@ -80,8 +80,12 @@ When no bucket is configured, documents live in process memory only (local/dev).
 
 | Kind | Meaning |
 |------|---------|
-| `hierarchy` | Parent → child within a group (higher weight upstream) |
-| `group` | Membership / grouping cable (no cross-group hierarchy) |
+| `hierarchy` | Parent → child within a group (higher weight upstream); both ends must be `idea` nodes sharing the same `groupId` |
+| `group` | Membership cable: `source` = group node, `target` = idea; sets `idea.groupId` |
+
+### Default document (v1 UX)
+
+Clients load the user's newest `.instru` on open (or create one if none). Save upserts that document — one active hierarchy per user for now.
 
 ### Node kinds
 

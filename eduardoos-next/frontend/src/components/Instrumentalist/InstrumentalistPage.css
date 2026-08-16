@@ -1,5 +1,5 @@
 /**
- * Instrumentalist page layout — three-pane atelier workspace.
+ * Instrumentalist page layout — chat-first; belief tree opens from header.
  */
 
 .instru-page {
@@ -76,46 +76,6 @@
   gap: 0.4rem;
 }
 
-.instru-page__docs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  align-items: center;
-}
-
-.instru-page__docs-label {
-  font-family: var(--font-utility);
-  font-size: var(--font-xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--site-meta-fg);
-}
-
-.instru-page__docs ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.instru-page__docs button {
-  font-family: var(--font-utility);
-  font-size: var(--font-xs);
-  color: var(--site-body-fg);
-  background: var(--site-surface);
-  border: var(--border_001);
-  border-radius: var(--border_radius_001);
-  padding: 0.3rem 0.55rem;
-  cursor: pointer;
-}
-
-.instru-page__docs button.is-active {
-  border-color: var(--site-accent);
-  color: var(--site-accent);
-}
-
 .instru-page__status {
   margin: 0;
   font-family: var(--font-utility);
@@ -125,13 +85,21 @@
 
 .instru-page__workspace {
   display: grid;
-  grid-template-columns: minmax(260px, 1.05fr) minmax(280px, 1fr);
   gap: 0.75rem;
   flex: 1;
   min-height: 0;
 }
 
-.instru-page--analyze-open .instru-page__workspace {
+.instru-page__workspace--chat-only {
+  grid-template-columns: 1fr;
+}
+
+.instru-page__workspace--tree-open {
+  grid-template-columns: minmax(280px, 1.1fr) minmax(280px, 1fr);
+}
+
+.instru-page__workspace--analyze-open,
+.instru-page--analyze-open .instru-page__workspace--tree-open {
   grid-template-columns: minmax(240px, 0.95fr) minmax(260px, 1fr) minmax(220px, 0.85fr);
 }
 
@@ -199,11 +167,15 @@
 
 .instru-panel__canvas {
   flex: 1;
-  min-height: 300px;
+  min-height: 320px;
 }
 
 .instru-panel--chat {
   min-height: 420px;
+}
+
+.instru-page__workspace--chat-only .instru-panel--chat {
+  min-height: min(70vh, 640px);
 }
 
 .instru-chat__thread {
@@ -216,7 +188,11 @@
   border-top: var(--border_001);
   border-bottom: var(--border_001);
   min-height: 220px;
-  max-height: min(52vh, 520px);
+  max-height: min(58vh, 560px);
+}
+
+.instru-page__workspace--chat-only .instru-chat__thread {
+  max-height: min(62vh, 620px);
 }
 
 .instru-chat__bubble {
@@ -283,8 +259,9 @@
 }
 
 @media (max-width: 960px) {
-  .instru-page__workspace,
-  .instru-page--analyze-open .instru-page__workspace {
+  .instru-page__workspace--tree-open,
+  .instru-page__workspace--analyze-open,
+  .instru-page--analyze-open .instru-page__workspace--tree-open {
     grid-template-columns: 1fr;
   }
 

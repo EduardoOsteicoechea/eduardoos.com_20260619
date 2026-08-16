@@ -1,18 +1,20 @@
 /**
- * Belief tree canvas — @xyflow/react nodes (idea/group) with weight edit trays
- * and hierarchy/group cables. Themed with --site-* tokens.
+ * Belief tree canvas — @xyflow/react nodes (idea/group) with weight edit trays,
+ * hierarchy/group cables, keyboard + button delete (removes connected edges).
  */
 
 import {
   useCallback,
   useEffect,
   useMemo,
-  type MouseEvent as ReactMouseEvent,
+  useRef,
 } from "react";
 import {
   Background,
+  ConnectionMode,
   Controls,
   Handle,
+  MarkerType,
   MiniMap,
   Position,
   ReactFlow,
@@ -22,9 +24,10 @@ import {
   type Connection,
   type Edge,
   type Node,
+  type NodeChange,
   type NodeProps,
   type OnEdgesChange,
-  type OnNodesChange,
+  type OnNodeDrag,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { BeliefEdge, BeliefNode, BeliefTree } from "../../lib/instrumentalist";
@@ -37,6 +40,7 @@ export type IdeaNodeData = {
   groupId?: string;
   onChangeText: (id: string, text: string) => void;
   onChangeWeight: (id: string, weight: number) => void;
+  onDeleteNode: (id: string) => void;
 };
 
 function IdeaCardNode({ id, data, selected }: NodeProps<Node<IdeaNodeData>>) {
@@ -47,12 +51,40 @@ function IdeaCardNode({ id, data, selected }: NodeProps<Node<IdeaNodeData>>) {
         selected ? " instru-node--selected" : ""
       }`}
     >
-      <Handle type="target" position={Position.Top} className="instru-node__handle" />
-      <div className="instru-node__label">{isGroup ? "Group" : "Idea"}</div>
+      <Handle
+        id="t"
+        type="target"
+        position={Position.Top}
+        className="instru-node__handle"
+        isConnectable
+      />
+      <Handle
+        id="l"
+        type="target"
+        position={Position.Left}
+        className="instru-node__handle instru-node__handle--side"
+        isConnectable
+      />
+      <div className="instru-node__chrome">
+        <div className="instru-node__label">{isGroup ? "Group" : "Idea"}</div>
+        <button
+          type="button"
+          className="instru-node__delete"
+          title="Delete (also Backspace / Delete)"
+          aria-label="Delete node"
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onDeleteNode(id);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          ×
+        </button>
+      </div>
       <label className="instru-node__field">
         <span className="instru-node__field-label">Text</span>
         <textarea
-          className="instru-node__input"
+          className="instru-node__input nodrag nopan"
           value={data.text}
           rows={isGroup ? 2 : 3}
           onChange={(e) => data.onChangeText(id, e.target.value)}
@@ -63,7 +95,7 @@ function IdeaCardNode({ id, data, selected }: NodeProps<Node<IdeaNodeData>>) {
         <label className="instru-node__field">
           <span className="instru-node__field-label">Weight</span>
           <input
-            className="instru-node__input instru-node__input--weight"
+            className="instru-node__input instru-node__input--weight nodrag nopan"
             type="number"
             min={0}
             step={0.1}
@@ -73,7 +105,20 @@ function IdeaCardNode({ id, data, selected }: NodeProps<Node<IdeaNodeData>>) {
           />
         </label>
       )}
-      <Handle type="source" position={Position.Bottom} className="instru-node__handle" />
+      <Handle
+        id="b"
+        type="source"
+        position={Position.Bottom}
+        className="instru-node__handle"
+        isConnectable
+      />
+      <Handle
+        id="r"
+        type="source"
+        position={Position.Right}
+        className="instru-node__handle instru-node__handle--side"
+        isConnectable
+      />
     </div>
   );
 }
@@ -86,10 +131,27 @@ type BeliefTreeEditorProps = {
   connectKind: "hierarchy" | "group";
 };
 
+function edgeStyle(kind: "hierarchy" | "group"): Partial<Edge> {
+  return {
+    type: "smoothstep",
+    label: kind === "group" ? "group" : "hierarchy",
+    className:
+      kind === "group" ? "instru-edge instru-edge--group" : "instru-edge instru-edge--hierarchy",
+    animated: kind === "hierarchy",
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      width: 16,
+      height: 16,
+      color: kind === "group" ? "var(--site-muted-fg)" : "var(--site-accent)",
+    },
+  };
+}
+
 function toFlowNodes(
   tree: BeliefTree,
   onChangeText: (id: string, text: string) => void,
   onChangeWeight: (id: string, weight: number) => void,
+  onDeleteNode: (id: string) => void,
 ): Node<IdeaNodeData>[] {
   return tree.nodes.map((n) => ({
     id: n.id,
@@ -102,6 +164,7 @@ function toFlowNodes(
       groupId: n.groupId,
       onChangeText,
       onChangeWeight,
+      onDeleteNode,
     },
   }));
 }
@@ -111,10 +174,7 @@ function toFlowEdges(tree: BeliefTree): Edge[] {
     id: e.id,
     source: e.source,
     target: e.target,
-    label: e.kind === "group" ? "group" : "hierarchy",
-    className:
-      e.kind === "group" ? "instru-edge instru-edge--group" : "instru-edge instru-edge--hierarchy",
-    animated: e.kind === "hierarchy",
+    ...edgeStyle(e.kind),
   }));
 }
 
@@ -138,7 +198,7 @@ function fromFlow(
   const prevEdge = new Map(prev.edges.map((e) => [e.id, e]));
   const nextEdges: BeliefEdge[] = edges.map((e) => {
     const prior = prevEdge.get(e.id);
-    const kind =
+    const kind: "hierarchy" | "group" =
       prior?.kind ??
       (typeof e.label === "string" && e.label === "group" ? "group" : "hierarchy");
     return {
@@ -151,33 +211,70 @@ function fromFlow(
   return { nodes: nextNodes, edges: nextEdges };
 }
 
+function removeNodesFromTree(tree: BeliefTree, ids: Set<string>): BeliefTree {
+  const nodes = tree.nodes
+    .filter((n) => !ids.has(n.id))
+    .map((n) => (n.groupId && ids.has(n.groupId) ? { ...n, groupId: "" } : n));
+  const edges = tree.edges.filter((e) => !ids.has(e.source) && !ids.has(e.target));
+  return { nodes, edges };
+}
+
+function removeEdgesFromTree(tree: BeliefTree, ids: Set<string>): BeliefTree {
+  const removed = tree.edges.filter((e) => ids.has(e.id));
+  let nodes = tree.nodes;
+  for (const e of removed) {
+    if (e.kind === "group") {
+      nodes = nodes.map((n) =>
+        n.id === e.target && n.groupId === e.source ? { ...n, groupId: "" } : n,
+      );
+    }
+  }
+  return {
+    nodes,
+    edges: tree.edges.filter((e) => !ids.has(e.id)),
+  };
+}
+
 export default function BeliefTreeEditor({
   tree,
   onChange,
   connectKind,
 }: BeliefTreeEditorProps) {
+  const treeRef = useRef(tree);
+  treeRef.current = tree;
+  const suppressSync = useRef(false);
+
   const onChangeText = useCallback(
     (id: string, text: string) => {
+      const t = treeRef.current;
       onChange({
-        ...tree,
-        nodes: tree.nodes.map((n) => (n.id === id ? { ...n, text } : n)),
+        ...t,
+        nodes: t.nodes.map((n) => (n.id === id ? { ...n, text } : n)),
       });
     },
-    [onChange, tree],
+    [onChange],
   );
 
   const onChangeWeight = useCallback(
     (id: string, weight: number) => {
+      const t = treeRef.current;
       onChange({
-        ...tree,
-        nodes: tree.nodes.map((n) => (n.id === id ? { ...n, weight } : n)),
+        ...t,
+        nodes: t.nodes.map((n) => (n.id === id ? { ...n, weight } : n)),
       });
     },
-    [onChange, tree],
+    [onChange],
+  );
+
+  const onDeleteNode = useCallback(
+    (id: string) => {
+      onChange(removeNodesFromTree(treeRef.current, new Set([id])));
+    },
+    [onChange],
   );
 
   const initialNodes = useMemo(
-    () => toFlowNodes(tree, onChangeText, onChangeWeight),
+    () => toFlowNodes(tree, onChangeText, onChangeWeight, onDeleteNode),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync via effect
     [tree],
   );
@@ -187,47 +284,69 @@ export default function BeliefTreeEditor({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   useEffect(() => {
-    setNodes(toFlowNodes(tree, onChangeText, onChangeWeight));
+    if (suppressSync.current) {
+      suppressSync.current = false;
+      return;
+    }
+    setNodes(toFlowNodes(tree, onChangeText, onChangeWeight, onDeleteNode));
     setEdges(toFlowEdges(tree));
-  }, [tree, onChangeText, onChangeWeight, setNodes, setEdges]);
+  }, [tree, onChangeText, onChangeWeight, onDeleteNode, setNodes, setEdges]);
 
-  const emitFromFlow = useCallback(
+  const commitPositions = useCallback(
     (nextNodes: Node<IdeaNodeData>[], nextEdges: Edge[]) => {
-      onChange(fromFlow(nextNodes, nextEdges, tree));
+      suppressSync.current = true;
+      onChange(fromFlow(nextNodes, nextEdges, treeRef.current));
     },
-    [onChange, tree],
+    [onChange],
   );
 
-  const handleNodesChange: OnNodesChange = useCallback(
-    (changes) => {
+  const handleNodesChange = useCallback(
+    (changes: NodeChange<Node<IdeaNodeData>>[]) => {
       onNodesChange(changes);
-      // Position updates after React Flow applies changes — deferred tick.
-      queueMicrotask(() => {
-        setNodes((current) => {
-          emitFromFlow(current as Node<IdeaNodeData>[], edges);
-          return current;
-        });
-      });
+      const removed = changes.filter((c) => c.type === "remove").map((c) => c.id);
+      if (removed.length > 0) {
+        onChange(removeNodesFromTree(treeRef.current, new Set(removed)));
+      }
     },
-    [onNodesChange, setNodes, edges, emitFromFlow],
+    [onNodesChange, onChange],
   );
 
   const handleEdgesChange: OnEdgesChange = useCallback(
     (changes) => {
       onEdgesChange(changes);
-      queueMicrotask(() => {
-        setEdges((current) => {
-          emitFromFlow(nodes as Node<IdeaNodeData>[], current);
-          return current;
-        });
-      });
+      const removed = changes.filter((c) => c.type === "remove").map((c) => c.id);
+      if (removed.length > 0) {
+        onChange(removeEdgesFromTree(treeRef.current, new Set(removed)));
+      }
     },
-    [onEdgesChange, setEdges, nodes, emitFromFlow],
+    [onEdgesChange, onChange],
+  );
+
+  const isValidConnection = useCallback(
+    (connection: Connection | Edge) => {
+      const sourceId = connection.source;
+      const targetId = connection.target;
+      if (!sourceId || !targetId || sourceId === targetId) return false;
+      const t = treeRef.current;
+      const source = t.nodes.find((n) => n.id === sourceId);
+      const target = t.nodes.find((n) => n.id === targetId);
+      if (!source || !target) return false;
+
+      if (connectKind === "group") {
+        return source.kind === "group" && target.kind === "idea";
+      }
+      // Hierarchy: idea → idea within the same group (including both ungrouped).
+      if (source.kind !== "idea" || target.kind !== "idea") return false;
+      return (source.groupId || "") === (target.groupId || "");
+    },
+    [connectKind],
   );
 
   const onConnect = useCallback(
     (connection: Connection) => {
       if (!connection.source || !connection.target) return;
+      if (!isValidConnection(connection)) return;
+
       const id =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
@@ -236,45 +355,48 @@ export default function BeliefTreeEditor({
         id,
         source: connection.source,
         target: connection.target,
-        label: connectKind,
-        className:
-          connectKind === "group"
-            ? "instru-edge instru-edge--group"
-            : "instru-edge instru-edge--hierarchy",
-        animated: connectKind === "hierarchy",
+        sourceHandle: connection.sourceHandle ?? undefined,
+        targetHandle: connection.targetHandle ?? undefined,
+        ...edgeStyle(connectKind),
       };
-      setEdges((eds) => {
-        const next = addEdge(edge, eds);
-        const belief: BeliefEdge = {
-          id,
-          source: connection.source!,
-          target: connection.target!,
-          kind: connectKind,
-        };
-        let nextNodes = tree.nodes;
-        if (connectKind === "group") {
-          nextNodes = tree.nodes.map((n) =>
-            n.id === connection.target ? { ...n, groupId: connection.source! } : n,
-          );
-        }
-        onChange({
-          nodes: nextNodes,
-          edges: [...tree.edges.filter((e) => e.id !== id), belief],
-        });
-        return next;
-      });
+
+      setEdges((eds) => addEdge(edge, eds));
+
+      const t = treeRef.current;
+      const belief: BeliefEdge = {
+        id,
+        source: connection.source,
+        target: connection.target,
+        kind: connectKind,
+      };
+      let nextNodes = t.nodes;
+      if (connectKind === "group") {
+        nextNodes = t.nodes.map((n) =>
+          n.id === connection.target ? { ...n, groupId: connection.source! } : n,
+        );
+      }
+      const nextEdges = [
+        ...t.edges.filter(
+          (e) =>
+            !(
+              e.source === belief.source &&
+              e.target === belief.target &&
+              e.kind === belief.kind
+            ),
+        ),
+        belief,
+      ];
+      suppressSync.current = true;
+      onChange({ nodes: nextNodes, edges: nextEdges });
     },
-    [connectKind, onChange, setEdges, tree],
+    [connectKind, isValidConnection, onChange, setEdges],
   );
 
-  const onNodeDragStop = useCallback(
-    (_: ReactMouseEvent, _node: Node) => {
-      setNodes((current) => {
-        onChange(fromFlow(current as Node<IdeaNodeData>[], edges, tree));
-        return current;
-      });
+  const onNodeDragStop: OnNodeDrag<Node<IdeaNodeData>> = useCallback(
+    (_event, _node, currentNodes) => {
+      commitPositions(currentNodes, edges);
     },
-    [setNodes, onChange, edges, tree],
+    [commitPositions, edges],
   );
 
   return (
@@ -285,11 +407,29 @@ export default function BeliefTreeEditor({
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
+        isValidConnection={isValidConnection}
         onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
         fitView
+        nodesConnectable
+        nodesDraggable
+        elementsSelectable
+        edgesFocusable
+        edgesReconnectable
+        connectionMode={ConnectionMode.Loose}
+        connectionRadius={28}
+        snapToGrid
+        snapGrid={[12, 12]}
         proOptions={{ hideAttribution: true }}
         deleteKeyCode={["Backspace", "Delete"]}
+        multiSelectionKeyCode="Shift"
+        selectionOnDrag={false}
+        panOnDrag
+        zoomOnScroll
+        defaultEdgeOptions={{
+          type: "smoothstep",
+          markerEnd: { type: MarkerType.ArrowClosed },
+        }}
       >
         <Background gap={20} size={1} color="var(--site-border)" />
         <Controls />

@@ -1,6 +1,7 @@
 /**
- * The Instrumentalist — belief tree (left), formal-logic chat (center),
- * analyze subpanel (right). JWT + ServiceGate; .instru save/load/download.
+ * The Instrumentalist — default: topic + formal-logic chat.
+ * Belief tree canvas toggles from Header Dynamic Menu (“Beliefs”).
+ * One default .instru per user (load on open, upsert on save).
  */
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
@@ -18,19 +19,19 @@ import {
   type BeliefTree,
   type InstruAnalysis,
   type InstruDocument,
-  type InstruListItem,
 } from "../../lib/instrumentalist";
 import { INSTRUMENTALIST_AGENT_WELCOME } from "../../lib/agentVoice";
 import BeliefTreeEditor from "./BeliefTreeEditor";
+import InstrumentalistHeaderMenu from "./InstrumentalistHeaderMenu";
 import "./InstrumentalistPage.css";
 
 export default function InstrumentalistPage() {
-  const [docs, setDocs] = useState<InstruListItem[]>([]);
   const [doc, setDoc] = useState<InstruDocument | null>(null);
   const [tree, setTree] = useState<BeliefTree>(emptyBeliefTree());
   const [topic, setTopic] = useState("");
-  const [title, setTitle] = useState("Untitled session");
+  const [title, setTitle] = useState("Untitled hierarchy");
   const [connectKind, setConnectKind] = useState<"hierarchy" | "group">("hierarchy");
+  const [treeOpen, setTreeOpen] = useState(false);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [latestAnalysis, setLatestAnalysis] = useState<InstruAnalysis | null>(null);
   const [draft, setDraft] = useState("");
@@ -44,34 +45,27 @@ export default function InstrumentalistPage() {
     setDoc(full);
     setTree(full.beliefTree ?? emptyBeliefTree());
     setTopic(full.topic ?? "");
-    setTitle(full.title ?? "Untitled session");
+    setTitle(full.title ?? "Untitled hierarchy");
     const analyses = full.analyses ?? [];
     setLatestAnalysis(analyses.length ? analyses[analyses.length - 1] : null);
   }
 
+  /** Load the single default hierarchy for this user, or create it once. */
   const bootstrap = useCallback(async () => {
     setLoading(true);
     try {
       const list = await listInstrumentalistDocs();
-      setDocs(list);
       if (list.length > 0) {
+        // Prefer most recently updated as the canonical default.
         const full = await getInstrumentalistDoc(list[0].id);
         applyDoc(full);
       } else {
         const created = await createInstrumentalistDoc({
-          title: "Untitled session",
+          title: "Untitled hierarchy",
           topic: "",
           beliefTree: emptyBeliefTree(),
         });
         applyDoc(created);
-        setDocs([
-          {
-            id: created.id,
-            title: created.title,
-            topic: created.topic,
-            updatedAt: created.updatedAt ?? "",
-          },
-        ]);
       }
     } catch {
       // ServerErrorModal already opened by client helpers.
@@ -116,48 +110,6 @@ export default function InstrumentalistPage() {
     scheduleSave({ beliefTree: next });
   }
 
-  async function handleNewSession() {
-    setBusy(true);
-    setStatus("");
-    try {
-      const created = await createInstrumentalistDoc({
-        title: "Untitled session",
-        topic: "",
-        beliefTree: emptyBeliefTree(),
-      });
-      applyDoc(created);
-      setDocs((prev) => [
-        {
-          id: created.id,
-          title: created.title,
-          topic: created.topic,
-          updatedAt: created.updatedAt ?? "",
-        },
-        ...prev,
-      ]);
-      setAnalyzeOpen(false);
-      setStatus("New session");
-    } catch {
-      /* modal */
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleOpen(id: string) {
-    setBusy(true);
-    try {
-      const full = await getInstrumentalistDoc(id);
-      applyDoc(full);
-      setAnalyzeOpen(false);
-      setStatus(`Opened “${full.title}”`);
-    } catch {
-      /* modal */
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function handleSaveNow() {
     if (!doc?.id) return;
     setBusy(true);
@@ -169,18 +121,6 @@ export default function InstrumentalistPage() {
       });
       applyDoc(saved);
       setStatus("Saved to cloud / memory");
-      setDocs((prev) =>
-        prev.map((d) =>
-          d.id === saved.id
-            ? {
-                ...d,
-                title: saved.title,
-                topic: saved.topic,
-                updatedAt: saved.updatedAt ?? d.updatedAt,
-              }
-            : d,
-        ),
-      );
     } catch {
       /* modal */
     } finally {
@@ -255,6 +195,14 @@ export default function InstrumentalistPage() {
     }
   }
 
+  function toggleTree() {
+    setTreeOpen((open) => {
+      const next = !open;
+      if (!next) setAnalyzeOpen(false);
+      return next;
+    });
+  }
+
   if (loading) {
     return (
       <div className="instru-page">
@@ -267,13 +215,28 @@ export default function InstrumentalistPage() {
     ? doc.messages
     : [{ role: "assistant" as const, text: INSTRUMENTALIST_AGENT_WELCOME, at: "" }];
 
+  const workspaceClass = [
+    "instru-page__workspace",
+    treeOpen ? "instru-page__workspace--tree-open" : "instru-page__workspace--chat-only",
+    treeOpen && analyzeOpen ? "instru-page__workspace--analyze-open" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className={`instru-page${analyzeOpen ? " instru-page--analyze-open" : ""}`}>
+    <div
+      className={`instru-page${treeOpen ? " instru-page--tree-open" : ""}${
+        treeOpen && analyzeOpen ? " instru-page--analyze-open" : ""
+      }`}
+    >
+      <InstrumentalistHeaderMenu treeOpen={treeOpen} onToggleTree={toggleTree} />
+
       <header className="instru-page__chrome">
         <div className="instru-page__brand">
           <h1 className="instru-page__title">The Instrumentalist</h1>
           <p className="instru-page__lead">
-            Weight your beliefs, then test a topic with a formal-logic AI agent.
+            Evaluate a topic against your belief hierarchy with a formal-logic AI agent.
+            Open Beliefs in the header to edit the tree.
           </p>
         </div>
         <div className="instru-page__session">
@@ -303,14 +266,6 @@ export default function InstrumentalistPage() {
               type="button"
               className="btn"
               disabled={busy}
-              onClick={() => void handleNewSession()}
-            >
-              New
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
               onClick={() => void handleSaveNow()}
             >
               Save
@@ -320,72 +275,66 @@ export default function InstrumentalistPage() {
             </button>
           </div>
         </div>
-        {docs.length > 1 && (
-          <div className="instru-page__docs">
-            <span className="instru-page__docs-label">Sessions</span>
-            <ul>
-              {docs.map((d) => (
-                <li key={d.id}>
-                  <button
-                    type="button"
-                    className={d.id === doc?.id ? "is-active" : undefined}
-                    disabled={busy}
-                    onClick={() => void handleOpen(d.id)}
-                  >
-                    {d.title || d.id.slice(0, 8)}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
         {status && <p className="instru-page__status">{status}</p>}
       </header>
 
-      <div className="instru-page__workspace">
-        <aside className="instru-panel instru-panel--tree" aria-label="Belief tree">
-          <div className="instru-panel__toolbar">
-            <h2 className="instru-panel__heading">Belief tree</h2>
-            <div className="instru-panel__tools">
-              <button type="button" className="btn" onClick={handleAddIdea} disabled={busy}>
-                Add idea
-              </button>
-              <button type="button" className="btn" onClick={handleAddGroup} disabled={busy}>
-                Add group
-              </button>
-              <label className="instru-panel__connect">
-                <span>Cable</span>
-                <select
-                  value={connectKind}
-                  onChange={(e) => setConnectKind(e.target.value as "hierarchy" | "group")}
+      <div className={workspaceClass}>
+        {treeOpen && (
+          <aside className="instru-panel instru-panel--tree" aria-label="Belief tree">
+            <div className="instru-panel__toolbar">
+              <h2 className="instru-panel__heading">Belief tree</h2>
+              <div className="instru-panel__tools">
+                <button type="button" className="btn" onClick={handleAddIdea} disabled={busy}>
+                  Add idea
+                </button>
+                <button type="button" className="btn" onClick={handleAddGroup} disabled={busy}>
+                  Add group
+                </button>
+                <label className="instru-panel__connect">
+                  <span>Cable</span>
+                  <select
+                    value={connectKind}
+                    onChange={(e) => setConnectKind(e.target.value as "hierarchy" | "group")}
+                  >
+                    <option value="hierarchy">Hierarchy</option>
+                    <option value="group">Group</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  disabled={busy || !doc}
+                  onClick={() => void handleAnalyze()}
                 >
-                  <option value="hierarchy">Hierarchy</option>
-                  <option value="group">Group</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={busy || !doc}
-                onClick={() => void handleAnalyze()}
-              >
-                Analyze
-              </button>
+                  Analyze
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setTreeOpen(false);
+                    setAnalyzeOpen(false);
+                  }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
-          </div>
-          <p className="instru-panel__hint">
-            Higher hierarchy weight matters more. Hierarchy links stay inside a group; use group
-            cables for membership.
-          </p>
-          <div className="instru-panel__canvas">
-            <BeliefTreeEditor tree={tree} onChange={handleTreeChange} connectKind={connectKind} />
-          </div>
-        </aside>
+            <p className="instru-panel__hint">
+              Drag from the dots on a card to connect. Hierarchy stays inside a group; use group
+              cables for membership. Delete with × or Backspace/Delete on a selected node.
+            </p>
+            <div className="instru-panel__canvas">
+              <BeliefTreeEditor tree={tree} onChange={handleTreeChange} connectKind={connectKind} />
+            </div>
+          </aside>
+        )}
 
         <section className="instru-panel instru-panel--chat" aria-label="Formal logic chat">
           <h2 className="instru-panel__heading">Formal-logic agent</h2>
           <p className="instru-panel__hint">
-            Eduardo’s AI agent — not Eduardo. Hierarchy weights guide the reply.
+            Eduardo’s AI agent — not Eduardo. Hierarchy weights guide the reply
+            {tree.nodes.length === 0 ? " (add beliefs via the header Beliefs control)." : "."}
           </p>
           <div className="instru-chat__thread" ref={threadRef}>
             {messages.map((m, i) => (
@@ -415,7 +364,7 @@ export default function InstrumentalistPage() {
           </form>
         </section>
 
-        {analyzeOpen && (
+        {treeOpen && analyzeOpen && (
           <aside className="instru-panel instru-panel--analyze" aria-label="Coherence analysis">
             <div className="instru-panel__toolbar">
               <h2 className="instru-panel__heading">Analysis</h2>

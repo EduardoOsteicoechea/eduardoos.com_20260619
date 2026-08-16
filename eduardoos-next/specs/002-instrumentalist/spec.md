@@ -21,10 +21,13 @@ documents (download + S3 when configured).
 
 ## UI layout
 
-1. **Left / tools**: Belief tree editor (`@xyflow/react`) + **Analyze** button.
-2. **Right subpanel** (opens on Analyze): coherence evaluation; **Re-analyze** after edits.
-3. **Center**: chat with the formal-logic agent; belief tree context sent with each turn.
-4. Light/dark via existing `--site-*` tokens; Header → Services → Instrumentalist.
+1. **Default view**: topic field + formal-logic **chat** only (no tree on screen).
+2. **Header Dynamic Menu** (same host as Pamphlet): **Beliefs** toggle opens/closes the belief-tree canvas panel.
+3. **When tree open**: `@xyflow/react` editor + **Analyze**; analysis subpanel opens on Analyze (**Re-analyze** after edits).
+4. Chat always available; belief tree context is sent with each turn whether the canvas is open or closed.
+5. Light/dark via existing `--site-*` tokens; Header → Services → Instrumentalist.
+6. **Delete**: visible × on selected cards + Backspace/Delete; connected edges removed.
+7. **Cables**: drag from node handles; hierarchy within a group; group cables for membership.
 
 ## Belief tree domain
 
@@ -39,6 +42,7 @@ documents (download + S3 when configured).
 - S3 prefix: `media/instrumentalist/{user}/…` when `S3_BUCKET` (or `INSTRUMENTALIST_S3_BUCKET`) is set.
 - Memory fallback for local/dev when S3 is unset.
 - Client can download the current document as `{title}.instru`.
+- **v1 UX**: each user has **one default hierarchy** — always loaded on open; autosave / Save **upserts** that document (list may still return older rows; UI uses the newest).
 
 ## API (JWT)
 
