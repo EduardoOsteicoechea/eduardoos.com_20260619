@@ -238,19 +238,24 @@ func epamFromItem(item map[string]types.AttributeValue) (EpamRecord, bool) {
 	return r, r.UserID != "" && r.EpamID != ""
 }
 
-// OpenEpamStore selects memory or DynamoDB from EPAMS_BACKEND.
+// OpenEpamStore selects memory or DynamoDB from EPAMS_BACKEND, then optionally
+// wraps S3 for pamphlet JSON bodies (required for cloud open to return a document).
 func OpenEpamStore(ctx context.Context) EpamStore {
 	mode := strings.ToLower(strings.TrimSpace(httpx.Env("EPAMS_BACKEND", "memory")))
+	var base EpamStore
 	if mode != "dynamodb" {
 		log.Printf("epams store backend=memory")
-		return NewMemoryEpamStore()
+		base = NewMemoryEpamStore()
+	} else {
+		cfg, err := awsx.LoadConfig(ctx)
+		if err != nil {
+			log.Printf("epams EPAMS_BACKEND=dynamodb but AWS unavailable (%v); falling back to memory", err)
+			base = NewMemoryEpamStore()
+		} else {
+			table := httpx.Env("EPAMS_TABLE", "eduardoos_epams")
+			log.Printf("epams store backend=dynamodb table=%s", table)
+			base = &dynamoEpamStore{client: dynamodb.NewFromConfig(cfg), table: table}
+		}
 	}
-	cfg, err := awsx.LoadConfig(ctx)
-	if err != nil {
-		log.Printf("epams EPAMS_BACKEND=dynamodb but AWS unavailable (%v); falling back to memory", err)
-		return NewMemoryEpamStore()
-	}
-	table := httpx.Env("EPAMS_TABLE", "eduardoos_epams")
-	log.Printf("epams store backend=dynamodb table=%s", table)
-	return &dynamoEpamStore{client: dynamodb.NewFromConfig(cfg), table: table}
+	return maybeWrapEpamS3(ctx, base)
 }

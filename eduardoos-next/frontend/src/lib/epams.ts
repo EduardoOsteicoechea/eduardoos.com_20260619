@@ -103,6 +103,10 @@ export async function fetchEpam(epamId: string): Promise<EpamDocumentResponse> {
   if (!data) throw new Error("Empty epam response");
 
   if ("meta" in data && "document" in data && data.meta && data.document) {
+    const doc = (data as EpamDocumentResponse).document;
+    if (!doc || typeof doc !== "object" || Object.keys(doc as object).length === 0) {
+      throw new Error("Empty epam document from server (missing S3 body?)");
+    }
     return data as EpamDocumentResponse;
   }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -162,15 +163,24 @@ func (h *Handler) GetEpam(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
 	cid := httpx.CorrelationFromRequest(r)
 	id := chi.URLParam(r, "id")
+	log.Printf("[correlation=%s] epams.get begin user=%s epamId=%s", cid, email, id)
 	rec, ok, err := h.Epams.Get(r.Context(), email, id, cid)
 	if err != nil {
+		log.Printf("[correlation=%s] epams.get failed err=%v", cid, err)
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
 		return
 	}
 	if !ok {
+		log.Printf("[correlation=%s] epams.get not_found epamId=%s", cid, id)
 		httpx.WriteError(w, http.StatusNotFound, "not found")
 		return
 	}
+	if rec.Body == nil || len(rec.Body) == 0 {
+		log.Printf("[correlation=%s] epams.get empty_body epamId=%s s3Key=%s", cid, id, rec.S3Key)
+		httpx.WriteError(w, http.StatusBadGateway, "epam body is empty — S3 object missing or not readable")
+		return
+	}
+	log.Printf("[correlation=%s] epams.get ok epamId=%s bytes=%d", cid, id, rec.ContentSizeBytes)
 	httpx.WriteJSON(w, http.StatusOK, epamDocumentResponse(rec))
 }
 

@@ -213,6 +213,24 @@ body.page-pamphlet .create-modal-hint {
   color: var(--site-muted-fg);
 }
 
+body.page-pamphlet .open-cloud-list__card,
+body.page-pamphlet .open-cloud-list__item {
+  background: color-mix(in srgb, var(--site-body-fg) 8%, var(--site-body-bg));
+  border: 1px solid var(--site-border);
+  color: var(--site-body-fg);
+  cursor: pointer;
+}
+
+body.page-pamphlet .open-cloud-list__card:hover,
+body.page-pamphlet .open-cloud-list__item:hover {
+  border-color: var(--site-accent);
+  background: color-mix(in srgb, var(--site-accent) 14%, var(--site-body-bg));
+}
+
+body.page-pamphlet .open-cloud-list__action {
+  color: var(--site-muted-fg);
+}
+
 body.page-pamphlet .create-modal-form input {
   background: var(--site-body-bg);
   color: var(--site-body-fg);

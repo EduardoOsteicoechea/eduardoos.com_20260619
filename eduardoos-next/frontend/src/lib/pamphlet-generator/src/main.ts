@@ -443,11 +443,17 @@ function readLastEpamId(): string | null {
 
 async function openCloudDocumentById(epamId: string): Promise<void> {
     const loaded = await fetchEpam(epamId);
+    const doc = loaded.document as PamphletStructure | undefined;
+    if (!doc || typeof doc !== "object" || !(doc as { type?: string }).type) {
+        throw new Error(
+            "El servidor devolvió un panfleto vacío (sin documento). Suele ser un .epam sin cuerpo en S3.",
+        );
+    }
     clearOpenFile();
     memorySession = false;
     cloudEpamId = loaded.meta.epamId;
     setOpenFileName(loaded.meta.fileName);
-    loadPamphlet(loaded.document);
+    loadPamphlet(doc);
     rememberLastEpamId(loaded.meta.epamId);
 }
 
@@ -1346,17 +1352,29 @@ on(openSourceCloudBtn, "click", async () => {
         for (const item of epams) {
             const btn = document.createElement("button");
             btn.type = "button";
-            btn.className = "open-cloud-list__item";
+            btn.className = "open-cloud-list__item open-cloud-list__card";
             btn.setAttribute("role", "listitem");
+            btn.setAttribute(
+                "aria-label",
+                `Abrir panfleto ${item.title || item.fileName || item.epamId}`,
+            );
             const title = document.createElement("span");
             title.className = "open-cloud-list__title";
             title.textContent = item.title || item.fileName;
             const meta = document.createElement("span");
             meta.className = "open-cloud-list__meta";
-            meta.textContent = `${item.fileName} · ${item.series} ch.${item.seriesChapter} · ${item.updatedAt.slice(0, 10)}`;
-            btn.append(title, meta);
+            const updated = (item.updatedAt ?? "").slice(0, 10) || "—";
+            meta.textContent = `${item.fileName || "sin-nombre.epam"} · ${item.series || "—"} ch.${item.seriesChapter || "—"} · ${updated}`;
+            const hint = document.createElement("span");
+            hint.className = "open-cloud-list__action";
+            hint.textContent = "Clic para abrir";
+            btn.append(title, meta, hint);
             btn.addEventListener("click", () => {
                 void (async () => {
+                    if (btn.disabled) return;
+                    btn.disabled = true;
+                    btn.classList.add("is-loading");
+                    hint.textContent = "Abriendo…";
                     try {
                         await openCloudDocumentById(item.epamId);
                         closeOpenCloudModal();
@@ -1364,6 +1382,11 @@ on(openSourceCloudBtn, "click", async () => {
                     } catch (err) {
                         const message = err instanceof Error ? err.message : String(err);
                         setError(`Cloud open failed: ${message}`);
+                        window.alert(`No se pudo abrir el panfleto.\n\n${message}`);
+                        hint.textContent = "Clic para abrir";
+                    } finally {
+                        btn.disabled = false;
+                        btn.classList.remove("is-loading");
                     }
                 })();
             });
@@ -1373,6 +1396,7 @@ on(openSourceCloudBtn, "click", async () => {
         closeOpenCloudModal();
         const message = err instanceof Error ? err.message : String(err);
         setError(`Cloud list failed: ${message}`);
+        window.alert(`No se pudo listar panfletos en la nube.\n\n${message}`);
     }
 });
 
