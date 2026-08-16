@@ -18,6 +18,7 @@ import {
   DEFAULT_AGENT_WELCOME,
 } from "../../lib/agentVoice";
 import { createCorrelationId } from "../../lib/correlation";
+import ChatMarkdown from "../Chat/ChatMarkdown";
 import "./ContactAgent.css";
 
 const HOLD_SECONDS = 5;
@@ -30,6 +31,19 @@ const CONTACT_START_AGENT_EVENT = "eduardoos:contact-start-agent";
 const DEFAULT_WELCOME = DEFAULT_AGENT_WELCOME;
 
 type ChatMsg = { role: "user" | "assistant"; text: string };
+
+/** Assistant bubbles render safe Markdown; user stays plain text. */
+function ChatBubble({ role, text }: ChatMsg) {
+  if (role === "assistant") {
+    return (
+      <ChatMarkdown
+        className="contact-agent__msg contact-agent__msg--assistant"
+        text={text}
+      />
+    );
+  }
+  return <div className="contact-agent__msg contact-agent__msg--user">{text}</div>;
+}
 
 type AskResponse = {
   answer?: string;
@@ -281,12 +295,7 @@ const ContactAgent = forwardRef<ContactAgentHandle, ContactAgentProps>(
                 </p>
               ) : null}
               {chat.map((m, i) => (
-                <div
-                  key={`${m.role}-${i}`}
-                  className={`contact-agent__msg contact-agent__msg--${m.role}`}
-                >
-                  {m.text}
-                </div>
+                <ChatBubble key={`${m.role}-${i}`} role={m.role} text={m.text} />
               ))}
               {asking ? (
                 <p className="contact-agent__hint" aria-live="polite">

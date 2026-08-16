@@ -21,6 +21,7 @@ import {
   type InstruDocument,
 } from "../../lib/instrumentalist";
 import { INSTRUMENTALIST_AGENT_WELCOME } from "../../lib/agentVoice";
+import ChatMarkdown from "../Chat/ChatMarkdown";
 import BeliefTreeEditor from "./BeliefTreeEditor";
 import InstrumentalistHeaderMenu from "./InstrumentalistHeaderMenu";
 import "./InstrumentalistPage.css";
@@ -348,14 +349,22 @@ export default function InstrumentalistPage() {
             {tree.nodes.length === 0 ? " (add beliefs via the header Beliefs control)." : "."}
           </p>
           <div className="instru-chat__thread" ref={threadRef}>
-            {messages.map((m, i) => (
-              <div
-                key={`${m.at}-${i}`}
-                className={`instru-chat__bubble instru-chat__bubble--${m.role}`}
-              >
-                {m.text}
-              </div>
-            ))}
+            {messages.map((m, i) =>
+              m.role === "user" ? (
+                <div
+                  key={`${m.at}-${i}`}
+                  className="instru-chat__bubble instru-chat__bubble--user"
+                >
+                  {m.text}
+                </div>
+              ) : (
+                <ChatMarkdown
+                  key={`${m.at}-${i}`}
+                  className={`instru-chat__bubble instru-chat__bubble--${m.role}`}
+                  text={m.text}
+                />
+              ),
+            )}
           </div>
           <form className="instru-chat__form" onSubmit={(e) => void handleChat(e)}>
             <input
