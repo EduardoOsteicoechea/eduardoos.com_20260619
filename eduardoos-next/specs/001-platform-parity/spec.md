@@ -55,7 +55,7 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
   - Do **not** rely only on `console.error`, silent toasts, or a status line that disappears.
   - Do **not** leave operators on a blank nginx error page for app routes that should be static HTML (e.g. `/admin/users`); static must build + publish atomically and nginx must fall back via `try_files` without redirect cycles.
   - Shared helper: `openApiErrorModal` / `ServerErrorModal` under `frontend/src/components/ServerErrorModal/`.
-  - **Admin Users (`/admin/users`)** is in scope: list/load and entitlement save failures MUST call `openApiErrorModal`; access gate must not hang on “Checking access…”. API errors return JSON (never panic); the UI maps them into the modal — never silent failure.
+  - **Admin Users (`/admin/users`)** is in scope: list/load, entitlement save, and **user delete** failures MUST call `openApiErrorModal`; access gate must not hang on “Checking access…”. API errors return JSON (never panic); the UI maps them into the modal — never silent failure. Delete uses an accessible confirm dialog; cannot delete self / platform admin. Entitlements editor shows **Access** (effective, read-only; admin = all on) | **Subscriptions** (editable grants). Register requires Contact-style bot hold + server rejects spammy dotted local-parts / missing `notABot`.
   - Operators must be able to copy the block to clipboard in one click.
 
 ### Frontend design (BIM / AEC + elegant formal)
