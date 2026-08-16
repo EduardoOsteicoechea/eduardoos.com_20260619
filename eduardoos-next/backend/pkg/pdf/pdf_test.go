@@ -18,6 +18,16 @@ func TestBuildSamplePDFHasHeaderAndEOF(t *testing.T) {
 	}
 }
 
+func TestBuildSamplePDFWinAnsiAccents(t *testing.T) {
+	data := BuildSamplePDF("Cómo")
+	if bytes.Contains(data, []byte("Ã")) {
+		t.Fatal("sample PDF must not embed UTF-8 mojibake")
+	}
+	if !bytes.Contains(data, []byte{0xF3}) {
+		t.Fatal("expected WinAnsi o-acute in sample PDF")
+	}
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a

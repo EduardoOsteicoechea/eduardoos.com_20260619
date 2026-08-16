@@ -35,7 +35,7 @@ Status: **partial** (see Remaining for parity). Cutover **T099** executed 2026-0
 ## Phase P4 — Product UI
 
 - [x] T040 Home + contact assistant
-- [x] T041 Pamphlet generator mount (`eduardoos-next/frontend/src/lib/pamphlet-generator` + PamphletLayout; cloud open/save via `/api/epams`). Stub PDF via `POST /api/documents/pamphlet/pdf`.
+- [x] T041 Pamphlet generator mount (`eduardoos-next/frontend/src/lib/pamphlet-generator` + PamphletLayout; cloud open/save via `/api/epams`). Full pamphlet PDF via `POST /api/documents/pamphlet/pdf` (ported production `pkg/pdf`).
 - [x] T042 Music, articles, edebat, subscribe, OpenBIM pages (playlist + subscription + edebat list/create/turn wired; articles/homescool still stubs)
 
 ## Phase P5 — Staging only
@@ -45,13 +45,13 @@ Status: **partial** (see Remaining for parity). Cutover **T099** executed 2026-0
 
 ## Cutover
 
-- [x] T099 Execute `CUTOVER.md` after explicit human approval (2026-08-16). Production `deploy.yml` + nginx `:443` + API `:3000` serve Eduardo OS Next. Staging `:8080`/`:3001` kept. JWT_SECRET unchanged. Rollback: `bin/eduardoos.prev` + remount `./frontend/dist`. Accepted day-one gaps: stub PDF, no That Open viewer, playlists/payments/edebat partial (see `CUTOVER.md`).
+- [x] T099 Execute `CUTOVER.md` after explicit human approval (2026-08-16). Production `deploy.yml` + nginx `:443` + API `:3000` serve Eduardo OS Next. Staging `:8080`/`:3001` kept. JWT_SECRET unchanged. Rollback: `bin/eduardoos.prev` + remount `./frontend/dist`. Pamphlet PDF parity restored post-cutover (full Roboto landscape). Remaining gaps: PayPal IPN / Dynamo payments, edebat LLM (see `CUTOVER.md`).
 
 ## Remaining for parity
 
 Honest gaps vs full product surface (accepted at cutover; track post-cutover):
 
-- **Pamphlet PDF print** — stub single-page PDF from Next `pkg/pdf.BuildSamplePDF` (Print button works); full landscape Roboto layout parity still deferred.
+- ~~**Pamphlet PDF print**~~ — done: Next `pkg/pdf.BuildPamphletPDF` (Roboto TrueType + WinAnsiEncoding, two-page US Letter landscape, same mm geometry as production); `POST /api/documents/pamphlet/pdf` returns `application/pdf` with UTF-8 `filename*`.
 - ~~**That Open / OpenBIM 3D viewer**~~ — done: `/bim` `IfcViewer` island (`@thatopen/components`, fragments, `web-ifc`, three); bytes from `GET /api/bim/models/:id/file`; WASM via `public/web-ifc/` (postinstall/prebuild copy).
 - **Playlists / Music** — worship `PlaylistBuilder` on `/media/musica` (library + lyrics + admin lyric editor via `/api/media/audio`, `/api/media/file/*`, `/api/emusic`); legacy memory playlist CRUD still mounted but not primary UI.
 - **Payments / PayPal** — JWT `POST /api/payments/intents`, public `GET /api/payments/status/{id}`, entitlements list/preview (memory store); subscription UI prepares intent + hosted button via `PAYPAL_HOSTED_BUTTON_ID`. No PayPal IPN webhook, Dynamo `eduardoos_payments`, or real entitlement grants after checkout.

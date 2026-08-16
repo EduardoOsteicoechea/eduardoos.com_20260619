@@ -59,7 +59,7 @@ Open [http://127.0.0.1:4322](http://127.0.0.1:4322). Browser calls stay same-ori
    - Local only: `DEV_RETURN_OTP=1` also returns `"otp"` in the register JSON.  
    - Confirm at `/auth/verify-otp` (or the in-form OTP step). Until verified, `POST /api/auth/login` returns **401** `email not verified` and **no JWT**.  
    - Token key: `eduardoos-next-auth-token`.
-2. `/documents/pamphlet` — visual pamphlet generator (create/open local + cloud EPAMs from toolbar); Print downloads a stub PDF from `POST /api/documents/pamphlet/pdf`.
+2. `/documents/pamphlet` — visual pamphlet generator (create/open local + cloud EPAMs from toolbar); Print downloads a full two-page landscape PDF (Roboto + WinAnsi accents) from `POST /api/documents/pamphlet/pdf`.
 3. `/media/musica` — worship library + session playlist + lyrics; timed lyric editor for `eduardooost@gmail.com` (no create-playlist stub).
 4. `/payments/subscription` — JWT prepare intent + PayPal hosted button (`PAYPAL_HOSTED_BUTTON_ID`).
 5. `/bim` — upload real IFC bytes (multipart), list, download, open in That Open / Three.js viewer (orbit + fit); placeholder create still works. WASM served from `/web-ifc/` (copied on `npm install` / `prebuild`).

@@ -1,6 +1,6 @@
-// Package pdf builds minimal PDF byte streams without third-party libraries.
-// Eduardo OS Next starts with a single-page stub suitable for pamphlet print
-// wiring; full pamphlet layout parity can later reuse the production pkg/pdf.
+// Package pdf builds PDF byte streams without third-party PDF libraries.
+// Pamphlet print uses the full Roboto + WinAnsi landscape renderer in pamphlet.go;
+// BuildSamplePDF remains a tiny Helvetica stub for smoke tests only.
 package pdf
 
 import (
@@ -12,11 +12,13 @@ import (
 func MmToPoints(mm float64) float64 { return mm * (72.0 / 25.4) }
 
 // BuildSamplePDF returns a one-page A4 PDF with a Helvetica title line.
-// Prefer this stub over perfect pamphlet parity until the full renderer lands.
+// Production pamphlet print must use BuildPamphletPDF instead.
 func BuildSamplePDF(title string) []byte {
 	if strings.TrimSpace(title) == "" {
 		title = "Eduardo OS Pamphlet"
 	}
+	// Stub only — ASCII-safe title; do not pass raw UTF-8 (mojibake in PDF strings).
+	title = toWinAnsi(title)
 	x := MmToPoints(20)
 	y := MmToPoints(270)
 	content := fmt.Sprintf("BT /F1 12 Tf %.2f %.2f Td (%s) Tj ET", x, y, escape(title))
@@ -25,7 +27,7 @@ func BuildSamplePDF(title string) []byte {
 		"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
 		fmt.Sprintf("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2f %.2f] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n", MmToPoints(210), MmToPoints(297)),
 		fmt.Sprintf("4 0 obj\n<< /Length %d >>\nstream\n%s\nendstream\nendobj\n", len(content), content),
-		"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+		"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n",
 	}
 	out := "%PDF-1.4\n"
 	offsets := []int{0}
