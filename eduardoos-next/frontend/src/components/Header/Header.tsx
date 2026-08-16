@@ -18,6 +18,7 @@ import {
 import {
   fetchUserProfile,
   PROFILE_IMAGE_UPDATED_EVENT,
+  resolveProfileImageUrl,
 } from "../../lib/profile";
 import { applyTheme, resolveTheme, toggleTheme, type SiteTheme } from "../../lib/theme";
 import "./Header.css";
@@ -98,6 +99,9 @@ function AccountMenu({
             className="site-header__profile-img"
             src={profileImageUrl}
             alt=""
+            width={36}
+            height={36}
+            decoding="async"
             onError={onProfileImageBroken}
           />
         ) : (
@@ -327,7 +331,7 @@ export function Header({ pathname }: HeaderProps) {
       return;
     }
     const profile = await fetchUserProfile();
-    const url = profile?.profileImageUrl?.trim() ?? "";
+    const url = resolveProfileImageUrl(profile).trim();
     setProfileImageUrl(url);
   }
 

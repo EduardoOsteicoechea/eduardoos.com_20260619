@@ -100,6 +100,14 @@ func contentTypeFromKey(objectKey string) string {
 		return "audio/mp4"
 	case ".flac":
 		return "audio/flac"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".webp":
+		return "image/webp"
+	case ".gif":
+		return "image/gif"
 	case ".emusic", ".json":
 		return "application/json"
 	default:

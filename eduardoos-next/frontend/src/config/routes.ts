@@ -35,6 +35,7 @@ export const AUTH_API_ROUTES = {
   resetPassword: "/api/auth/reset-password",
   logout: "/api/auth/logout",
   profile: "/api/auth/profile",
+  profileImage: "/api/auth/profile/image",
 } as const;
 
 export const APS_ROUTES = {

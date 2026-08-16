@@ -24,7 +24,7 @@ type Handler struct {
 	DevReturnOTP bool
 }
 
-// Routes mounts the public auth API under /api/auth/*.
+// Routes mounts the public auth API under /api/auth/* plus JWT profile routes.
 func (h *Handler) Routes(r chi.Router) {
 	r.Post("/api/auth/register", h.Register)
 	r.Post("/api/auth/login", h.Login)
@@ -32,6 +32,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Post("/api/auth/forgot-password", h.ForgotPassword)
 	r.Post("/api/auth/reset-password", h.ResetPassword)
 	r.Post("/api/auth/logout", h.Logout)
+	h.MountProfileRoutes(r)
 }
 
 // RequireJWT is middleware that rejects requests without a valid Bearer JWT.
