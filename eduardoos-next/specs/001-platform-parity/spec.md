@@ -107,6 +107,15 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
 - [ ] APS explorer shows bundles/activities and hub projects/items for admin
 - [ ] `CUTOVER.md` gates still all unchecked until explicitly approved
 
+## Static assets (legacy public → Next)
+
+See **[`STATIC_MIGRATION.md`](../../STATIC_MIGRATION.md)**. As of 2026-08-16, all
+37 files under parent `frontend/public/**` are mirrored (identical hashes) into
+`eduardoos-next/frontend/public/**`, including the full favicon set used by the
+header logo and layouts. Next also keeps `public/web-ifc/*.wasm` (OpenBIM). Do
+**not** delete the legacy frontend until that doc’s remaining smoke/deploy
+checks are green.
+
 ## Out of scope until later specs
 
 - Pixel-perfect pamphlet PDF parity polish beyond “usable”
