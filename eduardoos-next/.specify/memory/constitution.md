@@ -10,7 +10,7 @@ Rebuild Eduardo OS as a clean, spec-driven codebase (`frontend` / `backend` / `r
 2. **Isolation.** Work under `eduardoos-next/` must not edit production app paths or production deploy workflows until `CUTOVER.md` gates pass.
 3. **Data continuity.** Prefer existing AWS resources. Changing DynamoDB keys, S3 prefixes, or password hashes requires an explicit migration spec.
 4. **Small surfaces.** Tiny modules, single-responsibility handlers, plain CSS (no Tailwind/CSS-in-JS), idiomatic Go `net/http` + chi.
-5. **Observable by default.** Correlation IDs on API hops; human-readable errors for operators. **UI rule:** any server/API failure shown to a user must open a modal with a copyable diagnostic block (status, message, correlation id, body excerpt) — never console-only.
+5. **Observable by default.** Correlation IDs on API hops; human-readable errors for operators. **UI rule:** any server/API failure shown to a user must open a modal with a copyable diagnostic block (status, message, correlation id, body excerpt) via `openApiErrorModal` / `ServerErrorModal` — never console-only, never silent. Includes Admin Users (`/admin/users`). Static HTML routes must not surface raw nginx 500 pages from empty-dir `try_files` cycles.
 6. **Security.** Public routes allowlisted; JWT for private APIs; APS admin allowlisted; RBAC roles `admin`|`user` plus per-service subscription entitlements; never commit secrets.
 7. **English UI** for product chrome unless a feature spec says otherwise.
 8. **Prove before cutover.** Staging + checklist beat optimism.

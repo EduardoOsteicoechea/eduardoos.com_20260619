@@ -192,8 +192,9 @@ server {
         proxy_set_header Host \$host;
     }
 
+    # Prefer \$uri/index.html over \$uri/ to avoid empty-dir redirect → 500.
     location / {
-        try_files \$uri \$uri/ /index.html;
+        try_files \$uri \$uri/index.html /index.html;
     }
 }
 EOF

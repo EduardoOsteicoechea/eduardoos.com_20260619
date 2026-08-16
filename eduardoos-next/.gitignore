@@ -1,5 +1,6 @@
 ﻿node_modules/
 dist/
+dist-build/
 .astro/
 .DS_Store
 *.exe

@@ -66,7 +66,12 @@ type userRow struct {
 }
 
 // ListUsers returns every account with role, registration date, and services.
+// Never panics: nil payments store yields empty entitlements; store errors → JSON.
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	if h.Users == nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "user store not configured")
+		return
+	}
 	users, err := h.Users.ListUsers(r.Context())
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, "could not list users")
@@ -74,7 +79,13 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	rows := make([]userRow, 0, len(users))
 	for _, u := range users {
-		ents := h.Payments.ListEntitlements(u.Email)
+		ents := []payments.Entitlement{}
+		if h.Payments != nil {
+			ents = h.Payments.ListEntitlements(u.Email)
+		}
+		if ents == nil {
+			ents = []payments.Entitlement{}
+		}
 		ids := make([]string, 0, len(ents))
 		for _, e := range ents {
 			ids = append(ids, e.ServiceID)
@@ -143,6 +154,10 @@ func (h *Handler) PutUserEntitlements(w http.ResponseWriter, r *http.Request) {
 		}
 		seen[id] = true
 		services = append(services, id)
+	}
+	if h.Payments == nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "payments store not configured")
+		return
 	}
 	ents := payments.BuildEntitlements(services, body.BillingPeriod, body.Months)
 	h.Payments.PutEntitlements(target, ents)

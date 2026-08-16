@@ -1,6 +1,9 @@
 /**
  * Admin users dashboard — list accounts, roles, registration dates, services.
  * Visible only to eduardooost@gmail.com (platform admin).
+ *
+ * Spec: every failed API call opens ServerErrorModal (copyable). Access check
+ * must never hang on “Checking access…”.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -16,9 +19,10 @@ import { isApsAdminEmail, getAuthEmailFromToken, isAuthenticated } from "../../l
 import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import "./AdminUsersPage.css";
 
+type Gate = "checking" | "allowed" | "denied";
+
 export default function AdminUsersPage() {
-  const [ready, setReady] = useState(false);
-  const [allowed, setAllowed] = useState(false);
+  const [gate, setGate] = useState<Gate>("checking");
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [services, setServices] = useState<AdminServiceRow[]>([]);
   const [selectedEmail, setSelectedEmail] = useState("");
@@ -26,27 +30,60 @@ export default function AdminUsersPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loadingList, setLoadingList] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [u, s] = await Promise.all([fetchAdminUsers(), fetchAdminServices()]);
-    setUsers(u);
-    setServices(s);
+    setLoadingList(true);
+    try {
+      const [u, s] = await Promise.all([fetchAdminUsers(), fetchAdminServices()]);
+      setUsers(u);
+      setServices(s);
+    } finally {
+      setLoadingList(false);
+    }
   }, []);
 
   useEffect(() => {
-    const ok = isAuthenticated() && isApsAdminEmail(getAuthEmailFromToken());
-    setAllowed(ok);
-    setReady(true);
-    if (!ok) return;
+    let cancelled = false;
+
+    function applyGate(): boolean {
+      const ok = isAuthenticated() && isApsAdminEmail(getAuthEmailFromToken());
+      if (cancelled) return ok;
+      setGate(ok ? "allowed" : "denied");
+      return ok;
+    }
+
+    const allowed = applyGate();
+    // Safety net: never leave “Checking access…” forever.
+    const unlock = window.setTimeout(() => {
+      setGate((prev) => (prev === "checking" ? "denied" : prev));
+    }, 1500);
+
+    if (!allowed) {
+      return () => {
+        cancelled = true;
+        window.clearTimeout(unlock);
+      };
+    }
+
     void (async () => {
       try {
         await refresh();
       } catch (err) {
+        if (cancelled) return;
         const msg = err instanceof Error ? err.message : "Could not load users";
         setError(msg);
-        openApiErrorModal(msg, { summary: "Admin users failed to load" });
+        openApiErrorModal(msg, {
+          title: "Admin users — server error",
+          summary: "Admin users failed to load. Copy the block below when reporting.",
+        });
       }
     })();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(unlock);
+    };
   }, [refresh]);
 
   function selectUser(row: AdminUserRow) {
@@ -74,17 +111,20 @@ export default function AdminUsersPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
       setError(msg);
-      openApiErrorModal(msg, { summary: "Could not update entitlements" });
+      openApiErrorModal(msg, {
+        title: "Admin users — server error",
+        summary: "Could not update entitlements. Copy the block below when reporting.",
+      });
     } finally {
       setBusy(false);
     }
   }
 
-  if (!ready) {
+  if (gate === "checking") {
     return <p className="admin-users__status">Checking access…</p>;
   }
 
-  if (!allowed) {
+  if (gate === "denied") {
     return (
       <section className="admin-users admin-users--denied">
         <h1 className="admin-users__title">Admin — Users</h1>
@@ -114,6 +154,9 @@ export default function AdminUsersPage() {
 
       {error ? <p className="admin-users__error">{error}</p> : null}
       {message ? <p className="admin-users__status">{message}</p> : null}
+      {loadingList ? (
+        <p className="admin-users__status">Loading accounts…</p>
+      ) : null}
 
       <div className="admin-users__layout">
         <section className="admin-users__panel" aria-label="Users">
