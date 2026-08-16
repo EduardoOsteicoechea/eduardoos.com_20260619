@@ -124,6 +124,15 @@
   gap: 1.75rem;
 }
 
+/* Left column: copy then portrait, flush to the content/page-shell edge. */
+.home-hero__primary {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
 .home-hero__copy {
   display: flex;
   flex-direction: column;
@@ -132,9 +141,33 @@
   padding-block: 0.5rem;
 }
 
+.home-hero__photo {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  line-height: 0;
+}
+
+.home-hero__photo img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: min(58vh, 34rem);
+  margin: 0;
+  object-fit: cover;
+  object-position: left top;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .home-hero__copy {
     animation: home-hero-reveal 0.7s ease-out both;
+  }
+
+  .home-hero__photo {
+    animation: home-hero-reveal 0.8s ease-out 0.08s both;
   }
 
   .home-hero__chat {
@@ -200,6 +233,21 @@
     align-items: stretch;
     gap: 2rem;
     min-height: calc(100dvh - var(--header_height) - 2.5rem);
+  }
+
+  .home-hero__primary {
+    gap: 1.75rem;
+    justify-content: flex-start;
+  }
+
+  .home-hero__photo {
+    align-self: stretch;
+    width: 100%;
+  }
+
+  .home-hero__photo img {
+    max-height: min(62vh, 40rem);
+    object-position: left top;
   }
 
   .home-hero__chat {

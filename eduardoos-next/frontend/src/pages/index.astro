@@ -8,19 +8,31 @@ import { HOME_AGENT_WELCOME } from "../lib/agentVoice";
 <BaseLayout title="Eduardo Osteicoechea — Eduardo OS Next" pageHome={true}>
   <div class="page-shell home-hero">
     <div class="home-hero__stage">
-      <div class="home-hero__copy">
-        <p class="home-hero__brand">Eduardo Osteicoechea</p>
-        <h1>AEC Technologist</h1>
-        <p class="home-hero__lead">
-          Licensed Building Architect, BIM practitioner, and full-stack
-          BIM–desktop–web–cloud developer. Eduardo OS Next is the greenfield
-          rebuild — production stays live until cutover.
-        </p>
-        <div class="home-hero__links">
-          <a class="btn btn--primary" href={APP_ROUTES.contact}>Contact</a>
-          <a class="btn" href={APP_ROUTES.bim}>OpenBIM</a>
-          <a class="btn" href={APP_ROUTES.apsAdmin}>APS</a>
+      <div class="home-hero__primary">
+        <div class="home-hero__copy">
+          <p class="home-hero__brand">Eduardo Osteicoechea</p>
+          <h1>AEC Technologist</h1>
+          <p class="home-hero__lead">
+            Licensed Building Architect, BIM practitioner, and full-stack
+            BIM–desktop–web–cloud developer. Eduardo OS Next is the greenfield
+            rebuild — production stays live until cutover.
+          </p>
+          <div class="home-hero__links">
+            <a class="btn btn--primary" href={APP_ROUTES.contact}>Contact</a>
+            <a class="btn" href={APP_ROUTES.bim}>OpenBIM</a>
+            <a class="btn" href={APP_ROUTES.apsAdmin}>APS</a>
+          </div>
         </div>
+        <picture class="home-hero__photo">
+          <img
+            src="/personal_photo_1080x1920_side_placed.webp"
+            alt="Eduardo Osteicoechea"
+            width="1080"
+            height="1920"
+            decoding="async"
+            fetchpriority="high"
+          />
+        </picture>
       </div>
       <aside class="home-hero__chat" aria-label="AI agent">
         <ContactAgent
