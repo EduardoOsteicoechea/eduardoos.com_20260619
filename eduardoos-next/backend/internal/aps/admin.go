@@ -1,13 +1,11 @@
 ﻿package aps
 
-import (
-	"strings"
-)
+import "eduardoos.nex/internal/auth"
 
 // AdminEmail is the sole allowlisted APS admin (production parity).
-const AdminEmail = "eduardooost@gmail.com"
+const AdminEmail = auth.AdminEmail
 
 // IsAdminEmail reports whether email matches the APS admin allowlist.
 func IsAdminEmail(email string) bool {
-	return strings.EqualFold(strings.TrimSpace(email), AdminEmail)
+	return auth.IsAdminEmail(email)
 }

@@ -1,0 +1,33 @@
+.service-gate {
+  max-width: 28rem;
+  margin: 1.5rem auto;
+  padding: 1.25rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface, var(--site-body-bg));
+  box-shadow: var(--site-shadow);
+  color: var(--site-body-fg);
+}
+
+.service-gate__title {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display, Montserrat, sans-serif);
+  font-size: 1.35rem;
+}
+
+.service-gate__lead {
+  margin: 0 0 1rem;
+  color: var(--site-meta-fg);
+  line-height: 1.5;
+}
+
+.service-gate__status {
+  margin: 1.5rem;
+  color: var(--site-meta-fg);
+}
+
+.service-gate__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}

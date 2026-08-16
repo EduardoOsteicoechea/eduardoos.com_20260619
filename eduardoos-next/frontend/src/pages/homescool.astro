@@ -1,33 +1,10 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { APP_ROUTES } from "../config/routes";
+import HomescoolPage from "../components/Homescool/HomescoolPage";
 ---
 
 <BaseLayout title="Homescool — Eduardo OS Next">
   <div class="page-shell">
-    <article class="product-page">
-      <p class="product-page__brand">Services</p>
-      <h1 class="product-page__title">Homescool</h1>
-      <p class="product-page__lead">
-        A home-education hub for resources, reading lists, and practical tools.
-        Sign in to reach cloud pamphlets and articles that power the curriculum
-        path; guests can still browse the public pamphlet editor shell.
-      </p>
-      <ul class="product-page__list">
-        <li>Cloud pamphlets via EPAM documents</li>
-        <li>Articles library for structured reading</li>
-        <li>Contact assistant for enrollment questions</li>
-      </ul>
-      <div class="product-page__cta-row">
-        <a class="btn btn--primary" href={APP_ROUTES.pamphlet}>Open pamphlets</a>
-        <a class="btn" href={APP_ROUTES.articles}>Browse articles</a>
-        <a class="btn" href={`${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.homescool)}`}>
-          Sign in
-        </a>
-      </div>
-      <p class="product-page__note">
-        Full Homescool interest forms and resource packs land after content APIs stabilize.
-      </p>
-    </article>
+    <HomescoolPage client:load />
   </div>
 </BaseLayout>

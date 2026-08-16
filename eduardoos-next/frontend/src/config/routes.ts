@@ -24,6 +24,7 @@ export const APP_ROUTES = {
   debateApp: "/debate-app",
   /** @deprecated Prefer debateApp — same path; kept for existing imports. */
   edebat: "/debate-app",
+  adminUsers: "/admin/users",
 } as const;
 
 export const AUTH_API_ROUTES = {
@@ -65,6 +66,7 @@ export const BIM_ROUTES = {
 export const EPAM_ROUTES = {
   list: "/api/epams",
   save: "/api/epams",
+  seriesTree: "/api/epams/series-tree",
   item: (epamId: string) => `/api/epams/${encodeURIComponent(epamId)}`,
 } as const;
 
@@ -94,4 +96,13 @@ export const PAYMENT_ROUTES = {
   status: "/api/payments/status",
   entitlements: "/api/subscriptions/entitlements",
   entitlementsPreview: "/api/subscriptions/entitlements/preview",
+  access: "/api/subscriptions/access",
+  catalog: "/api/subscriptions/catalog",
+} as const;
+
+export const ADMIN_ROUTES = {
+  users: "/api/admin/users",
+  services: "/api/admin/services",
+  userEntitlements: (email: string) =>
+    `/api/admin/users/${encodeURIComponent(email)}/entitlements`,
 } as const;

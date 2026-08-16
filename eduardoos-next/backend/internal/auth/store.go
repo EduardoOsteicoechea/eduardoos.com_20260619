@@ -5,12 +5,15 @@ import (
 	"sync"
 )
 
-// User is the account record shaped like production authstore JSON.
+// User is the account record shaped like production authstore JSON,
+// extended with RBAC role + registration timestamp for the admin dashboard.
 type User struct {
 	Email           string `json:"email"`
 	PasswordHash    string `json:"passwordHash"`
 	Verified        bool   `json:"verified"`
 	ProfileImageKey string `json:"profileImageKey,omitempty"`
+	Role            string `json:"role,omitempty"`
+	CreatedAt       string `json:"createdAt,omitempty"`
 }
 
 // UserStore persists users and OTP codes. Memory is default; DynamoDB is optional.
@@ -18,6 +21,7 @@ type UserStore interface {
 	BackendName() string
 	GetUser(ctx context.Context, email string) (User, bool, error)
 	PutUser(ctx context.Context, user User) error
+	ListUsers(ctx context.Context) ([]User, error)
 	GetOTP(ctx context.Context, email string) (string, bool, error)
 	PutOTP(ctx context.Context, email, otp string) error
 	DeleteOTP(ctx context.Context, email string) error
@@ -49,6 +53,9 @@ func (s *MemoryStore) GetUser(_ context.Context, email string) (User, bool, erro
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	u, ok := s.users[NormalizeEmail(email)]
+	if ok {
+		u.Role = ResolveRole(u.Email, u.Role)
+	}
 	return u, ok, nil
 }
 
@@ -57,8 +64,24 @@ func (s *MemoryStore) PutUser(_ context.Context, u User) error {
 	defer s.mu.Unlock()
 	email := NormalizeEmail(u.Email)
 	u.Email = email
+	u.Role = ResolveRole(email, u.Role)
+	if u.CreatedAt == "" {
+		u.CreatedAt = NowRFC3339()
+	}
 	s.users[email] = u
 	return nil
+}
+
+// ListUsers returns all accounts (no password hashes exposed by callers).
+func (s *MemoryStore) ListUsers(_ context.Context) ([]User, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]User, 0, len(s.users))
+	for _, u := range s.users {
+		u.Role = ResolveRole(u.Email, u.Role)
+		out = append(out, u)
+	}
+	return out, nil
 }
 
 func (s *MemoryStore) GetOTP(_ context.Context, email string) (string, bool, error) {

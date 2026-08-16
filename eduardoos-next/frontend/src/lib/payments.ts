@@ -1,32 +1,54 @@
 /**
- * Payments client for Next subscription intents + status polling.
- * Intent create requires JWT (Bearer from eduardoos-next-auth-token).
+ * Payments client — subscription intents, entitlements, access checks.
  */
 
 import { PAYMENT_ROUTES } from "../config/routes";
 import { apiRequest, formatApiError } from "./api";
-import { getAuthToken } from "./auth";
+import { getAuthToken, isApsAdminEmail, getAuthEmailFromToken } from "./auth";
 import { createCorrelationId } from "./correlation";
 
 export type BillingPeriod = "monthly" | "yearly";
 
-export const SUBSCRIPTION_SERVICES = [
-  {
-    id: "ai_agent",
-    label: "AI Agent",
-    description: "Conversational assistant and automation tools.",
-  },
+export type SubscriptionService = {
+  id: string;
+  label: string;
+  description: string;
+  monthlyUsd: number;
+};
+
+/** Billable catalog — debate is $3/mo; other services $1/mo. */
+export const SUBSCRIPTION_SERVICES: SubscriptionService[] = [
   {
     id: "playlist",
-    label: "Playlist",
-    description: "Cloud worship playlist builder and storage.",
+    label: "Music",
+    description: "Worship playlist builder and lyrics.",
+    monthlyUsd: 1,
   },
   {
     id: "pamphlet",
     label: "Pamphlet",
-    description: "Local pamphlet editor and print export.",
+    description: "Cloud pamphlet editor and print export.",
+    monthlyUsd: 1,
   },
-] as const;
+  {
+    id: "debate",
+    label: "Debate App",
+    description: "Structured debate workspace.",
+    monthlyUsd: 3,
+  },
+  {
+    id: "homescool",
+    label: "Homescool",
+    description: "Homescool learning surface.",
+    monthlyUsd: 1,
+  },
+  {
+    id: "videos",
+    label: "Videos",
+    description: "Media gallery / videos library.",
+    monthlyUsd: 1,
+  },
+];
 
 export type PaymentIntentResponse = {
   intent_id: string;
@@ -65,7 +87,6 @@ export const PAYPAL_BUTTON_IMAGE =
   "https://www.paypalobjects.com/en_US/i/btn/btn_buynowCC_LG.gif";
 export const PAYPAL_FORM_ACTION = "https://www.paypal.com/cgi-bin/webscr";
 
-/** Public Vite/Astro env fallback when intent has not been created yet. */
 export function paypalHostedButtonIdFallback(): string {
   const fromEnv =
     (import.meta.env.PUBLIC_PAYPAL_HOSTED_BUTTON_ID as string | undefined) ??
@@ -73,12 +94,17 @@ export function paypalHostedButtonIdFallback(): string {
   return (fromEnv ?? "").trim();
 }
 
+export function monthlyPriceFor(serviceId: string): number {
+  const row = SUBSCRIPTION_SERVICES.find((s) => s.id === serviceId);
+  return row?.monthlyUsd ?? 0;
+}
+
 export function quoteSubscription(
   serviceIds: string[],
   billingPeriod: BillingPeriod,
 ): number {
-  const unit = billingPeriod === "yearly" ? 10 : 1;
-  return unit * serviceIds.length;
+  const monthly = serviceIds.reduce((sum, id) => sum + monthlyPriceFor(id), 0);
+  return billingPeriod === "yearly" ? monthly * 10 : monthly;
 }
 
 function requireToken(): string {
@@ -136,4 +162,40 @@ export async function fetchEntitlementsPreview(
     { correlationId: createCorrelationId() },
   );
   return result.data?.entitlements ?? [];
+}
+
+export function entitlementActive(row: EntitlementRecord, now = Date.now()): boolean {
+  if (!row.valid_until) return true;
+  const until = Date.parse(row.valid_until);
+  return Number.isFinite(until) ? until >= now : true;
+}
+
+/** Admin always allowed; otherwise requires an active entitlement for the service. */
+export function hasServiceAccess(
+  serviceId: string,
+  entitlements: EntitlementRecord[],
+  email = getAuthEmailFromToken(),
+): boolean {
+  if (isApsAdminEmail(email)) return true;
+  return entitlements.some(
+    (e) => e.service_id === serviceId && entitlementActive(e),
+  );
+}
+
+export async function checkServiceAccess(
+  serviceId: string,
+): Promise<{ allowed: boolean; isAdmin: boolean }> {
+  const token = getAuthToken();
+  if (!token) return { allowed: false, isAdmin: false };
+  if (isApsAdminEmail(getAuthEmailFromToken())) {
+    return { allowed: true, isAdmin: true };
+  }
+  const result = await apiRequest<{ allowed: boolean; is_admin?: boolean }>(
+    `${PAYMENT_ROUTES.access}/${encodeURIComponent(serviceId)}`,
+    { correlationId: createCorrelationId(), authToken: token },
+  );
+  return {
+    allowed: Boolean(result.data?.allowed),
+    isAdmin: Boolean(result.data?.is_admin),
+  };
 }

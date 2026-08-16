@@ -49,7 +49,7 @@ Scripts: `eduardoos-next/deploy/deploy-remote-production.sh` (called from `deplo
 Ship anyway per explicit cutover order — not blockers for live Next:
 
 - **Pamphlet PDF** — stub single-page PDF (`pkg/pdf.BuildSamplePDF`); full landscape Roboto layout parity deferred.
-- **That Open / OpenBIM 3D viewer** — IFC upload/list/download works; no web-ifc / three viewer yet.
+- ~~**That Open / OpenBIM 3D viewer**~~ — shipped: `/bim` loads IFC via `@thatopen/components` + `web-ifc` + Three.js (`IfcViewer`); WASM from `/web-ifc/`.
 - **Playlists** — list/create/tracks + HTML5 audio; no full worship builder / S3 audio library / Dynamo persistence parity.
 - **Payments / PayPal** — intents + hosted button + status; no IPN webhook / Dynamo entitlement grants after checkout.
 - **Edebat** — list/create/turn (memory); no LLM referee / Dynamo / S3 `.edebat` bodies.

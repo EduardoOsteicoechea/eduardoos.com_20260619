@@ -1,5 +1,5 @@
 import "./style.css";
-import { MENU_ICON } from "./icons";
+import "../../../components/ActivityBar/ActivityBar.css";
 import { renderShell } from "./shell";
 import type { PamphletTrayAction } from "./create_element";
 import { normalizeImageDataUrlToJpeg } from "./create_element";
@@ -28,7 +28,7 @@ import {
     savePamphlet,
     setOpenFileName,
 } from "./pamphlet_file";
-import { fetchEpam, fetchEpams, saveEpamToCloud } from "../../epams";
+import { fetchEpam, fetchEpams, fetchEpamSeriesTree, saveEpamToCloud } from "../../epams";
 import { getAuthToken, isAuthenticated } from "../../auth";
 import { DOCUMENT_ROUTES } from "../../../config/routes";
 import { createCorrelationId } from "../../telemetry";
@@ -72,7 +72,7 @@ export interface PamphletMountHandle {
 export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const appRoot = document.createElement("div");
     appRoot.className = "pamphlet-app";
-    appRoot.innerHTML = renderShell(MENU_ICON);
+    appRoot.innerHTML = renderShell();
     host.replaceChildren(appRoot);
 
     function requireElement<T extends HTMLElement>(selector: string): T {
@@ -88,9 +88,9 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const printBtn = requireElement<HTMLButtonElement>("#btn-print");
     const viewDesktopBtn = requireElement<HTMLButtonElement>("#btn-view-desktop");
     const viewMobileBtn = requireElement<HTMLButtonElement>("#btn-view-mobile");
-    const menuBtn = requireElement<HTMLButtonElement>("#btn-menu");
-    const sidebar = requireElement<HTMLElement>("#app-sidebar");
-    const sidebarBackdrop = requireElement<HTMLElement>("#sidebar-backdrop");
+    const seriesBtn = requireElement<HTMLButtonElement>("#btn-series");
+    const trayToggleBtn = requireElement<HTMLButtonElement>("#btn-activity-expand");
+    const activityTray = requireElement<HTMLElement>("#pamphlet-activity-tray");
     const createModal = requireElement<HTMLDialogElement>("#create-modal");
     const createSaveModal = requireElement<HTMLDialogElement>("#create-save-modal");
     const createSaveLocalBtn = requireElement<HTMLButtonElement>("#create-save-local");
@@ -111,12 +111,19 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const modalSeries = requireElement<HTMLInputElement>("#modal-series");
     const modalChapter = requireElement<HTMLInputElement>("#modal-chapter");
     const modalAuthor = requireElement<HTMLInputElement>("#modal-author");
+    const seriesModal = requireElement<HTMLDialogElement>("#series-modal");
+    const seriesForm = requireElement<HTMLFormElement>("#series-form");
+    const seriesModalSeries = requireElement<HTMLInputElement>("#series-modal-series");
+    const seriesModalChapter = requireElement<HTMLInputElement>("#series-modal-chapter");
+    const seriesTreeEl = requireElement<HTMLElement>("#series-tree");
+    const seriesTreeHint = requireElement<HTMLElement>("#series-tree-hint");
+    const seriesModalCancelBtn = requireElement<HTMLButtonElement>("#series-modal-cancel");
     const itemTypeModal = requireElement<HTMLDialogElement>("#item-type-modal");
     const itemTypeCancelBtn = requireElement<HTMLButtonElement>("#item-type-cancel");
-    const fileToolbar = requireElement<HTMLElement>("#file-toolbar");
+    const activityBar = requireElement<HTMLElement>("#pamphlet-activity-bar");
 
-    // Escape .pamphlet-app { isolation: isolate } so fixed chrome can sit above the site header
-    document.body.append(fileToolbar, sidebarBackdrop, sidebar);
+    // Escape .pamphlet-app { isolation: isolate } so fixed chrome can sit above the sheet
+    document.body.append(activityBar);
 
     type ViewMode = "desktop" | "mobile";
     /** Narrow / phone viewports start in stacked mobile layout (letter sheet is desktop-only). */
@@ -142,21 +149,28 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
 
 function updatePrintAvailability(): void {
     printBtn.disabled = !hasEditableSession() || !currentDoc;
+    syncSeriesButtonVisibility();
 }
 
-function setSidebarOpen(open: boolean): void {
-    sidebar.classList.toggle("is-open", open);
-    sidebar.setAttribute("aria-hidden", open ? "false" : "true");
-    menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
-    sidebarBackdrop.hidden = !open;
+function setActivityTrayOpen(open: boolean): void {
+    activityBar.classList.toggle("activity-bar--tray-open", open);
+    activityTray.classList.toggle("activity-bar__tray--open", open);
+    activityTray.hidden = !open;
+    trayToggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    trayToggleBtn.classList.toggle("activity-bar__tray-toggle--open", open);
 }
 
-function closeSidebar(): void {
-    setSidebarOpen(false);
+function closeActivityTray(): void {
+    setActivityTrayOpen(false);
 }
 
-function toggleSidebar(): void {
-    setSidebarOpen(!sidebar.classList.contains("is-open"));
+function toggleActivityTray(): void {
+    setActivityTrayOpen(activityTray.hidden);
+}
+
+function syncSeriesButtonVisibility(): void {
+    const open = hasEditableSession() && currentDoc !== null;
+    seriesBtn.hidden = !open;
 }
 
 /** Body column width in mm — never wider than print; scale down only if viewport is narrower. */
@@ -219,21 +233,23 @@ function syncSheetScale(): void {
     syncDesktopViewScale();
 }
 
-function applyViewMode(mode: ViewMode, options?: { closeSidebar?: boolean }): void {
+function applyViewMode(mode: ViewMode, options?: { closeTray?: boolean }): void {
     viewMode = mode;
     appRoot.setAttribute("data-view-mode", mode);
     viewDesktopBtn.classList.toggle("is-active", mode === "desktop");
+    viewDesktopBtn.classList.toggle("activity-bar__btn--active", mode === "desktop");
     viewMobileBtn.classList.toggle("is-active", mode === "mobile");
+    viewMobileBtn.classList.toggle("activity-bar__btn--active", mode === "mobile");
     viewDesktopBtn.setAttribute("aria-pressed", mode === "desktop" ? "true" : "false");
     viewMobileBtn.setAttribute("aria-pressed", mode === "mobile" ? "true" : "false");
     syncSheetScale();
-    if (options?.closeSidebar !== false) {
-        closeSidebar();
+    if (options?.closeTray !== false) {
+        closeActivityTray();
     }
 }
 
 function setViewMode(mode: ViewMode): void {
-    applyViewMode(mode, { closeSidebar: true });
+    applyViewMode(mode, { closeTray: true });
 }
 
 /** While printing, force desktop letter layout even if the screen is in mobile view. */
@@ -243,7 +259,7 @@ function beginPrintDesktopLayout(): void {
     if (viewModeBeforePrint !== null) return;
     viewModeBeforePrint = viewMode;
     if (viewMode === "mobile") {
-        applyViewMode("desktop", { closeSidebar: false });
+        applyViewMode("desktop", { closeTray: false });
         void main.offsetHeight;
     }
 }
@@ -253,7 +269,7 @@ function endPrintDesktopLayout(): void {
     const restore = viewModeBeforePrint;
     viewModeBeforePrint = null;
     if (restore === "mobile") {
-        applyViewMode("mobile", { closeSidebar: false });
+        applyViewMode("mobile", { closeTray: false });
     }
 }
 
@@ -330,7 +346,7 @@ async function printDocument(): Promise<void> {
         return;
     }
 
-    closeSidebar();
+    closeActivityTray();
 
     // Capture pan/zoom/height from the live DOM BEFORE any desktop remount can wipe them.
     const live = serializePamphlet(main, currentDoc.last_edited_element, currentDoc);
@@ -594,7 +610,7 @@ function measureAddControlsMm(_host: HTMLElement): { newItemMm: number; buttonMm
     return { newItemMm, buttonMm };
 }
 
-/** Keep #file-toolbar at a constant visual size when the user zooms the page. */
+/** Keep activity-bar chrome visually stable when the user zooms the page. */
 function syncFixedChromeScale(): void {
     const dpr = window.devicePixelRatio || 1;
     const zoom = dpr / uiChromeBaselineDpr;
@@ -951,6 +967,7 @@ function renderDocument(data: PamphletStructure, openEdit: boolean): void {
     currentHeader = { ...data.header };
     renderFromPamphlet(main, data);
     reflowAndReport(main);
+    updatePrintAvailability();
     syncSheetScale();
     if (openEdit) {
         activateEditAt(data, data.last_edited_element);
@@ -1271,12 +1288,15 @@ on(main, "pamphlet-tray-action", (event: Event) => {
     void handleTrayAction(custom.detail);
 });
 
-on(menuBtn, "click", () => {
-    toggleSidebar();
+on(trayToggleBtn, "click", () => {
+    toggleActivityTray();
 });
 
-on(sidebarBackdrop, "click", () => {
-    closeSidebar();
+on(document, "pointerdown", (event: Event) => {
+    if (activityTray.hidden) return;
+    const target = event.target as Node;
+    if (activityBar.contains(target)) return;
+    closeActivityTray();
 });
 
 function syncOpenSourceModalForFsa(): void {
@@ -1294,7 +1314,7 @@ function syncOpenSourceModalForFsa(): void {
 }
 
 on(openBtn, "click", () => {
-    closeSidebar();
+    closeActivityTray();
     clearError();
     syncOpenSourceModalForFsa();
     openSourceModal.showModal();
@@ -1411,8 +1431,154 @@ on(openCloudCancelBtn, "click", () => {
     closeOpenCloudModal();
 });
 
+function closeSeriesModal(): void {
+    if (seriesModal.open) seriesModal.close();
+}
+
+async function refreshSeriesTree(activeEpamId: string | null): Promise<void> {
+    seriesTreeEl.replaceChildren();
+    seriesTreeHint.hidden = false;
+    seriesTreeHint.textContent = "Loading tree…";
+    if (!getAuthToken() || !isAuthenticated()) {
+        seriesTreeHint.textContent = "Sign in to browse your series tree from the cloud.";
+        return;
+    }
+    try {
+        const tree = await fetchEpamSeriesTree();
+        seriesTreeEl.replaceChildren();
+        if (tree.count === 0) {
+            seriesTreeHint.textContent = "No cloud pamphlets yet — save one to grow the tree.";
+            return;
+        }
+        seriesTreeHint.hidden = true;
+        for (const seriesNode of tree.series) {
+            const seriesBlock = document.createElement("div");
+            seriesBlock.className = "series-tree__series";
+            seriesBlock.setAttribute("role", "treeitem");
+            seriesBlock.setAttribute("aria-expanded", "true");
+            const seriesTitle = document.createElement("h3");
+            seriesTitle.className = "series-tree__series-title";
+            seriesTitle.textContent = seriesNode.name;
+            seriesBlock.appendChild(seriesTitle);
+            for (const chapter of seriesNode.chapters) {
+                const chapterBlock = document.createElement("div");
+                chapterBlock.className = "series-tree__chapter";
+                const chapterTitle = document.createElement("h4");
+                chapterTitle.className = "series-tree__chapter-title";
+                chapterTitle.textContent = `Capítulo ${chapter.name}`;
+                chapterBlock.appendChild(chapterTitle);
+                const list = document.createElement("ul");
+                list.className = "series-tree__items";
+                for (const item of chapter.items) {
+                    const li = document.createElement("li");
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "series-tree__item";
+                    if (activeEpamId && item.epamId === activeEpamId) {
+                        btn.classList.add("is-current");
+                    }
+                    btn.textContent = item.title;
+                    btn.title = item.fileName || item.epamId;
+                    btn.addEventListener("click", () => {
+                        void (async () => {
+                            try {
+                                await openCloudDocumentById(item.epamId);
+                                closeSeriesModal();
+                                setStatus(`Opened from series tree: ${item.title}`, "success");
+                            } catch (err) {
+                                const message = err instanceof Error ? err.message : String(err);
+                                setError(`Cloud open failed: ${message}`);
+                                openApiErrorModal(message, {
+                                    title: "Series tree error",
+                                    summary: "Could not open this pamphlet from the series tree.",
+                                });
+                            }
+                        })();
+                    });
+                    li.appendChild(btn);
+                    list.appendChild(li);
+                }
+                chapterBlock.appendChild(list);
+                seriesBlock.appendChild(chapterBlock);
+            }
+            seriesTreeEl.appendChild(seriesBlock);
+        }
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        seriesTreeHint.hidden = false;
+        seriesTreeHint.textContent = `Could not load series tree: ${message}`;
+        openApiErrorModal(message, {
+            title: "Series tree error",
+            summary: "Could not load series → chapters → pamphlet from the server.",
+        });
+    }
+}
+
+async function openSeriesModal(): Promise<void> {
+    closeActivityTray();
+    clearError();
+    if (!currentDoc) {
+        setError("Open a pamphlet before editing its series.");
+        return;
+    }
+    seriesModalSeries.value = currentDoc.header.series || "";
+    seriesModalChapter.value = currentDoc.header.series_chapter || "";
+    seriesModal.showModal();
+    seriesModalSeries.focus();
+    await refreshSeriesTree(cloudEpamId);
+}
+
+on(seriesBtn, "click", () => {
+    void openSeriesModal();
+});
+
+on(seriesModalCancelBtn, "click", () => {
+    closeSeriesModal();
+});
+
+on(seriesForm, "submit", (event: Event) => {
+    event.preventDefault();
+    void (async () => {
+        if (!currentDoc) return;
+        const series = seriesModalSeries.value.trim();
+        const series_chapter = seriesModalChapter.value.trim();
+        if (!series || !series_chapter) {
+            setError("Series and chapter are required.");
+            return;
+        }
+        const nextHeader = {
+            ...currentDoc.header,
+            series,
+            series_chapter,
+        };
+        currentHeader = nextHeader;
+        const base = serializePamphlet(main, currentDoc.last_edited_element, currentDoc);
+        const nextDoc: PamphletStructure = { ...base, header: nextHeader };
+        currentDoc = nextDoc;
+        renderPageChrome(main, nextDoc);
+        try {
+            if (getAuthToken() && isAuthenticated()) {
+                const saved = await persistCloud(nextDoc);
+                memorySession = false;
+                renderDocument(saved, false);
+            } else {
+                renderDocument(nextDoc, false);
+            }
+            closeSeriesModal();
+            setStatus("Series updated", "success");
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            setError(`Series save failed: ${message}`);
+            openApiErrorModal(message, {
+                title: "Series save error",
+                summary: "Could not save series metadata for this pamphlet.",
+            });
+        }
+    })();
+});
+
 on(saveCloudBtn, "click", async () => {
-    closeSidebar();
+    closeActivityTray();
     clearError();
     if (!currentDoc) {
         setError("No hay panfleto abierto para guardar.");
@@ -1475,7 +1641,7 @@ function openCreateSaveModal(): void {
 }
 
 on(createBtn, "click", () => {
-    closeSidebar();
+    closeActivityTray();
     openCreateModal();
 });
 
@@ -1625,7 +1791,7 @@ on(viewMobileBtn, "click", () => {
 
 updatePrintAvailability();
 syncFixedChromeScale();
-applyViewMode(viewMode, { closeSidebar: false });
+applyViewMode(viewMode, { closeTray: false });
 on(window, "resize", () => {
     syncFixedChromeScale();
     syncSheetScale();
@@ -1653,9 +1819,7 @@ syncOpenSourceModalForFsa();
             for (const dispose of disposers) dispose();
             disposers.length = 0;
             appRoot.querySelector(":scope > .pamphlet-measure-root")?.remove();
-            fileToolbar.remove();
-            sidebarBackdrop.remove();
-            sidebar.remove();
+            activityBar.remove();
             host.replaceChildren();
         },
     };

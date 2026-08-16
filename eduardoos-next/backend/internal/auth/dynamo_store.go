@@ -70,12 +70,55 @@ func (d *dynamoUserStore) getJSON(ctx context.Context, sk string, dest any) (boo
 func (d *dynamoUserStore) GetUser(ctx context.Context, email string) (User, bool, error) {
 	var u User
 	ok, err := d.getJSON(ctx, userKey(email), &u)
+	if ok {
+		u.Email = NormalizeEmail(u.Email)
+		u.Role = ResolveRole(u.Email, u.Role)
+	}
 	return u, ok, err
 }
 
 func (d *dynamoUserStore) PutUser(ctx context.Context, user User) error {
 	user.Email = NormalizeEmail(user.Email)
+	user.Role = ResolveRole(user.Email, user.Role)
+	if user.CreatedAt == "" {
+		// Preserve existing CreatedAt when updating password/profile.
+		if existing, ok, err := d.GetUser(ctx, user.Email); err == nil && ok && existing.CreatedAt != "" {
+			user.CreatedAt = existing.CreatedAt
+		} else {
+			user.CreatedAt = NowRFC3339()
+		}
+	}
 	return d.putJSON(ctx, userKey(user.Email), user)
+}
+
+// ListUsers queries PK=APP with SK prefix user: (production key shape).
+func (d *dynamoUserStore) ListUsers(ctx context.Context) ([]User, error) {
+	out, err := d.client.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(d.table),
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: "APP"},
+			":sk": &types.AttributeValueMemberS{Value: "user:"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	users := make([]User, 0, len(out.Items))
+	for _, item := range out.Items {
+		data, ok := item["data"].(*types.AttributeValueMemberS)
+		if !ok || data.Value == "" {
+			continue
+		}
+		var u User
+		if err := json.Unmarshal([]byte(data.Value), &u); err != nil {
+			continue
+		}
+		u.Email = NormalizeEmail(u.Email)
+		u.Role = ResolveRole(u.Email, u.Role)
+		users = append(users, u)
+	}
+	return users, nil
 }
 
 func (d *dynamoUserStore) GetOTP(ctx context.Context, email string) (string, bool, error) {

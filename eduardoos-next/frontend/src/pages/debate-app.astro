@@ -1,12 +1,12 @@
 ---
 /**
  * Debate App page (product name). Persistence format remains `.edebat`;
- * JWT APIs stay under `/api/edebat`.
+ * JWT APIs stay under `/api/edebat`. Subscription-gated; admin always allowed.
  */
 import BaseLayout from "../layouts/BaseLayout.astro";
-import EdebatPage from "../components/Edebat/EdebatPage";
+import DebateAppPage from "../components/Edebat/DebateAppPage";
 ---
 
 <BaseLayout title="Debate App — Eduardo OS">
-  <EdebatPage client:load />
+  <DebateAppPage client:load />
 </BaseLayout>

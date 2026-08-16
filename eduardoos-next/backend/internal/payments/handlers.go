@@ -2,7 +2,6 @@ package payments
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -12,13 +11,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
-
-// Known subscription service catalog (parity with parent SubscriptionBuilder).
-var serviceCatalog = map[string]string{
-	"ai_agent": "AI Agent",
-	"playlist": "Playlist",
-	"pamphlet": "Pamphlet",
-}
 
 // Handler serves minimal payment intent + entitlement preview APIs.
 type Handler struct {
@@ -51,9 +43,11 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Use(h.auth.RequireJWT)
 		r.Post("/api/payments/intents", h.CreateIntent)
 		r.Get("/api/subscriptions/entitlements", h.ListMyEntitlements)
+		r.Get("/api/subscriptions/access/{serviceID}", h.CheckAccess)
 	})
 	r.Get("/api/payments/status/{intentID}", h.GetStatus)
 	r.Get("/api/subscriptions/entitlements/preview", h.PreviewEntitlements)
+	r.Get("/api/subscriptions/catalog", h.Catalog)
 }
 
 type createIntentBody struct {
@@ -61,6 +55,20 @@ type createIntentBody struct {
 	PlanID        string   `json:"plan_id"`
 	Services      []string `json:"services"`
 	BillingPeriod string   `json:"billing_period"`
+}
+
+// Catalog returns public billable services + monthly prices.
+func (h *Handler) Catalog(w http.ResponseWriter, r *http.Request) {
+	out := make([]map[string]any, 0, len(ServiceCatalog))
+	for _, s := range ServiceCatalog {
+		out = append(out, map[string]any{
+			"id":          s.ID,
+			"label":       s.Label,
+			"description": s.Description,
+			"monthly_usd": s.MonthlyUSD,
+		})
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"services": out})
 }
 
 // CreateIntent records a pending PayPal intent for the authenticated user.
@@ -94,15 +102,11 @@ func (h *Handler) CreateIntent(w http.ResponseWriter, r *http.Request) {
 	amount := "1.00"
 
 	if len(services) > 0 {
-		unit := 1.0
-		if billing == "yearly" {
-			unit = 10.0
-		}
-		total := unit * float64(len(services))
-		amount = fmt.Sprintf("%.2f", total)
+		total := QuoteTotalUSD(services, billing)
+		amount = FormatAmount(total)
 		labels := make([]string, 0, len(services))
 		for _, id := range services {
-			labels = append(labels, serviceCatalog[id])
+			labels = append(labels, ServiceLabel(id))
 		}
 		productName = "Eduardo OS: " + strings.Join(labels, " + ")
 		planID = "subscription_custom_" + billing
@@ -112,13 +116,13 @@ func (h *Handler) CreateIntent(w http.ResponseWriter, r *http.Request) {
 		}
 		services = []string{"playlist"}
 		billing = "monthly"
-		productName = "Eduardo OS monthly basic"
-		amount = "1.00"
+		productName = "Eduardo OS monthly Music"
+		amount = FormatAmount(MonthlyPriceUSD("playlist"))
 	}
 
 	intent := Intent{
 		IntentID:       uuid.NewString(),
-		Email:           email,
+		Email:          email,
 		PlanID:         planID,
 		ProductName:    productName,
 		HostedButtonID: h.HostedButtonID,
@@ -132,18 +136,18 @@ func (h *Handler) CreateIntent(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"intent_id":            saved.IntentID,
-		"email":                 saved.Email,
+		"email":                saved.Email,
 		"plan_id":              saved.PlanID,
 		"product_name":         saved.ProductName,
-		"hosted_button_id":    saved.HostedButtonID,
+		"hosted_button_id":     saved.HostedButtonID,
 		"currency":             saved.Currency,
 		"amount":               saved.Amount,
-		"services":            saved.Services,
-		"billing_period":      saved.BillingPeriod,
+		"services":             saved.Services,
+		"billing_period":       saved.BillingPeriod,
 		"paypal_checkout_mode": "hosted",
 		"paypal_checkout_url":  h.CheckoutURL,
 		"created_at":           saved.CreatedAt,
-		"correlation_id":      httpx.CorrelationFromRequest(r),
+		"correlation_id":       httpx.CorrelationFromRequest(r),
 	})
 }
 
@@ -174,6 +178,25 @@ func (h *Handler) ListMyEntitlements(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"email":        email,
 		"entitlements": h.Store.ListEntitlements(email),
+		"is_admin":     auth.IsAdminEmail(email),
+	})
+}
+
+// CheckAccess reports whether the JWT user may use a given service.
+func (h *Handler) CheckAccess(w http.ResponseWriter, r *http.Request) {
+	email := auth.UserEmailFromRequest(r)
+	serviceID := strings.ToLower(strings.TrimSpace(chi.URLParam(r, "serviceID")))
+	if !KnownService(serviceID) {
+		httpx.WriteError(w, http.StatusBadRequest, "unknown service")
+		return
+	}
+	admin := auth.IsAdminEmail(email)
+	allowed := HasServiceAccess(admin, h.Store.ListEntitlements(email), serviceID)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"email":      email,
+		"service_id": serviceID,
+		"allowed":    allowed,
+		"is_admin":   admin,
 	})
 }
 
@@ -195,7 +218,7 @@ func normalizeServices(ids []string) []string {
 	out := make([]string, 0, len(ids))
 	for _, raw := range ids {
 		id := strings.ToLower(strings.TrimSpace(raw))
-		if _, ok := serviceCatalog[id]; !ok {
+		if !KnownService(id) {
 			continue
 		}
 		if seen[id] {

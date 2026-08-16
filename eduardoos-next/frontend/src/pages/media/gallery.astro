@@ -1,26 +1,10 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { APP_ROUTES } from "../../config/routes";
+import GalleryPage from "../../components/Gallery/GalleryPage";
 ---
 
 <BaseLayout title="Videos — Eduardo OS Next">
   <div class="page-shell">
-    <article class="product-page">
-      <p class="product-page__brand">Media</p>
-      <h1 class="product-page__title">Gallery</h1>
-      <p class="product-page__lead">
-        Images and short videos from the media library. Cloud objects will list
-        from <code>/api/media</code>; sign in to prepare upload entitlements.
-      </p>
-      <div class="product-page__cta-row">
-        <a
-          class="btn btn--primary"
-          href={`${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.mediaGallery)}`}
-        >
-          Sign in
-        </a>
-        <a class="btn" href={APP_ROUTES.mediaPlaylist}>Music playlists</a>
-      </div>
-    </article>
+    <GalleryPage client:load />
   </div>
 </BaseLayout>

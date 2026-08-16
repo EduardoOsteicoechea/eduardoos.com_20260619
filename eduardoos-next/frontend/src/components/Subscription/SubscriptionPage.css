@@ -69,6 +69,12 @@
   color: var(--site-meta-fg);
 }
 
+.subscription-page__price {
+  font-weight: 600;
+  color: var(--site-accent);
+  font-size: var(--font-sm);
+}
+
 .subscription-page__total {
   margin: 0;
   font-size: 1.05rem;

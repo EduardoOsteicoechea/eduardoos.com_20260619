@@ -149,21 +149,31 @@
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
   border-radius: 50%;
-  border: 2px solid var(--site-accent);
+  /* Surface ring + ink outline: accent fill alone blends into the home wash. */
+  border: 2px solid var(--site-surface, var(--site-body-bg));
+  outline: 1px solid color-mix(in srgb, var(--site-body-fg) 32%, transparent);
+  outline-offset: 0;
   background: var(--site-accent);
   color: var(--site-accent-fg);
-  font-size: 0.75rem;
+  font-family: var(--font-display, Montserrat, system-ui, sans-serif);
+  font-size: 0.85rem;
   font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
   padding: 0;
   cursor: pointer;
   overflow: hidden;
+  box-sizing: border-box;
   box-shadow: var(--site-shadow);
+  flex-shrink: 0;
 }
 
 .site-header__profile:hover {
-  outline: 2px solid var(--site-focus-ring, var(--site-accent));
-  outline-offset: 2px;
+  filter: brightness(1.06);
+  outline-color: var(--site-accent);
 }
 
 .site-header__profile-img {
@@ -174,6 +184,12 @@
 }
 
 .site-header__profile-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--site-accent-fg);
   line-height: 1;
   user-select: none;
 }

@@ -4,10 +4,21 @@ import react from "@astrojs/react";
 // Dev-only proxy to next backend (:3001). Production cutover will use nginx /api/.
 export default defineConfig({
   integrations: [react()],
+  output: "static",
+  build: {
+    assets: "assets",
+  },
   server: {
     port: 4322,
   },
   vite: {
+    optimizeDeps: {
+      // web-ifc ships WASM; keep Vite from pre-bundling it incorrectly.
+      exclude: ["web-ifc"],
+    },
+    worker: {
+      format: "es",
+    },
     server: {
       proxy: {
         "/api": "http://127.0.0.1:3001",

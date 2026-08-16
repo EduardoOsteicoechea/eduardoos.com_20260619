@@ -4,20 +4,29 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/copy-web-ifc-wasm.mjs",
+    "prebuild": "node scripts/copy-web-ifc-wasm.mjs",
     "dev": "astro dev --port 4322",
     "build": "astro build",
-    "preview": "astro preview --port 4322"
+    "preview": "astro preview --port 4322",
+    "test:aps-registry": "node --test src/lib/apsRegistry.test.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^4.2.0",
+    "@thatopen/components": "^3.4.8",
+    "@thatopen/fragments": "^3.4.7",
     "astro": "^5.3.0",
+    "camera-controls": "^3.1.2",
     "localforage": "^1.10.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "three": "^0.184.0",
+    "web-ifc": "^0.0.77"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.184.1",
     "typescript": "^5.7.0"
   }
 }

@@ -93,6 +93,8 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Email:        email,
 		PasswordHash: HashPassword(body.Password),
 		Verified:     false,
+		Role:         ResolveRole(email, RoleUser),
+		CreatedAt:    NowRFC3339(),
 	}); err != nil {
 		log.Printf("[correlation=%s] auth.register put_user_failed err=%v", cid, err)
 		httpx.WriteError(w, http.StatusBadGateway, "could not create account")

@@ -1,9 +1,10 @@
 /**
- * OpenBIM library: list models, upload real IFC bytes, preview text head, download.
- * Lightweight — no That Open / web-ifc / three (keeps Astro build memory low).
+ * OpenBIM library: list models, upload real IFC bytes, download, and view in
+ * That Open / Three.js (IfcViewer island). API failures use ServerErrorModal;
+ * viewer conversion errors stay in-panel so the page does not blank.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
   createBimModel,
@@ -14,7 +15,10 @@ import {
   type BimModel,
 } from "../../lib/bim";
 import { isAuthenticated } from "../../lib/auth";
+import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import "./BimPage.css";
+
+const IfcViewer = lazy(() => import("./IfcViewer"));
 
 function formatBytes(n: number): string {
   if (!n) return "0 B";
@@ -23,16 +27,25 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function reportApiError(err: unknown, summary: string): void {
+  const details = err instanceof Error ? err.message : String(err);
+  openApiErrorModal(details, {
+    title: "OpenBIM error",
+    summary,
+  });
+}
+
 export default function BimPage() {
   const [models, setModels] = useState<BimModel[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [activeId, setActiveId] = useState("");
-  const [preview, setPreview] = useState("");
   const [fileBytes, setFileBytes] = useState<Uint8Array | null>(null);
   const [previewMeta, setPreviewMeta] = useState("");
   const [viewerStatus, setViewerStatus] = useState("");
+  const [showHead, setShowHead] = useState(false);
+  const [textPreview, setTextPreview] = useState("");
 
   const loadList = useCallback(async () => {
     const list = await fetchBimModels();
@@ -49,7 +62,11 @@ export default function BimPage() {
       try {
         await loadList();
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load models");
+        if (!cancelled) {
+          const msg = err instanceof Error ? err.message : "Could not load models";
+          setError(msg);
+          reportApiError(err, "Could not list IFC models from /api/bim/models.");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -68,7 +85,9 @@ export default function BimPage() {
       setModels((prev) => [saved, ...prev.filter((m) => m.modelId !== saved.modelId)]);
       await openModel(saved);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      setError(msg);
+      reportApiError(err, "IFC upload to /api/bim/models failed.");
     } finally {
       setUploading(false);
     }
@@ -82,7 +101,9 @@ export default function BimPage() {
       setModels((prev) => [saved, ...prev.filter((m) => m.modelId !== saved.modelId)]);
       await openModel(saved);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
+      const msg = err instanceof Error ? err.message : "Create failed";
+      setError(msg);
+      reportApiError(err, "Could not create placeholder IFC model.");
     } finally {
       setUploading(false);
     }
@@ -92,24 +113,22 @@ export default function BimPage() {
     setError("");
     setActiveId(model.modelId);
     setViewerStatus("Downloading IFC…");
-    setPreview("");
     setFileBytes(null);
     setPreviewMeta("");
+    setTextPreview("");
     try {
       const file = await fetchBimFileBytes(model.modelId);
       setFileBytes(file.bytes);
-      setPreview(file.textPreview);
-      const truncated =
-        file.byteLength > file.textPreview.length
-          ? ` · preview ${formatBytes(file.textPreview.length)} of ${formatBytes(file.byteLength)}`
-          : "";
+      setTextPreview(file.textPreview);
       setPreviewMeta(
-        `${formatBytes(file.byteLength)} · ${file.contentType}${truncated}`,
+        `${formatBytes(file.byteLength)} · ${file.contentType}`,
       );
-      setViewerStatus("File ready — text preview (no 3D viewer in this build)");
+      setViewerStatus("");
     } catch (err) {
       setViewerStatus("");
-      setError(err instanceof Error ? err.message : "Could not open IFC");
+      const msg = err instanceof Error ? err.message : "Could not open IFC";
+      setError(msg);
+      reportApiError(err, `Could not download IFC bytes for ${model.modelId}.`);
     }
   }
 
@@ -121,9 +140,9 @@ export default function BimPage() {
         <header className="bim-page__library-head">
           <h1 className="bim-page__title">OpenBIM</h1>
           <p className="bim-page__lead">
-            Upload real IFC bytes to <code>/api/bim/models</code>. Memory store keeps
-            them in-process; set <code>IFCBIM_S3_BUCKET</code> on the Next backend for
-            S3-backed objects under <code>ifcbim/</code>.
+            Upload IFC to <code>/api/bim/models</code>, then open in the That Open /
+            Three.js viewer. Memory store by default; set <code>IFCBIM_S3_BUCKET</code>{" "}
+            for S3 under <code>ifcbim/</code>.
           </p>
           <div className="bim-page__actions">
             <label className="bim-page__upload">
@@ -180,9 +199,9 @@ export default function BimPage() {
         </ul>
       </aside>
 
-      <section className="bim-page__viewer" aria-label="IFC file preview">
+      <section className="bim-page__viewer" aria-label="IFC 3D viewer">
         {!activeId ? (
-          <p className="bim-page__viewer-status">Select a model to preview its IFC bytes.</p>
+          <p className="bim-page__viewer-status">Select a model to load it in the 3D viewer.</p>
         ) : (
           <>
             <div className="bim-page__viewer-bar">
@@ -191,27 +210,38 @@ export default function BimPage() {
                 {previewMeta ? <p className="bim-page__viewer-meta">{previewMeta}</p> : null}
                 {viewerStatus ? <p className="bim-page__viewer-status">{viewerStatus}</p> : null}
               </div>
-              {fileBytes ? (
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={() =>
-                    downloadBimBytes(activeId, active?.name || activeId, fileBytes)
-                  }
-                >
-                  Download IFC
-                </button>
-              ) : null}
+              <div className="bim-page__viewer-actions">
+                {textPreview ? (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setShowHead((v) => !v)}
+                  >
+                    {showHead ? "Hide IFC head" : "Show IFC head"}
+                  </button>
+                ) : null}
+                {fileBytes ? (
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() =>
+                      downloadBimBytes(activeId, active?.name || activeId, fileBytes)
+                    }
+                  >
+                    Download IFC
+                  </button>
+                ) : null}
+              </div>
             </div>
-            <div className="bim-page__canvas" role="status">
-              <p className="bim-page__canvas-msg">
-                Lightweight preview — full That Open / web-ifc 3D viewer is deferred to
-                keep build memory predictable.
-              </p>
-            </div>
-            {preview ? (
+            <Suspense fallback={<p className="bim-page__viewer-status">Loading viewer…</p>}>
+              <IfcViewer
+                buffer={fileBytes}
+                modelName={active?.name || activeId || "model"}
+              />
+            </Suspense>
+            {showHead && textPreview ? (
               <pre className="bim-page__preview" tabIndex={0}>
-                {preview}
+                {textPreview}
               </pre>
             ) : null}
           </>

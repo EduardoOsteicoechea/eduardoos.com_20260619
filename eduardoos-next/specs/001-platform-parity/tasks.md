@@ -52,7 +52,7 @@ Status: **partial** (see Remaining for parity). Cutover **T099** executed 2026-0
 Honest gaps vs full product surface (accepted at cutover; track post-cutover):
 
 - **Pamphlet PDF print** — stub single-page PDF from Next `pkg/pdf.BuildSamplePDF` (Print button works); full landscape Roboto layout parity still deferred.
-- **That Open / OpenBIM 3D viewer** — multipart upload stores real IFC bytes in memory (GET returns them); optional S3 when `IFCBIM_S3_BUCKET`/`S3_BUCKET` + AWS creds; no That Open / web-ifc / three viewer yet (deferred for build memory).
+- ~~**That Open / OpenBIM 3D viewer**~~ — done: `/bim` `IfcViewer` island (`@thatopen/components`, fragments, `web-ifc`, three); bytes from `GET /api/bim/models/:id/file`; WASM via `public/web-ifc/` (postinstall/prebuild copy).
 - **Playlists / Music** — worship `PlaylistBuilder` on `/media/musica` (library + lyrics + admin lyric editor via `/api/media/audio`, `/api/media/file/*`, `/api/emusic`); legacy memory playlist CRUD still mounted but not primary UI.
 - **Payments / PayPal** — JWT `POST /api/payments/intents`, public `GET /api/payments/status/{id}`, entitlements list/preview (memory store); subscription UI prepares intent + hosted button via `PAYPAL_HOSTED_BUTTON_ID`. No PayPal IPN webhook, Dynamo `eduardoos_payments`, or real entitlement grants after checkout.
 - **Edebat AI** — JWT memory list/create + turn (role+text) wired; no LLM referee, surrender/KO, Dynamo, or S3 `.edebat` bodies.

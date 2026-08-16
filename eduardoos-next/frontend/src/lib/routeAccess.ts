@@ -1,7 +1,7 @@
 /**
  * Which page paths are public without a JWT.
- * Protected: /bim, /aps-admin (and any future private surfaces).
- * Pamphlet editor stub stays public (local-file workflow).
+ * Subscription-gated product surfaces require sign-in (entitlement checked in-page).
+ * Admin users dashboard is never public.
  */
 
 import { APP_ROUTES } from "../config/routes";
@@ -19,25 +19,42 @@ export function isPublicPagePath(pathname: string): boolean {
   if (path === "/") return true;
   if (path.startsWith("/auth/")) return true;
   if (path === normalizePath(APP_ROUTES.contact)) return true;
-  if (path === normalizePath(APP_ROUTES.homescool)) return true;
   if (path === normalizePath(APP_ROUTES.articles) || path.startsWith("/articulos/")) {
     return true;
   }
-  if (path === normalizePath(APP_ROUTES.debateApp) || path === "/edebat") return true;
   if (path === normalizePath(APP_ROUTES.subscription)) return true;
-  if (path === normalizePath(APP_ROUTES.mediaGallery)) return true;
+
+  return false;
+}
+
+/** Maps app routes to billable service ids (admin bypasses). */
+export function serviceIdForPath(pathname: string): string | null {
+  const path = normalizePath(pathname);
   if (
     path === normalizePath(APP_ROUTES.mediaPlaylist) ||
     path.startsWith(`${normalizePath(APP_ROUTES.mediaPlaylist)}/`)
   ) {
-    return true;
+    return "playlist";
   }
   if (
     path === normalizePath(APP_ROUTES.pamphlet) ||
     path.startsWith(`${normalizePath(APP_ROUTES.pamphlet)}/`)
   ) {
-    return true;
+    return "pamphlet";
   }
-
-  return false;
+  if (
+    path === normalizePath(APP_ROUTES.debateApp) ||
+    path === "/edebat" ||
+    path.startsWith(`${normalizePath(APP_ROUTES.debateApp)}/`)
+  ) {
+    return "debate";
+  }
+  if (path === normalizePath(APP_ROUTES.homescool)) return "homescool";
+  if (
+    path === normalizePath(APP_ROUTES.mediaGallery) ||
+    path.startsWith(`${normalizePath(APP_ROUTES.mediaGallery)}/`)
+  ) {
+    return "videos";
+  }
+  return null;
 }

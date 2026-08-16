@@ -139,9 +139,10 @@ export default function SubscriptionPage() {
         <p className="subscription-page__brand">Payments</p>
         <h1 className="subscription-page__title">Subscription</h1>
         <p className="subscription-page__lead">
-          Choose services ($1/month or $10/year each), prepare a checkout intent,
-          then use the PayPal hosted button. Button id comes from the intent
-          (backend <code>PAYPAL_HOSTED_BUTTON_ID</code>).
+          Music, Pamphlet, Homescool, and Videos are $1/month each; Debate App is
+          $3/month. Yearly is 10× the monthly total. Prepare a checkout intent,
+          then use the PayPal hosted button (
+          <code>PAYPAL_HOSTED_BUTTON_ID</code>).
         </p>
       </header>
 
@@ -182,7 +183,12 @@ export default function SubscriptionPage() {
                 onChange={() => toggleService(service.id)}
               />
               <span>
-                <strong>{service.label}</strong>
+                <strong>
+                  {service.label}{" "}
+                  <span className="subscription-page__price">
+                    ${service.monthlyUsd}/mo
+                  </span>
+                </strong>
                 <span className="subscription-page__service-desc">{service.description}</span>
               </span>
             </label>

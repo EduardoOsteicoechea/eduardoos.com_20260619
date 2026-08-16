@@ -1,114 +1,6 @@
 /* Portable pamphlet generator — styles scoped to .pamphlet-app for Astro layout embed */
 
-/* Chrome is teleported to document.body; never leak onto other routes. */
-body.page-pamphlet #file-toolbar {
-  position: fixed;
-  top: auto;
-  bottom: 0;
-  right: 0;
-  left: auto;
-  width: calc(100% * var(--ui-zoom, 1));
-  height: 55px;
-  z-index: 30;
-  margin: 0;
-  padding: 0;
-  pointer-events: none;
-  transform: scale(var(--ui-inv-zoom, 1));
-  transform-origin: bottom right;
-}
-
-body.page-pamphlet .menu-toggle {
-  position: absolute;
-  bottom: 15px;
-  right: 15px;
-  top: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  background: var(--site-body-fg, #222);
-  border: 1px solid var(--site-body-fg, #222);
-  border-radius: 0px;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-body.page-pamphlet .menu-toggle[aria-expanded="true"] {
-  background: var(--site-medium, #444);
-  border-color: var(--site-medium, #444);
-}
-
-body.page-pamphlet .menu-toggle-icon {
-  width: 24px;
-  height: 24px;
-  display: block;
-  pointer-events: none;
-}
-
-body.page-pamphlet .sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  z-index: 40;
-}
-
-body.page-pamphlet .sidebar-backdrop[hidden] {
-  display: none !important;
-}
-
-body.page-pamphlet .app-sidebar {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: min(280px, 85vw);
-  height: 100vh;
-  background: #1e1e1e;
-  color: #f2f2f2;
-  z-index: 50;
-  transform: translateX(100%);
-  transition: transform 0.2s ease;
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25);
-  padding: 72px 20px 32px;
-  border-radius: 0;
-}
-
-body.page-pamphlet .app-sidebar.is-open {
-  transform: translateX(0);
-}
-
-.app-sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 4px 0;
-}
-
-.app-sidebar-nav button {
-  width: 100%;
-  padding: 14px 16px;
-  text-align: left;
-  background: #333;
-  color: #fff;
-  cursor: pointer;
-  border-radius: 0;
-  font-size: 14px;
-}
-
-.app-sidebar-nav button:hover:not(:disabled) {
-  background: #454545;
-}
-
-.app-sidebar-nav button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.app-sidebar-nav button.is-active {
-  background: #555;
-  outline: 1px solid #888;
-}
+/* Activity bar chrome is shared (ActivityBar.css); hide on print below. */
 
 .create-modal {
   border: 1px solid #c8c8c8;
@@ -1197,10 +1089,8 @@ body.page-pamphlet .app-sidebar.is-open {
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-8 { order: 10; }
 
 @media print {
-  .pamphlet-app #file-toolbar,
-  .pamphlet-app .app-sidebar,
-  .pamphlet-app .sidebar-backdrop,
-  .pamphlet-app .menu-toggle,
+  .pamphlet-activity-bar,
+  .activity-bar.pamphlet-activity-bar,
   .pamphlet-app .pamphlet-add-item-button,
   .pamphlet-app .element_edit_tray {
     display: none !important;

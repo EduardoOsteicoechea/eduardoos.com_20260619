@@ -55,6 +55,8 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Use(h.auth.RequireJWT)
 		r.Put("/api/emusic/{slug}", h.PutEmusic)
 
+		// series-tree before {id} so "series-tree" is not captured as an epam id.
+		r.Get("/api/epams/series-tree", h.ListEpamSeriesTree)
 		r.Get("/api/epams", h.ListEpams)
 		r.Post("/api/epams", h.CreateEpam)
 		r.Get("/api/epams/{id}", h.GetEpam)
@@ -73,12 +75,16 @@ func (h *Handler) Routes(r chi.Router) {
 
 // epamWriteBody accepts both the thin shell ({title,body}) and the
 // production pamphlet-generator payload ({epamId,fileName,document}).
+// Series fields may be set explicitly or synced from document.header.
 type epamWriteBody struct {
-	Title    string         `json:"title"`
-	Body     map[string]any `json:"body"`
-	EpamID   string         `json:"epamId"`
-	FileName string         `json:"fileName"`
-	Document map[string]any `json:"document"`
+	Title         string         `json:"title"`
+	Body          map[string]any `json:"body"`
+	EpamID        string         `json:"epamId"`
+	FileName      string         `json:"fileName"`
+	Document      map[string]any `json:"document"`
+	Series        string         `json:"series"`
+	SeriesChapter string         `json:"seriesChapter"`
+	Author        string         `json:"author"`
 }
 
 func epamDocumentResponse(rec EpamRecord) map[string]any {
@@ -94,6 +100,39 @@ func epamDocumentResponse(rec EpamRecord) map[string]any {
 	}
 }
 
+func stringFromAny(v any) string {
+	if s, ok := v.(string); ok {
+		return strings.TrimSpace(s)
+	}
+	return ""
+}
+
+// syncEpamMetaFromHeader copies series/chapter/author/title from pamphlet JSON header into Dynamo-shaped meta.
+func syncEpamMetaFromHeader(rec *EpamRecord) {
+	if rec.Body == nil {
+		return
+	}
+	header, ok := rec.Body["header"].(map[string]any)
+	if !ok {
+		return
+	}
+	if t := stringFromAny(header["title"]); t != "" {
+		rec.Title = t
+	}
+	if s := stringFromAny(header["series"]); s != "" {
+		rec.Series = s
+	}
+	if c := stringFromAny(header["series_chapter"]); c != "" {
+		rec.SeriesChapter = c
+	}
+	if a := stringFromAny(header["author"]); a != "" {
+		rec.Author = a
+	}
+	if d := stringFromAny(header["date"]); d != "" {
+		rec.Date = d
+	}
+}
+
 func applyEpamWrite(rec *EpamRecord, body epamWriteBody) {
 	if body.EpamID != "" {
 		rec.EpamID = body.EpamID
@@ -103,19 +142,25 @@ func applyEpamWrite(rec *EpamRecord, body epamWriteBody) {
 	}
 	if body.Document != nil {
 		rec.Body = body.Document
-		if title, ok := body.Document["header"].(map[string]any); ok {
-			if t, ok := title["title"].(string); ok && t != "" && body.Title == "" {
-				rec.Title = t
-			}
-		}
 		if id, ok := body.Document["id"].(string); ok && id != "" && rec.EpamID == "" {
 			rec.EpamID = id
 		}
+		syncEpamMetaFromHeader(rec)
 	} else if body.Body != nil {
 		rec.Body = body.Body
+		syncEpamMetaFromHeader(rec)
 	}
 	if body.Title != "" {
 		rec.Title = body.Title
+	}
+	if body.Series != "" {
+		rec.Series = strings.TrimSpace(body.Series)
+	}
+	if body.SeriesChapter != "" {
+		rec.SeriesChapter = strings.TrimSpace(body.SeriesChapter)
+	}
+	if body.Author != "" {
+		rec.Author = strings.TrimSpace(body.Author)
 	}
 	if raw, err := json.Marshal(rec.Body); err == nil {
 		rec.ContentSizeBytes = int64(len(raw))
@@ -135,10 +180,24 @@ func (h *Handler) ListEpams(w http.ResponseWriter, r *http.Request) {
 	}
 	// Dual keys: pamphlet-generator expects {count,epams}; shell UI used items.
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"count":  len(out),
-		"epams":  out,
-		"items":  out,
+		"count": len(out),
+		"epams": out,
+		"items": out,
 	})
+}
+
+// ListEpamSeriesTree returns series → chapters → pamphlet for the signed-in user.
+func (h *Handler) ListEpamSeriesTree(w http.ResponseWriter, r *http.Request) {
+	email := auth.UserEmailFromRequest(r)
+	cid := httpx.CorrelationFromRequest(r)
+	out, err := h.Epams.ListByUser(r.Context(), email, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	tree := BuildSeriesTree(out)
+	log.Printf("[correlation=%s] epams.series_tree user=%s count=%d series=%d", cid, email, tree.Count, len(tree.Series))
+	httpx.WriteJSON(w, http.StatusOK, tree)
 }
 
 func (h *Handler) CreateEpam(w http.ResponseWriter, r *http.Request) {

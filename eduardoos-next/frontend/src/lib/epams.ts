@@ -92,6 +92,43 @@ export async function fetchEpams(): Promise<EpamsListResponse> {
   };
 }
 
+export type EpamSeriesTreeItem = {
+  epamId: string;
+  title: string;
+  fileName?: string;
+  series?: string;
+  seriesChapter?: string;
+  updatedAt?: string;
+};
+
+export type EpamSeriesTreeChapter = {
+  name: string;
+  items: EpamSeriesTreeItem[];
+};
+
+export type EpamSeriesTreeNode = {
+  name: string;
+  chapters: EpamSeriesTreeChapter[];
+};
+
+export type EpamSeriesTreeResponse = {
+  count: number;
+  series: EpamSeriesTreeNode[];
+};
+
+/** Series → chapters → pamphlet tree for the signed-in user. */
+export async function fetchEpamSeriesTree(): Promise<EpamSeriesTreeResponse> {
+  const result = await apiRequest<EpamSeriesTreeResponse>(EPAM_ROUTES.seriesTree, {
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) throw new Error(formatApiError(result.error));
+  return {
+    count: result.data?.count ?? 0,
+    series: result.data?.series ?? [],
+  };
+}
+
 /** Production-compatible get: `{ meta, document }`. */
 export async function fetchEpam(epamId: string): Promise<EpamDocumentResponse> {
   const result = await apiRequest<EpamDocumentResponse | EpamRecord>(EPAM_ROUTES.item(epamId), {

@@ -3,7 +3,7 @@
  *
  * Fetches the signed-in user's profile (including optional avatar URL) from
  * `/api/auth/profile`. When the Next backend does not yet expose that route,
- * callers treat a null result as “no photo” and fall back to the JWT initial.
+ * callers treat a null result as "no photo" and fall back to the JWT initial.
  */
 
 import { AUTH_API_ROUTES } from "../config/routes";
