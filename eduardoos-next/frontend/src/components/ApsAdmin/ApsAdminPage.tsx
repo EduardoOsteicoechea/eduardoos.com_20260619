@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { APP_ROUTES, APS_ROUTES } from "../../config/routes";
 import {
+  APS_ADMIN_EMAIL,
   getAuthEmailFromToken,
   getAuthToken,
   isApsAdminEmail,
@@ -15,8 +16,10 @@ import {
 } from "../../lib/auth";
 import { apiRequest, formatApiError, type ApiError } from "../../lib/api";
 import { createCorrelationId } from "../../lib/correlation";
+import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import "./ApsAdminPage.css";
 
+const APS_ADMIN_EMAIL_DISPLAY = APS_ADMIN_EMAIL;
 const DEFAULT_INPUT_KEY = "singleRoom.rvt";
 const POLL_MS = 4000;
 const MAX_POLLS = 180;
@@ -76,11 +79,35 @@ function formatApsError(error: ApiError): string {
       "APS not configured (HTTP 503).",
       "Set APS_CLIENT_ID, APS_CLIENT_SECRET, and APS_ACTIVITY_ID on the Next backend, then retry.",
       error.message,
+      formatApiError(error),
     ]
       .filter(Boolean)
-      .join(" ");
+      .join("\n");
   }
   return formatApiError(error);
+}
+
+function reportApsError(details: string, summary?: string): void {
+  openApiErrorModal(details, {
+    title: "APS server error",
+    summary: summary ?? "The APS API call failed. Copy the block below for debugging.",
+  });
+}
+
+function resolveApsAccess(): {
+  authorized: boolean;
+  email: string | null;
+  needsLogin: boolean;
+} {
+  if (!isAuthenticated()) {
+    return { authorized: false, email: null, needsLogin: true };
+  }
+  const email = getAuthEmailFromToken();
+  return {
+    authorized: isApsAdminEmail(email),
+    email,
+    needsLogin: false,
+  };
 }
 
 function itemName(item: {
@@ -107,6 +134,7 @@ function unwrapList<T>(payload: unknown): T[] {
 
 export default function ApsAdminPage() {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [accessEmail, setAccessEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusLabel, setStatusLabel] = useState("");
   const [payload, setPayload] = useState<unknown>(null);
@@ -127,13 +155,33 @@ export default function ApsAdminPage() {
   const [explorerError, setExplorerError] = useState("");
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      window.location.replace(
-        `${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.apsAdmin)}`,
-      );
-      return;
+    let cancelled = false;
+
+    function applyAccess() {
+      const access = resolveApsAccess();
+      if (cancelled) return;
+      setAccessEmail(access.email);
+      // Always leave the null/"Checking access…" state — never hang here.
+      setAuthorized(access.authorized);
+      if (access.needsLogin) {
+        window.location.replace(
+          `${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.apsAdmin)}`,
+        );
+      }
     }
-    setAuthorized(isApsAdminEmail(getAuthEmailFromToken()));
+
+    applyAccess();
+    document.addEventListener("astro:page-load", applyAccess);
+    // Safety net: if something prevents the first apply, unlock the UI.
+    const unlock = window.setTimeout(() => {
+      setAuthorized((prev) => (prev === null ? false : prev));
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("astro:page-load", applyAccess);
+      window.clearTimeout(unlock);
+    };
   }, []);
 
   async function handleTrigger() {
@@ -155,6 +203,7 @@ export default function ApsAdminPage() {
         ? formatApsError(submitted.error)
         : "WorkItem submit failed — no workItemId in response";
       setError(detail);
+      reportApsError(detail, "WorkItem submit failed.");
       setPayload({ error: submitted.error, data: submitted.data ?? null });
       setLoading(false);
       setStatusLabel("");
@@ -178,7 +227,9 @@ export default function ApsAdminPage() {
       );
 
       if (statusRes.error) {
-        setError(formatApsError(statusRes.error));
+        const detail = formatApsError(statusRes.error);
+        setError(detail);
+        reportApsError(detail, "WorkItem status poll failed.");
         setPayload({ error: statusRes.error, data: statusRes.data ?? null });
         setLoading(false);
         setStatusLabel("");
@@ -197,6 +248,10 @@ export default function ApsAdminPage() {
     }
 
     setError("Timed out waiting for APS WorkItem (client poll limit)");
+    reportApsError(
+      "Timed out waiting for APS WorkItem (client poll limit)",
+      "WorkItem polling stopped.",
+    );
     setLoading(false);
     setStatusLabel("");
   }
@@ -210,7 +265,9 @@ export default function ApsAdminPage() {
       authToken: getAuthToken(),
     });
     if (res.error) {
-      setRegistryError(formatApsError(res.error));
+      const detail = formatApsError(res.error);
+      setRegistryError(detail);
+      reportApsError(detail, "DA registry request failed.");
       setRegistry(null);
     } else {
       setRegistry(res.data ?? null);
@@ -233,7 +290,9 @@ export default function ApsAdminPage() {
       authToken: getAuthToken(),
     });
     if (res.error) {
-      setExplorerError(formatApsError(res.error));
+      const detail = formatApsError(res.error);
+      setExplorerError(detail);
+      reportApsError(detail, "Hub list failed.");
       setHubs([]);
     } else {
       setHubs(unwrapList<HubItem>(res.data));
@@ -255,7 +314,9 @@ export default function ApsAdminPage() {
       authToken: getAuthToken(),
     });
     if (res.error) {
-      setExplorerError(formatApsError(res.error));
+      const detail = formatApsError(res.error);
+      setExplorerError(detail);
+      reportApsError(detail, "Project list failed.");
       setProjects([]);
     } else {
       setProjects(unwrapList<ProjectItem>(res.data));
@@ -280,7 +341,9 @@ export default function ApsAdminPage() {
       authToken: getAuthToken(),
     });
     if (res.error) {
-      setExplorerError(formatApsError(res.error));
+      const detail = formatApsError(res.error);
+      setExplorerError(detail);
+      reportApsError(detail, "Folder contents request failed.");
       setContents([]);
     } else {
       setContents(unwrapList<ContentItem>(res.data));
@@ -329,7 +392,18 @@ export default function ApsAdminPage() {
         </h1>
         <p className="aps-admin__lead">
           This page is restricted to the APS admin allowlist
-          (<code>eduardooost@gmail.com</code>).
+          (<code>{APS_ADMIN_EMAIL_DISPLAY}</code>).
+          {accessEmail ? (
+            <>
+              {" "}
+              Signed in as <code>{accessEmail}</code>.
+            </>
+          ) : (
+            <> Sign in with the admin account to continue.</>
+          )}
+        </p>
+        <p className="aps-admin__lead">
+          <a href={APP_ROUTES.login}>Go to login</a>
         </p>
       </section>
     );

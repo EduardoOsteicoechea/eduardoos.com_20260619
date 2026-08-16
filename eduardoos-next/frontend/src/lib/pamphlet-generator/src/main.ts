@@ -32,6 +32,7 @@ import { fetchEpam, fetchEpams, saveEpamToCloud } from "../../epams";
 import { getAuthToken, isAuthenticated } from "../../auth";
 import { DOCUMENT_ROUTES } from "../../../config/routes";
 import { createCorrelationId } from "../../telemetry";
+import { openApiErrorModal } from "../../../components/ServerErrorModal/ServerErrorModal";
 import {
     createAddItemButton,
     createItemElement,
@@ -1382,7 +1383,10 @@ on(openSourceCloudBtn, "click", async () => {
                     } catch (err) {
                         const message = err instanceof Error ? err.message : String(err);
                         setError(`Cloud open failed: ${message}`);
-                        window.alert(`No se pudo abrir el panfleto.\n\n${message}`);
+                        openApiErrorModal(message, {
+                            title: "Cloud pamphlet error",
+                            summary: "Could not open this .epam from the server.",
+                        });
                         hint.textContent = "Clic para abrir";
                     } finally {
                         btn.disabled = false;
@@ -1396,7 +1400,10 @@ on(openSourceCloudBtn, "click", async () => {
         closeOpenCloudModal();
         const message = err instanceof Error ? err.message : String(err);
         setError(`Cloud list failed: ${message}`);
-        window.alert(`No se pudo listar panfletos en la nube.\n\n${message}`);
+        openApiErrorModal(message, {
+            title: "Cloud pamphlet error",
+            summary: "Could not list pamphlets from the server.",
+        });
     }
 });
 

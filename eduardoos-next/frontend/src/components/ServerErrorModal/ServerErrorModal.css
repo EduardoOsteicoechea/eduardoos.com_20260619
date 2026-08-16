@@ -1,0 +1,107 @@
+/**
+ * Full-viewport modal for server diagnostics — plain CSS, theme tokens.
+ */
+
+#eos-server-error-modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+}
+
+#eos-server-error-modal-root[hidden] {
+  display: none !important;
+}
+
+.server-error-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  background: color-mix(in srgb, #000 55%, transparent);
+}
+
+.server-error-modal {
+  width: min(560px, 100%);
+  max-height: min(85vh, 720px);
+  overflow: auto;
+  padding: 1.25rem 1.35rem;
+  box-sizing: border-box;
+  background: var(--site-body-bg, #111);
+  color: var(--site-body-fg, #f2f2f2);
+  border: 1px solid var(--site-border, #444);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.server-error-modal__title {
+  margin: 0 0 0.5rem;
+  font-family: Montserrat, system-ui, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.server-error-modal__summary,
+.server-error-modal__label {
+  margin: 0 0 0.65rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--site-muted-fg, #aaa);
+}
+
+.server-error-modal__label {
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.server-error-modal__copyblock {
+  margin: 0 0 1rem;
+  padding: 0.85rem 0.9rem;
+  max-height: 40vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  background: color-mix(in srgb, var(--site-body-fg, #fff) 8%, var(--site-body-bg, #111));
+  border: 1px solid var(--site-border, #444);
+  color: var(--site-body-fg, #f2f2f2);
+  user-select: text;
+  cursor: text;
+}
+
+.server-error-modal__copyblock:focus {
+  outline: 2px solid var(--site-accent, #4a9eff);
+  outline-offset: 2px;
+}
+
+.server-error-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.server-error-modal__btn {
+  min-height: var(--control_min_height, 40px);
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--site-border, #555);
+  background: color-mix(in srgb, var(--site-body-fg, #fff) 8%, var(--site-body-bg, #111));
+  color: var(--site-body-fg, #f2f2f2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.server-error-modal__btn--primary {
+  background: var(--site-body-fg, #f2f2f2);
+  color: var(--site-body-bg, #111);
+  border-color: var(--site-body-fg, #f2f2f2);
+}
+
+.server-error-modal__btn:hover {
+  filter: brightness(1.08);
+}

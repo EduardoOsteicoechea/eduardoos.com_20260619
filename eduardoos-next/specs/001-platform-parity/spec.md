@@ -49,6 +49,12 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
 - Gateway health
 - Correlation ID on API calls
 - Static frontend served behind nginx (cutover-time)
+- **Server error UX (mandatory):** every failed server/API response that the UI surfaces to a user MUST open a modal with:
+  1. a short human summary, and
+  2. a **copyable** monospaced block containing the full diagnostic (`HTTP` status, message, `correlation_id`, path/method, and relevant body excerpt).
+  - Do **not** rely only on `console.error`, silent toasts, or a status line that disappears.
+  - Shared helper: `openApiErrorModal` / `ServerErrorModal` under `frontend/src/components/ServerErrorModal/`.
+  - Operators must be able to copy the block to clipboard in one click.
 
 ## Success criteria
 

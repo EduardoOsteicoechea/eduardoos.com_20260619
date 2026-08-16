@@ -29,7 +29,7 @@ Status: **partial** (see Remaining for parity). Cutover **T099** executed 2026-0
 - [ ] T030 Spec for hub + DA registry UI (acceptance criteria)
 - [x] T031 Backend: list appbundles, activities, engines
 - [x] T032 Backend: list hubs → projects → folder contents
-- [x] T033 Frontend APS panel (admin-gated) consuming those APIs
+- [x] T033 Frontend APS panel (admin-gated) consuming those APIs — access check must never hang on “Checking access…”; API failures use ServerErrorModal (copyable).
 - [x] T034 Preserve workitem trigger/poll
 
 ## Phase P4 — Product UI
