@@ -766,7 +766,11 @@ body.page-pamphlet .app-sidebar.is-open {
   max-width: 100%;
   box-sizing: border-box;
   flex-wrap: nowrap;
-  overflow: hidden;
+  /* Keep delete / trailing actions reachable when the column is narrower than the bar */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .pamphlet-app[data-view-mode="desktop"] .element_edit_tray_buttons_container > button,
