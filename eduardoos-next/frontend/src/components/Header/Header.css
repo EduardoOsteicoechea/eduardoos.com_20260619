@@ -170,6 +170,7 @@
 
 .site-header__account {
   position: relative;
+  z-index: 180;
   flex-shrink: 0;
 }
 
@@ -236,7 +237,8 @@
   position: absolute;
   top: calc(100% + 0.35rem);
   right: 0;
-  z-index: 170;
+  /* Above rail siblings; bar is already z-index 160 over page/hero content. */
+  z-index: 180;
   min-width: 8.5rem;
   padding: 0.25rem;
   border: var(--border_001);
@@ -492,9 +494,12 @@
     background: color-mix(in srgb, var(--site-surface) 96%, var(--site-body-bg));
     backdrop-filter: none;
     box-shadow: 1px 0 0 color-mix(in srgb, var(--site-body-fg) 3%, transparent);
-    overflow-x: hidden;
-    overflow-y: auto;
-    scrollbar-width: thin;
+    /*
+     * Must stay visible: account menu + dynamic trays fly out to the right of
+     * the 60px rail. Scrolling lives on .site-header__dynamic-slot instead.
+     * overflow-x:hidden here clipped the session tray under the home hero.
+     */
+    overflow: visible;
   }
 
   /*
