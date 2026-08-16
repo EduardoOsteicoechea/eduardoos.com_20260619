@@ -26,6 +26,21 @@ func smtpStep(correlationID, phase, detail string) {
 	log.Printf("[correlation=%s] auth.smtp step=%s %s", correlationID, phase, detail)
 }
 
+// SendOwnerMail delivers a plain-text message to the site owner (SMTP_USER,
+// defaulting to eduardooost@gmail.com). Used by the public contact agent when
+// the LLM emits a CONTACT_EMAIL handoff. Empty SMTP_PASS logs locally and
+// returns nil (same as OTP delivery).
+func (h *Handler) SendOwnerMail(correlationID, subject, body string) error {
+	to := ""
+	if h != nil {
+		to = strings.TrimSpace(h.SMTPUser)
+	}
+	if to == "" {
+		to = "eduardooost@gmail.com"
+	}
+	return h.sendPlainMailTraced(correlationID, to, subject, body)
+}
+
 // sendPlainMail delivers a UTF-8 text email via Gmail SMTP when SMTP_PASS is set.
 // When SMTP_PASS is empty (typical local/dev), it logs that delivery was skipped
 // (not the body) and returns nil so register / forgot-password never crash.

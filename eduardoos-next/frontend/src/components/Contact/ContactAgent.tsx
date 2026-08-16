@@ -33,7 +33,12 @@ type ChatMsg = { role: "user" | "assistant"; text: string };
 
 type AskResponse = {
   answer?: string;
-  actions?: Array<{ type?: string; url?: string; href?: string }>;
+  actions?: Array<{
+    type?: string;
+    url?: string;
+    href?: string;
+    whatsappUrl?: string;
+  }>;
 };
 
 export type ContactAgentHandle = {
@@ -47,10 +52,10 @@ function humanTokenFor(scopeId: string, heldMs: number): string {
 function applyContactActions(actions: AskResponse["actions"]) {
   if (!actions?.length) return;
   for (const action of actions) {
-    const url = action.url ?? action.href;
-    if (action.type === "whatsapp" && url) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+    if (action.type !== "whatsapp") continue;
+    const url =
+      action.whatsappUrl ?? action.url ?? action.href ?? CONTACT_WHATSAPP_URL;
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 }
 

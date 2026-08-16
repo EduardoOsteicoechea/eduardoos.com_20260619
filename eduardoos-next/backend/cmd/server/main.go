@@ -10,6 +10,7 @@ import (
 	"eduardoos.nex/internal/admin"
 	"eduardoos.nex/internal/aps"
 	"eduardoos.nex/internal/auth"
+	"eduardoos.nex/internal/contact"
 	"eduardoos.nex/internal/content"
 	"eduardoos.nex/internal/documents"
 	"eduardoos.nex/internal/edebat"
@@ -60,6 +61,7 @@ func main() {
 	documentsHandler := documents.NewHandler(jwtSecret)
 	edebatHandler := edebat.NewHandler(jwtSecret)
 	instrumentalistHandler := instrumentalist.NewHandler(jwtSecret)
+	contactHandler := contact.NewHandler(authHandler)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
 
 	r := chi.NewRouter()
@@ -70,6 +72,8 @@ func main() {
 	r.Get("/health", health.Handler("eduardoos-next"))
 
 	authHandler.Routes(r)
+	// Public visitor AI agent (no JWT): home dock + contact page.
+	contactHandler.Routes(r)
 	contentHandler.Routes(r)
 	apsHandler.Routes(r)
 	paymentsHandler.Routes(r)
