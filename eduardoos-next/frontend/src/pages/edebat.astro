@@ -1,8 +1,7 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
-import EdebatPage from "../components/Edebat/EdebatPage";
+/**
+ * Legacy `/edebat` URL → Debate App route. Keeps old bookmarks working.
+ * File format `.edebat` and `/api/edebat` are unchanged.
+ */
+return Astro.redirect("/debate-app", 301);
 ---
-
-<BaseLayout title="Edebat — Eduardo OS Next">
-  <EdebatPage client:load />
-</BaseLayout>

@@ -120,15 +120,15 @@ export default function EdebatPage() {
     return (
       <section className="edebat-page edebat-page--gate">
         <p className="edebat-page__brand">Personal</p>
-        <h1 className="edebat-page__title">Edebat</h1>
+        <h1 className="edebat-page__title">Debate App</h1>
         <p className="edebat-page__lead">
-          Sign in to create debates, list yours, and append role+text turns via{" "}
-          <code>/api/edebat</code> (in-memory on Next).
+          Sign in to create debates, list yours, and append role+text turns. Documents use the{" "}
+          <code>.edebat</code> format via <code>/api/edebat</code> (in-memory on Next).
         </p>
         <div className="edebat-page__cta-row">
           <a
             className="btn btn--primary"
-            href={`${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.edebat)}`}
+            href={`${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.debateApp)}`}
           >
             Sign in to debate
           </a>
@@ -144,9 +144,10 @@ export default function EdebatPage() {
     <div className="edebat-page">
       <aside className="edebat-page__list-pane" aria-label="Your debates">
         <header className="edebat-page__head">
-          <h1 className="edebat-page__title">Edebat</h1>
+          <h1 className="edebat-page__title">Debate App</h1>
           <p className="edebat-page__lead">
-            Minimal memory store: create a topic, open it, add turns.
+            Debates as <code>.edebat</code> documents (memory store): create a topic, open it, add
+            turns.
           </p>
           <form className="edebat-page__create" onSubmit={(e) => void handleCreate(e)}>
             <div className="form-field">

@@ -39,13 +39,14 @@ const PERSONAL_LINKS = [
     { href: APP_ROUTES.pamphlet, label: "Pamphlet" },
     { href: APP_ROUTES.articles, label: "Articles" },
     { href: APP_ROUTES.mediaGallery, label: "Videos" },
-    { href: APP_ROUTES.edebat, label: "Edebat" },
+    { href: APP_ROUTES.debateApp, label: "Debate App" },
     { href: APP_ROUTES.subscription, label: "Subscribe" },
 ] as const;
 
 function needsAstroReload(href: string): boolean {
     return (
         href === APP_ROUTES.apsAdmin ||
+        href === APP_ROUTES.debateApp ||
         href === APP_ROUTES.edebat ||
         href === APP_ROUTES.pamphlet
     );

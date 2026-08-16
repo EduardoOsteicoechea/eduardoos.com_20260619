@@ -23,7 +23,7 @@ export function isPublicPagePath(pathname: string): boolean {
   if (path === normalizePath(APP_ROUTES.articles) || path.startsWith("/articulos/")) {
     return true;
   }
-  if (path === normalizePath(APP_ROUTES.edebat)) return true;
+  if (path === normalizePath(APP_ROUTES.debateApp) || path === "/edebat") return true;
   if (path === normalizePath(APP_ROUTES.subscription)) return true;
   if (path === normalizePath(APP_ROUTES.mediaGallery)) return true;
   if (

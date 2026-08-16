@@ -17,7 +17,10 @@ export const APP_ROUTES = {
     homescool: "/homescool",
     bim: "/bim",
     apsAdmin: "/aps-admin",
-    edebat: "/edebat",
+    /** UI: Debate App. Format/API remain `.edebat` / `/api/edebat`. */
+    debateApp: "/debate-app",
+    /** @deprecated Prefer debateApp — same path. */
+    edebat: "/debate-app",
 } as const;
 export const EDEBAT_API_ROUTES = {
     list: "/api/edebat",

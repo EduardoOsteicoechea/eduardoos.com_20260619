@@ -54,7 +54,7 @@ Open [http://127.0.0.1:4322](http://127.0.0.1:4322). Browser calls stay same-ori
 3. `/media/musica` — list/create playlists; add track title/url; HTML5 audio when URL present.
 4. `/payments/subscription` — JWT prepare intent + PayPal hosted button (`PAYPAL_HOSTED_BUTTON_ID`).
 5. `/bim` — upload real IFC bytes (multipart), list, download; placeholder create still works.
-6. `/edebat` — JWT list/create debates + append role/text turns (memory store).
+6. `/debate-app` (Debate App) — JWT list/create debates + append role/text turns (memory store; `.edebat` / `/api/edebat`). Legacy `/edebat` redirects here.
 7. `/aps-admin` — admin email only; needs APS credentials for live Autodesk calls.
 
 Optional BIM S3: set `IFCBIM_S3_BUCKET` (or `S3_BUCKET`) plus AWS creds so IFC objects land under `ifcbim/`.
