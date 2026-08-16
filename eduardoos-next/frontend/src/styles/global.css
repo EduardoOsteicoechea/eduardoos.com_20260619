@@ -32,12 +32,12 @@ body {
   min-height: 100%;
   background: var(--site-body-bg);
   color: var(--site-body-fg);
-  font-family: var(--font-sans);
+  font-family: var(--font-body, var(--font-sans));
   font-size: var(--font-base);
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 a {
@@ -62,25 +62,28 @@ body > main {
   box-sizing: border-box;
 }
 
-/* Blueprint wash — subtle drafting grid atmosphere on home (offset past chrome) */
+/**
+ * Home atmosphere — gallery-atelier wash (not neon drafting grid).
+ * Soft vignette + whispered horizontal hairlines at wide spacing.
+ */
 html.page-home body {
   background-color: var(--site-body-bg);
   background-image:
     radial-gradient(
-      ellipse 90% 60% at 12% -10%,
-      color-mix(in srgb, var(--site-accent) 14%, transparent),
+      ellipse 85% 70% at 18% 8%,
+      var(--site-wash-accent),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 88% 92%,
+      color-mix(in srgb, var(--site-accent) 6%, transparent),
       transparent 55%
     ),
     linear-gradient(
-      color-mix(in srgb, var(--site-body-fg) 4%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--site-body-fg) 4%, transparent) 1px,
+      var(--site-wash-ink) 1px,
       transparent 1px
     );
-  background-size: auto, 48px 48px, 48px 48px;
+  background-size: auto, auto, 100% 72px;
   background-attachment: fixed;
   background-position:
     var(--header_width) var(--header_height),
@@ -92,11 +95,18 @@ h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
   line-height: 1.2;
+  font-weight: 600;
 }
 
 code,
 .font-utility {
   font-family: var(--font-utility);
+}
+
+.font-brand {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }

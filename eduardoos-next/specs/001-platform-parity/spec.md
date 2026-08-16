@@ -56,11 +56,13 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
   - Shared helper: `openApiErrorModal` / `ServerErrorModal` under `frontend/src/components/ServerErrorModal/`.
   - Operators must be able to copy the block to clipboard in one click.
 
-### Frontend design (BIM / AEC)
+### Frontend design (BIM / AEC + elegant formal)
 - Agent skills (mandatory when building or restyling UI):
   - `.cursor/skills/frontend-design/SKILL.md` — distinctive craft; avoid AI-default palettes.
   - `.cursor/skills/bim-aec-frontend/SKILL.md` — blueprint vernacular for AEC tools on this site.
-- Visual signature: cool drafting paper + steel / blueprint blue accent (light and dark). No purple-SaaS, cream/terracotta, or broadsheet defaults unless a feature brief overrides.
+  - `.cursor/skills/elegant-formal-ui/SKILL.md` — elevate chrome/home/contact toward elegant, formal, stylized gallery-atelier (not hacker-grid dashboard).
+- Visual signature: cool limestone / evening ink + muted steel accent; whispered blueprint cues; brand-first home. No purple-SaaS, cream/terracotta, broadsheet, or neon drafting-grid defaults unless a feature brief overrides.
+- Typography: Cormorant Garamond (brand/display, restrained) + Montserrat (UI) + Raleway (body) + Roboto (utility), loaded in `BaseLayout` / `PamphletLayout`.
 - Theme tokens live in `frontend/src/styles/theme.css` (`--site-*`). Plain CSS only.
 - Theme persistence: `localStorage` key `eduardoos-theme`; apply via `html[data-theme="light"|"dark"]` and `html.dark`. Bootstrapped inline in `BaseLayout` and `PamphletLayout`; helpers in `frontend/src/lib/theme.ts`.
 - Global menu **Theme** control in `Header` toggles light/dark on every layout (including pamphlet).

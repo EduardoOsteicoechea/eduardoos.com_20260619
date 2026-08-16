@@ -15,8 +15,9 @@
   max-width: 100%;
   border-top: var(--border_001);
   border-bottom: none;
-  background: var(--site-body-bg);
+  background: color-mix(in srgb, var(--site-surface) 92%, var(--site-body-bg));
   color: var(--site-body-fg);
+  box-shadow: 0 -8px 24px color-mix(in srgb, #000 4%, transparent);
   overflow-x: clip;
   overflow-y: visible;
 }

@@ -8,8 +8,9 @@ description: >-
 
 # BIM / AEC Frontend (Eduardo OS)
 
-Companion to the project skill `frontend-design`. Apply both: general craft from
-`frontend-design`, domain constraints from this file.
+Companion to `frontend-design` and `elegant-formal-ui`. Apply all three: general
+craft from `frontend-design`, domain constraints from this file, and gallery-atelier
+elevation from `elegant-formal-ui` on chrome / home / contact.
 
 ## Subject & audience
 
@@ -19,17 +20,20 @@ Companion to the project skill `frontend-design`. Apply both: general craft from
 
 ## Visual vernacular (signature)
 
-Favor **blueprint / drafting** cues, not consumer SaaS purple or cream-terracotta defaults:
+Favor **blueprint / drafting** cues elevated toward **gallery-atelier** formality — not
+consumer SaaS purple, cream-terracotta defaults, or neon hacker grids:
 
 | Role | Light | Dark |
 |------|-------|------|
-| Paper / body | Cool off-white with blue cast | Deep charcoal with blue undertone |
-| Ink / text | Slate near-black | Soft paper white |
-| Accent | Steel / blueprint blue | Brighter steel cyan-blue |
+| Paper / body | Cool limestone with blue cast | Evening ink (charcoal + blue) |
+| Ink / text | Near-black slate | Soft paper white |
+| Accent | Muted steel / blueprint | Quiet steel (not neon cyan) |
 | Borders | Soft graphite lines | Hairline cool gray |
-| Surfaces | Quiet muted panels | Elevated charcoal panels |
+| Surfaces | Elevated paper panels | Gallery charcoal panels |
 
-Fonts already on Eduardo OS: **Montserrat** (UI/display), **Raleway** (secondary), **Roboto** (data/utility). Keep plain CSS; no Tailwind / CSS-in-JS.
+Fonts: **Cormorant Garamond** (brand/display, restrained), **Montserrat** (UI),
+**Raleway** (secondary/body), **Roboto** (data/utility). Keep plain CSS; no Tailwind / CSS-in-JS.
+See `elegant-formal-ui` for home atmosphere and anti-grid rules.
 
 ## Product rules (non-negotiable here)
 
