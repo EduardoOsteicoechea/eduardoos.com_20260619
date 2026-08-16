@@ -268,3 +268,103 @@ func TestDeleteUserAdminOnlyBlocksSelfAndAdmin(t *testing.T) {
 		t.Fatalf("entitlements should be cleared, got %d", len(ents))
 	}
 }
+
+// TestDeleteUserDottedLocalPartURLEncoded reproduces production failure:
+// DELETE …/b.ero.h.iy.ed.o6.2.0%40gmail.com — chi leaves %40 encoded in the
+// path param, so a naive "@" check returned 400 "invalid email".
+func TestDeleteUserDottedLocalPartURLEncoded(t *testing.T) {
+	secret := "admin-secret"
+	spamEmail := "b.ero.h.iy.ed.o6.2.0@gmail.com"
+	store := auth.NewMemoryStore()
+	_ = store.PutUser(nil, auth.User{
+		Email:        auth.AdminEmail,
+		PasswordHash: auth.HashPassword("password12"),
+		Verified:     true,
+		Role:         auth.RoleAdmin,
+		CreatedAt:    auth.NowRFC3339(),
+	})
+	_ = store.PutUser(nil, auth.User{
+		Email:        spamEmail,
+		PasswordHash: auth.HashPassword("password12"),
+		Verified:     true,
+		Role:         auth.RoleUser,
+		CreatedAt:    auth.NowRFC3339(),
+	})
+	h := NewHandler(secret, store, payments.NewStore())
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	adminToken, err := auth.IssueJWT(auth.AdminEmail, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Path-encoded @ (how browsers/encodeURIComponent send it).
+	pathDel := httptest.NewRequest(http.MethodDelete, "/api/admin/users/b.ero.h.iy.ed.o6.2.0%40gmail.com", nil)
+	pathDel.Header.Set("Authorization", "Bearer "+adminToken)
+	pathRec := httptest.NewRecorder()
+	r.ServeHTTP(pathRec, pathDel)
+	if pathRec.Code != http.StatusOK {
+		t.Fatalf("path-encoded delete status=%d body=%s", pathRec.Code, pathRec.Body.String())
+	}
+	if _, exists, err := store.GetUser(nil, spamEmail); err != nil || exists {
+		t.Fatalf("user should be gone exists=%v err=%v", exists, err)
+	}
+
+	// Re-seed and delete via ?email= (preferred safe key).
+	_ = store.PutUser(nil, auth.User{
+		Email:        spamEmail,
+		PasswordHash: auth.HashPassword("password12"),
+		Verified:     true,
+		Role:         auth.RoleUser,
+		CreatedAt:    auth.NowRFC3339(),
+	})
+	qDel := httptest.NewRequest(http.MethodDelete, "/api/admin/users/_?email=b.ero.h.iy.ed.o6.2.0%40gmail.com", nil)
+	qDel.Header.Set("Authorization", "Bearer "+adminToken)
+	qRec := httptest.NewRecorder()
+	r.ServeHTTP(qRec, qDel)
+	if qRec.Code != http.StatusOK {
+		t.Fatalf("query email delete status=%d body=%s", qRec.Code, qRec.Body.String())
+	}
+	if _, exists, err := store.GetUser(nil, spamEmail); err != nil || exists {
+		t.Fatalf("query delete: user should be gone exists=%v err=%v", exists, err)
+	}
+}
+
+func TestDeleteUserDottedStillBlocksNonAdmin(t *testing.T) {
+	secret := "admin-secret"
+	spamEmail := "b.ero.h.iy.ed.o6.2.0@gmail.com"
+	store := auth.NewMemoryStore()
+	_ = store.PutUser(nil, auth.User{
+		Email:        auth.AdminEmail,
+		PasswordHash: auth.HashPassword("password12"),
+		Verified:     true,
+		Role:         auth.RoleAdmin,
+		CreatedAt:    auth.NowRFC3339(),
+	})
+	_ = store.PutUser(nil, auth.User{
+		Email:        spamEmail,
+		PasswordHash: auth.HashPassword("password12"),
+		Verified:     true,
+		Role:         auth.RoleUser,
+		CreatedAt:    auth.NowRFC3339(),
+	})
+	h := NewHandler(secret, store, payments.NewStore())
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	memberToken, err := auth.IssueJWT(spamEmail, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	denied := httptest.NewRequest(http.MethodDelete, "/api/admin/users/b.ero.h.iy.ed.o6.2.0%40gmail.com", nil)
+	denied.Header.Set("Authorization", "Bearer "+memberToken)
+	deniedRec := httptest.NewRecorder()
+	r.ServeHTTP(deniedRec, denied)
+	if deniedRec.Code != http.StatusForbidden {
+		t.Fatalf("non-admin status=%d want 403", deniedRec.Code)
+	}
+	if _, exists, err := store.GetUser(nil, spamEmail); err != nil || !exists {
+		t.Fatalf("user must still exist exists=%v err=%v", exists, err)
+	}
+}

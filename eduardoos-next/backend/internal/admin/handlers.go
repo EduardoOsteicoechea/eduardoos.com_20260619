@@ -130,8 +130,8 @@ type putEntitlementsBody struct {
 
 // PutUserEntitlements replaces subscription entitlements for a user (admin grant).
 func (h *Handler) PutUserEntitlements(w http.ResponseWriter, r *http.Request) {
-	target := auth.NormalizeEmail(chi.URLParam(r, "email"))
-	if target == "" || !strings.Contains(target, "@") {
+	target := targetEmailFromRequest(r)
+	if !isStoredAccountEmail(target) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid email")
 		return
 	}
@@ -173,13 +173,17 @@ func (h *Handler) PutUserEntitlements(w http.ResponseWriter, r *http.Request) {
 
 // DeleteUser removes an account (admin only). Blocks self-delete and bootstrap /
 // role admin so the platform cannot lock out the sole admin.
+//
+// Target email comes from ?email= or path {email} after URL-decoding so operators
+// can delete spam accounts whose local-part has many dots (e.g. b.ero…@gmail.com).
+// Anti-spam dotted-local rules apply only at register — never here.
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	if h.Users == nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "user store not configured")
 		return
 	}
-	target := auth.NormalizeEmail(chi.URLParam(r, "email"))
-	if target == "" || !strings.Contains(target, "@") {
+	target := targetEmailFromRequest(r)
+	if !isStoredAccountEmail(target) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid email")
 		return
 	}

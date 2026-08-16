@@ -105,7 +105,9 @@ export const ADMIN_ROUTES = {
   users: "/api/admin/users",
   services: "/api/admin/services",
   userEntitlements: (email: string) =>
-    `/api/admin/users/${encodeURIComponent(email)}/entitlements`,
+    `/api/admin/users/${encodeURIComponent(email)}/entitlements?email=${encodeURIComponent(email)}`,
+  // Prefer ?email= so dotted / encoded local-parts are not lost if the path
+  // param stays percent-encoded (%40) after chi routing.
   deleteUser: (email: string) =>
-    `/api/admin/users/${encodeURIComponent(email)}`,
+    `/api/admin/users/${encodeURIComponent(email)}?email=${encodeURIComponent(email)}`,
 } as const;
