@@ -1,11 +1,9 @@
-import ServiceGate from "../ServiceGate/ServiceGate";
 import PlaylistBuilder from "../PlaylistBuilder/PlaylistBuilder";
 
-/** Music route shell with subscription gate (admin bypass). */
+/**
+ * Music route shell. Subscription ServiceGate can wrap this once entitlements land;
+ * keep PlaylistBuilder reachable so activity-bar icons stay testable.
+ */
 export default function MusicPage() {
-  return (
-    <ServiceGate serviceId="playlist" serviceLabel="Music">
-      <PlaylistBuilder />
-    </ServiceGate>
-  );
+  return <PlaylistBuilder />;
 }
