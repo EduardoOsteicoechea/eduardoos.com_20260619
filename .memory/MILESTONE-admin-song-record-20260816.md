@@ -5,7 +5,7 @@
 | Commit | Message |
 |--------|---------|
 | `cf557ae` | feat/test: admin-only worship audio upload to S3 |
-| `eaa7e26` | feat/test: admin MediaRecorder lands in playlist with lyrics |
+| `10cbf44` | feat/test: admin MediaRecorder lands in playlist with lyrics |
 
 ## What shipped
 
