@@ -1,6 +1,8 @@
-# Eduardo OS Next — staging deploy (next-only)
+# Eduardo OS Next — deploy scripts
 
-These scripts deploy **Eduardo OS Next** as a **secondary** stack. They never replace production.
+**Production cutover (2026-08-16):** parent `deploy.yml` serves Next on HTTPS `:443` / API `:3000` via `deploy-remote-production.sh`.
+
+This folder still owns **staging** (`:8080` / `:3001`) as a secondary stack.
 
 ## Staging URL
 
@@ -11,17 +13,18 @@ http://<EC2_IP>:8080/
 http://<EC2_IP>:8080/health
 ```
 
-Replace `<EC2_IP>` with the value of GitHub secret `EC2_HOST` (or your instance public IP). Production remains on HTTPS `:443` / API `:3000`.
+Replace `<EC2_IP>` with the value of GitHub secret `EC2_HOST` (or your instance public IP). Production is Next on HTTPS `:443` / API `:3000`.
 
 Open **Security Group TCP 8080** inbound for staging access.
 
-CI smoke treats **on-box** `127.0.0.1:8080` as the required check. Public `http://$EC2_HOST:8080` returning `000` almost always means the SG (or host firewall) still blocks TCP 8080 — not a bad nginx root. Production `:443` / `default.conf` stays untouched.
+CI smoke treats **on-box** `127.0.0.1:8080` as the required check. Public `http://$EC2_HOST:8080` returning `000` almost always means the SG (or host firewall) still blocks TCP 8080 — not a bad nginx root.
 
-## Isolation rules
+## Production vs staging
 
-- Live under `eduardoos-next/deploy/` only (plus a non-destructive nginx include).
-- Do **not** edit parent `deploy/ec2/deploy-remote.sh`, `.github/workflows/deploy.yml`, or overwrite `nginx/default.conf`.
-- Production keeps serving the current app on its existing ports until an explicit cutover (`CUTOVER.md` / T099).
+| Script | Role |
+|--------|------|
+| `deploy-remote-production.sh` | Production cutover: Next on `:3000`, builds Next frontend for nginx HTML root |
+| `deploy-remote-staging.sh` | Secondary stack only (`:3001` + `:8080`); does not replace production unit |
 
 ## How nginx staging is wired
 
@@ -67,10 +70,11 @@ If logs show `535 5.7.8 Username and Password not accepted`, regenerate a Gmail 
 
 | Script | Purpose |
 |--------|---------|
-| `deploy-remote-staging.sh` | Full EC2 staging deploy (build, systemd, nginx :8080) |
+| `deploy-remote-production.sh` | Production: Next binary on `:3000` (`eduardoos.service`), backup `bin/eduardoos.prev`, build Next frontend |
+| `deploy-remote-staging.sh` | Staging: Next on `:3001` + nginx `:8080` |
 | `build-frontend.sh` | `npm ci` + `npm run build` with `NODE_OPTIONS=--max-old-space-size=4096` |
 | `run-backend.sh` | Loads `.env`, builds `backend/bin/eduardoos-next` if needed, listens on `ADDR` / `PORT` (default `:3001`) |
-| `eduardoos-next-backend.service` | systemd unit template → installed as `eduardoos-next.service` |
+| `eduardoos-next-backend.service` | systemd unit template → installed as `eduardoos-next.service` (staging) |
 | `nginx-staging.conf` | HTTP :8080 snippet (Docker paths) |
 | `smoke.sh` | `curl` `/health` (+ home if `SMOKE_HOME=1`); requires `BASE_URL` |
 
@@ -91,4 +95,4 @@ BASE_URL=http://127.0.0.1:8080 ./eduardoos-next/deploy/smoke.sh
 - [ ] `http://<EC2_IP>:8080/health` OK
 - [ ] Frontend served at `http://<EC2_IP>:8080/`
 - [ ] Register / login against Next API
-- [ ] Confirm production HTTPS site and parent `nginx/default.conf` unchanged
+- [ ] Confirm production HTTPS (`https://eduardoos.com`) still healthy after staging-only deploys

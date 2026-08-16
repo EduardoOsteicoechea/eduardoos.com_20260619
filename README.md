@@ -78,7 +78,7 @@ and **S3** backends. Local Docker Desktop keeps in-memory DB + stub S3.
 
 IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-policy.json)
 
-**CI/CD:** pushes to `master` auto-deploy to EC2 via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Generate secrets with `npm run secrets:generate` — see [`deploy/aws/README.md`](deploy/aws/README.md).
+**CI/CD:** pushes to `master` auto-deploy **Eduardo OS Next** to EC2 via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (HTTPS `:443` + API `:3000`). Staging secondary: [`.github/workflows/deploy-next-staging.yml`](.github/workflows/deploy-next-staging.yml) (`:8080` / `:3001`). Cutover/rollback: [`eduardoos-next/CUTOVER.md`](eduardoos-next/CUTOVER.md). Generate secrets with `npm run secrets:generate` — see [`deploy/aws/README.md`](deploy/aws/README.md).
 
 ## Public API Endpoints (via Nginx → Gateway)
 

@@ -1,6 +1,6 @@
 ﻿# Tasks — 001 Platform parity
 
-Status: **partial** (see Remaining for parity). Cutover **T099** stays blocked.
+Status: **partial** (see Remaining for parity). Cutover **T099** executed 2026-08-16 (human-approved; day-one gaps accepted).
 
 ## Phase P0 — Scaffold
 
@@ -43,19 +43,19 @@ Status: **partial** (see Remaining for parity). Cutover **T099** stays blocked.
 - [x] T050 Next-only deploy scripts (must not alter parent `deploy.yml`)
 - [x] T051 Staging smoke checklist execution
 
-## Cutover (blocked)
+## Cutover
 
-- [ ] T099 Execute `CUTOVER.md` only after explicit human approval
+- [x] T099 Execute `CUTOVER.md` after explicit human approval (2026-08-16). Production `deploy.yml` + nginx `:443` + API `:3000` serve Eduardo OS Next. Staging `:8080`/`:3001` kept. JWT_SECRET unchanged. Rollback: `bin/eduardoos.prev` + remount `./frontend/dist`. Accepted day-one gaps: stub PDF, no That Open viewer, playlists/payments/edebat partial (see `CUTOVER.md`).
 
 ## Remaining for parity
 
-Honest gaps vs production / full product surface:
+Honest gaps vs full product surface (accepted at cutover; track post-cutover):
 
-- **Pamphlet PDF print** — stub single-page PDF from Next `pkg/pdf.BuildSamplePDF` (Print button works); full landscape Roboto layout parity with production still deferred.
+- **Pamphlet PDF print** — stub single-page PDF from Next `pkg/pdf.BuildSamplePDF` (Print button works); full landscape Roboto layout parity still deferred.
 - **That Open / OpenBIM 3D viewer** — multipart upload stores real IFC bytes in memory (GET returns them); optional S3 when `IFCBIM_S3_BUCKET`/`S3_BUCKET` + AWS creds; no That Open / web-ifc / three viewer yet (deferred for build memory).
 - **Playlists** — memory GET/POST list/create + `POST /api/playlists/{id}/tracks` (title/url) with HTML5 audio when URL present; no drag-and-drop worship builder, S3 audio library, or Dynamo `eduardoos_playlists` persistence.
 - **Payments / PayPal** — JWT `POST /api/payments/intents`, public `GET /api/payments/status/{id}`, entitlements list/preview (memory store); subscription UI prepares intent + hosted button via `PAYPAL_HOSTED_BUTTON_ID`. No PayPal IPN webhook, Dynamo `eduardoos_payments`, or real entitlement grants after checkout.
 - **Edebat AI** — JWT memory list/create + turn (role+text) wired; no LLM referee, surrender/KO, Dynamo, or S3 `.edebat` bodies.
-- **Auth OTP/SMTP** — SMTP_USER/SMTP_PASS + DEV_RETURN_OTP wired (T010); empty SMTP_PASS logs OTP; real Gmail delivery needs SMTP_PASS set on host.
+- **Auth OTP/SMTP** — SMTP_USER/SMTP_PASS + DEV_RETURN_OTP wired (T010); production/staging strip spaces in SMTP_PASS for Gmail.
 - **Articles / Homescool / gallery** — IA stubs, not full content pipelines.
-- **Staging + cutover** — T050/T051 next-only scripts + smoke checklist under `eduardoos-next/deploy/`; T099 remains blocked until explicit approval.
+- **Staging** — remains secondary on `:8080` / `:3001` after production cutover.

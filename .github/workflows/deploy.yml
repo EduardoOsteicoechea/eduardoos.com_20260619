@@ -1,6 +1,6 @@
 name: CI/CD — Deploy to EC2
 
-# One push to master → one deploy job on EC2 (backend + frontend).
+# One push to master → one deploy job on EC2 (Eduardo OS Next production + nginx).
 on:
   push:
     branches: [master]
@@ -53,7 +53,7 @@ jobs:
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
           echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o ServerAliveInterval=30 -o ServerAliveCountMax=120" >> "$GITHUB_ENV"
 
-      - name: Build production .env
+      - name: Build production .env (Eduardo OS Next)
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           INTERNAL_SERVICE_SECRET: ${{ secrets.INTERNAL_SERVICE_SECRET }}
@@ -70,21 +70,30 @@ jobs:
           APS_ACTIVITY_ID: ${{ secrets.APS_ACTIVITY_ID }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
+          # systemd EnvironmentFile-safe quoting (same as staging). Strip spaces from
+          # SMTP_PASS so Gmail app passwords with UI spaces still authenticate.
+          quote_env() {
+            local val="${1-}"
+            val="${val//\\/\\\\}"
+            val="${val//\"/\\\"}"
+            val="${val//\`/\\\`}"
+            printf '"%s"' "$val"
+          }
+          SMTP_PASS_NORM="${SMTP_PASS// /}"
           {
-            printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
-            printf 'INTERNAL_SERVICE_SECRET=%s\n' "$INTERNAL_SERVICE_SECRET"
-            printf 'SMTP_USER=%s\n' "$SMTP_USER"
-            printf 'SMTP_PASS=%s\n' "$SMTP_PASS"
-            printf 'DOMAIN=%s\n' "$DOMAIN"
-            printf 'CERTBOT_EMAIL=%s\n' "$CERTBOT_EMAIL"
-            printf 'PAYPAL_HOSTED_BUTTON_ID=%s\n' "$PAYPAL_HOSTED_BUTTON_ID"
-            printf 'PAYPAL_BUSINESS_EMAIL=%s\n' "$PAYPAL_BUSINESS_EMAIL"
-            printf 'PAYPAL_CHECKOUT_URL=%s\n' "$PAYPAL_CHECKOUT_URL"
-            printf 'PAYPAL_IPN_VERIFY_URL=%s\n' "$PAYPAL_IPN_VERIFY_URL"
+            printf 'ADDR=:3000\n'
+            printf 'JWT_SECRET=%s\n' "$(quote_env "$JWT_SECRET")"
+            printf 'INTERNAL_SERVICE_SECRET=%s\n' "$(quote_env "$INTERNAL_SERVICE_SECRET")"
+            printf 'SMTP_USER=%s\n' "$(quote_env "$SMTP_USER")"
+            printf 'SMTP_PASS=%s\n' "$(quote_env "$SMTP_PASS_NORM")"
+            printf 'DOMAIN=%s\n' "$(quote_env "$DOMAIN")"
+            printf 'CERTBOT_EMAIL=%s\n' "$(quote_env "$CERTBOT_EMAIL")"
+            printf 'DEV_RETURN_OTP=0\n'
             printf 'AWS_REGION=us-east-1\n'
             printf 'S3_BUCKET=eduardoos20260607\n'
             printf 'S3_PREFIX=media\n'
             printf 'S3_BACKEND=aws\n'
+            printf 'IFCBIM_S3_BUCKET=eduardoos20260607\n'
             printf 'DATABASE_BACKEND=dynamodb\n'
             printf 'DYNAMODB_TABLE_PREFIX=eduardoos\n'
             printf 'TELEMETRY_BACKEND=dynamodb\n'
@@ -109,14 +118,19 @@ jobs:
             printf 'APS_INPUT_OBJECT_KEY=singleRoom.rvt\n'
             printf 'APS_OUTPUT_FILE_NAME=result.json\n'
             printf 'APS_OUTPUT_KEY_PREFIX=aps-outputs\n'
-            printf 'APS_CLIENT_ID=%s\n' "${APS_CLIENT_ID:-}"
-            printf 'APS_CLIENT_SECRET=%s\n' "${APS_CLIENT_SECRET:-}"
-            printf 'APS_ACTIVITY_ID=%s\n' "${APS_ACTIVITY_ID:-}"
-            printf 'DEEPSEEK_API_KEY=%s\n' "${DEEPSEEK_API_KEY:-}"
+            printf 'APS_CLIENT_ID=%s\n' "$(quote_env "${APS_CLIENT_ID:-}")"
+            printf 'APS_CLIENT_SECRET=%s\n' "$(quote_env "${APS_CLIENT_SECRET:-}")"
+            printf 'APS_ACTIVITY_ID=%s\n' "$(quote_env "${APS_ACTIVITY_ID:-}")"
+            printf 'PAYPAL_HOSTED_BUTTON_ID=%s\n' "$(quote_env "$PAYPAL_HOSTED_BUTTON_ID")"
+            printf 'PAYPAL_BUSINESS_EMAIL=%s\n' "$(quote_env "${PAYPAL_BUSINESS_EMAIL:-}")"
+            printf 'PAYPAL_CHECKOUT_URL=%s\n' "$(quote_env "$PAYPAL_CHECKOUT_URL")"
+            printf 'PAYPAL_IPN_VERIFY_URL=%s\n' "$(quote_env "$PAYPAL_IPN_VERIFY_URL")"
+            printf 'DEEPSEEK_API_KEY=%s\n' "$(quote_env "${DEEPSEEK_API_KEY:-}")"
             printf 'DEEPSEEK_BASE_URL=https://api.deepseek.com\n'
             printf 'DEEPSEEK_MODEL_EXPERT=deepseek-v4-flash\n'
             printf 'DEEPSEEK_MODEL_REFREE=deepseek-v4-pro\n'
           } > .env.production
+          echo "SMTP_PASS normalized length=${#SMTP_PASS_NORM} (spaces stripped for Gmail)"
 
       - name: Prepare EC2 app directory
         env:
@@ -125,9 +139,9 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
-            "mkdir -p ~/eduardoos.com_20260619"
+            "mkdir -p ~/eduardoos.com_20260619/eduardoos-next/deploy"
 
-      - name: Upload .env and deploy script
+      - name: Upload .env and deploy scripts
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -136,11 +150,17 @@ jobs:
             .env.production \
             "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/.env"
           scp -i ~/.ssh/deploy_key $SSH_OPTS \
+            .env.production \
+            "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/eduardoos-next/.env"
+          scp -i ~/.ssh/deploy_key $SSH_OPTS \
             deploy/ec2/deploy-remote.sh \
             deploy/ec2/build-frontend.sh \
             deploy/ec2/issue-cert.sh \
             deploy/aws/create-observability-tables.sh \
             "${EC2_USER}@${EC2_HOST}:/tmp/"
+          scp -i ~/.ssh/deploy_key $SSH_OPTS \
+            eduardoos-next/deploy/deploy-remote-production.sh \
+            "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/eduardoos-next/deploy/deploy-remote-production.sh"
 
       - name: Run remote deploy
         env:
@@ -149,15 +169,27 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
-            "cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x deploy/ec2/*.sh deploy/aws/*.sh 2>/dev/null || true && APP_DIR=~/eduardoos.com_20260619 bash deploy/ec2/deploy-remote.sh"
+            "cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x deploy/ec2/*.sh deploy/aws/*.sh eduardoos-next/deploy/*.sh 2>/dev/null || true && APP_DIR=~/eduardoos.com_20260619 bash deploy/ec2/deploy-remote.sh"
 
       - name: Smoke check
         env:
           DOMAIN: ${{ secrets.DOMAIN }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           sleep 15
+          onbox=$(ssh -i ~/.ssh/deploy_key $SSH_OPTS "${EC2_USER}@${EC2_HOST}" \
+            'api=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/health || true); \
+             echo "api=${api}"')
+          echo "On-box smoke: ${onbox}"
+          echo "${onbox}" | grep -q 'api=200' || { echo "::error::Next production backend :3000 unhealthy"; exit 1; }
           code=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/" || true)
+          health=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/health" || true)
           echo "HTTPS status for https://${DOMAIN}/: ${code}"
+          echo "HTTPS status for https://${DOMAIN}/health: ${health}"
           if [ "${code}" != "200" ]; then
-            echo "::warning::HTTPS smoke check did not return 200 (cert may still be self-signed)"
+            echo "::warning::HTTPS home smoke did not return 200 (cert may still be self-signed)"
+          fi
+          if [ "${health}" != "200" ]; then
+            echo "::warning::HTTPS /health smoke did not return 200"
           fi

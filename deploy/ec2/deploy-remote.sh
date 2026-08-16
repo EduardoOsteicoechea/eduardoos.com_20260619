@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Runs on the EC2 host during CI/CD deploy (or manually over SSH).
+# After cutover: production HTTPS serves Eduardo OS Next on :3000 + next frontend dist.
+# Staging (:8080 / :3001) is left alone unless a separate staging workflow runs.
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-$HOME/eduardoos.com_20260619}"
 REPO_URL="${REPO_URL:-https://github.com/EduardoOsteicoechea/eduardoos.com_20260619.git}"
 BRANCH="${BRANCH:-master}"
 
-echo "==> Deploying Eduardo OS to ${APP_DIR} (${BRANCH}) [host frontend + monolith + nginx/certbot]"
+echo "==> Deploying Eduardo OS (Next production) to ${APP_DIR} (${BRANCH}) [next API :3000 + nginx/certbot]"
 
 if [ ! -d "${APP_DIR}/.git" ]; then
   echo "==> Cloning repository"
@@ -139,94 +141,30 @@ issue_letsencrypt_cert() {
   return 1
 }
 
-echo "==> Building host assets (backend first, then frontend)"
+echo "==> Building host assets (Next backend :3000, then Next frontend)"
 export COMPOSE_PARALLEL_LIMIT=1
 export DOCKER_BUILDKIT=1
 
 reclaim_ec2_disk
 
-install_host_backend() {
-  echo "==> Installing / restarting Eduardo OS monolith on the host"
-  if ! command -v go >/dev/null 2>&1; then
-    echo "==> Installing Go toolchain"
-    if command -v dnf >/dev/null 2>&1; then
-      sudo dnf install -y golang || true
-    elif command -v yum >/dev/null 2>&1; then
-      sudo yum install -y golang || true
-    elif command -v apt-get >/dev/null 2>&1; then
-      sudo apt-get update && sudo apt-get install -y golang-go || true
-    fi
-  fi
-  if ! command -v go >/dev/null 2>&1; then
-    echo "ERROR: Go is required on the EC2 host for cmd/eduardoos (monolith backend)."
-    exit 1
-  fi
+# Drop stale microservices containers that still hold disk + confuse ops.
+docker rm -f \
+  eduardooscom_20260619-backend-1 \
+  eduardooscom_20260619-frontend-1 \
+  eduardooscom_20260619-payments-1 \
+  eduardooscom_20260619-tester-1 \
+  eduardooscom_20260619-authenticator-1 \
+  eduardooscom_20260619-documents-1 \
+  eduardooscom_20260619-chatbot-1 \
+  eduardooscom_20260619-s3-1 \
+  eduardooscom_20260619-telemetry-1 \
+  eduardooscom_20260619-database-1 \
+  2>/dev/null || true
 
-  echo "==> Building host binary (go build ./cmd/eduardoos)"
-  mkdir -p "${APP_DIR}/bin" "${APP_DIR}/.cache/go-tmp" "${APP_DIR}/.cache/go-build"
-  # Stop first so Windows/Linux file locks and old go-run children release :3000.
-  sudo systemctl stop eduardoos.service 2>/dev/null || true
-  # Free :3000 if a stale go-run / orphan process still holds it.
-  if command -v fuser >/dev/null 2>&1; then
-    fuser -k 3000/tcp 2>/dev/null || true
-  fi
-  # EC2 /tmp is often a small tmpfs — keep Go work files on the root disk.
-  export TMPDIR="${APP_DIR}/.cache/tmp"
-  export GOTMPDIR="${APP_DIR}/.cache/go-tmp"
-  export GOCACHE="${APP_DIR}/.cache/go-build"
-  export GOMODCACHE="${APP_DIR}/.cache/go-mod"
-  mkdir -p "${TMPDIR}" "${GOTMPDIR}" "${GOCACHE}" "${GOMODCACHE}"
-  # Clear stale go-codehost / compile debris that fills the tiny /tmp tmpfs.
-  rm -rf /tmp/go-build* /tmp/go-codehost* /tmp/go-link-* 2>/dev/null || true
-  sudo rm -rf /tmp/go-build* /tmp/go-codehost* /tmp/go-link-* 2>/dev/null || true
-  # Drop stale microservices containers that still hold disk + confuse ops.
-  docker rm -f \
-    eduardooscom_20260619-backend-1 \
-    eduardooscom_20260619-frontend-1 \
-    eduardooscom_20260619-payments-1 \
-    eduardooscom_20260619-tester-1 \
-    eduardooscom_20260619-authenticator-1 \
-    eduardooscom_20260619-documents-1 \
-    eduardooscom_20260619-chatbot-1 \
-    eduardooscom_20260619-s3-1 \
-    eduardooscom_20260619-telemetry-1 \
-    eduardooscom_20260619-database-1 \
-    2>/dev/null || true
-  df -h / /tmp "${APP_DIR}" 2>/dev/null || df -h /
-  (cd "${APP_DIR}" && CGO_ENABLED=0 go build -o bin/eduardoos ./cmd/eduardoos)
+chmod +x eduardoos-next/deploy/deploy-remote-production.sh
+APP_DIR="${APP_DIR}" bash eduardoos-next/deploy/deploy-remote-production.sh
 
-  DEPLOY_USER="$(whoami)"
-  SERVICE_FILE="/etc/systemd/system/eduardoos.service"
-  sed \
-    -e "s|@APP_DIR@|${APP_DIR}|g" \
-    -e "s|@DEPLOY_USER@|${DEPLOY_USER}|g" \
-    deploy/ec2/eduardoos.service.template | sudo tee "${SERVICE_FILE}" >/dev/null
-
-  sudo systemctl daemon-reload
-  sudo systemctl enable eduardoos.service
-  sudo systemctl restart eduardoos.service
-
-  echo "==> Waiting for monolith /health on :3000"
-  ready=0
-  for i in $(seq 1 30); do
-    if curl -sf "http://127.0.0.1:3000/health" >/dev/null; then
-      ready=1
-      break
-    fi
-    sleep 2
-  done
-  if [ "${ready}" -ne 1 ]; then
-    echo "ERROR: monolith /health not ready after build+restart"
-    sudo journalctl -u eduardoos -n 80 --no-pager || true
-    exit 1
-  fi
-  echo "==> Monolith backend healthy on :3000"
-}
-
-# Backend first so API fixes (e.g. .epam uploads) ship even if Astro build fails.
-install_host_backend
-
-# DynamoDB / S3 markers before frontend so a Vite OOM cannot skip table creation.
+# DynamoDB / S3 markers (idempotent) — safe for Next + legacy table names.
 echo "==> Ensuring DynamoDB observability tables exist"
 bash deploy/aws/create-observability-tables.sh || echo "WARNING: could not create observability tables (check IAM)"
 
@@ -237,17 +175,11 @@ echo "==> Ensuring DynamoDB ifcbim table and S3 ifcbim/ prefix exist"
 bash deploy/aws/create-ifcbim-table.sh || echo "WARNING: could not create eduardoos_ifcbim (check IAM)"
 bash deploy/aws/create-ifcbim-prefix.sh || echo "WARNING: could not create s3 ifcbim/ prefix (check IAM)"
 
-build_host_frontend() {
-  chmod +x deploy/ec2/build-frontend.sh
-  APP_DIR="${APP_DIR}" bash deploy/ec2/build-frontend.sh
-}
-
-build_host_frontend
 docker builder prune -af || true
 
 "${COMPOSE[@]}" up -d
 
 issue_letsencrypt_cert || true
 
-echo "==> Deploy complete"
+echo "==> Deploy complete (Eduardo OS Next on production)"
 "${COMPOSE[@]}" ps
