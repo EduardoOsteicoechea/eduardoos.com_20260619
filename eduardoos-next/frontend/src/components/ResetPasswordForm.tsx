@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../config/routes";
 import { confirmPasswordReset, requestPasswordReset } from "../lib/auth";
 import { validateEmail, validateOtp, validatePassword } from "../lib/validation";
+import PasswordField from "./PasswordField/PasswordField";
 import "./AuthForm.css";
 
 type ResetStep = "email" | "code";
@@ -130,32 +131,22 @@ export default function ResetPasswordForm() {
             />
             {fieldErrors.otp ? <span className="field-error">{fieldErrors.otp}</span> : null}
           </div>
-          <div className={`form-field ${fieldErrors.password ? "form-field--error" : ""}`}>
-            <label htmlFor="reset-password">New password</label>
-            <input
-              id="reset-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-            {fieldErrors.password ? (
-              <span className="field-error">{fieldErrors.password}</span>
-            ) : null}
-          </div>
-          <div className={`form-field ${fieldErrors.confirm ? "form-field--error" : ""}`}>
-            <label htmlFor="reset-confirm">Confirm password</label>
-            <input
-              id="reset-confirm"
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              autoComplete="new-password"
-            />
-            {fieldErrors.confirm ? (
-              <span className="field-error">{fieldErrors.confirm}</span>
-            ) : null}
-          </div>
+          <PasswordField
+            id="reset-password"
+            label="New password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            error={fieldErrors.password}
+          />
+          <PasswordField
+            id="reset-confirm"
+            label="Confirm password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            error={fieldErrors.confirm}
+          />
         </>
       ) : null}
 

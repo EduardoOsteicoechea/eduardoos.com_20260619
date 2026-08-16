@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../config/routes";
 import { hasIssuedToken, loginUser, registerUser, verifyOtp } from "../lib/auth";
 import { validateEmail, validateOtp, validatePassword } from "../lib/validation";
+import PasswordField from "./PasswordField/PasswordField";
 import "./AuthForm.css";
 
 export type AuthMode = "login" | "register" | "verify-otp";
@@ -202,19 +203,14 @@ export default function AuthForm({ mode }: AuthFormProps) {
       </div>
 
       {showPasswordField ? (
-        <div className={`form-field ${fieldErrors.password ? "form-field--error" : ""}`}>
-          <label htmlFor="auth-password">Password</label>
-          <input
-            id="auth-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete={mode === "register" ? "new-password" : "current-password"}
-          />
-          {fieldErrors.password ? (
-            <span className="field-error">{fieldErrors.password}</span>
-          ) : null}
-        </div>
+        <PasswordField
+          id="auth-password"
+          label="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete={mode === "register" ? "new-password" : "current-password"}
+          error={fieldErrors.password}
+        />
       ) : null}
 
       {showOtpField ? (
