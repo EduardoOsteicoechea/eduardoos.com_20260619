@@ -36,8 +36,9 @@
   padding: 0 0.65rem;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
-  background: var(--site-body-bg);
+  background: var(--site-surface, var(--site-body-bg));
   color: var(--site-body-fg);
+  box-shadow: var(--site-shadow);
   font-size: var(--font-sm);
   font-weight: 600;
   cursor: pointer;
@@ -45,7 +46,7 @@
 }
 
 .site-header__menu:hover {
-  border-color: var(--site-medium);
+  border-color: var(--site-accent);
 }
 
 .site-header__auth {
@@ -120,8 +121,8 @@
   padding: 0.25rem;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
-  background: var(--site-body-bg);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
+  background: var(--site-surface, var(--site-body-bg));
+  box-shadow: var(--site-shadow);
 }
 
 .site-header__account-menu-item {
@@ -171,9 +172,9 @@
   margin: 0;
   padding: calc(var(--header_height, 55px) + 0.75rem) var(--page-inline-pad, 15px) 1.25rem;
   overflow-y: auto;
-  background: var(--site-body-bg);
+  background: var(--site-surface, var(--site-body-bg));
   border-left: var(--border_001);
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--site-shadow);
 }
 
 .site-header__nav[hidden] {
@@ -257,6 +258,36 @@
 .site-header__services-item.is-active {
   background: var(--site-accent);
   color: var(--site-accent-fg);
+}
+
+.site-header__theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0.35rem 0 0;
+  padding: 0.75rem 0.5rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface-muted);
+  color: var(--site-body-fg);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.site-header__theme-toggle:hover {
+  border-color: var(--site-accent);
+  background: color-mix(in srgb, var(--site-accent) 12%, var(--site-body-bg));
+}
+
+.site-header__theme-toggle-value {
+  font-family: var(--font-utility, Roboto, system-ui, sans-serif);
+  font-weight: 500;
+  opacity: 0.85;
+  letter-spacing: 0.02em;
 }
 
 .site-header__auth--nav {

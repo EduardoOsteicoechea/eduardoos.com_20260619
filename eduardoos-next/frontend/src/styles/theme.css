@@ -1,6 +1,8 @@
 /**
- * Theme tokens for Eduardo OS Next.
- * Light/dark via html[data-theme] (and prefers-color-scheme fallback on :root).
+ * Theme tokens — Eduardo OS Next (BIM/AEC blueprint vernacular).
+ * Light/dark via html[data-theme] (+ html.dark). Persist key: eduardoos-theme.
+ *
+ * Signature: cool drafting paper + steel accent (not purple SaaS, not cream/terracotta).
  */
 
 :root {
@@ -9,23 +11,32 @@
   --header_bar_height: 55px;
   --control_min_height: 2.25rem;
   --control_min_width: 2.25rem;
-  --border_radius_001: 6px;
+  --border_radius_001: 4px;
   --max_desktop_width: 72rem;
   --page-inline-pad: 15px;
-  --font-sans: Montserrat, Raleway, Roboto, system-ui, sans-serif;
 
-  --site-body-bg: #f7f7f5;
-  --site-body-fg: #121212;
-  --site-accent: #121212;
-  --site-accent-fg: #f7f7f5;
-  --site-medium: color-mix(in srgb, var(--site-body-bg) 50%, var(--site-body-fg) 50%);
+  /* Montserrat display/UI · Raleway secondary · Roboto data */
+  --font-sans: Montserrat, Raleway, Roboto, system-ui, sans-serif;
+  --font-display: Montserrat, system-ui, sans-serif;
+  --font-utility: Roboto, system-ui, sans-serif;
+
+  /* Light defaults (overridden by data-theme / prefers-color-scheme) */
+  --site-body-bg: #f3f5f8;
+  --site-body-fg: #1a2332;
+  --site-accent: #2c5aa0;
+  --site-accent-fg: #f7fafc;
+  --site-medium: color-mix(in srgb, var(--site-body-bg) 52%, var(--site-body-fg) 48%);
   --site-medium-fg: var(--site-body-fg);
-  --site-border: color-mix(in srgb, var(--site-body-fg) 28%, transparent);
-  --glassed_background: color-mix(in srgb, var(--site-body-bg) 88%, transparent);
-  --site-surface-muted: color-mix(in srgb, var(--site-body-fg) 6%, var(--site-body-bg));
-  --site-muted-fg: color-mix(in srgb, var(--site-body-fg) 55%, var(--site-body-bg) 45%);
-  --site-meta-fg: color-mix(in srgb, var(--site-body-fg) 72%, var(--site-body-bg) 28%);
+  --site-border: color-mix(in srgb, var(--site-body-fg) 18%, transparent);
+  --glassed_background: color-mix(in srgb, var(--site-body-bg) 86%, transparent);
+  --site-surface: #ffffff;
+  --site-surface-muted: color-mix(in srgb, var(--site-accent) 6%, var(--site-body-bg));
+  --site-muted-fg: color-mix(in srgb, var(--site-body-fg) 58%, var(--site-body-bg) 42%);
+  --site-meta-fg: color-mix(in srgb, var(--site-body-fg) 70%, var(--site-body-bg) 30%);
   --site-danger: #b42318;
+  --site-focus-ring: color-mix(in srgb, var(--site-accent) 55%, transparent);
+  --site-shadow: 0 1px 0 color-mix(in srgb, var(--site-body-fg) 6%, transparent),
+    0 8px 24px color-mix(in srgb, #1a2332 6%, transparent);
   --border_001: 1px solid var(--site-border);
 
   --font-xs: 0.65rem;
@@ -33,32 +44,54 @@
   --font-md: 0.9rem;
   --font-base: 1rem;
   --font-lg: 1.25rem;
+  --font-xl: 1.65rem;
 
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --site-body-bg: #0a0a0a;
-    --site-body-fg: #f2f2f2;
-    --site-accent: #e8e8e8;
-    --site-accent-fg: #0a0a0a;
+  :root:not([data-theme="light"]) {
+    --site-body-bg: #0c1118;
+    --site-body-fg: #e8edf4;
+    --site-accent: #6ba3e8;
+    --site-accent-fg: #0c1118;
+    --site-surface: #141b26;
+    --site-surface-muted: color-mix(in srgb, var(--site-accent) 10%, var(--site-body-bg));
+    --site-border: color-mix(in srgb, var(--site-body-fg) 16%, transparent);
+    --glassed_background: color-mix(in srgb, var(--site-body-bg) 82%, transparent);
+    --site-shadow: 0 1px 0 color-mix(in srgb, #fff 4%, transparent),
+      0 12px 32px color-mix(in srgb, #000 45%, transparent);
+    color-scheme: dark;
   }
 }
 
 html[data-theme="light"] {
-  --site-body-bg: #f7f7f5;
-  --site-body-fg: #121212;
-  --site-accent: #121212;
-  --site-accent-fg: #f7f7f5;
+  --site-body-bg: #f3f5f8;
+  --site-body-fg: #1a2332;
+  --site-accent: #2c5aa0;
+  --site-accent-fg: #f7fafc;
+  --site-surface: #ffffff;
+  --site-surface-muted: color-mix(in srgb, var(--site-accent) 6%, var(--site-body-bg));
+  --site-border: color-mix(in srgb, var(--site-body-fg) 18%, transparent);
+  --glassed_background: color-mix(in srgb, var(--site-body-bg) 86%, transparent);
+  --site-shadow: 0 1px 0 color-mix(in srgb, var(--site-body-fg) 6%, transparent),
+    0 8px 24px color-mix(in srgb, #1a2332 6%, transparent);
+  color-scheme: light;
 }
 
 html[data-theme="dark"],
 html.dark {
-  --site-body-bg: #0a0a0a;
-  --site-body-fg: #f2f2f2;
-  --site-accent: #e8e8e8;
-  --site-accent-fg: #0a0a0a;
+  --site-body-bg: #0c1118;
+  --site-body-fg: #e8edf4;
+  --site-accent: #6ba3e8;
+  --site-accent-fg: #0c1118;
+  --site-surface: #141b26;
+  --site-surface-muted: color-mix(in srgb, var(--site-accent) 10%, var(--site-body-bg));
+  --site-border: color-mix(in srgb, var(--site-body-fg) 16%, transparent);
+  --glassed_background: color-mix(in srgb, var(--site-body-bg) 82%, transparent);
+  --site-shadow: 0 1px 0 color-mix(in srgb, #fff 4%, transparent),
+    0 12px 32px color-mix(in srgb, #000 45%, transparent);
+  color-scheme: dark;
 }
 
 @media (min-width: 1024px) {

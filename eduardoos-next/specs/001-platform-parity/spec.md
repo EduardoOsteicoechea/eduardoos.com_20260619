@@ -56,6 +56,15 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
   - Shared helper: `openApiErrorModal` / `ServerErrorModal` under `frontend/src/components/ServerErrorModal/`.
   - Operators must be able to copy the block to clipboard in one click.
 
+### Frontend design (BIM / AEC)
+- Agent skills (mandatory when building or restyling UI):
+  - `.cursor/skills/frontend-design/SKILL.md` — distinctive craft; avoid AI-default palettes.
+  - `.cursor/skills/bim-aec-frontend/SKILL.md` — blueprint vernacular for AEC tools on this site.
+- Visual signature: cool drafting paper + steel / blueprint blue accent (light and dark). No purple-SaaS, cream/terracotta, or broadsheet defaults unless a feature brief overrides.
+- Theme tokens live in `frontend/src/styles/theme.css` (`--site-*`). Plain CSS only.
+- Theme persistence: `localStorage` key `eduardoos-theme`; apply via `html[data-theme="light"|"dark"]` and `html.dark`. Bootstrapped inline in `BaseLayout` and `PamphletLayout`; helpers in `frontend/src/lib/theme.ts`.
+- Global menu **Theme** control in `Header` toggles light/dark on every layout (including pamphlet).
+
 ## Success criteria
 
 - [ ] Each must-have has tasks with tests-first implementation notes

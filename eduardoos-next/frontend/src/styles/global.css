@@ -8,6 +8,24 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 html,
 body {
   margin: 0;
@@ -15,10 +33,25 @@ body {
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   font-family: var(--font-sans);
+  font-size: var(--font-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 a {
   color: inherit;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--site-focus-ring, var(--site-accent));
+  outline-offset: 2px;
 }
 
 body > main {
@@ -26,12 +59,37 @@ body > main {
   min-height: calc(100dvh - var(--header_height));
 }
 
+/* Blueprint wash — subtle drafting grid atmosphere on home */
 html.page-home body {
-  background:
+  background-color: var(--site-body-bg);
+  background-image:
     radial-gradient(
-      ellipse 80% 55% at 15% 0%,
-      color-mix(in srgb, var(--site-body-fg) 8%, transparent),
-      transparent 60%
+      ellipse 90% 60% at 12% -10%,
+      color-mix(in srgb, var(--site-accent) 14%, transparent),
+      transparent 55%
     ),
-    var(--site-body-bg);
+    linear-gradient(
+      color-mix(in srgb, var(--site-body-fg) 4%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--site-body-fg) 4%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: auto, 48px 48px, 48px 48px;
+  background-attachment: fixed;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+code,
+.font-utility {
+  font-family: var(--font-utility);
 }

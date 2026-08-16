@@ -24,6 +24,7 @@ Rebuild Eduardo OS as a clean, spec-driven codebase (`frontend` / `backend` / `r
 ## Stack defaults (plan may refine per feature)
 
 - Frontend: Astro + React islands, plain CSS, theme tokens `--site-*`
+- Frontend design skills (required for UI work): `.cursor/skills/frontend-design/SKILL.md` + `.cursor/skills/bim-aec-frontend/SKILL.md` (blueprint vernacular; light/dark via `eduardoos-theme` + Header Theme toggle)
 - Backend: Go 1.23+, chi, AWS SDK for DynamoDB/S3
 - Revit/APS: Design Automation + Data Management under `revitapi/` + backend APS client
 - Deploy (future): Docker/nginx/EC2 patterns compatible with current ops

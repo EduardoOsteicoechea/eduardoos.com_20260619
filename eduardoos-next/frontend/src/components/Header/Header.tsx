@@ -11,6 +11,7 @@ import {
   isAuthenticated,
   logoutUser,
 } from "../../lib/auth";
+import { applyTheme, resolveTheme, toggleTheme, type SiteTheme } from "../../lib/theme";
 import "./Header.css";
 
 function profileInitialFromToken(token: string): string {
@@ -229,6 +230,7 @@ export function Header({ pathname }: HeaderProps) {
   const [loggedIn, setLoggedIn] = useState(false);
   const [profileInitial, setProfileInitial] = useState("");
   const [clientReady, setClientReady] = useState(false);
+  const [theme, setTheme] = useState<SiteTheme>("light");
   const headerRef = useRef<HTMLElement>(null);
   const trayRef = useRef<HTMLElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
@@ -275,6 +277,8 @@ export function Header({ pathname }: HeaderProps) {
   useEffect(() => {
     setClientReady(true);
     syncAuthState();
+    setTheme(resolveTheme());
+    applyTheme(resolveTheme());
   }, [pathname]);
 
   useEffect(() => {
@@ -351,6 +355,21 @@ export function Header({ pathname }: HeaderProps) {
           </a>
         ))}
         <ServicesMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
+        <button
+          type="button"
+          className="site-header__theme-toggle"
+          aria-pressed={theme === "dark"}
+          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          onClick={() => {
+            const next = toggleTheme();
+            setTheme(next);
+          }}
+        >
+          <span className="site-header__theme-toggle-label">Theme</span>
+          <span className="site-header__theme-toggle-value">
+            {theme === "dark" ? "Dark" : "Light"}
+          </span>
+        </button>
         {showAuth ? (
           <AuthControls
             variant="nav"

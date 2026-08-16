@@ -35,10 +35,12 @@ button.btn--primary {
 }
 
 .btn--primary:hover {
-  border-color: var(--site-medium);
+  filter: brightness(1.06);
+  border-color: var(--site-accent);
 }
 
 .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+  filter: none;
 }

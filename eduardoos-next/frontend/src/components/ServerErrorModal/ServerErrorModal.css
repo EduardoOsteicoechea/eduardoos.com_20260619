@@ -29,10 +29,11 @@
   overflow: auto;
   padding: 1.25rem 1.35rem;
   box-sizing: border-box;
-  background: var(--site-body-bg, #111);
-  color: var(--site-body-fg, #f2f2f2);
-  border: 1px solid var(--site-border, #444);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  background: var(--site-surface, var(--site-body-bg));
+  color: var(--site-body-fg);
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001, 4px);
+  box-shadow: var(--site-shadow);
 }
 
 .server-error-modal__title {

@@ -26,7 +26,7 @@
 
 .contact-agent--docked .contact-agent__chat {
   border: 1px solid var(--site-border);
-  background: color-mix(in srgb, var(--site-body-bg) 94%, transparent);
+  background: var(--site-surface-muted, color-mix(in srgb, var(--site-body-bg) 94%, transparent));
   padding: 0.65rem;
   flex: 1 1 auto;
   min-height: 0;

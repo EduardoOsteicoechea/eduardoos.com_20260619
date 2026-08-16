@@ -37,8 +37,9 @@ cd frontend && npm install && npm run dev
 
 Usable UI shell with production IA:
 
-- **Libs**: `src/config/routes.ts`, `src/lib/api.ts`, `src/lib/auth.ts` (token key `eduardoos-next-auth-token`), `src/lib/validation.ts`, `epams` / `playlists` / `bim` clients
-- **Chrome**: `Header` (Home, Contact, OpenBIM, APS, Personal dropdown), `AuthGate`, `BaseLayout`
+- **Libs**: `src/config/routes.ts`, `src/lib/api.ts`, `src/lib/auth.ts` (token key `eduardoos-next-auth-token`), `src/lib/validation.ts`, `src/lib/theme.ts` (`eduardoos-theme` light/dark), `epams` / `playlists` / `bim` clients
+- **Chrome**: `Header` (Home, Contact, OpenBIM, APS, Services dropdown, **Theme** light/dark toggle), `AuthGate`, `BaseLayout` / `PamphletLayout`
+- **Design**: blueprint / steel tokens in `src/styles/theme.css`; agent skills `.cursor/skills/frontend-design` + `.cursor/skills/bim-aec-frontend` (also in `specs/001-platform-parity/spec.md`)
 - **Auth**: login / register / verify-otp / reset-password forms
 - **Contact**: `ContactAgent` (docked optional on home desktop)
 - **APS admin**: workitem trigger + registry panel + hub explorer
