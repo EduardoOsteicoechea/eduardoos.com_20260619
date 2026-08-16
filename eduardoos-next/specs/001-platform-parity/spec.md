@@ -65,6 +65,12 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
 - Theme persistence: `localStorage` key `eduardoos-theme`; apply via `html[data-theme="light"|"dark"]` and `html.dark`. Bootstrapped inline in `BaseLayout` and `PamphletLayout`; helpers in `frontend/src/lib/theme.ts`.
 - Global menu **Theme** control in `Header` toggles light/dark on every layout (including pamphlet).
 
+### Frontend chrome (site Header)
+- **Desktop (≥768px):** fixed **left rail** (`--header_width: 60px`). Top = favicon logo → home; near bottom = hamburger; bottom = avatar (when logged in) with account menu. Nav tray slides in **from the left**, starting after the rail.
+- **Mobile:** horizontal top bar (`--header_height: 60px`). Left = favicon → home; right = avatar then menu. Tray opens from the left below the bar.
+- Layout shells (`BaseLayout`, `PamphletLayout`) and `global.css` offset content with `--header_height` / `--header_width` so blueprint wash and full-bleed editors do not sit under the rail.
+- Tray still hosts primary links, Services dropdown, Theme toggle, and logged-out auth links.
+
 ### Global Activity Bar (chrome)
 - Eduardo OS exposes a **global Activity Bar**: fixed bottom chrome shared across product surfaces (at minimum Music and Pamphlet).
 - Shared component: `frontend/src/components/ActivityBar/` (`ActivityBar.tsx` + `ActivityBar.css`). Surfaces adapt via props; do not fork chrome CSS per page.

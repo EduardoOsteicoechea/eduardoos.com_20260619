@@ -7,8 +7,10 @@
 
 :root {
   --ui-scale: 1.5;
+  /* Mobile: top bar height. Desktop (≥768px): height collapses; width is the left rail. */
   --header_height: 60px;
-  --header_bar_height: 55px;
+  --header_width: 0px;
+  --header_bar_height: 60px;
   --control_min_height: 2.25rem;
   --control_min_width: 2.25rem;
   --border_radius_001: 4px;
@@ -92,6 +94,14 @@ html.dark {
   --site-shadow: 0 1px 0 color-mix(in srgb, #fff 4%, transparent),
     0 12px 32px color-mix(in srgb, #000 45%, transparent);
   color-scheme: dark;
+}
+
+/* Desktop chrome: fixed left rail replaces the top bar. */
+@media (min-width: 768px) {
+  :root {
+    --header_height: 0px;
+    --header_width: 60px;
+  }
 }
 
 @media (min-width: 1024px) {

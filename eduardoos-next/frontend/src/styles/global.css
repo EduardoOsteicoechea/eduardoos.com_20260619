@@ -54,12 +54,15 @@ select:focus-visible,
   outline-offset: 2px;
 }
 
+/* Reserve chrome: top bar on mobile, left rail on desktop (--header_width). */
 body > main {
-  padding-top: 0;
+  padding-top: var(--header_height);
+  padding-left: var(--header_width);
   min-height: calc(100dvh - var(--header_height));
+  box-sizing: border-box;
 }
 
-/* Blueprint wash — subtle drafting grid atmosphere on home */
+/* Blueprint wash — subtle drafting grid atmosphere on home (offset past chrome) */
 html.page-home body {
   background-color: var(--site-body-bg);
   background-image:
@@ -79,6 +82,10 @@ html.page-home body {
     );
   background-size: auto, 48px 48px, 48px 48px;
   background-attachment: fixed;
+  background-position:
+    var(--header_width) var(--header_height),
+    var(--header_width) var(--header_height),
+    var(--header_width) var(--header_height);
 }
 
 h1,

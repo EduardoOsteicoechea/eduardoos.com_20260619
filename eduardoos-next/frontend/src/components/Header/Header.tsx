@@ -1,16 +1,24 @@
 /**
- * Site header: primary nav (Home, Contact, OpenBIM, APS) + Services dropdown
- * matching production information architecture.
+ * Site chrome: desktop left rail (60px) + mobile top bar.
+ * Logo (favicon) → home; hamburger opens the nav tray from the left;
+ * avatar (when logged in) keeps the account menu. Services, Theme, and
+ * auth links live inside the tray.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
   AUTH_SESSION_EXPIRED_EVENT,
+  getAuthEmailFromToken,
   getAuthToken,
+  isApsAdminEmail,
   isAuthenticated,
   logoutUser,
 } from "../../lib/auth";
+import {
+  fetchUserProfile,
+  PROFILE_IMAGE_UPDATED_EVENT,
+} from "../../lib/profile";
 import { applyTheme, resolveTheme, toggleTheme, type SiteTheme } from "../../lib/theme";
 import "./Header.css";
 
@@ -51,10 +59,17 @@ const SERVICES_LINKS = [
 
 interface AccountMenuProps {
   initial: string;
+  profileImageUrl: string;
   onLogout: () => void;
+  onProfileImageBroken: () => void;
 }
 
-function AccountMenu({ initial, onLogout }: AccountMenuProps) {
+function AccountMenu({
+  initial,
+  profileImageUrl,
+  onLogout,
+  onProfileImageBroken,
+}: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -78,7 +93,18 @@ function AccountMenu({ initial, onLogout }: AccountMenuProps) {
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        {initial}
+        {profileImageUrl ? (
+          <img
+            className="site-header__profile-img"
+            src={profileImageUrl}
+            alt=""
+            onError={onProfileImageBroken}
+          />
+        ) : (
+          <span className="site-header__profile-initial" aria-hidden="true">
+            {initial || "?"}
+          </span>
+        )}
       </button>
       {open ? (
         <div className="site-header__account-menu" role="menu" aria-label="Account actions">
@@ -139,7 +165,9 @@ function LoggedOutActions({ onNavigate }: LoggedOutActionsProps) {
 interface AuthControlsProps {
   loggedIn: boolean;
   profileInitial: string;
+  profileImageUrl: string;
   onLogout: () => void;
+  onProfileImageBroken: () => void;
   onNavigate?: () => void;
   variant: "bar" | "nav";
 }
@@ -147,13 +175,22 @@ interface AuthControlsProps {
 function AuthControls({
   loggedIn,
   profileInitial,
+  profileImageUrl,
   onLogout,
+  onProfileImageBroken,
   onNavigate,
   variant,
 }: AuthControlsProps) {
   let content: ReactNode;
   if (loggedIn) {
-    content = <AccountMenu initial={profileInitial} onLogout={onLogout} />;
+    content = (
+      <AccountMenu
+        initial={profileInitial}
+        profileImageUrl={profileImageUrl}
+        onLogout={onLogout}
+        onProfileImageBroken={onProfileImageBroken}
+      />
+    );
   } else {
     content = <LoggedOutActions onNavigate={onNavigate} />;
   }
@@ -225,12 +262,39 @@ function ServicesMenu({ pathname, navClass, onNavigate }: ServicesMenuProps) {
   );
 }
 
+function MenuIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className="site-header__menu-icon"
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {open ? (
+        <path
+          fill="currentColor"
+          d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12 5.7 16.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.89a1 1 0 0 0 1.41-1.41L13.41 12l4.89-4.89a1 1 0 0 0 0-1.4z"
+        />
+      ) : (
+        <path
+          fill="currentColor"
+          d="M4 7h16a1 1 0 1 0 0-2H4a1 1 0 0 0 0 2zm0 6h16a1 1 0 1 0 0-2H4a1 1 0 0 0 0 2zm0 6h16a1 1 0 1 0 0-2H4a1 1 0 0 0 0 2z"
+        />
+      )}
+    </svg>
+  );
+}
+
 export function Header({ pathname }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [profileInitial, setProfileInitial] = useState("");
+  const [profileImageUrl, setProfileImageUrl] = useState("");
   const [clientReady, setClientReady] = useState(false);
   const [theme, setTheme] = useState<SiteTheme>("light");
+  const [isAdmin, setIsAdmin] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
   const trayRef = useRef<HTMLElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
@@ -251,11 +315,26 @@ export function Header({ pathname }: HeaderProps) {
     setLoggedIn(authed);
     const token = getAuthToken();
     setProfileInitial(authed && token ? profileInitialFromToken(token) : "");
+    setIsAdmin(authed && isApsAdminEmail(getAuthEmailFromToken()));
+    if (!authed) {
+      setProfileImageUrl("");
+    }
+  }
+
+  async function loadProfileImage() {
+    if (!isAuthenticated()) {
+      setProfileImageUrl("");
+      return;
+    }
+    const profile = await fetchUserProfile();
+    const url = profile?.profileImageUrl?.trim() ?? "";
+    setProfileImageUrl(url);
   }
 
   async function handleLogout() {
     closeMenu();
     await logoutUser();
+    setProfileImageUrl("");
     syncAuthState();
     window.location.replace(APP_ROUTES.login);
   }
@@ -265,13 +344,21 @@ export function Header({ pathname }: HeaderProps) {
   }, [pathname]);
 
   useEffect(() => {
-    const syncHeaderHeight = () => {
-      const height = headerRef.current?.offsetHeight ?? 55;
-      document.documentElement.style.setProperty("--header_height", `${height}px`);
+    // Keep layout tokens in sync: mobile uses bar height; desktop rail uses fixed width.
+    const syncChromeTokens = () => {
+      const isDesktop = window.matchMedia("(min-width: 768px)").matches;
+      if (isDesktop) {
+        document.documentElement.style.setProperty("--header_width", "60px");
+        document.documentElement.style.setProperty("--header_height", "0px");
+      } else {
+        const height = headerRef.current?.offsetHeight ?? 60;
+        document.documentElement.style.setProperty("--header_height", `${height}px`);
+        document.documentElement.style.setProperty("--header_width", "0px");
+      }
     };
-    syncHeaderHeight();
-    window.addEventListener("resize", syncHeaderHeight);
-    return () => window.removeEventListener("resize", syncHeaderHeight);
+    syncChromeTokens();
+    window.addEventListener("resize", syncChromeTokens);
+    return () => window.removeEventListener("resize", syncChromeTokens);
   }, [menuOpen, pathname, loggedIn]);
 
   useEffect(() => {
@@ -279,15 +366,26 @@ export function Header({ pathname }: HeaderProps) {
     syncAuthState();
     setTheme(resolveTheme());
     applyTheme(resolveTheme());
+    void loadProfileImage();
   }, [pathname]);
 
   useEffect(() => {
     function handleAuthSessionExpired() {
       syncAuthState();
+      setProfileImageUrl("");
+    }
+    function handleProfileImageUpdated(event: Event) {
+      const detail = (event as CustomEvent<{ profileImageUrl?: string }>).detail;
+      const url = detail?.profileImageUrl?.trim() ?? "";
+      if (url) setProfileImageUrl(url);
+      else void loadProfileImage();
     }
     window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleAuthSessionExpired);
-    return () =>
+    window.addEventListener(PROFILE_IMAGE_UPDATED_EVENT, handleProfileImageUpdated);
+    return () => {
       window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleAuthSessionExpired);
+      window.removeEventListener(PROFILE_IMAGE_UPDATED_EVENT, handleProfileImageUpdated);
+    };
   }, []);
 
   useEffect(() => {
@@ -314,27 +412,34 @@ export function Header({ pathname }: HeaderProps) {
   return (
     <header ref={headerRef} className={`site-header${menuOpen ? " site-header--open" : ""}`}>
       <div className="site-header__bar">
+        <a className="site-header__logo" href={APP_ROUTES.home} aria-label="Eduardo OS home">
+          <img className="site-header__logo-img" src="/favicon.svg" alt="" width={28} height={28} />
+        </a>
         <div className="site-header__bar-spacer" aria-hidden="true" />
-        {showAuth ? (
-          <AuthControls
-            variant="bar"
-            loggedIn={loggedIn}
-            profileInitial={profileInitial}
-            onLogout={() => void handleLogout()}
-            onNavigate={closeMenu}
-          />
-        ) : null}
-        <button
-          ref={menuBtnRef}
-          type="button"
-          className="site-header__menu"
-          aria-expanded={menuOpen}
-          aria-controls="site-header-nav"
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          Menu
-        </button>
+        <div className="site-header__bar-end">
+          {showAuth ? (
+            <AuthControls
+              variant="bar"
+              loggedIn={loggedIn}
+              profileInitial={profileInitial}
+              profileImageUrl={profileImageUrl}
+              onLogout={() => void handleLogout()}
+              onProfileImageBroken={() => setProfileImageUrl("")}
+              onNavigate={closeMenu}
+            />
+          ) : null}
+          <button
+            ref={menuBtnRef}
+            type="button"
+            className="site-header__menu"
+            aria-expanded={menuOpen}
+            aria-controls="site-header-nav"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <MenuIcon open={menuOpen} />
+          </button>
+        </div>
       </div>
       <div
         className="site-header__backdrop"
@@ -355,6 +460,15 @@ export function Header({ pathname }: HeaderProps) {
           </a>
         ))}
         <ServicesMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
+        {isAdmin ? (
+          <a
+            className={navClass(APP_ROUTES.adminUsers)}
+            href={APP_ROUTES.adminUsers}
+            onClick={closeMenu}
+          >
+            Admin users
+          </a>
+        ) : null}
         <button
           type="button"
           className="site-header__theme-toggle"
@@ -375,7 +489,9 @@ export function Header({ pathname }: HeaderProps) {
             variant="nav"
             loggedIn={loggedIn}
             profileInitial={profileInitial}
+            profileImageUrl={profileImageUrl}
             onLogout={() => void handleLogout()}
+            onProfileImageBroken={() => setProfileImageUrl("")}
             onNavigate={closeMenu}
           />
         ) : null}
