@@ -210,6 +210,17 @@
   width: calc(var(--playlist-control-size) * 0.5);
   height: calc(var(--playlist-control-size) * 0.5);
   display: block;
+  color: inherit;
+  fill: currentColor;
+}
+
+.playlist-builder__icon-btn .playlist-icon path {
+  fill: currentColor;
+}
+
+.playlist-builder__icon-btn .playlist-icon path[fill="none"] {
+  fill: none;
+  stroke: currentColor;
 }
 
 .playlist-builder__icon-btn:hover:not(:disabled) {

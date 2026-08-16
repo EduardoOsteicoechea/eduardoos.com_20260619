@@ -1,14 +1,14 @@
 ---
 /**
  * Worship music / playlist builder (nav: Music).
- * Library → session playlist → lyrics; lyric structure editor for eduardooost@gmail.com.
+ * Subscription-gated; admin (eduardooost@gmail.com) always allowed.
  */
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import PlaylistBuilder from "../../components/PlaylistBuilder/PlaylistBuilder";
+import MusicPage from "../../components/Playlist/MusicPage";
 ---
 
 <BaseLayout title="Music — Eduardo OS Next">
   <div class="page-shell page-shell--wide">
-    <PlaylistBuilder client:load />
+    <MusicPage client:load />
   </div>
 </BaseLayout>

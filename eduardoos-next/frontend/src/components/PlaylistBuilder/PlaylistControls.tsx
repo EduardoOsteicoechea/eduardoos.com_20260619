@@ -1,4 +1,10 @@
+/**
+ * Music transport — adapter over the shared ActivityBar (multi-row layout).
+ * Top row: seek scrubber; bottom row: playback icons; tray: volume/speed.
+ */
+
 import { useEffect, useId, useRef, useState } from "react";
+import ActivityBar from "../ActivityBar/ActivityBar";
 import { formatPlaybackTime } from "../../lib/formatTime";
 import {
   IconDownload,
@@ -193,11 +199,8 @@ export default function PlaylistControls({
   onLoadEmusics,
 }: PlaylistControlsProps) {
   const [trayOpen, setTrayOpen] = useState(false);
-  const trayRef = useRef<HTMLDivElement>(null);
   const trayToggleRef = useRef<HTMLButtonElement>(null);
   const uid = useId();
-  const volumeId = `playlist-volume${uid}`;
-  const speedId = `playlist-speed${uid}`;
   const trayVolumeId = `playlist-tray-volume${uid}`;
   const traySpeedId = `playlist-tray-speed${uid}`;
   const seekProps = {
@@ -220,10 +223,8 @@ export default function PlaylistControls({
     if (!trayOpen) return;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (
-        trayRef.current?.contains(target) ||
-        trayToggleRef.current?.contains(target)
-      ) {
+      const bar = document.querySelector(".playlist-controls.activity-bar");
+      if (bar?.contains(target) || trayToggleRef.current?.contains(target)) {
         return;
       }
       setTrayOpen(false);
@@ -244,138 +245,124 @@ export default function PlaylistControls({
     ? `Packing… ${emusicsProgress}`
     : `Descargar .emusics (${emusicsReadyCount}/${emusicsLibraryCount})`;
 
+  const actions = (
+    <>
+      <button
+        type="button"
+        className="activity-bar__btn playlist-controls__btn"
+        disabled={!canPlay}
+        title="Previous track"
+        aria-label="Previous track"
+        onClick={onPrevious}
+      >
+        <IconPrevious />
+      </button>
+      <button
+        type="button"
+        className="activity-bar__btn playlist-controls__btn"
+        disabled={!canPlay}
+        title={`Back ${SEEK_NUDGE_SECONDS} seconds`}
+        aria-label={`Back ${SEEK_NUDGE_SECONDS} seconds`}
+        onClick={() => nudgeSeek(-SEEK_NUDGE_SECONDS)}
+      >
+        <IconSeekBack />
+      </button>
+      <button
+        type="button"
+        className="activity-bar__btn activity-bar__btn--primary playlist-controls__btn playlist-controls__btn--primary"
+        disabled={!canPlay}
+        title={isPlaying ? "Pause" : "Play"}
+        aria-label={isPlaying ? "Pause" : "Play"}
+        onClick={isPlaying ? onPause : onPlay}
+      >
+        {isPlaying ? <IconPause /> : <IconPlay />}
+      </button>
+      <button
+        type="button"
+        className="activity-bar__btn playlist-controls__btn"
+        disabled={!canPlay}
+        title={`Forward ${SEEK_NUDGE_SECONDS} seconds`}
+        aria-label={`Forward ${SEEK_NUDGE_SECONDS} seconds`}
+        onClick={() => nudgeSeek(SEEK_NUDGE_SECONDS)}
+      >
+        <IconSeekForward />
+      </button>
+      <button
+        type="button"
+        className="activity-bar__btn playlist-controls__btn"
+        disabled={!canPlay}
+        title="Next track"
+        aria-label="Next track"
+        onClick={onNext}
+      >
+        <IconNext />
+      </button>
+      <button
+        type="button"
+        className="activity-bar__btn playlist-controls__btn"
+        disabled={!canPlay}
+        title="Stop"
+        aria-label="Stop"
+        onClick={onStop}
+      >
+        <IconStop />
+      </button>
+      <button
+        type="button"
+        className={`activity-bar__btn playlist-controls__btn playlist-controls__btn--loop${loopPlaylist ? " activity-bar__btn--active playlist-controls__btn--loop-on" : ""}`}
+        title={loopPlaylist ? "Loop playlist on" : "Loop playlist off"}
+        aria-label={loopPlaylist ? "Loop playlist on" : "Loop playlist off"}
+        aria-pressed={loopPlaylist}
+        onClick={onLoopToggle}
+      >
+        <IconLoop />
+      </button>
+      <button
+        type="button"
+        className="activity-bar__btn playlist-controls__btn playlist-controls__emusics-btn"
+        disabled={emusicsDownloading || emusicsLibraryCount === 0 || !onDownloadEmusics}
+        title={downloadLabel}
+        aria-label={downloadLabel}
+        onClick={onDownloadEmusics}
+      >
+        <IconDownload />
+      </button>
+      <button
+        type="button"
+        className="activity-bar__btn playlist-controls__btn playlist-controls__emusics-btn"
+        disabled={emusicsDownloading || !onLoadEmusics}
+        title="Cargar colección .emusics"
+        aria-label="Cargar colección .emusics"
+        onClick={onLoadEmusics}
+      >
+        <IconUpload />
+      </button>
+      <button
+        ref={trayToggleRef}
+        type="button"
+        className={`activity-bar__btn activity-bar__tray-toggle playlist-controls__btn playlist-controls__tray-toggle${trayOpen ? " activity-bar__tray-toggle--open playlist-controls__tray-toggle--open" : ""}`}
+        title="Volume and playback settings"
+        aria-label="Volume and playback settings"
+        aria-expanded={trayOpen}
+        aria-controls="playlist-controls-tray"
+        onClick={() => setTrayOpen((open) => !open)}
+      >
+        <IconVolume />
+      </button>
+    </>
+  );
+
   return (
-    <section
-      className={`playlist-controls${trayOpen ? " playlist-controls--tray-open" : ""}`}
-      aria-label="Playlist transport"
-    >
-      <div className="playlist-controls__inner">
-        <SeekBar {...seekProps} />
-
-        <div className="playlist-controls__deck">
-          <div className="playlist-controls__transport">
-            <button
-              type="button"
-              className="playlist-controls__btn"
-              disabled={!canPlay}
-              title="Previous track"
-              aria-label="Previous track"
-              onClick={onPrevious}
-            >
-              <IconPrevious />
-            </button>
-            <button
-              type="button"
-              className="playlist-controls__btn"
-              disabled={!canPlay}
-              title={`Back ${SEEK_NUDGE_SECONDS} seconds`}
-              aria-label={`Back ${SEEK_NUDGE_SECONDS} seconds`}
-              onClick={() => nudgeSeek(-SEEK_NUDGE_SECONDS)}
-            >
-              <IconSeekBack />
-            </button>
-            <button
-              type="button"
-              className="playlist-controls__btn playlist-controls__btn--primary"
-              disabled={!canPlay}
-              title={isPlaying ? "Pause" : "Play"}
-              aria-label={isPlaying ? "Pause" : "Play"}
-              onClick={isPlaying ? onPause : onPlay}
-            >
-              {isPlaying ? <IconPause /> : <IconPlay />}
-            </button>
-            <button
-              type="button"
-              className="playlist-controls__btn"
-              disabled={!canPlay}
-              title={`Forward ${SEEK_NUDGE_SECONDS} seconds`}
-              aria-label={`Forward ${SEEK_NUDGE_SECONDS} seconds`}
-              onClick={() => nudgeSeek(SEEK_NUDGE_SECONDS)}
-            >
-              <IconSeekForward />
-            </button>
-            <button
-              type="button"
-              className="playlist-controls__btn"
-              disabled={!canPlay}
-              title="Next track"
-              aria-label="Next track"
-              onClick={onNext}
-            >
-              <IconNext />
-            </button>
-            <button
-              type="button"
-              className="playlist-controls__btn"
-              disabled={!canPlay}
-              title="Stop"
-              aria-label="Stop"
-              onClick={onStop}
-            >
-              <IconStop />
-            </button>
-            <button
-              type="button"
-              className={`playlist-controls__btn playlist-controls__btn--loop${loopPlaylist ? " playlist-controls__btn--loop-on" : ""}`}
-              title={loopPlaylist ? "Loop playlist on" : "Loop playlist off"}
-              aria-label={loopPlaylist ? "Loop playlist on" : "Loop playlist off"}
-              aria-pressed={loopPlaylist}
-              onClick={onLoopToggle}
-            >
-              <IconLoop />
-            </button>
-            <button
-              type="button"
-              className="playlist-controls__btn playlist-controls__emusics-btn"
-              disabled={
-                emusicsDownloading || emusicsLibraryCount === 0 || !onDownloadEmusics
-              }
-              title={downloadLabel}
-              aria-label={downloadLabel}
-              onClick={onDownloadEmusics}
-            >
-              <IconDownload />
-            </button>
-            <button
-              type="button"
-              className="playlist-controls__btn playlist-controls__emusics-btn"
-              disabled={emusicsDownloading || !onLoadEmusics}
-              title="Cargar colección .emusics"
-              aria-label="Cargar colección .emusics"
-              onClick={onLoadEmusics}
-            >
-              <IconUpload />
-            </button>
-            <button
-              ref={trayToggleRef}
-              type="button"
-              className={`playlist-controls__btn playlist-controls__tray-toggle${trayOpen ? " playlist-controls__tray-toggle--open" : ""}`}
-              title="Volume and playback settings"
-              aria-label="Volume and playback settings"
-              aria-expanded={trayOpen}
-              aria-controls="playlist-controls-tray"
-              onClick={() => setTrayOpen((open) => !open)}
-            >
-              <IconVolume />
-            </button>
-          </div>
-
-          <div className="playlist-controls__meta playlist-controls__meta--bar">
-            <MetaPanel volumeId={volumeId} speedId={speedId} {...metaProps} />
-          </div>
-        </div>
-
-        <div
-          ref={trayRef}
-          id="playlist-controls-tray"
-          className={`playlist-controls__tray${trayOpen ? " playlist-controls__tray--open" : ""}`}
-          role="region"
-          aria-label="Track info and playback settings"
-          hidden={!trayOpen}
-        >
-          <MetaPanel volumeId={trayVolumeId} speedId={traySpeedId} {...metaProps} />
-        </div>
-      </div>
-    </section>
+    <ActivityBar
+      label="Playlist transport"
+      layout="multi-row"
+      className="playlist-controls"
+      topRow={<SeekBar {...seekProps} />}
+      actions={actions}
+      trayId="playlist-controls-tray"
+      trayLabel="Track info and playback settings"
+      trayOpen={trayOpen}
+      tray={<MetaPanel volumeId={trayVolumeId} speedId={traySpeedId} {...metaProps} />}
+    />
   );
 }

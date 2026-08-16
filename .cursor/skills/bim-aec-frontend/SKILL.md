@@ -39,6 +39,7 @@ Fonts already on Eduardo OS: **Montserrat** (UI/display), **Raleway** (secondary
 4. Dense editors (pamphlet, APS, BIM): prioritize contrast, focus rings, and overflow scrolling over ornament.
 5. Respect `prefers-reduced-motion`.
 6. Server errors: copyable modal (`ServerErrorModal`) — never console-only.
+7. **Activity bar / transport icons** MUST stay legible in light and dark: `currentColor` (or `--site-body-fg` / `--site-accent-fg` on accent fills). No hardcoded white/light-gray strokes that vanish on light chrome.
 
 ## Layout cues
 
