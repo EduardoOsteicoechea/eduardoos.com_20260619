@@ -112,7 +112,7 @@
   color: var(--site-meta-fg);
 }
 
-/* —— Home: brand-first gallery-atelier —— */
+/* —— Home: brand-first gallery-atelier (portrait as absolute column backdrop) —— */
 .home-hero {
   width: min(100%, var(--max_desktop_width));
   margin: 0 auto;
@@ -124,50 +124,73 @@
   gap: 1.75rem;
 }
 
-/* Left column: copy then portrait, flush to the content/page-shell edge. */
+/* Relative stage: absolute photo fills the column; copy sits above at z-index 1. */
 .home-hero__primary {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   align-items: stretch;
-  gap: 1.5rem;
   min-width: 0;
+  min-height: min(52vh, 28rem);
+  overflow: hidden;
+  border-radius: var(--border_radius_001);
 }
 
-.home-hero__copy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  max-width: 38rem;
-  padding-block: 0.5rem;
-}
-
+/* Portrait behind copy — flush left toward the header rail, cover crop. */
 .home-hero__photo {
-  display: block;
-  width: 100%;
-  max-width: 100%;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   margin: 0;
   padding: 0;
   line-height: 0;
+  pointer-events: none;
 }
 
 .home-hero__photo img {
   display: block;
   width: 100%;
-  max-width: 100%;
-  height: auto;
-  max-height: min(58vh, 34rem);
+  height: 100%;
   margin: 0;
   object-fit: cover;
   object-position: left top;
 }
 
+/* Soft scrim so brand/lead stay readable over the photo (light + dark). */
+.home-hero__primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--site-body-bg) 88%, transparent) 0%,
+    color-mix(in srgb, var(--site-body-bg) 55%, transparent) 42%,
+    color-mix(in srgb, var(--site-body-bg) 18%, transparent) 72%,
+    transparent 100%
+  );
+}
+
+.home-hero__copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  max-width: 38rem;
+  padding: 2.5rem 1.15rem 1.35rem;
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  .home-hero__copy {
-    animation: home-hero-reveal 0.7s ease-out both;
+  .home-hero__primary {
+    animation: home-hero-reveal 0.8s ease-out both;
   }
 
-  .home-hero__photo {
-    animation: home-hero-reveal 0.8s ease-out 0.08s both;
+  .home-hero__copy {
+    animation: home-hero-reveal 0.7s ease-out 0.06s both;
   }
 
   .home-hero__chat {
@@ -236,18 +259,23 @@
   }
 
   .home-hero__primary {
-    gap: 1.75rem;
-    justify-content: flex-start;
+    min-height: 100%;
+    justify-content: center;
   }
 
-  .home-hero__photo {
-    align-self: stretch;
-    width: 100%;
+  .home-hero__primary::after {
+    background: linear-gradient(
+      105deg,
+      color-mix(in srgb, var(--site-body-bg) 82%, transparent) 0%,
+      color-mix(in srgb, var(--site-body-bg) 48%, transparent) 38%,
+      color-mix(in srgb, var(--site-body-bg) 12%, transparent) 68%,
+      transparent 100%
+    );
   }
 
-  .home-hero__photo img {
-    max-height: min(62vh, 40rem);
-    object-position: left top;
+  .home-hero__copy {
+    justify-content: center;
+    padding: 2rem 1.5rem 2rem 1.25rem;
   }
 
   .home-hero__chat {
@@ -260,6 +288,28 @@
     background: color-mix(in srgb, var(--site-surface) 92%, transparent);
     box-shadow: var(--site-shadow);
     backdrop-filter: blur(10px);
+  }
+}
+
+/* Narrow phones: shorter absolute band so the photo does not dominate unreadably. */
+@media (max-width: 599px) {
+  .home-hero__primary {
+    min-height: min(44vh, 22rem);
+  }
+
+  .home-hero__photo {
+    inset: auto 0 0 0;
+    height: min(44vh, 22rem);
+  }
+
+  .home-hero__primary::after {
+    background: linear-gradient(
+      to top,
+      color-mix(in srgb, var(--site-body-bg) 92%, transparent) 0%,
+      color-mix(in srgb, var(--site-body-bg) 62%, transparent) 48%,
+      color-mix(in srgb, var(--site-body-bg) 22%, transparent) 78%,
+      transparent 100%
+    );
   }
 }
 

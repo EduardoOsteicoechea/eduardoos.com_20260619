@@ -418,7 +418,7 @@ export function Header({ pathname }: HeaderProps) {
     <header ref={headerRef} className={`site-header${menuOpen ? " site-header--open" : ""}`}>
       <div className="site-header__bar">
         <a className="site-header__logo" href={APP_ROUTES.home} aria-label="Eduardo OS home">
-          <img className="site-header__logo-img" src="/favicon.svg" alt="" width={28} height={28} />
+          <img className="site-header__logo-img" src="/favicon-48.png" alt="" width={28} height={28} />
         </a>
         <div className="site-header__bar-spacer" aria-hidden="true" />
         <div className="site-header__bar-end">
