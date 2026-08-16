@@ -26,18 +26,11 @@ if [[ ! -d "${APP_DIR}/.git" ]]; then
   exit 1
 fi
 
-if [[ ! -f "${APP_DIR}/.env" ]] && [[ ! -f "${NEXT_DIR}/.env" ]]; then
-  echo "ERROR: neither ${APP_DIR}/.env nor ${NEXT_DIR}/.env found. CI must upload before deploy."
+# Production uses APP_DIR/.env only (ADDR=:3000). Staging keeps NEXT_DIR/.env (ADDR=:3001).
+# Do NOT copy production env into NEXT_DIR/.env — that made staging bind :3000 and crash.
+if [[ ! -f "${APP_DIR}/.env" ]]; then
+  echo "ERROR: ${APP_DIR}/.env not found. CI must upload it before deploy."
   exit 1
-fi
-
-# Prefer Next .env for the production unit; keep a copy at APP_DIR/.env for cert/domain helpers.
-if [[ -f "${APP_DIR}/.env" ]] && [[ ! -f "${NEXT_DIR}/.env" ]]; then
-  mkdir -p "${NEXT_DIR}"
-  cp "${APP_DIR}/.env" "${NEXT_DIR}/.env"
-fi
-if [[ -f "${NEXT_DIR}/.env" ]] && [[ ! -f "${APP_DIR}/.env" ]]; then
-  cp "${NEXT_DIR}/.env" "${APP_DIR}/.env"
 fi
 
 ensure_go() {
@@ -130,8 +123,10 @@ Wants=network-online.target
 Type=simple
 User=${DEPLOY_USER}
 WorkingDirectory=${NEXT_DIR}
-EnvironmentFile=-${NEXT_DIR}/.env
+# APP_DIR/.env only — never share with staging NEXT_DIR/.env (ADDR collision).
 EnvironmentFile=-${APP_DIR}/.env
+# PORT wins over ADDR in eduardoos-next main (belt-and-suspenders vs leaked ADDR).
+Environment=PORT=3000
 Environment=ADDR=${BACKEND_ADDR}
 ExecStart=${NEXT_DIR}/backend/bin/eduardoos-next
 Restart=on-failure

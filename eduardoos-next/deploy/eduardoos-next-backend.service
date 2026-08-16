@@ -1,9 +1,8 @@
 # Optional systemd unit for Eduardo OS Next backend (staging / secondary port).
-# Install via deploy-remote-staging.sh (does NOT replace production units):
-#   sed -e "s|@NEXT_DIR@|$NEXT_DIR|g" -e "s|@DEPLOY_USER@|$USER|g" \
-#     eduardoos-next-backend.service | sudo tee /etc/systemd/system/eduardoos-next.service
+# Install via deploy-remote-staging.sh (does NOT replace production units).
+# Production uses eduardoos.service on :3000 with APP_DIR/.env only.
 #
-# Placeholders @NEXT_DIR@ and @DEPLOY_USER@ are substituted on install.
+# PORT=3001 must be set so a leaked ADDR=:3000 in EnvironmentFile cannot steal prod.
 
 [Unit]
 Description=Eduardo OS Next backend (staging secondary)
@@ -15,6 +14,7 @@ Type=simple
 User=@DEPLOY_USER@
 WorkingDirectory=@NEXT_DIR@
 EnvironmentFile=-@NEXT_DIR@/.env
+Environment=PORT=3001
 Environment=ADDR=:3001
 ExecStart=@NEXT_DIR@/backend/bin/eduardoos-next
 Restart=on-failure

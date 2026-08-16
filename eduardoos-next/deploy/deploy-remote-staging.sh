@@ -104,21 +104,29 @@ mkdir -p "${NEXT_DIR}/backend/bin"
 chmod +x "${NEXT_DIR}/deploy/build-frontend.sh"
 bash "${NEXT_DIR}/deploy/build-frontend.sh"
 
-echo "==> Installing systemd unit eduardoos-next.service"
-TEMPLATE="${NEXT_DIR}/deploy/eduardoos-next-backend.service"
+echo "==> Installing systemd unit eduardoos-next.service (staging :3001 only)"
+# Write unit explicitly so PORT=3001 always wins over any leaked ADDR in .env
+# (systemd EnvironmentFile overrides Environment= for the same key; main prefers PORT).
 SERVICE_FILE="/etc/systemd/system/eduardoos-next.service"
-sed \
-  -e "s|@NEXT_DIR@|${NEXT_DIR}|g" \
-  -e "s|@DEPLOY_USER@|${DEPLOY_USER}|g" \
-  -e "s|/opt/eduardoos-next|${NEXT_DIR}|g" \
-  "${TEMPLATE}" | sudo tee "${SERVICE_FILE}" >/dev/null
+sudo tee "${SERVICE_FILE}" >/dev/null <<EOF
+[Unit]
+Description=Eduardo OS Next backend (staging secondary)
+After=network.target
 
-if ! grep -q '^User=' "${SERVICE_FILE}"; then
-  sudo sed -i "/^\[Service\]/a User=${DEPLOY_USER}" "${SERVICE_FILE}"
-fi
-if ! grep -q 'ADDR=' "${SERVICE_FILE}"; then
-  sudo sed -i "/^\[Service\]/a Environment=ADDR=${BACKEND_ADDR}" "${SERVICE_FILE}"
-fi
+[Service]
+Type=simple
+User=${DEPLOY_USER}
+WorkingDirectory=${NEXT_DIR}
+EnvironmentFile=-${NEXT_DIR}/.env
+Environment=PORT=3001
+Environment=ADDR=${BACKEND_ADDR}
+ExecStart=${NEXT_DIR}/backend/bin/eduardoos-next
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 sudo systemctl daemon-reload
 sudo systemctl enable eduardoos-next.service

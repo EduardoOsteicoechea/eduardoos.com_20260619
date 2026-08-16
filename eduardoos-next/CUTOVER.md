@@ -40,7 +40,7 @@ Documented in `specs/001-platform-parity/data-contracts.md`.
 | HTTPS `:443` static | `eduardoos-next/frontend/dist` (Docker nginx `/usr/share/nginx/html`) |
 | API `:3000` | `eduardoos-next/backend/bin/eduardoos-next` via `eduardoos.service` |
 | Staging `:8080` | Same Next frontend mount + `eduardoos-next.service` on `:3001` |
-| Env files | `~/…/.env` and `~/…/eduardoos-next/.env` (CI uploads both) |
+| Env files | Production: `~/…/.env` (`ADDR=:3000`). Staging: `~/…/eduardoos-next/.env` (`ADDR=:3001`). Keep separate. |
 
 Scripts: `eduardoos-next/deploy/deploy-remote-production.sh` (called from `deploy/ec2/deploy-remote.sh`).
 
