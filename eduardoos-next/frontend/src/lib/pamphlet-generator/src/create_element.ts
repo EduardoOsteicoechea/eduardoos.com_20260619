@@ -303,31 +303,62 @@ function editTray(
     editTrayButtonsTray.className = "element_edit_tray_buttons_container";
 
     let onOutsidePointer: (e: PointerEvent) => void = () => {};
+    let onTrayHotkey: (e: KeyboardEvent) => void = () => {};
 
-    const detachOutsideListener = () => {
+    const detachTrayListeners = () => {
         document.removeEventListener("pointerdown", onOutsidePointer, true);
+        document.removeEventListener("keydown", onTrayHotkey, true);
     };
 
     const saveAndClose = () => {
-        detachOutsideListener();
+        detachTrayListeners();
         dispatchTrayAction(elContainer, { action: "close", container: elContainer });
     };
 
     const dispatchRemountAction = (detail: PamphletTrayAction) => {
-        // Remount paths destroy this tray — drop the outside listener first.
-        detachOutsideListener();
+        // Remount paths destroy this tray — drop document listeners first.
+        detachTrayListeners();
         dispatchTrayAction(elContainer, detail);
     };
 
     onOutsidePointer = (e: PointerEvent) => {
         if (!tray.isConnected) {
-            detachOutsideListener();
+            detachTrayListeners();
             return;
         }
         const target = e.target as Node | null;
         if (!target) return;
         if (tray.contains(target)) return;
         // Click outside the edit tray → same as OK / save-and-close.
+        saveAndClose();
+    };
+
+    // Enter / Escape → same as green OK, even when focus is on a tray toolbar button
+    // (textarea-only listeners miss that). Shift+Enter still inserts a newline in the field.
+    // Capture phase so we commit before other chrome (header menu, button activation).
+    onTrayHotkey = (e: KeyboardEvent) => {
+        if (!tray.isConnected) {
+            detachTrayListeners();
+            return;
+        }
+        if (e.isComposing) return;
+        const target = e.target;
+        if (target instanceof Element && target.closest("dialog[open]")) return;
+
+        const isEscape = e.key === "Escape";
+        const isEnterOk =
+            e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey;
+        if (!isEscape && !isEnterOk) return;
+
+        // Enter only while focus is in this tray (textarea or toolbar). Escape dismisses
+        // edit mode more broadly so it still matches OK after focus drifts.
+        if (isEnterOk) {
+            const active = document.activeElement;
+            if (!(active instanceof Node) || !tray.contains(active)) return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
         saveAndClose();
     };
 
@@ -592,13 +623,6 @@ function editTray(
         imageControls.appendChild(rowPrimary);
         imageControls.appendChild(rowTransform);
         tray.appendChild(imageControls);
-
-        tray.addEventListener("keydown", (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-                e.preventDefault();
-                saveAndClose();
-            }
-        });
     } else {
         editTrayTextArea = document.createElement("textarea");
         editTrayTextArea.value = initialContent;
@@ -611,18 +635,6 @@ function editTray(
         editTrayTextArea.addEventListener("input", (e: Event) => {
             const target = e.target as HTMLTextAreaElement;
             el.textContent = target.value;
-        });
-
-        editTrayTextArea.addEventListener("keydown", (e: KeyboardEvent) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                saveAndClose();
-                return;
-            }
-            if (e.key === "Escape") {
-                e.preventDefault();
-                saveAndClose();
-            }
         });
 
         tray.appendChild(editTrayTextArea);
@@ -649,5 +661,6 @@ function editTray(
     // Defer so the opening click does not immediately close the tray.
     requestAnimationFrame(() => {
         document.addEventListener("pointerdown", onOutsidePointer, true);
+        document.addEventListener("keydown", onTrayHotkey, true);
     });
 }

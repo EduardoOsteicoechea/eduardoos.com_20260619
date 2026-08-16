@@ -55,5 +55,6 @@ handle.destroy();
 ## Notes
 
 - Client-only: do not SSR-render the editor logic.
+- Edit tray: **Enter** and **Escape** commit like the green OK (checkmark); **Shift+Enter** inserts a newline in the textarea.
 - Print: Imprimir POSTs the pamphlet JSON to `/api/documents/pamphlet/pdf` (JWT) and downloads the PDF. The previous `window.print()` path is commented in `main.ts` as a local fallback.
 - Keep developing the root app as usual; refresh this portable copy when you want to re-export a snapshot.
