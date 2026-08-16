@@ -1,4 +1,6 @@
 import { apiRequest } from "./api";
+import { getAuthToken } from "./auth";
+import { MEDIA_ROUTES } from "../config/routes";
 import { createCorrelationId } from "./telemetry";
 export const WORSHIP_AUDIO_PREFIX = "worship_playlists";
 export interface AudioLibraryItem {
@@ -16,15 +18,86 @@ interface AudioListResponse {
     count: number;
     tracks: AudioLibraryItem[];
 }
+
+interface AudioUploadResponse {
+    track: AudioLibraryItem;
+    prefix?: string;
+}
+
 export async function fetchAudioLibrary(): Promise<AudioLibraryItem[]> {
     const correlationId = createCorrelationId();
-    const path = `/api/media/audio?prefix=${encodeURIComponent(WORSHIP_AUDIO_PREFIX)}`;
+    const path = MEDIA_ROUTES.audioList(WORSHIP_AUDIO_PREFIX);
     const result = await apiRequest<AudioListResponse>(path, { correlationId });
     if (result.error) {
         throw new Error(result.error.message);
     }
     return result.data?.tracks ?? [];
 }
+
+/**
+ * Upload a recorded (or picked) audio blob to S3 via the admin-only endpoint.
+ * Returns the library track so PlaylistBuilder can append it immediately.
+ */
+export async function uploadWorshipRecording(
+    blob: Blob,
+    options: { title?: string; filename?: string; prefix?: string } = {},
+): Promise<AudioLibraryItem> {
+    const token = getAuthToken();
+    if (!token) {
+        throw new Error("Sign in as admin to upload recordings.");
+    }
+    const correlationId = createCorrelationId();
+    const ext = extensionForAudioBlob(blob, options.filename);
+    const filename = (options.filename?.trim() || `recording${ext}`).replace(/[/\\]/g, "-");
+    const form = new FormData();
+    form.append("file", blob, filename);
+    if (options.title?.trim()) {
+        form.append("title", options.title.trim());
+    }
+    form.append("prefix", options.prefix?.trim() || WORSHIP_AUDIO_PREFIX);
+
+    const response = await fetch(MEDIA_ROUTES.audioUpload, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "X-Correlation-ID": correlationId,
+        },
+        body: form,
+    });
+    const text = await response.text();
+    let data: AudioUploadResponse & { message?: string; error?: string } | undefined;
+    if (text) {
+        try {
+            data = JSON.parse(text) as typeof data;
+        } catch {
+            data = undefined;
+        }
+    }
+    if (!response.ok) {
+        throw new Error(data?.message ?? data?.error ?? response.statusText ?? "Upload failed");
+    }
+    if (!data?.track?.key) {
+        throw new Error("Empty audio upload response");
+    }
+    return data.track;
+}
+
+/** Pick a file extension for MediaRecorder blobs (usually audio/webm). */
+export function extensionForAudioBlob(blob: Blob, filenameHint?: string): string {
+    const fromName = filenameHint?.match(/\.[a-z0-9]+$/i)?.[0]?.toLowerCase();
+    if (fromName && /^\.(webm|mp3|wav|ogg|m4a|aac|flac)$/.test(fromName)) {
+        return fromName;
+    }
+    const type = (blob.type || "").toLowerCase();
+    if (type.includes("webm")) return ".webm";
+    if (type.includes("mpeg") || type.includes("mp3")) return ".mp3";
+    if (type.includes("wav")) return ".wav";
+    if (type.includes("ogg")) return ".ogg";
+    if (type.includes("mp4") || type.includes("m4a") || type.includes("aac")) return ".m4a";
+    if (type.includes("flac")) return ".flac";
+    return ".webm";
+}
+
 function encodePathSegment(segment: string): string {
     let out = "";
     for (const ch of segment) {

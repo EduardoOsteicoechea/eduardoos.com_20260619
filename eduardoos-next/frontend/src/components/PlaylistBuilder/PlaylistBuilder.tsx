@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuthEmailFromToken, isApsAdminEmail } from "../../lib/auth";
-import { ensureEmusicForLibrary } from "../../lib/emusicCloud";
+import { ensureEmusicForLibrary, ensureEmusicForTrack } from "../../lib/emusicCloud";
 import {
     buildEmusicsBundle,
     downloadEmusicsBundle,
@@ -12,8 +12,10 @@ import {
 import { fetchAudioLibrary, isLocalTrackKey, makeLocalTrackKey, mediaObjectPlaybackUrl, persistableTrackIds, trackDisplayName, type AudioLibraryItem, } from "../../lib/mediaLibrary";
 import { countOfflineTracks, getOfflineTrackUrl, revokeOfflineTrackUrl, saveTrackOffline } from "../../lib/offlineAudio";
 import { getOfflineLibraryCatalog, saveOfflineLibraryCatalog } from "../../lib/offlineEmusic";
+import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import PlaylistControls from "./PlaylistControls";
 import PlaylistLyrics from "./PlaylistLyrics";
+import SongRecorder from "./SongRecorder";
 import { IconAddToPlaylist, IconChevronDown, IconChevronUp, IconRemove, } from "./PlaylistIcons";
 import "./PlaylistBuilder.css";
 const DRAG_MIME = "application/x-eduardoos-track-key";
@@ -270,6 +272,60 @@ export default function PlaylistBuilder() {
         setActiveTracks((tracks) => [...tracks, ...addedKeys]);
         setMessage(`Added ${addedKeys.length} local track(s) for this session only (not saved).`);
     }
+
+    /**
+     * After admin mic upload: put the S3 track in the library + session playlist,
+     * select it, and ensure an empty .emusic shell so lyrics editing is ready.
+     */
+    async function handleRecordedTrack(track: AudioLibraryItem) {
+        const playbackUrl = mediaObjectPlaybackUrl(track.key, track.url);
+        setLibrary((prev) => {
+            if (prev.some((item) => item.key === track.key)) return prev;
+            return [...prev, { ...track, url: playbackUrl }];
+        });
+        setUrlByKey((prev) => {
+            const next = new Map(prev);
+            next.set(track.key, playbackUrl);
+            return next;
+        });
+        setActiveTracks((tracks) => {
+            if (tracks.includes(track.key)) return tracks;
+            return [...tracks, track.key];
+        });
+        // Select after append — use functional update against the ref snapshot.
+        setCurrentIndex(() => {
+            const keys = activeTracksRef.current;
+            const existing = keys.indexOf(track.key);
+            if (existing >= 0) return existing;
+            // Ref may not include the new key yet; point at the forthcoming last index.
+            return keys.includes(track.key) ? keys.indexOf(track.key) : keys.length;
+        });
+        // Second pass once React has committed activeTracks (ref is synced each render).
+        queueMicrotask(() => {
+            const keys = activeTracksRef.current;
+            const idx = keys.indexOf(track.key);
+            if (idx >= 0) setCurrentIndex(idx);
+        });
+
+        setMessage(`Grabación en lista: ${trackDisplayName(track.key)}`);
+        setError("");
+        try {
+            const ensured = await ensureEmusicForTrack(track.key);
+            if (ensured?.created) {
+                setMessage(
+                    `Grabación en lista: ${trackDisplayName(track.key)} · letras .emusic listas para editar.`,
+                );
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            openApiErrorModal(message, {
+                title: "Letras .emusic",
+                summary: "La grabación entró en la lista, pero no se pudo crear/abrir .emusic.",
+            });
+        }
+        void refreshOfflineCount([...library.map((item) => item.key), track.key]);
+    }
+
     function removeTrack(index: number) {
         setActiveTracks((tracks) => {
             const removed = tracks[index];
@@ -547,6 +603,8 @@ export default function PlaylistBuilder() {
           e.target.value = "";
         }}
       />
+
+      <SongRecorder onRecorded={(track) => void handleRecordedTrack(track)} />
 
       <div className="playlist-builder__grid">
         <section className="playlist-builder__panel playlist-builder__panel--library" aria-label="Audio library">

@@ -1,0 +1,81 @@
+/* Admin song recorder — Music / PlaylistBuilder. Uses --site-* tokens only. */
+
+.song-recorder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.55rem 0.65rem;
+  border: var(--border_001);
+  border-color: var(--site-border);
+  background: var(--glassed_background, var(--site-body-bg));
+  color: var(--site-body-fg);
+}
+
+.song-recorder__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.song-recorder__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.song-recorder__label {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--site-body-fg);
+}
+
+.song-recorder__input {
+  min-height: var(--control_min_height, 2.25rem);
+  padding: 0.3rem 0.5rem;
+  border: var(--border_001);
+  border-radius: 0;
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font-size: var(--font-sm);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.song-recorder__input:focus {
+  outline: 2px solid var(--site-accent);
+  outline-offset: 1px;
+}
+
+.song-recorder__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: var(--control_min_height, 2.25rem);
+  white-space: nowrap;
+}
+
+.song-recorder__btn .playlist-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.song-recorder__btn--stop {
+  background: var(--site-accent);
+  color: var(--site-accent-fg, var(--site-body-bg));
+}
+
+.song-recorder__hint {
+  margin: 0;
+  font-size: var(--font-xs);
+  color: var(--site-body-fg);
+}
+
+.song-recorder__note {
+  margin: 0;
+  font-size: var(--font-xs);
+  opacity: 0.75;
+}

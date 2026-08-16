@@ -102,6 +102,15 @@ export const PLAYLIST_ROUTES = {
     `/api/playlists/${encodeURIComponent(playlistId)}/tracks`,
 } as const;
 
+/** Media library + admin recording upload (S3 worship_playlists). */
+export const MEDIA_ROUTES = {
+  audioList: (prefix = "worship_playlists") =>
+    `/api/media/audio?prefix=${encodeURIComponent(prefix)}`,
+  audioUpload: "/api/media/audio/upload",
+  file: (relativeKey: string) =>
+    `/api/media/file/${relativeKey.split("/").map(encodeURIComponent).join("/")}`,
+} as const;
+
 export const PAYMENT_ROUTES = {
   intents: "/api/payments/intents",
   status: "/api/payments/status",

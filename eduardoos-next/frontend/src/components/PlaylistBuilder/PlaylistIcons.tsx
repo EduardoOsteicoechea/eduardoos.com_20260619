@@ -238,3 +238,13 @@ export function IconMixer({ className }: IconProps) {
     />
   );
 }
+
+/** Mic glyph for admin song recording. */
+export function IconMic({ className }: IconProps) {
+  return (
+    <MaterialIcon
+      className={className}
+      path="M480-400q-50 0-85-35t-35-85v-240q0-50 35-85t85-35q50 0 85 35t35 85v240q0 50-35 85t-85 35Zm0-240Zm-40 520v-123q-104-14-172-93t-68-184h80q0 83 58.5 141.5T480-320q83 0 141.5-58.5T680-520h80q0 105-68 184t-172 93v123h-80Z"
+    />
+  );
+}

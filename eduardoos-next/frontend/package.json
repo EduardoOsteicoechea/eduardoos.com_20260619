@@ -12,6 +12,7 @@
     "test:aps-registry": "node --test src/lib/apsRegistry.test.mjs",
     "test:profile": "node --test src/lib/profile.test.mjs",
     "test:belief-tree": "node --test src/lib/beliefTreeDeleteGuard.test.mjs",
+    "test:media-recording": "node --test src/lib/mediaRecording.test.mjs",
     "test:markdown": "node --test src/lib/markdown.test.mjs"
   },
   "dependencies": {

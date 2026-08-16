@@ -81,7 +81,10 @@ export const EMUSIC_BLOCK_KINDS: EmusicBlockKind[] = ["estrofa", "coro", "precor
 const KIND_SET = new Set<string>(EMUSIC_BLOCK_KINDS);
 
 export function trackLyricsSlug(objectKey: string): string {
-    const name = trackDisplayName(objectKey).replace(/\.mp3$/i, "");
+    const name = trackDisplayName(objectKey).replace(
+        /\.(mp3|webm|wav|ogg|m4a|aac|flac)$/i,
+        "",
+    );
     return name
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
