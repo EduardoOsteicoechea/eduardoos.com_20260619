@@ -51,7 +51,7 @@ Open [http://127.0.0.1:4322](http://127.0.0.1:4322). Browser calls stay same-ori
 
 1. Register / login under `/auth/*` (token key: `eduardoos-next-auth-token`).
 2. `/documents/pamphlet` — visual pamphlet generator (create/open local + cloud EPAMs from toolbar); Print downloads a stub PDF from `POST /api/documents/pamphlet/pdf`.
-3. `/media/musica` — list/create playlists; add track title/url; HTML5 audio when URL present.
+3. `/media/musica` — worship library + session playlist + lyrics; timed lyric editor for `eduardooost@gmail.com` (no create-playlist stub).
 4. `/payments/subscription` — JWT prepare intent + PayPal hosted button (`PAYPAL_HOSTED_BUTTON_ID`).
 5. `/bim` — upload real IFC bytes (multipart), list, download; placeholder create still works.
 6. `/debate-app` (Debate App) — JWT list/create debates + append role/text turns (memory store; `.edebat` / `/api/edebat`). Legacy `/edebat` redirects here.

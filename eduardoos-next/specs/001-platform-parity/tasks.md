@@ -53,7 +53,7 @@ Honest gaps vs full product surface (accepted at cutover; track post-cutover):
 
 - **Pamphlet PDF print** — stub single-page PDF from Next `pkg/pdf.BuildSamplePDF` (Print button works); full landscape Roboto layout parity still deferred.
 - **That Open / OpenBIM 3D viewer** — multipart upload stores real IFC bytes in memory (GET returns them); optional S3 when `IFCBIM_S3_BUCKET`/`S3_BUCKET` + AWS creds; no That Open / web-ifc / three viewer yet (deferred for build memory).
-- **Playlists** — memory GET/POST list/create + `POST /api/playlists/{id}/tracks` (title/url) with HTML5 audio when URL present; no drag-and-drop worship builder, S3 audio library, or Dynamo `eduardoos_playlists` persistence.
+- **Playlists / Music** — worship `PlaylistBuilder` on `/media/musica` (library + lyrics + admin lyric editor via `/api/media/audio`, `/api/media/file/*`, `/api/emusic`); legacy memory playlist CRUD still mounted but not primary UI.
 - **Payments / PayPal** — JWT `POST /api/payments/intents`, public `GET /api/payments/status/{id}`, entitlements list/preview (memory store); subscription UI prepares intent + hosted button via `PAYPAL_HOSTED_BUTTON_ID`. No PayPal IPN webhook, Dynamo `eduardoos_payments`, or real entitlement grants after checkout.
 - **Edebat AI** — JWT memory list/create + turn (role+text) wired; no LLM referee, surrender/KO, Dynamo, or S3 `.edebat` bodies.
 - **Auth OTP/SMTP** — SMTP_USER/SMTP_PASS + DEV_RETURN_OTP wired (T010); production/staging strip spaces in SMTP_PASS for Gmail.

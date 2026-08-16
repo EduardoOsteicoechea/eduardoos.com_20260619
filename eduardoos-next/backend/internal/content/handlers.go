@@ -44,10 +44,17 @@ func NewHandler(jwtSecret string, epams EpamStore, bim BIMStore) *Handler {
 	}
 }
 
-// Routes mounts JWT-protected content APIs.
+// Routes mounts content APIs (JWT for private resources; media/emusic GET public).
 func (h *Handler) Routes(r chi.Router) {
+	// Public media + lyrics read (HTML5 audio cannot send Bearer on <audio src>).
+	r.Get("/api/media/audio", h.ListMediaAudio)
+	r.Get("/api/media/file/*", h.GetMediaFile)
+	r.Get("/api/emusic/{slug}", h.GetEmusic)
+
 	r.Group(func(r chi.Router) {
 		r.Use(h.auth.RequireJWT)
+		r.Put("/api/emusic/{slug}", h.PutEmusic)
+
 		r.Get("/api/epams", h.ListEpams)
 		r.Post("/api/epams", h.CreateEpam)
 		r.Get("/api/epams/{id}", h.GetEpam)

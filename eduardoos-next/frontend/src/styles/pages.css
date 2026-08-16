@@ -4,6 +4,12 @@
   padding: 1.5rem var(--page-inline-pad) 3rem;
 }
 
+.page-shell--wide {
+  width: min(100%, 96rem);
+  max-width: 100%;
+  padding-top: 0.5rem;
+}
+
 .page-stub {
   display: flex;
   flex-direction: column;
