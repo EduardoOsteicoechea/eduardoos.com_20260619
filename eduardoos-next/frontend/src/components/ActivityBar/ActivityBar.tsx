@@ -1,9 +1,12 @@
 /**
  * Global Activity Bar — fixed bottom chrome for Eduardo OS product surfaces.
  *
+ * Primary consumer: Music (PlaylistControls) multi-row transport.
+ * Pamphlet uses Header Dynamic Menu in header chrome instead.
+ *
  * Layouts:
  * - multi-row: optional top row (scrubber / continuous control) + actions row
- * - single-row: icon actions only (Pamphlet pattern)
+ * - single-row: icon actions only (available for other surfaces)
  *
  * Optional expandable tray mirrors Music volume/settings overflow.
  * Tokens: --site-* from theme.css. Plain CSS only.

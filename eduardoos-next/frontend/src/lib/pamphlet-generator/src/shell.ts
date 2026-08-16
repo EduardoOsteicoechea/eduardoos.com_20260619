@@ -1,10 +1,11 @@
 /**
- * Pamphlet chrome markup: global Activity Bar (single-row icons) + dialogs.
+ * Pamphlet chrome markup: Header Dynamic Menu tools + dialogs.
  * Buttons keep stable ids so main.ts can wire them without a React mount.
+ * Tools mount into #header-dynamic-menu-host (not a bottom Activity Bar).
  */
 
 function iconSvg(paths: string, viewBox = "0 0 24 24"): string {
-  return `<svg class="activity-bar__icon activity-bar__icon--svg" viewBox="${viewBox}" aria-hidden="true" focusable="false">${paths}</svg>`;
+  return `<svg class="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="${viewBox}" aria-hidden="true" focusable="false">${paths}</svg>`;
 }
 
 const ICONS = {
@@ -37,38 +38,36 @@ const ICONS = {
 /** @param _menuIconSrc retained for call-site compatibility; unused (icons are inline). */
 export function renderShell(_menuIconSrc?: string): string {
   return `
-<section id="pamphlet-activity-bar" class="activity-bar activity-bar--single-row pamphlet-activity-bar" aria-label="Pamphlet tools">
-  <div class="activity-bar__inner">
-    <div class="activity-bar__deck">
-      <div class="activity-bar__actions" role="toolbar" aria-label="Pamphlet actions">
-        <button type="button" id="btn-open" class="activity-bar__btn" title="Open pamphlet" aria-label="Open pamphlet">
-          ${ICONS.open}
-        </button>
-        <button type="button" id="btn-create" class="activity-bar__btn" title="New pamphlet" aria-label="New pamphlet">
-          ${ICONS.create}
-        </button>
-        <button type="button" id="btn-save-cloud" class="activity-bar__btn" title="Save to cloud" aria-label="Save to cloud">
-          ${ICONS.save}
-        </button>
-        <button type="button" id="btn-print" class="activity-bar__btn" title="Print" aria-label="Print" disabled>
-          ${ICONS.print}
-        </button>
-        <button type="button" id="btn-view-desktop" class="activity-bar__btn activity-bar__btn--active is-active" title="Desktop view" aria-label="Desktop view" aria-pressed="true">
-          ${ICONS.desktop}
-        </button>
-        <button type="button" id="btn-view-mobile" class="activity-bar__btn" title="Mobile view" aria-label="Mobile view" aria-pressed="false">
-          ${ICONS.mobile}
-        </button>
-        <button type="button" id="btn-series" class="activity-bar__btn" title="Series and chapters" aria-label="Series and chapters" hidden>
-          ${ICONS.series}
-        </button>
-        <button type="button" id="btn-activity-expand" class="activity-bar__btn activity-bar__tray-toggle" title="Show action labels" aria-label="Show action labels" aria-expanded="false" aria-controls="pamphlet-activity-tray">
-          ${ICONS.expand}
-        </button>
-      </div>
+<section id="pamphlet-header-menu" class="header-dynamic-menu" aria-label="Pamphlet tools">
+  <div class="header-dynamic-menu__inner">
+    <div class="header-dynamic-menu__actions" role="toolbar" aria-label="Pamphlet actions">
+      <button type="button" id="btn-open" class="header-dynamic-menu__btn" title="Open pamphlet" aria-label="Open pamphlet">
+        ${ICONS.open}
+      </button>
+      <button type="button" id="btn-create" class="header-dynamic-menu__btn" title="New pamphlet" aria-label="New pamphlet">
+        ${ICONS.create}
+      </button>
+      <button type="button" id="btn-save-cloud" class="header-dynamic-menu__btn" title="Save to cloud" aria-label="Save to cloud">
+        ${ICONS.save}
+      </button>
+      <button type="button" id="btn-print" class="header-dynamic-menu__btn" title="Print" aria-label="Print" disabled>
+        ${ICONS.print}
+      </button>
+      <button type="button" id="btn-view-desktop" class="header-dynamic-menu__btn header-dynamic-menu__btn--active is-active" title="Desktop view" aria-label="Desktop view" aria-pressed="true">
+        ${ICONS.desktop}
+      </button>
+      <button type="button" id="btn-view-mobile" class="header-dynamic-menu__btn" title="Mobile view" aria-label="Mobile view" aria-pressed="false">
+        ${ICONS.mobile}
+      </button>
+      <button type="button" id="btn-series" class="header-dynamic-menu__btn" title="Series and chapters" aria-label="Series and chapters" hidden>
+        ${ICONS.series}
+      </button>
+      <button type="button" id="btn-activity-expand" class="header-dynamic-menu__btn header-dynamic-menu__tray-toggle" title="Show action labels" aria-label="Show action labels" aria-expanded="false" aria-controls="pamphlet-header-menu-tray">
+        ${ICONS.expand}
+      </button>
     </div>
-    <div id="pamphlet-activity-tray" class="activity-bar__tray" role="region" aria-label="Action labels" hidden>
-      <ul class="pamphlet-activity-tray__labels">
+    <div id="pamphlet-header-menu-tray" class="header-dynamic-menu__tray" role="region" aria-label="Action labels" hidden>
+      <ul class="pamphlet-header-menu-tray__labels">
         <li>Open · New · Save · Print</li>
         <li>Desktop / Mobile view</li>
         <li>Series (when a pamphlet is open)</li>

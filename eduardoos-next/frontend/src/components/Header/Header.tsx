@@ -4,6 +4,7 @@
  * Mobile bar: logo left; avatar then menu on the right. Hamburger opens the
  * nav tray from the left (after the 60px rail on desktop). Services, Theme,
  * and auth links live inside the tray.
+ * Header Dynamic Menu host sits in chrome for per-route tools (Pamphlet).
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -22,6 +23,7 @@ import {
   resolveProfileImageUrl,
 } from "../../lib/profile";
 import { applyTheme, resolveTheme, toggleTheme, type SiteTheme } from "../../lib/theme";
+import HeaderDynamicMenu from "../HeaderDynamicMenu/HeaderDynamicMenu";
 import "./Header.css";
 
 function profileInitialFromToken(token: string): string {
@@ -446,6 +448,8 @@ export function Header({ pathname }: HeaderProps) {
           </button>
         </div>
       </div>
+      {/* Per-route tool strip host (Pamphlet mounts here; Music uses bottom Activity Bar). */}
+      <HeaderDynamicMenu />
       <div
         className="site-header__backdrop"
         hidden={!menuOpen}

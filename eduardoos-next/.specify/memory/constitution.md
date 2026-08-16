@@ -26,7 +26,8 @@ Rebuild Eduardo OS as a clean, spec-driven codebase (`frontend` / `backend` / `r
 - Frontend: Astro + React islands, plain CSS, theme tokens `--site-*`
 - Frontend design skills (required for UI work): `.cursor/skills/frontend-design/SKILL.md` + `.cursor/skills/bim-aec-frontend/SKILL.md` + `.cursor/skills/elegant-formal-ui/SKILL.md` (blueprint vernacular elevated to gallery-atelier elegance/formality; light/dark via `eduardoos-theme` + Header Theme toggle)
 - Visitor AI agents (home/contact/profile chat): `.cursor/skills/agent-voice/SKILL.md` — agents never impersonate Eduardo; tone professional / relaxed / concrete / didactic. Prompt source: parent `pkg/contact/agent_identity.go`.
-- Activity bar icons: theme-token / `currentColor` only — legible in both light and dark (no hardcoded light strokes on light chrome)
+- Activity bar / Header Dynamic Menu icons: theme-token / `currentColor` only — legible in both light and dark (no hardcoded light strokes on light chrome)
+- Header Dynamic Menu: optional per-route header-adjacent tool strip (`HeaderDynamicMenu`); Pamphlet uses it; Music keeps bottom Activity Bar
 - Backend: Go 1.23+, chi, AWS SDK for DynamoDB/S3
 - Revit/APS: Design Automation + Data Management under `revitapi/` + backend APS client
 - Deploy (future): Docker/nginx/EC2 patterns compatible with current ops

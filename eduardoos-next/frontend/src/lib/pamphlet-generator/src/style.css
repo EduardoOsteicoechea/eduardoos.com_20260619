@@ -1089,8 +1089,9 @@
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-8 { order: 10; }
 
 @media print {
-  .pamphlet-activity-bar,
-  .activity-bar.pamphlet-activity-bar,
+  .header-dynamic-menu-host,
+  .header-dynamic-menu,
+  .pamphlet-header-menu,
   .pamphlet-app .pamphlet-add-item-button,
   .pamphlet-app .element_edit_tray {
     display: none !important;

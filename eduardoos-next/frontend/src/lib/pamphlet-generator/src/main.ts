@@ -1,6 +1,15 @@
 import "./style.css";
-import "../../../components/ActivityBar/ActivityBar.css";
+import "../../../components/HeaderDynamicMenu/HeaderDynamicMenu.css";
 import { renderShell } from "./shell";
+
+/** Must match HeaderDynamicMenu host id (Header always renders this empty slot). */
+const HEADER_DYNAMIC_MENU_HOST_ID = "header-dynamic-menu-host";
+
+declare global {
+    interface Window {
+        __eduardoosHeaderDynamicMenu?: HTMLElement | null;
+    }
+}
 import type { PamphletTrayAction } from "./create_element";
 import { normalizeImageDataUrlToJpeg } from "./create_element";
 import {
@@ -90,7 +99,7 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const viewMobileBtn = requireElement<HTMLButtonElement>("#btn-view-mobile");
     const seriesBtn = requireElement<HTMLButtonElement>("#btn-series");
     const trayToggleBtn = requireElement<HTMLButtonElement>("#btn-activity-expand");
-    const activityTray = requireElement<HTMLElement>("#pamphlet-activity-tray");
+    const activityTray = requireElement<HTMLElement>("#pamphlet-header-menu-tray");
     const createModal = requireElement<HTMLDialogElement>("#create-modal");
     const createSaveModal = requireElement<HTMLDialogElement>("#create-save-modal");
     const createSaveLocalBtn = requireElement<HTMLButtonElement>("#create-save-local");
@@ -120,10 +129,21 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const seriesModalCancelBtn = requireElement<HTMLButtonElement>("#series-modal-cancel");
     const itemTypeModal = requireElement<HTMLDialogElement>("#item-type-modal");
     const itemTypeCancelBtn = requireElement<HTMLButtonElement>("#item-type-cancel");
-    const activityBar = requireElement<HTMLElement>("#pamphlet-activity-bar");
+    const headerMenu = requireElement<HTMLElement>("#pamphlet-header-menu");
 
-    // Escape .pamphlet-app { isolation: isolate } so fixed chrome can sit above the sheet
-    document.body.append(activityBar);
+    // Mount tools into Header Dynamic Menu host (header chrome), not a bottom Activity Bar.
+    const menuHost = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
+    window.__eduardoosHeaderDynamicMenu = headerMenu;
+    if (menuHost) {
+        menuHost.replaceChildren(headerMenu);
+        document.documentElement.style.setProperty(
+            "--header_dynamic_menu_height",
+            `${Math.max(headerMenu.offsetHeight, 48)}px`,
+        );
+    } else {
+        document.body.append(headerMenu);
+        document.documentElement.style.setProperty("--header_dynamic_menu_height", "3rem");
+    }
 
     type ViewMode = "desktop" | "mobile";
     /** Narrow / phone viewports start in stacked mobile layout (letter sheet is desktop-only). */
@@ -153,11 +173,18 @@ function updatePrintAvailability(): void {
 }
 
 function setActivityTrayOpen(open: boolean): void {
-    activityBar.classList.toggle("activity-bar--tray-open", open);
-    activityTray.classList.toggle("activity-bar__tray--open", open);
+    headerMenu.classList.toggle("header-dynamic-menu--tray-open", open);
+    activityTray.classList.toggle("header-dynamic-menu__tray--open", open);
     activityTray.hidden = !open;
     trayToggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
-    trayToggleBtn.classList.toggle("activity-bar__tray-toggle--open", open);
+    trayToggleBtn.classList.toggle("header-dynamic-menu__tray-toggle--open", open);
+    const host = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
+    const h = Math.max(headerMenu.offsetHeight, 48);
+    document.documentElement.style.setProperty("--header_dynamic_menu_height", `${h}px`);
+    if (host) {
+        /* keep host height token in sync when tray expands */
+        void host.offsetHeight;
+    }
 }
 
 function closeActivityTray(): void {
@@ -237,9 +264,9 @@ function applyViewMode(mode: ViewMode, options?: { closeTray?: boolean }): void 
     viewMode = mode;
     appRoot.setAttribute("data-view-mode", mode);
     viewDesktopBtn.classList.toggle("is-active", mode === "desktop");
-    viewDesktopBtn.classList.toggle("activity-bar__btn--active", mode === "desktop");
+    viewDesktopBtn.classList.toggle("header-dynamic-menu__btn--active", mode === "desktop");
     viewMobileBtn.classList.toggle("is-active", mode === "mobile");
-    viewMobileBtn.classList.toggle("activity-bar__btn--active", mode === "mobile");
+    viewMobileBtn.classList.toggle("header-dynamic-menu__btn--active", mode === "mobile");
     viewDesktopBtn.setAttribute("aria-pressed", mode === "desktop" ? "true" : "false");
     viewMobileBtn.setAttribute("aria-pressed", mode === "mobile" ? "true" : "false");
     syncSheetScale();
@@ -610,13 +637,15 @@ function measureAddControlsMm(_host: HTMLElement): { newItemMm: number; buttonMm
     return { newItemMm, buttonMm };
 }
 
-/** Keep activity-bar chrome visually stable when the user zooms the page. */
+/** Keep header-menu chrome tokens stable when the user zooms the page. */
 function syncFixedChromeScale(): void {
     const dpr = window.devicePixelRatio || 1;
     const zoom = dpr / uiChromeBaselineDpr;
     const inv = zoom > 0 ? 1 / zoom : 1;
     appRoot.style.setProperty("--ui-zoom", String(zoom));
     appRoot.style.setProperty("--ui-inv-zoom", String(inv));
+    const h = Math.max(headerMenu.offsetHeight, 48);
+    document.documentElement.style.setProperty("--header_dynamic_menu_height", `${h}px`);
 }
 
 type ToastKind = "info" | "success" | "error";
@@ -1295,7 +1324,7 @@ on(trayToggleBtn, "click", () => {
 on(document, "pointerdown", (event: Event) => {
     if (activityTray.hidden) return;
     const target = event.target as Node;
-    if (activityBar.contains(target)) return;
+    if (headerMenu.contains(target)) return;
     closeActivityTray();
 });
 
@@ -1819,7 +1848,12 @@ syncOpenSourceModalForFsa();
             for (const dispose of disposers) dispose();
             disposers.length = 0;
             appRoot.querySelector(":scope > .pamphlet-measure-root")?.remove();
-            activityBar.remove();
+            if (window.__eduardoosHeaderDynamicMenu === headerMenu) {
+                window.__eduardoosHeaderDynamicMenu = null;
+            }
+            headerMenu.remove();
+            document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID)?.replaceChildren();
+            document.documentElement.style.setProperty("--header_dynamic_menu_height", "0px");
             host.replaceChildren();
         },
     };

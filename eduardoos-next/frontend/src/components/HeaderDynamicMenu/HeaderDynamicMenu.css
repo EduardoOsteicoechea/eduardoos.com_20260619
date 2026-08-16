@@ -1,0 +1,164 @@
+/**
+ * Header Dynamic Menu — header-adjacent tool strip (Pamphlet).
+ * Icons use currentColor / --site-* so they stay legible in light and dark.
+ * Empty host stays invisible until a route mounts controls into it.
+ */
+
+.header-dynamic-menu-host:empty {
+  display: none;
+}
+
+.header-dynamic-menu-host:not(:empty) {
+  display: block;
+  position: fixed;
+  z-index: 250;
+  box-sizing: border-box;
+  /* Mobile: under top bar, full width */
+  top: var(--header_height, 60px);
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 100%;
+  border-bottom: var(--border_001);
+  background: color-mix(in srgb, var(--site-surface) 94%, var(--site-body-bg));
+  color: var(--site-body-fg);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--site-body-fg) 4%, transparent);
+}
+
+.header-dynamic-menu {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  color: var(--site-body-fg);
+}
+
+.header-dynamic-menu__inner {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  padding-block: 0.4rem;
+  padding-inline: max(var(--page-inline-pad, 15px), env(safe-area-inset-left))
+    max(var(--page-inline-pad, 15px), env(safe-area-inset-right));
+}
+
+.header-dynamic-menu__actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.25rem;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.header-dynamic-menu__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--header-dynamic-control-size, 2.25rem);
+  height: var(--header-dynamic-control-size, 2.25rem);
+  min-width: var(--header-dynamic-control-size, 2.25rem);
+  min-height: var(--header-dynamic-control-size, 2.25rem);
+  padding: 0;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  cursor: pointer;
+}
+
+.header-dynamic-menu__btn svg,
+.header-dynamic-menu__btn .header-dynamic-menu__icon--svg {
+  color: inherit;
+  fill: currentColor;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+}
+
+.header-dynamic-menu__btn:hover:not(:disabled) {
+  border-color: var(--site-accent);
+  color: var(--site-accent);
+}
+
+.header-dynamic-menu__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.header-dynamic-menu__btn--active,
+.header-dynamic-menu__btn[aria-pressed="true"] {
+  background: var(--site-accent);
+  border-color: var(--site-accent);
+  color: var(--site-accent-fg);
+}
+
+.header-dynamic-menu__btn--active:hover:not(:disabled),
+.header-dynamic-menu__btn[aria-pressed="true"]:hover:not(:disabled) {
+  color: var(--site-accent-fg);
+  filter: brightness(1.05);
+}
+
+.header-dynamic-menu__tray-toggle--open,
+.header-dynamic-menu__tray-toggle[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--site-accent) 18%, var(--site-body-bg));
+  border-color: var(--site-accent);
+}
+
+.header-dynamic-menu__tray {
+  display: none;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  padding: 0.45rem 0.55rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: color-mix(in srgb, var(--site-body-fg) 4%, var(--site-body-bg));
+  font-size: var(--font-sm);
+  color: var(--site-muted-fg, var(--site-body-fg));
+}
+
+.header-dynamic-menu__tray--open {
+  display: flex;
+}
+
+.header-dynamic-menu--tray-open .header-dynamic-menu__tray {
+  display: flex;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-dynamic-menu__btn,
+  .header-dynamic-menu__tray {
+    transition: none;
+  }
+}
+
+/* Desktop: strip after left rail, flush with top of viewport */
+@media (min-width: 768px) {
+  .header-dynamic-menu-host:not(:empty) {
+    top: 0;
+    left: var(--header_width, 60px);
+    right: 0;
+    width: auto;
+  }
+
+  .header-dynamic-menu__inner {
+    padding-block: 0.45rem;
+  }
+}
+
+@media print {
+  .header-dynamic-menu-host,
+  .header-dynamic-menu {
+    display: none !important;
+  }
+}

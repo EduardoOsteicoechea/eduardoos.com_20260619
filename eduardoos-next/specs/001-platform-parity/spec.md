@@ -81,22 +81,23 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
 - **Mobile:** horizontal top bar (`--header_height: 60px`). Left = favicon → home; right = avatar then menu. Tray opens from the left below the bar.
 - Layout shells (`BaseLayout`, `PamphletLayout`) and `global.css` offset content with `--header_height` / `--header_width` so blueprint wash and full-bleed editors do not sit under the rail.
 - Tray still hosts primary links, Services dropdown, Theme toggle, and logged-out auth links.
+- **Header Dynamic Menu** (optional per-route): horizontal header-adjacent control strip for page tools. Host: `frontend/src/components/HeaderDynamicMenu/` (`#header-dynamic-menu-host` inside `Header`). Empty host is hidden; a route mounts its tool buttons into the host. Supports **`overflow-x: auto`** when controls overflow (especially mobile). Desktop: strip after `--header_width` at the top of the viewport; mobile: strip below the top bar. Used by **Pamphlet** (`/documents/pamphlet`). Tokens / icons: `--site-*` + `currentColor` (legible light/dark).
 
 ### Global Activity Bar (chrome)
-- Eduardo OS exposes a **global Activity Bar**: fixed bottom chrome shared across product surfaces (at minimum Music and Pamphlet).
+- Eduardo OS exposes a **global Activity Bar**: fixed **bottom** chrome for product surfaces that need dense multi-control transport.
 - Shared component: `frontend/src/components/ActivityBar/` (`ActivityBar.tsx` + `ActivityBar.css`). Surfaces adapt via props; do not fork chrome CSS per page.
 - **Layouts**
-  - **Multi-row** (Music pattern): top row = timeline / scrubber (or other continuous control); bottom row = icon control buttons; optional expandable tray for secondary settings (volume, speed, etc.).
-  - **Single-row** (Pamphlet pattern): one row of icon buttons; optional expandable tray for overflow / labels. No text-primary toolbar buttons in the bar — icons + `title` / `aria-label` only.
+  - **Multi-row** (Music pattern): top row = timeline / scrubber (or other continuous control); bottom row = icon control buttons; optional expandable tray for secondary settings (volume, speed, etc.). **Music continues to use this bottom Activity Bar** (multi-row OK); do not move Music tools into Header Dynamic Menu.
+  - **Single-row**: one row of icon buttons; optional expandable tray for overflow / labels. Icons + `title` / `aria-label` only (no text-primary toolbar buttons in the bar).
 - Tokens: `--site-*` from `theme.css`; plain CSS; light/dark first-class; `prefers-reduced-motion` respected.
 - **Activity bar icons MUST follow light/dark theme tokens and remain legible in both modes.** Use `currentColor` (or `--site-body-fg` on default buttons / `--site-accent-fg` on accent / pressed / primary fills). Do **not** hardcode white or light-gray strokes/fills that disappear on light backgrounds, or black strokes that disappear on dark/accent fills. Prefer inline SVG with `fill`/`stroke="currentColor"` over masked public assets that bake a single theme color.
-- Pamphlet tools live in this bar (open / create / save / print / view mode / series when a pamphlet is open), not a separate corner FAB + text sidebar.
+- **Pamphlet** does **not** use the bottom Activity Bar. Pamphlet tools (open / create / save / print / view mode / series when a pamphlet is open) live in the **Header Dynamic Menu**.
 
 ### Series → chapters → pamphlet tree
 - Pamphlets (EPAMs) organize as **series → chapters → article/pamphlet**.
 - Metadata already on Dynamo `eduardoos_epams`: `series`, `seriesChapter` (plus title/author); body JSON header uses `series` / `series_chapter`.
 - Gateway: authenticated `GET /api/epams/series-tree` returns the grouped tree for the signed-in user (derived from list metadata — no new Dynamo table).
-- When a pamphlet session is open, the Activity Bar exposes a **Series** control that opens a modal to view the tree and define/update the current pamphlet’s series + chapter (persists meta + document header).
+- When a pamphlet session is open, the Header Dynamic Menu exposes a **Series** control that opens a modal to view the tree and define/update the current pamphlet’s series + chapter (persists meta + document header).
 - Articles UI may consume the same tree later; v1 wires pamphlets end-to-end.
 
 ## Success criteria

@@ -21,6 +21,8 @@ body.page-pamphlet {
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   -webkit-overflow-scrolling: touch;
+  /* Reserved for Header Dynamic Menu; JS updates to measured height after mount. */
+  --header_dynamic_menu_height: 3rem;
 }
 
 /* Keep site header/avatar above teleported pamphlet chrome. */
@@ -40,7 +42,9 @@ body.page-pamphlet .site-header__bar {
   margin-top: 0;
   margin-left: var(--header_width, 0px);
   padding: 1rem 0 2rem;
-  padding-top: calc(1rem + var(--header_height, 0px));
+  padding-top: calc(
+    1rem + var(--header_height, 0px) + var(--header_dynamic_menu_height, 0px)
+  );
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -64,18 +68,18 @@ body.page-pamphlet .site-header__bar {
 }
 
 /*
- * Chrome is teleported to document.body (see main.ts).
- * Global Activity Bar — single-row icon tools (shared ActivityBar.css).
+ * Chrome tools mount into Header Dynamic Menu (header-adjacent strip).
+ * Reserve top space for that strip; no bottom Activity Bar on pamphlet.
  */
 body.page-pamphlet .pamphlet-layout-workspace {
-  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  padding-top: calc(
+    1rem + var(--header_height, 0px) + var(--header_dynamic_menu_height, 0px)
+  );
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
 }
 
-body.page-pamphlet .activity-bar.pamphlet-activity-bar {
-  position: fixed !important;
-  z-index: 200;
-  transform: none !important;
-  pointer-events: auto;
+body.page-pamphlet .header-dynamic-menu-host {
+  z-index: 302;
 }
 
 body.page-pamphlet .item-type-options button {
@@ -90,7 +94,7 @@ body.page-pamphlet .item-type-options button:hover {
   background: color-mix(in srgb, var(--site-body-fg) 22%, var(--site-body-bg));
 }
 
-.pamphlet-activity-tray__labels {
+.pamphlet-header-menu-tray__labels {
   margin: 0;
   padding-left: 1.1rem;
   font-size: var(--font-sm);
@@ -328,8 +332,9 @@ html[data-theme="light"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile
     transform: none !important;
   }
 
-  body.page-pamphlet .activity-bar.pamphlet-activity-bar,
-  body.page-pamphlet .pamphlet-activity-bar {
+  body.page-pamphlet .header-dynamic-menu-host,
+  body.page-pamphlet .header-dynamic-menu,
+  body.page-pamphlet .pamphlet-header-menu {
     display: none !important;
   }
 }

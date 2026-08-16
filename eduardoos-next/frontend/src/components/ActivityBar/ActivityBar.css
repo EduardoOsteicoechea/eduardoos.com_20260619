@@ -1,5 +1,6 @@
 /**
- * Shared Activity Bar chrome — Music (multi-row) and Pamphlet (single-row).
+ * Shared Activity Bar chrome — Music (multi-row bottom transport).
+ * Pamphlet tools use Header Dynamic Menu instead (see HeaderDynamicMenu/).
  * Uses Eduardo OS --site-* tokens; light/dark via html[data-theme].
  */
 
@@ -186,22 +187,5 @@
   .activity-bar__btn,
   .activity-bar__tray {
     transition: none;
-  }
-}
-
-/* Pamphlet host: chrome teleported to body; keep above sheet, below site header menus */
-body.page-pamphlet .activity-bar.pamphlet-activity-bar {
-  z-index: 200;
-  /* Room for site header when measuring sheet bottom padding */
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-body.page-pamphlet .pamphlet-layout-workspace {
-  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
-}
-
-@media (max-width: 1023px) {
-  body.page-pamphlet .activity-bar.pamphlet-activity-bar {
-    --activity-control-size: 2.5rem;
   }
 }
