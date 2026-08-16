@@ -53,6 +53,8 @@ func TestProfileQASystemPromptRejectsImpersonation(t *testing.T) {
 		"NOT Eduardo",
 		"never impersonate",
 		"third person",
+		"same language",
+		"never default to Spanish",
 		"[[CONTACT_EMAIL",
 		"[[CONTACT_WHATSAPP]]",
 	}
