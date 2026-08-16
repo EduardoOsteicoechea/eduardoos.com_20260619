@@ -16,6 +16,7 @@
     "@astrojs/react": "^4.2.0",
     "@thatopen/components": "^3.4.8",
     "@thatopen/fragments": "^3.4.7",
+    "@xyflow/react": "^12.11.3",
     "astro": "^5.3.0",
     "camera-controls": "^3.1.2",
     "localforage": "^1.10.0",

@@ -48,6 +48,12 @@ export const SUBSCRIPTION_SERVICES: SubscriptionService[] = [
     description: "Media gallery / videos library.",
     monthlyUsd: 1,
   },
+  {
+    id: "instrumentalist",
+    label: "Instrumentalist",
+    description: "Self-evaluate ideas with weighted belief trees and formal-logic analysis.",
+    monthlyUsd: 3,
+  },
 ];
 
 export type PaymentIntentResponse = {

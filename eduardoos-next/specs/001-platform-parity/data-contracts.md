@@ -15,6 +15,7 @@ These names and shapes come from the production Eduardo OS deployment.
 | Prefix | Domain |
 |--------|--------|
 | `media/` | Gallery, profiles, audio, epams bodies, etc. |
+| `media/instrumentalist/{user}/` | Instrumentalist `.instru` session bodies (see `specs/002-instrumentalist/`) |
 | `ifcbim/{user}/{modelId}.ifc` | BIM IFC files |
 
 ## DynamoDB (us-east-1)

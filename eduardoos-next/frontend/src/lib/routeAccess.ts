@@ -67,5 +67,11 @@ export function serviceIdForPath(pathname: string): string | null {
   ) {
     return "videos";
   }
+  if (
+    path === normalizePath(APP_ROUTES.instrumentalist) ||
+    path.startsWith(`${normalizePath(APP_ROUTES.instrumentalist)}/`)
+  ) {
+    return "instrumentalist";
+  }
   return null;
 }

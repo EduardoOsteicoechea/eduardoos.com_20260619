@@ -15,6 +15,7 @@ import (
 	"eduardoos.nex/internal/edebat"
 	"eduardoos.nex/internal/health"
 	"eduardoos.nex/internal/httpx"
+	"eduardoos.nex/internal/instrumentalist"
 	"eduardoos.nex/internal/payments"
 
 	"github.com/go-chi/chi/v5"
@@ -58,6 +59,7 @@ func main() {
 	paymentsHandler := payments.NewHandler(jwtSecret, httpx.Env("PAYPAL_HOSTED_BUTTON_ID", "PLACEHOLDER_HOSTED_BUTTON"))
 	documentsHandler := documents.NewHandler(jwtSecret)
 	edebatHandler := edebat.NewHandler(jwtSecret)
+	instrumentalistHandler := instrumentalist.NewHandler(jwtSecret)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
 
 	r := chi.NewRouter()
@@ -73,6 +75,7 @@ func main() {
 	paymentsHandler.Routes(r)
 	documentsHandler.Routes(r)
 	edebatHandler.Routes(r)
+	instrumentalistHandler.Routes(r)
 	adminHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)

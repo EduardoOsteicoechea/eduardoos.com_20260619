@@ -25,3 +25,15 @@ func TestHasServiceAccessAdminBypass(t *testing.T) {
 		t.Fatal("non-admin without entitlements must be denied")
 	}
 }
+
+func TestInstrumentalistInCatalog(t *testing.T) {
+	if !KnownService("instrumentalist") {
+		t.Fatal("instrumentalist must be a known service")
+	}
+	if got := MonthlyPriceUSD("instrumentalist"); got != 3 {
+		t.Fatalf("instrumentalist monthly=%v want 3", got)
+	}
+	if !HasServiceAccess(true, nil, "instrumentalist") {
+		t.Fatal("admin should access instrumentalist")
+	}
+}

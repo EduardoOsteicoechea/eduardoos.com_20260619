@@ -1,0 +1,304 @@
+/**
+ * Instrumentalist page layout — three-pane atelier workspace.
+ */
+
+.instru-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: calc(100vh - var(--header_height) - 2rem);
+  padding: 0.75rem 0 1.25rem;
+  color: var(--site-body-fg);
+}
+
+.instru-page__chrome {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.instru-page__title {
+  margin: 0;
+  font-family: var(--font-brand);
+  font-weight: 500;
+  font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+  letter-spacing: 0.02em;
+  color: var(--site-body-fg);
+}
+
+.instru-page__lead {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-body);
+  font-size: var(--font-sm);
+  color: var(--site-muted-fg);
+  max-width: 40rem;
+}
+
+.instru-page__session {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: flex-end;
+}
+
+.instru-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-family: var(--font-utility);
+  font-size: var(--font-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--site-meta-fg);
+  min-width: 10rem;
+}
+
+.instru-page__field--grow {
+  flex: 1 1 14rem;
+}
+
+.instru-page__field input {
+  font-family: var(--font-body);
+  font-size: var(--font-sm);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--site-body-fg);
+  background: var(--site-surface);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  min-height: var(--control_min_height);
+  padding: 0.35rem 0.55rem;
+}
+
+.instru-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.instru-page__docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.instru-page__docs-label {
+  font-family: var(--font-utility);
+  font-size: var(--font-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--site-meta-fg);
+}
+
+.instru-page__docs ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.instru-page__docs button {
+  font-family: var(--font-utility);
+  font-size: var(--font-xs);
+  color: var(--site-body-fg);
+  background: var(--site-surface);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  padding: 0.3rem 0.55rem;
+  cursor: pointer;
+}
+
+.instru-page__docs button.is-active {
+  border-color: var(--site-accent);
+  color: var(--site-accent);
+}
+
+.instru-page__status {
+  margin: 0;
+  font-family: var(--font-utility);
+  font-size: var(--font-xs);
+  color: var(--site-meta-fg);
+}
+
+.instru-page__workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.05fr) minmax(280px, 1fr);
+  gap: 0.75rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.instru-page--analyze-open .instru-page__workspace {
+  grid-template-columns: minmax(240px, 0.95fr) minmax(260px, 1fr) minmax(220px, 0.85fr);
+}
+
+.instru-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: 420px;
+  padding: 0.65rem;
+  background: var(--site-surface);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+}
+
+.instru-panel__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.instru-panel__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.instru-panel__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.instru-panel__connect {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-utility);
+  font-size: var(--font-xs);
+  color: var(--site-meta-fg);
+}
+
+.instru-panel__connect select {
+  font-family: var(--font-utility);
+  font-size: var(--font-xs);
+  color: var(--site-body-fg);
+  background: var(--site-body-bg);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  min-height: var(--control_min_height);
+  padding: 0.2rem 0.4rem;
+}
+
+.instru-panel__hint {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--font-xs);
+  color: var(--site-muted-fg);
+}
+
+.instru-panel__canvas {
+  flex: 1;
+  min-height: 300px;
+}
+
+.instru-panel--chat {
+  min-height: 420px;
+}
+
+.instru-chat__thread {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.35rem 0.15rem;
+  border-top: var(--border_001);
+  border-bottom: var(--border_001);
+  min-height: 220px;
+  max-height: min(52vh, 520px);
+}
+
+.instru-chat__bubble {
+  max-width: 92%;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--border_radius_001);
+  font-family: var(--font-body);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.instru-chat__bubble--assistant,
+.instru-chat__bubble--system {
+  align-self: flex-start;
+  background: var(--site-surface-muted);
+  border: var(--border_001);
+}
+
+.instru-chat__bubble--user {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--site-accent) 14%, var(--site-surface));
+  border: 1px solid color-mix(in srgb, var(--site-accent) 40%, var(--site-border));
+}
+
+.instru-chat__form {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.instru-chat__form input {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: var(--font-sm);
+  color: var(--site-body-fg);
+  background: var(--site-body-bg);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  min-height: var(--control_min_height);
+  padding: 0.4rem 0.55rem;
+}
+
+.instru-analyze__summary {
+  margin: 0 0 0.55rem;
+  font-family: var(--font-display);
+  font-size: var(--font-md);
+  font-weight: 600;
+}
+
+.instru-analyze__detail {
+  font-family: var(--font-body);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--site-body-fg);
+}
+
+.instru-analyze__meta {
+  margin: 0.75rem 0 0;
+  font-family: var(--font-utility);
+  font-size: var(--font-xs);
+  color: var(--site-meta-fg);
+}
+
+@media (max-width: 960px) {
+  .instru-page__workspace,
+  .instru-page--analyze-open .instru-page__workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .instru-panel {
+    min-height: 320px;
+  }
+
+  .instru-panel__canvas {
+    min-height: 260px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .instru-chat__thread {
+    scroll-behavior: auto;
+  }
+}

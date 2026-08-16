@@ -24,6 +24,8 @@ export const APP_ROUTES = {
   debateApp: "/debate-app",
   /** @deprecated Prefer debateApp — same path; kept for existing imports. */
   edebat: "/debate-app",
+  /** The Instrumentalist — belief tree + formal-logic agent (.instru). */
+  instrumentalist: "/instrumentalist",
   adminUsers: "/admin/users",
 } as const;
 
@@ -81,6 +83,14 @@ export const EDEBAT_ROUTES = {
   create: "/api/edebat",
   item: (id: string) => `/api/edebat/${encodeURIComponent(id)}`,
   turn: (id: string) => `/api/edebat/${encodeURIComponent(id)}/turn`,
+} as const;
+
+export const INSTRUMENTALIST_ROUTES = {
+  list: "/api/instrumentalist",
+  create: "/api/instrumentalist",
+  item: (id: string) => `/api/instrumentalist/${encodeURIComponent(id)}`,
+  analyze: (id: string) => `/api/instrumentalist/${encodeURIComponent(id)}/analyze`,
+  chat: (id: string) => `/api/instrumentalist/${encodeURIComponent(id)}/chat`,
 } as const;
 
 export const PLAYLIST_ROUTES = {

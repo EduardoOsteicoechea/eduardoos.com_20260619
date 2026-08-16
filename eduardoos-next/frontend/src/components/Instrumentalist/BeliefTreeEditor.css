@@ -1,0 +1,118 @@
+/**
+ * Belief tree editor styles — gallery-atelier dense tool surface.
+ * Overrides @xyflow/react defaults with --site-* tokens.
+ */
+
+.instru-flow {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface);
+  overflow: hidden;
+}
+
+.instru-flow .react-flow__node {
+  font-family: var(--font-utility);
+}
+
+.instru-flow .react-flow__controls {
+  box-shadow: none;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  overflow: hidden;
+}
+
+.instru-flow .react-flow__controls-button {
+  background: var(--site-surface);
+  border-bottom: var(--border_001);
+  fill: var(--site-body-fg);
+}
+
+.instru-flow .react-flow__minimap {
+  background: var(--site-surface-muted);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+}
+
+.instru-flow .react-flow__edge-path {
+  stroke: var(--site-accent);
+  stroke-width: 1.5;
+}
+
+.instru-flow .instru-edge--group .react-flow__edge-path {
+  stroke: var(--site-muted-fg);
+  stroke-dasharray: 4 3;
+}
+
+.instru-flow .react-flow__edge-text {
+  fill: var(--site-meta-fg);
+  font-size: 10px;
+}
+
+.instru-node {
+  min-width: 180px;
+  max-width: 240px;
+  padding: 0.55rem 0.65rem 0.7rem;
+  background: var(--site-surface);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  color: var(--site-body-fg);
+  box-shadow: var(--site-shadow);
+}
+
+.instru-node--group {
+  background: var(--site-surface-muted);
+  border-color: color-mix(in srgb, var(--site-accent) 35%, var(--site-border));
+}
+
+.instru-node--selected {
+  outline: 2px solid var(--site-focus-ring);
+}
+
+.instru-node__label {
+  font-family: var(--font-utility);
+  font-size: var(--font-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--site-meta-fg);
+  margin-bottom: 0.35rem;
+}
+
+.instru-node__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.4rem;
+}
+
+.instru-node__field-label {
+  font-size: var(--font-xs);
+  color: var(--site-muted-fg);
+}
+
+.instru-node__input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-body);
+  font-size: var(--font-sm);
+  color: var(--site-body-fg);
+  background: var(--site-body-bg);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  padding: 0.35rem 0.45rem;
+  resize: vertical;
+}
+
+.instru-node__input--weight {
+  resize: none;
+  font-family: var(--font-utility);
+}
+
+.instru-node__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--site-accent);
+  border: 1px solid var(--site-accent-fg);
+}
