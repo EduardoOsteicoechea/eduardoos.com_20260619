@@ -1,7 +1,8 @@
 /**
  * That Open Company + Three.js IFC viewer island.
  * Initializes Fragments, converts IFC with IfcLoader, mounts the model in a world,
- * and fits the camera once the fragment list receives the loaded model.
+ * and keeps Fragments in sync with camera controls so geometry stays visible after
+ * fitToItems / orbit (That Open requires fragments.core.update on camera "update").
  *
  * WASM for web-ifc is served from same-origin /web-ifc/ (copied via postinstall).
  * Errors stay in-panel so the surrounding OpenBIM page does not blank.
@@ -13,6 +14,11 @@ import "./IfcViewer.css";
 type IfcViewerProps = {
   buffer: Uint8Array | null;
   modelName: string;
+};
+
+type FragmentsModelLike = {
+  useCamera?: (cam: unknown) => void;
+  object?: unknown;
 };
 
 function readSceneBackground(): number {
@@ -53,6 +59,7 @@ export default function IfcViewer({ buffer, modelName }: IfcViewerProps) {
 
     let disposed = false;
     let components: { dispose?: () => void } | null = null;
+    let removeCameraUpdate: (() => void) | null = null;
 
     void (async () => {
       setFailed("");
@@ -61,6 +68,9 @@ export default function IfcViewer({ buffer, modelName }: IfcViewerProps) {
         const THREE = await import("three");
         const OBC = await import("@thatopen/components");
         if (disposed) return;
+
+        // Own copy so WASM/worker transfer cannot detach the React-owned buffer.
+        const bytes = new Uint8Array(buffer);
 
         const comps = new OBC.Components();
         components = comps;
@@ -83,22 +93,44 @@ export default function IfcViewer({ buffer, modelName }: IfcViewerProps) {
 
         comps.init();
         comps.get(OBC.Grids).create(world);
+        // Avoid a 0×0 first paint if layout settled after the host mounted.
+        world.renderer.resize();
 
         const fragments = comps.get(OBC.FragmentsManager);
         fragments.init(await OBC.FragmentsManager.getWorker());
-        fragments.list.onItemSet.add(({ value: model }) => {
-          const cam = world.camera.three;
-          if ("useCamera" in model && typeof model.useCamera === "function") {
-            model.useCamera(cam);
+
+        // Required by That Open: Fragments rebuild visible meshes from the active
+        // camera. Without this, fitToItems / orbit leave an empty canvas while
+        // metadata/info still works.
+        const onCameraUpdate = () => {
+          void fragments.core.update();
+        };
+        world.camera.controls.addEventListener("update", onCameraUpdate);
+        removeCameraUpdate = () => {
+          world.camera.controls.removeEventListener("update", onCameraUpdate);
+        };
+
+        // Soften z-fighting between coplanar IFC faces (official tutorial pattern).
+        fragments.core.models.materials.list.onItemSet.add(({ value: material }) => {
+          if (!("isLodMaterial" in material && material.isLodMaterial)) {
+            material.polygonOffset = true;
+            material.polygonOffsetUnits = 1;
+            material.polygonOffsetFactor = Math.random();
           }
-          if ("object" in model && model.object) {
+        });
+
+        const mountModel = async (model: FragmentsModelLike) => {
+          if (typeof model.useCamera === "function") {
+            model.useCamera(world.camera.three);
+          }
+          if (model.object) {
             world.scene.three.add(model.object as never);
           }
-          void fragments.core.update(true);
-          // Fit orbit camera to the loaded fragment geometry.
-          void world.camera.fitToItems().catch(() => {
-            /* fit is best-effort if bounds are empty */
-          });
+          await fragments.core.update(true);
+        };
+
+        fragments.list.onItemSet.add(({ value: model }) => {
+          void mountModel(model as FragmentsModelLike);
         });
 
         const ifcLoader = comps.get(OBC.IfcLoader);
@@ -113,9 +145,21 @@ export default function IfcViewer({ buffer, modelName }: IfcViewerProps) {
         if (disposed) return;
 
         setStatus("Converting IFC to fragments…");
-        await ifcLoader.load(buffer, true, modelName || "model");
+        // coordinate=false matches That Open IfcLoader tutorial; auto-coordinate
+        // can leave the mesh far from the fitted camera frame on some files.
+        const model = await ifcLoader.load(bytes, false, modelName || "model");
         if (disposed) return;
-        setStatus("");
+
+        await mountModel(model as FragmentsModelLike);
+        try {
+          await world.camera.fitToItems();
+        } catch {
+          /* fit is best-effort if bounds are empty */
+        }
+        // fitToItems moves the camera — force a Fragments refresh for the new view.
+        await fragments.core.update(true);
+        world.renderer.resize();
+        if (!disposed) setStatus("");
       } catch (err) {
         if (!disposed) {
           setStatus("");
@@ -126,6 +170,11 @@ export default function IfcViewer({ buffer, modelName }: IfcViewerProps) {
 
     return () => {
       disposed = true;
+      try {
+        removeCameraUpdate?.();
+      } catch {
+        /* listener teardown is best-effort */
+      }
       try {
         components?.dispose?.();
       } catch {
@@ -142,7 +191,7 @@ export default function IfcViewer({ buffer, modelName }: IfcViewerProps) {
       ) : null}
       {status ? <p className="ifc-viewer__status">{status}</p> : null}
       {failed ? <p className="ifc-viewer__error">{failed}</p> : null}
-      <div ref={hostRef} className="ifc-viewer__canvas" />
+      <div ref={hostRef} className="ifc-viewer__canvas" aria-label="IFC 3D canvas" />
     </div>
   );
 }
