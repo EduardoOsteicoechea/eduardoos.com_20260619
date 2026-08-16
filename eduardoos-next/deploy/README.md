@@ -59,12 +59,18 @@ Compose publishes `8080:8080` and mounts:
 On the EC2 host:
 
 ```bash
-journalctl -u eduardoos-next -b | grep -E 'smtp:|sendResetOTP|SMTP_PASS empty'
+# Production (Next on :3000)
+sudo journalctl -u eduardoos -b --no-pager | grep -E 'auth\.smtp|auth\.forgot-password|auth\.register|sendResetOTP'
+
+# Staging (Next on :3001)
+sudo journalctl -u eduardoos-next -b --no-pager | grep -E 'auth\.smtp|auth\.forgot-password|auth\.register|sendResetOTP'
 ```
 
-Look for `pass_set=true` at boot and `auth smtp sendResetOTP ok` / `failed` after a reset request. UI trace IDs (`eosn-…`) are preserved when the client sends `X-Correlation-ID` (staging nginx no longer overwrites with `$request_id`).
+Each mail attempt logs ordered steps: `begin` → `dial` → `hello` → `starttls` → `auth` → `mail_from` → `rcpt_to` → `data` → `quit` → `done` (or `*_failed` at the failing step). Match the UI `trace:` / `X-Correlation-ID` (`eosn-…`) to `[correlation=…]`.
 
-If logs show `535 5.7.8 Username and Password not accepted`, regenerate a Gmail **App Password** for `SMTP_USER`, set GitHub secret `SMTP_PASS` to the **16 characters with no spaces**, then re-run `deploy-next-staging`.
+OTP codes are **not** logged on the real-SMTP path. Empty `SMTP_PASS` uses `skip_empty_pass` (body only then, for local/dev).
+
+If logs show `auth_failed` / `535 5.7.8`, regenerate a Gmail **App Password**, set GitHub `SMTP_PASS` to 16 chars with **no spaces**, redeploy.
 
 ## Scripts
 

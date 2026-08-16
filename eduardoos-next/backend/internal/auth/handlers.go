@@ -61,24 +61,30 @@ func (h *Handler) maybeOTPField(base map[string]any, otp string) map[string]any 
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	_ = httpx.CorrelationFromRequest(r)
+	cid := httpx.CorrelationFromRequest(r)
+	log.Printf("[correlation=%s] auth.register begin", cid)
 	var body struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || !strings.Contains(body.Email, "@") {
+		log.Printf("[correlation=%s] auth.register reject invalid_email", cid)
 		httpx.WriteError(w, http.StatusBadRequest, "invalid email")
 		return
 	}
 	if len(body.Password) < minPasswordLen {
+		log.Printf("[correlation=%s] auth.register reject password_too_short", cid)
 		httpx.WriteError(w, http.StatusBadRequest, "password too short")
 		return
 	}
 	email := NormalizeEmail(body.Email)
+	log.Printf("[correlation=%s] auth.register lookup email=%s", cid, email)
 	if _, exists, err := h.Store.GetUser(r.Context(), email); err != nil {
+		log.Printf("[correlation=%s] auth.register store_error err=%v", cid, err)
 		httpx.WriteError(w, http.StatusBadGateway, "store error")
 		return
 	} else if exists {
+		log.Printf("[correlation=%s] auth.register conflict email=%s", cid, email)
 		httpx.WriteError(w, http.StatusConflict, "account already exists")
 		return
 	}
@@ -88,15 +94,19 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		PasswordHash: HashPassword(body.Password),
 		Verified:     false,
 	}); err != nil {
+		log.Printf("[correlation=%s] auth.register put_user_failed err=%v", cid, err)
 		httpx.WriteError(w, http.StatusBadGateway, "could not create account")
 		return
 	}
+	log.Printf("[correlation=%s] auth.register user_created email=%s", cid, email)
 	if err := h.Store.PutOTP(r.Context(), email, otp); err != nil {
+		log.Printf("[correlation=%s] auth.register put_otp_failed err=%v", cid, err)
 		httpx.WriteError(w, http.StatusBadGateway, "could not store otp")
 		return
 	}
-	// Deliver via SMTP when configured; otherwise log OTP for local/dev.
-	h.sendOTP(email, otp)
+	log.Printf("[correlation=%s] auth.register otp_stored otp_len=%d — delivering mail", cid, len(otp))
+	h.sendOTPTraced(cid, email, otp)
+	log.Printf("[correlation=%s] auth.register done email=%s", cid, email)
 	httpx.WriteJSON(w, http.StatusOK, h.maybeOTPField(map[string]any{
 		"message": "OTP sent to email",
 		"token":   nil,
@@ -181,32 +191,40 @@ func (h *Handler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
+	log.Printf("[correlation=%s] auth.forgot-password begin", cid)
 	var body struct {
 		Email string `json:"email"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || !strings.Contains(body.Email, "@") {
+		log.Printf("[correlation=%s] auth.forgot-password reject invalid_email", cid)
 		httpx.WriteError(w, http.StatusBadRequest, "invalid email")
 		return
 	}
 	email := NormalizeEmail(body.Email)
+	log.Printf("[correlation=%s] auth.forgot-password lookup email=%s", cid, email)
 	var otp string
 	if _, ok, err := h.Store.GetUser(r.Context(), email); err != nil {
+		log.Printf("[correlation=%s] auth.forgot-password store_error err=%v", cid, err)
 		httpx.WriteError(w, http.StatusBadGateway, "store error")
 		return
 	} else if ok {
+		log.Printf("[correlation=%s] auth.forgot-password account_found email=%s", cid, email)
 		otp = GenerateOTP()
 		if err := h.Store.PutResetOTP(r.Context(), email, otp); err != nil {
+			log.Printf("[correlation=%s] auth.forgot-password put_reset_otp_failed err=%v", cid, err)
 			httpx.WriteError(w, http.StatusBadGateway, "could not store reset code")
 			return
 		}
-		// Delivery errors are logged inside sendResetOTP; generic success avoids enumeration.
-		h.sendResetOTP(email, otp)
-		log.Printf("[correlation=%s] forgot-password reset code issued email=%s smtp_pass_set=%t",
-			cid, email, normalizeSMTPPass(h.SMTPPass) != "")
+		log.Printf("[correlation=%s] auth.forgot-password reset_otp_stored otp_len=%d smtp_pass_set=%t — delivering mail",
+			cid, len(otp), normalizeSMTPPass(h.SMTPPass) != "")
+		// Delivery errors are logged step-by-step inside sendResetOTPTraced;
+		// HTTP still returns generic success (no account enumeration).
+		h.sendResetOTPTraced(cid, email, otp)
+		log.Printf("[correlation=%s] auth.forgot-password mail_attempt_finished email=%s", cid, email)
 	} else {
-		log.Printf("[correlation=%s] forgot-password no account email=%s (generic ok)", cid, email)
+		log.Printf("[correlation=%s] auth.forgot-password no_account email=%s (generic ok)", cid, email)
 	}
-	// Always return a generic success message (no account enumeration).
+	log.Printf("[correlation=%s] auth.forgot-password done email=%s issued=%t", cid, email, otp != "")
 	httpx.WriteJSON(w, http.StatusOK, h.maybeOTPField(map[string]any{
 		"message": "If the account exists, a reset code was sent",
 	}, otp))
