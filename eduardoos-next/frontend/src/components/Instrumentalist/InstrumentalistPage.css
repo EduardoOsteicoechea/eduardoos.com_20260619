@@ -9,8 +9,8 @@
   width: min(100%, var(--max_desktop_width));
   margin: 0 auto;
   min-height: calc(100vh - var(--header_height) - 2rem);
-  /* Horizontal inset via --page-inline-pad; main already offsets left rail (--header_width). */
-  padding: 1rem var(--page-inline-pad) 2.5rem;
+  /* Extra lateral + bottom inset beyond --page-inline-pad; main already offsets left rail. */
+  padding: 1rem max(var(--page-inline-pad), 1.75rem) 3.5rem;
   color: var(--site-body-fg);
 }
 
@@ -97,13 +97,11 @@
   grid-template-columns: 1fr;
 }
 
-.instru-page__workspace--tree-open {
-  grid-template-columns: minmax(280px, 1.1fr) minmax(280px, 1fr);
-}
-
+/* Belief tree open: full-width vertical stack (tree → agent → optional analysis). */
+.instru-page__workspace--tree-open,
 .instru-page__workspace--analyze-open,
 .instru-page--analyze-open .instru-page__workspace--tree-open {
-  grid-template-columns: minmax(240px, 0.95fr) minmax(260px, 1fr) minmax(220px, 0.85fr);
+  grid-template-columns: 1fr;
 }
 
 .instru-panel {
@@ -170,10 +168,17 @@
 
 .instru-panel__canvas {
   flex: 1;
-  min-height: 320px;
+  min-height: 360px;
+  width: 100%;
+}
+
+.instru-panel--tree {
+  width: 100%;
+  min-height: 480px;
 }
 
 .instru-panel--chat {
+  width: 100%;
   min-height: 420px;
 }
 
@@ -262,14 +267,16 @@
 }
 
 @media (max-width: 960px) {
-  .instru-page__workspace--tree-open,
-  .instru-page__workspace--analyze-open,
-  .instru-page--analyze-open .instru-page__workspace--tree-open {
-    grid-template-columns: 1fr;
+  .instru-page {
+    padding: 1rem max(var(--page-inline-pad), 1.25rem) 3rem;
   }
 
   .instru-panel {
     min-height: 320px;
+  }
+
+  .instru-panel--tree {
+    min-height: 380px;
   }
 
   .instru-panel__canvas {
