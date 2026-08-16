@@ -77,11 +77,11 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
 - Routes: `/api/profile/ask` (home), `/api/contact/ask` (contact) — both use chatbot role `profile_qa`.
 
 ### Frontend chrome (site Header)
-- **Desktop (≥768px):** fixed **left rail** (`--header_width: 60px`). Top = favicon logo → home; near bottom = hamburger; bottom = avatar (when logged in) with account menu. Nav tray slides in **from the left**, starting after the rail.
-- **Mobile:** horizontal top bar (`--header_height: 60px`). Left = favicon → home; right = avatar then menu. Tray opens from the left below the bar.
-- Layout shells (`BaseLayout`, `PamphletLayout`) and `global.css` offset content with `--header_height` / `--header_width` so blueprint wash and full-bleed editors do not sit under the rail.
+- **Desktop (≥768px):** fixed **left rail** (`--header_width: 60px`). Top → bottom: favicon logo → home; hamburger menu; avatar (when logged in) with account menu; when a route registers tools, a **separator** then the **Header Dynamic Menu** section (stacked tool buttons, `overflow-y: auto` if needed). Nav tray slides in **from the left**, starting after the rail.
+- **Mobile:** horizontal top bar (`--header_height: 60px`). Left = favicon → home; **center = Header Dynamic Menu** (when registered; `overflow-x: auto` if buttons do not fit); right = avatar then menu. Tray opens from the left below the bar.
+- Layout shells (`BaseLayout`, `PamphletLayout`) and `global.css` offset content with `--header_height` / `--header_width` so blueprint wash and full-bleed editors do not sit under the rail. Do **not** reserve a second full-width top toolbar over main content.
 - Tray still hosts primary links, Services dropdown, Theme toggle, and logged-out auth links.
-- **Header Dynamic Menu** (optional per-route): horizontal header-adjacent control strip for page tools. Host: `frontend/src/components/HeaderDynamicMenu/` (`#header-dynamic-menu-host` inside `Header`). Empty host is hidden; a route mounts its tool buttons into the host. Supports **`overflow-x: auto`** when controls overflow (especially mobile). Desktop: strip after `--header_width` at the top of the viewport; mobile: strip below the top bar. Used by **Pamphlet** (`/documents/pamphlet`). Tokens / icons: `--site-*` + `currentColor` (legible light/dark).
+- **Header Dynamic Menu** (optional per-route): a **section inside Header chrome**, not a separate bar over the page. Host: `frontend/src/components/HeaderDynamicMenu/` (`#header-dynamic-menu-host` inside `Header`). Empty host is hidden; a route mounts its tool buttons into the host. **Desktop:** after avatar + separator in the left rail (vertical stack). **Mobile:** center slot between logo and avatar/menu (horizontal row, `overflow-x: auto`). Used by **Pamphlet** (`/documents/pamphlet`). Music does **not** register tools here. Tokens / icons: `--site-*` + `currentColor` (legible light/dark).
 
 ### Global Activity Bar (chrome)
 - Eduardo OS exposes a **global Activity Bar**: fixed **bottom** chrome for product surfaces that need dense multi-control transport.
@@ -91,8 +91,7 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
   - **Single-row**: one row of icon buttons; optional expandable tray for overflow / labels. Icons + `title` / `aria-label` only (no text-primary toolbar buttons in the bar).
 - Tokens: `--site-*` from `theme.css`; plain CSS; light/dark first-class; `prefers-reduced-motion` respected.
 - **Activity bar icons MUST follow light/dark theme tokens and remain legible in both modes.** Use `currentColor` (or `--site-body-fg` on default buttons / `--site-accent-fg` on accent / pressed / primary fills). Do **not** hardcode white or light-gray strokes/fills that disappear on light backgrounds, or black strokes that disappear on dark/accent fills. Prefer inline SVG with `fill`/`stroke="currentColor"` over masked public assets that bake a single theme color.
-- **Pamphlet** does **not** use the bottom Activity Bar. Pamphlet tools (open / create / save / print / view mode / series when a pamphlet is open) live in the **Header Dynamic Menu**.
-
+- **Pamphlet** does **not** use the bottom Activity Bar. Pamphlet tools (open / create / save / print / view mode / series when a pamphlet is open) live in the **Header Dynamic Menu** section inside Header chrome.
 ### Series → chapters → pamphlet tree
 - Pamphlets (EPAMs) organize as **series → chapters → article/pamphlet**.
 - Metadata already on Dynamo `eduardoos_epams`: `series`, `seriesChapter` (plus title/author); body JSON header uses `series` / `series_chapter`.

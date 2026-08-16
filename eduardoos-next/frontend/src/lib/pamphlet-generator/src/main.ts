@@ -131,18 +131,13 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const itemTypeCancelBtn = requireElement<HTMLButtonElement>("#item-type-cancel");
     const headerMenu = requireElement<HTMLElement>("#pamphlet-header-menu");
 
-    // Mount tools into Header Dynamic Menu host (header chrome), not a bottom Activity Bar.
+    // Mount tools into Header Dynamic Menu host (inside Header rail / mobile bar).
     const menuHost = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
     window.__eduardoosHeaderDynamicMenu = headerMenu;
     if (menuHost) {
         menuHost.replaceChildren(headerMenu);
-        document.documentElement.style.setProperty(
-            "--header_dynamic_menu_height",
-            `${Math.max(headerMenu.offsetHeight, 48)}px`,
-        );
     } else {
         document.body.append(headerMenu);
-        document.documentElement.style.setProperty("--header_dynamic_menu_height", "3rem");
     }
 
     type ViewMode = "desktop" | "mobile";
@@ -178,13 +173,6 @@ function setActivityTrayOpen(open: boolean): void {
     activityTray.hidden = !open;
     trayToggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
     trayToggleBtn.classList.toggle("header-dynamic-menu__tray-toggle--open", open);
-    const host = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
-    const h = Math.max(headerMenu.offsetHeight, 48);
-    document.documentElement.style.setProperty("--header_dynamic_menu_height", `${h}px`);
-    if (host) {
-        /* keep host height token in sync when tray expands */
-        void host.offsetHeight;
-    }
 }
 
 function closeActivityTray(): void {
@@ -644,8 +632,6 @@ function syncFixedChromeScale(): void {
     const inv = zoom > 0 ? 1 / zoom : 1;
     appRoot.style.setProperty("--ui-zoom", String(zoom));
     appRoot.style.setProperty("--ui-inv-zoom", String(inv));
-    const h = Math.max(headerMenu.offsetHeight, 48);
-    document.documentElement.style.setProperty("--header_dynamic_menu_height", `${h}px`);
 }
 
 type ToastKind = "info" | "success" | "error";
@@ -1853,7 +1839,6 @@ syncOpenSourceModalForFsa();
             }
             headerMenu.remove();
             document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID)?.replaceChildren();
-            document.documentElement.style.setProperty("--header_dynamic_menu_height", "0px");
             host.replaceChildren();
         },
     };

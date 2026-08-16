@@ -1,6 +1,7 @@
 /**
- * Header Dynamic Menu — header-adjacent tool strip (Pamphlet).
- * Icons use currentColor / --site-* so they stay legible in light and dark.
+ * Header Dynamic Menu — tools live inside Header chrome (not a second top bar).
+ * Desktop: vertical stack in the left rail. Mobile: horizontal row in the
+ * bar center slot. Icons use currentColor / --site-* for light/dark.
  * Empty host stays invisible until a route mounts controls into it.
  */
 
@@ -10,26 +11,20 @@
 
 .header-dynamic-menu-host:not(:empty) {
   display: block;
-  position: fixed;
-  z-index: 250;
   box-sizing: border-box;
-  /* Mobile: under top bar, full width */
-  top: var(--header_height, 60px);
-  left: 0;
-  right: 0;
   width: 100%;
   max-width: 100%;
-  border-bottom: var(--border_001);
-  background: color-mix(in srgb, var(--site-surface) 94%, var(--site-body-bg));
+  min-width: 0;
   color: var(--site-body-fg);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--site-body-fg) 4%, transparent);
 }
 
 .header-dynamic-menu {
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
   color: var(--site-body-fg);
+  position: relative;
 }
 
 .header-dynamic-menu__inner {
@@ -39,9 +34,8 @@
   gap: 0;
   width: 100%;
   max-width: 100%;
-  padding-block: 0.4rem;
-  padding-inline: max(var(--page-inline-pad, 15px), env(safe-area-inset-left))
-    max(var(--page-inline-pad, 15px), env(safe-area-inset-right));
+  min-width: 0;
+  padding: 0;
 }
 
 .header-dynamic-menu__actions {
@@ -49,7 +43,7 @@
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 0.25rem;
   width: 100%;
   min-width: 0;
@@ -114,15 +108,24 @@
   border-color: var(--site-accent);
 }
 
+/* Label tray: under the bar on mobile; flyout right of the rail on desktop. */
 .header-dynamic-menu__tray {
   display: none;
   flex-direction: column;
   gap: 0.35rem;
-  margin-top: 0.4rem;
+  position: absolute;
+  z-index: 170;
+  top: calc(100% + 0.35rem);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 12rem;
+  max-width: min(18rem, 80vw);
+  margin: 0;
   padding: 0.45rem 0.55rem;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
-  background: color-mix(in srgb, var(--site-body-fg) 4%, var(--site-body-bg));
+  background: var(--site-surface, var(--site-body-bg));
+  box-shadow: var(--site-shadow);
   font-size: var(--font-sm);
   color: var(--site-muted-fg, var(--site-body-fg));
 }
@@ -142,17 +145,28 @@
   }
 }
 
-/* Desktop: strip after left rail, flush with top of viewport */
+/* Desktop: stacked controls inside the 60px left rail */
 @media (min-width: 768px) {
-  .header-dynamic-menu-host:not(:empty) {
-    top: 0;
-    left: var(--header_width, 60px);
-    right: 0;
-    width: auto;
+  .header-dynamic-menu__inner {
+    align-items: center;
   }
 
-  .header-dynamic-menu__inner {
-    padding-block: 0.45rem;
+  .header-dynamic-menu__actions {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.45rem;
+    overflow-x: hidden;
+    overflow-y: visible;
+    padding-block: 0.15rem;
+  }
+
+  .header-dynamic-menu__tray {
+    top: 0;
+    left: calc(100% + 0.45rem);
+    right: auto;
+    transform: none;
+    min-width: 11rem;
   }
 }
 

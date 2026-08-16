@@ -1,6 +1,6 @@
 /**
  * Shared Activity Bar chrome — Music (multi-row bottom transport).
- * Pamphlet tools use Header Dynamic Menu instead (see HeaderDynamicMenu/).
+ * Pamphlet tools use Header Dynamic Menu inside Header chrome instead.
  * Uses Eduardo OS --site-* tokens; light/dark via html[data-theme].
  */
 

@@ -1,10 +1,11 @@
 /**
  * Site chrome: desktop left rail (60px) + mobile top bar.
- * Desktop rail (top → bottom): logo (favicon → home), menu button, avatar.
- * Mobile bar: logo left; avatar then menu on the right. Hamburger opens the
- * nav tray from the left (after the 60px rail on desktop). Services, Theme,
- * and auth links live inside the tray.
- * Header Dynamic Menu host sits in chrome for per-route tools (Pamphlet).
+ * Desktop rail (top → bottom): logo → menu → avatar → separator → Header
+ * Dynamic Menu (per-route tools, e.g. Pamphlet). Mobile bar: logo left,
+ * dynamic section centered, avatar then menu on the right. Hamburger opens
+ * the nav tray from the left (after the 60px rail on desktop). Services,
+ * Theme, and auth links live inside the tray. Music keeps the bottom
+ * Activity Bar and does not register a dynamic header section.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -422,7 +423,15 @@ export function Header({ pathname }: HeaderProps) {
         <a className="site-header__logo" href={APP_ROUTES.home} aria-label="Eduardo OS home">
           <img className="site-header__logo-img" src="/favicon-48.png" alt="" width={28} height={28} />
         </a>
-        <div className="site-header__bar-spacer" aria-hidden="true" />
+        {/*
+          Mobile order: logo | dynamic (center) | bar-end.
+          Desktop order (CSS order): logo | bar-end | dynamic (after avatar + sep).
+          Pamphlet mounts tools here; Music does not register.
+        */}
+        <div className="site-header__dynamic-slot">
+          <hr className="site-header__dynamic-sep" aria-hidden="true" />
+          <HeaderDynamicMenu />
+        </div>
         <div className="site-header__bar-end">
           {showAuth ? (
             <AuthControls
@@ -448,8 +457,6 @@ export function Header({ pathname }: HeaderProps) {
           </button>
         </div>
       </div>
-      {/* Per-route tool strip host (Pamphlet mounts here; Music uses bottom Activity Bar). */}
-      <HeaderDynamicMenu />
       <div
         className="site-header__backdrop"
         hidden={!menuOpen}

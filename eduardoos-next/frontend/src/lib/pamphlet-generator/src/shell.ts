@@ -1,7 +1,7 @@
 /**
  * Pamphlet chrome markup: Header Dynamic Menu tools + dialogs.
  * Buttons keep stable ids so main.ts can wire them without a React mount.
- * Tools mount into #header-dynamic-menu-host (not a bottom Activity Bar).
+ * Tools mount into #header-dynamic-menu-host inside Header (rail / mobile bar).
  */
 
 function iconSvg(paths: string, viewBox = "0 0 24 24"): string {

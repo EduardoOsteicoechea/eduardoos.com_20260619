@@ -1,6 +1,7 @@
 /**
  * Site chrome — mobile top bar + desktop 60px left rail.
- * Desktop rail stacks logo → menu → avatar from the top.
+ * Desktop rail: logo → menu → avatar → separator → dynamic tools.
+ * Mobile bar: logo | dynamic (center) | avatar + menu.
  * Nav tray slides in from the left (after the rail on desktop).
  */
 
@@ -43,6 +44,7 @@
   border-radius: var(--border_radius_001);
   text-decoration: none;
   color: inherit;
+  order: 1;
 }
 
 .site-header__logo:hover {
@@ -56,9 +58,25 @@
   object-fit: contain;
 }
 
-.site-header__bar-spacer {
+/* Mobile: center slot between logo and avatar/menu for per-route tools. */
+.site-header__dynamic-slot {
+  order: 2;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
   flex: 1 1 auto;
-  min-width: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.site-header__dynamic-sep {
+  display: none;
+  margin: 0;
+  border: none;
+  flex-shrink: 0;
 }
 
 .site-header__bar-end {
@@ -67,6 +85,7 @@
   justify-content: flex-end;
   gap: 0.5rem;
   flex-shrink: 0;
+  order: 3;
 }
 
 .site-header__menu {
@@ -437,7 +456,7 @@
   }
 }
 
-/* Desktop: fixed 60px left rail — logo → menu → avatar stacked from the top */
+/* Desktop: fixed 60px left rail — logo → menu → avatar → sep → dynamic tools */
 @media (min-width: 768px) {
   .site-header__bar {
     flex-direction: column;
@@ -458,23 +477,50 @@
     background: color-mix(in srgb, var(--site-surface) 96%, var(--site-body-bg));
     backdrop-filter: none;
     box-shadow: 1px 0 0 color-mix(in srgb, var(--site-body-fg) 3%, transparent);
-  }
-
-  /* Collapse spacer so controls stay under the logo (not pinned to the bottom). */
-  .site-header__bar-spacer {
-    display: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
   }
 
   /*
-   * DOM order in bar-end is avatar then menu (mobile: right cluster).
-   * column-reverse stacks menu under the logo, then avatar below the menu.
+   * DOM order is logo → dynamic → bar-end (mobile center slot).
+   * Reorder so desktop stacks logo → menu/avatar → dynamic tools.
    */
+  .site-header__logo {
+    order: 1;
+  }
+
   .site-header__bar-end {
+    order: 2;
     flex-direction: column-reverse;
     align-items: center;
     justify-content: flex-start;
     gap: 0.65rem;
     width: 100%;
+  }
+
+  .site-header__dynamic-slot {
+    order: 3;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.55rem;
+    width: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  /* Separator only when a route has mounted tools into the host. */
+  .site-header__dynamic-slot:has(.header-dynamic-menu-host:not(:empty)) .site-header__dynamic-sep {
+    display: block;
+    width: 1.65rem;
+    height: 0;
+    margin: 0.1rem 0 0;
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--site-body-fg) 28%, transparent);
   }
 
   /* Account menu opens to the right of the rail-aligned avatar. */

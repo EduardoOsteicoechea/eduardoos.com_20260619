@@ -21,8 +21,6 @@ body.page-pamphlet {
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   -webkit-overflow-scrolling: touch;
-  /* Reserved for Header Dynamic Menu; JS updates to measured height after mount. */
-  --header_dynamic_menu_height: 3rem;
 }
 
 /* Keep site header/avatar above teleported pamphlet chrome. */
@@ -42,9 +40,7 @@ body.page-pamphlet .site-header__bar {
   margin-top: 0;
   margin-left: var(--header_width, 0px);
   padding: 1rem 0 2rem;
-  padding-top: calc(
-    1rem + var(--header_height, 0px) + var(--header_dynamic_menu_height, 0px)
-  );
+  padding-top: calc(1rem + var(--header_height, 0px));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -68,18 +64,12 @@ body.page-pamphlet .site-header__bar {
 }
 
 /*
- * Chrome tools mount into Header Dynamic Menu (header-adjacent strip).
- * Reserve top space for that strip; no bottom Activity Bar on pamphlet.
+ * Pamphlet tools live inside Header chrome (rail / mobile center slot).
+ * No extra top offset for a second toolbar; no bottom Activity Bar.
  */
 body.page-pamphlet .pamphlet-layout-workspace {
-  padding-top: calc(
-    1rem + var(--header_height, 0px) + var(--header_dynamic_menu_height, 0px)
-  );
+  padding-top: calc(1rem + var(--header_height, 0px));
   padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
-}
-
-body.page-pamphlet .header-dynamic-menu-host {
-  z-index: 302;
 }
 
 body.page-pamphlet .item-type-options button {
