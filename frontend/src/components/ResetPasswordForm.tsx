@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../config/routes";
 import { confirmPasswordReset, requestPasswordReset } from "../lib/auth";
 import { validateEmail, validateOtp, validatePassword } from "../lib/validation";
+import PasswordField from "./PasswordField/PasswordField";
 import "./AuthForm.css";
 
 type ResetStep = "email" | "code";
