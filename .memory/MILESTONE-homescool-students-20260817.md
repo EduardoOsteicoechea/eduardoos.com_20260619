@@ -7,7 +7,7 @@
 | `b9c51ca` | feat/test: Homescool student registry APIs and S3 folder scaffold |
 | `4cff05e` | feat/test: Homescool UI routes, learning workspace, and nginx pretty URLs |
 | `ffd7872` | fix: Homescool S3 objects under bucket-root `homeschool/` (not `media/homescool/`) |
-| *(this turn)* | fix: persist Homescool teacher→student links in DynamoDB (`eduardoos_catalog`) |
+| `9f2415c` | fix: persist Homescool teacher→student links in DynamoDB (`eduardoos_catalog`) |
 
 ## Product routes (brand: Homescool → `/homescool/*`)
 
