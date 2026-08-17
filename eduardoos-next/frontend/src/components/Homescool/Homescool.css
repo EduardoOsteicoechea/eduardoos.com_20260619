@@ -401,6 +401,68 @@
   resize: vertical;
 }
 
+/* Checkbox multi-picker for study areas (templates + assign filters). */
+.homescool-multiselect {
+  margin: 0;
+  padding: 0.55rem 0.65rem 0.65rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface, var(--site-body-bg));
+  min-width: 0;
+}
+
+.homescool-multiselect legend {
+  padding: 0 0.25rem;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-muted, var(--site-body-fg));
+}
+
+.homescool-multiselect__list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 9.5rem;
+  overflow: auto;
+}
+
+.homescool-multiselect__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  color: var(--site-body-fg);
+  cursor: pointer;
+}
+
+.homescool-multiselect__option input {
+  width: auto;
+  min-height: 0;
+  margin: 0.15rem 0 0;
+  flex-shrink: 0;
+  accent-color: var(--site-accent, #3d5a80);
+}
+
+.homescool-multiselect__summary,
+.homescool-multiselect .homescool-form__hint {
+  margin: 0.45rem 0 0;
+}
+
+.homescool-multiselect__list--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  max-height: none;
+  gap: 0.55rem 0.85rem;
+}
+
 .homescool-templates__list {
   list-style: none;
   margin: 0.75rem 0 0;
@@ -540,6 +602,10 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: 0.75rem;
+}
+
+.homescool-assign-filters .homescool-multiselect {
+  grid-column: 1 / -1;
 }
 
 .homescool-file-list {

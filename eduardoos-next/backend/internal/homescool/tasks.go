@@ -22,13 +22,18 @@ const (
 // TaskTemplate is a reusable assignment blueprint owned by a teacher.
 // Stored in DynamoDB (or memory) and optionally illustrated with S3 image keys
 // under homeschool/{teacher}/templates/{id}/…
+//
+// StudyAreas is the canonical multi-label field. StudyArea is a deprecated
+// single-string alias kept for older records and clients; readers always run
+// ApplyStudyAreasMigrationTemplate so a legacy string becomes a one-item array.
 type TaskTemplate struct {
 	ID           string   `json:"id"`
 	TeacherEmail string   `json:"teacherEmail"`
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`
 	Period       string   `json:"period"`
-	StudyArea    string   `json:"studyArea"`
+	StudyAreas   []string `json:"studyAreas"`
+	StudyArea    string   `json:"studyArea,omitempty"` // deprecated alias / joined display
 	DurationMin  int      `json:"durationMin"`
 	MaxScore     int      `json:"maxScore"`
 	ImageKeys    []string `json:"imageKeys,omitempty"`
@@ -60,6 +65,8 @@ type TaskGrade struct {
 
 // AssignedTask is one concrete task for a teacher→student pair.
 // Metadata lives in DynamoDB; proof files live under the student's tasks/ S3 prefix.
+// StudyAreas / StudyArea follow the same multi-label + legacy alias rules as TaskTemplate.
+// Frequency + StartDate/EndDate define calendar occurrence expansion (see frequency.go).
 type AssignedTask struct {
 	ID           string          `json:"id"`
 	TemplateID   string          `json:"templateId,omitempty"`
@@ -69,9 +76,11 @@ type AssignedTask struct {
 	Name         string          `json:"name"`
 	Description  string          `json:"description"`
 	Period       string          `json:"period"`
-	StudyArea    string          `json:"studyArea"`
+	StudyAreas   []string        `json:"studyAreas"`
+	StudyArea    string          `json:"studyArea,omitempty"` // deprecated alias / joined display
 	StartDate    string          `json:"startDate"`
 	EndDate      string          `json:"endDate"`
+	Frequency    TaskFrequency   `json:"frequency"`
 	DurationMin  int             `json:"durationMin"`
 	MaxScore     int             `json:"maxScore"`
 	Status       string          `json:"status"`
@@ -146,12 +155,16 @@ func TaskSubmissionPrefix(teacherEmail, studentEmail, taskID string) string {
 func cloneTemplate(t TaskTemplate) TaskTemplate {
 	cp := t
 	cp.ImageKeys = append([]string(nil), t.ImageKeys...)
+	cp.StudyAreas = append([]string(nil), t.StudyAreas...)
 	return cp
 }
 
 func cloneTask(t AssignedTask) AssignedTask {
 	cp := t
 	cp.ImageKeys = append([]string(nil), t.ImageKeys...)
+	cp.StudyAreas = append([]string(nil), t.StudyAreas...)
+	cp.Frequency = NormalizeFrequency(&t.Frequency)
+	cp.Frequency.ExcludeWeekdays = append([]int(nil), cp.Frequency.ExcludeWeekdays...)
 	if t.Submission != nil {
 		sub := *t.Submission
 		sub.Files = append([]TaskFile(nil), t.Submission.Files...)

@@ -7,6 +7,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
   HOMESCOOL_MAX_SCORE,
   archiveStudentTask,
+  formatFrequencyLabel,
+  formatStudyAreas,
   gradeStudentTask,
   listTeacherStudentTasks,
   taskStatusLabel,
@@ -102,11 +104,16 @@ export default function TeacherTasksBoard({ studentSlug, onChanged }: Props) {
               <span className="homescool-kanban__count">{boards[status].length}</span>
             </h3>
             <div className="homescool-task-board homescool-task-board--stack" role="list">
-              {boards[status].map((task) => (
+              {boards[status].map((task) => {
+                const areasLabel = formatStudyAreas(task.studyAreas, task.studyArea);
+                const freqLabel = formatFrequencyLabel(task.frequency);
+                return (
                 <article key={task.id} className="homescool-task-card homescool-task-card--static" role="listitem">
                   <span className="homescool-task-card__title">{task.name}</span>
                   <span className="homescool-task-card__meta">
                     {task.startDate || "—"} → {task.endDate || "—"}
+                    {areasLabel ? ` · ${areasLabel}` : ""}
+                    {` · ${freqLabel}`}
                   </span>
                   {task.submission ? (
                     <span className="homescool-task-card__flag">Response received</span>
@@ -151,7 +158,8 @@ export default function TeacherTasksBoard({ studentSlug, onChanged }: Props) {
                     ) : null}
                   </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
           </section>
         ))}
@@ -176,6 +184,18 @@ export default function TeacherTasksBoard({ studentSlug, onChanged }: Props) {
               <div>
                 <dt>End</dt>
                 <dd>{active.endDate || "—"}</dd>
+              </div>
+              <div>
+                <dt>Period</dt>
+                <dd>{active.period || "—"}</dd>
+              </div>
+              <div>
+                <dt>Study areas</dt>
+                <dd>{formatStudyAreas(active.studyAreas, active.studyArea) || "—"}</dd>
+              </div>
+              <div>
+                <dt>Frequency</dt>
+                <dd>{formatFrequencyLabel(active.frequency)}</dd>
               </div>
               <div>
                 <dt>Status</dt>

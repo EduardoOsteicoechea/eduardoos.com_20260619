@@ -43,23 +43,26 @@ func (h *Handler) CreateTaskTemplate(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	teacher := auth.UserEmailFromRequest(r)
 	var body struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Period      string `json:"period"`
-		StudyArea   string `json:"studyArea"`
-		DurationMin int    `json:"durationMin"`
-		MaxScore    int    `json:"maxScore"`
+		Name        string   `json:"name"`
+		Description string   `json:"description"`
+		Period      string   `json:"period"`
+		StudyAreas  []string `json:"studyAreas"`
+		StudyArea   string   `json:"studyArea"` // deprecated single-label alias
+		DurationMin int      `json:"durationMin"`
+		MaxScore    int      `json:"maxScore"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
 		return
 	}
+	areas := NormalizeStudyAreas(body.StudyAreas, body.StudyArea)
 	tpl, err := h.Tasks.CreateTemplate(r.Context(), TaskTemplate{
 		TeacherEmail: teacher,
 		Name:         body.Name,
 		Description:  body.Description,
 		Period:       strings.TrimSpace(body.Period),
-		StudyArea:    strings.TrimSpace(body.StudyArea),
+		StudyAreas:   areas,
+		StudyArea:    FormatStudyAreas(areas),
 		DurationMin:  body.DurationMin,
 		MaxScore:     body.MaxScore,
 	})
@@ -225,18 +228,36 @@ func (h *Handler) AssignTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		TemplateIDs []string `json:"templateIds"`
-		StartDate   string   `json:"startDate"`
-		EndDate     string   `json:"endDate"`
-		Name        string   `json:"name"`
-		Description string   `json:"description"`
-		Period      string   `json:"period"`
-		StudyArea   string   `json:"studyArea"`
-		DurationMin int      `json:"durationMin"`
-		MaxScore    int      `json:"maxScore"`
+		TemplateIDs []string       `json:"templateIds"`
+		StartDate   string         `json:"startDate"`
+		EndDate     string         `json:"endDate"`
+		Frequency   *TaskFrequency `json:"frequency"`
+		Name        string         `json:"name"`
+		Description string         `json:"description"`
+		Period      string         `json:"period"`
+		StudyAreas  []string       `json:"studyAreas"`
+		StudyArea   string         `json:"studyArea"` // deprecated single-label alias
+		DurationMin int            `json:"durationMin"`
+		MaxScore    int            `json:"maxScore"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+
+	freq := NormalizeFrequency(body.Frequency)
+	if err := ValidateFrequency(freq); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	startDate := strings.TrimSpace(body.StartDate)
+	endDate := strings.TrimSpace(body.EndDate)
+	if startDate == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "startDate required")
+		return
+	}
+	if _, err := ExpandOccurrenceDates(startDate, endDate, freq); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -258,9 +279,11 @@ func (h *Handler) AssignTasks(w http.ResponseWriter, r *http.Request) {
 			Name:         tpl.Name,
 			Description:  tpl.Description,
 			Period:       tpl.Period,
+			StudyAreas:   append([]string(nil), tpl.StudyAreas...),
 			StudyArea:    tpl.StudyArea,
-			StartDate:    strings.TrimSpace(body.StartDate),
-			EndDate:      strings.TrimSpace(body.EndDate),
+			StartDate:    startDate,
+			EndDate:      endDate,
+			Frequency:    freq,
 			DurationMin:  tpl.DurationMin,
 			MaxScore:     tpl.MaxScore,
 			Status:       TaskStatusPending,
@@ -275,15 +298,18 @@ func (h *Handler) AssignTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.TrimSpace(body.Name) != "" {
+		areas := NormalizeStudyAreas(body.StudyAreas, body.StudyArea)
 		task, createErr := h.Tasks.CreateTask(r.Context(), AssignedTask{
 			TeacherEmail: teacher,
 			StudentEmail: link.StudentEmail,
 			Name:         body.Name,
 			Description:  body.Description,
 			Period:       strings.TrimSpace(body.Period),
-			StudyArea:    strings.TrimSpace(body.StudyArea),
-			StartDate:    strings.TrimSpace(body.StartDate),
-			EndDate:      strings.TrimSpace(body.EndDate),
+			StudyAreas:   areas,
+			StudyArea:    FormatStudyAreas(areas),
+			StartDate:    startDate,
+			EndDate:      endDate,
+			Frequency:    freq,
 			DurationMin:  body.DurationMin,
 			MaxScore:     body.MaxScore,
 			Status:       TaskStatusPending,

@@ -25,6 +25,8 @@ function folderLabel(folder) {
       return "Study section";
     case "tasks":
       return "Tasks";
+    case "calendar":
+      return "Calendar";
     default:
       return folder;
   }
@@ -58,8 +60,9 @@ describe("homescool helpers", () => {
     assert.equal(safeEmailKey("A@Example.COM"), "a_at_example.com");
   });
 
-  it("folderLabel humanizes study_section", () => {
+  it("folderLabel humanizes study_section and calendar", () => {
     assert.equal(folderLabel("study_section"), "Study section");
+    assert.equal(folderLabel("calendar"), "Calendar");
   });
 
   it("resolveStudentSlugFromLocation reads query and pretty path", () => {
@@ -130,5 +133,101 @@ describe("homescool helpers", () => {
     assert.equal(parseFoldersOpen("true"), true);
     assert.equal(parseFoldersOpen("0"), false);
     assert.equal(parseFoldersOpen("false"), false);
+  });
+
+  it("normalizeStudyAreas migrates legacy string and formats display", () => {
+    function normalizeStudyAreas(areas, legacy) {
+      const seen = new Set();
+      const out = [];
+      for (const raw of areas ?? []) {
+        const label = String(raw ?? "").trim();
+        if (!label) continue;
+        const key = label.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(label);
+      }
+      if (out.length === 0) {
+        const solo = String(legacy ?? "").trim();
+        if (solo) out.push(solo);
+      }
+      return out;
+    }
+    function formatStudyAreas(areas, legacy) {
+      return normalizeStudyAreas(areas, legacy).join(" · ");
+    }
+    function hasStudyArea(areas, legacy, needle) {
+      const want = String(needle ?? "").trim().toLowerCase();
+      if (!want) return false;
+      return normalizeStudyAreas(areas, legacy).some((a) => a.toLowerCase() === want);
+    }
+    assert.deepEqual(normalizeStudyAreas(undefined, "dialectic"), ["dialectic"]);
+    assert.deepEqual(normalizeStudyAreas(["math", "science"], "old"), ["math", "science"]);
+    assert.deepEqual(normalizeStudyAreas(["Math", "math"], ""), ["Math"]);
+    assert.equal(formatStudyAreas(["dialectic", "rhetoric"]), "dialectic · rhetoric");
+    assert.equal(hasStudyArea(["Science"], null, "science"), true);
+    assert.equal(hasStudyArea(["math"], null, "science"), false);
+  });
+
+  it("expandOccurrenceDates respects once / daily / daily_except", () => {
+    function normalizeFrequency(freq) {
+      const kind = String(freq?.kind ?? "once").trim().toLowerCase();
+      const allowed = ["once", "daily", "daily_except"];
+      const safeKind = allowed.includes(kind) ? kind : "once";
+      const exclude = [];
+      if (safeKind === "daily_except") {
+        const seen = new Set();
+        for (const d of freq?.excludeWeekdays ?? []) {
+          const n = Number(d);
+          if (!Number.isInteger(n) || n < 0 || n > 6 || seen.has(n)) continue;
+          seen.add(n);
+          exclude.push(n);
+        }
+      }
+      return { kind: safeKind, excludeWeekdays: exclude };
+    }
+    function parseDateOnly(raw) {
+      const s = String(raw ?? "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+      const d = new Date(`${s}T00:00:00.000Z`);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    function formatDateOnly(d) {
+      return d.toISOString().slice(0, 10);
+    }
+    function expandOccurrenceDates(startDate, endDate, freq) {
+      const n = normalizeFrequency(freq);
+      const start = parseDateOnly(startDate);
+      if (!start) return [];
+      let end = parseDateOnly(endDate) ?? start;
+      if (end.getTime() < start.getTime()) return [];
+      if (n.kind === "once") return [formatDateOnly(start)];
+      const exclude = new Set(n.excludeWeekdays ?? []);
+      const out = [];
+      const cursor = new Date(start.getTime());
+      while (cursor.getTime() <= end.getTime() && out.length < 400) {
+        const dow = cursor.getUTCDay();
+        if (!(n.kind === "daily_except" && exclude.has(dow))) {
+          out.push(formatDateOnly(cursor));
+        }
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+      }
+      return out;
+    }
+    assert.deepEqual(expandOccurrenceDates("2026-08-17", "2026-08-20", { kind: "once" }), [
+      "2026-08-17",
+    ]);
+    assert.deepEqual(expandOccurrenceDates("2026-08-17", "2026-08-19", { kind: "daily" }), [
+      "2026-08-17",
+      "2026-08-18",
+      "2026-08-19",
+    ]);
+    assert.deepEqual(
+      expandOccurrenceDates("2026-08-17", "2026-08-23", {
+        kind: "daily_except",
+        excludeWeekdays: [0, 6],
+      }),
+      ["2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21"],
+    );
   });
 });

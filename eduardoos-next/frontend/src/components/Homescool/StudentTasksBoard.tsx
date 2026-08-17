@@ -4,6 +4,8 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
+  formatFrequencyLabel,
+  formatStudyAreas,
   listLearningTasks,
   submitLearningTask,
   type HomescoolTask,
@@ -82,7 +84,10 @@ export default function StudentTasksBoard({ teacherSlug, initialTaskId = "" }: P
         <p className="homescool-empty">No pending tasks right now.</p>
       ) : null}
       <div className="homescool-task-board homescool-task-board--stack" role="list">
-        {tasks.map((task) => (
+        {tasks.map((task) => {
+          const areasLabel = formatStudyAreas(task.studyAreas, task.studyArea);
+          const freqLabel = formatFrequencyLabel(task.frequency);
+          return (
           <button
             key={task.id}
             type="button"
@@ -98,12 +103,15 @@ export default function StudentTasksBoard({ teacherSlug, initialTaskId = "" }: P
             <span className="homescool-task-card__title">{task.name}</span>
             <span className="homescool-task-card__meta">
               {task.startDate || "—"} → {task.endDate || "—"}
+              {areasLabel ? ` · ${areasLabel}` : ""}
+              {` · ${freqLabel}`}
             </span>
             {task.grade?.decision === "reject" && task.grade.score ? (
               <ScoreBar score={task.grade.score} maxScore={task.maxScore} />
             ) : null}
           </button>
-        ))}
+          );
+        })}
       </div>
 
       {active ? (
@@ -125,6 +133,18 @@ export default function StudentTasksBoard({ teacherSlug, initialTaskId = "" }: P
               <div>
                 <dt>End / conclusion</dt>
                 <dd>{active.endDate || "—"}</dd>
+              </div>
+              <div>
+                <dt>Period</dt>
+                <dd>{active.period || "—"}</dd>
+              </div>
+              <div>
+                <dt>Study areas</dt>
+                <dd>{formatStudyAreas(active.studyAreas, active.studyArea) || "—"}</dd>
+              </div>
+              <div>
+                <dt>Frequency</dt>
+                <dd>{formatFrequencyLabel(active.frequency)}</dd>
               </div>
               <div>
                 <dt>Max score</dt>

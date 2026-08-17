@@ -134,6 +134,7 @@ func (d *dynamoTaskStore) queryTemplates(ctx context.Context, skPrefix string) (
 		if err := json.Unmarshal([]byte(data.Value), &tpl); err != nil {
 			continue
 		}
+		ApplyStudyAreasMigrationTemplate(&tpl)
 		items = append(items, cloneTemplate(tpl))
 	}
 	return items, nil
@@ -161,6 +162,8 @@ func (d *dynamoTaskStore) queryTasks(ctx context.Context, skPrefix string) ([]As
 		if err := json.Unmarshal([]byte(data.Value), &task); err != nil {
 			continue
 		}
+		ApplyStudyAreasMigrationTask(&task)
+		task.Frequency = NormalizeFrequency(&task.Frequency)
 		items = append(items, cloneTask(task))
 	}
 	return items, nil
@@ -175,6 +178,7 @@ func (d *dynamoTaskStore) CreateTemplate(ctx context.Context, tpl TaskTemplate) 
 	if tpl.ID == "" {
 		tpl.ID = uuid.NewString()
 	}
+	ApplyStudyAreasMigrationTemplate(&tpl)
 	tpl.MaxScore = NormalizeMaxScore(tpl.MaxScore)
 	now := auth.NowRFC3339()
 	if tpl.CreatedAt == "" {
@@ -197,6 +201,7 @@ func (d *dynamoTaskStore) UpdateTemplate(ctx context.Context, tpl TaskTemplate) 
 	}
 	tpl.TeacherEmail = auth.NormalizeEmail(tpl.TeacherEmail)
 	tpl.CreatedAt = existing.CreatedAt
+	ApplyStudyAreasMigrationTemplate(&tpl)
 	tpl.MaxScore = NormalizeMaxScore(tpl.MaxScore)
 	tpl.UpdatedAt = auth.NowRFC3339()
 	if err := d.putJSON(ctx, templateSK(tpl.TeacherEmail, tpl.ID), tpl); err != nil {
@@ -211,6 +216,7 @@ func (d *dynamoTaskStore) GetTemplate(ctx context.Context, teacherEmail, id stri
 	if err != nil || !ok {
 		return TaskTemplate{}, ok, err
 	}
+	ApplyStudyAreasMigrationTemplate(&tpl)
 	return cloneTemplate(tpl), true, nil
 }
 
@@ -229,7 +235,7 @@ func (d *dynamoTaskStore) ListTemplates(ctx context.Context, teacherEmail, perio
 		if period != "" && !strings.EqualFold(tpl.Period, period) {
 			continue
 		}
-		if studyArea != "" && !strings.EqualFold(tpl.StudyArea, studyArea) {
+		if studyArea != "" && !HasStudyArea(tpl.StudyAreas, studyArea) {
 			continue
 		}
 		out = append(out, tpl)
@@ -248,6 +254,8 @@ func (d *dynamoTaskStore) CreateTask(ctx context.Context, task AssignedTask) (As
 		task.ID = uuid.NewString()
 	}
 	task.StudentSlug = StudentSlug(task.StudentEmail)
+	ApplyStudyAreasMigrationTask(&task)
+	task.Frequency = NormalizeFrequency(&task.Frequency)
 	task.MaxScore = NormalizeMaxScore(task.MaxScore)
 	if task.Status == "" {
 		task.Status = TaskStatusPending
@@ -281,6 +289,8 @@ func (d *dynamoTaskStore) UpdateTask(ctx context.Context, task AssignedTask) (As
 	task.StudentEmail = auth.NormalizeEmail(task.StudentEmail)
 	task.CreatedAt = existing.CreatedAt
 	task.StudentSlug = StudentSlug(task.StudentEmail)
+	ApplyStudyAreasMigrationTask(&task)
+	task.Frequency = NormalizeFrequency(&task.Frequency)
 	task.MaxScore = NormalizeMaxScore(task.MaxScore)
 	if !IsValidTaskStatus(task.Status) {
 		return AssignedTask{}, fmt.Errorf("invalid status")
@@ -301,6 +311,8 @@ func (d *dynamoTaskStore) GetTask(ctx context.Context, teacherEmail, studentEmai
 	if err != nil || !ok {
 		return AssignedTask{}, ok, err
 	}
+	ApplyStudyAreasMigrationTask(&task)
+	task.Frequency = NormalizeFrequency(&task.Frequency)
 	return cloneTask(task), true, nil
 }
 

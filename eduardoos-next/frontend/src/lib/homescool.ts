@@ -15,9 +15,23 @@ export const HOMESCOOL_FOLDERS = [
   "skills",
   "study_section",
   "tasks",
+  "calendar",
 ] as const;
 
 export type HomescoolFolder = (typeof HOMESCOOL_FOLDERS)[number];
+
+/** S3-backed folders only (calendar is a virtual UI surface like tasks boards). */
+export const HOMESCOOL_S3_FOLDERS = [
+  "portfolio",
+  "period",
+  "skills",
+  "study_section",
+  "tasks",
+] as const;
+
+export function isHomescoolS3Folder(folder: string): boolean {
+  return (HOMESCOOL_S3_FOLDERS as readonly string[]).includes(folder);
+}
 
 /** localStorage: Folders sidebar open/closed on workspace / learning routes. */
 export const HOMESCOOL_FOLDERS_SIDEBAR_KEY = "eduardoos-homescool-folders-open";
@@ -83,6 +97,22 @@ export type HomescoolTaskGrade = {
   note?: string;
 };
 
+export type HomescoolTaskFrequencyKind = "once" | "daily" | "daily_except";
+
+/**
+ * Recurrence for an assigned task within startDate..endDate.
+ * - once: calendar shows StartDate only (one-shot / specific day)
+ * - daily: every day in the window
+ * - daily_except: daily skipping ExcludeWeekdays (0=Sun … 6=Sat)
+ *
+ * Boards still show one card per assignment (submit/grade once for the window).
+ * Calendar expands occurrence dates for display.
+ */
+export type HomescoolTaskFrequency = {
+  kind: HomescoolTaskFrequencyKind | string;
+  excludeWeekdays?: number[];
+};
+
 export type HomescoolTask = {
   id: string;
   templateId?: string;
@@ -92,9 +122,13 @@ export type HomescoolTask = {
   name: string;
   description: string;
   period: string;
-  studyArea: string;
+  /** Canonical multi-label study areas. */
+  studyAreas?: string[];
+  /** Deprecated single-label alias (legacy records / joined display). */
+  studyArea?: string;
   startDate: string;
   endDate: string;
+  frequency?: HomescoolTaskFrequency;
   durationMin: number;
   maxScore: number;
   status: HomescoolTaskStatus;
@@ -111,7 +145,10 @@ export type HomescoolTaskTemplate = {
   name: string;
   description: string;
   period: string;
-  studyArea: string;
+  /** Canonical multi-label study areas. */
+  studyAreas?: string[];
+  /** Deprecated single-label alias (legacy records / joined display). */
+  studyArea?: string;
   durationMin: number;
   maxScore: number;
   imageKeys?: string[];
@@ -208,6 +245,126 @@ export function durationMinutesFromCode(code: string): number {
   return durationPresetByCode(code)?.minutes ?? 0;
 }
 
+/**
+ * Normalize study area labels from API/forms.
+ * Legacy single `studyArea` string becomes a one-item array when `studyAreas` is empty.
+ */
+export function normalizeStudyAreas(
+  areas?: string[] | null,
+  legacy?: string | null,
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of areas ?? []) {
+    const label = String(raw ?? "").trim();
+    if (!label) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(label);
+  }
+  if (out.length === 0) {
+    const solo = String(legacy ?? "").trim();
+    if (solo) out.push(solo);
+  }
+  return out;
+}
+
+/** Compact display for cards/modals (`dialectic · rhetoric`). */
+export function formatStudyAreas(
+  areas?: string[] | null,
+  legacy?: string | null,
+): string {
+  return normalizeStudyAreas(areas, legacy).join(" · ");
+}
+
+/** True when the template/task includes the given study-area label. */
+export function hasStudyArea(
+  areas: string[] | undefined | null,
+  legacy: string | undefined | null,
+  needle: string,
+): boolean {
+  const want = String(needle ?? "").trim().toLowerCase();
+  if (!want) return false;
+  return normalizeStudyAreas(areas, legacy).some((a) => a.toLowerCase() === want);
+}
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+export function normalizeFrequency(
+  freq?: HomescoolTaskFrequency | null,
+): HomescoolTaskFrequency {
+  const kind = String(freq?.kind ?? "once").trim().toLowerCase();
+  const allowed: HomescoolTaskFrequencyKind[] = ["once", "daily", "daily_except"];
+  const safeKind = (allowed as string[]).includes(kind)
+    ? (kind as HomescoolTaskFrequencyKind)
+    : "once";
+  const exclude: number[] = [];
+  if (safeKind === "daily_except") {
+    const seen = new Set<number>();
+    for (const d of freq?.excludeWeekdays ?? []) {
+      const n = Number(d);
+      if (!Number.isInteger(n) || n < 0 || n > 6 || seen.has(n)) continue;
+      seen.add(n);
+      exclude.push(n);
+    }
+  }
+  return { kind: safeKind, excludeWeekdays: exclude };
+}
+
+export function formatFrequencyLabel(freq?: HomescoolTaskFrequency | null): string {
+  const n = normalizeFrequency(freq);
+  if (n.kind === "daily") return "Daily";
+  if (n.kind === "daily_except") {
+    if (!n.excludeWeekdays?.length) return "Daily";
+    return `Daily except ${n.excludeWeekdays.map((d) => WEEKDAY_SHORT[d]).join(", ")}`;
+  }
+  return "Specific day";
+}
+
+/**
+ * Expand assignment window into YYYY-MM-DD occurrence dates for the calendar.
+ * Caps at 400 days (mirrors Go ExpandOccurrenceDates).
+ */
+export function expandOccurrenceDates(
+  startDate: string,
+  endDate: string,
+  freq?: HomescoolTaskFrequency | null,
+): string[] {
+  const n = normalizeFrequency(freq);
+  const start = parseDateOnly(startDate);
+  if (!start) return [];
+  let end = parseDateOnly(endDate) ?? start;
+  if (end.getTime() < start.getTime()) return [];
+
+  if (n.kind === "once") {
+    return [formatDateOnly(start)];
+  }
+
+  const exclude = new Set(n.excludeWeekdays ?? []);
+  const out: string[] = [];
+  const cursor = new Date(start.getTime());
+  while (cursor.getTime() <= end.getTime() && out.length < 400) {
+    const dow = cursor.getUTCDay();
+    if (!(n.kind === "daily_except" && exclude.has(dow))) {
+      out.push(formatDateOnly(cursor));
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return out;
+}
+
+function parseDateOnly(raw: string): Date | null {
+  const s = String(raw ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T00:00:00.000Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatDateOnly(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 export function scoreBand(score: number): HomescoolScoreBand {
   if (score <= 0) return "";
   if (score === 1) return "minimo";
@@ -290,6 +447,8 @@ export function folderLabel(folder: string): string {
       return "Study section";
     case "tasks":
       return "Tasks";
+    case "calendar":
+      return "Calendar";
     default:
       return folder;
   }
@@ -384,6 +543,8 @@ export async function createTaskTemplate(input: {
   name: string;
   description?: string;
   period?: string;
+  studyAreas?: string[];
+  /** @deprecated Prefer studyAreas. */
   studyArea?: string;
   durationMin?: number;
   maxScore?: number;
@@ -470,9 +631,12 @@ export async function assignStudentTasks(
     templateIds?: string[];
     startDate?: string;
     endDate?: string;
+    frequency?: HomescoolTaskFrequency;
     name?: string;
     description?: string;
     period?: string;
+    studyAreas?: string[];
+    /** @deprecated Prefer studyAreas. */
     studyArea?: string;
     durationMin?: number;
     maxScore?: number;

@@ -19,6 +19,7 @@ import HomescoolHeaderMenu from "./HomescoolHeaderMenu";
 import StudentTasksBoard from "./StudentTasksBoard";
 import TaskTemplatesPanel from "./TaskTemplatesPanel";
 import TeacherTasksBoard from "./TeacherTasksBoard";
+import TasksCalendarBoard from "./TasksCalendarBoard";
 import "./Homescool.css";
 
 type FolderLoader = (
@@ -78,10 +79,10 @@ export default function StudentSpaceLayout({
   }, []);
 
   useEffect(() => {
-    if (activeFolder === "tasks") {
+    if (activeFolder === "tasks" || activeFolder === "calendar") {
       setLoading(false);
       setObjects([]);
-      setPrefix(link ? `${link.s3Prefix}/tasks` : "");
+      setPrefix(link ? `${link.s3Prefix}/${activeFolder === "calendar" ? "tasks" : activeFolder}` : "");
       return;
     }
     let cancelled = false;
@@ -201,6 +202,13 @@ export default function StudentSpaceLayout({
           ) : (
             <p className="homescool-empty">Tasks board unavailable.</p>
           )
+        ) : activeFolder === "calendar" ? (
+          <TasksCalendarBoard
+            key={tasksTick}
+            mode={mode}
+            teacherSlug={teacherSlug}
+            studentSlug={studentSlug}
+          />
         ) : (
           <>
             {loading ? <p className="homescool-empty">Loading folder…</p> : null}

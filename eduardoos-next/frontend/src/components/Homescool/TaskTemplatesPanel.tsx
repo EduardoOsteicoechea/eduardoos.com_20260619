@@ -1,7 +1,7 @@
 /**
  * Sidebar card: create reusable task templates.
- * Period and Study area are dropdowns from teacher catalogs.
- * Time is a fixed Spanish preset list (not a catalog) — stored as durationMin.
+ * Period is a single catalog dropdown; Study area is a checkbox multi-picker
+ * (one or more labels). Time is a fixed Spanish preset list — stored as durationMin.
  * Max score is always 1–5.
  */
 
@@ -11,6 +11,7 @@ import {
   HOMESCOOL_MAX_SCORE,
   createTaskTemplate,
   formatDurationLabel,
+  formatStudyAreas,
   listCatalogEntries,
   listTaskTemplates,
   uploadTemplateImage,
@@ -34,7 +35,7 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [period, setPeriod] = useState("");
-  const [studyArea, setStudyArea] = useState("");
+  const [studyAreas, setStudyAreas] = useState<string[]>([]);
   const [durationCode, setDurationCode] = useState("");
   const [maxScore, setMaxScore] = useState(HOMESCOOL_MAX_SCORE);
   const [image, setImage] = useState<File | null>(null);
@@ -70,17 +71,24 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
     void reloadCatalogs();
   }, [reloadCatalogs, catalogsTick]);
 
+  function toggleStudyArea(label: string) {
+    setStudyAreas((prev) => {
+      if (prev.includes(label)) return prev.filter((x) => x !== label);
+      return [...prev, label];
+    });
+  }
+
   async function onCreate(e: FormEvent) {
     e.preventDefault();
     const preset = HOMESCOOL_DURATION_PRESETS.find((p) => p.code === durationCode);
-    if (!period || !studyArea || !preset) return;
+    if (!period || studyAreas.length === 0 || !preset) return;
     setBusy(true);
     try {
       const { template } = await createTaskTemplate({
         name,
         description,
         period,
-        studyArea,
+        studyAreas,
         durationMin: preset.minutes,
         maxScore,
       });
@@ -90,7 +98,7 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
       setName("");
       setDescription("");
       setPeriod("");
-      setStudyArea("");
+      setStudyAreas([]);
       setDurationCode("");
       setMaxScore(HOMESCOOL_MAX_SCORE);
       setImage(null);
@@ -105,7 +113,10 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
   }
 
   const canSave =
-    Boolean(name.trim()) && Boolean(period) && Boolean(studyArea) && Boolean(durationCode);
+    Boolean(name.trim()) &&
+    Boolean(period) &&
+    studyAreas.length > 0 &&
+    Boolean(durationCode);
 
   return (
     <div className="homescool-templates">
@@ -137,22 +148,36 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
               ))}
             </select>
           </label>
-          <label>
-            Study area
-            <select
-              value={studyArea}
-              onChange={(e) => setStudyArea(e.target.value)}
-              required
-              disabled={busy || areas.length === 0}
-            >
-              <option value="">{areas.length ? "Select study area…" : "Create a study area first"}</option>
-              {areas.map((a) => (
-                <option key={a.id} value={a.label}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <fieldset className="homescool-multiselect" disabled={busy || areas.length === 0}>
+            <legend>Study areas</legend>
+            {areas.length === 0 ? (
+              <p className="homescool-form__hint">Create a study area first</p>
+            ) : (
+              <ul className="homescool-multiselect__list" role="group" aria-label="Study areas">
+                {areas.map((a) => {
+                  const checked = studyAreas.includes(a.label);
+                  return (
+                    <li key={a.id}>
+                      <label className="homescool-multiselect__option">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleStudyArea(a.label)}
+                          disabled={busy}
+                        />
+                        <span>{a.label}</span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {studyAreas.length > 0 ? (
+              <p className="homescool-multiselect__summary">
+                Selected: {studyAreas.join(" · ")}
+              </p>
+            ) : null}
+          </fieldset>
           <label>
             Time
             <select
@@ -204,15 +229,18 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
         </form>
       ) : null}
       <ul className="homescool-templates__list">
-        {templates.map((tpl) => (
-          <li key={tpl.id} className="homescool-templates__item">
-            <strong>{tpl.name}</strong>
-            <span>
-              {[tpl.period, tpl.studyArea].filter(Boolean).join(" · ") || "No period/area"}
-              {tpl.durationMin ? ` · ${formatDurationLabel(tpl.durationMin)}` : ""}
-            </span>
-          </li>
-        ))}
+        {templates.map((tpl) => {
+          const areasLabel = formatStudyAreas(tpl.studyAreas, tpl.studyArea);
+          return (
+            <li key={tpl.id} className="homescool-templates__item">
+              <strong>{tpl.name}</strong>
+              <span>
+                {[tpl.period, areasLabel].filter(Boolean).join(" · ") || "No period/area"}
+                {tpl.durationMin ? ` · ${formatDurationLabel(tpl.durationMin)}` : ""}
+              </span>
+            </li>
+          );
+        })}
         {templates.length === 0 ? <li className="homescool-empty">No templates yet.</li> : null}
       </ul>
     </div>

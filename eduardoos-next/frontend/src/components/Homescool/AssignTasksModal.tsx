@@ -1,17 +1,34 @@
 /**
- * Assign tasks modal: pick period → study area from catalogs → select template cards → dates.
+ * Assign tasks modal: period → study areas (multi) → frequency → dates → templates.
+ *
+ * Frequency is stored on each assigned task. Calendar expands occurrences;
+ * boards still show one card per assignment.
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   assignStudentTasks,
   formatDurationLabel,
+  formatStudyAreas,
+  hasStudyArea,
   listCatalogEntries,
   listTaskTemplates,
+  normalizeFrequency,
   type HomescoolCatalogEntry,
+  type HomescoolTaskFrequencyKind,
   type HomescoolTaskTemplate,
 } from "../../lib/homescool";
 import "./Homescool.css";
+
+const WEEKDAYS: { value: number; label: string }[] = [
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+  { value: 0, label: "Sun" },
+];
 
 type Props = {
   studentSlug: string;
@@ -25,10 +42,12 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
   const [periods, setPeriods] = useState<HomescoolCatalogEntry[]>([]);
   const [areas, setAreas] = useState<HomescoolCatalogEntry[]>([]);
   const [period, setPeriod] = useState("");
-  const [studyArea, setStudyArea] = useState("");
+  const [studyAreas, setStudyAreas] = useState<string[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [freqKind, setFreqKind] = useState<HomescoolTaskFrequencyKind>("once");
+  const [excludeWeekdays, setExcludeWeekdays] = useState<number[]>([0, 6]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -58,20 +77,15 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
     };
   }, [open]);
 
-  const filteredAreas = useMemo(() => {
-    // Catalog areas are independent; still show all study areas for filtering.
-    return areas;
-  }, [areas]);
-
   const filtered = useMemo(() => {
     return templates.filter((t) => {
       if (period && t.period !== period) return false;
-      if (studyArea && t.studyArea !== studyArea) return false;
-      return true;
+      if (studyAreas.length === 0) return true;
+      return studyAreas.some((label) => hasStudyArea(t.studyAreas, t.studyArea, label));
     });
-  }, [templates, period, studyArea]);
+  }, [templates, period, studyAreas]);
 
-  function toggle(id: string) {
+  function toggleTemplate(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -80,15 +94,34 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
     });
   }
 
+  function toggleFilterArea(label: string) {
+    setStudyAreas((prev) => {
+      if (prev.includes(label)) return prev.filter((x) => x !== label);
+      return [...prev, label];
+    });
+  }
+
+  function toggleExcludeDay(day: number) {
+    setExcludeWeekdays((prev) => {
+      if (prev.includes(day)) return prev.filter((d) => d !== day);
+      return [...prev, day].sort((a, b) => a - b);
+    });
+  }
+
   async function onAssign(e: FormEvent) {
     e.preventDefault();
-    if (selected.size === 0) return;
+    if (selected.size === 0 || !startDate) return;
+    const frequency = normalizeFrequency({
+      kind: freqKind,
+      excludeWeekdays: freqKind === "daily_except" ? excludeWeekdays : [],
+    });
     setBusy(true);
     try {
       await assignStudentTasks(studentSlug, {
         templateIds: Array.from(selected),
         startDate,
-        endDate,
+        endDate: endDate || startDate,
+        frequency,
       });
       setSelected(new Set());
       onAssigned?.();
@@ -101,6 +134,8 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
   }
 
   if (!open) return null;
+
+  const canAssign = selected.size > 0 && Boolean(startDate);
 
   return (
     <div className="homescool-modal" role="dialog" aria-modal="true" aria-labelledby="assign-modal-title">
@@ -119,10 +154,7 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
               Period
               <select
                 value={period}
-                onChange={(e) => {
-                  setPeriod(e.target.value);
-                  setStudyArea("");
-                }}
+                onChange={(e) => setPeriod(e.target.value)}
                 disabled={busy}
               >
                 <option value="">All periods</option>
@@ -133,27 +165,79 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
                 ))}
               </select>
             </label>
+            <fieldset className="homescool-multiselect" disabled={busy}>
+              <legend>Study areas</legend>
+              {areas.length === 0 ? (
+                <p className="homescool-form__hint">No study areas yet</p>
+              ) : (
+                <ul className="homescool-multiselect__list" role="group" aria-label="Filter study areas">
+                  {areas.map((a) => {
+                    const checked = studyAreas.includes(a.label);
+                    return (
+                      <li key={a.id}>
+                        <label className="homescool-multiselect__option">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleFilterArea(a.label)}
+                            disabled={busy}
+                          />
+                          <span>{a.label}</span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <p className="homescool-form__hint">
+                {studyAreas.length === 0
+                  ? "All areas (no filter)"
+                  : `Filtering: ${studyAreas.join(" · ")}`}
+              </p>
+            </fieldset>
             <label>
-              Study area
+              Frequency
               <select
-                value={studyArea}
-                onChange={(e) => setStudyArea(e.target.value)}
+                value={freqKind}
+                onChange={(e) => setFreqKind(e.target.value as HomescoolTaskFrequencyKind)}
                 disabled={busy}
               >
-                <option value="">All areas</option>
-                {filteredAreas.map((a) => (
-                  <option key={a.id} value={a.label}>
-                    {a.label}
-                  </option>
-                ))}
+                <option value="once">Specific day (one-shot)</option>
+                <option value="daily">Daily</option>
+                <option value="daily_except">Daily excluding some days</option>
               </select>
             </label>
+            {freqKind === "daily_except" ? (
+              <fieldset className="homescool-multiselect" disabled={busy}>
+                <legend>Exclude weekdays</legend>
+                <ul className="homescool-multiselect__list homescool-multiselect__list--row" role="group">
+                  {WEEKDAYS.map((d) => {
+                    const checked = excludeWeekdays.includes(d.value);
+                    return (
+                      <li key={d.value}>
+                        <label className="homescool-multiselect__option">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleExcludeDay(d.value)}
+                            disabled={busy}
+                          />
+                          <span>{d.label}</span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="homescool-form__hint">Checked days are skipped in the calendar window.</p>
+              </fieldset>
+            ) : null}
             <label>
               Start date
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
+                required
                 disabled={busy}
               />
             </label>
@@ -167,21 +251,27 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
               />
             </label>
           </div>
+          <p className="homescool-form__hint">
+            {freqKind === "once"
+              ? "One calendar appearance on the start date. End date is the conclusion / due marker."
+              : "Start and end define the recurrence window. Boards keep one card; Calendar expands each occurrence day."}
+          </p>
           <div className="homescool-task-board" role="list">
             {filtered.map((tpl) => {
               const on = selected.has(tpl.id);
+              const areasLabel = formatStudyAreas(tpl.studyAreas, tpl.studyArea);
               return (
                 <button
                   key={tpl.id}
                   type="button"
                   role="listitem"
                   className={`homescool-task-card${on ? " homescool-task-card--selected" : ""}`}
-                  onClick={() => toggle(tpl.id)}
+                  onClick={() => toggleTemplate(tpl.id)}
                   disabled={busy}
                 >
                   <span className="homescool-task-card__title">{tpl.name}</span>
                   <span className="homescool-task-card__meta">
-                    {[tpl.period, tpl.studyArea].filter(Boolean).join(" · ")}
+                    {[tpl.period, areasLabel].filter(Boolean).join(" · ")}
                     {tpl.durationMin ? ` · ${formatDurationLabel(tpl.durationMin)}` : ""}
                     {` · max ${tpl.maxScore}`}
                   </span>
@@ -196,7 +286,7 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
           <button
             className="btn btn--primary"
             type="submit"
-            disabled={busy || selected.size === 0}
+            disabled={busy || !canAssign}
           >
             {busy ? "Assigning…" : `Assign ${selected.size || ""} task(s)`}
           </button>

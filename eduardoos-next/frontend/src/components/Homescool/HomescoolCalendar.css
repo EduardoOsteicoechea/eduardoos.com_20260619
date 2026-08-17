@@ -1,0 +1,85 @@
+/**
+ * FullCalendar theming for Homescool — maps library chrome to --site-* tokens.
+ * FullCalendar v6 injects its base styles from JS; this file only overrides tokens.
+ */
+
+.homescool-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.homescool-calendar__frame {
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface, var(--site-body-bg));
+  padding: 0.65rem 0.75rem 0.85rem;
+  overflow: auto;
+}
+
+.homescool-calendar__frame .fc {
+  --fc-border-color: var(--site-border);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: color-mix(in srgb, var(--site-border) 35%, transparent);
+  --fc-list-event-hover-bg-color: color-mix(in srgb, var(--site-accent) 12%, transparent);
+  --fc-today-bg-color: color-mix(in srgb, var(--site-accent) 10%, transparent);
+  --fc-event-bg-color: var(--site-accent);
+  --fc-event-border-color: var(--site-accent);
+  --fc-event-text-color: var(--site-accent-fg, #fff);
+  --fc-button-bg-color: transparent;
+  --fc-button-border-color: var(--site-border);
+  --fc-button-text-color: var(--site-body-fg);
+  --fc-button-hover-bg-color: color-mix(in srgb, var(--site-accent) 12%, transparent);
+  --fc-button-hover-border-color: var(--site-accent);
+  --fc-button-active-bg-color: color-mix(in srgb, var(--site-accent) 18%, transparent);
+  --fc-button-active-border-color: var(--site-accent);
+  font-family: var(--font-body);
+  color: var(--site-body-fg);
+}
+
+.homescool-calendar__frame .fc .fc-toolbar-title {
+  font-family: var(--font-display, var(--font-body));
+  font-size: 1.15rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.homescool-calendar__frame .fc .fc-button {
+  border-radius: var(--border_radius_001);
+  text-transform: none;
+  font-weight: 500;
+  box-shadow: none !important;
+}
+
+.homescool-calendar__frame .fc .fc-col-header-cell-cushion,
+.homescool-calendar__frame .fc .fc-daygrid-day-number {
+  color: var(--site-body-fg);
+  text-decoration: none;
+}
+
+.homescool-calendar__frame .fc .fc-event {
+  border-radius: 2px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.homescool-calendar__frame .fc .homescool-cal-event--pending {
+  background: var(--site-accent);
+  border-color: var(--site-accent);
+}
+
+.homescool-calendar__frame .fc .homescool-cal-event--actioned {
+  background: color-mix(in srgb, var(--site-accent) 70%, #c9a227);
+  border-color: color-mix(in srgb, var(--site-accent) 70%, #c9a227);
+}
+
+.homescool-calendar__frame .fc .homescool-cal-event--ready {
+  background: color-mix(in srgb, var(--site-accent) 55%, #4a7c59);
+  border-color: color-mix(in srgb, var(--site-accent) 55%, #4a7c59);
+}
+
+.homescool-calendar__frame .fc .homescool-cal-event--archived {
+  background: color-mix(in srgb, var(--site-muted, var(--site-body-fg)) 55%, transparent);
+  border-color: var(--site-border);
+  opacity: 0.85;
+}

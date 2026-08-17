@@ -21,6 +21,10 @@
   },
   "dependencies": {
     "@astrojs/react": "^4.2.0",
+    "@fullcalendar/core": "^6.1.21",
+    "@fullcalendar/daygrid": "^6.1.21",
+    "@fullcalendar/react": "^6.1.21",
+    "@fullcalendar/timegrid": "^6.1.21",
     "@thatopen/components": "^3.4.8",
     "@thatopen/fragments": "^3.4.7",
     "@xyflow/react": "^12.11.3",

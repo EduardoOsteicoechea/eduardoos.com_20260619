@@ -72,6 +72,7 @@ func (s *MemoryTaskStore) CreateTemplate(_ context.Context, tpl TaskTemplate) (T
 	if tpl.ID == "" {
 		tpl.ID = uuid.NewString()
 	}
+	ApplyStudyAreasMigrationTemplate(&tpl)
 	tpl.MaxScore = NormalizeMaxScore(tpl.MaxScore)
 	now := auth.NowRFC3339()
 	if tpl.CreatedAt == "" {
@@ -98,6 +99,7 @@ func (s *MemoryTaskStore) UpdateTemplate(_ context.Context, tpl TaskTemplate) (T
 		return TaskTemplate{}, fmt.Errorf("template not found")
 	}
 	tpl.CreatedAt = existing.CreatedAt
+	ApplyStudyAreasMigrationTemplate(&tpl)
 	tpl.MaxScore = NormalizeMaxScore(tpl.MaxScore)
 	tpl.UpdatedAt = auth.NowRFC3339()
 	s.templates[key] = cloneTemplate(tpl)
@@ -111,7 +113,9 @@ func (s *MemoryTaskStore) GetTemplate(_ context.Context, teacherEmail, id string
 	if !ok {
 		return TaskTemplate{}, false, nil
 	}
-	return cloneTemplate(tpl), true, nil
+	out := cloneTemplate(tpl)
+	ApplyStudyAreasMigrationTemplate(&out)
+	return out, true, nil
 }
 
 func (s *MemoryTaskStore) ListTemplates(_ context.Context, teacherEmail, period, studyArea string) ([]TaskTemplate, error) {
@@ -125,13 +129,15 @@ func (s *MemoryTaskStore) ListTemplates(_ context.Context, teacherEmail, period,
 		if tpl.TeacherEmail != teacherEmail {
 			continue
 		}
-		if period != "" && !strings.EqualFold(tpl.Period, period) {
+		cp := cloneTemplate(tpl)
+		ApplyStudyAreasMigrationTemplate(&cp)
+		if period != "" && !strings.EqualFold(cp.Period, period) {
 			continue
 		}
-		if studyArea != "" && !strings.EqualFold(tpl.StudyArea, studyArea) {
+		if studyArea != "" && !HasStudyArea(cp.StudyAreas, studyArea) {
 			continue
 		}
-		out = append(out, cloneTemplate(tpl))
+		out = append(out, cp)
 	}
 	return out, nil
 }
@@ -147,6 +153,8 @@ func (s *MemoryTaskStore) CreateTask(_ context.Context, task AssignedTask) (Assi
 		task.ID = uuid.NewString()
 	}
 	task.StudentSlug = StudentSlug(task.StudentEmail)
+	ApplyStudyAreasMigrationTask(&task)
+	task.Frequency = NormalizeFrequency(&task.Frequency)
 	task.MaxScore = NormalizeMaxScore(task.MaxScore)
 	if task.Status == "" {
 		task.Status = TaskStatusPending
@@ -181,10 +189,12 @@ func (s *MemoryTaskStore) UpdateTask(_ context.Context, task AssignedTask) (Assi
 	}
 	task.CreatedAt = existing.CreatedAt
 	task.StudentSlug = StudentSlug(task.StudentEmail)
+	ApplyStudyAreasMigrationTask(&task)
 	task.MaxScore = NormalizeMaxScore(task.MaxScore)
 	if !IsValidTaskStatus(task.Status) {
 		return AssignedTask{}, fmt.Errorf("invalid status")
 	}
+	task.Frequency = NormalizeFrequency(&task.Frequency)
 	task.UpdatedAt = auth.NowRFC3339()
 	s.tasks[key] = cloneTask(task)
 	return cloneTask(task), nil
@@ -197,7 +207,10 @@ func (s *MemoryTaskStore) GetTask(_ context.Context, teacherEmail, studentEmail,
 	if !ok {
 		return AssignedTask{}, false, nil
 	}
-	return cloneTask(task), true, nil
+	out := cloneTask(task)
+	ApplyStudyAreasMigrationTask(&out)
+	out.Frequency = NormalizeFrequency(&out.Frequency)
+	return out, true, nil
 }
 
 func (s *MemoryTaskStore) ListTasksByTeacherStudent(_ context.Context, teacherEmail, studentEmail string) ([]AssignedTask, error) {
@@ -208,7 +221,10 @@ func (s *MemoryTaskStore) ListTasksByTeacherStudent(_ context.Context, teacherEm
 	out := make([]AssignedTask, 0)
 	for _, task := range s.tasks {
 		if task.TeacherEmail == teacherEmail && task.StudentEmail == studentEmail {
-			out = append(out, cloneTask(task))
+			cp := cloneTask(task)
+			ApplyStudyAreasMigrationTask(&cp)
+			cp.Frequency = NormalizeFrequency(&cp.Frequency)
+			out = append(out, cp)
 		}
 	}
 	return out, nil
@@ -221,7 +237,10 @@ func (s *MemoryTaskStore) ListTasksByStudent(_ context.Context, studentEmail str
 	out := make([]AssignedTask, 0)
 	for _, task := range s.tasks {
 		if task.StudentEmail == studentEmail {
-			out = append(out, cloneTask(task))
+			cp := cloneTask(task)
+			ApplyStudyAreasMigrationTask(&cp)
+			cp.Frequency = NormalizeFrequency(&cp.Frequency)
+			out = append(out, cp)
 		}
 	}
 	return out, nil
