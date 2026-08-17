@@ -1,6 +1,6 @@
 # Milestone: Homescool student subscription bypass — 2026-08-17
 
-## Status: SHIPPED (see commit on this change)
+## Status: SHIPPED (`114b112`)
 
 Linked Homescool students (any teacher→student row) use Homescool **without**
 paying. Teachers still need an active `homescool` entitlement. Admins keep full
