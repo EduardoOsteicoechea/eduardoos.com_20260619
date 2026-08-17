@@ -47,6 +47,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	key := strings.TrimSpace(user.ProfileImageKey)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"email":           user.Email,
+		"role":            ResolveRole(user.Email, user.Role),
 		"profileImageKey": key,
 		"profileImageUrl": ProfileImageURLFromKey(key),
 	})

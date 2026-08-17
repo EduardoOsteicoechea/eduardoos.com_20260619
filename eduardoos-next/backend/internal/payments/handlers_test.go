@@ -2,6 +2,7 @@ package payments
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -117,5 +118,80 @@ func TestEntitlementsPreviewAndMine(t *testing.T) {
 	ents, ok := out["entitlements"].([]any)
 	if !ok || len(ents) != 1 {
 		t.Fatalf("entitlements=%#v", out["entitlements"])
+	}
+}
+
+func TestCheckAccessAdminBypassHomescoolAndDebate(t *testing.T) {
+	secret := "access-secret"
+	users := auth.NewMemoryStore()
+	_ = users.PutUser(context.Background(), auth.User{
+		Email:        auth.AdminEmail,
+		PasswordHash: auth.HashPassword("password123"),
+		Verified:     true,
+		Role:         auth.RoleAdmin,
+	})
+	_ = users.PutUser(context.Background(), auth.User{
+		Email:        "role-admin@example.com",
+		PasswordHash: auth.HashPassword("password123"),
+		Verified:     true,
+		Role:         auth.RoleAdmin,
+	})
+	_ = users.PutUser(context.Background(), auth.User{
+		Email:        "member@example.com",
+		PasswordHash: auth.HashPassword("password123"),
+		Verified:     true,
+		Role:         auth.RoleUser,
+	})
+
+	h := NewHandler(secret, "BTN")
+	h.Users = users
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	cases := []struct {
+		name    string
+		email   string
+		service string
+		wantOK  bool
+	}{
+		{"bootstrap admin homescool", auth.AdminEmail, "homescool", true},
+		{"bootstrap admin debate", auth.AdminEmail, "debate", true},
+		{"role admin homescool", "role-admin@example.com", "homescool", true},
+		{"role admin debate", "role-admin@example.com", "debate", true},
+		{"member denied homescool", "member@example.com", "homescool", false},
+		{"member denied debate", "member@example.com", "debate", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			token, err := auth.IssueJWTWithRole(tc.email, "", secret)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Re-resolve stored role for non-bootstrap admins.
+			if u, ok, _ := users.GetUser(context.Background(), tc.email); ok {
+				token, err = auth.IssueJWTWithRole(tc.email, u.Role, secret)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			req := httptest.NewRequest(http.MethodGet, "/api/subscriptions/access/"+tc.service, nil)
+			req.Header.Set("Authorization", "Bearer "+token)
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+			}
+			var out map[string]any
+			if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+				t.Fatal(err)
+			}
+			allowed, _ := out["allowed"].(bool)
+			if allowed != tc.wantOK {
+				t.Fatalf("allowed=%v want %v (is_admin=%v)", allowed, tc.wantOK, out["is_admin"])
+			}
+			if tc.wantOK && out["is_admin"] != true {
+				t.Fatalf("expected is_admin true for allowed admin case, got %#v", out)
+			}
+		})
 	}
 }

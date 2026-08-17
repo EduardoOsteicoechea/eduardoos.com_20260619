@@ -12,9 +12,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
   AUTH_SESSION_EXPIRED_EVENT,
-  getAuthEmailFromToken,
   getAuthToken,
-  isApsAdminEmail,
+  isPlatformAdmin,
   isAuthenticated,
   logoutUser,
 } from "../../lib/auth";
@@ -323,7 +322,7 @@ export function Header({ pathname }: HeaderProps) {
     setLoggedIn(authed);
     const token = getAuthToken();
     setProfileInitial(authed && token ? profileInitialFromToken(token) : "");
-    setIsAdmin(authed && isApsAdminEmail(getAuthEmailFromToken()));
+    setIsAdmin(authed && isPlatformAdmin());
     if (!authed) {
       setProfileImageUrl("");
     }

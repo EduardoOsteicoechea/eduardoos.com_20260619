@@ -154,7 +154,12 @@ export default function AdminUsersPage() {
 
   function effectiveAccess(row: AdminUserRow, serviceId: string): boolean {
     if (isPlatformAdminUser(row)) return true;
-    return hasServiceAccess(serviceId, row.entitlements, row.email);
+    return hasServiceAccess(
+      serviceId,
+      row.entitlements,
+      row.email,
+      row.role,
+    );
   }
 
   function cancelDelete() {

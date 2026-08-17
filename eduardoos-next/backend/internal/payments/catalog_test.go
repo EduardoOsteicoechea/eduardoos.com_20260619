@@ -21,8 +21,14 @@ func TestHasServiceAccessAdminBypass(t *testing.T) {
 	if !HasServiceAccess(true, nil, "debate") {
 		t.Fatal("admin should access debate without entitlements")
 	}
+	if !HasServiceAccess(true, nil, "homescool") {
+		t.Fatal("admin should access homescool without entitlements")
+	}
 	if HasServiceAccess(false, nil, "debate") {
 		t.Fatal("non-admin without entitlements must be denied")
+	}
+	if HasServiceAccess(false, nil, "homescool") {
+		t.Fatal("non-admin without entitlements must be denied homescool")
 	}
 }
 

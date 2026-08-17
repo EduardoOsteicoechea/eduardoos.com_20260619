@@ -38,6 +38,8 @@ export const APS_ADMIN_EMAIL = "eduardooost@gmail.com";
 
 interface JwtPayload {
   sub?: unknown;
+  email?: unknown;
+  role?: unknown;
   exp?: unknown;
 }
 
@@ -52,6 +54,12 @@ function decodeJwtPayload(token: string): JwtPayload | null {
   } catch {
     return null;
   }
+}
+
+function claimString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 export function isAuthTokenExpired(token: string, nowMs = Date.now()): boolean {
@@ -97,13 +105,35 @@ export function getAuthEmailFromToken(): string | null {
   const token = getAuthToken().trim();
   if (!token || isAuthTokenExpired(token)) return null;
   const payload = decodeJwtPayload(token);
-  if (!payload || typeof payload.sub !== "string") return null;
-  const email = payload.sub.trim().toLowerCase();
-  return email.length > 0 ? email : null;
+  if (!payload) return null;
+  const email = claimString(payload.sub) ?? claimString(payload.email);
+  return email ? email.toLowerCase() : null;
+}
+
+/** RBAC role from JWT (`admin` | `user`). Bootstrap admin email always counts as admin. */
+export function getAuthRoleFromToken(): string {
+  if (isApsAdminEmail(getAuthEmailFromToken())) return "admin";
+  const token = getAuthToken().trim();
+  if (!token || isAuthTokenExpired(token)) return "user";
+  const payload = decodeJwtPayload(token);
+  const role = claimString(payload?.role)?.toLowerCase() ?? "";
+  return role === "admin" ? "admin" : "user";
 }
 
 export function isApsAdminEmail(email: string | null | undefined): boolean {
   return (email ?? "").trim().toLowerCase() === APS_ADMIN_EMAIL;
+}
+
+/**
+ * Platform admin: bootstrap APS email allowlist OR JWT/stored role `admin`.
+ * Prefer this over isApsAdminEmail alone for service gates / entitlements.
+ */
+export function isPlatformAdmin(
+  email: string | null | undefined = getAuthEmailFromToken(),
+  role: string | null | undefined = getAuthRoleFromToken(),
+): boolean {
+  if (isApsAdminEmail(email)) return true;
+  return (role ?? "").trim().toLowerCase() === "admin";
 }
 
 export async function registerUser(

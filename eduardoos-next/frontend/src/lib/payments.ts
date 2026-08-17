@@ -4,7 +4,7 @@
 
 import { PAYMENT_ROUTES } from "../config/routes";
 import { apiRequest, formatApiError } from "./api";
-import { getAuthToken, isApsAdminEmail, getAuthEmailFromToken } from "./auth";
+import { getAuthToken, isPlatformAdmin, getAuthEmailFromToken } from "./auth";
 import { createCorrelationId } from "./correlation";
 
 export type BillingPeriod = "monthly" | "yearly";
@@ -181,8 +181,9 @@ export function hasServiceAccess(
   serviceId: string,
   entitlements: EntitlementRecord[],
   email = getAuthEmailFromToken(),
+  role?: string | null,
 ): boolean {
-  if (isApsAdminEmail(email)) return true;
+  if (isPlatformAdmin(email, role)) return true;
   return entitlements.some(
     (e) => e.service_id === serviceId && entitlementActive(e),
   );
@@ -193,15 +194,16 @@ export async function checkServiceAccess(
 ): Promise<{ allowed: boolean; isAdmin: boolean }> {
   const token = getAuthToken();
   if (!token) return { allowed: false, isAdmin: false };
-  if (isApsAdminEmail(getAuthEmailFromToken())) {
+  if (isPlatformAdmin()) {
     return { allowed: true, isAdmin: true };
   }
   const result = await apiRequest<{ allowed: boolean; is_admin?: boolean }>(
     `${PAYMENT_ROUTES.access}/${encodeURIComponent(serviceId)}`,
     { correlationId: createCorrelationId(), authToken: token },
   );
+  const isAdmin = Boolean(result.data?.is_admin);
   return {
-    allowed: Boolean(result.data?.allowed),
-    isAdmin: Boolean(result.data?.is_admin),
+    allowed: Boolean(result.data?.allowed) || isAdmin,
+    isAdmin,
   };
 }

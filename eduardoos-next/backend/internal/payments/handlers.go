@@ -16,6 +16,7 @@ import (
 type Handler struct {
 	JWTSecret      string
 	Store          *Store
+	Users          auth.UserStore
 	HostedButtonID string
 	CheckoutURL    string
 	auth           *auth.Handler
@@ -175,14 +176,16 @@ func (h *Handler) GetStatus(w http.ResponseWriter, r *http.Request) {
 // ListMyEntitlements returns entitlements for the JWT subject.
 func (h *Handler) ListMyEntitlements(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
+	admin := h.isAdminUser(r, email)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"email":        email,
 		"entitlements": h.Store.ListEntitlements(email),
-		"is_admin":     auth.IsAdminEmail(email),
+		"is_admin":     admin,
 	})
 }
 
 // CheckAccess reports whether the JWT user may use a given service.
+// Platform admins (bootstrap email or stored role admin) always pass.
 func (h *Handler) CheckAccess(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
 	serviceID := strings.ToLower(strings.TrimSpace(chi.URLParam(r, "serviceID")))
@@ -190,7 +193,7 @@ func (h *Handler) CheckAccess(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "unknown service")
 		return
 	}
-	admin := auth.IsAdminEmail(email)
+	admin := h.isAdminUser(r, email)
 	allowed := HasServiceAccess(admin, h.Store.ListEntitlements(email), serviceID)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"email":      email,
@@ -198,6 +201,17 @@ func (h *Handler) CheckAccess(w http.ResponseWriter, r *http.Request) {
 		"allowed":    allowed,
 		"is_admin":   admin,
 	})
+}
+
+// isAdminUser resolves RBAC admin via bootstrap email allowlist or stored role.
+func (h *Handler) isAdminUser(r *http.Request, email string) bool {
+	role := auth.RoleUser
+	if h.Users != nil {
+		if u, ok, err := h.Users.GetUser(r.Context(), email); err == nil && ok {
+			role = u.Role
+		}
+	}
+	return auth.IsAdmin(email, role)
 }
 
 // PreviewEntitlements is a public preview by ?email= (parent parity).

@@ -15,7 +15,7 @@ import PamphletLayout from "../../layouts/PamphletLayout.astro";
     mountPamphletGenerator,
     type PamphletMountHandle,
   } from "../../lib/pamphlet-generator/src/index.ts";
-  import { getAuthToken, isApsAdminEmail, getAuthEmailFromToken } from "../../lib/auth";
+  import { getAuthToken, isPlatformAdmin, getAuthEmailFromToken } from "../../lib/auth";
   import { checkServiceAccess } from "../../lib/payments";
   import { APP_ROUTES } from "../../config/routes";
 
@@ -27,12 +27,12 @@ import PamphletLayout from "../../layouts/PamphletLayout.astro";
       host.innerHTML = `<section class="service-gate"><h1 class="service-gate__title">Pamphlet</h1><p class="service-gate__lead">Sign in to use the pamphlet editor.</p><a class="btn btn--primary" href="${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.pamphlet)}">Sign in</a></section>`;
       return false;
     }
-    if (isApsAdminEmail(getAuthEmailFromToken())) return true;
+    if (isPlatformAdmin(getAuthEmailFromToken())) return true;
     try {
-      const { allowed } = await checkServiceAccess("pamphlet");
-      if (allowed) return true;
+      const { allowed, isAdmin } = await checkServiceAccess("pamphlet");
+      if (allowed || isAdmin) return true;
     } catch {
-      /* fall through */
+      if (isPlatformAdmin(getAuthEmailFromToken())) return true;
     }
     host.innerHTML = `<section class="service-gate"><h1 class="service-gate__title">Pamphlet</h1><p class="service-gate__lead">This service requires an active subscription.</p><div class="service-gate__actions"><a class="btn btn--primary" href="${APP_ROUTES.subscription}">Subscribe</a></div></section>`;
     return false;

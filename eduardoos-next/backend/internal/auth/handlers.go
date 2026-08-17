@@ -159,7 +159,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusUnauthorized, "email not verified")
 		return
 	}
-	token, err := IssueJWT(email, h.JWTSecret)
+	token, err := IssueJWTWithRole(email, user.Role, h.JWTSecret)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "could not issue token")
 		return
@@ -168,6 +168,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		"message": "Login successful",
 		"token":   token,
 		"email":   email,
+		"role":    ResolveRole(email, user.Role),
 	})
 }
 
@@ -201,7 +202,7 @@ func (h *Handler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = h.Store.DeleteOTP(r.Context(), email)
-	token, err := IssueJWT(email, h.JWTSecret)
+	token, err := IssueJWTWithRole(email, user.Role, h.JWTSecret)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "could not issue token")
 		return
@@ -210,6 +211,7 @@ func (h *Handler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		"token":   token,
 		"message": "verified",
 		"email":   email,
+		"role":    ResolveRole(email, user.Role),
 	})
 }
 

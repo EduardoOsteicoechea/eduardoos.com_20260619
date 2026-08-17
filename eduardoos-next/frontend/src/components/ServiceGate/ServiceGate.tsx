@@ -1,10 +1,11 @@
 /**
- * Soft gate for billable services — admin always passes; others need entitlement.
+ * Soft gate for billable services — platform admin always passes;
+ * others need an active subscription entitlement.
  */
 
 import { useEffect, useState, type ReactNode } from "react";
 import { APP_ROUTES } from "../../config/routes";
-import { isAuthenticated, isApsAdminEmail, getAuthEmailFromToken } from "../../lib/auth";
+import { isAuthenticated, isPlatformAdmin } from "../../lib/auth";
 import {
   checkServiceAccess,
   fetchMyEntitlements,
@@ -32,14 +33,15 @@ export default function ServiceGate({
         if (!cancelled) setState("signin");
         return;
       }
-      if (isApsAdminEmail(getAuthEmailFromToken())) {
+      // Bootstrap email or JWT role admin — never block gated services.
+      if (isPlatformAdmin()) {
         if (!cancelled) setState("ok");
         return;
       }
       try {
         const remote = await checkServiceAccess(serviceId);
         if (cancelled) return;
-        if (remote.allowed) {
+        if (remote.allowed || remote.isAdmin) {
           setState("ok");
           return;
         }
@@ -47,7 +49,9 @@ export default function ServiceGate({
         if (cancelled) return;
         setState(hasServiceAccess(serviceId, ents) ? "ok" : "denied");
       } catch {
-        if (!cancelled) setState("denied");
+        // Network / API failure: re-check local admin so a transient error
+        // cannot lock out the platform admin.
+        if (!cancelled) setState(isPlatformAdmin() ? "ok" : "denied");
       }
     })();
     return () => {

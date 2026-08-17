@@ -14,6 +14,7 @@
     "test:belief-tree": "node --test src/lib/beliefTreeDeleteGuard.test.mjs",
     "test:media-recording": "node --test src/lib/mediaRecording.test.mjs",
     "test:homescool": "node --test src/lib/homescool.test.mjs",
+    "test:service-access": "node --test src/lib/serviceAccess.test.mjs",
     "test:markdown": "node --test src/lib/markdown.test.mjs"
   },
   "dependencies": {

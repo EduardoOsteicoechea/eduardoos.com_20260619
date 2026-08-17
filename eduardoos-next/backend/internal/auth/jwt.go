@@ -9,15 +9,23 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// IssueJWT creates an HS256 token with claim sub=<email> and 24h expiry.
+// IssueJWT creates an HS256 token with claim sub=<email>, role (admin|user),
+// and 24h expiry. Bootstrap AdminEmail always resolves to role admin.
 // Secret comes from JWT_SECRET (passed in by the caller / Handler).
 func IssueJWT(email, secret string) (string, error) {
+	return IssueJWTWithRole(email, RoleUser, secret)
+}
+
+// IssueJWTWithRole issues a JWT whose role claim is ResolveRole(email, storedRole).
+// Prefer this at login/verify so stored RBAC admin is reflected in the token.
+func IssueJWTWithRole(email, storedRole, secret string) (string, error) {
 	if strings.TrimSpace(secret) == "" {
 		return "", errors.New("jwt secret required")
 	}
 	claims := jwt.MapClaims{
-		"sub": NormalizeEmail(email),
-		"exp": time.Now().Add(24 * time.Hour).Unix(),
+		"sub":  NormalizeEmail(email),
+		"role": ResolveRole(email, storedRole),
+		"exp":  time.Now().Add(24 * time.Hour).Unix(),
 	}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
 }
