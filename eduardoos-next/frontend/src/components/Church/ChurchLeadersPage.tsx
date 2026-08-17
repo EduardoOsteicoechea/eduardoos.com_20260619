@@ -1,8 +1,9 @@
 /**
  * /church/leaders — independent líderes catalog.
  * Mutate: platform admin OR (approved + church-management).
- * Network associations: platform admin only.
- * Church associations: register-gate users (visible churches) + admin (all).
+ * Network associations: always shown for register-gate users (groups catalog);
+ *   platform admin sees all networks. Persist networkIds[] — churches optional.
+ * Church associations: optional when visible churches exist; empty does not block save.
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -81,6 +82,7 @@ export default function ChurchLeadersPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [roles, setRoles] = useState<string[]>([]);
+  const [createNetworks, setCreateNetworks] = useState<string[]>([]);
   const [createChurches, setCreateChurches] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -175,6 +177,7 @@ export default function ChurchLeadersPage() {
         phone: phone.trim(),
         email: email.trim(),
         roles,
+        networkIds: createNetworks,
         churchIds: createChurches,
         id: sanitizeChurchSlug(`${firstName}-${lastName}`),
       });
@@ -183,6 +186,7 @@ export default function ChurchLeadersPage() {
       setPhone("");
       setEmail("");
       setRoles([]);
+      setCreateNetworks([]);
       setCreateChurches([]);
       await reload();
     } catch (err) {
@@ -207,7 +211,7 @@ export default function ChurchLeadersPage() {
         email: editEmail.trim(),
         roles: editRoles,
         networkIds: editNetworks,
-        setNetworks: platformAdmin,
+        setNetworks: true,
         churchIds: editChurches,
         setChurches: true,
       });
@@ -234,16 +238,47 @@ export default function ChurchLeadersPage() {
     }
   }
 
+  function renderNetworkOptions(
+    selected: string[],
+    onChange: (next: string[]) => void,
+  ) {
+    return (
+      <fieldset className="church-option-set">
+        <legend>Redes asociadas</legend>
+        {groups.length === 0 ? (
+          <p className="church-empty">
+            Sin redes en el catálogo — créelas en /church/groups (admin).
+          </p>
+        ) : (
+          <div className="church-option-set__list">
+            {groups.map((g) => (
+              <label key={g.id} className="church-option">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(g.id)}
+                  onChange={() => onChange(toggleId(selected, g.id))}
+                />
+                <span className="church-option__label">{g.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </fieldset>
+    );
+  }
+
   function renderChurchOptions(
     selected: string[],
     onChange: (next: string[]) => void,
   ) {
     return (
       <fieldset className="church-option-set">
-        <legend>Iglesias asociadas</legend>
+        <legend>Iglesias asociadas (opcional)</legend>
         {visibleChurches.length === 0 ? (
           <p className="church-empty">
-            Sin iglesias visibles — registre iglesias en su red primero.
+            Aún no hay iglesias visibles. Puede guardar el líder solo con redes;
+            al registrar iglesias en /church/register se vincularán desde el
+            liderazgo.
           </p>
         ) : (
           <div className="church-option-set__list">
@@ -309,9 +344,9 @@ export default function ChurchLeadersPage() {
       <h1 className="church-page__title">Catálogo de líderes</h1>
       <p className="church-page__lead">
         Registro independiente (nombre, apellido, teléfono/correo opcionales,
-        roles). Asocie cada líder a iglesias de su red. En el registro de
-        iglesias, liderazgo es un dropdown de este catálogo. El admin de
-        plataforma también asocia redes.
+        roles). Asocie cada líder a redes del catálogo; las iglesias son
+        opcionales. En /church/register, el liderazgo lista líderes de la red
+        seleccionada (aunque aún no tengan iglesias).
       </p>
       <div className="church-page__actions">
         <a className="btn" href={APP_ROUTES.church}>
@@ -369,6 +404,7 @@ export default function ChurchLeadersPage() {
           selected={roles}
           onToggle={(id) => setRoles((r) => toggleId(r, id))}
         />
+        {renderNetworkOptions(createNetworks, setCreateNetworks)}
         {renderChurchOptions(createChurches, setCreateChurches)}
         <button type="submit" className="btn btn--primary" disabled={busy}>
           {busy ? "Saving…" : "Agregar líder"}
@@ -420,32 +456,8 @@ export default function ChurchLeadersPage() {
                   selected={editRoles}
                   onToggle={(id) => setEditRoles((r) => toggleId(r, id))}
                 />
+                {renderNetworkOptions(editNetworks, setEditNetworks)}
                 {renderChurchOptions(editChurches, setEditChurches)}
-                {platformAdmin ? (
-                  <fieldset className="church-option-set">
-                    <legend>Redes asociadas</legend>
-                    {groups.length === 0 ? (
-                      <p className="church-empty">
-                        Sin redes — créelas en /church/groups.
-                      </p>
-                    ) : (
-                      <div className="church-option-set__list">
-                        {groups.map((g) => (
-                          <label key={g.id} className="church-option">
-                            <input
-                              type="checkbox"
-                              checked={editNetworks.includes(g.id)}
-                              onChange={() =>
-                                setEditNetworks((ids) => toggleId(ids, g.id))
-                              }
-                            />
-                            <span className="church-option__label">{g.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </fieldset>
-                ) : null}
                 <div className="church-page__actions">
                   <button
                     type="button"
@@ -481,6 +493,16 @@ export default function ChurchLeadersPage() {
                     .join(" · ") || "Sin roles"}
                 </p>
                 <p className="church-card__meta">
+                  Redes:{" "}
+                  {(L.networkIds ?? []).length > 0
+                    ? (L.networkIds ?? [])
+                        .map(
+                          (id) => groups.find((g) => g.id === id)?.name || id,
+                        )
+                        .join(", ")
+                    : "todas (sin asociación)"}
+                </p>
+                <p className="church-card__meta">
                   Iglesias:{" "}
                   {(L.churchIds ?? []).length > 0
                     ? (L.churchIds ?? [])
@@ -488,20 +510,6 @@ export default function ChurchLeadersPage() {
                         .join(", ")
                     : "ninguna"}
                 </p>
-                {(L.networkIds ?? []).length > 0 ? (
-                  <p className="church-card__meta">
-                    Redes:{" "}
-                    {(L.networkIds ?? [])
-                      .map(
-                        (id) => groups.find((g) => g.id === id)?.name || id,
-                      )
-                      .join(", ")}
-                  </p>
-                ) : (
-                  <p className="church-card__meta">
-                    Redes: todas (sin asociación)
-                  </p>
-                )}
                 <div className="church-page__actions">
                   <button
                     type="button"

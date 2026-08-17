@@ -334,6 +334,8 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 				UpdatedAt:      now,
 			})
 		}
+		// Link catalog leaders → this new church (even if they only had networkIds).
+		h.appendLeadersChurchRef(r, cid, ChurchRef(doc.DenominationID, doc.ChurchID), doc.LeaderIDs)
 	}
 
 	log.Printf("[correlation=%s] church.register owner=%s denom=%s count=%d", cid, owner, denom, len(createdCards))

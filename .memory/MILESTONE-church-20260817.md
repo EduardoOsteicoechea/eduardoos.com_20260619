@@ -14,7 +14,7 @@ See `MILESTONE-church-authz-20260817.md`.
 |-------|-------|
 | `/church` | Searchable church card grid |
 | `/church/groups` | Admin-only redes / denominaciones catalog |
-| `/church/leaders` | Independent líderes catalog (register-gate / admin); church + network links |
+| `/church/leaders` | Independent líderes catalog (register-gate / admin); networkIds + optional churchIds |
 | `/church/register` | Multi-church cards + liderazgo dropdown + creencias + members |
 | `/church/overview` | Linked churches; admin sees all; add activities; FullCalendar |
 | `/church/activity` | Authorized activities + text/image reports |

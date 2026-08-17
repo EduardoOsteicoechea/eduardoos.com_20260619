@@ -501,11 +501,12 @@ func TestLeadersCatalogAndBeliefsRegister(t *testing.T) {
 		t.Fatalf("member create leader status=%d", denyRW.Code)
 	}
 
-	// Pastor creates leader in catalog.
+	// Pastor creates leader with network association only (no churches yet).
 	leadBody, _ := json.Marshal(map[string]any{
 		"firstName": "Ana", "lastName": "Garcia",
 		"phone": "+58 412 1234567", "email": "ana@example.com",
 		"roles": []string{"elder-bishop-pastor"},
+		"networkIds": []string{"asambleas"},
 	})
 	leadReq := httptest.NewRequest(http.MethodPost, "/api/church/leaders", bytes.NewReader(leadBody))
 	leadReq.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
@@ -518,23 +519,20 @@ func TestLeadersCatalogAndBeliefsRegister(t *testing.T) {
 	if !strings.Contains(leadRW.Body.String(), `"id":"ana-garcia"`) {
 		t.Fatalf("expected leader id slug: %s", leadRW.Body.String())
 	}
-
-	// Admin associates leader with network.
-	netBody, _ := json.Marshal(map[string]any{
-		"firstName": "Ana", "lastName": "Garcia",
-		"roles": []string{"elder-bishop-pastor"},
-		"networkIds": []string{"asambleas"}, "setNetworks": true,
-	})
-	netReq := httptest.NewRequest(http.MethodPut, "/api/church/leaders/ana-garcia", bytes.NewReader(netBody))
-	netReq.Header.Set("Authorization", "Bearer "+bearer(t, "admin@example.com", auth.RoleAdmin))
-	netReq.Header.Set("Content-Type", "application/json")
-	netRW := httptest.NewRecorder()
-	r.ServeHTTP(netRW, netReq)
-	if netRW.Code != http.StatusOK || !strings.Contains(netRW.Body.String(), "asambleas") {
-		t.Fatalf("admin network assoc status=%d body=%s", netRW.Code, netRW.Body.String())
+	if !strings.Contains(leadRW.Body.String(), `"networkIds":["asambleas"]`) {
+		t.Fatalf("expected networkIds on create: %s", leadRW.Body.String())
 	}
 
-	// Register church with leader id + structured beliefs.
+	// Network filter includes leaders with networkIds and zero churchIds.
+	listNet := httptest.NewRequest(http.MethodGet, "/api/church/leaders?networkId=asambleas", nil)
+	listNet.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	listNetRW := httptest.NewRecorder()
+	r.ServeHTTP(listNetRW, listNet)
+	if listNetRW.Code != http.StatusOK || !strings.Contains(listNetRW.Body.String(), "ana-garcia") {
+		t.Fatalf("network filter status=%d body=%s", listNetRW.Code, listNetRW.Body.String())
+	}
+
+	// Register church with leader id + structured beliefs; churchIds auto-linked.
 	regBody, _ := json.Marshal(map[string]any{
 		"denominationId": "asambleas",
 		"churches": []map[string]any{
@@ -571,23 +569,16 @@ func TestLeadersCatalogAndBeliefsRegister(t *testing.T) {
 		t.Fatalf("expected beliefs: %s", regRW.Body.String())
 	}
 
-	// Pastor associates leader with the registered church (churchIds).
-	chBody, _ := json.Marshal(map[string]any{
-		"firstName": "Ana", "lastName": "Garcia",
-		"roles": []string{"elder-bishop-pastor"},
-		"churchIds": []string{"asambleas/central"}, "setChurches": true,
-	})
-	chReq := httptest.NewRequest(http.MethodPut, "/api/church/leaders/ana-garcia", bytes.NewReader(chBody))
-	chReq.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
-	chReq.Header.Set("Content-Type", "application/json")
-	chRW := httptest.NewRecorder()
-	r.ServeHTTP(chRW, chReq)
-	if chRW.Code != http.StatusOK || !strings.Contains(chRW.Body.String(), "asambleas/central") {
-		t.Fatalf("church assoc status=%d body=%s", chRW.Code, chRW.Body.String())
+	// After register, leader.churchIds must include the new church ref.
+	getLead := httptest.NewRequest(http.MethodGet, "/api/church/leaders", nil)
+	getLead.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	getLeadRW := httptest.NewRecorder()
+	r.ServeHTTP(getLeadRW, getLead)
+	if getLeadRW.Code != http.StatusOK || !strings.Contains(getLeadRW.Body.String(), "asambleas/central") {
+		t.Fatalf("expected auto churchIds link: %s", getLeadRW.Body.String())
 	}
-	// Network association must survive church-only update (pastor cannot clear networks).
-	if !strings.Contains(chRW.Body.String(), `"networkIds":["asambleas"]`) {
-		t.Fatalf("expected networks preserved: %s", chRW.Body.String())
+	if !strings.Contains(getLeadRW.Body.String(), `"networkIds":["asambleas"]`) {
+		t.Fatalf("expected networks preserved after register: %s", getLeadRW.Body.String())
 	}
 
 	get := httptest.NewRequest(http.MethodGet, "/api/church/asambleas/central", nil)

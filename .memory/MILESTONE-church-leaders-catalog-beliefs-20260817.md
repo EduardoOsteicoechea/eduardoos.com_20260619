@@ -10,13 +10,14 @@ Independent líderes catalog + creencias one-by-one under `eduardoos-next`.
    roles multi-select (option cards, left-aligned).
 2. **Permission**: same gate as church register (`approved` +
    `church-management`) or platform admin. Members without permission denied.
-3. **Church associations**: register-gate users associate leaders with churches
-   they can see (owned denom/network or membership); admin sees all. Persist
-   `churchIds[]` as `denominationId/churchId` on leader.json / Dynamo.
-4. **Platform admin** also associates each leader with **N networks** from
-   `/church/groups` (checkboxes on edit).
-5. Church register **liderazgo** = dropdown of catalog (filtered by selected
-   network when associations exist; unassigned leaders stay global).
+3. **Network associations** (`networkIds[]`): always shown for register-gate
+   users + platform admin from `/church/groups` catalog. Enough to save a
+   leader — churches are optional. Empty church list does **not** block create.
+4. **Church associations** (`churchIds[]`): optional when churches exist;
+   register-gate users see owned/member denoms; admin sees all.
+5. Church register **liderazgo** = dropdown filtered by selected network
+   (includes leaders with networks but zero churches). Saving a church appends
+   `denominationId/churchId` to each selected leader’s `churchIds`.
 6. Persist Dynamo `church-leader:l:{id}` + S3 `church/leaders/{id}/leader.json`.
 7. Church JSON stores `leaderIds[]` + denormalized `leaders[]` snapshot.
 8. Legacy inline `leaders[]` / name-only leadership still migrates on register.

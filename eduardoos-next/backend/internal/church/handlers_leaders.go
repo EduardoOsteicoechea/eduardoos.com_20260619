@@ -49,6 +49,8 @@ func (h *Handler) ListLeaders(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateLeader adds a catalog leader (register-gate users or platform admin).
+// networkIds may be set by any register-gate caller (validated against groups).
+// churchIds are optional — leaders can belong to networks before any church exists.
 func (h *Handler) CreateLeader(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	email := auth.UserEmailFromRequest(r)
@@ -97,22 +99,24 @@ func (h *Handler) CreateLeader(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	networkIDs, err := h.filterValidNetworkIDs(r, body.NetworkIDs)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	now := nowRFC3339()
 	L := LeaderDoc{
-		ID:        id,
-		FirstName: first,
-		LastName:  last,
-		Phone:     strings.TrimSpace(body.Phone),
-		Email:     strings.TrimSpace(body.Email),
-		Roles:     body.Roles,
-		ChurchIDs: churchIDs,
-		CreatedBy: email,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	// Only platform admin may set network associations on create.
-	if h.isPlatformAdmin(r.Context(), email) {
-		L.NetworkIDs = body.NetworkIDs
+		ID:         id,
+		FirstName:  first,
+		LastName:   last,
+		Phone:      strings.TrimSpace(body.Phone),
+		Email:      strings.TrimSpace(body.Email),
+		Roles:      body.Roles,
+		NetworkIDs: networkIDs,
+		ChurchIDs:  churchIDs,
+		CreatedBy:  email,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 	created, err := h.Leaders.Create(r.Context(), L)
 	if errors.Is(err, ErrDuplicate) {
@@ -135,8 +139,8 @@ func (h *Handler) CreateLeader(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"leader": created})
 }
 
-// UpdateLeader updates catalog fields; networkIds only when platform admin.
-// Church associations (churchIds) may be set by any register-gate user via setChurches.
+// UpdateLeader updates catalog fields. Register-gate users (and platform admin)
+// may set networkIds (groups catalog) and churchIds (visible churches).
 func (h *Handler) UpdateLeader(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	email := auth.UserEmailFromRequest(r)
@@ -204,8 +208,13 @@ func (h *Handler) UpdateLeader(w http.ResponseWriter, r *http.Request) {
 	if body.Roles == nil {
 		next.Roles = existing.Roles
 	}
-	if h.isPlatformAdmin(r.Context(), email) && body.SetNetworks {
-		next.NetworkIDs = body.NetworkIDs
+	if body.SetNetworks {
+		networkIDs, nerr := h.filterValidNetworkIDs(r, body.NetworkIDs)
+		if nerr != nil {
+			httpx.WriteError(w, http.StatusBadRequest, nerr.Error())
+			return
+		}
+		next.NetworkIDs = networkIDs
 	}
 	if body.SetChurches {
 		churchIDs, ferr := h.filterVisibleChurchRefs(r, email, body.ChurchIDs)
@@ -229,6 +238,84 @@ func (h *Handler) UpdateLeader(w http.ResponseWriter, r *http.Request) {
 		_ = h.Objects.PutJSON(r.Context(), LeaderMetaKey(leaderID), updated, cid)
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"leader": updated})
+}
+
+// filterValidNetworkIDs keeps only denomination group ids that exist in the
+// /church/groups catalog. Empty input yields an empty (unassigned) list.
+func (h *Handler) filterValidNetworkIDs(r *http.Request, ids []string) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	if h.Groups == nil {
+		return nil, errors.New("groups store not configured")
+	}
+	groups, err := h.Groups.List(r.Context())
+	if err != nil {
+		return nil, errors.New("could not list networks")
+	}
+	known := map[string]bool{}
+	for _, g := range groups {
+		known[strings.TrimSpace(g.ID)] = true
+	}
+	out := make([]string, 0, len(ids))
+	seen := map[string]bool{}
+	for _, raw := range ids {
+		id := SanitizeSlug(raw)
+		if id == "" || seen[id] {
+			continue
+		}
+		if !known[id] {
+			return nil, errors.New("unknown network association: " + id)
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	return out, nil
+}
+
+// appendLeadersChurchRef adds churchRef to each leader id's churchIds (no-op if
+// already present). Used when registering a church with catalog leadership.
+func (h *Handler) appendLeadersChurchRef(r *http.Request, cid, churchRef string, leaderIDs []string) {
+	if h.Leaders == nil || churchRef == "" || len(leaderIDs) == 0 {
+		return
+	}
+	churchRef = NormalizeChurchRef(churchRef)
+	if churchRef == "" {
+		return
+	}
+	seen := map[string]bool{}
+	for _, id := range leaderIDs {
+		id = strings.TrimSpace(id)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		existing, ok, err := h.Leaders.Get(r.Context(), id)
+		if err != nil || !ok {
+			continue
+		}
+		already := false
+		for _, ref := range existing.ChurchIDs {
+			if NormalizeChurchRef(ref) == churchRef {
+				already = true
+				break
+			}
+		}
+		if already {
+			continue
+		}
+		next := existing
+		next.ChurchIDs = append(append([]string(nil), existing.ChurchIDs...), churchRef)
+		next.UpdatedAt = nowRFC3339()
+		updated, uerr := h.Leaders.Update(r.Context(), next)
+		if uerr != nil {
+			log.Printf("[correlation=%s] church.leaders.link_church id=%s: %v", cid, id, uerr)
+			continue
+		}
+		if h.Objects != nil {
+			_ = h.Objects.PutJSON(r.Context(), LeaderMetaKey(id), updated, cid)
+		}
+	}
 }
 
 // filterVisibleChurchRefs keeps only catalog churches the caller may associate.

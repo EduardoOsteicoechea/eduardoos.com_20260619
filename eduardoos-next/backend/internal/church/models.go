@@ -25,9 +25,10 @@ type DenominationGroup struct {
 }
 
 // LeaderDoc is an independent catalog row (Dynamo + S3 church/leaders/{id}/leader.json).
-// Platform admin may associate each leader with one or more network group ids.
-// Register-gate users (and admin) may associate leaders with churches they can see
-// via churchIds as "denominationId/churchId" refs.
+// Register-gate users (and platform admin) may associate each leader with one or more
+// network group ids (from /church/groups) and optionally with churches they can see
+// via churchIds as "denominationId/churchId" refs. Networks alone are enough to
+// appear in register liderazgo dropdowns before any church exists.
 type LeaderDoc struct {
 	ID         string   `json:"id"`
 	FirstName  string   `json:"firstName"` // nombre
