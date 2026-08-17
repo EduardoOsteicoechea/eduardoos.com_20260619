@@ -1,80 +1,85 @@
 # Milestone: Greek letter-by-letter builder — 2026-08-17
 
-## Status: SHIPPED + letter-image model (slug + alphabetNumber + gallery)
+## Status: SHIPPED + Koine letter catalog (fixed alphabet #) + pick-from-catalog
 
 Admin-only product to copy/visualize books **letter-image by letter-image** under S3 prefix `greek/`.
 A **word is composed** of letter-images (not one image per word).
 
-## Letter-image model (2026-08-17 refine)
+## Letter catalog (Koine) — 2026-08-17
 
-Each letter-image has:
+Fixed alphabet numbering for Koine Greek Αα…Ωω:
 
-1. **Image** — 32×64 SVG (draw on canvas **or** pick from gallery)
-2. **Slug** — text field
-3. **Alphabet number** — 1…30 with **0.1 steps** (1.1, 1.2, …) for mid-integer ordering
+| Slot | Meaning |
+|------|---------|
+| `n` (1–24) | Uppercase plain (Α=1 … Ω=24) |
+| `n.1` | Lowercase plain |
+| `n.2`…`n.9` | Accent / diacritic / special variants for that letter |
 
-Letter-images within a word sort by `alphabetNumber` ascending. Metadata lives in `word.json` as `letterImages[]`; SVG at `letters/{id}.svg`.
+Examples: `nu-upper`=13, `nu-lower`=13.1; `sigma-final`=18.2; `omega-iota-sub`=24.9.
 
-### Gallery
+### Flow
 
-Reusable glyphs per admin under:
+1. **Letter catalog** button (Build + group workspace) → seed all slots → draw/edit SVG one-by-one (override same slug/key).
+2. **Word card**: **Pick from catalog only** (no free-draw on word). Optional **Edit SVG** on a word letter slot overrides that word’s `letters/{i}.svg`.
+3. Drawing pad displays at **128×256** (1:2, 4× of 32×64); export remains **32×64 SVG**.
+
+### S3 layout (catalog = gallery prefix)
 
 ```
 greek/{userSafe}/gallery/index.json
 greek/{userSafe}/gallery/{glyphSlug}.svg
 ```
 
-APIs: `GET/POST /api/greek/gallery`, `GET/DELETE /api/greek/gallery/{slug}`.
-Adding a letter to a word may send `{gallerySlug, slug, alphabetNumber}` to copy SVG into the word.
+(No separate `catalog/` tree — UI “catalog” maps to `gallery/`.)
 
-### Word card UX
+### APIs
 
-- **Draw letter** / **Pick from gallery** (replaces “Add image to word”)
-- Ordered letter slots: thumb + slug + alphabet # dropdown
-- Canvas can also save the glyph into the gallery
+| Method | Path |
+|--------|------|
+| GET | `/api/greek/catalog` (alias of gallery list) |
+| POST | `/api/greek/catalog/seed` |
+| PUT | `/api/greek/catalog/{slug}` (SVG override) |
+| GET/DELETE | `/api/greek/catalog/{slug}` |
+| GET/POST | `/api/greek/gallery` (legacy + POST create/override) |
+| PUT/GET/DELETE | `/api/greek/gallery/{slug}` |
+
+Seed writes empty placeholder SVGs; re-seed keeps already-drawn glyphs.
+
+## Letter-image model
+
+Each letter-image has:
+
+1. **Image** — 32×64 SVG (from catalog pick or slot edit)
+2. **Slug** — text field (usually catalog slug)
+3. **Alphabet number** — fixed by Koine catalog (validation still allows 1…30 @ 0.1 for legacy)
+
+Letter-images within a word sort by `alphabetNumber` ascending. Metadata in `word.json` as `letterImages[]`; SVG at `letters/{id}.svg`.
 
 ## Hotfix 2026-08-17 (create "romans" 502)
 
-**Root cause of HTTP 502:** `POST /api/greek/groups` intentionally returns **502** when the catalog write succeeds but **S3 `PutObject` for `greek/…/group.json` fails** (typical: EC2 role missing `greek/*`). Routes were already registered in `main.go` + chi; nginx `location /api/` proxies all `/api/greek/*`.
+**Root cause of HTTP 502:** `POST /api/greek/groups` intentionally returns **502** when the catalog write succeeds but **S3 `PutObject` for `greek/…/group.json` fails** (typical: EC2 role missing `greek/*`).
 
-**Modal crash:** `greek.ts` called `openApiErrorModal({ title, status, message, … })` but the helper expects a **string** first arg → `details.trim is not a function`. Fixed call sites + hardened `coerceErrorDetails` so non-string details never crash.
+**Modal crash:** `openApiErrorModal` first arg must be a string — fixed.
 
-**Ops:** If the copyable modal shows `AccessDenied` / `greek/*`, re-apply IAM from `deploy/aws/ec2-iam-s3-policy.json` (or the combined `ec2-iam-policy.json` which already allows `eduardoos20260607/*`). Wait ~1 min for instance credentials to refresh.
+**Canvas stretch:** pad used `width: 100%` → skyscraper; fixed to display **128×256** (1:2).
 
 ## Routes (UI)
 
 | Route | Role |
 |-------|------|
 | `/greek` | Hub (admin gate) |
-| `/greek/build` | Group cards (books) + create |
-| `/greek/build/{grupo}` | Pretty URL → nginx rewrite → `workspace` shell |
-| `/greek/build/workspace?group=` | Static-safe group editor |
-
-Nav: Services → **Greek**. Client `isAdminOnlyPagePath` + JWT admin on APIs.
-
-## API (JWT + platform admin)
-
-| Method | Path |
-|--------|------|
-| GET/POST | `/api/greek/groups` |
-| GET/PUT/DELETE | `/api/greek/groups/{slug}` |
-| POST | `/api/greek/groups/{g}/chapters` |
-| POST | `…/chapters/{ch}/verses` |
-| POST/PUT | `…/verses/{v}/words` |
-| POST/GET/PUT/DELETE | `…/words/{w}/letters` (+ `…/letters/{i}`) |
-| GET/POST | `/api/greek/gallery` |
-| GET/DELETE | `/api/greek/gallery/{slug}` |
-
-Admin = `role === admin` or bootstrap `eduardooost@gmail.com`.
+| `/greek/build` | Group cards + **Letter catalog** |
+| `/greek/build/{grupo}` | Pretty URL → workspace |
+| `/greek/build/workspace?group=` | Group editor + catalog + pick |
 
 ## Persistence
 
-### Catalog (DynamoDB when `GREEK_BACKEND`/`DATABASE_BACKEND=dynamodb`)
+### DynamoDB groups
 
 - Table: `GREEK_TABLE` or `HOMESCOOL_TABLE` (default `eduardoos_catalog`)
 - SK: `greek-group:u:{owner}|g:{slug}`
 
-### S3 (bucket `eduardoos20260607`, env `S3_BUCKET`)
+### S3
 
 ```
 greek/{userSafe}/{groupSlug}/group.json
@@ -82,22 +87,11 @@ greek/{userSafe}/{groupSlug}/chapters/{ch}/chapter.json
 greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/verse.json
 greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/words/{w}/word.json
 greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/words/{w}/letters/{i}.svg
-greek/{userSafe}/gallery/index.json
-greek/{userSafe}/gallery/{glyphSlug}.svg
+greek/{userSafe}/gallery/index.json          ← letter catalog index
+greek/{userSafe}/gallery/{glyphSlug}.svg     ← catalog glyph (draw/override)
 ```
-
-`word.json`: `translation1`, `translation2`, `ordinalChapter` (1–1000), `ordinalBook` (1–10000), `letterCount`, `letterImages[{id,slug,alphabetNumber}]`.
-Letters are **32×64** SVG (canvas stroke export or gallery copy).
-
-## IAM
-
-Update EC2 role inline policy from `deploy/aws/ec2-iam-s3-policy.json`:
-
-- `ListBucket` prefixes: `greek/`, `greek/*` (also `homeschool/`, `homeschool/*`)
-- `GetObject`/`PutObject`/`DeleteObject` on `arn:aws:s3:::eduardoos20260607/greek/*`
 
 ## Tests
 
 - `go test ./internal/greek/...`
 - `npm run test:greek`
-- `npm run test:server-error-modal`

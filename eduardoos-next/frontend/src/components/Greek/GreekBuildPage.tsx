@@ -9,6 +9,7 @@ import {
   listGreekGroups,
   type GreekGroup,
 } from "../../lib/greek";
+import LetterCatalog from "./LetterCatalog";
 import { GreekGateShell, useGreekAdminGate } from "./GreekHubPage";
 import "./Greek.css";
 
@@ -18,6 +19,7 @@ export default function GreekBuildPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [busy, setBusy] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
   async function refresh() {
     const items = await listGreekGroups();
@@ -49,10 +51,19 @@ export default function GreekBuildPage() {
     <GreekGateShell gate={gate}>
       <div className="greek-page">
         <p className="greek-page__brand">Greek</p>
-        <h1 className="greek-page__title">Build</h1>
+        <div className="greek-page__toolbar">
+          <h1 className="greek-page__title">Build</h1>
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => setCatalogOpen(true)}
+          >
+            Letter catalog
+          </button>
+        </div>
         <p className="greek-page__lead">
-          Each card is a book (image group). Open one to edit chapters, verses,
-          words, and letter glyphs.
+          Each card is a book (image group). Seed and draw letters in the
+          catalog, then open a book to compose words by picking catalog glyphs.
         </p>
 
         <form className="greek-build__toolbar" onSubmit={onCreate}>
@@ -97,6 +108,7 @@ export default function GreekBuildPage() {
           </ul>
         )}
       </div>
+      <LetterCatalog open={catalogOpen} onClose={() => setCatalogOpen(false)} />
     </GreekGateShell>
   );
 }

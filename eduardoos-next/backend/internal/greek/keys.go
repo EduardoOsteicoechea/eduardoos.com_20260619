@@ -10,16 +10,20 @@
 //	greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/verse.json
 //	greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/words/{w}/word.json
 //	greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/words/{w}/letters/{i}.svg
-//	greek/{userSafe}/gallery/index.json
-//	greek/{userSafe}/gallery/{glyphSlug}.svg
+//	greek/{userSafe}/gallery/index.json          ← letter catalog index
+//	greek/{userSafe}/gallery/{glyphSlug}.svg     ← catalog glyph (draw/override)
 //
 // Hierarchy: group (book) → chapters → verses → words → letter-images (32×64 SVG).
 // Each word stores translation1 / translation2, ordinals, and letterImages metadata
 // (slug + alphabetNumber). Letter SVGs are ordered by alphabetNumber ascending.
-// Alphabet numbers are 1…30 with optional decimal steps (1.1, 1.2) for mid-integer order.
 //
-// The admin letter-image gallery under greek/{userSafe}/gallery/ holds reusable glyphs
-// that can be copied into a word instead of redrawing.
+// Alphabet numbers are fixed to the Koine Greek catalog (1=Alpha … 24=Omega):
+//   n = uppercase plain, n.1 = lowercase plain, n.2…n.9 = accent/diacritic variants.
+// Validation still allows 1…30 with 0.1 steps for legacy rows.
+//
+// The letter catalog (UI) is stored under greek/{userSafe}/gallery/ (same prefix;
+// not a separate catalog/ tree). Admins seed slots, draw/override SVGs there, then
+// pick catalog glyphs into words (no free-draw on the word card).
 //
 // DynamoDB catalog (eduardoos_catalog when GREEK_BACKEND/DATABASE_BACKEND=dynamodb):
 //

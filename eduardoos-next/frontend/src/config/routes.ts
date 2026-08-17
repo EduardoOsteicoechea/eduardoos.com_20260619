@@ -196,6 +196,10 @@ export const GREEK_ROUTES = {
   gallery: "/api/greek/gallery",
   galleryGlyph: (slug: string) =>
     `/api/greek/gallery/${encodeURIComponent(slug)}`,
+  catalog: "/api/greek/catalog",
+  catalogSeed: "/api/greek/catalog/seed",
+  catalogGlyph: (slug: string) =>
+    `/api/greek/catalog/${encodeURIComponent(slug)}`,
 } as const;
 
 export const PLAYLIST_ROUTES = {

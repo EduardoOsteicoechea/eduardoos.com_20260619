@@ -90,7 +90,10 @@ export default function GreekHubPage() {
         <ul className="product-page__list">
           <li>Groups are books stored under S3 <code>greek/…</code></li>
           <li>Hierarchy: chapter → verse → word → letter images</li>
-          <li>Draw each letter on canvas (finger, mouse, or stylus)</li>
+          <li>
+            Letter catalog: seed Koine Αα…Ωω (fixed alphabet #), draw each SVG,
+            then pick into words
+          </li>
           <li>Admin only (role <code>admin</code> or bootstrap email)</li>
         </ul>
       </article>

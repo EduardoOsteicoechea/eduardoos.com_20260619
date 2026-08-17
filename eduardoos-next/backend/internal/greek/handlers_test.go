@@ -352,7 +352,111 @@ func TestCreateGroupS3FailureReturnsCleanJSON502(t *testing.T) {
 	}
 }
 
+func TestCatalogSeedAndOverride(t *testing.T) {
+	_, r, users := testRouter(t)
+	seedAdmin(t, users, "admin@example.com")
+	tok := bearer(t, "admin@example.com", auth.RoleAdmin)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/greek/catalog/seed", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("seed status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var seedResp struct {
+		Seeded  int            `json:"seeded"`
+		Created int            `json:"created"`
+		Glyphs  []GalleryGlyph `json:"glyphs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &seedResp); err != nil {
+		t.Fatal(err)
+	}
+	want := len(KoineCatalogSeed())
+	if seedResp.Seeded != want || seedResp.Created != want {
+		t.Fatalf("seeded=%d created=%d want=%d", seedResp.Seeded, seedResp.Created, want)
+	}
+	var nu *GalleryGlyph
+	for i := range seedResp.Glyphs {
+		if seedResp.Glyphs[i].Slug == "nu-lower" {
+			nu = &seedResp.Glyphs[i]
+			break
+		}
+	}
+	if nu == nil || nu.AlphabetNumber != 13.1 || nu.Label != "ν" || nu.Drawn {
+		t.Fatalf("expected undrawn nu-lower @13.1, got %#v", nu)
+	}
+
+	drawnSVG := `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="64" viewBox="0 0 32 64"><path d="M4 60 L16 4 L28 60" fill="none" stroke="black"/></svg>`
+	req = httptest.NewRequest(http.MethodPut, "/api/greek/catalog/nu-lower",
+		bytes.NewBufferString(`{"svg":`+jsonString(drawnSVG)+`}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("override status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var putResp struct {
+		Glyph GalleryGlyph `json:"glyph"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &putResp); err != nil {
+		t.Fatal(err)
+	}
+	if !putResp.Glyph.Drawn || putResp.Glyph.AlphabetNumber != 13.1 {
+		t.Fatalf("expected drawn nu-lower keeping 13.1, got %#v", putResp.Glyph)
+	}
+
+	// Re-seed must keep drawn SVG.
+	req = httptest.NewRequest(http.MethodPost, "/api/greek/catalog/seed", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("re-seed status=%d", rec.Code)
+	}
+	var reseed struct {
+		KeptDrawn int `json:"keptDrawn"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &reseed)
+	if reseed.KeptDrawn < 1 {
+		t.Fatalf("expected keptDrawn>=1, got %d", reseed.KeptDrawn)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/greek/catalog/nu-lower", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "<path") {
+		t.Fatalf("expected drawn svg kept, status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestKoineCatalogSeedNumbering(t *testing.T) {
+	seed := KoineCatalogSeed()
+	if len(seed) < 100 {
+		t.Fatalf("expected rich catalog, got %d", len(seed))
+	}
+	seen := map[float64]string{}
+	for _, e := range seed {
+		if err := ValidateAlphabetNumber(e.AlphabetNumber); err != nil {
+			t.Fatalf("%s: %v", e.Slug, err)
+		}
+		if prev, ok := seen[e.AlphabetNumber]; ok {
+			t.Fatalf("duplicate alphabetNumber %.1f for %s and %s", e.AlphabetNumber, prev, e.Slug)
+		}
+		seen[e.AlphabetNumber] = e.Slug
+		if e.LetterIndex < 1 || e.LetterIndex > 24 {
+			t.Fatalf("letterIndex out of range for %s", e.Slug)
+		}
+	}
+	if seen[1] != "alpha-upper" || seen[13.1] != "nu-lower" || seen[24.9] != "omega-iota-sub" {
+		t.Fatalf("unexpected fixed numbers: 1=%s 13.1=%s 24.9=%s", seen[1], seen[13.1], seen[24.9])
+	}
+}
+
 func jsonString(s string) string {
 	b, _ := json.Marshal(s)
 	return string(b)
 }
+

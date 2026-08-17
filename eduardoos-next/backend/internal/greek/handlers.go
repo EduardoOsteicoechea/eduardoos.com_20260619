@@ -65,7 +65,15 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Get("/api/greek/gallery", h.ListGallery)
 		pr.Post("/api/greek/gallery", h.AddGalleryGlyph)
 		pr.Get("/api/greek/gallery/{glyphSlug}", h.GetGalleryGlyph)
+		pr.Put("/api/greek/gallery/{glyphSlug}", h.UpdateGalleryGlyph)
 		pr.Delete("/api/greek/gallery/{glyphSlug}", h.DeleteGalleryGlyph)
+
+		// Catalog aliases (letter catalog UI; storage remains greek/{user}/gallery/).
+		pr.Get("/api/greek/catalog", h.ListGallery)
+		pr.Post("/api/greek/catalog/seed", h.SeedCatalog)
+		pr.Get("/api/greek/catalog/{glyphSlug}", h.GetGalleryGlyph)
+		pr.Put("/api/greek/catalog/{glyphSlug}", h.UpdateGalleryGlyph)
+		pr.Delete("/api/greek/catalog/{glyphSlug}", h.DeleteGalleryGlyph)
 	})
 }
 
@@ -490,6 +498,44 @@ func (h *Handler) AddLetter(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	slugFromBody := letterSlug != ""
+	alphabetFromBody := alphabetNumber != 0
+
+	if gallerySlug != "" {
+		if !IsValidSlug(gallerySlug) {
+			httpx.WriteError(w, http.StatusBadRequest, "invalid gallery slug")
+			return
+		}
+		gKey := GalleryGlyphKey(owner, gallerySlug)
+		body, _, ok, err := h.Objects.GetBytes(r.Context(), gKey, cid)
+		if err != nil {
+			httpx.WriteError(w, http.StatusBadGateway, "could not load gallery glyph")
+			return
+		}
+		if !ok {
+			httpx.WriteError(w, http.StatusNotFound, "gallery glyph not found")
+			return
+		}
+		svg = body
+		if idx, err := h.loadGalleryIndex(r, owner, cid); err == nil {
+			for _, g := range idx.Glyphs {
+				if g.Slug != gallerySlug {
+					continue
+				}
+				if !slugFromBody {
+					letterSlug = gallerySlug
+				}
+				if !alphabetFromBody && g.AlphabetNumber > 0 {
+					alphabetNumber = g.AlphabetNumber
+				}
+				break
+			}
+		}
+		if !slugFromBody && letterSlug == "" {
+			letterSlug = gallerySlug
+		}
+	}
+
 	if letterSlug == "" {
 		letterSlug = fmt.Sprintf("letter-%d", meta.LetterCount+1)
 	}
@@ -509,23 +555,6 @@ func (h *Handler) AddLetter(w http.ResponseWriter, r *http.Request) {
 	}
 	alphabetNumber = NormalizeAlphabetNumber(alphabetNumber)
 
-	if gallerySlug != "" {
-		if !IsValidSlug(gallerySlug) {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid gallery slug")
-			return
-		}
-		gKey := GalleryGlyphKey(owner, gallerySlug)
-		body, _, ok, err := h.Objects.GetBytes(r.Context(), gKey, cid)
-		if err != nil {
-			httpx.WriteError(w, http.StatusBadGateway, "could not load gallery glyph")
-			return
-		}
-		if !ok {
-			httpx.WriteError(w, http.StatusNotFound, "gallery glyph not found")
-			return
-		}
-		svg = body
-	}
 	if len(svg) == 0 {
 		httpx.WriteError(w, http.StatusBadRequest, "empty svg")
 		return
@@ -744,6 +773,21 @@ func (h *Handler) ListGallery(w http.ResponseWriter, r *http.Request) {
 	if idx.Glyphs == nil {
 		idx.Glyphs = []GalleryGlyph{}
 	}
+	// Refresh Drawn from SVG bytes when missing/stale (cheap for in-memory; S3 OK for admin).
+	for i := range idx.Glyphs {
+		g := &idx.Glyphs[i]
+		if g.Key == "" {
+			g.Key = GalleryGlyphKey(owner, g.Slug)
+		}
+		if g.URL == "" {
+			g.URL = galleryURL(g.Slug)
+		}
+		body, _, ok, err := h.Objects.GetBytes(r.Context(), g.Key, cid)
+		if err == nil && ok {
+			g.Drawn = GlyphHasDrawing(body)
+			g.Size = int64(len(body))
+		}
+	}
 	sort.Slice(idx.Glyphs, func(i, j int) bool {
 		if idx.Glyphs[i].AlphabetNumber == idx.Glyphs[j].AlphabetNumber {
 			return idx.Glyphs[i].Slug < idx.Glyphs[j].Slug
@@ -751,6 +795,89 @@ func (h *Handler) ListGallery(w http.ResponseWriter, r *http.Request) {
 		return idx.Glyphs[i].AlphabetNumber < idx.Glyphs[j].AlphabetNumber
 	})
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"glyphs": idx.Glyphs})
+}
+
+// SeedCatalog writes all Koine Greek catalog slots (upper/lower + accent variants)
+// with fixed alphabet numbers. Existing drawn SVGs are kept; undrawn/missing get
+// EmptyLetterSVG placeholders. Metadata (label, name, case, variant) is refreshed.
+func (h *Handler) SeedCatalog(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	owner := auth.UserEmailFromRequest(r)
+	idx, err := h.loadGalleryIndex(r, owner, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not load catalog index")
+		return
+	}
+	bySlug := make(map[string]int, len(idx.Glyphs))
+	for i, g := range idx.Glyphs {
+		bySlug[g.Slug] = i
+	}
+	seed := KoineCatalogSeed()
+	now := nowRFC3339()
+	created, updated, kept := 0, 0, 0
+	empty := []byte(EmptyLetterSVG)
+
+	for _, entry := range seed {
+		gKey := GalleryGlyphKey(owner, entry.Slug)
+		existingBody, _, hasSVG, err := h.Objects.GetBytes(r.Context(), gKey, cid)
+		if err != nil {
+			log.Printf("[correlation=%s] greek.catalog.seed get error: %v", cid, err)
+			httpx.WriteError(w, http.StatusBadGateway, "could not read catalog glyph")
+			return
+		}
+		drawn := hasSVG && GlyphHasDrawing(existingBody)
+		size := int64(len(empty))
+		if drawn {
+			size = int64(len(existingBody))
+			kept++
+		} else {
+			if err := h.Objects.PutBytes(r.Context(), gKey, empty, "image/svg+xml", cid); err != nil {
+				log.Printf("[correlation=%s] greek.catalog.seed put error: %v", cid, err)
+				httpx.WriteError(w, http.StatusBadGateway, "could not write catalog glyph")
+				return
+			}
+		}
+		glyph := GalleryGlyph{
+			Slug:           entry.Slug,
+			AlphabetNumber: entry.AlphabetNumber,
+			Label:          entry.Label,
+			Name:           entry.Name,
+			Case:           entry.Case,
+			Variant:        entry.Variant,
+			LetterIndex:    entry.LetterIndex,
+			Drawn:          drawn,
+			Key:            gKey,
+			URL:            galleryURL(entry.Slug),
+			Size:           size,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		}
+		if i, ok := bySlug[entry.Slug]; ok {
+			if idx.Glyphs[i].CreatedAt != "" {
+				glyph.CreatedAt = idx.Glyphs[i].CreatedAt
+			}
+			idx.Glyphs[i] = glyph
+			updated++
+		} else {
+			idx.Glyphs = append(idx.Glyphs, glyph)
+			bySlug[entry.Slug] = len(idx.Glyphs) - 1
+			created++
+		}
+	}
+	idx.UpdatedAt = now
+	if err := h.Objects.PutJSON(r.Context(), GalleryIndexKey(owner), idx, cid); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not update catalog index")
+		return
+	}
+	log.Printf("[correlation=%s] greek.catalog.seed owner=%s created=%d updated=%d keptDrawn=%d total=%d",
+		cid, owner, created, updated, kept, len(seed))
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"seeded":     len(seed),
+		"created":    created,
+		"updated":    updated,
+		"keptDrawn":  kept,
+		"glyphs":     idx.Glyphs,
+	})
 }
 
 func (h *Handler) AddGalleryGlyph(w http.ResponseWriter, r *http.Request) {
@@ -796,33 +923,136 @@ func (h *Handler) AddGalleryGlyph(w http.ResponseWriter, r *http.Request) {
 	glyph := GalleryGlyph{
 		Slug:           letterSlug,
 		AlphabetNumber: alphabetNumber,
+		Drawn:          GlyphHasDrawing(svg),
 		Key:            gKey,
 		URL:            galleryURL(letterSlug),
 		Size:           int64(len(svg)),
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
-	replaced := false
+	// Preserve Koine catalog metadata when overriding an existing seed slot.
 	for i := range idx.Glyphs {
 		if idx.Glyphs[i].Slug == letterSlug {
+			glyph.Label = idx.Glyphs[i].Label
+			glyph.Name = idx.Glyphs[i].Name
+			glyph.Case = idx.Glyphs[i].Case
+			glyph.Variant = idx.Glyphs[i].Variant
+			glyph.LetterIndex = idx.Glyphs[i].LetterIndex
+			// Seeded Koine slots keep their fixed alphabet number on SVG override.
+			if idx.Glyphs[i].LetterIndex > 0 && idx.Glyphs[i].AlphabetNumber > 0 {
+				glyph.AlphabetNumber = idx.Glyphs[i].AlphabetNumber
+			}
 			glyph.CreatedAt = idx.Glyphs[i].CreatedAt
 			if glyph.CreatedAt == "" {
 				glyph.CreatedAt = now
 			}
 			idx.Glyphs[i] = glyph
-			replaced = true
-			break
+			idx.UpdatedAt = now
+			if err := h.Objects.PutJSON(r.Context(), GalleryIndexKey(owner), idx, cid); err != nil {
+				httpx.WriteError(w, http.StatusBadGateway, "could not update gallery index")
+				return
+			}
+			httpx.WriteJSON(w, http.StatusCreated, map[string]any{"glyph": glyph})
+			return
 		}
 	}
-	if !replaced {
-		idx.Glyphs = append(idx.Glyphs, glyph)
-	}
+	idx.Glyphs = append(idx.Glyphs, glyph)
 	idx.UpdatedAt = now
 	if err := h.Objects.PutJSON(r.Context(), GalleryIndexKey(owner), idx, cid); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, "could not update gallery index")
 		return
 	}
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"glyph": glyph})
+}
+
+// UpdateGalleryGlyph overrides SVG and/or metadata for an existing catalog slot
+// (same slug → same S3 key). Used by the catalog editor redraw flow.
+func (h *Handler) UpdateGalleryGlyph(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	owner := auth.UserEmailFromRequest(r)
+	glyphSlug := chi.URLParam(r, "glyphSlug")
+	if !IsValidSlug(glyphSlug) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid gallery slug")
+		return
+	}
+	var body struct {
+		SVG            *string  `json:"svg"`
+		AlphabetNumber *float64 `json:"alphabetNumber"`
+		Label          *string  `json:"label"`
+		Name           *string  `json:"name"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxLetterSVGBytes+1024)).Decode(&body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	idx, err := h.loadGalleryIndex(r, owner, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not load gallery index")
+		return
+	}
+	gi := -1
+	for i := range idx.Glyphs {
+		if idx.Glyphs[i].Slug == glyphSlug {
+			gi = i
+			break
+		}
+	}
+	if gi < 0 {
+		httpx.WriteError(w, http.StatusNotFound, "catalog glyph not found")
+		return
+	}
+	glyph := idx.Glyphs[gi]
+	gKey := GalleryGlyphKey(owner, glyphSlug)
+	glyph.Key = gKey
+	glyph.URL = galleryURL(glyphSlug)
+
+	if body.AlphabetNumber != nil {
+		if err := ValidateAlphabetNumber(*body.AlphabetNumber); err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		glyph.AlphabetNumber = NormalizeAlphabetNumber(*body.AlphabetNumber)
+	}
+	if body.Label != nil {
+		glyph.Label = strings.TrimSpace(*body.Label)
+	}
+	if body.Name != nil {
+		glyph.Name = strings.TrimSpace(*body.Name)
+	}
+	if body.SVG != nil {
+		svg := []byte(strings.TrimSpace(*body.SVG))
+		if len(svg) == 0 || !looksLikeSVG(svg) {
+			httpx.WriteError(w, http.StatusBadRequest, "svg required")
+			return
+		}
+		if len(svg) > maxLetterSVGBytes {
+			httpx.WriteError(w, http.StatusRequestEntityTooLarge, "svg too large")
+			return
+		}
+		if err := h.Objects.PutBytes(r.Context(), gKey, svg, "image/svg+xml", cid); err != nil {
+			httpx.WriteError(w, http.StatusBadGateway, "could not store gallery glyph")
+			return
+		}
+		glyph.Size = int64(len(svg))
+		glyph.Drawn = GlyphHasDrawing(svg)
+	} else {
+		existing, _, ok, err := h.Objects.GetBytes(r.Context(), gKey, cid)
+		if err == nil && ok {
+			glyph.Drawn = GlyphHasDrawing(existing)
+			glyph.Size = int64(len(existing))
+		}
+	}
+	glyph.UpdatedAt = nowRFC3339()
+	if glyph.CreatedAt == "" {
+		glyph.CreatedAt = glyph.UpdatedAt
+	}
+	idx.Glyphs[gi] = glyph
+	idx.UpdatedAt = glyph.UpdatedAt
+	if err := h.Objects.PutJSON(r.Context(), GalleryIndexKey(owner), idx, cid); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not update gallery index")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"glyph": glyph})
 }
 
 func (h *Handler) GetGalleryGlyph(w http.ResponseWriter, r *http.Request) {

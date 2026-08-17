@@ -62,10 +62,17 @@ type LetterRef struct {
 	GallerySlug    string  `json:"gallerySlug,omitempty"`
 }
 
-// GalleryGlyph is a reusable letter SVG in the admin gallery under greek/{user}/gallery/.
+// GalleryGlyph is a reusable letter SVG in the admin letter catalog
+// (S3 greek/{user}/gallery/ — the catalog lives under the gallery prefix).
 type GalleryGlyph struct {
 	Slug           string  `json:"slug"`
 	AlphabetNumber float64 `json:"alphabetNumber"`
+	Label          string  `json:"label,omitempty"`   // Unicode glyph (Α, ἀ, …)
+	Name           string  `json:"name,omitempty"`    // Human name
+	Case           string  `json:"case,omitempty"`    // upper | lower
+	Variant        string  `json:"variant,omitempty"` // plain | smooth | …
+	LetterIndex    int     `json:"letterIndex,omitempty"`
+	Drawn          bool    `json:"drawn"` // true when SVG has stroke content
 	Key            string  `json:"key"`
 	URL            string  `json:"url"`
 	Size           int64   `json:"size,omitempty"`

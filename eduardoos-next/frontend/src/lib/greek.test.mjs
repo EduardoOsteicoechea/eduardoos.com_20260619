@@ -110,10 +110,27 @@ describe("greek helpers", () => {
   it("validateAlphabetNumber allows 1–30 with 0.1 steps", () => {
     assert.equal(validateAlphabetNumber(1), null);
     assert.equal(validateAlphabetNumber(1.1), null);
+    assert.equal(validateAlphabetNumber(13.1), null);
     assert.equal(validateAlphabetNumber(30), null);
     assert.ok(validateAlphabetNumber(0));
     assert.ok(validateAlphabetNumber(31));
     assert.ok(validateAlphabetNumber(1.15));
+  });
+
+  it("koine-style numbering uses integer letter + decimal variants", () => {
+    // Mirror of Go KoineCatalogSeed scheme: n=upper, n.1=lower, n.2+=accents.
+    const samples = [
+      { slug: "alpha-upper", n: 1 },
+      { slug: "alpha-lower", n: 1.1 },
+      { slug: "nu-lower", n: 13.1 },
+      { slug: "sigma-final", n: 18.2 },
+      { slug: "omega-iota-sub", n: 24.9 },
+    ];
+    for (const s of samples) {
+      assert.equal(validateAlphabetNumber(s.n), null, s.slug);
+    }
+    assert.equal(Math.floor(13.1), 13);
+    assert.equal(Math.round((13.1 % 1) * 10), 1);
   });
 
   it("greekAlphabetNumberOptions includes decimals between integers", () => {

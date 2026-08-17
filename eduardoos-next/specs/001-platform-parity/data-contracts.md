@@ -18,6 +18,19 @@ These names and shapes come from the production Eduardo OS deployment.
 | `media/instrumentalist/{user}/` | Instrumentalist `.instru` session bodies (see `specs/002-instrumentalist/`) |
 | `homeschool/{teacher}/{student}/{folder}/` | Homescool teacher→student folder markers and objects (bucket-root; not under `media/`) |
 | `ifcbim/{user}/{modelId}.ifc` | BIM IFC files |
+| `greek/{userSafe}/…` | Greek builder books + **letter catalog** under `gallery/` (see below) |
+
+### Greek builder (`greek/`)
+
+```
+greek/{userSafe}/{groupSlug}/group.json
+greek/{userSafe}/{groupSlug}/chapters/{ch}/…/verses/{v}/…/words/{w}/word.json
+greek/{userSafe}/{groupSlug}/…/words/{w}/letters/{i}.svg
+greek/{userSafe}/gallery/index.json       # Koine letter catalog index
+greek/{userSafe}/gallery/{glyphSlug}.svg  # catalog glyph (draw/override same key)
+```
+
+Alphabet # is fixed to Koine (1=Α … 24=Ω; `n.1`=lower; `n.2+`=accents). UI “Letter catalog” uses the `gallery/` prefix (no separate `catalog/` tree). APIs: `/api/greek/catalog/*` (+ `/api/greek/gallery` aliases).
 
 ## DynamoDB (us-east-1)
 

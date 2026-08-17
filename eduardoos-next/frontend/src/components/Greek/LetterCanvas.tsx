@@ -1,13 +1,16 @@
 /**
  * Letter drawing canvas — finger / mouse / stylus → 32×64 SVG letter-image.
- * Collects slug + alphabetNumber before save (word is composed of letter slots).
+ *
+ * Modes:
+ * - catalog: draw/override a catalog slot (slug + alphabet # fixed from Koine seed)
+ * - edit-word-letter: redraw SVG for an existing word letter slot (same index)
  */
 
-import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useId, useRef, useState, type PointerEvent } from "react";
 import {
   GREEK_LETTER_HEIGHT,
   GREEK_LETTER_WIDTH,
-  greekAlphabetNumberOptions,
+  formatAlphabetNumber,
   sanitizeGreekSlug,
   strokesToLetterSvg,
 } from "../../lib/greek";
@@ -19,21 +22,28 @@ export type LetterCanvasSave = {
   svg: string;
   slug: string;
   alphabetNumber: number;
-  alsoSaveToGallery: boolean;
 };
 
 interface LetterCanvasProps {
   open: boolean;
-  wordLabel: string;
+  title?: string;
+  hint?: string;
+  /** Pre-filled slug (catalog / edit); locked when lockMeta is true. */
+  defaultSlug?: string;
   defaultAlphabet?: number;
+  /** When true, slug and alphabet # are read-only (catalog fixed numbers). */
+  lockMeta?: boolean;
   onClose: () => void;
   onSave: (payload: LetterCanvasSave) => Promise<void>;
 }
 
 export default function LetterCanvas({
   open,
-  wordLabel,
+  title = "Draw letter",
+  hint,
+  defaultSlug = "",
   defaultAlphabet = 1,
+  lockMeta = false,
   onClose,
   onSave,
 }: LetterCanvasProps) {
@@ -44,11 +54,10 @@ export default function LetterCanvas({
   const [busy, setBusy] = useState(false);
   const [slug, setSlug] = useState("");
   const [alphabetNumber, setAlphabetNumber] = useState(1);
-  const [alsoGallery, setAlsoGallery] = useState(false);
   const titleId = useId();
-  const canvasCssW = 256;
-  const canvasCssH = 512;
-  const alphabetOpts = useMemo(() => greekAlphabetNumberOptions(), []);
+  /** Internal buffer (4× of 32×64) — display CSS locks to 128×256 so the pad is not a skyscraper. */
+  const canvasBufW = 128;
+  const canvasBufH = 256;
 
   useEffect(() => {
     const el = dialogRef.current;
@@ -60,9 +69,8 @@ export default function LetterCanvas({
   useEffect(() => {
     if (!open) return;
     strokesRef.current = [];
-    setSlug("");
+    setSlug(defaultSlug);
     setAlphabetNumber(defaultAlphabet);
-    setAlsoGallery(false);
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -73,7 +81,7 @@ export default function LetterCanvas({
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-  }, [open, defaultAlphabet]);
+  }, [open, defaultAlphabet, defaultSlug]);
 
   function pointerPos(e: PointerEvent<HTMLCanvasElement>): Point {
     const canvas = canvasRef.current!;
@@ -136,11 +144,14 @@ export default function LetterCanvas({
     if (busy) return;
     const svg = strokesToLetterSvg(
       strokesRef.current,
-      canvasRef.current?.width ?? canvasCssW,
-      canvasRef.current?.height ?? canvasCssH,
+      canvasRef.current?.width ?? canvasBufW,
+      canvasRef.current?.height ?? canvasBufH,
     );
     if (!strokesRef.current.some((s) => s.length > 1)) return;
-    const cleanSlug = sanitizeGreekSlug(slug) || sanitizeGreekSlug(`letter-${alphabetNumber}`);
+    const cleanSlug =
+      sanitizeGreekSlug(slug) ||
+      sanitizeGreekSlug(defaultSlug) ||
+      sanitizeGreekSlug(`letter-${alphabetNumber}`);
     if (!cleanSlug) return;
     setBusy(true);
     try {
@@ -148,7 +159,6 @@ export default function LetterCanvas({
         svg,
         slug: cleanSlug,
         alphabetNumber,
-        alsoSaveToGallery: alsoGallery,
       });
       onClose();
     } finally {
@@ -169,11 +179,16 @@ export default function LetterCanvas({
     >
       <div className="greek-canvas-modal__body">
         <h2 className="greek-canvas-modal__title" id={titleId}>
-          Add letter to word
+          {title}
         </h2>
         <p className="greek-canvas-modal__hint">
-          Draw one letter-image for <strong>{wordLabel}</strong> — saved as{" "}
-          {GREEK_LETTER_WIDTH}×{GREEK_LETTER_HEIGHT} SVG with slug and alphabet #.
+          {hint ?? (
+            <>
+              Draw at 1:2 (pad 128×256). Saved as {GREEK_LETTER_WIDTH}×
+              {GREEK_LETTER_HEIGHT} SVG. New strokes override the previous SVG for
+              this slot.
+            </>
+          )}
         </p>
         <div className="greek-editor__row">
           <div className="greek-build__field">
@@ -182,38 +197,27 @@ export default function LetterCanvas({
               id="greek-letter-slug"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              placeholder="alpha"
+              placeholder="alpha-lower"
+              readOnly={lockMeta}
+              disabled={lockMeta}
             />
           </div>
           <div className="greek-build__field">
             <label htmlFor="greek-letter-alphabet">Alphabet #</label>
-            <select
+            <input
               id="greek-letter-alphabet"
-              value={String(alphabetNumber)}
-              onChange={(e) => setAlphabetNumber(Number(e.target.value))}
-            >
-              {alphabetOpts.map((n) => (
-                <option key={n} value={String(n)}>
-                  {Number.isInteger(n) ? String(n) : n.toFixed(1)}
-                </option>
-              ))}
-            </select>
+              value={formatAlphabetNumber(alphabetNumber)}
+              readOnly
+              disabled
+            />
           </div>
         </div>
-        <label className="greek-canvas-modal__check">
-          <input
-            type="checkbox"
-            checked={alsoGallery}
-            onChange={(e) => setAlsoGallery(e.target.checked)}
-          />
-          Also save to letter gallery
-        </label>
         <div className="greek-canvas-wrap">
           <canvas
             ref={canvasRef}
-            width={canvasCssW}
-            height={canvasCssH}
-            aria-label="Letter drawing surface"
+            width={canvasBufW}
+            height={canvasBufH}
+            aria-label="Letter drawing surface (1:2, displays 128×256 → exports 32×64 SVG)"
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -233,7 +237,7 @@ export default function LetterCanvas({
             onClick={() => void save()}
             disabled={busy}
           >
-            {busy ? "Saving…" : "Save letter"}
+            {busy ? "Saving…" : "Save SVG"}
           </button>
         </div>
       </div>

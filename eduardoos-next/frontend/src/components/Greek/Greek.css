@@ -358,19 +358,27 @@
 
 .greek-canvas-wrap {
   touch-action: none;
+  /* Visible surface is 4× of 32×64 → 128×256 (1:2). Do not stretch to modal width. */
+  width: 128px;
+  height: 256px;
+  margin: 0 auto 0.75rem;
   border: 1px solid var(--site-border);
   border-radius: var(--border_radius_001, 4px);
   background: color-mix(in srgb, var(--site-body-bg) 92%, var(--site-accent));
-  margin-bottom: 0.75rem;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .greek-canvas-wrap canvas {
   display: block;
-  width: 100%;
-  height: auto;
+  width: 128px;
+  height: 256px;
+  aspect-ratio: 1 / 2;
+  max-width: 128px;
+  max-height: 256px;
   cursor: crosshair;
   color: var(--site-body-fg);
+  touch-action: none;
 }
 
 .greek-canvas-modal__actions {
@@ -378,4 +386,93 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-end;
+}
+
+.greek-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.greek-page__toolbar .greek-page__title {
+  margin: 0;
+}
+
+.greek-catalog-modal {
+  max-width: min(96vw, 42rem);
+}
+
+.greek-catalog__stats {
+  font-family: Roboto, sans-serif;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin: 0 0 0.65rem;
+}
+
+.greek-catalog__list {
+  list-style: none;
+  margin: 0 0 0.85rem;
+  padding: 0;
+  max-height: min(55vh, 28rem);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.greek-catalog__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.35rem 0.2rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--site-border) 70%, transparent);
+}
+
+.greek-catalog__thumb {
+  width: 32px;
+  height: 64px;
+  object-fit: contain;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--site-body-fg);
+  background: color-mix(in srgb, var(--site-body-fg) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--site-border) 80%, transparent);
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.25rem;
+}
+
+.greek-catalog__thumb--empty {
+  opacity: 0.55;
+}
+
+.greek-catalog__meta {
+  flex: 1 1 10rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.greek-catalog__label {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.05rem;
+}
+
+.greek-catalog__slug {
+  font-family: Roboto, sans-serif;
+  font-size: 0.7rem;
+  opacity: 0.65;
+  margin-left: 0.35rem;
+}
+
+.greek-catalog__num {
+  font-family: Roboto, sans-serif;
+  font-size: 0.72rem;
+  opacity: 0.7;
 }

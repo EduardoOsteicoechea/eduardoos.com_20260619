@@ -3,8 +3,9 @@
  * Failures surface via ServerErrorModal (openApiErrorModal).
  *
  * Letter-images (not whole-word images): each word is composed of letter slots
- * with SVG + slug + alphabetNumber (1–30, 0.1 steps). Gallery glyphs under
- * /api/greek/gallery can be reused instead of redrawing.
+ * with SVG + slug + alphabetNumber. Alphabet numbers are fixed to the Koine
+ * Greek catalog (1=Α … 24=Ω; n.1=lower; n.2+=accents). Drawing happens in the
+ * letter catalog; words pick glyphs from the catalog.
  */
 
 import { APP_ROUTES, GREEK_ROUTES } from "../config/routes";
@@ -43,6 +44,12 @@ export type GreekLetterRef = {
 export type GreekGalleryGlyph = {
   slug: string;
   alphabetNumber: number;
+  label?: string;
+  name?: string;
+  case?: string;
+  variant?: string;
+  letterIndex?: number;
+  drawn?: boolean;
   key: string;
   url: string;
   size?: number;
@@ -401,8 +408,18 @@ export async function updateGreekLetter(
 }
 
 export async function listGreekGallery(): Promise<GreekGalleryGlyph[]> {
-  const data = await greekRequest<{ glyphs: GreekGalleryGlyph[] }>(GREEK_ROUTES.gallery);
+  const data = await greekRequest<{ glyphs: GreekGalleryGlyph[] }>(GREEK_ROUTES.catalog);
   return data?.glyphs ?? [];
+}
+
+export async function seedGreekCatalog(): Promise<{
+  seeded: number;
+  created: number;
+  updated: number;
+  keptDrawn: number;
+  glyphs: GreekGalleryGlyph[];
+} | null> {
+  return greekRequest(GREEK_ROUTES.catalogSeed, { method: "POST" });
 }
 
 export async function addGreekGalleryGlyph(input: {
@@ -414,6 +431,29 @@ export async function addGreekGalleryGlyph(input: {
     method: "POST",
     body: input,
   });
+  return data?.glyph ?? null;
+}
+
+/** Override SVG (and optional metadata) for an existing catalog slot — same slug/key. */
+export async function updateGreekCatalogGlyph(
+  slug: string,
+  patch: { svg?: string; alphabetNumber?: number; label?: string; name?: string },
+): Promise<GreekGalleryGlyph | null> {
+  if (patch.alphabetNumber != null) {
+    const err = validateAlphabetNumber(patch.alphabetNumber);
+    if (err) {
+      reportGreekError(
+        `HTTP 400 · ${err} · correlation_id=${createCorrelationId()}`,
+        err,
+        "Greek",
+      );
+      return null;
+    }
+  }
+  const data = await greekRequest<{ glyph: GreekGalleryGlyph }>(
+    GREEK_ROUTES.catalogGlyph(slug),
+    { method: "PUT", body: patch },
+  );
   return data?.glyph ?? null;
 }
 
