@@ -16,6 +16,7 @@ These names and shapes come from the production Eduardo OS deployment.
 |--------|--------|
 | `media/` | Gallery, profiles, audio, epams bodies, etc. |
 | `media/instrumentalist/{user}/` | Instrumentalist `.instru` session bodies (see `specs/002-instrumentalist/`) |
+| `homeschool/{teacher}/{student}/{folder}/` | Homescool teacher→student folder markers and objects (bucket-root; not under `media/`) |
 | `ifcbim/{user}/{modelId}.ifc` | BIM IFC files |
 
 ## DynamoDB (us-east-1)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"eduardoos.nex/internal/auth"
@@ -47,7 +48,7 @@ func TestKeysAndFolders(t *testing.T) {
 	if got := SafeEmailKey("A@Example.COM"); got != "a_at_example.com" {
 		t.Fatalf("SafeEmailKey=%s", got)
 	}
-	if got := RelationshipPrefix("t@x.com", "s@y.com"); got != "homescool/t_at_x.com/s_at_y.com" {
+	if got := RelationshipPrefix("t@x.com", "s@y.com"); got != "homeschool/t_at_x.com/s_at_y.com" {
 		t.Fatalf("prefix=%s", got)
 	}
 	if !IsValidFolder("portfolio") || IsValidFolder("other") {
@@ -88,9 +89,12 @@ func TestRegisterStudentCreatesLinkAndFolders(t *testing.T) {
 	mem := h.Objects.(*MemoryObjectSpace)
 	mem.mu.RLock()
 	defer mem.mu.RUnlock()
-	keep := absoluteMediaKey(KeepObjectKey("teacher@example.com", "student@example.com", "portfolio"))
+	keep := KeepObjectKey("teacher@example.com", "student@example.com", "portfolio")
 	if _, ok := mem.keys[keep]; !ok {
 		t.Fatalf("missing keep marker %s in %#v", keep, mem.keys)
+	}
+	if !strings.HasPrefix(keep, "homeschool/") {
+		t.Fatalf("keep key must be under homeschool/: %s", keep)
 	}
 }
 
@@ -211,7 +215,7 @@ func TestLearningAuthzStudentOnly(t *testing.T) {
 
 	// Put a real object under portfolio so listing is non-empty.
 	mem := h.Objects.(*MemoryObjectSpace)
-	key := absoluteMediaKey(FolderPrefix("teacher@example.com", "student@example.com", "portfolio") + "/essay.pdf")
+	key := FolderPrefix("teacher@example.com", "student@example.com", "portfolio") + "/essay.pdf"
 	mem.mu.Lock()
 	mem.keys[key] = []byte("pdf")
 	mem.mu.Unlock()

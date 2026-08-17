@@ -9,9 +9,12 @@
 // Unique business key: (teacherEmail, studentEmail). Student-facing URL slug is
 // the sanitized student email (a_at_b.com), scoped under that teacher.
 //
-// S3 layout (under S3_PREFIX, default media/):
+// S3 layout (bucket-root prefix, same pattern as ifcbim/ — NOT under media/):
 //
-//	homescool/{teacherSafe}/{studentSafe}/{folder}/...
+//	homeschool/{teacherSafe}/{studentSafe}/{folder}/...
+//
+// Brand UI routes remain /homescool; the S3 folder name is homeschool/ as
+// created in bucket eduardoos20260607 (env S3_BUCKET).
 //
 // On register we write a zero-byte `.keep` marker into each folder so empty
 // prefixes still exist as navigable spaces.
@@ -21,6 +24,9 @@ import (
 	"fmt"
 	"strings"
 )
+
+// RootPrefix is the top-level S3 key prefix for all Homescool learning objects.
+const RootPrefix = "homeschool"
 
 // FolderNames are the fixed student-space prefixes every registration creates.
 var FolderNames = []string{
@@ -56,17 +62,18 @@ func StudentSlug(studentEmail string) string {
 	return SafeEmailKey(studentEmail)
 }
 
-// RelationshipPrefix is the relative media key for a teacher→student space
-// (no trailing slash), e.g. homescool/teacher_at_x.com/student_at_y.com.
+// RelationshipPrefix is the absolute S3 key prefix for a teacher→student space
+// (no trailing slash), e.g. homeschool/teacher_at_x.com/student_at_y.com.
 func RelationshipPrefix(teacherEmail, studentEmail string) string {
 	return fmt.Sprintf(
-		"homescool/%s/%s",
+		"%s/%s/%s",
+		RootPrefix,
 		SafeEmailKey(teacherEmail),
 		SafeEmailKey(studentEmail),
 	)
 }
 
-// FolderPrefix returns the relative prefix for one folder under a relationship.
+// FolderPrefix returns the absolute prefix for one folder under a relationship.
 func FolderPrefix(teacherEmail, studentEmail, folder string) string {
 	folder = strings.Trim(strings.ToLower(strings.TrimSpace(folder)), "/")
 	return RelationshipPrefix(teacherEmail, studentEmail) + "/" + folder

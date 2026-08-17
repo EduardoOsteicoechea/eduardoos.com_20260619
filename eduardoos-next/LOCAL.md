@@ -68,6 +68,8 @@ Open [http://127.0.0.1:4322](http://127.0.0.1:4322). Browser calls stay same-ori
 
 Optional BIM S3: set `IFCBIM_S3_BUCKET` (or `S3_BUCKET`) plus AWS creds so IFC objects land under `ifcbim/`.
 
+Homescool S3: with `S3_BUCKET` + AWS creds, student folder `.keep` markers land under `homeschool/{teacher}/{student}/{folder}/` (bucket-root, not `media/`).
+
 ## Build (CI-local)
 
 ```bash

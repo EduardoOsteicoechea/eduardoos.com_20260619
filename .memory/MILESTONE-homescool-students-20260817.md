@@ -1,11 +1,12 @@
 # Milestone: Homescool teacher→student spaces — 2026-08-17
 
-## Status: SHIPPED on `master`
+## Status: SHIPPED on `master` (S3 prefix → `homeschool/`)
 
 | Commit | Message |
 |--------|---------|
 | `b9c51ca` | feat/test: Homescool student registry APIs and S3 folder scaffold |
 | `4cff05e` | feat/test: Homescool UI routes, learning workspace, and nginx pretty URLs |
+| *(follow-up)* | fix: Homescool S3 keys under bucket-root `homeschool/` (not `media/homescool/`) |
 
 ## Product routes (brand: Homescool → `/homescool/*`)
 
@@ -34,14 +35,19 @@ Folders: `portfolio`, `period`, `skills`, `study_section`, `tasks`.
 ## Persistence
 
 - Logical table `homescool_student_links` (memory store today; DynamoDB-ready shape in `internal/homescool`).
-- S3 (under `S3_PREFIX`, default `media/`):
+- S3 bucket: `S3_BUCKET` (default/example `eduardoos20260607`, region `AWS_REGION` default `us-east-1`).
+- S3 keys are **bucket-root** under `homeschool/` (sibling of `media/` and `ifcbim/`, **not** under `media/`):
 
 ```
-media/homescool/{teacherSafe}/{studentSafe}/{folder}/.keep
-media/homescool/{teacherSafe}/{studentSafe}/{folder}/…objects…
+homeschool/{teacherSafe}/{studentSafe}/{folder}/.keep
+homeschool/{teacherSafe}/{studentSafe}/{folder}/…objects…
 ```
+
+Folders: `portfolio`, `period`, `skills`, `study_section`, `tasks`.
 
 `SafeEmailKey`: `@` → `_at_` (same as epams / instrumentalist).
+
+UI brand path stays `/homescool`; S3 prefix is `homeschool/` as created in the bucket.
 
 ## Tests
 

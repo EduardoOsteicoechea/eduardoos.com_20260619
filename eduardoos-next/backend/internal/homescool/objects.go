@@ -49,7 +49,7 @@ func (m *MemoryObjectSpace) EnsureStudentFolders(_ context.Context, teacherEmail
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, folder := range FolderNames {
-		key := absoluteMediaKey(KeepObjectKey(teacherEmail, studentEmail, folder))
+		key := KeepObjectKey(teacherEmail, studentEmail, folder)
 		m.keys[key] = []byte{}
 	}
 	return nil
@@ -59,7 +59,7 @@ func (m *MemoryObjectSpace) ListFolder(_ context.Context, teacherEmail, studentE
 	if !IsValidFolder(folder) {
 		return nil, fmt.Errorf("invalid folder")
 	}
-	prefix := absoluteMediaKey(FolderPrefix(teacherEmail, studentEmail, folder)) + "/"
+	prefix := FolderPrefix(teacherEmail, studentEmail, folder) + "/"
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	out := make([]FolderObject, 0)
@@ -71,18 +71,17 @@ func (m *MemoryObjectSpace) ListFolder(_ context.Context, teacherEmail, studentE
 		if name == "" || name == ".keep" || strings.HasSuffix(name, "/") {
 			continue
 		}
-		rel := relativeMediaKey(key)
 		out = append(out, FolderObject{
-			Key:  rel,
+			Key:  key,
 			Name: name,
 			Size: int64(len(body)),
-			URL:  "/api/media/file/" + encodeMediaPath(rel),
 		})
 	}
 	return out, nil
 }
 
-// S3ObjectSpace writes markers and lists under the configured media bucket.
+// S3ObjectSpace writes markers and lists under the configured media bucket
+// at the top-level homeschool/ prefix (not under media/).
 type S3ObjectSpace struct {
 	client *s3.Client
 	bucket string
@@ -92,7 +91,7 @@ func (s *S3ObjectSpace) BackendName() string { return "s3:" + s.bucket }
 
 func (s *S3ObjectSpace) EnsureStudentFolders(ctx context.Context, teacherEmail, studentEmail, correlationID string) error {
 	for _, folder := range FolderNames {
-		key := absoluteMediaKey(KeepObjectKey(teacherEmail, studentEmail, folder))
+		key := KeepObjectKey(teacherEmail, studentEmail, folder)
 		_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 			Bucket:      aws.String(s.bucket),
 			Key:         aws.String(key),
@@ -111,7 +110,7 @@ func (s *S3ObjectSpace) ListFolder(ctx context.Context, teacherEmail, studentEma
 	if !IsValidFolder(folder) {
 		return nil, fmt.Errorf("invalid folder")
 	}
-	prefix := absoluteMediaKey(FolderPrefix(teacherEmail, studentEmail, folder))
+	prefix := FolderPrefix(teacherEmail, studentEmail, folder)
 	if !strings.HasSuffix(prefix, "/") {
 		prefix += "/"
 	}
@@ -131,12 +130,10 @@ func (s *S3ObjectSpace) ListFolder(ctx context.Context, teacherEmail, studentEma
 		if strings.HasSuffix(key, "/") || strings.HasSuffix(key, "/.keep") {
 			continue
 		}
-		rel := relativeMediaKey(key)
 		name := strings.TrimPrefix(key, prefix)
 		item := FolderObject{
-			Key:  rel,
+			Key:  key,
 			Name: name,
-			URL:  "/api/media/file/" + encodeMediaPath(rel),
 		}
 		if obj.Size != nil {
 			item.Size = *obj.Size
@@ -158,59 +155,12 @@ func mediaBucket() string {
 	return b
 }
 
-func mediaPrefix() string {
-	p := strings.TrimSpace(httpx.Env("S3_PREFIX", "media"))
-	return strings.Trim(p, "/")
-}
-
-func absoluteMediaKey(relative string) string {
-	rel := strings.TrimPrefix(strings.TrimSpace(relative), "/")
-	prefix := mediaPrefix()
-	if prefix == "" {
-		return rel
-	}
-	if strings.HasPrefix(rel, prefix+"/") {
-		return rel
-	}
-	return prefix + "/" + rel
-}
-
-func relativeMediaKey(objectKey string) string {
-	objectKey = strings.TrimPrefix(objectKey, "/")
-	prefix := mediaPrefix()
-	if prefix == "" {
-		return objectKey
-	}
-	return strings.TrimPrefix(objectKey, prefix+"/")
-}
-
-func encodeMediaPath(key string) string {
-	parts := strings.Split(key, "/")
-	for i, part := range parts {
-		parts[i] = strings.ReplaceAll(part, " ", "%20")
-		// Keep parity with content.encodeMediaPath via PathEscape semantics for @ etc.
-		parts[i] = pathEscapeSegment(parts[i])
-	}
-	return strings.Join(parts, "/")
-}
-
-func pathEscapeSegment(s string) string {
-	replacer := strings.NewReplacer(
-		"@", "%40",
-		"+", "%2B",
-		"#", "%23",
-		"?", "%3F",
-		"&", "%26",
-	)
-	return replacer.Replace(s)
-}
-
 // OpenObjectSpace returns S3 when a bucket is configured and AWS creds work;
 // otherwise a memory space so local/dev registration still scaffolds folders.
 func OpenObjectSpace(ctx context.Context) ObjectSpace {
 	bucket := mediaBucket()
 	if bucket == "" {
-		log.Printf("homescool objects: memory (set S3_BUCKET for real prefixes)")
+		log.Printf("homescool objects: memory (set S3_BUCKET for real prefixes under %s/)", RootPrefix)
 		return NewMemoryObjectSpace()
 	}
 	cfg, err := awsx.LoadConfig(ctx)
@@ -218,6 +168,6 @@ func OpenObjectSpace(ctx context.Context) ObjectSpace {
 		log.Printf("homescool objects: memory fallback (aws unavailable: %v)", err)
 		return NewMemoryObjectSpace()
 	}
-	log.Printf("homescool objects: s3 bucket=%s", bucket)
+	log.Printf("homescool objects: s3 bucket=%s prefix=%s/", bucket, RootPrefix)
 	return &S3ObjectSpace{client: s3.NewFromConfig(cfg), bucket: bucket}
 }
