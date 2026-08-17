@@ -24,6 +24,11 @@ export const APP_ROUTES = {
     `/homescool/students/${encodeURIComponent(slug)}`,
   homescoolStudentWorkspace: "/homescool/students/workspace",
   homescoolLearning: "/homescool/learning",
+  /** Greek letter-by-letter book builder (admin only). */
+  greek: "/greek",
+  greekBuild: "/greek/build",
+  greekGroup: (grupo: string) => `/greek/build/${encodeURIComponent(grupo)}`,
+  greekGroupWorkspace: "/greek/build/workspace",
   bim: "/bim",
   apsAdmin: "/aps-admin",
   /** Public page path (UI label: Debate App). Format/API stay `.edebat` / `/api/edebat`. */
@@ -127,6 +132,40 @@ export const HOMESCOOL_ROUTES = {
   taskTemplateImages: (id: string) =>
     `/api/homescool/task-templates/${encodeURIComponent(id)}/images`,
   catalogs: "/api/homescool/catalogs",
+} as const;
+
+/** Greek builder — admin-only letter hierarchy under S3 greek/. */
+export const GREEK_ROUTES = {
+  groups: "/api/greek/groups",
+  group: (slug: string) => `/api/greek/groups/${encodeURIComponent(slug)}`,
+  chapters: (groupSlug: string) =>
+    `/api/greek/groups/${encodeURIComponent(groupSlug)}/chapters`,
+  verses: (groupSlug: string, chapterSlug: string) =>
+    `/api/greek/groups/${encodeURIComponent(groupSlug)}/chapters/${encodeURIComponent(chapterSlug)}/verses`,
+  words: (groupSlug: string, chapterSlug: string, verseSlug: string) =>
+    `/api/greek/groups/${encodeURIComponent(groupSlug)}/chapters/${encodeURIComponent(chapterSlug)}/verses/${encodeURIComponent(verseSlug)}/words`,
+  word: (
+    groupSlug: string,
+    chapterSlug: string,
+    verseSlug: string,
+    wordSlug: string,
+  ) =>
+    `/api/greek/groups/${encodeURIComponent(groupSlug)}/chapters/${encodeURIComponent(chapterSlug)}/verses/${encodeURIComponent(verseSlug)}/words/${encodeURIComponent(wordSlug)}`,
+  letters: (
+    groupSlug: string,
+    chapterSlug: string,
+    verseSlug: string,
+    wordSlug: string,
+  ) =>
+    `/api/greek/groups/${encodeURIComponent(groupSlug)}/chapters/${encodeURIComponent(chapterSlug)}/verses/${encodeURIComponent(verseSlug)}/words/${encodeURIComponent(wordSlug)}/letters`,
+  letter: (
+    groupSlug: string,
+    chapterSlug: string,
+    verseSlug: string,
+    wordSlug: string,
+    index: number,
+  ) =>
+    `/api/greek/groups/${encodeURIComponent(groupSlug)}/chapters/${encodeURIComponent(chapterSlug)}/verses/${encodeURIComponent(verseSlug)}/words/${encodeURIComponent(wordSlug)}/letters/${index}`,
 } as const;
 
 export const PLAYLIST_ROUTES = {

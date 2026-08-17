@@ -197,6 +197,11 @@ server {
         rewrite ^ /homescool/students/workspace/index.html last;
     }
 
+    # Greek group builder pretty URL → static shell.
+    location ~ ^/greek/build/(?!workspace/?$)([^/]+)/?$ {
+        rewrite ^ /greek/build/workspace/index.html last;
+    }
+
     # Prefer \$uri/index.html over \$uri/ to avoid empty-dir redirect → 500.
     location / {
         try_files \$uri \$uri/index.html /index.html;

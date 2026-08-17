@@ -58,10 +58,10 @@ Production uses **two inline policies** on role **`eduardoos-ec2-s3-role`**:
 
 | Policy file | Covers |
 |-------------|--------|
-| [`ec2-iam-s3-policy.json`](./ec2-iam-s3-policy.json) | `ListBucket` (`media/`, `ifcbim/`) + object access on `media/*` and `ifcbim/*` |
+| [`ec2-iam-s3-policy.json`](./ec2-iam-s3-policy.json) | `ListBucket` (`media/`, `ifcbim/`, `homeschool/`, `greek/`) + object access on those prefixes |
 | [`ec2-iam-dynamodb-policy.json`](./ec2-iam-dynamodb-policy.json) | All Eduardo OS DynamoDB tables |
 
-App objects live under **`media/`** (gallery, avatars, audio) and **`ifcbim/`** (IFC models):
+App objects live under **`media/`** (gallery, avatars, audio), **`ifcbim/`** (IFC models), **`homeschool/`** (Homescool spaces), and **`greek/`** (Greek letter books):
 
 | Path | Feature |
 |------|---------|
@@ -69,6 +69,8 @@ App objects live under **`media/`** (gallery, avatars, audio) and **`ifcbim/`** 
 | `media/profiles/` | Profile avatars |
 | `media/worship_playlists/` | Playlist audio |
 | `ifcbim/{user}/{modelId}.ifc` | Signed-in BIM models |
+| `homeschool/{teacher}/{student}/…` | Homescool learning objects |
+| `greek/{user}/{group}/chapters/…/letters/{i}.svg` | Greek letter-by-letter books |
 
 Your S3 policy shape is correct. Add **`media/`** alongside **`media/*`** in the `s3:prefix` condition (see `ec2-iam-s3-policy.json`) so `ListObjects` with prefix `media/` is allowed.
 

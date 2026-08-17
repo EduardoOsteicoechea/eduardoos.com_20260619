@@ -13,6 +13,7 @@ import (
 	"eduardoos.nex/internal/content"
 	"eduardoos.nex/internal/documents"
 	"eduardoos.nex/internal/edebat"
+	"eduardoos.nex/internal/greek"
 	"eduardoos.nex/internal/health"
 	"eduardoos.nex/internal/homescool"
 	"eduardoos.nex/internal/httpx"
@@ -28,6 +29,7 @@ import (
 // EPAMS_BACKEND / IFCBIM_BACKEND (memory default). DynamoDB mode falls back to
 // memory when AWS creds are missing. Homescool teacher→student links follow
 // HOMESCOOL_BACKEND or DATABASE_BACKEND into eduardoos_catalog.
+// Greek catalog follows GREEK_BACKEND or DATABASE_BACKEND (same catalog table).
 // SMTP_USER / SMTP_PASS drive OTP email delivery; empty SMTP_PASS logs codes locally.
 // DEV_RETURN_OTP=1 includes OTP in JSON for local testing only.
 func main() {
@@ -72,6 +74,9 @@ func main() {
 	homescoolHandler.Entitlements = paymentsHandler.Store
 	// Linked Homescool students bypass paid entitlement on CheckAccess only.
 	paymentsHandler.HomescoolStudents = homescool.LinkStudentChecker{Links: homescoolHandler.Links}
+	greekHandler := greek.NewHandler(jwtSecret, userStore)
+	greekHandler.Catalog = greek.OpenCatalogStore(ctx)
+	greekHandler.Objects = greek.OpenObjectSpace(ctx)
 	contactHandler := contact.NewHandler(authHandler)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
 
@@ -92,11 +97,13 @@ func main() {
 	edebatHandler.Routes(r)
 	instrumentalistHandler.Routes(r)
 	homescoolHandler.Routes(r)
+	greekHandler.Routes(r)
 	adminHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
-	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s epams=%s ifcbim=%s",
-		userStore.BackendName(), homescoolHandler.Links.BackendName(), homescoolHandler.Tasks.BackendName(), epamStore.BackendName(), bimStore.BackendName())
+	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s greek=%s epams=%s ifcbim=%s",
+		userStore.BackendName(), homescoolHandler.Links.BackendName(), homescoolHandler.Tasks.BackendName(),
+		greekHandler.Catalog.BackendName(), epamStore.BackendName(), bimStore.BackendName())
 	// pass_set / pass_norm_len use normalizeSMTPPass (Unicode spaces + quotes stripped).
 	// Never log the secret itself — only lengths for operator checks (Gmail app pw = 16).
 	passNorm := auth.NormalizeSMTPPassForLog(authHandler.SMTPPass)

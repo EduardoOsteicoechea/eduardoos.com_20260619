@@ -8,7 +8,16 @@
       "Resource": "arn:aws:s3:::eduardoos20260607",
       "Condition": {
         "StringLike": {
-          "s3:prefix": ["media/", "media/*", "ifcbim/", "ifcbim/*"]
+          "s3:prefix": [
+            "media/",
+            "media/*",
+            "ifcbim/",
+            "ifcbim/*",
+            "homeschool/",
+            "homeschool/*",
+            "greek/",
+            "greek/*"
+          ]
         }
       }
     },
@@ -23,6 +32,18 @@
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
       "Resource": "arn:aws:s3:::eduardoos20260607/ifcbim/*"
+    },
+    {
+      "Sid": "S3HomeschoolObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::eduardoos20260607/homeschool/*"
+    },
+    {
+      "Sid": "S3GreekObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::eduardoos20260607/greek/*"
     },
     {
       "Sid": "S3ListApsBucket",
