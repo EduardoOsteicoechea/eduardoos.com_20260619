@@ -15,6 +15,7 @@ import (
 	"eduardoos.nex/internal/documents"
 	"eduardoos.nex/internal/edebat"
 	"eduardoos.nex/internal/health"
+	"eduardoos.nex/internal/homescool"
 	"eduardoos.nex/internal/httpx"
 	"eduardoos.nex/internal/instrumentalist"
 	"eduardoos.nex/internal/payments"
@@ -61,6 +62,8 @@ func main() {
 	documentsHandler := documents.NewHandler(jwtSecret)
 	edebatHandler := edebat.NewHandler(jwtSecret)
 	instrumentalistHandler := instrumentalist.NewHandler(jwtSecret)
+	homescoolHandler := homescool.NewHandler(jwtSecret, userStore)
+	homescoolHandler.Objects = homescool.OpenObjectSpace(ctx)
 	contactHandler := contact.NewHandler(authHandler)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
 
@@ -80,6 +83,7 @@ func main() {
 	documentsHandler.Routes(r)
 	edebatHandler.Routes(r)
 	instrumentalistHandler.Routes(r)
+	homescoolHandler.Routes(r)
 	adminHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
