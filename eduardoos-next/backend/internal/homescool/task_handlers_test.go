@@ -10,25 +10,25 @@ import (
 )
 
 func TestScoreBandAndValidate(t *testing.T) {
-	if ScoreBand(1) != "minimo" || ScoreBand(3) != "minimo" {
-		t.Fatal("1-3 minimo")
+	if ScoreBand(1) != "minimo" {
+		t.Fatal("1 minimo")
 	}
-	if ScoreBand(4) != "pobre" || ScoreBand(5) != "pobre" {
-		t.Fatal("4-5 pobre")
+	if ScoreBand(2) != "pobre" {
+		t.Fatal("2 pobre")
 	}
-	if ScoreBand(6) != "aprobado" || ScoreBand(7) != "aprobado" {
-		t.Fatal("6-7 aprobado")
+	if ScoreBand(3) != "aprobado" {
+		t.Fatal("3 aprobado")
 	}
-	if ScoreBand(8) != "bueno" || ScoreBand(10) != "bueno" {
-		t.Fatal("8-10 bueno")
+	if ScoreBand(4) != "bueno" || ScoreBand(5) != "bueno" {
+		t.Fatal("4-5 bueno")
 	}
-	if err := ValidateScore(0, 10); err == nil {
+	if err := ValidateScore(0, 5); err == nil {
 		t.Fatal("score 0 should fail")
 	}
-	if err := ValidateScore(11, 10); err == nil {
-		t.Fatal("score 11 should fail")
+	if err := ValidateScore(6, 5); err == nil {
+		t.Fatal("score 6 should fail")
 	}
-	if NormalizeMaxScore(0) != 10 || NormalizeMaxScore(15) != 10 {
+	if NormalizeMaxScore(0) != 5 || NormalizeMaxScore(15) != 5 {
 		t.Fatal("max score clamp")
 	}
 }
@@ -52,7 +52,7 @@ func TestTaskTemplateAssignSubmitGradeArchive(t *testing.T) {
 
 	// Create template.
 	tplReq := httptest.NewRequest(http.MethodPost, "/api/homescool/task-templates",
-		bytes.NewBufferString(`{"name":"Essay","description":"Write about trees","period":"2026-Q1","studyArea":"science","durationMin":45,"maxScore":10}`))
+		bytes.NewBufferString(`{"name":"Essay","description":"Write about trees","period":"2026-Q1","studyArea":"science","durationMin":45,"maxScore":5}`))
 	tplReq.Header.Set("Authorization", "Bearer "+teacherTok)
 	tplReq.Header.Set("Content-Type", "application/json")
 	tplRec := httptest.NewRecorder()
@@ -141,7 +141,7 @@ func TestTaskTemplateAssignSubmitGradeArchive(t *testing.T) {
 	// Grade validate → Listas / ready.
 	grade := httptest.NewRequest(http.MethodPost,
 		"/api/homescool/students/student_at_example.com/tasks/"+taskID+"/grade",
-		bytes.NewBufferString(`{"decision":"validate","score":9,"note":"Excellent"}`))
+		bytes.NewBufferString(`{"decision":"validate","score":5,"note":"Excellent"}`))
 	grade.Header.Set("Authorization", "Bearer "+teacherTok)
 	grade.Header.Set("Content-Type", "application/json")
 	gradeRec := httptest.NewRecorder()
@@ -152,7 +152,7 @@ func TestTaskTemplateAssignSubmitGradeArchive(t *testing.T) {
 	var gradeBody map[string]any
 	_ = json.Unmarshal(gradeRec.Body.Bytes(), &gradeBody)
 	if gradeBody["scoreBand"] != "bueno" {
-		t.Fatalf("want bueno for 9, got %#v", gradeBody)
+		t.Fatalf("want bueno for 5, got %#v", gradeBody)
 	}
 	graded := gradeBody["task"].(map[string]any)
 	if graded["status"] != TaskStatusReady {
@@ -224,7 +224,7 @@ func TestRejectReturnsToPending(t *testing.T) {
 
 	grade := httptest.NewRequest(http.MethodPost,
 		"/api/homescool/students/student_at_example.com/tasks/"+taskID+"/grade",
-		bytes.NewBufferString(`{"decision":"reject","score":3}`))
+		bytes.NewBufferString(`{"decision":"reject","score":1}`))
 	grade.Header.Set("Authorization", "Bearer "+teacherTok)
 	grade.Header.Set("Content-Type", "application/json")
 	gradeRec := httptest.NewRecorder()
@@ -232,9 +232,82 @@ func TestRejectReturnsToPending(t *testing.T) {
 	var gradeBody map[string]any
 	_ = json.Unmarshal(gradeRec.Body.Bytes(), &gradeBody)
 	if gradeBody["scoreBand"] != "minimo" {
-		t.Fatalf("want minimo for 3, got %#v", gradeBody)
+		t.Fatalf("want minimo for 1, got %#v", gradeBody)
 	}
 	if gradeBody["task"].(map[string]any)["status"] != TaskStatusPending {
 		t.Fatalf("reject should return pending, got %#v", gradeBody)
+	}
+}
+
+func TestCatalogCreateAndList(t *testing.T) {
+	_, r, users := testRouter(t)
+	seedUsers(t, users, "teacher@example.com")
+	teacherTok := bearer(t, "teacher@example.com")
+
+	periodReq := httptest.NewRequest(http.MethodPost, "/api/homescool/catalogs",
+		bytes.NewBufferString(`{"kind":"period","label":"2026-Q1"}`))
+	periodReq.Header.Set("Authorization", "Bearer "+teacherTok)
+	periodReq.Header.Set("Content-Type", "application/json")
+	periodRec := httptest.NewRecorder()
+	r.ServeHTTP(periodRec, periodReq)
+	if periodRec.Code != http.StatusCreated {
+		t.Fatalf("period status=%d body=%s", periodRec.Code, periodRec.Body.String())
+	}
+
+	areaReq := httptest.NewRequest(http.MethodPost, "/api/homescool/catalogs",
+		bytes.NewBufferString(`{"kind":"study_area","label":"science"}`))
+	areaReq.Header.Set("Authorization", "Bearer "+teacherTok)
+	areaReq.Header.Set("Content-Type", "application/json")
+	areaRec := httptest.NewRecorder()
+	r.ServeHTTP(areaRec, areaReq)
+	if areaRec.Code != http.StatusCreated {
+		t.Fatalf("area status=%d body=%s", areaRec.Code, areaRec.Body.String())
+	}
+
+	timeReq := httptest.NewRequest(http.MethodPost, "/api/homescool/catalogs",
+		bytes.NewBufferString(`{"kind":"time","label":"45 min","durationMin":45}`))
+	timeReq.Header.Set("Authorization", "Bearer "+teacherTok)
+	timeReq.Header.Set("Content-Type", "application/json")
+	timeRec := httptest.NewRecorder()
+	r.ServeHTTP(timeRec, timeReq)
+	if timeRec.Code != http.StatusCreated {
+		t.Fatalf("time status=%d body=%s", timeRec.Code, timeRec.Body.String())
+	}
+
+	badTime := httptest.NewRequest(http.MethodPost, "/api/homescool/catalogs",
+		bytes.NewBufferString(`{"kind":"time","label":"bad"}`))
+	badTime.Header.Set("Authorization", "Bearer "+teacherTok)
+	badTime.Header.Set("Content-Type", "application/json")
+	badTimeRec := httptest.NewRecorder()
+	r.ServeHTTP(badTimeRec, badTime)
+	if badTimeRec.Code != http.StatusBadRequest {
+		t.Fatalf("time without duration status=%d", badTimeRec.Code)
+	}
+
+	list := httptest.NewRequest(http.MethodGet, "/api/homescool/catalogs?kind=period", nil)
+	list.Header.Set("Authorization", "Bearer "+teacherTok)
+	listRec := httptest.NewRecorder()
+	r.ServeHTTP(listRec, list)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list status=%d", listRec.Code)
+	}
+	var listBody map[string]any
+	_ = json.Unmarshal(listRec.Body.Bytes(), &listBody)
+	entries := listBody["entries"].([]any)
+	if len(entries) != 1 {
+		t.Fatalf("want 1 period, got %#v", listBody)
+	}
+	if entries[0].(map[string]any)["label"] != "2026-Q1" {
+		t.Fatalf("unexpected period %#v", entries[0])
+	}
+
+	all := httptest.NewRequest(http.MethodGet, "/api/homescool/catalogs", nil)
+	all.Header.Set("Authorization", "Bearer "+teacherTok)
+	allRec := httptest.NewRecorder()
+	r.ServeHTTP(allRec, all)
+	var allBody map[string]any
+	_ = json.Unmarshal(allRec.Body.Bytes(), &allBody)
+	if int(allBody["count"].(float64)) != 3 {
+		t.Fatalf("want 3 catalog entries, got %#v", allBody)
 	}
 }

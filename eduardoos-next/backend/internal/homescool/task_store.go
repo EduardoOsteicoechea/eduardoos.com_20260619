@@ -11,7 +11,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// TaskStore persists teacher task templates and per-student assigned tasks.
+// TaskStore persists teacher task templates, per-student assigned tasks, and
+// teacher catalogs (period / study area / time presets).
 // Production uses DynamoDB via OpenTaskStore; tests use MemoryTaskStore.
 type TaskStore interface {
 	BackendName() string
@@ -26,6 +27,9 @@ type TaskStore interface {
 	GetTask(ctx context.Context, teacherEmail, studentEmail, id string) (AssignedTask, bool, error)
 	ListTasksByTeacherStudent(ctx context.Context, teacherEmail, studentEmail string) ([]AssignedTask, error)
 	ListTasksByStudent(ctx context.Context, studentEmail string) ([]AssignedTask, error)
+
+	CreateCatalogEntry(ctx context.Context, entry CatalogEntry) (CatalogEntry, error)
+	ListCatalogEntries(ctx context.Context, teacherEmail, kind string) ([]CatalogEntry, error)
 }
 
 // MemoryTaskStore is process-local persistence for tests and local development.
@@ -33,13 +37,15 @@ type MemoryTaskStore struct {
 	mu        sync.RWMutex
 	templates map[string]TaskTemplate
 	tasks     map[string]AssignedTask
+	catalogs  map[string]CatalogEntry
 }
 
-// NewMemoryTaskStore constructs empty template + task maps.
+// NewMemoryTaskStore constructs empty template + task + catalog maps.
 func NewMemoryTaskStore() *MemoryTaskStore {
 	return &MemoryTaskStore{
 		templates: map[string]TaskTemplate{},
 		tasks:     map[string]AssignedTask{},
+		catalogs:  map[string]CatalogEntry{},
 	}
 }
 
@@ -51,6 +57,10 @@ func templateKey(teacherEmail, id string) string {
 
 func taskKey(teacherEmail, studentEmail, id string) string {
 	return auth.NormalizeEmail(teacherEmail) + "|" + auth.NormalizeEmail(studentEmail) + "|task|" + strings.TrimSpace(id)
+}
+
+func catalogKey(teacherEmail, kind, id string) string {
+	return auth.NormalizeEmail(teacherEmail) + "|cat|" + NormalizeCatalogKind(kind) + "|" + strings.TrimSpace(id)
 }
 
 func (s *MemoryTaskStore) CreateTemplate(_ context.Context, tpl TaskTemplate) (TaskTemplate, error) {
@@ -213,6 +223,49 @@ func (s *MemoryTaskStore) ListTasksByStudent(_ context.Context, studentEmail str
 		if task.StudentEmail == studentEmail {
 			out = append(out, cloneTask(task))
 		}
+	}
+	return out, nil
+}
+
+func (s *MemoryTaskStore) CreateCatalogEntry(_ context.Context, entry CatalogEntry) (CatalogEntry, error) {
+	entry.TeacherEmail = auth.NormalizeEmail(entry.TeacherEmail)
+	entry.Kind = NormalizeCatalogKind(entry.Kind)
+	entry.Label = strings.TrimSpace(entry.Label)
+	if entry.TeacherEmail == "" {
+		return CatalogEntry{}, fmt.Errorf("teacherEmail required")
+	}
+	if err := ValidateCatalogEntry(entry); err != nil {
+		return CatalogEntry{}, err
+	}
+	if entry.Kind != CatalogKindTime {
+		entry.DurationMin = 0
+	}
+	if entry.ID == "" {
+		entry.ID = uuid.NewString()
+	}
+	if entry.CreatedAt == "" {
+		entry.CreatedAt = auth.NowRFC3339()
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.catalogs[catalogKey(entry.TeacherEmail, entry.Kind, entry.ID)] = cloneCatalogEntry(entry)
+	return cloneCatalogEntry(entry), nil
+}
+
+func (s *MemoryTaskStore) ListCatalogEntries(_ context.Context, teacherEmail, kind string) ([]CatalogEntry, error) {
+	teacherEmail = auth.NormalizeEmail(teacherEmail)
+	kind = NormalizeCatalogKind(kind)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]CatalogEntry, 0)
+	for _, e := range s.catalogs {
+		if e.TeacherEmail != teacherEmail {
+			continue
+		}
+		if kind != "" && e.Kind != kind {
+			continue
+		}
+		out = append(out, cloneCatalogEntry(e))
 	}
 	return out, nil
 }

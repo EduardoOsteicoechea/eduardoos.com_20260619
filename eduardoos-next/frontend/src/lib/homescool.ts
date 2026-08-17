@@ -122,16 +122,29 @@ export type HomescoolTaskTemplate = {
 export type HomescoolTaskBoards = Record<HomescoolTaskStatus, HomescoolTask[]>;
 
 /**
- * Score band for the 10-segment bar (documented in CSS):
- * 1–3 mínimo (red), 4–5 pobre (yellow), 6–7 aprobado (pale lime), 8–10 bueno (green).
+ * Score band for the 5-segment bar (documented in CSS):
+ * 1 mínimo (red), 2 pobre (yellow), 3 aprobado (pale lime), 4–5 bueno (green).
  */
 export type HomescoolScoreBand = "minimo" | "pobre" | "aprobado" | "bueno" | "";
 
+export const HOMESCOOL_MAX_SCORE = 5;
+
+export type HomescoolCatalogKind = "period" | "study_area" | "time";
+
+export type HomescoolCatalogEntry = {
+  id: string;
+  teacherEmail: string;
+  kind: HomescoolCatalogKind | string;
+  label: string;
+  durationMin?: number;
+  createdAt: string;
+};
+
 export function scoreBand(score: number): HomescoolScoreBand {
   if (score <= 0) return "";
-  if (score <= 3) return "minimo";
-  if (score <= 5) return "pobre";
-  if (score <= 7) return "aprobado";
+  if (score === 1) return "minimo";
+  if (score === 2) return "pobre";
+  if (score === 3) return "aprobado";
   return "bueno";
 }
 
@@ -308,6 +321,25 @@ export async function createTaskTemplate(input: {
   maxScore?: number;
 }): Promise<{ template: HomescoolTaskTemplate }> {
   return homescoolRequest(HOMESCOOL_ROUTES.taskTemplates, {
+    method: "POST",
+    body: input,
+  });
+}
+
+export async function listCatalogEntries(kind?: HomescoolCatalogKind): Promise<{
+  entries: HomescoolCatalogEntry[];
+  count: number;
+}> {
+  const qs = kind ? `?kind=${encodeURIComponent(kind)}` : "";
+  return homescoolRequest(`${HOMESCOOL_ROUTES.catalogs}${qs}`);
+}
+
+export async function createCatalogEntry(input: {
+  kind: HomescoolCatalogKind;
+  label: string;
+  durationMin?: number;
+}): Promise<{ entry: HomescoolCatalogEntry }> {
+  return homescoolRequest(HOMESCOOL_ROUTES.catalogs, {
     method: "POST",
     body: input,
   });

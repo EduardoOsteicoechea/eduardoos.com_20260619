@@ -44,12 +44,12 @@ function studentWorkspaceHref(slug) {
   return `${HOMESCOOL_WORKSPACE}?student=${encodeURIComponent(slug)}`;
 }
 
-/** Mirrors Go ScoreBand / frontend scoreBand. */
+/** Mirrors Go ScoreBand / frontend scoreBand (1–5). */
 function scoreBand(score) {
   if (score <= 0) return "";
-  if (score <= 3) return "minimo";
-  if (score <= 5) return "pobre";
-  if (score <= 7) return "aprobado";
+  if (score === 1) return "minimo";
+  if (score === 2) return "pobre";
+  if (score === 3) return "aprobado";
   return "bueno";
 }
 
@@ -81,15 +81,12 @@ describe("homescool helpers", () => {
     );
   });
 
-  it("scoreBand maps 1–10 into color bands", () => {
+  it("scoreBand maps 1–5 into color bands", () => {
     assert.equal(scoreBand(1), "minimo");
-    assert.equal(scoreBand(3), "minimo");
-    assert.equal(scoreBand(4), "pobre");
-    assert.equal(scoreBand(5), "pobre");
-    assert.equal(scoreBand(6), "aprobado");
-    assert.equal(scoreBand(7), "aprobado");
-    assert.equal(scoreBand(8), "bueno");
-    assert.equal(scoreBand(10), "bueno");
+    assert.equal(scoreBand(2), "pobre");
+    assert.equal(scoreBand(3), "aprobado");
+    assert.equal(scoreBand(4), "bueno");
+    assert.equal(scoreBand(5), "bueno");
   });
 
   it("folders sidebar preference parses 1/0/true (default open)", () => {

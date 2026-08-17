@@ -1,11 +1,13 @@
 /**
- * Assign tasks modal: pick period → study area → select template cards → set dates → assign.
+ * Assign tasks modal: pick period → study area from catalogs → select template cards → dates.
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   assignStudentTasks,
+  listCatalogEntries,
   listTaskTemplates,
+  type HomescoolCatalogEntry,
   type HomescoolTaskTemplate,
 } from "../../lib/homescool";
 import "./Homescool.css";
@@ -19,6 +21,8 @@ type Props = {
 
 export default function AssignTasksModal({ studentSlug, open, onClose, onAssigned }: Props) {
   const [templates, setTemplates] = useState<HomescoolTaskTemplate[]>([]);
+  const [periods, setPeriods] = useState<HomescoolCatalogEntry[]>([]);
+  const [areas, setAreas] = useState<HomescoolCatalogEntry[]>([]);
   const [period, setPeriod] = useState("");
   const [studyArea, setStudyArea] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -31,10 +35,21 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
     let cancelled = false;
     void (async () => {
       try {
-        const data = await listTaskTemplates();
-        if (!cancelled) setTemplates(data.templates ?? []);
+        const [tplData, periodData, areaData] = await Promise.all([
+          listTaskTemplates(),
+          listCatalogEntries("period"),
+          listCatalogEntries("study_area"),
+        ]);
+        if (cancelled) return;
+        setTemplates(tplData.templates ?? []);
+        setPeriods(periodData.entries ?? []);
+        setAreas(areaData.entries ?? []);
       } catch {
-        if (!cancelled) setTemplates([]);
+        if (!cancelled) {
+          setTemplates([]);
+          setPeriods([]);
+          setAreas([]);
+        }
       }
     })();
     return () => {
@@ -42,22 +57,10 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
     };
   }, [open]);
 
-  const periods = useMemo(() => {
-    const set = new Set<string>();
-    for (const t of templates) {
-      if (t.period) set.add(t.period);
-    }
-    return Array.from(set).sort();
-  }, [templates]);
-
-  const areas = useMemo(() => {
-    const set = new Set<string>();
-    for (const t of templates) {
-      if (period && t.period !== period) continue;
-      if (t.studyArea) set.add(t.studyArea);
-    }
-    return Array.from(set).sort();
-  }, [templates, period]);
+  const filteredAreas = useMemo(() => {
+    // Catalog areas are independent; still show all study areas for filtering.
+    return areas;
+  }, [areas]);
 
   const filtered = useMemo(() => {
     return templates.filter((t) => {
@@ -123,8 +126,8 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
               >
                 <option value="">All periods</option>
                 {periods.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                  <option key={p.id} value={p.label}>
+                    {p.label}
                   </option>
                 ))}
               </select>
@@ -137,9 +140,9 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
                 disabled={busy}
               >
                 <option value="">All areas</option>
-                {areas.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
+                {filteredAreas.map((a) => (
+                  <option key={a.id} value={a.label}>
+                    {a.label}
                   </option>
                 ))}
               </select>
@@ -186,7 +189,7 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
               );
             })}
             {filtered.length === 0 ? (
-              <p className="homescool-empty">No templates match. Create templates in the sidebar first.</p>
+              <p className="homescool-empty">No templates match. Create catalogs and templates in the sidebar first.</p>
             ) : null}
           </div>
           <button

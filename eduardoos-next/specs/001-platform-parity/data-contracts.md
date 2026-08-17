@@ -52,6 +52,17 @@ When `HOMESCOOL_BACKEND` or `DATABASE_BACKEND` is `dynamodb`, links persist in
 S3 folder bodies remain under `homeschool/...` (independent of the link row).
 Re-register is idempotent (existing link → HTTP 200 + re-ensure `.keep` markers).
 
+Same table also holds Homescool task templates, assigned tasks, and teacher catalogs:
+
+| SK | Role |
+|----|------|
+| `homescool-tpl:t:{teacher}\|id:{id}` | Task template |
+| `homescool-task:t:{teacher}\|s:{student}\|id:{id}` | Assigned task |
+| `homescool-task-by-student:s:{student}\|t:{teacher}\|id:{id}` | Student task index |
+| `homescool-cat:t:{teacher}\|k:{kind}\|id:{id}` | Catalog (`period` / `study_area` / `time`) |
+
+Task scores are integers **1–5** (max score clamped to 5).
+
 ## Auth hashing
 
 Production authenticator uses `sha256:` + hex digest for passwords.

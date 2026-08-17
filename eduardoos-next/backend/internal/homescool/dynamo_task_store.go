@@ -17,12 +17,13 @@ import (
 	"github.com/google/uuid"
 )
 
-// dynamoTaskStore persists templates and assigned tasks in eduardoos_catalog
+// dynamoTaskStore persists templates, assigned tasks, and catalogs in eduardoos_catalog
 // (same PK/SK/data KV shape as teacher→student links).
 //
 //	homescool-tpl:t:{teacher}|id:{id}
 //	homescool-task:t:{teacher}|s:{student}|id:{id}
 //	homescool-task-by-student:s:{student}|t:{teacher}|id:{id}
+//	homescool-cat:t:{teacher}|k:{kind}|id:{id}
 type dynamoTaskStore struct {
 	client *dynamodb.Client
 	table  string
@@ -55,6 +56,20 @@ func taskByStudentSK(studentEmail, teacherEmail, id string) string {
 
 func taskByStudentSKPrefix(studentEmail string) string {
 	return "homescool-task-by-student:s:" + auth.NormalizeEmail(studentEmail) + "|t:"
+}
+
+func catalogSK(teacherEmail, kind, id string) string {
+	return "homescool-cat:t:" + auth.NormalizeEmail(teacherEmail) +
+		"|k:" + NormalizeCatalogKind(kind) + "|id:" + strings.TrimSpace(id)
+}
+
+func catalogSKPrefix(teacherEmail string) string {
+	return "homescool-cat:t:" + auth.NormalizeEmail(teacherEmail) + "|k:"
+}
+
+func catalogSKKindPrefix(teacherEmail, kind string) string {
+	return "homescool-cat:t:" + auth.NormalizeEmail(teacherEmail) +
+		"|k:" + NormalizeCatalogKind(kind) + "|id:"
 }
 
 func (d *dynamoTaskStore) putJSON(ctx context.Context, sk string, value any) error {
@@ -295,6 +310,70 @@ func (d *dynamoTaskStore) ListTasksByTeacherStudent(ctx context.Context, teacher
 
 func (d *dynamoTaskStore) ListTasksByStudent(ctx context.Context, studentEmail string) ([]AssignedTask, error) {
 	return d.queryTasks(ctx, taskByStudentSKPrefix(studentEmail))
+}
+
+func (d *dynamoTaskStore) queryCatalogs(ctx context.Context, skPrefix string) ([]CatalogEntry, error) {
+	out, err := d.client.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(d.table),
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: "APP"},
+			":sk": &types.AttributeValueMemberS{Value: skPrefix},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	items := make([]CatalogEntry, 0, len(out.Items))
+	for _, item := range out.Items {
+		data, ok := item["data"].(*types.AttributeValueMemberS)
+		if !ok || data.Value == "" {
+			continue
+		}
+		var entry CatalogEntry
+		if err := json.Unmarshal([]byte(data.Value), &entry); err != nil {
+			continue
+		}
+		items = append(items, cloneCatalogEntry(entry))
+	}
+	return items, nil
+}
+
+func (d *dynamoTaskStore) CreateCatalogEntry(ctx context.Context, entry CatalogEntry) (CatalogEntry, error) {
+	entry.TeacherEmail = auth.NormalizeEmail(entry.TeacherEmail)
+	entry.Kind = NormalizeCatalogKind(entry.Kind)
+	entry.Label = strings.TrimSpace(entry.Label)
+	if entry.TeacherEmail == "" {
+		return CatalogEntry{}, fmt.Errorf("teacherEmail required")
+	}
+	if err := ValidateCatalogEntry(entry); err != nil {
+		return CatalogEntry{}, err
+	}
+	if entry.Kind != CatalogKindTime {
+		entry.DurationMin = 0
+	}
+	if entry.ID == "" {
+		entry.ID = uuid.NewString()
+	}
+	if entry.CreatedAt == "" {
+		entry.CreatedAt = auth.NowRFC3339()
+	}
+	if err := d.putJSON(ctx, catalogSK(entry.TeacherEmail, entry.Kind, entry.ID), entry); err != nil {
+		return CatalogEntry{}, err
+	}
+	return cloneCatalogEntry(entry), nil
+}
+
+func (d *dynamoTaskStore) ListCatalogEntries(ctx context.Context, teacherEmail, kind string) ([]CatalogEntry, error) {
+	kind = NormalizeCatalogKind(kind)
+	prefix := catalogSKPrefix(teacherEmail)
+	if kind != "" {
+		if !IsValidCatalogKind(kind) {
+			return nil, fmt.Errorf("kind must be period, study_area, or time")
+		}
+		prefix = catalogSKKindPrefix(teacherEmail, kind)
+	}
+	return d.queryCatalogs(ctx, prefix)
 }
 
 func newDynamoTaskStore(ctx context.Context) (*dynamoTaskStore, error) {

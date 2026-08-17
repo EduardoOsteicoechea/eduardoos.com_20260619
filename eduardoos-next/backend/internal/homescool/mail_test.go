@@ -65,7 +65,7 @@ func TestNotifyTaskAssignedAndGraded(t *testing.T) {
 		Name:         "Essay",
 		StartDate:    "2026-08-01",
 		EndDate:      "2026-08-15",
-		MaxScore:     10,
+		MaxScore:     5,
 		Grade: &TaskGrade{
 			Decision: GradeValidate,
 			Score:    9,

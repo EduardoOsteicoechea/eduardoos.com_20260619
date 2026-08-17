@@ -15,12 +15,15 @@ import (
 
 const maxTaskUploadBytes = 12 << 20 // 12 MiB per proof/template file
 
-// mountTeacherTaskRoutes registers template + teacher board endpoints.
+// mountTeacherTaskRoutes registers template + catalog + teacher board endpoints.
 func (h *Handler) mountTeacherTaskRoutes(pr chi.Router) {
 	pr.Post("/api/homescool/task-templates", h.CreateTaskTemplate)
 	pr.Get("/api/homescool/task-templates", h.ListTaskTemplates)
 	pr.Get("/api/homescool/task-templates/{templateId}", h.GetTaskTemplate)
 	pr.Post("/api/homescool/task-templates/{templateId}/images", h.UploadTemplateImage)
+
+	pr.Post("/api/homescool/catalogs", h.CreateCatalogEntry)
+	pr.Get("/api/homescool/catalogs", h.ListCatalogEntries)
 
 	pr.Post("/api/homescool/students/{studentSlug}/tasks", h.AssignTasks)
 	pr.Get("/api/homescool/students/{studentSlug}/tasks", h.ListTeacherStudentTasks)
@@ -155,6 +158,55 @@ func (h *Handler) UploadTemplateImage(w http.ResponseWriter, r *http.Request) {
 		"key":      key,
 		"name":     name,
 		"size":     len(data),
+	})
+}
+
+// CreateCatalogEntry stores a teacher-owned period, study area, or time preset.
+func (h *Handler) CreateCatalogEntry(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	teacher := auth.UserEmailFromRequest(r)
+	var body struct {
+		Kind        string `json:"kind"`
+		Label       string `json:"label"`
+		DurationMin int    `json:"durationMin"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	entry, err := h.Tasks.CreateCatalogEntry(r.Context(), CatalogEntry{
+		TeacherEmail: teacher,
+		Kind:         body.Kind,
+		Label:        body.Label,
+		DurationMin:  body.DurationMin,
+	})
+	if err != nil {
+		log.Printf("[correlation=%s] homescool.catalog.create error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	log.Printf("[correlation=%s] homescool.catalog.create teacher=%s kind=%s id=%s", cid, teacher, entry.Kind, entry.ID)
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"entry": entry})
+}
+
+// ListCatalogEntries returns the caller's catalog rows, optionally filtered by kind.
+func (h *Handler) ListCatalogEntries(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	teacher := auth.UserEmailFromRequest(r)
+	kind := r.URL.Query().Get("kind")
+	if kind != "" && !IsValidCatalogKind(kind) {
+		httpx.WriteError(w, http.StatusBadRequest, "kind must be period, study_area, or time")
+		return
+	}
+	items, err := h.Tasks.ListCatalogEntries(r.Context(), teacher, kind)
+	if err != nil {
+		log.Printf("[correlation=%s] homescool.catalog.list error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not list catalogs")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"entries": items,
+		"count":   len(items),
 	})
 }
 
@@ -305,7 +357,7 @@ func taskBoardsPayload(items []AssignedTask) map[string][]AssignedTask {
 	return boards
 }
 
-// GradeTask lets the teacher validate or reject a submitted response with score 1–10.
+// GradeTask lets the teacher validate or reject a submitted response with score 1–5.
 func (h *Handler) GradeTask(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	teacher := auth.UserEmailFromRequest(r)

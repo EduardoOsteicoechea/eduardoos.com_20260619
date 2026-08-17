@@ -92,18 +92,18 @@ func IsValidTaskStatus(s string) bool {
 	}
 }
 
-// NormalizeMaxScore clamps a template/task max score into 1–10 (default 10).
+// NormalizeMaxScore clamps a template/task max score into 1–5 (default 5).
 func NormalizeMaxScore(n int) int {
 	if n <= 0 {
-		return 10
+		return 5
 	}
-	if n > 10 {
-		return 10
+	if n > 5 {
+		return 5
 	}
 	return n
 }
 
-// ValidateScore ensures a grade is an integer in [1, maxScore] (max capped at 10).
+// ValidateScore ensures a grade is an integer in [1, maxScore] (max capped at 5).
 func ValidateScore(score, maxScore int) error {
 	maxScore = NormalizeMaxScore(maxScore)
 	if score < 1 || score > maxScore {
@@ -112,21 +112,21 @@ func ValidateScore(score, maxScore int) error {
 	return nil
 }
 
-// ScoreBand maps a 1–10 score into the UI color band used by the segment bar.
+// ScoreBand maps a 1–5 score into the UI color band used by the 5-segment bar.
 //
-//	1–3  mínimo  (red)
-//	4–5  pobre   (yellow)
-//	6–7  aprobado (pale lime)
-//	8–10 bueno   (green)
+//	1     mínimo   (red)
+//	2     pobre    (yellow)
+//	3     aprobado (pale lime)
+//	4–5   bueno    (green)
 func ScoreBand(score int) string {
 	switch {
 	case score <= 0:
 		return ""
-	case score <= 3:
+	case score == 1:
 		return "minimo"
-	case score <= 5:
+	case score == 2:
 		return "pobre"
-	case score <= 7:
+	case score == 3:
 		return "aprobado"
 	default:
 		return "bueno"

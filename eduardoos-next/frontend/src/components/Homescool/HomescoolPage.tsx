@@ -29,7 +29,7 @@ export default function HomescoolPage() {
         </div>
         <ul className="product-page__list">
           <li>Student folders: portfolio, period, skills, study section, tasks</li>
-          <li>Tasks: templates, assign, student response (text/md + files), teacher grade 1–10</li>
+          <li>Tasks: templates, assign, student response (text/md + files), teacher grade 1–5</li>
           <li>Cloud objects live under S3 <code>homeschool/…</code> per teacher→student</li>
           <li>Only existing platform accounts can be registered as students</li>
         </ul>

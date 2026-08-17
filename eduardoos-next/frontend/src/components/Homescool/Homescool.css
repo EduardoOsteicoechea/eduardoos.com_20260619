@@ -1,9 +1,23 @@
 /**
  * Homescool surfaces — gallery-atelier / muted steel, plain CSS via --site-* tokens.
+ *
+ * Shared horizontal inset: ALL STUDENTS / HUB nav, Folders sidebar content, and
+ * main pane share the same left gutter so the chrome reads flush (no “descuadre”).
  */
+.homescool-workspace,
+.page-shell.page-shell--homescool-flush {
+  --homescool-gutter: 0.85rem;
+}
 
 .homescool-workspace__nav {
   margin-bottom: 0.75rem;
+  padding-left: var(--homescool-gutter, 0.85rem);
+  padding-right: var(--homescool-gutter, 0.85rem);
+}
+
+.page-shell.page-shell--homescool-flush > .homescool-empty {
+  padding-left: var(--homescool-gutter, 0.85rem);
+  padding-right: var(--homescool-gutter, 0.85rem);
 }
 
 .homescool-form {
@@ -96,8 +110,8 @@
 .homescool-workspace__aside {
   border-right: 1px solid var(--site-border);
   /* Symmetric inset: left padding matches right padding of the folders column. */
-  padding-left: 0.85rem;
-  padding-right: 0.85rem;
+  padding-left: var(--homescool-gutter, 0.85rem);
+  padding-right: var(--homescool-gutter, 0.85rem);
 }
 
 .homescool-workspace__aside-head {
@@ -183,6 +197,18 @@
 
 .homescool-workspace__main {
   min-width: 0;
+  /* Same left inset as Folders sidebar content / top nav buttons. */
+  padding-left: var(--homescool-gutter, 0.85rem);
+  padding-right: var(--homescool-gutter, 0.85rem);
+}
+
+.homescool-teacher-select {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-left: var(--homescool-gutter, 0.85rem);
+  padding-right: var(--homescool-gutter, 0.85rem);
 }
 
 .homescool-workspace__brand {
@@ -244,13 +270,6 @@
   opacity: 0.8;
 }
 
-.homescool-teacher-select {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
 @media (max-width: 720px) {
   .homescool-workspace,
   .homescool-workspace--learning,
@@ -261,8 +280,8 @@
   .homescool-workspace__aside {
     border-right: none;
     border-bottom: 1px solid var(--site-border);
-    padding-left: 0.85rem;
-    padding-right: 0.85rem;
+    padding-left: var(--homescool-gutter, 0.85rem);
+    padding-right: var(--homescool-gutter, 0.85rem);
     padding-bottom: 1rem;
   }
 
@@ -304,6 +323,54 @@
   margin-top: 1.25rem;
   padding-top: 1rem;
   border-top: 1px solid var(--site-border);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.homescool-catalogs__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+}
+
+.homescool-catalogs__form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.homescool-catalogs__summary {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-family: var(--font-utility);
+  font-size: 0.75rem;
+}
+
+.homescool-catalogs__summary li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.homescool-catalogs__summary strong {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--site-accent);
+  font-weight: 600;
+}
+
+.homescool-catalogs__summary span {
+  opacity: 0.85;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .homescool-form--wide {
@@ -563,11 +630,11 @@
 }
 
 /*
- * Score bar bands (1–10 fill):
- *   1–3  mínimo   → red
- *   4–5  pobre    → yellow
- *   6–7  aprobado → pale lime
- *   8–10 bueno    → green
+ * Score bar bands (1–5 fill):
+ *   1     mínimo   → red
+ *   2     pobre    → yellow
+ *   3     aprobado → pale lime
+ *   4–5   bueno    → green
  */
 .homescool-score-bar {
   display: flex;
@@ -579,7 +646,7 @@
 
 .homescool-score-bar__segments {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 3px;
   width: 100%;
 }

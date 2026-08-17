@@ -126,6 +126,7 @@ export const HOMESCOOL_ROUTES = {
     `/api/homescool/task-templates/${encodeURIComponent(id)}`,
   taskTemplateImages: (id: string) =>
     `/api/homescool/task-templates/${encodeURIComponent(id)}/images`,
+  catalogs: "/api/homescool/catalogs",
 } as const;
 
 export const PLAYLIST_ROUTES = {

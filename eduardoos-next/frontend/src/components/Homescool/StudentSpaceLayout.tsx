@@ -14,6 +14,7 @@ import {
   type HomescoolLink,
 } from "../../lib/homescool";
 import AssignTasksModal from "./AssignTasksModal";
+import CatalogsPanel from "./CatalogsPanel";
 import HomescoolHeaderMenu from "./HomescoolHeaderMenu";
 import StudentTasksBoard from "./StudentTasksBoard";
 import TaskTemplatesPanel from "./TaskTemplatesPanel";
@@ -70,6 +71,7 @@ export default function StudentSpaceLayout({
   const [foldersOpen, setFoldersOpen] = useState(true);
   const [assignOpen, setAssignOpen] = useState(false);
   const [tasksTick, setTasksTick] = useState(0);
+  const [catalogsTick, setCatalogsTick] = useState(0);
 
   useEffect(() => {
     setFoldersOpen(readHomescoolFoldersOpen());
@@ -148,7 +150,11 @@ export default function StudentSpaceLayout({
           </div>
           {mode === "teacher" ? (
             <div className="homescool-aside-extra">
-              <TaskTemplatesPanel onTemplatesChanged={() => setTasksTick((n) => n + 1)} />
+              <CatalogsPanel onCatalogsChanged={() => setCatalogsTick((n) => n + 1)} />
+              <TaskTemplatesPanel
+                catalogsTick={catalogsTick}
+                onTemplatesChanged={() => setTasksTick((n) => n + 1)}
+              />
             </div>
           ) : null}
         </aside>

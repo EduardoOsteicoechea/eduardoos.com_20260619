@@ -1,10 +1,11 @@
 /**
  * Teacher Tasks UI — four boards: Pendientes, Accionadas, Listas, Archivadas.
- * Accionadas cards open a grading modal (validate/reject + score 1–10).
+ * Accionadas cards open a grading modal (validate/reject + score 1–5).
  */
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  HOMESCOOL_MAX_SCORE,
   archiveStudentTask,
   gradeStudentTask,
   listTeacherStudentTasks,
@@ -31,7 +32,7 @@ export default function TeacherTasksBoard({ studentSlug, onChanged }: Props) {
   });
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<HomescoolTask | null>(null);
-  const [score, setScore] = useState(7);
+  const [score, setScore] = useState(4);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -84,10 +85,13 @@ export default function TeacherTasksBoard({ studentSlug, onChanged }: Props) {
     }
   }
 
+  const gradeMax = Math.min(active?.maxScore || HOMESCOOL_MAX_SCORE, HOMESCOOL_MAX_SCORE);
+
   return (
     <div className="homescool-tasks">
       <p className="homescool-tasks__legend">
-        Four boards for this student. Open an Accionada card to validate or reject with a score (1–10).
+        Four boards for this student. Open an Accionada card to validate or reject with a score (1–
+        {HOMESCOOL_MAX_SCORE}).
       </p>
       {loading ? <p className="homescool-empty">Loading boards…</p> : null}
       <div className="homescool-kanban">
@@ -115,7 +119,7 @@ export default function TeacherTasksBoard({ studentSlug, onChanged }: Props) {
                         className="btn btn--primary"
                         onClick={() => {
                           setActive(task);
-                          setScore(Math.min(7, task.maxScore || 10));
+                          setScore(Math.min(4, task.maxScore || HOMESCOOL_MAX_SCORE));
                           setNote("");
                         }}
                       >
@@ -138,7 +142,7 @@ export default function TeacherTasksBoard({ studentSlug, onChanged }: Props) {
                         className="btn"
                         onClick={() => {
                           setActive(task);
-                          setScore(task.grade?.score ?? 7);
+                          setScore(task.grade?.score ?? 4);
                           setNote("");
                         }}
                       >
@@ -199,20 +203,20 @@ export default function TeacherTasksBoard({ studentSlug, onChanged }: Props) {
             {active.status === "actioned" ? (
               <div className="homescool-form homescool-form--wide">
                 <label htmlFor="grade-score">
-                  Score (1–{active.maxScore || 10})
+                  Score (1–{gradeMax})
                   <input
                     id="grade-score"
                     type="number"
                     min={1}
-                    max={active.maxScore || 10}
+                    max={gradeMax}
                     value={score}
                     onChange={(e) => setScore(Number(e.target.value))}
                     disabled={busy}
                   />
                 </label>
-                <ScoreBar score={score} maxScore={active.maxScore || 10} />
+                <ScoreBar score={score} maxScore={gradeMax} />
                 <p className="homescool-score-legend">
-                  Bands: 1–3 mínimo (red) · 4–5 pobre (yellow) · 6–7 aprobado (pale lime) · 8–10 bueno
+                  Bands: 1 mínimo (red) · 2 pobre (yellow) · 3 aprobado (pale lime) · 4–5 bueno
                   (green)
                 </p>
                 <label htmlFor="grade-note">

@@ -19,16 +19,17 @@ Four boards:
 3. **Listas** — validated (ready until archived)
 4. **Archivadas** — archived (end of flow)
 
-Sidebar: **Task templates** (period, study area, time, max score 1–10, description + image).
-Dashboard: **Assign tasks** modal — period → study area → pick template cards → dates.
+Sidebar: **Catalogs** (Period / Study area / Times) + **Task templates**
+(period, study area, time from catalog dropdowns; max score 1–5; description + image).
+Dashboard: **Assign tasks** modal — period → study area (catalog dropdowns) → pick template cards → dates.
 
-### Score bar (1–10 segments)
+### Score bar (1–5 segments)
 | Score | Band | Color |
 |-------|------|-------|
-| 1–3 | mínimo | red |
-| 4–5 | pobre | yellow |
-| 6–7 | aprobado | pale lime |
-| 8–10 | bueno | green |
+| 1 | mínimo | red |
+| 2 | pobre | yellow |
+| 3 | aprobado | pale lime |
+| 4–5 | bueno | green |
 
 Validate → Listas; Reject → back to Pendientes (score retained for feedback).
 
