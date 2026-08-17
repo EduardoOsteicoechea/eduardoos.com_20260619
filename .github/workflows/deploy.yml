@@ -79,7 +79,19 @@ jobs:
             val="${val//\`/\\\`}"
             printf '"%s"' "$val"
           }
-          SMTP_PASS_NORM="${SMTP_PASS// /}"
+          SMTP_PASS_NORM="$(printf '%s' "$SMTP_PASS" | tr -d '[:space:]')"
+          SMTP_PASS_NORM="${SMTP_PASS_NORM%\"}"
+          SMTP_PASS_NORM="${SMTP_PASS_NORM#\"}"
+          SMTP_PASS_NORM="${SMTP_PASS_NORM%\'}"
+          SMTP_PASS_NORM="${SMTP_PASS_NORM#\'}"
+          if [ "${#SMTP_PASS_NORM}" -ne 16 ]; then
+            echo "::error::SMTP_PASS must be a 16-char Gmail App Password after stripping spaces (got length ${#SMTP_PASS_NORM}). Secret name must be exactly SMTP_PASS — updating alone does nothing until this workflow redeploys."
+            exit 1
+          fi
+          if ! printf '%s' "$SMTP_USER" | grep -q '@'; then
+            echo "::error::SMTP_USER must be the Gmail address that owns the App Password (expected eduardooost@gmail.com)."
+            exit 1
+          fi
           {
             printf 'ADDR=:3000\n'
             printf 'JWT_SECRET=%s\n' "$(quote_env "$JWT_SECRET")"
@@ -130,7 +142,8 @@ jobs:
             printf 'DEEPSEEK_MODEL_EXPERT=deepseek-v4-flash\n'
             printf 'DEEPSEEK_MODEL_REFREE=deepseek-v4-pro\n'
           } > .env.production
-          echo "SMTP_PASS normalized length=${#SMTP_PASS_NORM} (spaces stripped for Gmail)"
+          echo "SMTP_USER set; SMTP_PASS normalized length=${#SMTP_PASS_NORM} (spaces/quotes stripped for Gmail)"
+          echo "NOTE: Updating GitHub secrets alone does not restart EC2 — this job uploads .env and restarts eduardoos.service."
 
       - name: Prepare EC2 app directory
         env:
@@ -182,6 +195,29 @@ jobs:
              echo "api=${api}"')
           echo "On-box smoke: ${onbox}"
           echo "${onbox}" | grep -q 'api=200' || { echo "::error::Next production backend :3000 unhealthy"; exit 1; }
+
+          # Confirm systemd loaded SMTP without printing secret values (length + flags only).
+          smtp_smoke=$(ssh -i ~/.ssh/deploy_key $SSH_OPTS "${EC2_USER}@${EC2_HOST}" \
+            'set -e
+             ENV=~/eduardoos.com_20260619/.env
+             line=$(grep -E "^SMTP_PASS=" "$ENV" | head -n1 | cut -d= -f2- | tr -d "\r" | sed "s/^\"//; s/\"$//; s/^'\''//; s/'\''$//" | tr -d "[:space:]")
+             echo "env_smtp_pass_len=${#line}"
+             journal=$(sudo journalctl -u eduardoos -b --no-pager -o cat 2>/dev/null | grep -E "smtp: user=" | tail -n1 || true)
+             echo "startup_smtp_line=${journal}"
+             ')
+          echo "SMTP smoke (no secrets): ${smtp_smoke}"
+          echo "${smtp_smoke}" | grep -q 'env_smtp_pass_len=16' || {
+            echo "::error::Production .env SMTP_PASS length is not 16 after deploy — secret name must be SMTP_PASS and workflow must rebuild .env"
+            exit 1
+          }
+          echo "${smtp_smoke}" | grep -q 'pass_set=true' || {
+            echo "::error::eduardoos.service started without SMTP_PASS (pass_set!=true). Check EnvironmentFile=~/…/.env and restart."
+            exit 1
+          }
+          echo "${smtp_smoke}" | grep -Eq 'pass_norm_len=16|pass_raw_len=16' || {
+            echo "::warning::startup smtp line missing pass_*_len=16 — check journalctl -u eduardoos for smtp:"
+          }
+
           code=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/" || true)
           health=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/health" || true)
           echo "HTTPS status for https://${DOMAIN}/: ${code}"

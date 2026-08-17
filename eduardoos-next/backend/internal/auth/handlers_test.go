@@ -267,6 +267,14 @@ func TestNormalizeSMTPPassStripsSpaces(t *testing.T) {
 	if normalizeSMTPPass("   ") != "" {
 		t.Fatal("whitespace-only pass must normalize to empty")
 	}
+	// NBSP + surrounding quotes (common paste accidents).
+	nb := "\u00a0abcd\u00a0efgh\u00a0ijkl\u00a0mnop\u00a0"
+	if got := normalizeSMTPPass(`"` + nb + `"`); got != want {
+		t.Fatalf("normalizeSMTPPass unicode/quotes=%q want %q", got, want)
+	}
+	if NormalizeSMTPPassForLog("a b") != "ab" {
+		t.Fatal("NormalizeSMTPPassForLog must match normalizeSMTPPass")
+	}
 }
 
 func TestResetPasswordAcceptsPasswordField(t *testing.T) {

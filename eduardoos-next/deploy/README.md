@@ -55,23 +55,37 @@ Compose publishes `8080:8080` and mounts:
 - Smoke: on-box `:8080` required; public `:8080` warns if SG blocks
   - SSH uses `-n -T`, short `ServerAlive*`, and `timeout 45` around the on-box probe so the step exits immediately after success (no hung half-closed SSH)
 
-### Auth email troubleshooting
+### Auth email / GitHub secrets
+
+Required repository secrets (exact names — typos mean the new password never reaches EC2):
+
+| Secret | Purpose |
+|--------|---------|
+| `SMTP_USER` | Gmail that owns the App Password (typically `eduardooost@gmail.com`) |
+| `SMTP_PASS` | Gmail **App Password**, 16 chars, no spaces |
+
+Wiring:
+
+1. `deploy.yml` / `deploy-next-staging.yml` build `.env` from those secrets (spaces/quotes stripped; CI **fails** if length ≠ 16).
+2. Production uploads `~/eduardoos.com_20260619/.env` → `eduardoos.service` `EnvironmentFile`.
+3. Staging uploads `~/…/eduardoos-next/.env` → `eduardoos-next.service`.
+4. **Updating a secret alone does nothing** — you must redeploy (`push` to `master` or `workflow_dispatch`) so `.env` is rewritten and the unit restarts.
 
 On the EC2 host:
 
 ```bash
 # Production (Next on :3000)
-sudo journalctl -u eduardoos -b --no-pager | grep -E 'auth\.smtp|auth\.forgot-password|auth\.register|sendResetOTP'
+sudo journalctl -u eduardoos -b --no-pager | grep -E 'smtp:|auth\.smtp|auth\.forgot-password|auth\.register|sendResetOTP'
 
 # Staging (Next on :3001)
-sudo journalctl -u eduardoos-next -b --no-pager | grep -E 'auth\.smtp|auth\.forgot-password|auth\.register|sendResetOTP'
+sudo journalctl -u eduardoos-next -b --no-pager | grep -E 'smtp:|auth\.smtp|auth\.forgot-password|auth\.register|sendResetOTP'
 ```
 
-Each mail attempt logs ordered steps: `begin` → `dial` → `hello` → `starttls` → `auth` → `mail_from` → `rcpt_to` → `data` → `quit` → `done` (or `*_failed` at the failing step). Match the UI `trace:` / `X-Correlation-ID` (`eosn-…`) to `[correlation=…]`.
+Startup must show `smtp: user=… pass_set=true pass_norm_len=16`. Each mail attempt logs: `begin` → `dial` → `hello` → `starttls` → `auth` → `mail_from` → `rcpt_to` → `data` → `quit` → `done` (or `*_failed`). Match UI `trace:` / `X-Correlation-ID` to `[correlation=…]`.
 
-OTP codes are **not** logged on the real-SMTP path. Empty `SMTP_PASS` uses `skip_empty_pass` (body only then, for local/dev).
+OTP codes are **not** logged on the real-SMTP path. Empty `SMTP_PASS` uses `skip_empty_pass` (body only then, for local/dev). Register returns `502 could not send verification email` if Gmail rejects delivery.
 
-If logs show `auth_failed` / `535 5.7.8`, regenerate a Gmail **App Password**, set GitHub `SMTP_PASS` to 16 chars with **no spaces**, redeploy.
+If logs show `auth_failed` / `535 5.7.8`, regenerate a Gmail **App Password**, set GitHub `SMTP_PASS` (exact name) to 16 chars with **no spaces**, then **redeploy**.
 
 ## Scripts
 

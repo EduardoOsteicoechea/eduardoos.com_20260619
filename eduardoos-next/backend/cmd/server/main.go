@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"eduardoos.nex/internal/admin"
 	"eduardoos.nex/internal/aps"
@@ -88,10 +87,18 @@ func main() {
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
 	log.Printf("stores: auth=%s epams=%s ifcbim=%s", userStore.BackendName(), epamStore.BackendName(), bimStore.BackendName())
-	// pass_set uses normalized password (spaces stripped) so Gmail display-spaced
-	// app passwords still count as configured; never log the secret itself.
-	smtpPassSet := strings.ReplaceAll(strings.TrimSpace(authHandler.SMTPPass), " ", "") != ""
-	log.Printf("smtp: user=%s pass_set=%t pass_raw_len=%d dev_return_otp=%t",
-		authHandler.SMTPUser, smtpPassSet, len(authHandler.SMTPPass), authHandler.DevReturnOTP)
+	// pass_set / pass_norm_len use normalizeSMTPPass (Unicode spaces + quotes stripped).
+	// Never log the secret itself — only lengths for operator checks (Gmail app pw = 16).
+	passNorm := auth.NormalizeSMTPPassForLog(authHandler.SMTPPass)
+	smtpPassSet := passNorm != ""
+	log.Printf("smtp: user=%s pass_set=%t pass_raw_len=%d pass_norm_len=%d dev_return_otp=%t",
+		authHandler.SMTPUser, smtpPassSet, len(authHandler.SMTPPass), len(passNorm), authHandler.DevReturnOTP)
+	if smtpPassSet && len(passNorm) != 16 {
+		log.Printf("smtp: WARNING pass_norm_len=%d (Gmail App Passwords are exactly 16 chars) — check GitHub secret SMTP_PASS",
+			len(passNorm))
+	}
+	if !smtpPassSet {
+		log.Printf("smtp: WARNING SMTP_PASS empty after normalize — OTP/contact mail will log locally only")
+	}
 	log.Fatal(http.ListenAndServe(addr, r))
 }

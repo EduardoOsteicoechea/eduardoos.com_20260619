@@ -194,8 +194,8 @@ On every push to `master`:
 | `EC2_SSH_PRIVATE_KEY` | Full private key (PEM), including `-----BEGIN...` lines |
 | `JWT_SECRET` | From `npm run secrets:generate` |
 | `INTERNAL_SERVICE_SECRET` | From `npm run secrets:generate` |
-| `SMTP_USER` | Gmail address |
-| `SMTP_PASS` | Gmail app password |
+| `SMTP_USER` | Gmail address that owns the App Password (e.g. `eduardooost@gmail.com`) |
+| `SMTP_PASS` | Gmail **App Password** — exactly 16 chars, no spaces (exact secret name; redeploy after change) |
 | `DOMAIN` | **Hostname only** (e.g. `eduardoos.com`) — DNS A record → EC2 IP; used for TLS |
 | `CERTBOT_EMAIL` | Let's Encrypt contact email |
 

@@ -81,7 +81,19 @@ jobs:
             val="${val//\`/\\\`}"
             printf '"%s"' "$val"
           }
-          SMTP_PASS_NORM="${SMTP_PASS// /}"
+          SMTP_PASS_NORM="$(printf '%s' "$SMTP_PASS" | tr -d '[:space:]')"
+          SMTP_PASS_NORM="${SMTP_PASS_NORM%\"}"
+          SMTP_PASS_NORM="${SMTP_PASS_NORM#\"}"
+          SMTP_PASS_NORM="${SMTP_PASS_NORM%\'}"
+          SMTP_PASS_NORM="${SMTP_PASS_NORM#\'}"
+          if [ "${#SMTP_PASS_NORM}" -ne 16 ]; then
+            echo "::error::SMTP_PASS must be a 16-char Gmail App Password after stripping spaces (got length ${#SMTP_PASS_NORM}). Secret name must be exactly SMTP_PASS."
+            exit 1
+          fi
+          if ! printf '%s' "$SMTP_USER" | grep -q '@'; then
+            echo "::error::SMTP_USER must be the Gmail address that owns the App Password."
+            exit 1
+          fi
           {
             printf 'ADDR=:3001\n'
             printf 'JWT_SECRET=%s\n' "$(quote_env "$JWT_SECRET")"
@@ -111,7 +123,7 @@ jobs:
             printf 'APS_S3_REGION=us-east-1\n'
           } > .env.next-staging
           # Metadata-only sanity (never print secret values).
-          echo "SMTP_PASS normalized length=${#SMTP_PASS_NORM} (spaces stripped for Gmail)"
+          echo "SMTP_USER set; SMTP_PASS normalized length=${#SMTP_PASS_NORM} (spaces/quotes stripped for Gmail)"
 
       - name: Prepare EC2 paths
         env:

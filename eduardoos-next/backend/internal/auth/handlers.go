@@ -121,7 +121,13 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("[correlation=%s] auth.register otp_stored otp_len=%d — delivering mail", cid, len(otp))
-	h.sendOTPTraced(cid, email, otp)
+	if err := h.sendOTPTraced(cid, email, otp); err != nil {
+		// Account + OTP are stored; surface mail failure so the UI does not claim
+		// "OTP sent" when Gmail rejected the message (wrong SMTP_PASS, blocked 587, etc.).
+		log.Printf("[correlation=%s] auth.register mail_failed err=%v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not send verification email")
+		return
+	}
 	log.Printf("[correlation=%s] auth.register done email=%s", cid, email)
 	httpx.WriteJSON(w, http.StatusOK, h.maybeOTPField(map[string]any{
 		"message": "OTP sent to email",
@@ -235,9 +241,10 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("[correlation=%s] auth.forgot-password reset_otp_stored otp_len=%d smtp_pass_set=%t — delivering mail",
 			cid, len(otp), normalizeSMTPPass(h.SMTPPass) != "")
-		// Delivery errors are logged step-by-step inside sendResetOTPTraced;
-		// HTTP still returns generic success (no account enumeration).
-		h.sendResetOTPTraced(cid, email, otp)
+		// Delivery errors are logged step-by-step; HTTP stays generic (no account enumeration).
+		if err := h.sendResetOTPTraced(cid, email, otp); err != nil {
+			log.Printf("[correlation=%s] auth.forgot-password mail_failed err=%v", cid, err)
+		}
 		log.Printf("[correlation=%s] auth.forgot-password mail_attempt_finished email=%s", cid, email)
 	} else {
 		log.Printf("[correlation=%s] auth.forgot-password no_account email=%s (generic ok)", cid, email)

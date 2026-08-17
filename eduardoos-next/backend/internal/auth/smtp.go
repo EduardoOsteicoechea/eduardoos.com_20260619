@@ -7,14 +7,33 @@ import (
 	"net/smtp"
 	"strings"
 	"time"
+	"unicode"
 )
+
+// NormalizeSMTPPassForLog exposes normalizeSMTPPass for startup diagnostics
+// (length / set checks only — never log the returned value in production logs
+// beyond its length).
+func NormalizeSMTPPassForLog(pass string) string {
+	return normalizeSMTPPass(pass)
+}
 
 // normalizeSMTPPass prepares an SMTP password for Gmail (and similar providers).
 // Gmail app passwords are 16 characters; Google's UI often inserts spaces for
 // display — those spaces must not be sent to smtp.gmail.com or auth fails.
-// Leading/trailing whitespace from .env / EnvironmentFile loading is also trimmed.
+// Also strips every Unicode whitespace (NBSP / thin space from rich-text paste)
+// and surrounding ASCII quotes if an operator pasted the secret with quotes.
 func normalizeSMTPPass(pass string) string {
-	return strings.ReplaceAll(strings.TrimSpace(pass), " ", "")
+	pass = strings.TrimSpace(pass)
+	pass = strings.Trim(pass, `"'`)
+	var b strings.Builder
+	b.Grow(len(pass))
+	for _, r := range pass {
+		if unicode.IsSpace(r) {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // smtpStep logs one operator-visible step of an outbound mail attempt.
@@ -186,37 +205,43 @@ func (h *Handler) sendPlainMailTraced(correlationID, to, subject, body string) e
 }
 
 // sendOTP emails the registration verification code (or logs it when SMTP_PASS is empty).
-// SMTP errors are logged with enough detail for operators; they are not returned to
-// HTTP clients (account creation already succeeded and OTP is stored).
-func (h *Handler) sendOTP(email, otp string) {
-	h.sendOTPTraced("", email, otp)
+// When real SMTP is configured, delivery errors are returned so Register can tell the
+// client the mail failed (OTP remains stored for a later retry / operator fix).
+func (h *Handler) sendOTP(email, otp string) error {
+	return h.sendOTPTraced("", email, otp)
 }
 
-func (h *Handler) sendOTPTraced(correlationID, email, otp string) {
+func (h *Handler) sendOTPTraced(correlationID, email, otp string) error {
 	smtpStep(correlationID, "sendOTP_start", fmt.Sprintf("email=%s otp_len=%d", email, len(strings.TrimSpace(otp))))
 	if err := h.sendPlainMailTraced(correlationID, email, "Eduardo OS OTP", "Your code: "+otp+"\r\n"); err != nil {
 		smtpStep(correlationID, "sendOTP_failed", err.Error())
 		log.Printf("[correlation=%s] auth smtp sendOTP failed email=%s err=%v", correlationID, email, err)
-	} else if normalizeSMTPPass(h.SMTPPass) != "" {
+		return err
+	}
+	if normalizeSMTPPass(h.SMTPPass) != "" {
 		smtpStep(correlationID, "sendOTP_ok", fmt.Sprintf("email=%s", email))
 	}
+	return nil
 }
 
 // sendResetOTP emails the password-reset code (or logs it when SMTP_PASS is empty).
-// Same logging rules as sendOTP: failures are operator-visible in journalctl, never
-// leaked as OTP in API responses.
-func (h *Handler) sendResetOTP(email, otp string) {
-	h.sendResetOTPTraced("", email, otp)
+// Delivery errors are returned for operator/handler use; ForgotPassword keeps a
+// generic HTTP body (no account enumeration) but still logs the failure.
+func (h *Handler) sendResetOTP(email, otp string) error {
+	return h.sendResetOTPTraced("", email, otp)
 }
 
-func (h *Handler) sendResetOTPTraced(correlationID, email, otp string) {
+func (h *Handler) sendResetOTPTraced(correlationID, email, otp string) error {
 	smtpStep(correlationID, "sendResetOTP_start", fmt.Sprintf("email=%s otp_len=%d", email, len(strings.TrimSpace(otp))))
 	body := "Use this code to reset your Eduardo OS password:\r\n\r\n" + otp +
 		"\r\n\r\nIf you did not request this, you can ignore this email.\r\n"
 	if err := h.sendPlainMailTraced(correlationID, email, "Eduardo OS password reset", body); err != nil {
 		smtpStep(correlationID, "sendResetOTP_failed", err.Error())
 		log.Printf("[correlation=%s] auth smtp sendResetOTP failed email=%s err=%v", correlationID, email, err)
-	} else if normalizeSMTPPass(h.SMTPPass) != "" {
+		return err
+	}
+	if normalizeSMTPPass(h.SMTPPass) != "" {
 		smtpStep(correlationID, "sendResetOTP_ok", fmt.Sprintf("email=%s", email))
 	}
+	return nil
 }
