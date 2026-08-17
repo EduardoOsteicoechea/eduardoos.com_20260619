@@ -201,7 +201,10 @@ export default function ChurchRegisterPage() {
         members: memberPayload,
         beliefs: beliefPayload,
       });
-      const first = data.churches?.[0] ?? data.church;
+      const first = data?.churches?.[0] ?? data?.church;
+      if (!first?.denominationId || !first?.churchId) {
+        throw new Error("Church registered but response lacked church ids");
+      }
       window.location.assign(
         churchDetailHref(first.denominationId, first.churchId),
       );

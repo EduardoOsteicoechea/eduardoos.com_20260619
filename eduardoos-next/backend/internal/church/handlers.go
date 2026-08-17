@@ -303,7 +303,7 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 		}
 		if err != nil {
 			log.Printf("[correlation=%s] church.register catalog_error: %v", cid, err)
-			httpx.WriteError(w, http.StatusBadGateway, "could not register church")
+			httpx.WriteError(w, http.StatusBadGateway, fmt.Sprintf("could not register church: %v", err))
 			return
 		}
 		createdCards = append(createdCards, created)
@@ -315,12 +315,13 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 		createdDocs[i].LocalChurches = localNames
 		doc := createdDocs[i]
 		if err := h.Objects.PutJSON(r.Context(), ChurchMetaKey(doc.DenominationID, doc.ChurchID), doc, cid); err != nil {
-			log.Printf("[correlation=%s] church.register s3_error: %v", cid, err)
+			log.Printf("[correlation=%s] church.register s3_error key=%s: %v", cid, ChurchMetaKey(doc.DenominationID, doc.ChurchID), err)
 			for _, prev := range createdCards {
 				_ = h.Catalog.Delete(r.Context(), prev.DenominationID, prev.ChurchID)
 				_ = h.Objects.DeleteKey(r.Context(), ChurchMetaKey(prev.DenominationID, prev.ChurchID), cid)
 			}
-			httpx.WriteError(w, http.StatusBadGateway, fmt.Sprintf("could not persist church.json: %v", err))
+			httpx.WriteError(w, http.StatusBadGateway, fmt.Sprintf(
+				"could not persist church.json under church/ (S3/IAM): %v", err))
 			return
 		}
 		for _, m := range doc.Members {

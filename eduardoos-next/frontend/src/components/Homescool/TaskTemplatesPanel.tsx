@@ -1,5 +1,5 @@
 /**
- * Sidebar card: create reusable task templates.
+ * Sidebar card: create / edit reusable task templates.
  * Period is a single catalog dropdown; Study area is a checkbox multi-picker
  * (one or more labels). Time is a fixed Spanish preset list — stored as durationMin.
  * Max score is always 1–5.
@@ -14,6 +14,7 @@ import {
   formatStudyAreas,
   listCatalogEntries,
   listTaskTemplates,
+  updateTaskTemplate,
   uploadTemplateImage,
   type HomescoolCatalogEntry,
   type HomescoolTaskTemplate,
@@ -26,11 +27,18 @@ type Props = {
   catalogsTick?: number;
 };
 
+function presetCodeForMinutes(minutes: number | undefined): string {
+  if (!minutes || minutes <= 0) return "";
+  const exact = HOMESCOOL_DURATION_PRESETS.find((p) => p.minutes === minutes);
+  return exact?.code ?? "";
+}
+
 export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 0 }: Props) {
   const [templates, setTemplates] = useState<HomescoolTaskTemplate[]>([]);
   const [periods, setPeriods] = useState<HomescoolCatalogEntry[]>([]);
   const [areas, setAreas] = useState<HomescoolCatalogEntry[]>([]);
   const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -71,6 +79,40 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
     void reloadCatalogs();
   }, [reloadCatalogs, catalogsTick]);
 
+  function resetForm() {
+    setEditId(null);
+    setName("");
+    setDescription("");
+    setPeriod("");
+    setStudyAreas([]);
+    setDurationCode("");
+    setMaxScore(HOMESCOOL_MAX_SCORE);
+    setImage(null);
+  }
+
+  function beginCreate() {
+    resetForm();
+    setOpen(true);
+  }
+
+  function beginEdit(tpl: HomescoolTaskTemplate) {
+    setEditId(tpl.id);
+    setName(tpl.name || "");
+    setDescription(tpl.description || "");
+    setPeriod(tpl.period || "");
+    const areasList =
+      tpl.studyAreas && tpl.studyAreas.length > 0
+        ? [...tpl.studyAreas]
+        : tpl.studyArea
+          ? [tpl.studyArea]
+          : [];
+    setStudyAreas(areasList);
+    setDurationCode(presetCodeForMinutes(tpl.durationMin));
+    setMaxScore(tpl.maxScore || HOMESCOOL_MAX_SCORE);
+    setImage(null);
+    setOpen(true);
+  }
+
   function toggleStudyArea(label: string) {
     setStudyAreas((prev) => {
       if (prev.includes(label)) return prev.filter((x) => x !== label);
@@ -78,30 +120,27 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
     });
   }
 
-  async function onCreate(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const preset = HOMESCOOL_DURATION_PRESETS.find((p) => p.code === durationCode);
     if (!period || studyAreas.length === 0 || !preset) return;
     setBusy(true);
     try {
-      const { template } = await createTaskTemplate({
+      const payload = {
         name,
         description,
         period,
         studyAreas,
         durationMin: preset.minutes,
         maxScore,
-      });
+      };
+      const { template } = editId
+        ? await updateTaskTemplate(editId, payload)
+        : await createTaskTemplate(payload);
       if (image) {
         await uploadTemplateImage(template.id, image);
       }
-      setName("");
-      setDescription("");
-      setPeriod("");
-      setStudyAreas([]);
-      setDurationCode("");
-      setMaxScore(HOMESCOOL_MAX_SCORE);
-      setImage(null);
+      resetForm();
       setOpen(false);
       await reloadTemplates();
       onTemplatesChanged?.();
@@ -122,12 +161,26 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
     <div className="homescool-templates">
       <div className="homescool-workspace__aside-head">
         <p className="homescool-workspace__aside-title">Task templates</p>
-        <button type="button" className="homescool-workspace__collapse" onClick={() => setOpen((v) => !v)}>
-          {open ? "Hide" : "New"}
+        <button
+          type="button"
+          className="homescool-workspace__collapse"
+          onClick={() => {
+            if (open && !editId) {
+              setOpen(false);
+              resetForm();
+              return;
+            }
+            beginCreate();
+          }}
+        >
+          {open && !editId ? "Hide" : "New"}
         </button>
       </div>
       {open ? (
-        <form className="homescool-form homescool-form--compact" onSubmit={onCreate}>
+        <form className="homescool-form homescool-form--compact" onSubmit={onSubmit}>
+          <p className="homescool-form__hint">
+            {editId ? "Editing template" : "New template"}
+          </p>
           <label>
             Name
             <input value={name} onChange={(e) => setName(e.target.value)} required disabled={busy} />
@@ -215,7 +268,7 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
             />
           </label>
           <label>
-            Image (optional)
+            Image (optional{editId ? " — replaces / adds" : ""})
             <input
               type="file"
               accept="image/*"
@@ -223,9 +276,24 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
               disabled={busy}
             />
           </label>
-          <button className="btn btn--primary" type="submit" disabled={busy || !canSave}>
-            {busy ? "Saving…" : "Save template"}
-          </button>
+          <div className="homescool-form__actions">
+            <button className="btn btn--primary" type="submit" disabled={busy || !canSave}>
+              {busy ? "Saving…" : editId ? "Save changes" : "Save template"}
+            </button>
+            {editId ? (
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => {
+                  resetForm();
+                  setOpen(false);
+                }}
+              >
+                Cancel
+              </button>
+            ) : null}
+          </div>
         </form>
       ) : null}
       <ul className="homescool-templates__list">
@@ -238,6 +306,14 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
                 {[tpl.period, areasLabel].filter(Boolean).join(" · ") || "No period/area"}
                 {tpl.durationMin ? ` · ${formatDurationLabel(tpl.durationMin)}` : ""}
               </span>
+              <button
+                type="button"
+                className="btn homescool-templates__edit"
+                disabled={busy}
+                onClick={() => beginEdit(tpl)}
+              >
+                Edit
+              </button>
             </li>
           );
         })}

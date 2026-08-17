@@ -555,6 +555,25 @@ export async function createTaskTemplate(input: {
   });
 }
 
+export async function updateTaskTemplate(
+  templateId: string,
+  input: {
+    name: string;
+    description?: string;
+    period?: string;
+    studyAreas?: string[];
+    /** @deprecated Prefer studyAreas. */
+    studyArea?: string;
+    durationMin?: number;
+    maxScore?: number;
+  },
+): Promise<{ template: HomescoolTaskTemplate }> {
+  return homescoolRequest(HOMESCOOL_ROUTES.taskTemplate(templateId), {
+    method: "PUT",
+    body: input,
+  });
+}
+
 export async function listCatalogEntries(kind?: HomescoolCatalogKind): Promise<{
   entries: HomescoolCatalogEntry[];
   count: number;

@@ -2,7 +2,9 @@ package church
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -605,5 +607,52 @@ func TestNormalizeBeliefsAndLegacyBlob(t *testing.T) {
 	ensured := ensureBeliefs(doc)
 	if len(ensured) != 1 || ensured[0].Body != "Legacy creed" {
 		t.Fatalf("legacy migrate: %+v", ensured)
+	}
+}
+
+// failChurchObjects forces PutJSON failures (S3/IAM-style) while keeping memory reads.
+type failChurchObjects struct {
+	ObjectSpace
+	failPut bool
+}
+
+func (f *failChurchObjects) PutJSON(ctx context.Context, key string, value any, cid string) error {
+	if f.failPut {
+		return errors.New("AccessDenied: s3 PutObject church/*")
+	}
+	return f.ObjectSpace.PutJSON(ctx, key, value, cid)
+}
+
+func TestCreateLeaderSurfacesS3PersistError(t *testing.T) {
+	h, r, users := testRouter(t)
+	seedUser(t, users, "admin@example.com", auth.RoleAdmin)
+	seedDenomGroup(t, h, "asambleas", "Asambleas de Dios")
+	h.Objects = &failChurchObjects{ObjectSpace: NewMemoryObjectSpace(), failPut: true}
+
+	leadBody, _ := json.Marshal(map[string]any{
+		"firstName": "Ana", "lastName": "Garcia",
+		"networkIds": []string{"asambleas"},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/church/leaders", bytes.NewReader(leadBody))
+	req.Header.Set("Authorization", "Bearer "+bearer(t, "admin@example.com", auth.RoleAdmin))
+	req.Header.Set("Content-Type", "application/json")
+	rw := httptest.NewRecorder()
+	r.ServeHTTP(rw, req)
+	if rw.Code != http.StatusBadGateway {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	if !strings.Contains(rw.Body.String(), "could not persist leader.json") {
+		t.Fatalf("expected S3 persist message: %s", rw.Body.String())
+	}
+	if !strings.Contains(rw.Body.String(), "AccessDenied") {
+		t.Fatalf("expected underlying error in body: %s", rw.Body.String())
+	}
+	// Dynamo/memory row must be rolled back so a retry can succeed.
+	list := httptest.NewRequest(http.MethodGet, "/api/church/leaders", nil)
+	list.Header.Set("Authorization", "Bearer "+bearer(t, "admin@example.com", auth.RoleAdmin))
+	listRW := httptest.NewRecorder()
+	r.ServeHTTP(listRW, list)
+	if strings.Contains(listRW.Body.String(), "ana-garcia") {
+		t.Fatalf("leader should not remain after S3 rollback: %s", listRW.Body.String())
 	}
 }

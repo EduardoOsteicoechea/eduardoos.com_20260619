@@ -20,6 +20,7 @@ func (h *Handler) mountTeacherTaskRoutes(pr chi.Router) {
 	pr.Post("/api/homescool/task-templates", h.CreateTaskTemplate)
 	pr.Get("/api/homescool/task-templates", h.ListTaskTemplates)
 	pr.Get("/api/homescool/task-templates/{templateId}", h.GetTaskTemplate)
+	pr.Put("/api/homescool/task-templates/{templateId}", h.UpdateTaskTemplate)
 	pr.Post("/api/homescool/task-templates/{templateId}/images", h.UploadTemplateImage)
 
 	pr.Post("/api/homescool/catalogs", h.CreateCatalogEntry)
@@ -107,6 +108,62 @@ func (h *Handler) GetTaskTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"template": tpl})
+}
+
+// UpdateTaskTemplate replaces mutable fields on a teacher-owned template.
+func (h *Handler) UpdateTaskTemplate(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	teacher := auth.UserEmailFromRequest(r)
+	id := chi.URLParam(r, "templateId")
+	existing, ok, err := h.Tasks.GetTemplate(r.Context(), teacher, id)
+	if err != nil {
+		log.Printf("[correlation=%s] homescool.tpl.update get error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not load template")
+		return
+	}
+	if !ok {
+		httpx.WriteError(w, http.StatusNotFound, "template not found")
+		return
+	}
+	var body struct {
+		Name        string   `json:"name"`
+		Description string   `json:"description"`
+		Period      string   `json:"period"`
+		StudyAreas  []string `json:"studyAreas"`
+		StudyArea   string   `json:"studyArea"` // deprecated single-label alias
+		DurationMin int      `json:"durationMin"`
+		MaxScore    int      `json:"maxScore"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	name := strings.TrimSpace(body.Name)
+	if name == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "name required")
+		return
+	}
+	areas := NormalizeStudyAreas(body.StudyAreas, body.StudyArea)
+	if len(areas) == 0 {
+		httpx.WriteError(w, http.StatusBadRequest, "at least one study area required")
+		return
+	}
+	next := existing
+	next.Name = name
+	next.Description = body.Description
+	next.Period = strings.TrimSpace(body.Period)
+	next.StudyAreas = areas
+	next.StudyArea = FormatStudyAreas(areas)
+	next.DurationMin = body.DurationMin
+	next.MaxScore = body.MaxScore
+	updated, err := h.Tasks.UpdateTemplate(r.Context(), next)
+	if err != nil {
+		log.Printf("[correlation=%s] homescool.tpl.update error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	log.Printf("[correlation=%s] homescool.tpl.update teacher=%s id=%s", cid, teacher, updated.ID)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"template": updated})
 }
 
 // UploadTemplateImage attaches an image file to a template under the teacher S3 prefix.

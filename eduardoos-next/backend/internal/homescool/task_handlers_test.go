@@ -301,3 +301,51 @@ func TestCatalogCreateAndList(t *testing.T) {
 		t.Fatalf("want 2 catalog entries, got %#v", allBody)
 	}
 }
+
+func TestUpdateTaskTemplate(t *testing.T) {
+	_, r, users := testRouter(t)
+	seedUsers(t, users, "teacher@example.com", "student@example.com")
+	teacherTok := bearer(t, "teacher@example.com")
+
+	tplReq := httptest.NewRequest(http.MethodPost, "/api/homescool/task-templates",
+		bytes.NewBufferString(`{"name":"Draft","description":"v1","period":"2026-Q1","studyAreas":["math"],"durationMin":30,"maxScore":5}`))
+	tplReq.Header.Set("Authorization", "Bearer "+teacherTok)
+	tplReq.Header.Set("Content-Type", "application/json")
+	tplRec := httptest.NewRecorder()
+	r.ServeHTTP(tplRec, tplReq)
+	if tplRec.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", tplRec.Code, tplRec.Body.String())
+	}
+	var tplBody map[string]any
+	_ = json.Unmarshal(tplRec.Body.Bytes(), &tplBody)
+	tplID := tplBody["template"].(map[string]any)["id"].(string)
+
+	upd := httptest.NewRequest(http.MethodPut, "/api/homescool/task-templates/"+tplID,
+		bytes.NewBufferString(`{"name":"Final","description":"v2","period":"2026-Q2","studyAreas":["science","rhetoric"],"durationMin":45,"maxScore":4}`))
+	upd.Header.Set("Authorization", "Bearer "+teacherTok)
+	upd.Header.Set("Content-Type", "application/json")
+	updRec := httptest.NewRecorder()
+	r.ServeHTTP(updRec, upd)
+	if updRec.Code != http.StatusOK {
+		t.Fatalf("update status=%d body=%s", updRec.Code, updRec.Body.String())
+	}
+	if !bytes.Contains(updRec.Body.Bytes(), []byte(`"name":"Final"`)) {
+		t.Fatalf("expected renamed template: %s", updRec.Body.String())
+	}
+	if !bytes.Contains(updRec.Body.Bytes(), []byte(`"period":"2026-Q2"`)) {
+		t.Fatalf("expected period update: %s", updRec.Body.String())
+	}
+	if !bytes.Contains(updRec.Body.Bytes(), []byte(`"durationMin":45`)) {
+		t.Fatalf("expected duration update: %s", updRec.Body.String())
+	}
+
+	missing := httptest.NewRequest(http.MethodPut, "/api/homescool/task-templates/no-such-id",
+		bytes.NewBufferString(`{"name":"X","studyAreas":["math"],"durationMin":10,"maxScore":5}`))
+	missing.Header.Set("Authorization", "Bearer "+teacherTok)
+	missing.Header.Set("Content-Type", "application/json")
+	missingRec := httptest.NewRecorder()
+	r.ServeHTTP(missingRec, missing)
+	if missingRec.Code != http.StatusNotFound {
+		t.Fatalf("missing template status=%d", missingRec.Code)
+	}
+}

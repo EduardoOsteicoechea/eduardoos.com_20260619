@@ -488,6 +488,21 @@
   font-size: 0.9rem;
 }
 
+.homescool-templates__edit {
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  min-height: var(--control_min_height);
+  padding: 0.25rem 0.65rem;
+  font-size: 0.78rem;
+}
+
+.homescool-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .homescool-tasks__legend {
   margin: 0 0 0.85rem;
   font-family: var(--font-body);

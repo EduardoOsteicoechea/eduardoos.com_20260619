@@ -21,7 +21,8 @@ Four boards:
 
 Sidebar: **Catalogs** (Period / Study area) + **Task templates**
 (period & study area from catalog dropdowns; time from fixed Spanish presets → `durationMin`;
-max score 1–5; description + image).
+max score 1–5; description + image). Each template row has **Edit** to update the same
+fields (PUT `/api/homescool/task-templates/{id}`).
 Dashboard: **Assign tasks** modal — period → study area (catalog dropdowns) → pick template cards → dates.
 
 ### Score bar (1–5 segments)
@@ -46,7 +47,7 @@ lines glyph (`currentColor`, activity-bar style). Folders aside uses symmetric
 | Method | Path | Role |
 |--------|------|------|
 | `POST/GET` | `/api/homescool/task-templates` | Teacher |
-| `GET` | `/api/homescool/task-templates/{id}` | Teacher |
+| `GET/PUT` | `/api/homescool/task-templates/{id}` | Teacher (PUT = edit catalog template) |
 | `POST` | `/api/homescool/task-templates/{id}/images` | Teacher multipart |
 | `POST/GET` | `/api/homescool/students/{slug}/tasks` | Teacher assign / list boards |
 | `POST` | `/api/homescool/students/{slug}/tasks/{id}/grade` | Teacher `{decision,score}` |

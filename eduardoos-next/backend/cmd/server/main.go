@@ -116,9 +116,10 @@ func main() {
 	adminHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
-	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s greek=%s church=%s epams=%s ifcbim=%s",
+	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s greek=%s church=%s church-groups=%s church-leaders=%s church-objects=%s epams=%s ifcbim=%s",
 		userStore.BackendName(), homescoolHandler.Links.BackendName(), homescoolHandler.Tasks.BackendName(),
 		greekHandler.Catalog.BackendName(), churchHandler.Catalog.BackendName(),
+		churchHandler.Groups.BackendName(), churchHandler.Leaders.BackendName(), churchHandler.Objects.BackendName(),
 		epamStore.BackendName(), bimStore.BackendName())
 	// pass_set / pass_norm_len use normalizeSMTPPass (Unicode spaces + quotes stripped).
 	// Never log the secret itself — only lengths for operator checks (Gmail app pw = 16).

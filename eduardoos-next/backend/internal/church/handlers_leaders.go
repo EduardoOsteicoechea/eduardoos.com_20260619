@@ -3,6 +3,7 @@ package church
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -125,14 +126,15 @@ func (h *Handler) CreateLeader(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		log.Printf("[correlation=%s] church.leaders.create error: %v", cid, err)
-		httpx.WriteError(w, http.StatusBadGateway, "could not create leader")
+		httpx.WriteError(w, http.StatusBadGateway, fmt.Sprintf("could not create leader: %v", err))
 		return
 	}
 	if h.Objects != nil {
 		if err := h.Objects.PutJSON(r.Context(), LeaderMetaKey(id), created, cid); err != nil {
-			log.Printf("[correlation=%s] church.leaders.s3 error: %v", cid, err)
+			log.Printf("[correlation=%s] church.leaders.s3 error key=%s: %v", cid, LeaderMetaKey(id), err)
 			_ = h.Leaders.Delete(r.Context(), id)
-			httpx.WriteError(w, http.StatusBadGateway, "could not persist leader.json")
+			httpx.WriteError(w, http.StatusBadGateway, fmt.Sprintf(
+				"could not persist leader.json under church/leaders/ (S3/IAM): %v", err))
 			return
 		}
 	}
@@ -146,6 +148,10 @@ func (h *Handler) UpdateLeader(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
 	if allowed, reason := h.canRegisterChurches(r.Context(), email); !allowed {
 		httpx.WriteError(w, http.StatusForbidden, reason)
+		return
+	}
+	if h.Leaders == nil {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "leaders store not configured")
 		return
 	}
 	leaderID := chi.URLParam(r, "leaderID")
@@ -255,7 +261,14 @@ func (h *Handler) filterValidNetworkIDs(r *http.Request, ids []string) ([]string
 	}
 	known := map[string]bool{}
 	for _, g := range groups {
-		known[strings.TrimSpace(g.ID)] = true
+		id := strings.TrimSpace(g.ID)
+		if id == "" {
+			continue
+		}
+		known[id] = true
+		if slug := SanitizeSlug(id); slug != "" {
+			known[slug] = true
+		}
 	}
 	out := make([]string, 0, len(ids))
 	seen := map[string]bool{}
