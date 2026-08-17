@@ -81,7 +81,7 @@ export default function StudentTasksBoard({ teacherSlug, initialTaskId = "" }: P
       {!loading && tasks.length === 0 ? (
         <p className="homescool-empty">No pending tasks right now.</p>
       ) : null}
-      <div className="homescool-task-board" role="list">
+      <div className="homescool-task-board homescool-task-board--stack" role="list">
         {tasks.map((task) => (
           <button
             key={task.id}

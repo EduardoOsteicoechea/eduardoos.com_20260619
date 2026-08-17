@@ -14,6 +14,10 @@ type HomescoolHeaderMenuProps = {
   onToggleFolders: () => void;
 };
 
+/**
+ * Sidebar / folders toggle — left rail + content lines (activity-bar language).
+ * Uses currentColor only (same as menu / Beliefs), not a filled folder glyph.
+ */
 function FoldersIcon() {
   return (
     <svg
@@ -23,12 +27,8 @@ function FoldersIcon() {
       focusable="false"
     >
       <path
-        d="M3 6.75A1.75 1.75 0 0 1 4.75 5h4.1l1.6 1.6h8.8A1.75 1.75 0 0 1 21 8.35v9.9A1.75 1.75 0 0 1 19.25 20H4.75A1.75 1.75 0 0 1 3 18.25V6.75z"
         fill="currentColor"
-      />
-      <path
-        d="M6 11h12v1.35H6V11zm0 3.15h8v1.35H6v-1.35z"
-        fill="var(--site-body-bg, #f2f3f6)"
+        d="M3.5 4h5v16h-5V4zm7 1.25h10v1.6H10.5v-1.6zm0 4.15h10v1.6H10.5v-1.6zm0 4.15h10v1.6H10.5v-1.6zm0 4.15h7v1.6h-7v-1.6z"
       />
     </svg>
   );

@@ -34,7 +34,10 @@ Validate → Listas; Reject → back to Pendientes (score retained for feedback)
 
 Workspace shell uses `page-shell--homescool-flush` (padding-left: 0 against the 60px rail).
 Folders sidebar toggles from Header Dynamic Menu; preference key
-`eduardoos-homescool-folders-open` (`1`/`0`).
+`eduardoos-homescool-folders-open` (`1`/`0`). Header toggle icon is a left-rail +
+lines glyph (`currentColor`, activity-bar style). Folders aside uses symmetric
+`0.85rem` left/right padding. Teacher kanban boards stack full-width vertically
+(Pendientes → Archivadas); student pending cards use the same stacked board layout.
 
 ## APIs (JWT)
 

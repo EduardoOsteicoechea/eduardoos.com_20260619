@@ -95,7 +95,8 @@
 
 .homescool-workspace__aside {
   border-right: 1px solid var(--site-border);
-  padding-left: 0;
+  /* Symmetric inset: left padding matches right padding of the folders column. */
+  padding-left: 0.85rem;
   padding-right: 0.85rem;
 }
 
@@ -260,7 +261,8 @@
   .homescool-workspace__aside {
     border-right: none;
     border-bottom: 1px solid var(--site-border);
-    padding-right: 0;
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
     padding-bottom: 1rem;
   }
 
@@ -432,11 +434,13 @@
   margin-top: 0.35rem;
 }
 
+/* Four task dashboards stacked full-width (Pendientes → Archivadas). */
 .homescool-kanban {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.85rem;
-  align-items: start;
+  align-items: stretch;
+  width: 100%;
 }
 
 .homescool-kanban__col {
@@ -613,17 +617,7 @@
   margin: 0;
 }
 
-@media (max-width: 960px) {
-  .homescool-kanban {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 720px) {
-  .homescool-kanban {
-    grid-template-columns: 1fr;
-  }
-
   .page-shell.page-shell--homescool-flush {
     /* Mobile: top bar, not left rail — keep a small inset both sides. */
     padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
