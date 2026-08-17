@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   assignStudentTasks,
+  formatDurationLabel,
   listCatalogEntries,
   listTaskTemplates,
   type HomescoolCatalogEntry,
@@ -181,7 +182,7 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
                   <span className="homescool-task-card__title">{tpl.name}</span>
                   <span className="homescool-task-card__meta">
                     {[tpl.period, tpl.studyArea].filter(Boolean).join(" · ")}
-                    {tpl.durationMin ? ` · ${tpl.durationMin} min` : ""}
+                    {tpl.durationMin ? ` · ${formatDurationLabel(tpl.durationMin)}` : ""}
                     {` · max ${tpl.maxScore}`}
                   </span>
                   <span className="homescool-task-card__hint">{on ? "Selected" : "Click to select"}</span>

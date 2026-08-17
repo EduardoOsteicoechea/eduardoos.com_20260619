@@ -349,9 +349,6 @@ func (d *dynamoTaskStore) CreateCatalogEntry(ctx context.Context, entry CatalogE
 	if err := ValidateCatalogEntry(entry); err != nil {
 		return CatalogEntry{}, err
 	}
-	if entry.Kind != CatalogKindTime {
-		entry.DurationMin = 0
-	}
 	if entry.ID == "" {
 		entry.ID = uuid.NewString()
 	}
@@ -369,7 +366,7 @@ func (d *dynamoTaskStore) ListCatalogEntries(ctx context.Context, teacherEmail, 
 	prefix := catalogSKPrefix(teacherEmail)
 	if kind != "" {
 		if !IsValidCatalogKind(kind) {
-			return nil, fmt.Errorf("kind must be period, study_area, or time")
+			return nil, fmt.Errorf("kind must be period or study_area")
 		}
 		prefix = catalogSKKindPrefix(teacherEmail, kind)
 	}

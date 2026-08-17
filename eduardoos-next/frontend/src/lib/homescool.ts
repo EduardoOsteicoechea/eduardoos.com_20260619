@@ -129,16 +129,84 @@ export type HomescoolScoreBand = "minimo" | "pobre" | "aprobado" | "bueno" | "";
 
 export const HOMESCOOL_MAX_SCORE = 5;
 
-export type HomescoolCatalogKind = "period" | "study_area" | "time";
+/** Teacher-created catalog kinds (period / study area only). Duration is fixed presets. */
+export type HomescoolCatalogKind = "period" | "study_area";
 
 export type HomescoolCatalogEntry = {
   id: string;
   teacherEmail: string;
   kind: HomescoolCatalogKind | string;
   label: string;
-  durationMin?: number;
   createdAt: string;
 };
+
+/**
+ * Fixed task-duration presets (not a user catalog).
+ * Stored as durationMin (minutes equivalent); codes are for UI/API clarity.
+ * Month ≈ 30 days; week = 7 days.
+ */
+export type HomescoolDurationPreset = {
+  code: string;
+  label: string;
+  minutes: number;
+};
+
+const DAY_MIN = 24 * 60;
+const WEEK_MIN = 7 * DAY_MIN;
+const MONTH_MIN = 30 * DAY_MIN;
+
+export const HOMESCOOL_DURATION_PRESETS: readonly HomescoolDurationPreset[] = [
+  { code: "30m", label: "30min", minutes: 30 },
+  { code: "1h", label: "1hr", minutes: 60 },
+  { code: "2h", label: "2hrs", minutes: 120 },
+  { code: "4h", label: "4hrs", minutes: 240 },
+  { code: "1d", label: "1 día", minutes: 1 * DAY_MIN },
+  { code: "2d", label: "2 días", minutes: 2 * DAY_MIN },
+  { code: "3d", label: "3 días", minutes: 3 * DAY_MIN },
+  { code: "4d", label: "4 días", minutes: 4 * DAY_MIN },
+  { code: "5d", label: "5 días", minutes: 5 * DAY_MIN },
+  { code: "6d", label: "6 días", minutes: 6 * DAY_MIN },
+  { code: "1w", label: "1 semana", minutes: 1 * WEEK_MIN },
+  { code: "2w", label: "2 semanas", minutes: 2 * WEEK_MIN },
+  { code: "3w", label: "3 semanas", minutes: 3 * WEEK_MIN },
+  { code: "1mo", label: "1 mes", minutes: 1 * MONTH_MIN },
+  { code: "2mo", label: "2 meses", minutes: 2 * MONTH_MIN },
+  { code: "3mo", label: "3 meses", minutes: 3 * MONTH_MIN },
+  { code: "4mo", label: "4 meses", minutes: 4 * MONTH_MIN },
+  { code: "5mo", label: "5 meses", minutes: 5 * MONTH_MIN },
+  { code: "6mo", label: "6 meses", minutes: 6 * MONTH_MIN },
+  { code: "7mo", label: "7 meses", minutes: 7 * MONTH_MIN },
+  { code: "8mo", label: "8 meses", minutes: 8 * MONTH_MIN },
+  { code: "9mo", label: "9 meses", minutes: 9 * MONTH_MIN },
+  { code: "10mo", label: "10 meses", minutes: 10 * MONTH_MIN },
+  { code: "11mo", label: "11 meses", minutes: 11 * MONTH_MIN },
+  { code: "12mo", label: "12 meses (1 año)", minutes: 12 * MONTH_MIN },
+];
+
+const durationByMinutes = new Map(
+  HOMESCOOL_DURATION_PRESETS.map((p) => [p.minutes, p] as const),
+);
+const durationByCode = new Map(
+  HOMESCOOL_DURATION_PRESETS.map((p) => [p.code, p] as const),
+);
+
+/** Resolve a preset by structured code (`30m`, `1h`, `2d`, `1w`, `3mo`). */
+export function durationPresetByCode(code: string): HomescoolDurationPreset | undefined {
+  return durationByCode.get(String(code ?? "").trim());
+}
+
+/** Spanish human label for a stored durationMin; falls back to "N min" for legacy values. */
+export function formatDurationLabel(durationMin: number): string {
+  if (!Number.isFinite(durationMin) || durationMin <= 0) return "";
+  const preset = durationByMinutes.get(durationMin);
+  if (preset) return preset.label;
+  return `${durationMin} min`;
+}
+
+/** Minutes equivalent for a preset code, or 0 if unknown. */
+export function durationMinutesFromCode(code: string): number {
+  return durationPresetByCode(code)?.minutes ?? 0;
+}
 
 export function scoreBand(score: number): HomescoolScoreBand {
   if (score <= 0) return "";
@@ -337,7 +405,6 @@ export async function listCatalogEntries(kind?: HomescoolCatalogKind): Promise<{
 export async function createCatalogEntry(input: {
   kind: HomescoolCatalogKind;
   label: string;
-  durationMin?: number;
 }): Promise<{ entry: HomescoolCatalogEntry }> {
   return homescoolRequest(HOMESCOOL_ROUTES.catalogs, {
     method: "POST",

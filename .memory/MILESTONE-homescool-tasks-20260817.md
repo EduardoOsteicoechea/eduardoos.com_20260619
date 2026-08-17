@@ -19,8 +19,9 @@ Four boards:
 3. **Listas** — validated (ready until archived)
 4. **Archivadas** — archived (end of flow)
 
-Sidebar: **Catalogs** (Period / Study area / Times) + **Task templates**
-(period, study area, time from catalog dropdowns; max score 1–5; description + image).
+Sidebar: **Catalogs** (Period / Study area) + **Task templates**
+(period & study area from catalog dropdowns; time from fixed Spanish presets → `durationMin`;
+max score 1–5; description + image).
 Dashboard: **Assign tasks** modal — period → study area (catalog dropdowns) → pick template cards → dates.
 
 ### Score bar (1–5 segments)

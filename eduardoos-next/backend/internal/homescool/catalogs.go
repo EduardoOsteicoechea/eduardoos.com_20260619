@@ -6,14 +6,14 @@ import (
 )
 
 // Teacher-owned catalog kinds used by task template / assign dropdowns.
+// Duration is NOT a catalog — templates use fixed presets (see frontend HOMESCOOL_DURATION_PRESETS).
 const (
 	CatalogKindPeriod    = "period"
 	CatalogKindStudyArea = "study_area"
-	CatalogKindTime      = "time"
 )
 
-// CatalogEntry is one reusable label (period, study area) or duration preset (time)
-// owned by a teacher. Persisted in DynamoDB catalog (or memory) under:
+// CatalogEntry is one reusable label (period or study area) owned by a teacher.
+// Persisted in DynamoDB catalog (or memory) under:
 //
 //	homescool-cat:t:{teacher}|k:{kind}|id:{id}
 type CatalogEntry struct {
@@ -21,15 +21,13 @@ type CatalogEntry struct {
 	TeacherEmail string `json:"teacherEmail"`
 	Kind         string `json:"kind"`
 	Label        string `json:"label"`
-	// DurationMin is set for kind=time (minutes). Zero for other kinds.
-	DurationMin int    `json:"durationMin,omitempty"`
-	CreatedAt   string `json:"createdAt"`
+	CreatedAt    string `json:"createdAt"`
 }
 
-// IsValidCatalogKind reports whether kind is period, study_area, or time.
+// IsValidCatalogKind reports whether kind is period or study_area.
 func IsValidCatalogKind(kind string) bool {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
-	case CatalogKindPeriod, CatalogKindStudyArea, CatalogKindTime:
+	case CatalogKindPeriod, CatalogKindStudyArea:
 		return true
 	default:
 		return false
@@ -45,14 +43,11 @@ func NormalizeCatalogKind(kind string) string {
 func ValidateCatalogEntry(e CatalogEntry) error {
 	kind := NormalizeCatalogKind(e.Kind)
 	if !IsValidCatalogKind(kind) {
-		return fmt.Errorf("kind must be period, study_area, or time")
+		return fmt.Errorf("kind must be period or study_area")
 	}
 	label := strings.TrimSpace(e.Label)
 	if label == "" {
 		return fmt.Errorf("label required")
-	}
-	if kind == CatalogKindTime && e.DurationMin < 1 {
-		return fmt.Errorf("durationMin must be at least 1 for time presets")
 	}
 	return nil
 }

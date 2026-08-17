@@ -1,5 +1,6 @@
 /**
- * Teacher sidebar: create Period / Study area / Times (duration) catalog entries.
+ * Teacher sidebar: create Period / Study area catalog entries.
+ * Duration is a fixed preset list (not a catalog) — see HOMESCOOL_DURATION_PRESETS.
  * These feed dropdowns on task templates and assign-task filters.
  */
 
@@ -22,7 +23,6 @@ export default function CatalogsPanel({ onCatalogsChanged }: Props) {
   const [entries, setEntries] = useState<HomescoolCatalogEntry[]>([]);
   const [active, setActive] = useState<ActiveForm>(null);
   const [label, setLabel] = useState("");
-  const [durationMin, setDurationMin] = useState(30);
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(async () => {
@@ -41,7 +41,6 @@ export default function CatalogsPanel({ onCatalogsChanged }: Props) {
   function openForm(kind: HomescoolCatalogKind) {
     setActive(kind);
     setLabel("");
-    setDurationMin(30);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -52,10 +51,8 @@ export default function CatalogsPanel({ onCatalogsChanged }: Props) {
       await createCatalogEntry({
         kind: active,
         label: label.trim(),
-        durationMin: active === "time" ? durationMin : undefined,
       });
       setLabel("");
-      setDurationMin(30);
       setActive(null);
       await reload();
       onCatalogsChanged?.();
@@ -68,7 +65,6 @@ export default function CatalogsPanel({ onCatalogsChanged }: Props) {
 
   const periods = entries.filter((e) => e.kind === "period");
   const areas = entries.filter((e) => e.kind === "study_area");
-  const times = entries.filter((e) => e.kind === "time");
 
   return (
     <div className="homescool-catalogs">
@@ -82,44 +78,20 @@ export default function CatalogsPanel({ onCatalogsChanged }: Props) {
         <button type="button" className="btn" onClick={() => openForm("study_area")} disabled={busy}>
           Study area
         </button>
-        <button type="button" className="btn" onClick={() => openForm("time")} disabled={busy}>
-          Times
-        </button>
       </div>
 
       {active ? (
         <form className="homescool-form homescool-form--compact" onSubmit={onSubmit}>
           <label>
-            {active === "period" ? "Period label" : null}
-            {active === "study_area" ? "Study area label" : null}
-            {active === "time" ? "Time label" : null}
+            {active === "period" ? "Period label" : "Study area label"}
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder={
-                active === "period"
-                  ? "e.g. 2026-Q1"
-                  : active === "study_area"
-                    ? "e.g. science"
-                    : "e.g. 45 min"
-              }
+              placeholder={active === "period" ? "e.g. 2026-Q1" : "e.g. science"}
               required
               disabled={busy}
             />
           </label>
-          {active === "time" ? (
-            <label>
-              Minutes
-              <input
-                type="number"
-                min={1}
-                value={durationMin}
-                onChange={(e) => setDurationMin(Number(e.target.value))}
-                disabled={busy}
-                required
-              />
-            </label>
-          ) : null}
           <div className="homescool-catalogs__form-actions">
             <button className="btn btn--primary" type="submit" disabled={busy || !label.trim()}>
               {busy ? "Saving…" : "Save"}
@@ -139,14 +111,6 @@ export default function CatalogsPanel({ onCatalogsChanged }: Props) {
         <li>
           <strong>Study areas</strong>
           <span>{areas.length ? areas.map((a) => a.label).join(", ") : "None yet"}</span>
-        </li>
-        <li>
-          <strong>Times</strong>
-          <span>
-            {times.length
-              ? times.map((t) => `${t.label}${t.durationMin ? ` (${t.durationMin}m)` : ""}`).join(", ")
-              : "None yet"}
-          </span>
         </li>
       </ul>
     </div>

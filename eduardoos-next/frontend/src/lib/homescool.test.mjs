@@ -89,6 +89,37 @@ describe("homescool helpers", () => {
     assert.equal(scoreBand(5), "bueno");
   });
 
+  it("duration presets map codes to minutes and Spanish labels", () => {
+    const DAY = 24 * 60;
+    const WEEK = 7 * DAY;
+    const MONTH = 30 * DAY;
+    const presets = [
+      { code: "30m", label: "30min", minutes: 30 },
+      { code: "1h", label: "1hr", minutes: 60 },
+      { code: "2h", label: "2hrs", minutes: 120 },
+      { code: "4h", label: "4hrs", minutes: 240 },
+      { code: "1d", label: "1 día", minutes: DAY },
+      { code: "6d", label: "6 días", minutes: 6 * DAY },
+      { code: "1w", label: "1 semana", minutes: WEEK },
+      { code: "3w", label: "3 semanas", minutes: 3 * WEEK },
+      { code: "1mo", label: "1 mes", minutes: MONTH },
+      { code: "12mo", label: "12 meses (1 año)", minutes: 12 * MONTH },
+    ];
+    const byMinutes = new Map(presets.map((p) => [p.minutes, p.label]));
+    function formatDurationLabel(durationMin) {
+      if (!Number.isFinite(durationMin) || durationMin <= 0) return "";
+      return byMinutes.get(durationMin) ?? `${durationMin} min`;
+    }
+    assert.equal(formatDurationLabel(30), "30min");
+    assert.equal(formatDurationLabel(60), "1hr");
+    assert.equal(formatDurationLabel(DAY), "1 día");
+    assert.equal(formatDurationLabel(WEEK), "1 semana");
+    assert.equal(formatDurationLabel(MONTH), "1 mes");
+    assert.equal(formatDurationLabel(12 * MONTH), "12 meses (1 año)");
+    assert.equal(formatDurationLabel(45), "45 min");
+    assert.equal(presets.length, 10);
+  });
+
   it("folders sidebar preference parses 1/0/true (default open)", () => {
     function parseFoldersOpen(stored) {
       if (stored === null || stored === undefined) return true;

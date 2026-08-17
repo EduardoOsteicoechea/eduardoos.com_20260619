@@ -1,13 +1,16 @@
 /**
  * Sidebar card: create reusable task templates.
- * Period, Study area, and Time are dropdowns from the teacher catalogs (not free-text).
+ * Period and Study area are dropdowns from teacher catalogs.
+ * Time is a fixed Spanish preset list (not a catalog) — stored as durationMin.
  * Max score is always 1–5.
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
+  HOMESCOOL_DURATION_PRESETS,
   HOMESCOOL_MAX_SCORE,
   createTaskTemplate,
+  formatDurationLabel,
   listCatalogEntries,
   listTaskTemplates,
   uploadTemplateImage,
@@ -26,14 +29,13 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
   const [templates, setTemplates] = useState<HomescoolTaskTemplate[]>([]);
   const [periods, setPeriods] = useState<HomescoolCatalogEntry[]>([]);
   const [areas, setAreas] = useState<HomescoolCatalogEntry[]>([]);
-  const [times, setTimes] = useState<HomescoolCatalogEntry[]>([]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [period, setPeriod] = useState("");
   const [studyArea, setStudyArea] = useState("");
-  const [durationMin, setDurationMin] = useState(0);
+  const [durationCode, setDurationCode] = useState("");
   const [maxScore, setMaxScore] = useState(HOMESCOOL_MAX_SCORE);
   const [image, setImage] = useState<File | null>(null);
 
@@ -48,18 +50,15 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
 
   const reloadCatalogs = useCallback(async () => {
     try {
-      const [p, a, t] = await Promise.all([
+      const [p, a] = await Promise.all([
         listCatalogEntries("period"),
         listCatalogEntries("study_area"),
-        listCatalogEntries("time"),
       ]);
       setPeriods(p.entries ?? []);
       setAreas(a.entries ?? []);
-      setTimes(t.entries ?? []);
     } catch {
       setPeriods([]);
       setAreas([]);
-      setTimes([]);
     }
   }, []);
 
@@ -73,7 +72,8 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
-    if (!period || !studyArea || !durationMin) return;
+    const preset = HOMESCOOL_DURATION_PRESETS.find((p) => p.code === durationCode);
+    if (!period || !studyArea || !preset) return;
     setBusy(true);
     try {
       const { template } = await createTaskTemplate({
@@ -81,7 +81,7 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
         description,
         period,
         studyArea,
-        durationMin,
+        durationMin: preset.minutes,
         maxScore,
       });
       if (image) {
@@ -91,7 +91,7 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
       setDescription("");
       setPeriod("");
       setStudyArea("");
-      setDurationMin(0);
+      setDurationCode("");
       setMaxScore(HOMESCOOL_MAX_SCORE);
       setImage(null);
       setOpen(false);
@@ -105,7 +105,7 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
   }
 
   const canSave =
-    Boolean(name.trim()) && Boolean(period) && Boolean(studyArea) && durationMin >= 1;
+    Boolean(name.trim()) && Boolean(period) && Boolean(studyArea) && Boolean(durationCode);
 
   return (
     <div className="homescool-templates">
@@ -156,16 +156,15 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
           <label>
             Time
             <select
-              value={durationMin || ""}
-              onChange={(e) => setDurationMin(Number(e.target.value))}
+              value={durationCode}
+              onChange={(e) => setDurationCode(e.target.value)}
               required
-              disabled={busy || times.length === 0}
+              disabled={busy}
             >
-              <option value="">{times.length ? "Select time…" : "Create a time preset first"}</option>
-              {times.map((t) => (
-                <option key={t.id} value={t.durationMin ?? 0}>
-                  {t.label}
-                  {t.durationMin ? ` (${t.durationMin} min)` : ""}
+              <option value="">Select time…</option>
+              {HOMESCOOL_DURATION_PRESETS.map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.label}
                 </option>
               ))}
             </select>
@@ -210,7 +209,7 @@ export default function TaskTemplatesPanel({ onTemplatesChanged, catalogsTick = 
             <strong>{tpl.name}</strong>
             <span>
               {[tpl.period, tpl.studyArea].filter(Boolean).join(" · ") || "No period/area"}
-              {tpl.durationMin ? ` · ${tpl.durationMin} min` : ""}
+              {tpl.durationMin ? ` · ${formatDurationLabel(tpl.durationMin)}` : ""}
             </span>
           </li>
         ))}

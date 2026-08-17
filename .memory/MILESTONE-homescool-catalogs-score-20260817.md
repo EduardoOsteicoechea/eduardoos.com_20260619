@@ -10,10 +10,10 @@ Follow-on to `MILESTONE-homescool-tasks-20260817.md`.
 Buttons to create durable catalogs per teacher:
 - **Period**
 - **Study area**
-- **Times** (duration presets: label + minutes)
+- ~~**Times**~~ → removed; duration is fixed presets (see `MILESTONE-homescool-duration-presets-20260817.md`)
 
-Task templates and assign-task filters use **dropdowns** from these catalogs
-(not free-text Period / Study area / Time).
+Task templates and assign-task filters use **dropdowns** from Period / Study area catalogs
+(not free-text). Time uses fixed Spanish presets (`durationMin`).
 
 ### Score always 1–5
 | Score | Band | Color |
@@ -35,7 +35,7 @@ Score bar is **5 segments**. Max score default/clamp is 5 (was 10).
 
 | Method | Path | Body / query |
 |--------|------|----------------|
-| `POST` | `/api/homescool/catalogs` | `{ kind, label, durationMin? }` — kind=`period`\|`study_area`\|`time` |
+| `POST` | `/api/homescool/catalogs` | `{ kind, label }` — kind=`period`\|`study_area` |
 | `GET` | `/api/homescool/catalogs` | optional `?kind=` |
 
 ## Persistence

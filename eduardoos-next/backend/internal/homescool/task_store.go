@@ -12,7 +12,7 @@ import (
 )
 
 // TaskStore persists teacher task templates, per-student assigned tasks, and
-// teacher catalogs (period / study area / time presets).
+// teacher catalogs (period / study area).
 // Production uses DynamoDB via OpenTaskStore; tests use MemoryTaskStore.
 type TaskStore interface {
 	BackendName() string
@@ -236,9 +236,6 @@ func (s *MemoryTaskStore) CreateCatalogEntry(_ context.Context, entry CatalogEnt
 	}
 	if err := ValidateCatalogEntry(entry); err != nil {
 		return CatalogEntry{}, err
-	}
-	if entry.Kind != CatalogKindTime {
-		entry.DurationMin = 0
 	}
 	if entry.ID == "" {
 		entry.ID = uuid.NewString()

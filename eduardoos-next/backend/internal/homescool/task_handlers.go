@@ -161,14 +161,13 @@ func (h *Handler) UploadTemplateImage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// CreateCatalogEntry stores a teacher-owned period, study area, or time preset.
+// CreateCatalogEntry stores a teacher-owned period or study area label.
 func (h *Handler) CreateCatalogEntry(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	teacher := auth.UserEmailFromRequest(r)
 	var body struct {
-		Kind        string `json:"kind"`
-		Label       string `json:"label"`
-		DurationMin int    `json:"durationMin"`
+		Kind  string `json:"kind"`
+		Label string `json:"label"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
@@ -178,7 +177,6 @@ func (h *Handler) CreateCatalogEntry(w http.ResponseWriter, r *http.Request) {
 		TeacherEmail: teacher,
 		Kind:         body.Kind,
 		Label:        body.Label,
-		DurationMin:  body.DurationMin,
 	})
 	if err != nil {
 		log.Printf("[correlation=%s] homescool.catalog.create error: %v", cid, err)
@@ -195,7 +193,7 @@ func (h *Handler) ListCatalogEntries(w http.ResponseWriter, r *http.Request) {
 	teacher := auth.UserEmailFromRequest(r)
 	kind := r.URL.Query().Get("kind")
 	if kind != "" && !IsValidCatalogKind(kind) {
-		httpx.WriteError(w, http.StatusBadRequest, "kind must be period, study_area, or time")
+		httpx.WriteError(w, http.StatusBadRequest, "kind must be period or study_area")
 		return
 	}
 	items, err := h.Tasks.ListCatalogEntries(r.Context(), teacher, kind)

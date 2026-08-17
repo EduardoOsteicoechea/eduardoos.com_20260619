@@ -27,7 +27,7 @@
 //	SK: homescool-tpl:t:{teacher}|id:{id}
 //	SK: homescool-task:t:{teacher}|s:{student}|id:{id}
 //	SK: homescool-task-by-student:s:{student}|t:{teacher}|id:{id}
-//	SK: homescool-cat:t:{teacher}|k:{kind}|id:{id}   (kind=period|study_area|time)
+//	SK: homescool-cat:t:{teacher}|k:{kind}|id:{id}   (kind=period|study_area)
 //
 // Submission / template images (S3):
 //

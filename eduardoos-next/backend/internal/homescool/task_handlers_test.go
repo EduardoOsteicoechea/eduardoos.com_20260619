@@ -270,18 +270,8 @@ func TestCatalogCreateAndList(t *testing.T) {
 	timeReq.Header.Set("Content-Type", "application/json")
 	timeRec := httptest.NewRecorder()
 	r.ServeHTTP(timeRec, timeReq)
-	if timeRec.Code != http.StatusCreated {
-		t.Fatalf("time status=%d body=%s", timeRec.Code, timeRec.Body.String())
-	}
-
-	badTime := httptest.NewRequest(http.MethodPost, "/api/homescool/catalogs",
-		bytes.NewBufferString(`{"kind":"time","label":"bad"}`))
-	badTime.Header.Set("Authorization", "Bearer "+teacherTok)
-	badTime.Header.Set("Content-Type", "application/json")
-	badTimeRec := httptest.NewRecorder()
-	r.ServeHTTP(badTimeRec, badTime)
-	if badTimeRec.Code != http.StatusBadRequest {
-		t.Fatalf("time without duration status=%d", badTimeRec.Code)
+	if timeRec.Code != http.StatusBadRequest {
+		t.Fatalf("time catalog should be rejected status=%d body=%s", timeRec.Code, timeRec.Body.String())
 	}
 
 	list := httptest.NewRequest(http.MethodGet, "/api/homescool/catalogs?kind=period", nil)
@@ -307,7 +297,7 @@ func TestCatalogCreateAndList(t *testing.T) {
 	r.ServeHTTP(allRec, all)
 	var allBody map[string]any
 	_ = json.Unmarshal(allRec.Body.Bytes(), &allBody)
-	if int(allBody["count"].(float64)) != 3 {
-		t.Fatalf("want 3 catalog entries, got %#v", allBody)
+	if int(allBody["count"].(float64)) != 2 {
+		t.Fatalf("want 2 catalog entries, got %#v", allBody)
 	}
 }
