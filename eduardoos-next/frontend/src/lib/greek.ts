@@ -3,8 +3,8 @@
  * Failures surface via ServerErrorModal (openApiErrorModal).
  *
  * Letter-images (not whole-word images): each word is composed of letter slots
- * with SVG + slug + alphabetNumber. Alphabet numbers are fixed to the Koine
- * Greek catalog (1=Α … 24=Ω; n.1=lower; n.2+=accents). Drawing happens in the
+ * with SVG + slug + alphabetNumber. Alphabet numbers are fixed to the clean
+ * Greek alphabet (1=Α … 24=Ω; n.1=lower; 18.2=ς final). Drawing happens in the
  * letter catalog; words pick glyphs from the catalog.
  */
 
@@ -417,6 +417,8 @@ export async function seedGreekCatalog(): Promise<{
   created: number;
   updated: number;
   keptDrawn: number;
+  pruned?: number;
+  orphanDeleted?: number;
   glyphs: GreekGalleryGlyph[];
 } | null> {
   return greekRequest(GREEK_ROUTES.catalogSeed, { method: "POST" });

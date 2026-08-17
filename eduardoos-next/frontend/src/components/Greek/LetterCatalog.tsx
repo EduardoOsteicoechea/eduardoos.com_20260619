@@ -1,5 +1,5 @@
 /**
- * Letter catalog modal — Koine Greek slots (upper/lower + accents).
+ * Letter catalog modal — clean Greek alphabet (24 upper + 24 lower + ς).
  * Admin seeds structure, then draws/overrides SVG one-by-one.
  * Storage: greek/{user}/gallery/ (catalog UI over gallery prefix).
  *
@@ -193,9 +193,10 @@ export default function LetterCatalog({ open, onClose }: LetterCatalogProps) {
             Letter catalog
           </h2>
           <p className="greek-canvas-modal__hint">
-            Koine Greek Αα…Ωω with fixed alphabet # (n = upper, n.1 = lower,
-            n.2… = accents). Seed slots, then draw/override each SVG. Words pick
-            from this catalog only.
+            Clean Greek alphabet Αα…Ωω (49 slots: 24 upper, 24 lower, plus final
+            ς). Alphabet #: n = upper, n.1 = lower, 18.2 = sigma final. Re-seed
+            refreshes this set and drops obsolete accent slots. Words pick from
+            this catalog only.
           </p>
           <div className="greek-editor__row">
             <button
@@ -208,7 +209,7 @@ export default function LetterCatalog({ open, onClose }: LetterCatalogProps) {
                 ? "Seeding…"
                 : glyphs.length
                   ? "Re-seed / refresh slots"
-                  : "Generate Koine catalog"}
+                  : "Generate Greek catalog"}
             </button>
             <div className="greek-build__field">
               <label htmlFor="greek-catalog-filter">Filter</label>
@@ -216,7 +217,7 @@ export default function LetterCatalog({ open, onClose }: LetterCatalogProps) {
                 id="greek-catalog-filter"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="nu, 13.1, ἀ…"
+                placeholder="nu, 13.1, σ…"
               />
             </div>
           </div>
@@ -227,7 +228,7 @@ export default function LetterCatalog({ open, onClose }: LetterCatalogProps) {
           </p>
           {glyphs.length === 0 && !loading ? (
             <p className="greek-gallery__empty">
-              Catalog empty — generate the Koine letter slots, then draw each glyph.
+              Catalog empty — generate the clean Αα…Ωω slots, then draw each glyph.
             </p>
           ) : (
             <ul className="greek-catalog__list">

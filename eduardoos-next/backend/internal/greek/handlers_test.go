@@ -489,8 +489,8 @@ func TestCatalogSeedAndOverride(t *testing.T) {
 
 func TestKoineCatalogSeedNumbering(t *testing.T) {
 	seed := KoineCatalogSeed()
-	if len(seed) < 100 {
-		t.Fatalf("expected rich catalog, got %d", len(seed))
+	if len(seed) != 49 {
+		t.Fatalf("expected clean alphabet (24+24+ς=49), got %d", len(seed))
 	}
 	seen := map[float64]string{}
 	for _, e := range seed {
@@ -505,8 +505,105 @@ func TestKoineCatalogSeedNumbering(t *testing.T) {
 			t.Fatalf("letterIndex out of range for %s", e.Slug)
 		}
 	}
-	if seen[1] != "alpha-upper" || seen[13.1] != "nu-lower" || seen[24.9] != "omega-iota-sub" {
-		t.Fatalf("unexpected fixed numbers: 1=%s 13.1=%s 24.9=%s", seen[1], seen[13.1], seen[24.9])
+	if seen[1] != "alpha-upper" || seen[13.1] != "nu-lower" || seen[18.2] != "sigma-final" || seen[24.1] != "omega-lower" {
+		t.Fatalf("unexpected fixed numbers: 1=%s 13.1=%s 18.2=%s 24.1=%s",
+			seen[1], seen[13.1], seen[18.2], seen[24.1])
+	}
+	if _, ok := seen[24.9]; ok {
+		t.Fatal("polytonic omega-iota-sub must not be in clean seed")
+	}
+}
+
+func TestCatalogSeedPrunesObsoleteUndrawn(t *testing.T) {
+	h, r, users := testRouter(t)
+	seedAdmin(t, users, "admin@example.com")
+	tok := bearer(t, "admin@example.com", auth.RoleAdmin)
+
+	// First seed clean catalog.
+	req := httptest.NewRequest(http.MethodPost, "/api/greek/catalog/seed", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("seed status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	// Inject obsolete accent slots into index (simulates old rich seed).
+	owner := "admin@example.com"
+	var idx GalleryIndex
+	ok, err := h.Objects.GetJSON(t.Context(), GalleryIndexKey(owner), &idx, "test")
+	if err != nil || !ok {
+		t.Fatalf("load index ok=%v err=%v", ok, err)
+	}
+	weirdKey := GalleryGlyphKey(owner, "alpha-smooth")
+	if err := h.Objects.PutBytes(t.Context(), weirdKey, []byte(EmptyLetterSVG), "image/svg+xml", "test"); err != nil {
+		t.Fatal(err)
+	}
+	idx.Glyphs = append(idx.Glyphs, GalleryGlyph{
+		Slug:           "alpha-smooth",
+		AlphabetNumber: 1.2,
+		Label:          "ἀ",
+		Name:           "alpha smooth",
+		Case:           "lower",
+		Variant:        "smooth",
+		LetterIndex:    1,
+		Drawn:          false,
+		Key:            weirdKey,
+		URL:            galleryURL("alpha-smooth"),
+	})
+	drawnWeirdKey := GalleryGlyphKey(owner, "omega-iota-sub")
+	drawnSVG := `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="64" viewBox="0 0 32 64"><path d="M4 60 L16 4 L28 60" fill="none" stroke="black"/></svg>`
+	if err := h.Objects.PutBytes(t.Context(), drawnWeirdKey, []byte(drawnSVG), "image/svg+xml", "test"); err != nil {
+		t.Fatal(err)
+	}
+	idx.Glyphs = append(idx.Glyphs, GalleryGlyph{
+		Slug:           "omega-iota-sub",
+		AlphabetNumber: 24.9,
+		Label:          "ῳ",
+		Name:           "omega iota subscript",
+		Case:           "lower",
+		Variant:        "iota-sub",
+		LetterIndex:    24,
+		Drawn:          true,
+		Key:            drawnWeirdKey,
+		URL:            galleryURL("omega-iota-sub"),
+	})
+	if err := h.Objects.PutJSON(t.Context(), GalleryIndexKey(owner), idx, "test"); err != nil {
+		t.Fatal(err)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/greek/catalog/seed", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("re-seed status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var reseed struct {
+		Seeded        int            `json:"seeded"`
+		Pruned        int            `json:"pruned"`
+		OrphanDeleted int            `json:"orphanDeleted"`
+		Glyphs        []GalleryGlyph `json:"glyphs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &reseed); err != nil {
+		t.Fatal(err)
+	}
+	if reseed.Seeded != 49 || reseed.Pruned != 2 || reseed.OrphanDeleted != 1 {
+		t.Fatalf("seeded=%d pruned=%d orphanDeleted=%d want 49/2/1",
+			reseed.Seeded, reseed.Pruned, reseed.OrphanDeleted)
+	}
+	for _, g := range reseed.Glyphs {
+		if g.Slug == "alpha-smooth" || g.Slug == "omega-iota-sub" {
+			t.Fatalf("obsolete slug still listed: %s", g.Slug)
+		}
+	}
+	_, _, stillThere, err := h.Objects.GetBytes(t.Context(), weirdKey, "test")
+	if err != nil || stillThere {
+		t.Fatalf("undrawn obsolete SVG should be deleted, ok=%v err=%v", stillThere, err)
+	}
+	body, _, drawnKept, err := h.Objects.GetBytes(t.Context(), drawnWeirdKey, "test")
+	if err != nil || !drawnKept || !GlyphHasDrawing(body) {
+		t.Fatalf("drawn obsolete SVG must be kept on S3, ok=%v err=%v", drawnKept, err)
 	}
 }
 

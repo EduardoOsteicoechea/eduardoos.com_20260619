@@ -798,9 +798,12 @@ func (h *Handler) ListGallery(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"glyphs": idx.Glyphs})
 }
 
-// SeedCatalog writes all Koine Greek catalog slots (upper/lower + accent variants)
-// with fixed alphabet numbers. Existing drawn SVGs are kept; undrawn/missing get
-// EmptyLetterSVG placeholders. Metadata (label, name, case, variant) is refreshed.
+// SeedCatalog writes the clean standard Greek alphabet catalog (24 upper + 24
+// lower + final sigma) with fixed alphabet numbers. Re-seed replaces the listed
+// slot set with that clean alphabet: existing drawn SVGs for kept slots are
+// preserved; undrawn/missing get EmptyLetterSVG. Slugs no longer in the seed
+// are dropped from the index. Orphan S3 keys for removed *undrawn* slots are
+// deleted; drawn SVGs for removed slugs are left on S3 (not silently wiped).
 func (h *Handler) SeedCatalog(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	owner := auth.UserEmailFromRequest(r)
@@ -809,14 +812,19 @@ func (h *Handler) SeedCatalog(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, "could not load catalog index")
 		return
 	}
-	bySlug := make(map[string]int, len(idx.Glyphs))
-	for i, g := range idx.Glyphs {
-		bySlug[g.Slug] = i
+	prevBySlug := make(map[string]GalleryGlyph, len(idx.Glyphs))
+	for _, g := range idx.Glyphs {
+		prevBySlug[g.Slug] = g
 	}
 	seed := KoineCatalogSeed()
+	seedSlugs := make(map[string]struct{}, len(seed))
+	for _, entry := range seed {
+		seedSlugs[entry.Slug] = struct{}{}
+	}
 	now := nowRFC3339()
 	created, updated, kept := 0, 0, 0
 	empty := []byte(EmptyLetterSVG)
+	next := make([]GalleryGlyph, 0, len(seed))
 
 	for _, entry := range seed {
 		gKey := GalleryGlyphKey(owner, entry.Slug)
@@ -853,31 +861,61 @@ func (h *Handler) SeedCatalog(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:      now,
 			UpdatedAt:      now,
 		}
-		if i, ok := bySlug[entry.Slug]; ok {
-			if idx.Glyphs[i].CreatedAt != "" {
-				glyph.CreatedAt = idx.Glyphs[i].CreatedAt
+		if prev, ok := prevBySlug[entry.Slug]; ok {
+			if prev.CreatedAt != "" {
+				glyph.CreatedAt = prev.CreatedAt
 			}
-			idx.Glyphs[i] = glyph
 			updated++
 		} else {
-			idx.Glyphs = append(idx.Glyphs, glyph)
-			bySlug[entry.Slug] = len(idx.Glyphs) - 1
 			created++
 		}
+		next = append(next, glyph)
 	}
+
+	// Drop obsolete slots from the listed catalog. Delete undrawn orphan SVG keys only.
+	pruned, orphanDeleted := 0, 0
+	for slug, old := range prevBySlug {
+		if _, keep := seedSlugs[slug]; keep {
+			continue
+		}
+		pruned++
+		gKey := old.Key
+		if gKey == "" {
+			gKey = GalleryGlyphKey(owner, slug)
+		}
+		body, _, hasSVG, err := h.Objects.GetBytes(r.Context(), gKey, cid)
+		if err != nil {
+			log.Printf("[correlation=%s] greek.catalog.seed prune get error: %v", cid, err)
+			httpx.WriteError(w, http.StatusBadGateway, "could not read obsolete catalog glyph")
+			return
+		}
+		if hasSVG && !GlyphHasDrawing(body) {
+			if err := h.Objects.DeleteKey(r.Context(), gKey, cid); err != nil {
+				log.Printf("[correlation=%s] greek.catalog.seed prune delete error: %v", cid, err)
+				httpx.WriteError(w, http.StatusBadGateway, "could not delete obsolete undrawn glyph")
+				return
+			}
+			orphanDeleted++
+		}
+		// Drawn SVGs for removed slugs stay in S3; they are simply unlisted.
+	}
+
+	idx.Glyphs = next
 	idx.UpdatedAt = now
 	if err := h.Objects.PutJSON(r.Context(), GalleryIndexKey(owner), idx, cid); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, "could not update catalog index")
 		return
 	}
-	log.Printf("[correlation=%s] greek.catalog.seed owner=%s created=%d updated=%d keptDrawn=%d total=%d",
-		cid, owner, created, updated, kept, len(seed))
+	log.Printf("[correlation=%s] greek.catalog.seed owner=%s created=%d updated=%d keptDrawn=%d pruned=%d orphanDeleted=%d total=%d",
+		cid, owner, created, updated, kept, pruned, orphanDeleted, len(seed))
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"seeded":     len(seed),
-		"created":    created,
-		"updated":    updated,
-		"keptDrawn":  kept,
-		"glyphs":     idx.Glyphs,
+		"seeded":         len(seed),
+		"created":        created,
+		"updated":        updated,
+		"keptDrawn":      kept,
+		"pruned":         pruned,
+		"orphanDeleted":  orphanDeleted,
+		"glyphs":         idx.Glyphs,
 	})
 }
 

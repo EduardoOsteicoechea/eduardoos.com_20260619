@@ -117,14 +117,14 @@ describe("greek helpers", () => {
     assert.ok(validateAlphabetNumber(1.15));
   });
 
-  it("koine-style numbering uses integer letter + decimal variants", () => {
-    // Mirror of Go KoineCatalogSeed scheme: n=upper, n.1=lower, n.2+=accents.
+  it("clean alphabet numbering uses integer letter + lowercase decimals", () => {
+    // Mirror of Go KoineCatalogSeed: n=upper, n.1=lower, 18.2=sigma final.
     const samples = [
       { slug: "alpha-upper", n: 1 },
       { slug: "alpha-lower", n: 1.1 },
       { slug: "nu-lower", n: 13.1 },
       { slug: "sigma-final", n: 18.2 },
-      { slug: "omega-iota-sub", n: 24.9 },
+      { slug: "omega-lower", n: 24.1 },
     ];
     for (const s of samples) {
       assert.equal(validateAlphabetNumber(s.n), null, s.slug);

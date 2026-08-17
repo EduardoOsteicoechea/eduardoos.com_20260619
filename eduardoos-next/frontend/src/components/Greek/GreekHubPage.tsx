@@ -91,8 +91,8 @@ export default function GreekHubPage() {
           <li>Groups are books stored under S3 <code>greek/…</code></li>
           <li>Hierarchy: chapter → verse → word → letter images</li>
           <li>
-            Letter catalog: seed Koine Αα…Ωω (fixed alphabet #), draw each SVG,
-            then pick into words
+            Letter catalog: seed clean Αα…Ωω + ς (49 slots, fixed alphabet #),
+            draw each SVG, then pick into words
           </li>
           <li>Admin only (role <code>admin</code> or bootstrap email)</li>
         </ul>

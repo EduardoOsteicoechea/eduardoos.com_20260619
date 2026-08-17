@@ -1,6 +1,6 @@
 /**
  * Greek group detail — top gallery of letter images; bottom hierarchy editor.
- * Words are composed of ordered letter-image slots picked from the Koine catalog.
+ * Words are composed of ordered letter-image slots picked from the letter catalog.
  * Drawing / SVG override happens in the letter catalog (or Edit on a word slot).
  */
 
@@ -148,7 +148,7 @@ function CatalogPicker({
           Pick letter from catalog
         </h2>
         <p className="greek-canvas-modal__hint">
-          Choose a Koine catalog glyph. Slug and alphabet # come from the catalog
+          Choose a catalog glyph. Slug and alphabet # come from the catalog
           (fixed numbering). Draw missing glyphs in Letter catalog first.
         </p>
         <div className="greek-build__field">
@@ -164,7 +164,7 @@ function CatalogPicker({
           <p className="greek-gallery__empty">Loading catalog…</p>
         ) : glyphs.length === 0 ? (
           <p className="greek-gallery__empty">
-            Catalog empty — open Letter catalog and generate Koine slots.
+            Catalog empty — open Letter catalog and generate Αα…Ωω slots.
           </p>
         ) : (
           <ul className="greek-gallery-picker__grid">
@@ -263,7 +263,7 @@ function LetterSlotRow({
           value={formatAlphabetNumber(letter.alphabetNumber || letter.index || 1)}
           readOnly
           disabled
-          title="Fixed by Koine catalog"
+          title="Fixed by letter catalog"
         />
       </div>
       <button type="button" className="btn" onClick={onEditSvg}>

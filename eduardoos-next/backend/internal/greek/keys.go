@@ -17,8 +17,8 @@
 // Each word stores translation1 / translation2, ordinals, and letterImages metadata
 // (slug + alphabetNumber). Letter SVGs are ordered by alphabetNumber ascending.
 //
-// Alphabet numbers are fixed to the Koine Greek catalog (1=Alpha … 24=Omega):
-//   n = uppercase plain, n.1 = lowercase plain, n.2…n.9 = accent/diacritic variants.
+// Alphabet numbers are fixed to the clean Greek alphabet catalog (1=Alpha … 24=Omega):
+//   n = uppercase plain, n.1 = lowercase plain, 18.2 = sigma final (ς).
 // Validation still allows 1…30 with 0.1 steps for legacy rows.
 //
 // The letter catalog (UI) is stored under greek/{userSafe}/gallery/ (same prefix;

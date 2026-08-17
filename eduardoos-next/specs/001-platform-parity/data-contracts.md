@@ -30,7 +30,7 @@ greek/{userSafe}/gallery/index.json       # Koine letter catalog index
 greek/{userSafe}/gallery/{glyphSlug}.svg  # catalog glyph (draw/override same key)
 ```
 
-Alphabet # is fixed to Koine (1=Α … 24=Ω; `n.1`=lower; `n.2+`=accents). UI “Letter catalog” uses the `gallery/` prefix (no separate `catalog/` tree). APIs: `/api/greek/catalog/*` (+ `/api/greek/gallery` aliases). `DELETE /api/greek/catalog/{slug}` clears the SVG to the empty placeholder and sets `drawn=false` while keeping seed slot metadata; `DELETE /api/greek/gallery/{slug}` still removes the glyph from the index.
+Alphabet # is fixed to the clean Greek alphabet (1=Α … 24=Ω; `n.1`=lower; `18.2`=ς final; **49 slots**). Re-seed replaces the listed set, drops obsolete accent slugs, and deletes undrawn orphan S3 keys only (drawn removed slugs stay unlisted on S3). UI “Letter catalog” uses the `gallery/` prefix (no separate `catalog/` tree). APIs: `/api/greek/catalog/*` (+ `/api/greek/gallery` aliases). `DELETE /api/greek/catalog/{slug}` clears the SVG to the empty placeholder and sets `drawn=false` while keeping seed slot metadata; `DELETE /api/greek/gallery/{slug}` still removes the glyph from the index.
 
 ## DynamoDB (us-east-1)
 

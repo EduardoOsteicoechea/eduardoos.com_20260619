@@ -2,7 +2,7 @@
  * Letter drawing canvas — finger / mouse / stylus → 32×64 SVG letter-image.
  *
  * Modes:
- * - catalog: draw/override a catalog slot (slug + alphabet # fixed from Koine seed)
+ * - catalog: draw/override a catalog slot (slug + alphabet # fixed from seed)
  * - edit-word-letter: redraw SVG for an existing word letter slot (same index)
  */
 

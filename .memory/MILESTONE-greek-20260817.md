@@ -1,21 +1,25 @@
 # Milestone: Greek letter-by-letter builder — 2026-08-17
 
-## Status: SHIPPED + Koine letter catalog (fixed alphabet #) + pick-from-catalog
+## Status: SHIPPED + clean Greek letter catalog (Αα…Ωω + ς)
 
 Admin-only product to copy/visualize books **letter-image by letter-image** under S3 prefix `greek/`.
 A **word is composed** of letter-images (not one image per word).
 
-## Letter catalog (Koine) — 2026-08-17
+## Letter catalog (clean alphabet) — 2026-08-17
 
-Fixed alphabet numbering for Koine Greek Αα…Ωω:
+Fixed alphabet numbering for the **standard Greek alphabet** only (no polytonic stacks):
 
 | Slot | Meaning |
 |------|---------|
 | `n` (1–24) | Uppercase plain (Α=1 … Ω=24) |
 | `n.1` | Lowercase plain |
-| `n.2`…`n.9` | Accent / diacritic / special variants for that letter |
+| `18.2` | Sigma final (ς) — only extra standard form |
 
-Examples: `nu-upper`=13, `nu-lower`=13.1; `sigma-final`=18.2; `omega-iota-sub`=24.9.
+**49 slots total** = 24 upper + 24 lower + final ς.
+
+Examples: `nu-upper`=13, `nu-lower`=13.1; `sigma-final`=18.2; `omega-lower`=24.1.
+
+Accent / breathing / iota-subscript variants were removed from the seed.
 
 ### Flow
 
@@ -44,7 +48,13 @@ greek/{userSafe}/gallery/{glyphSlug}.svg
 | GET/POST | `/api/greek/gallery` (legacy + POST create/override) |
 | PUT/GET/DELETE | `/api/greek/gallery/{slug}` (gallery DELETE still removes the glyph from the index) |
 
-Seed writes empty placeholder SVGs; re-seed keeps already-drawn glyphs.
+Seed writes empty placeholder SVGs. **Re-seed / refresh**:
+- Replaces the listed slot set with the clean 49-slot alphabet
+- Keeps already-drawn SVGs for slots that remain
+- Stops listing obsolete (accent) slugs
+- Deletes S3 keys only for removed **undrawn** orphans; drawn SVGs for removed slugs are left on S3 (unlisted)
+
+Response fields: `seeded`, `created`, `updated`, `keptDrawn`, `pruned`, `orphanDeleted`.
 
 ### Catalog row UI
 
@@ -56,7 +66,7 @@ Each letter-image has:
 
 1. **Image** — 32×64 SVG (from catalog pick or slot edit)
 2. **Slug** — text field (usually catalog slug)
-3. **Alphabet number** — fixed by Koine catalog (validation still allows 1…30 @ 0.1 for legacy)
+3. **Alphabet number** — fixed by clean catalog (validation still allows 1…30 @ 0.1 for legacy)
 
 Letter-images within a word sort by `alphabetNumber` ascending. Metadata in `word.json` as `letterImages[]`; SVG at `letters/{id}.svg`.
 
