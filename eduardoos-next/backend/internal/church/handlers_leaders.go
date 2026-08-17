@@ -68,6 +68,7 @@ func (h *Handler) CreateLeader(w http.ResponseWriter, r *http.Request) {
 		Email      string   `json:"email"`
 		Roles      []string `json:"roles"`
 		NetworkIDs []string `json:"networkIds"`
+		ChurchIDs  []string `json:"churchIds"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
@@ -91,6 +92,11 @@ func (h *Handler) CreateLeader(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid leader id")
 		return
 	}
+	churchIDs, err := h.filterVisibleChurchRefs(r, email, body.ChurchIDs)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	now := nowRFC3339()
 	L := LeaderDoc{
 		ID:        id,
@@ -99,6 +105,7 @@ func (h *Handler) CreateLeader(w http.ResponseWriter, r *http.Request) {
 		Phone:     strings.TrimSpace(body.Phone),
 		Email:     strings.TrimSpace(body.Email),
 		Roles:     body.Roles,
+		ChurchIDs: churchIDs,
 		CreatedBy: email,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -129,6 +136,7 @@ func (h *Handler) CreateLeader(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateLeader updates catalog fields; networkIds only when platform admin.
+// Church associations (churchIds) may be set by any register-gate user via setChurches.
 func (h *Handler) UpdateLeader(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	email := auth.UserEmailFromRequest(r)
@@ -142,13 +150,15 @@ func (h *Handler) UpdateLeader(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		FirstName  string   `json:"firstName"`
-		LastName   string   `json:"lastName"`
-		Phone      string   `json:"phone"`
-		Email      string   `json:"email"`
-		Roles      []string `json:"roles"`
-		NetworkIDs []string `json:"networkIds"`
-		SetNetworks bool    `json:"setNetworks"`
+		FirstName   string   `json:"firstName"`
+		LastName    string   `json:"lastName"`
+		Phone       string   `json:"phone"`
+		Email       string   `json:"email"`
+		Roles       []string `json:"roles"`
+		NetworkIDs  []string `json:"networkIds"`
+		SetNetworks bool     `json:"setNetworks"`
+		ChurchIDs   []string `json:"churchIds"`
+		SetChurches bool     `json:"setChurches"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
@@ -188,6 +198,7 @@ func (h *Handler) UpdateLeader(w http.ResponseWriter, r *http.Request) {
 		Email:      strings.TrimSpace(body.Email),
 		Roles:      body.Roles,
 		NetworkIDs: existing.NetworkIDs,
+		ChurchIDs:  existing.ChurchIDs,
 		UpdatedAt:  nowRFC3339(),
 	}
 	if body.Roles == nil {
@@ -195,6 +206,14 @@ func (h *Handler) UpdateLeader(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.isPlatformAdmin(r.Context(), email) && body.SetNetworks {
 		next.NetworkIDs = body.NetworkIDs
+	}
+	if body.SetChurches {
+		churchIDs, ferr := h.filterVisibleChurchRefs(r, email, body.ChurchIDs)
+		if ferr != nil {
+			httpx.WriteError(w, http.StatusBadRequest, ferr.Error())
+			return
+		}
+		next.ChurchIDs = churchIDs
 	}
 	updated, err := h.Leaders.Update(r.Context(), next)
 	if errors.Is(err, ErrNotFound) {
@@ -210,6 +229,65 @@ func (h *Handler) UpdateLeader(w http.ResponseWriter, r *http.Request) {
 		_ = h.Objects.PutJSON(r.Context(), LeaderMetaKey(leaderID), updated, cid)
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"leader": updated})
+}
+
+// filterVisibleChurchRefs keeps only catalog churches the caller may associate.
+// Platform admin: any existing church. Others: churches they own or share a
+// denomination with (via ownership or membership under that denom/network).
+func (h *Handler) filterVisibleChurchRefs(r *http.Request, email string, refs []string) ([]string, error) {
+	if len(refs) == 0 {
+		return nil, nil
+	}
+	if h.Catalog == nil {
+		return nil, errors.New("church catalog not configured")
+	}
+	all, err := h.Catalog.List(r.Context(), "")
+	if err != nil {
+		return nil, errors.New("could not list churches")
+	}
+	byRef := map[string]ChurchCard{}
+	for _, c := range all {
+		ref := ChurchRef(c.DenominationID, c.ChurchID)
+		if ref != "" {
+			byRef[ref] = c
+		}
+	}
+	admin := h.isPlatformAdmin(r.Context(), email)
+	allowedDenom := map[string]bool{}
+	if !admin {
+		emailNorm := auth.NormalizeEmail(email)
+		for _, c := range all {
+			if auth.NormalizeEmail(c.OwnerEmail) == emailNorm {
+				allowedDenom[c.DenominationID] = true
+			}
+		}
+		if h.Memberships != nil {
+			mems, merr := h.Memberships.ListByUser(r.Context(), emailNorm)
+			if merr == nil {
+				for _, m := range mems {
+					allowedDenom[strings.TrimSpace(m.DenominationID)] = true
+				}
+			}
+		}
+	}
+	out := make([]string, 0, len(refs))
+	seen := map[string]bool{}
+	for _, raw := range refs {
+		ref := NormalizeChurchRef(raw)
+		if ref == "" || seen[ref] {
+			continue
+		}
+		c, ok := byRef[ref]
+		if !ok {
+			return nil, errors.New("unknown church association: " + ref)
+		}
+		if !admin && !allowedDenom[c.DenominationID] {
+			return nil, errors.New("church not visible for association: " + ref)
+		}
+		seen[ref] = true
+		out = append(out, ref)
+	}
+	return out, nil
 }
 
 // DeleteLeader removes a catalog leader (register-gate or platform admin).

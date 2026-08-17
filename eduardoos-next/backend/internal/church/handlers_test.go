@@ -571,6 +571,25 @@ func TestLeadersCatalogAndBeliefsRegister(t *testing.T) {
 		t.Fatalf("expected beliefs: %s", regRW.Body.String())
 	}
 
+	// Pastor associates leader with the registered church (churchIds).
+	chBody, _ := json.Marshal(map[string]any{
+		"firstName": "Ana", "lastName": "Garcia",
+		"roles": []string{"elder-bishop-pastor"},
+		"churchIds": []string{"asambleas/central"}, "setChurches": true,
+	})
+	chReq := httptest.NewRequest(http.MethodPut, "/api/church/leaders/ana-garcia", bytes.NewReader(chBody))
+	chReq.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	chReq.Header.Set("Content-Type", "application/json")
+	chRW := httptest.NewRecorder()
+	r.ServeHTTP(chRW, chReq)
+	if chRW.Code != http.StatusOK || !strings.Contains(chRW.Body.String(), "asambleas/central") {
+		t.Fatalf("church assoc status=%d body=%s", chRW.Code, chRW.Body.String())
+	}
+	// Network association must survive church-only update (pastor cannot clear networks).
+	if !strings.Contains(chRW.Body.String(), `"networkIds":["asambleas"]`) {
+		t.Fatalf("expected networks preserved: %s", chRW.Body.String())
+	}
+
 	get := httptest.NewRequest(http.MethodGet, "/api/church/asambleas/central", nil)
 	get.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
 	getRW := httptest.NewRecorder()

@@ -128,7 +128,53 @@ func sanitizeLeaderDoc(L LeaderDoc) LeaderDoc {
 		nets = append(nets, n)
 	}
 	L.NetworkIDs = nets
+	churches := make([]string, 0, len(L.ChurchIDs))
+	seenChurch := map[string]bool{}
+	for _, ref := range L.ChurchIDs {
+		ref = NormalizeChurchRef(ref)
+		if ref == "" || seenChurch[ref] {
+			continue
+		}
+		seenChurch[ref] = true
+		churches = append(churches, ref)
+	}
+	L.ChurchIDs = churches
 	return L
+}
+
+// ChurchRef builds a durable "denominationId/churchId" association key.
+func ChurchRef(denomID, churchID string) string {
+	denomID = strings.TrimSpace(denomID)
+	churchID = strings.TrimSpace(churchID)
+	if !IsValidSlug(denomID) || !IsValidSlug(churchID) {
+		return ""
+	}
+	return denomID + "/" + churchID
+}
+
+// NormalizeChurchRef cleans a church association ref to denom/church form.
+func NormalizeChurchRef(ref string) string {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return ""
+	}
+	// Accept denom/church or denom|church (catalog SK style).
+	ref = strings.ReplaceAll(ref, "|", "/")
+	parts := strings.Split(ref, "/")
+	if len(parts) != 2 {
+		return ""
+	}
+	return ChurchRef(parts[0], parts[1])
+}
+
+// ParseChurchRef splits a normalized church association ref.
+func ParseChurchRef(ref string) (denomID, churchID string, ok bool) {
+	ref = NormalizeChurchRef(ref)
+	if ref == "" {
+		return "", "", false
+	}
+	parts := strings.Split(ref, "/")
+	return parts[0], parts[1], true
 }
 
 func leaderDocDisplayName(L LeaderDoc) string {

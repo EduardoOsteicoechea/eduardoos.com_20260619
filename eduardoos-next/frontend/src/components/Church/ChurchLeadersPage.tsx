@@ -2,21 +2,30 @@
  * /church/leaders — independent líderes catalog.
  * Mutate: platform admin OR (approved + church-management).
  * Network associations: platform admin only.
+ * Church associations: register-gate users (visible churches) + admin (all).
  */
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../../config/routes";
-import { isAuthenticated, isPlatformAdmin } from "../../lib/auth";
 import {
+  getAuthEmailFromToken,
+  isAuthenticated,
+  isPlatformAdmin,
+} from "../../lib/auth";
+import {
+  churchAssociationRef,
   createChurchLeader,
   deleteChurchLeader,
   fetchChurchAuthorization,
+  fetchChurchOverview,
   LEADER_ROLE_OPTIONS,
   leaderDisplayName,
+  listChurches,
   listChurchGroups,
   listChurchLeaders,
   sanitizeChurchSlug,
   updateChurchLeader,
+  type ChurchCard,
   type DenominationGroup,
   type LeaderCatalogEntry,
 } from "../../lib/church";
@@ -28,16 +37,51 @@ import "./Church.css";
 
 type Gate = "checking" | "allowed" | "denied" | "signin";
 
+function toggleId(list: string[], id: string): string[] {
+  return list.includes(id) ? list.filter((r) => r !== id) : [...list, id];
+}
+
+function RoleOptionSet({
+  legend,
+  selected,
+  onToggle,
+}: {
+  legend: string;
+  selected: string[];
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <fieldset className="church-option-set">
+      <legend>{legend}</legend>
+      <div className="church-option-set__list">
+        {LEADER_ROLE_OPTIONS.map((opt) => (
+          <label key={opt.id} className="church-option">
+            <input
+              type="checkbox"
+              checked={selected.includes(opt.id)}
+              onChange={() => onToggle(opt.id)}
+            />
+            <span className="church-option__label">{opt.label}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 export default function ChurchLeadersPage() {
   const [gate, setGate] = useState<Gate>("checking");
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [leaders, setLeaders] = useState<LeaderCatalogEntry[]>([]);
   const [groups, setGroups] = useState<DenominationGroup[]>([]);
+  const [churches, setChurches] = useState<ChurchCard[]>([]);
+  const [memberDenoms, setMemberDenoms] = useState<string[]>([]);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [roles, setRoles] = useState<string[]>([]);
+  const [createChurches, setCreateChurches] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [editId, setEditId] = useState("");
@@ -47,6 +91,30 @@ export default function ChurchLeadersPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editRoles, setEditRoles] = useState<string[]>([]);
   const [editNetworks, setEditNetworks] = useState<string[]>([]);
+  const [editChurches, setEditChurches] = useState<string[]>([]);
+
+  const visibleChurches = useMemo(() => {
+    if (platformAdmin) return churches;
+    const me = (getAuthEmailFromToken() || "").trim().toLowerCase();
+    const denomSet = new Set<string>(memberDenoms);
+    for (const c of churches) {
+      if ((c.ownerEmail || "").trim().toLowerCase() === me) {
+        denomSet.add(c.denominationId);
+      }
+    }
+    return churches.filter((c) => denomSet.has(c.denominationId));
+  }, [churches, platformAdmin, memberDenoms]);
+
+  const churchLabelByRef = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of churches) {
+      const ref = churchAssociationRef(c.denominationId, c.churchId);
+      if (!ref) continue;
+      const net = (c.network || c.denominationId || "").trim();
+      map.set(ref, net ? `${c.name} (${net})` : c.name);
+    }
+    return map;
+  }, [churches]);
 
   async function reload() {
     const data = await listChurchLeaders();
@@ -68,22 +136,29 @@ export default function ChurchLeadersPage() {
           return;
         }
         setGate("allowed");
-        const [L, G] = await Promise.all([
+        const [L, G, C, O] = await Promise.all([
           listChurchLeaders(),
           listChurchGroups().catch(() => ({ groups: [] as DenominationGroup[] })),
+          listChurches().catch(() => ({ churches: [] as ChurchCard[] })),
+          fetchChurchOverview().catch(() => ({
+            memberships: [] as Array<{ denominationId: string }>,
+            churches: [],
+          })),
         ]);
         setLeaders(L.leaders ?? []);
         setGroups(G.groups ?? []);
+        setChurches(C.churches ?? []);
+        setMemberDenoms(
+          (O.memberships ?? [])
+            .map((m) => (m.denominationId || "").trim())
+            .filter(Boolean),
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not load leaders");
         setGate("denied");
       }
     })();
   }, []);
-
-  function toggleRole(list: string[], id: string): string[] {
-    return list.includes(id) ? list.filter((r) => r !== id) : [...list, id];
-  }
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -100,6 +175,7 @@ export default function ChurchLeadersPage() {
         phone: phone.trim(),
         email: email.trim(),
         roles,
+        churchIds: createChurches,
         id: sanitizeChurchSlug(`${firstName}-${lastName}`),
       });
       setFirstName("");
@@ -107,6 +183,7 @@ export default function ChurchLeadersPage() {
       setPhone("");
       setEmail("");
       setRoles([]);
+      setCreateChurches([]);
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed");
@@ -131,6 +208,8 @@ export default function ChurchLeadersPage() {
         roles: editRoles,
         networkIds: editNetworks,
         setNetworks: platformAdmin,
+        churchIds: editChurches,
+        setChurches: true,
       });
       setEditId("");
       await reload();
@@ -153,6 +232,42 @@ export default function ChurchLeadersPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function renderChurchOptions(
+    selected: string[],
+    onChange: (next: string[]) => void,
+  ) {
+    return (
+      <fieldset className="church-option-set">
+        <legend>Iglesias asociadas</legend>
+        {visibleChurches.length === 0 ? (
+          <p className="church-empty">
+            Sin iglesias visibles — registre iglesias en su red primero.
+          </p>
+        ) : (
+          <div className="church-option-set__list">
+            {visibleChurches.map((c) => {
+              const ref = churchAssociationRef(c.denominationId, c.churchId);
+              if (!ref) return null;
+              const label =
+                churchLabelByRef.get(ref) ||
+                `${c.name} (${c.denominationId})`;
+              return (
+                <label key={ref} className="church-option">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(ref)}
+                    onChange={() => onChange(toggleId(selected, ref))}
+                  />
+                  <span className="church-option__label">{label}</span>
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </fieldset>
+    );
   }
 
   if (gate === "checking") {
@@ -194,8 +309,9 @@ export default function ChurchLeadersPage() {
       <h1 className="church-page__title">Catálogo de líderes</h1>
       <p className="church-page__lead">
         Registro independiente (nombre, apellido, teléfono/correo opcionales,
-        roles). En el registro de iglesias, liderazgo es un dropdown de este
-        catálogo. El admin de plataforma asocia cada líder a una o más redes.
+        roles). Asocie cada líder a iglesias de su red. En el registro de
+        iglesias, liderazgo es un dropdown de este catálogo. El admin de
+        plataforma también asocia redes.
       </p>
       <div className="church-page__actions">
         <a className="btn" href={APP_ROUTES.church}>
@@ -248,19 +364,12 @@ export default function ChurchLeadersPage() {
             />
           </label>
         </div>
-        <fieldset className="church-role-set">
-          <legend>Roles</legend>
-          {LEADER_ROLE_OPTIONS.map((opt) => (
-            <label key={opt.id} className="church-check">
-              <input
-                type="checkbox"
-                checked={roles.includes(opt.id)}
-                onChange={() => setRoles((r) => toggleRole(r, opt.id))}
-              />
-              {opt.label}
-            </label>
-          ))}
-        </fieldset>
+        <RoleOptionSet
+          legend="Roles"
+          selected={roles}
+          onToggle={(id) => setRoles((r) => toggleId(r, id))}
+        />
+        {renderChurchOptions(createChurches, setCreateChurches)}
         <button type="submit" className="btn btn--primary" disabled={busy}>
           {busy ? "Saving…" : "Agregar líder"}
         </button>
@@ -306,45 +415,35 @@ export default function ChurchLeadersPage() {
                     />
                   </label>
                 </div>
-                <fieldset className="church-role-set">
-                  <legend>Roles</legend>
-                  {LEADER_ROLE_OPTIONS.map((opt) => (
-                    <label key={opt.id} className="church-check">
-                      <input
-                        type="checkbox"
-                        checked={editRoles.includes(opt.id)}
-                        onChange={() =>
-                          setEditRoles((r) => toggleRole(r, opt.id))
-                        }
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
-                </fieldset>
+                <RoleOptionSet
+                  legend="Roles"
+                  selected={editRoles}
+                  onToggle={(id) => setEditRoles((r) => toggleId(r, id))}
+                />
+                {renderChurchOptions(editChurches, setEditChurches)}
                 {platformAdmin ? (
-                  <fieldset className="church-role-set">
+                  <fieldset className="church-option-set">
                     <legend>Redes asociadas</legend>
                     {groups.length === 0 ? (
                       <p className="church-empty">
                         Sin redes — créelas en /church/groups.
                       </p>
-                    ) : null}
-                    {groups.map((g) => (
-                      <label key={g.id} className="church-check">
-                        <input
-                          type="checkbox"
-                          checked={editNetworks.includes(g.id)}
-                          onChange={() =>
-                            setEditNetworks((ids) =>
-                              ids.includes(g.id)
-                                ? ids.filter((x) => x !== g.id)
-                                : [...ids, g.id],
-                            )
-                          }
-                        />
-                        {g.name}
-                      </label>
-                    ))}
+                    ) : (
+                      <div className="church-option-set__list">
+                        {groups.map((g) => (
+                          <label key={g.id} className="church-option">
+                            <input
+                              type="checkbox"
+                              checked={editNetworks.includes(g.id)}
+                              onChange={() =>
+                                setEditNetworks((ids) => toggleId(ids, g.id))
+                              }
+                            />
+                            <span className="church-option__label">{g.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                   </fieldset>
                 ) : null}
                 <div className="church-page__actions">
@@ -381,6 +480,14 @@ export default function ChurchLeadersPage() {
                     )
                     .join(" · ") || "Sin roles"}
                 </p>
+                <p className="church-card__meta">
+                  Iglesias:{" "}
+                  {(L.churchIds ?? []).length > 0
+                    ? (L.churchIds ?? [])
+                        .map((ref) => churchLabelByRef.get(ref) || ref)
+                        .join(", ")
+                    : "ninguna"}
+                </p>
                 {(L.networkIds ?? []).length > 0 ? (
                   <p className="church-card__meta">
                     Redes:{" "}
@@ -407,6 +514,7 @@ export default function ChurchLeadersPage() {
                       setEditEmail(L.email || "");
                       setEditRoles(L.roles ?? []);
                       setEditNetworks(L.networkIds ?? []);
+                      setEditChurches(L.churchIds ?? []);
                     }}
                   >
                     Edit

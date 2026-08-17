@@ -118,4 +118,15 @@ describe("church helpers", () => {
       [{ heading: "Dios", keyTexts: ["Jn 1:1"], body: "Uno" }],
     );
   });
+
+  it("builds church association refs", () => {
+    function churchAssociationRef(denominationId, churchId) {
+      const d = (denominationId || "").trim();
+      const c = (churchId || "").trim();
+      if (!d || !c) return "";
+      return `${d}/${c}`;
+    }
+    assert.equal(churchAssociationRef("asambleas", "central"), "asambleas/central");
+    assert.equal(churchAssociationRef("", "central"), "");
+  });
 });

@@ -19,7 +19,7 @@ calendar (same library pattern as Homescool).
 |------|----------|----------|
 | `/church` | Signed-in | Grid of church cards + search |
 | `/church/groups` | Platform admin | CRUD redes / denominaciones catalog |
-| `/church/leaders` | Register-gate users + platform admin | Independent líderes catalog; admin links networks |
+| `/church/leaders` | Register-gate users + platform admin | Independent líderes catalog; church links + admin network links |
 | `/church/register` | Approved + `church-management` sub (or platform admin) | Multi-church register; liderazgo from leaders catalog; creencias one-by-one |
 | `/church/overview` | Member/admin | Linked church data; address/open date/leadership/beliefs; add activities; calendar |
 | `/church/activity` | Member/admin | Per-user authorized activities; upload images + text report |
@@ -45,8 +45,8 @@ church-management subscription (membership grant).
 
 | Role | Scope | Access |
 |------|-------|--------|
-| Platform `admin` (`eduardooost@gmail.com` / `role=admin`) | All churches + groups + leader network links | Full read/write |
-| Register-authorized user | Leaders catalog mutate; church register | Same gate as register |
+| Platform `admin` (`eduardooost@gmail.com` / `role=admin`) | All churches + groups + leader network/church links | Full read/write |
+| Register-authorized user | Leaders catalog mutate (incl. churchIds); church register | Same gate as register |
 | `church-admin` | Membership on a church | Full church data + all activities + plan overview |
 | `church-member` | Membership on a church | Only fields/activities they are authorized to see; may report on authorized activities |
 
@@ -65,7 +65,7 @@ Dynamo membership rows (+ mirrored on `church.json` members list).
 | DELETE | `/api/church/groups/{id}` | Delete group (platform admin) |
 | GET | `/api/church/leaders` | List leaders (`?networkId=` optional filter) |
 | POST | `/api/church/leaders` | Create leader (register-gate / admin) |
-| PUT | `/api/church/leaders/{id}` | Update; `setNetworks` + `networkIds` admin-only |
+| PUT | `/api/church/leaders/{id}` | Update; `setNetworks`/`networkIds` admin-only; `setChurches`/`churchIds` register-gate |
 | DELETE | `/api/church/leaders/{id}` | Delete leader (register-gate / admin) |
 | GET | `/api/church/leader-roles` | Fixed líder role options |
 | GET | `/api/church/authorization` | Caller authz status + canRegister |

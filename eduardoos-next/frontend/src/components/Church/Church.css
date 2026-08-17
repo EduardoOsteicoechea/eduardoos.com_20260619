@@ -277,6 +277,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  align-items: stretch;
+  text-align: left;
 }
 
 .church-role-set legend {
@@ -287,15 +289,102 @@
   padding: 0;
 }
 
+/* Option cards: left-aligned tap targets (roles, churches, networks).
+   Higher specificity than `.church-form label` so checkboxes stay row layout. */
+.church-option-set {
+  margin: 0;
+  padding: 0.5rem 0 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  text-align: left;
+  width: 100%;
+}
+
+.church-option-set legend {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-muted, var(--site-body-fg));
+  padding: 0;
+  margin-bottom: 0.15rem;
+}
+
+.church-option-set__list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.church-form .church-option,
+.church-dyn-card .church-option,
+.church-option {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0.65rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface, var(--site-body-bg));
+  color: var(--site-body-fg);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.92rem;
+  font-family: var(--font-body);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.church-form .church-option:hover,
+.church-dyn-card .church-option:hover,
+.church-option:hover {
+  border-color: color-mix(in srgb, var(--site-accent) 45%, var(--site-border));
+  background: color-mix(in srgb, var(--site-accent) 8%, var(--site-surface, var(--site-body-bg)));
+}
+
+.church-form .church-option input,
+.church-dyn-card .church-option input,
+.church-option input {
+  flex: 0 0 auto;
+  width: 1.05rem;
+  height: 1.05rem;
+  min-height: 1.05rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  accent-color: var(--site-accent);
+}
+
+.church-option__label {
+  flex: 1 1 auto;
+  line-height: 1.35;
+  text-align: left;
+}
+
 .church-check {
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.5rem;
+  text-align: left;
   text-transform: none;
   letter-spacing: normal;
   font-size: 0.9rem;
   color: var(--site-body-fg);
+}
+
+.church-form .church-check {
+  flex-direction: row;
+  align-items: center;
 }
 
 .church-check input {

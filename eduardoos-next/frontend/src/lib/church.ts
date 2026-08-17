@@ -65,6 +65,8 @@ export type LeaderCatalogEntry = {
   name?: string;
   roles: string[];
   networkIds?: string[];
+  /** Association refs as "denominationId/churchId". */
+  churchIds?: string[];
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
@@ -315,6 +317,7 @@ export function createChurchLeader(payload: {
   email?: string;
   roles?: string[];
   networkIds?: string[];
+  churchIds?: string[];
 }): Promise<{ leader: LeaderCatalogEntry }> {
   return churchRequest(CHURCH_ROUTES.leaders, { method: "POST", body: payload });
 }
@@ -329,9 +332,22 @@ export function updateChurchLeader(
     roles?: string[];
     networkIds?: string[];
     setNetworks?: boolean;
+    churchIds?: string[];
+    setChurches?: boolean;
   },
 ): Promise<{ leader: LeaderCatalogEntry }> {
   return churchRequest(CHURCH_ROUTES.leader(id), { method: "PUT", body: payload });
+}
+
+/** Build durable leader↔church association key (mirrors backend ChurchRef). */
+export function churchAssociationRef(
+  denominationId: string,
+  churchId: string,
+): string {
+  const d = (denominationId || "").trim();
+  const c = (churchId || "").trim();
+  if (!d || !c) return "";
+  return `${d}/${c}`;
 }
 
 export function deleteChurchLeader(id: string): Promise<{ deleted: boolean }> {
