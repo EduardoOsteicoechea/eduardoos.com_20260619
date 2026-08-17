@@ -82,6 +82,41 @@ export async function uploadWorshipRecording(
     return data.track;
 }
 
+/**
+ * Admin soft-delete: remove the track from the library listing only.
+ * The S3 audio object is retained (backend never calls DeleteObject on it).
+ */
+export async function removeWorshipLibraryTrack(
+    key: string,
+    prefix: string = WORSHIP_AUDIO_PREFIX,
+): Promise<{ key: string; retained_on_s3: boolean }> {
+    const token = getAuthToken();
+    if (!token) {
+        throw new Error("Sign in as admin to remove library tracks.");
+    }
+    const correlationId = createCorrelationId();
+    const result = await apiRequest<{
+        removed?: boolean;
+        key?: string;
+        retained_on_s3?: boolean;
+    }>(MEDIA_ROUTES.audioLibraryRemove, {
+        method: "DELETE",
+        authToken: token,
+        correlationId,
+        body: { key, prefix },
+    });
+    if (result.error) {
+        throw new Error(result.error.message);
+    }
+    if (!result.data?.key) {
+        throw new Error("Empty library remove response");
+    }
+    return {
+        key: result.data.key,
+        retained_on_s3: Boolean(result.data.retained_on_s3),
+    };
+}
+
 /** Pick a file extension for MediaRecorder blobs (usually audio/webm). */
 export function extensionForAudioBlob(blob: Blob, filenameHint?: string): string {
     const fromName = filenameHint?.match(/\.[a-z0-9]+$/i)?.[0]?.toLowerCase();

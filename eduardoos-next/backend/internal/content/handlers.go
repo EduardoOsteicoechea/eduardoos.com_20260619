@@ -56,6 +56,8 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Put("/api/emusic/{slug}", h.PutEmusic)
 		// Admin-only mic/recording upload into media/worship_playlists/.
 		r.Post("/api/media/audio/upload", h.UploadMediaAudio)
+		// Admin-only soft-delete: hide from library list; keep S3 audio object.
+		r.Delete("/api/media/audio/library", h.RemoveMediaAudioLibrary)
 
 		// series-tree before {id} so "series-tree" is not captured as an epam id.
 		r.Get("/api/epams/series-tree", h.ListEpamSeriesTree)

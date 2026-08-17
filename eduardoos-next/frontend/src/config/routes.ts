@@ -125,6 +125,8 @@ export const MEDIA_ROUTES = {
   audioList: (prefix = "worship_playlists") =>
     `/api/media/audio?prefix=${encodeURIComponent(prefix)}`,
   audioUpload: "/api/media/audio/upload",
+  /** Soft-delete library listing reference; keeps S3 audio object. */
+  audioLibraryRemove: "/api/media/audio/library",
   file: (relativeKey: string) =>
     `/api/media/file/${relativeKey.split("/").map(encodeURIComponent).join("/")}`,
 } as const;

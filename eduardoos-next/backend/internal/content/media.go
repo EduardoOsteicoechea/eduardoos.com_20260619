@@ -169,6 +169,14 @@ func (h *Handler) ListMediaAudio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Soft-deleted library keys stay in S3 but must not appear in the UI list.
+	removed := map[string]struct{}{}
+	if idx, loadErr := loadLibraryRemovedIndex(r.Context(), mediaS3APIFromClient(client), bucket, audioPrefix); loadErr == nil {
+		removed = removedKeySet(idx)
+	} else {
+		log.Printf("[correlation=%s] media.audio.list removed-index: %v", cid, loadErr)
+	}
+
 	region := httpx.Env("AWS_REGION", "us-east-1")
 	tracks := make([]mediaAudioTrack, 0)
 	for _, obj := range out.Contents {
@@ -176,6 +184,9 @@ func (h *Handler) ListMediaAudio(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		key := *obj.Key
+		if _, hide := removed[key]; hide {
+			continue
+		}
 		ct := contentTypeFromKey(key)
 		if !isAudioContentType(ct, key) {
 			continue

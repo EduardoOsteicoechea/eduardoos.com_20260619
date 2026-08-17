@@ -227,6 +227,14 @@
   border-color: var(--site-medium);
 }
 
+.playlist-builder__icon-btn--danger {
+  color: var(--site-danger, #b42318);
+}
+
+.playlist-builder__icon-btn--danger:hover:not(:disabled) {
+  border-color: var(--site-danger, #b42318);
+}
+
 .playlist-builder__icon-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;

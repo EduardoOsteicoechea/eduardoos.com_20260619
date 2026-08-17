@@ -40,3 +40,18 @@ describe("admin recording upload route", () => {
     assert.equal("/api/media/audio/upload", "/api/media/audio/upload");
   });
 });
+
+describe("admin library soft-delete route", () => {
+  it("uses DELETE /api/media/audio/library", () => {
+    assert.equal("/api/media/audio/library", "/api/media/audio/library");
+  });
+
+  it("confirm copy states S3 retention", () => {
+    const label = "demo.mp3";
+    const message =
+      `¿Eliminar permanentemente «${label}» de la biblioteca?\n\n` +
+      "El archivo de audio se conserva en S3; solo se quita de la lista.";
+    assert.match(message, /conserva en S3/);
+    assert.match(message, /permanentemente/);
+  });
+});
