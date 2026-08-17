@@ -70,20 +70,9 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		HumanToken string `json:"humanToken"`
 		NotABot    bool   `json:"notABot"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || !strings.Contains(body.Email, "@") {
-		log.Printf("[correlation=%s] auth.register reject invalid_email", cid)
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		log.Printf("[correlation=%s] auth.register reject invalid_payload", cid)
 		httpx.WriteError(w, http.StatusBadRequest, "invalid email")
-		return
-	}
-	if len(body.Password) < minPasswordLen {
-		log.Printf("[correlation=%s] auth.register reject password_too_short", cid)
-		httpx.WriteError(w, http.StatusBadRequest, "password too short")
-		return
-	}
-	email := NormalizeEmail(body.Email)
-	if IsSpammyLocalPart(email) {
-		log.Printf("[correlation=%s] auth.register reject spammy_local_part email=%s", cid, email)
-		httpx.WriteError(w, http.StatusBadRequest, "email not accepted")
 		return
 	}
 	// Client bot gate: register form sends notABot after the hold checkbox (Contact pattern).
@@ -92,43 +81,31 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "confirm you are not a bot")
 		return
 	}
-	log.Printf("[correlation=%s] auth.register lookup email=%s", cid, email)
-	if _, exists, err := h.Store.GetUser(r.Context(), email); err != nil {
-		log.Printf("[correlation=%s] auth.register store_error err=%v", cid, err)
-		httpx.WriteError(w, http.StatusBadGateway, "store error")
-		return
-	} else if exists {
-		log.Printf("[correlation=%s] auth.register conflict email=%s", cid, email)
-		httpx.WriteError(w, http.StatusConflict, "account already exists")
-		return
-	}
-	otp := GenerateOTP()
-	if err := h.Store.PutUser(r.Context(), User{
-		Email:        email,
-		PasswordHash: HashPassword(body.Password),
-		Verified:     false,
-		Role:         ResolveRole(email, RoleUser),
-		CreatedAt:    NowRFC3339(),
-	}); err != nil {
-		log.Printf("[correlation=%s] auth.register put_user_failed err=%v", cid, err)
-		httpx.WriteError(w, http.StatusBadGateway, "could not create account")
+	// Shared create + OTP mail path (also used by admin bulk register).
+	// Password is never logged inside RegisterUnverifiedAccount.
+	result := h.RegisterUnverifiedAccount(r.Context(), cid, RegisterAccountInput{
+		Email:             body.Email,
+		Password:          body.Password,
+		EnforceSpamFilter: true,
+	})
+	if !result.OK {
+		switch result.Reason {
+		case "invalid email", "password too short", "email not accepted", "confirm you are not a bot":
+			httpx.WriteError(w, http.StatusBadRequest, result.Reason)
+		case "account already exists":
+			httpx.WriteError(w, http.StatusConflict, result.Reason)
+		default:
+			httpx.WriteError(w, http.StatusBadGateway, result.Reason)
+		}
 		return
 	}
-	log.Printf("[correlation=%s] auth.register user_created email=%s", cid, email)
-	if err := h.Store.PutOTP(r.Context(), email, otp); err != nil {
-		log.Printf("[correlation=%s] auth.register put_otp_failed err=%v", cid, err)
-		httpx.WriteError(w, http.StatusBadGateway, "could not store otp")
-		return
+	// Dev-only OTP echo: re-read stored OTP when DEV_RETURN_OTP=1.
+	otp := ""
+	if h.DevReturnOTP {
+		if stored, ok, err := h.Store.GetOTP(r.Context(), result.Email); err == nil && ok {
+			otp = stored
+		}
 	}
-	log.Printf("[correlation=%s] auth.register otp_stored otp_len=%d — delivering mail", cid, len(otp))
-	if err := h.sendOTPTraced(cid, email, otp); err != nil {
-		// Account + OTP are stored; surface mail failure so the UI does not claim
-		// "OTP sent" when Gmail rejected the message (wrong SMTP_PASS, blocked 587, etc.).
-		log.Printf("[correlation=%s] auth.register mail_failed err=%v", cid, err)
-		httpx.WriteError(w, http.StatusBadGateway, "could not send verification email")
-		return
-	}
-	log.Printf("[correlation=%s] auth.register done email=%s", cid, email)
 	httpx.WriteJSON(w, http.StatusOK, h.maybeOTPField(map[string]any{
 		"message": "OTP sent to email",
 		"token":   nil,

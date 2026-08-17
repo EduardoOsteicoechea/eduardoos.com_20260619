@@ -282,6 +282,112 @@
   max-width: 28rem;
 }
 
+.admin-users__bulk {
+  margin: 0 0 1.5rem;
+  padding: 1rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface, var(--site-body-bg));
+  box-shadow: var(--site-shadow);
+}
+
+.admin-users__bulk-lead {
+  margin: 0 0 0.75rem;
+  max-width: 48rem;
+  color: var(--site-meta-fg);
+  line-height: 1.5;
+  font-size: var(--font-sm);
+}
+
+.admin-users__bulk-sample {
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 0.85rem;
+  overflow: auto;
+  max-width: 100%;
+  font-family: var(--font-utility, Roboto, ui-monospace, monospace);
+  font-size: var(--font-xs, 0.75rem);
+  line-height: 1.45;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: color-mix(in srgb, var(--site-body-fg) 4%, var(--site-body-bg));
+  color: var(--site-body-fg);
+}
+
+.admin-users__bulk-label {
+  display: block;
+  margin: 0 0 0.35rem;
+  font-size: var(--font-xs, 0.7rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-meta-fg);
+}
+
+.admin-users__bulk-textarea {
+  display: block;
+  width: 100%;
+  min-height: 10rem;
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: var(--font-utility, Roboto, ui-monospace, monospace);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  color: var(--site-body-fg);
+  background: var(--site-body-bg);
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+}
+
+.admin-users__bulk-textarea:focus {
+  outline: 2px solid var(--site-accent);
+  outline-offset: 1px;
+}
+
+.admin-users__bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  align-items: center;
+  margin: 0 0 0.75rem;
+}
+
+.admin-users__bulk-file {
+  max-width: 100%;
+  font-size: var(--font-sm);
+  color: var(--site-meta-fg);
+}
+
+.admin-users__bulk-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.admin-users__bulk-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0.65rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  border-left-width: 3px;
+}
+
+.admin-users__bulk-result--ok {
+  border-left-color: var(--site-accent);
+}
+
+.admin-users__bulk-result--fail {
+  border-left-color: var(--site-danger, #b00020);
+}
+
 .admin-users__church-auth {
   margin-top: 2rem;
   padding-top: 1.5rem;

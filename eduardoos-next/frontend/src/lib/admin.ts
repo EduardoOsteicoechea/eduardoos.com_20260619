@@ -10,6 +10,7 @@ import type { BillingPeriod, EntitlementRecord } from "./payments";
 
 export type AdminUserRow = {
   email: string;
+  name?: string;
   role: string;
   verified: boolean;
   createdAt: string;
@@ -22,6 +23,20 @@ export type AdminServiceRow = {
   label: string;
   description: string;
   monthly_usd: number;
+};
+
+export type BulkRegisterResultRow = {
+  index: number;
+  email: string;
+  name?: string;
+  status: "created" | "failed" | string;
+  reason?: string;
+};
+
+export type BulkRegisterResponse = {
+  created: number;
+  failed: number;
+  results: BulkRegisterResultRow[];
 };
 
 function requireToken(): string {
@@ -37,6 +52,25 @@ export async function fetchAdminUsers(): Promise<AdminUserRow[]> {
   });
   if (result.error) throw new Error(formatApiError(result.error));
   return result.data?.users ?? [];
+}
+
+export async function bulkRegisterUsers(
+  users: Array<Record<string, string>>,
+): Promise<BulkRegisterResponse> {
+  const result = await apiRequest<BulkRegisterResponse>(ADMIN_ROUTES.bulkRegister, {
+    method: "POST",
+    body: users,
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) throw new Error(formatApiError(result.error));
+  return (
+    result.data ?? {
+      created: 0,
+      failed: 0,
+      results: [],
+    }
+  );
 }
 
 export async function fetchAdminServices(): Promise<AdminServiceRow[]> {

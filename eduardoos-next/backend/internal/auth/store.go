@@ -7,10 +7,13 @@ import (
 
 // User is the account record shaped like production authstore JSON,
 // extended with RBAC role + registration timestamp for the admin dashboard.
+// Name is optional display name (admin bulk register / future profile); omitempty
+// keeps older Dynamo rows without the field compatible.
 type User struct {
 	Email           string `json:"email"`
 	PasswordHash    string `json:"passwordHash"`
 	Verified        bool   `json:"verified"`
+	Name            string `json:"name,omitempty"`
 	ProfileImageKey string `json:"profileImageKey,omitempty"`
 	Role            string `json:"role,omitempty"`
 	CreatedAt       string `json:"createdAt,omitempty"`

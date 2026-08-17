@@ -26,6 +26,8 @@ type Handler struct {
 }
 
 // NewHandler wires admin routes against auth + payments stores.
+// Call UseAuth with the shared SMTP-capable auth.Handler so bulk register
+// can send verification OTP email on the same path as public register.
 func NewHandler(jwtSecret string, users auth.UserStore, pay *payments.Store) *Handler {
 	return &Handler{
 		JWTSecret: jwtSecret,
@@ -35,12 +37,26 @@ func NewHandler(jwtSecret string, users auth.UserStore, pay *payments.Store) *Ha
 	}
 }
 
+// UseAuth replaces the internal auth handler with the process-wide instance
+// (Store + JWTSecret + SMTP_USER/SMTP_PASS). Safe to call after NewHandler.
+func (h *Handler) UseAuth(a *auth.Handler) {
+	if h == nil || a == nil {
+		return
+	}
+	h.auth = a
+	if h.Users == nil && a.Store != nil {
+		h.Users = a.Store
+	}
+}
+
 // Routes mounts JWT + admin-gated endpoints.
 func (h *Handler) Routes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(h.auth.RequireJWT)
 		r.Use(h.requireAdmin)
 		r.Get("/api/admin/users", h.ListUsers)
+		// Static path before {email} mutate routes (method differs, but keep clear).
+		r.Post("/api/admin/users/bulk-register", h.BulkRegister)
 		r.Delete("/api/admin/users/{email}", h.DeleteUser)
 		r.Put("/api/admin/users/{email}/entitlements", h.PutUserEntitlements)
 		r.Get("/api/admin/services", h.ListServices)
@@ -68,12 +84,13 @@ func (h *Handler) requireAdmin(next http.Handler) http.Handler {
 }
 
 type userRow struct {
-	Email         string                 `json:"email"`
-	Role          string                 `json:"role"`
-	Verified      bool                   `json:"verified"`
-	CreatedAt     string                 `json:"createdAt"`
-	Entitlements  []payments.Entitlement `json:"entitlements"`
-	ServiceIDs    []string               `json:"serviceIds"`
+	Email        string                 `json:"email"`
+	Name         string                 `json:"name,omitempty"`
+	Role         string                 `json:"role"`
+	Verified     bool                   `json:"verified"`
+	CreatedAt    string                 `json:"createdAt"`
+	Entitlements []payments.Entitlement `json:"entitlements"`
+	ServiceIDs   []string               `json:"serviceIds"`
 }
 
 // ListUsers returns every account with role, registration date, and services.
@@ -103,6 +120,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		}
 		rows = append(rows, userRow{
 			Email:        u.Email,
+			Name:         u.Name,
 			Role:         auth.ResolveRole(u.Email, u.Role),
 			Verified:     u.Verified,
 			CreatedAt:    u.CreatedAt,

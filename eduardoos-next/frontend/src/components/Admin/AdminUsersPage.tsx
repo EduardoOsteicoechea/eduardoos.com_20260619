@@ -18,6 +18,7 @@ import {
 import { APP_ROUTES } from "../../config/routes";
 import {
   approveChurchAuth,
+  bulkRegisterUsers,
   deleteAdminUser,
   fetchAdminServices,
   fetchAdminUsers,
@@ -26,6 +27,7 @@ import {
   rejectChurchAuth,
   type AdminServiceRow,
   type AdminUserRow,
+  type BulkRegisterResultRow,
   type ChurchAuthRequestRow,
 } from "../../lib/admin";
 import {
@@ -39,6 +41,11 @@ import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import "./AdminUsersPage.css";
 
 type Gate = "checking" | "allowed" | "denied";
+
+const BULK_JSON_SAMPLE = `[
+  { "name": "Ana Pérez", "email": "ana@example.com", "password": "changeme12" },
+  { "nombre": "Luis Ruiz", "correo": "luis@example.com", "contrasena": "changeme12" }
+]`;
 
 export default function AdminUsersPage() {
   const [gate, setGate] = useState<Gate>("checking");
@@ -54,9 +61,15 @@ export default function AdminUsersPage() {
   const [error, setError] = useState("");
   const [loadingList, setLoadingList] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<AdminUserRow | null>(null);
+  const [bulkJson, setBulkJson] = useState(BULK_JSON_SAMPLE);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResults, setBulkResults] = useState<BulkRegisterResultRow[]>([]);
+  const [bulkSummary, setBulkSummary] = useState("");
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const confirmTitleId = useId();
   const confirmDescId = useId();
+  const bulkJsonId = useId();
   const selfEmail = getAuthEmailFromToken();
 
   const refresh = useCallback(async () => {
@@ -253,6 +266,88 @@ export default function AdminUsersPage() {
     }
   }
 
+  function onBulkFileChange(fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      setBulkJson(text);
+      setBulkResults([]);
+      setBulkSummary("");
+    };
+    reader.onerror = () => {
+      setError("Could not read JSON file");
+    };
+    reader.readAsText(file);
+  }
+
+  async function submitBulkRegister() {
+    setBulkBusy(true);
+    setError("");
+    setMessage("");
+    setBulkSummary("");
+    setBulkResults([]);
+    try {
+      const trimmed = bulkJson.trim();
+      if (!trimmed) {
+        throw new Error("Paste or upload a JSON array of users.");
+      }
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(trimmed) as unknown;
+      } catch {
+        throw new Error("Invalid JSON — expected an array or { \"users\": [...] }.");
+      }
+      let rows: unknown = parsed;
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        !Array.isArray(parsed) &&
+        "users" in parsed
+      ) {
+        rows = (parsed as { users: unknown }).users;
+      }
+      if (!Array.isArray(rows)) {
+        throw new Error("JSON must be an array of user objects.");
+      }
+      // Strip accidental password keys from client logs; send raw rows to API.
+      const payload = rows.map((row) => {
+        if (!row || typeof row !== "object") return {};
+        const o = row as Record<string, unknown>;
+        const out: Record<string, string> = {};
+        for (const key of [
+          "name",
+          "nombre",
+          "email",
+          "correo",
+          "password",
+          "contrasena",
+          "contraseña",
+        ]) {
+          if (typeof o[key] === "string") out[key] = o[key] as string;
+        }
+        return out;
+      });
+      const resp = await bulkRegisterUsers(payload);
+      setBulkResults(resp.results ?? []);
+      setBulkSummary(
+        `Bulk register: ${resp.created} created, ${resp.failed} failed. Each created account received a verification OTP email.`,
+      );
+      await refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Bulk register failed";
+      setError(msg);
+      openApiErrorModal(msg, {
+        title: "Admin users — bulk register error",
+        summary: "Could not bulk-register users. Copy the block below when reporting.",
+      });
+    } finally {
+      setBulkBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   if (gate === "checking") {
     return <p className="admin-users__status">Checking access…</p>;
   }
@@ -294,6 +389,82 @@ export default function AdminUsersPage() {
         <p className="admin-users__status">Loading accounts…</p>
       ) : null}
 
+      <section
+        className="admin-users__bulk"
+        aria-labelledby="admin-bulk-title"
+      >
+        <h2 id="admin-bulk-title" className="admin-users__section-title">
+          Bulk register (JSON)
+        </h2>
+        <p className="admin-users__bulk-lead">
+          Paste or upload a JSON array. Each row needs email + password (min 8
+          chars); name is optional. Aliases:{" "}
+          <code>nombre</code>, <code>correo</code>, <code>contrasena</code> /{" "}
+          <code>contraseña</code>. Accounts are created like normal register
+          (unverified) and each receives a confirmation OTP email. Failures are
+          reported per row without aborting the batch. Max 100 users.
+        </p>
+        <pre className="admin-users__bulk-sample" tabIndex={0}>
+          {BULK_JSON_SAMPLE}
+        </pre>
+        <label className="admin-users__bulk-label" htmlFor={bulkJsonId}>
+          JSON payload
+        </label>
+        <textarea
+          id={bulkJsonId}
+          className="admin-users__bulk-textarea"
+          value={bulkJson}
+          onChange={(e) => setBulkJson(e.target.value)}
+          rows={10}
+          spellCheck={false}
+          disabled={bulkBusy}
+        />
+        <div className="admin-users__bulk-actions">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json,text/json"
+            className="admin-users__bulk-file"
+            disabled={bulkBusy}
+            onChange={(e) => onBulkFileChange(e.target.files)}
+          />
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={bulkBusy || busy}
+            onClick={() => void submitBulkRegister()}
+          >
+            {bulkBusy ? "Registering…" : "Submit bulk register"}
+          </button>
+        </div>
+        {bulkSummary ? (
+          <p className="admin-users__status">{bulkSummary}</p>
+        ) : null}
+        {bulkResults.length > 0 ? (
+          <ul className="admin-users__bulk-results" aria-label="Bulk register results">
+            {bulkResults.map((row) => (
+              <li
+                key={`${row.index}-${row.email}`}
+                className={
+                  row.status === "created"
+                    ? "admin-users__bulk-result admin-users__bulk-result--ok"
+                    : "admin-users__bulk-result admin-users__bulk-result--fail"
+                }
+              >
+                <span className="admin-users__email">
+                  {row.email || `(row ${row.index})`}
+                  {row.name ? ` · ${row.name}` : ""}
+                </span>
+                <span className="admin-users__meta">
+                  {row.status}
+                  {row.reason ? ` — ${row.reason}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
       <div className="admin-users__layout">
         <section className="admin-users__panel" aria-label="Users">
           <h2 className="admin-users__section-title">Accounts ({users.length})</h2>
@@ -309,6 +480,7 @@ export default function AdminUsersPage() {
                 >
                   <span className="admin-users__email">{row.email}</span>
                   <span className="admin-users__meta">
+                    {row.name ? `${row.name} · ` : ""}
                     {row.role}
                     {row.verified ? "" : " · unverified"} ·{" "}
                     {row.createdAt

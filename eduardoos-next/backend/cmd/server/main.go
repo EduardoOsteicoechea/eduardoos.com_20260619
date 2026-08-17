@@ -89,6 +89,7 @@ func main() {
 	churchHandler.Mail = authHandler // shared SMTP_USER / SMTP_PASS path
 	contactHandler := contact.NewHandler(authHandler)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
+	adminHandler.UseAuth(authHandler) // SMTP + store for bulk-register OTP mail
 	adminHandler.ChurchAuth = churchHandler.Authorizations
 	adminHandler.Mail = authHandler
 

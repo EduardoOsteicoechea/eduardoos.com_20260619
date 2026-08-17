@@ -237,6 +237,7 @@ export const PAYMENT_ROUTES = {
 
 export const ADMIN_ROUTES = {
   users: "/api/admin/users",
+  bulkRegister: "/api/admin/users/bulk-register",
   services: "/api/admin/services",
   churchAuthRequests: "/api/admin/church-authorization-requests",
   approveChurchAuth: (email: string) =>
