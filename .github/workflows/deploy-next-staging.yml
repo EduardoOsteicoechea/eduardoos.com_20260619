@@ -13,7 +13,7 @@ jobs:
   deploy-next-staging:
     name: Deploy Next staging to EC2
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 50
     if: github.ref == 'refs/heads/master'
     concurrency:
       group: deploy-next-staging
@@ -148,7 +148,7 @@ jobs:
             "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/eduardoos-next/deploy/deploy-remote-staging.sh"
 
       - name: Run remote staging deploy
-        timeout-minutes: 20
+        timeout-minutes: 40
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -156,7 +156,7 @@ jobs:
           # -n: do not read stdin (prevents SSH from hanging the step after remote exits).
           ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
-            "flock -w 1500 /tmp/eduardoos-ec2-deploy.lock bash -lc 'cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x eduardoos-next/deploy/*.sh && APP_DIR=~/eduardoos.com_20260619 bash eduardoos-next/deploy/deploy-remote-staging.sh'"
+            "echo '==> Waiting for /tmp/eduardoos-ec2-deploy.lock (max 15m)...'; flock -w 900 /tmp/eduardoos-ec2-deploy.lock bash -lc 'cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x eduardoos-next/deploy/*.sh && APP_DIR=~/eduardoos.com_20260619 bash eduardoos-next/deploy/deploy-remote-staging.sh'"
 
       - name: Smoke check staging (on-box + public)
         timeout-minutes: 2
