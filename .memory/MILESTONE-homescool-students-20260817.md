@@ -4,8 +4,8 @@
 
 | Commit | Message |
 |--------|---------|
-| (see git log) | feat/test: Homescool student registry APIs and S3 folder scaffold |
-| (see git log) | feat/test: Homescool UI routes + learning workspace |
+| `b9c51ca` | feat/test: Homescool student registry APIs and S3 folder scaffold |
+| `4cff05e` | feat/test: Homescool UI routes, learning workspace, and nginx pretty URLs |
 
 ## Product routes (brand: Homescool → `/homescool/*`)
 
