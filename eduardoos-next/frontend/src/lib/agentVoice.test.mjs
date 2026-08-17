@@ -18,4 +18,9 @@ describe("agentVoice identity", () => {
     assert.doesNotMatch(src, /I am Eduardo Osteicoechea/i);
     assert.doesNotMatch(src, /Speak in first person as Eduardo/i);
   });
+
+  it("points bot confirmation above the chat (gate sits above the thread)", () => {
+    assert.match(src, /not a bot above/);
+    assert.doesNotMatch(src, /not a bot below/);
+  });
 });
