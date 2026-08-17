@@ -15,12 +15,23 @@ import {
   type DenominationGroup,
 } from "../../lib/church";
 import {
+  validateOptionalEmail,
+  validateOptionalPhone,
+} from "../../lib/validation";
+import {
   ChurchRegisterGateShell,
   useChurchRegisterGate,
 } from "./ChurchGate";
 import "./Church.css";
 
-type LeaderRow = { key: string; name: string; roles: string[] };
+type LeaderRow = {
+  key: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  roles: string[];
+};
 type ChurchRow = {
   key: string;
   name: string;
@@ -44,14 +55,27 @@ function newKey(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function emptyLeader(): LeaderRow {
+  return {
+    key: newKey(),
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    roles: [],
+  };
+}
+
+function leaderRowDisplay(L: LeaderRow): string {
+  return `${L.firstName.trim()} ${L.lastName.trim()}`.trim();
+}
+
 export default function ChurchRegisterPage() {
   const { gate, requestAccess, busy: authBusy, error: authError } =
     useChurchRegisterGate();
   const [groups, setGroups] = useState<DenominationGroup[]>([]);
   const [denominationId, setDenominationId] = useState("");
-  const [leaders, setLeaders] = useState<LeaderRow[]>([
-    { key: newKey(), name: "", roles: [] },
-  ]);
+  const [leaders, setLeaders] = useState<LeaderRow[]>([emptyLeader()]);
   const [churches, setChurches] = useState<ChurchRow[]>([
     { key: newKey(), name: "", openedAt: "", address: "", leadership: "" },
   ]);
@@ -73,6 +97,12 @@ export default function ChurchRegisterPage() {
       }
     })();
   }, [gate]);
+
+  function patchLeader(key: string, patch: Partial<LeaderRow>) {
+    setLeaders((rows) =>
+      rows.map((row) => (row.key === key ? { ...row, ...patch } : row)),
+    );
+  }
 
   function toggleLeaderRole(key: string, roleId: string) {
     setLeaders((rows) =>
@@ -97,9 +127,53 @@ export default function ChurchRegisterPage() {
         setBusy(false);
         return;
       }
+
+      for (const L of leaders) {
+        const first = L.firstName.trim();
+        const last = L.lastName.trim();
+        if (
+          !first &&
+          !last &&
+          !L.phone.trim() &&
+          !L.email.trim() &&
+          L.roles.length === 0
+        ) {
+          continue;
+        }
+        if (!first || !last) {
+          setError("Cada líder necesita nombre y apellido.");
+          setBusy(false);
+          return;
+        }
+        const phoneErr = validateOptionalPhone(L.phone);
+        if (phoneErr) {
+          setError(`Teléfono de líder inválido (${first} ${last}).`);
+          setBusy(false);
+          return;
+        }
+        const emailErr = validateOptionalEmail(L.email);
+        if (emailErr) {
+          setError(`Correo de líder inválido (${first} ${last}).`);
+          setBusy(false);
+          return;
+        }
+      }
+
       const leaderCatalog = leaders
-        .map((L) => ({ name: L.name.trim(), roles: L.roles }))
-        .filter((L) => L.name);
+        .map((L) => {
+          const firstName = L.firstName.trim();
+          const lastName = L.lastName.trim();
+          if (!firstName || !lastName) return null;
+          return {
+            firstName,
+            lastName,
+            phone: L.phone.trim(),
+            email: L.email.trim(),
+            name: `${firstName} ${lastName}`,
+            roles: L.roles,
+          };
+        })
+        .filter((L): L is NonNullable<typeof L> => L !== null);
       if (leaderCatalog.length === 0) {
         setError("Agregue al menos un líder.");
         setBusy(false);
@@ -161,7 +235,7 @@ export default function ChurchRegisterPage() {
     }
   }
 
-  const namedLeaders = leaders.map((L) => L.name.trim()).filter(Boolean);
+  const namedLeaders = leaders.map((L) => leaderRowDisplay(L)).filter(Boolean);
 
   return (
     <ChurchRegisterGateShell
@@ -212,12 +286,7 @@ export default function ChurchRegisterPage() {
               <button
                 type="button"
                 className="btn"
-                onClick={() =>
-                  setLeaders((rows) => [
-                    ...rows,
-                    { key: newKey(), name: "", roles: [] },
-                  ])
-                }
+                onClick={() => setLeaders((rows) => [...rows, emptyLeader()])}
               >
                 +
               </button>
@@ -226,19 +295,7 @@ export default function ChurchRegisterPage() {
               {leaders.map((row) => (
                 <li key={row.key} className="church-dyn-card">
                   <div className="church-dyn-card__row">
-                    <label className="church-dyn-card__grow">
-                      Nombre
-                      <input
-                        value={row.name}
-                        onChange={(e) =>
-                          setLeaders((rows) =>
-                            rows.map((r) =>
-                              r.key === row.key ? { ...r, name: e.target.value } : r,
-                            ),
-                          )
-                        }
-                      />
-                    </label>
+                    <span className="church-dyn-card__title">Líder</span>
                     <button
                       type="button"
                       className="btn"
@@ -249,6 +306,50 @@ export default function ChurchRegisterPage() {
                     >
                       −
                     </button>
+                  </div>
+                  <div className="church-dyn-card__grid">
+                    <label>
+                      Nombre
+                      <input
+                        value={row.firstName}
+                        onChange={(e) =>
+                          patchLeader(row.key, { firstName: e.target.value })
+                        }
+                        required
+                      />
+                    </label>
+                    <label>
+                      Apellido
+                      <input
+                        value={row.lastName}
+                        onChange={(e) =>
+                          patchLeader(row.key, { lastName: e.target.value })
+                        }
+                        required
+                      />
+                    </label>
+                    <label>
+                      Teléfono
+                      <input
+                        type="tel"
+                        value={row.phone}
+                        onChange={(e) =>
+                          patchLeader(row.key, { phone: e.target.value })
+                        }
+                        placeholder="Opcional"
+                      />
+                    </label>
+                    <label>
+                      Correo
+                      <input
+                        type="email"
+                        value={row.email}
+                        onChange={(e) =>
+                          patchLeader(row.key, { email: e.target.value })
+                        }
+                        placeholder="Opcional"
+                      />
+                    </label>
                   </div>
                   <fieldset className="church-role-set">
                     <legend>Roles</legend>

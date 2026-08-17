@@ -45,7 +45,12 @@ export const LEADER_ROLE_OPTIONS: LeaderRoleOption[] = [
 ];
 
 export type ChurchLeader = {
-  name: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  /** Display name; derived from first+last, or legacy single-string records. */
+  name?: string;
   roles: string[];
 };
 
@@ -181,6 +186,14 @@ export function memberDisplayName(m: ChurchMember): string {
     .map((p) => (p || "").trim())
     .filter(Boolean)
     .join(" ");
+}
+
+/** Display "nombre apellido", falling back to legacy name-only records. */
+export function leaderDisplayName(L: ChurchLeader): string {
+  const first = (L.firstName || "").trim();
+  const last = (L.lastName || "").trim();
+  if (first || last) return `${first} ${last}`.trim();
+  return (L.name || "").trim();
 }
 
 export function leaderRoleLabel(id: string): string {

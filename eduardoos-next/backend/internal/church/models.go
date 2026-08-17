@@ -25,9 +25,15 @@ type DenominationGroup struct {
 }
 
 // Leader is a church leader with one or more ministry role tags.
+// New rows use firstName + lastName (nombre / apellido); phone and email are optional.
+// Legacy rows may only have name (a single display string) — still accepted on read.
 type Leader struct {
-	Name  string   `json:"name"`
-	Roles []string `json:"roles"`
+	FirstName string   `json:"firstName,omitempty"` // nombre
+	LastName  string   `json:"lastName,omitempty"`  // apellido
+	Phone     string   `json:"phone,omitempty"`
+	Email     string   `json:"email,omitempty"`
+	Name      string   `json:"name,omitempty"` // display; derived from first+last, or legacy-only
+	Roles     []string `json:"roles"`
 }
 
 // Member is a person linked to a church with a church-* role.

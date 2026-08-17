@@ -102,7 +102,8 @@ church/{denomOrWebId}/{churchId}/activities/{activityId}/images/{filename}
 ## Church document fields
 
 - `name`, `openedAt`, `address`
-- `leaders[]` — `{ name, roles[] }` (legacy `pastors[]` still read)
+- `leaders[]` — `{ firstName, lastName, phone?, email?, name?, roles[] }`
+  (legacy `{ name, roles[] }` and `pastors[]` still read; display = `nombre apellido`)
 - `orgLeaders[]` — snapshot of register-time líderes catalog
 - `denominationId` / `network` / `localChurches[]`
 - `beliefsDocument`, `sectorActivities[]`

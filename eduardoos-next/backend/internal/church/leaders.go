@@ -1,17 +1,101 @@
 package church
 
 import (
+	"fmt"
 	"strings"
+	"unicode"
+
+	"eduardoos.nex/internal/auth"
 )
 
+// leaderDisplayName returns "nombre apellido", falling back to legacy name.
+func leaderDisplayName(L Leader) string {
+	first := strings.TrimSpace(L.FirstName)
+	last := strings.TrimSpace(L.LastName)
+	if first != "" || last != "" {
+		return strings.TrimSpace(first + " " + last)
+	}
+	return strings.TrimSpace(L.Name)
+}
+
+// looksLikeEmail is a light check for optional leader correo.
+func looksLikeEmail(s string) bool {
+	s = strings.TrimSpace(s)
+	at := strings.IndexByte(s, '@')
+	if at < 1 || at >= len(s)-1 {
+		return false
+	}
+	dot := strings.LastIndexByte(s, '.')
+	return dot > at+1 && dot < len(s)-1
+}
+
+// looksLikePhone allows digits and common separators; requires 7–15 digits.
+func looksLikePhone(s string) bool {
+	digits := 0
+	for _, r := range s {
+		if unicode.IsDigit(r) {
+			digits++
+			continue
+		}
+		switch r {
+		case ' ', '+', '-', '(', ')', '.', '/':
+			continue
+		default:
+			return false
+		}
+	}
+	return digits >= 7 && digits <= 15
+}
+
+// validateLeaderContacts rejects non-empty invalid optional phone/email on leaders.
+func validateLeaderContacts(in []Leader) error {
+	for i, L := range in {
+		phone := strings.TrimSpace(L.Phone)
+		if phone != "" && !looksLikePhone(phone) {
+			return fmt.Errorf("leader[%d]: invalid phone", i)
+		}
+		email := strings.TrimSpace(L.Email)
+		if email != "" && !looksLikeEmail(email) {
+			return fmt.Errorf("leader[%d]: invalid email", i)
+		}
+	}
+	return nil
+}
+
 // normalizeLeaders cleans leader rows and keeps only valid role ids.
+// Accepts new {firstName,lastName,...} rows and legacy {name,roles} rows.
+// New-style rows need both firstName and lastName; phone/email stay optional.
 func normalizeLeaders(in []Leader) []Leader {
 	out := make([]Leader, 0, len(in))
 	for _, L := range in {
-		name := strings.TrimSpace(L.Name)
-		if name == "" {
+		first := strings.TrimSpace(L.FirstName)
+		last := strings.TrimSpace(L.LastName)
+		phone := strings.TrimSpace(L.Phone)
+		email := strings.TrimSpace(L.Email)
+		legacy := strings.TrimSpace(L.Name)
+
+		var display string
+		switch {
+		case first != "" && last != "":
+			display = first + " " + last
+		case first == "" && last == "" && legacy != "":
+			// Legacy pastors/leaders that only stored a single name string.
+			display = legacy
+		default:
+			// Incomplete new-style row (only nombre or only apellido) — drop.
 			continue
 		}
+
+		if phone != "" && !looksLikePhone(phone) {
+			phone = ""
+		}
+		if email != "" {
+			email = auth.NormalizeEmail(email)
+			if !looksLikeEmail(email) {
+				email = ""
+			}
+		}
+
 		roles := make([]string, 0, len(L.Roles))
 		seen := map[string]bool{}
 		for _, r := range L.Roles {
@@ -22,7 +106,14 @@ func normalizeLeaders(in []Leader) []Leader {
 			seen[r] = true
 			roles = append(roles, r)
 		}
-		out = append(out, Leader{Name: name, Roles: roles})
+		out = append(out, Leader{
+			FirstName: first,
+			LastName:  last,
+			Phone:     phone,
+			Email:     email,
+			Name:      display,
+			Roles:     roles,
+		})
 	}
 	return out
 }
@@ -58,7 +149,7 @@ func pickLeadersByName(catalog []Leader, names []string) []Leader {
 	}
 	byName := map[string]Leader{}
 	for _, L := range catalog {
-		byName[strings.ToLower(strings.TrimSpace(L.Name))] = L
+		byName[strings.ToLower(leaderDisplayName(L))] = L
 	}
 	out := make([]Leader, 0, len(names))
 	seen := map[string]bool{}

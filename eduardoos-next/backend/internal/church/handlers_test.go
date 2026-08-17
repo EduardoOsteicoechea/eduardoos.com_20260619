@@ -105,13 +105,17 @@ func TestRegisterListDetailAndMemberFilter(t *testing.T) {
 	payload := map[string]any{
 		"denominationId": "asambleas",
 		"leaders": []map[string]any{
-			{"name": "Pastor Ana", "roles": []string{"elder-bishop-pastor"}},
+			{
+				"firstName": "Ana", "lastName": "García",
+				"phone": "+58 412 1234567", "email": "ana@example.com",
+				"roles": []string{"elder-bishop-pastor"},
+			},
 		},
 		"churches": []map[string]any{
 			{
 				"name": "Iglesia Central", "churchId": "central",
 				"openedAt": "2019-03-01", "address": "Calle 1",
-				"leadership": []string{"Pastor Ana"},
+				"leadership": []string{"Ana García"},
 			},
 		},
 		"beliefsDocument": "Creemos en un solo Dios.",
@@ -368,12 +372,12 @@ func TestGroupsAdminOnlyAndRegisterRequiresCatalog(t *testing.T) {
 	multi, _ := json.Marshal(map[string]any{
 		"denominationId": "asambleas",
 		"leaders": []map[string]any{
-			{"name": "Ana", "roles": []string{"evangelist"}},
-			{"name": "Luis", "roles": []string{"ministry-leader"}},
+			{"firstName": "Ana", "lastName": "Ruiz", "roles": []string{"evangelist"}},
+			{"firstName": "Luis", "lastName": "Díaz", "roles": []string{"ministry-leader"}},
 		},
 		"churches": []map[string]any{
-			{"name": "Norte", "churchId": "norte", "openedAt": "2020-01-01", "address": "A", "leadership": []string{"Ana"}},
-			{"name": "Sur", "churchId": "sur", "openedAt": "2021-01-01", "address": "B", "leadership": []string{"Luis"}},
+			{"name": "Norte", "churchId": "norte", "openedAt": "2020-01-01", "address": "A", "leadership": []string{"Ana Ruiz"}},
+			{"name": "Sur", "churchId": "sur", "openedAt": "2021-01-01", "address": "B", "leadership": []string{"Luis Díaz"}},
 		},
 		"members": []map[string]string{
 			{"email": "member@example.com", "firstName": "M", "churchId": "sur", "role": "church-member"},
@@ -423,5 +427,49 @@ func TestAuthRequestSK(t *testing.T) {
 	}
 	if !IsValidLeaderRole(LeaderRoleEvangelist) {
 		t.Fatal("leader role")
+	}
+}
+
+func TestNormalizeLeadersLegacyAndStructured(t *testing.T) {
+	legacy := normalizeLeaders([]Leader{
+		{Name: "Pastor Ana", Roles: []string{"elder-bishop-pastor", "bogus"}},
+	})
+	if len(legacy) != 1 || legacy[0].Name != "Pastor Ana" || len(legacy[0].Roles) != 1 {
+		t.Fatalf("legacy: %+v", legacy)
+	}
+
+	structured := normalizeLeaders([]Leader{
+		{
+			FirstName: "Luis", LastName: "Pérez",
+			Phone: "+58 414 0000000", Email: "Luis@Example.com",
+			Roles: []string{"evangelist"},
+		},
+	})
+	if len(structured) != 1 {
+		t.Fatalf("structured len=%d", len(structured))
+	}
+	got := structured[0]
+	if got.Name != "Luis Pérez" || got.FirstName != "Luis" || got.LastName != "Pérez" {
+		t.Fatalf("display: %+v", got)
+	}
+	if got.Email != "luis@example.com" || got.Phone == "" {
+		t.Fatalf("contact: %+v", got)
+	}
+
+	incomplete := normalizeLeaders([]Leader{
+		{FirstName: "Solo", Roles: []string{"evangelist"}},
+	})
+	if len(incomplete) != 0 {
+		t.Fatalf("expected incomplete dropped: %+v", incomplete)
+	}
+
+	if err := validateLeaderContacts([]Leader{{Email: "not-an-email"}}); err == nil {
+		t.Fatal("expected invalid email error")
+	}
+	if err := validateLeaderContacts([]Leader{{Phone: "abc"}}); err == nil {
+		t.Fatal("expected invalid phone error")
+	}
+	if err := validateLeaderContacts([]Leader{{Phone: "+58 412 1234567", Email: "ok@ex.com"}}); err != nil {
+		t.Fatalf("valid contacts: %v", err)
 	}
 }

@@ -8,6 +8,7 @@ import {
   churchDetailHref,
   createChurchActivity,
   fetchChurchOverview,
+  leaderDisplayName,
   roleLabel,
   type OverviewPayload,
 } from "../../lib/church";
@@ -132,7 +133,10 @@ export default function ChurchOverviewPage() {
               {(ch.church.leaders ?? []).length > 0 ? (
                 <p className="church-panel__block">
                   Liderazgo:{" "}
-                  {(ch.church.leaders ?? []).map((L) => L.name).join(", ")}
+                  {(ch.church.leaders ?? [])
+                    .map((L) => leaderDisplayName(L))
+                    .filter(Boolean)
+                    .join(", ")}
                 </p>
               ) : null}
               {(ch.viewerRole === "church-admin" || ch.viewerRole === "admin") && (

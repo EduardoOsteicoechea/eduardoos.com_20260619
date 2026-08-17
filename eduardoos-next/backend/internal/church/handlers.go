@@ -150,6 +150,10 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if err := validateLeaderContacts(body.Leaders); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	orgLeaders := normalizeLeaders(body.Leaders)
 	if len(orgLeaders) == 0 && len(body.Pastors) > 0 {
 		orgLeaders = leadersFromPastors(body.Pastors)
@@ -169,7 +173,7 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 		}
 		leadership := make([]string, 0, len(orgLeaders))
 		for _, L := range orgLeaders {
-			leadership = append(leadership, L.Name)
+			leadership = append(leadership, leaderDisplayName(L))
 		}
 		churchInputs = []LocalChurchInput{{
 			ChurchID:   churchID,
@@ -378,12 +382,20 @@ func (h *Handler) UpdateChurch(w http.ResponseWriter, r *http.Request) {
 	doc.OpenedAt = strings.TrimSpace(body.OpenedAt)
 	doc.Address = strings.TrimSpace(body.Address)
 	if body.Leaders != nil {
+		if err := validateLeaderContacts(body.Leaders); err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		doc.Leaders = normalizeLeaders(body.Leaders)
 	} else if body.Pastors != nil {
 		doc.Leaders = leadersFromPastors(body.Pastors)
 		doc.Pastors = cleanStringList(body.Pastors)
 	}
 	if body.OrgLeaders != nil {
+		if err := validateLeaderContacts(body.OrgLeaders); err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		doc.OrgLeaders = normalizeLeaders(body.OrgLeaders)
 	}
 	doc.Network = strings.TrimSpace(body.Network)

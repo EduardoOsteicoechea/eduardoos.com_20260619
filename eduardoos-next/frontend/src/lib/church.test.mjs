@@ -78,4 +78,21 @@ describe("church helpers", () => {
       "Ana María Pérez López",
     );
   });
+
+  it("builds leader display names (nombre apellido, legacy name)", () => {
+    function leaderDisplayName(L) {
+      const first = (L.firstName || "").trim();
+      const last = (L.lastName || "").trim();
+      if (first || last) return `${first} ${last}`.trim();
+      return (L.name || "").trim();
+    }
+    assert.equal(
+      leaderDisplayName({ firstName: "Ana", lastName: "García", roles: [] }),
+      "Ana García",
+    );
+    assert.equal(
+      leaderDisplayName({ name: "Pastor Ana", roles: [] }),
+      "Pastor Ana",
+    );
+  });
 });

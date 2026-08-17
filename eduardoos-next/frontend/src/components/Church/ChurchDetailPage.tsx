@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
   fetchChurch,
+  leaderDisplayName,
   leaderRoleLabel,
   memberDisplayName,
   resolveChurchIdsFromLocation,
@@ -100,11 +101,16 @@ export default function ChurchDetailPage() {
                       <li className="church-empty">Sin líderes.</li>
                     ) : null}
                     {(detail.church.leaders ?? []).map((L) => (
-                      <li key={L.name} className="church-list__item">
-                        <h3>{L.name}</h3>
+                      <li key={leaderDisplayName(L)} className="church-list__item">
+                        <h3>{leaderDisplayName(L)}</h3>
                         <p className="church-card__meta">
                           {(L.roles ?? []).map(leaderRoleLabel).join(" · ") || "—"}
                         </p>
+                        {L.phone || L.email ? (
+                          <p className="church-card__meta">
+                            {[L.phone, L.email].filter(Boolean).join(" · ")}
+                          </p>
+                        ) : null}
                       </li>
                     ))}
                     {!detail.church.leaders?.length &&
