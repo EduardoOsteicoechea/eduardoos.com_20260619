@@ -1,6 +1,6 @@
 # Milestone: Homescool tasks (templates, boards, grading) — 2026-08-17
 
-## Status: SHIPPED on branch (commit after this write)
+## Status: SHIPPED on `master` (`821fbff`)
 
 Extends Homescool student spaces with durable task templates, assignment, student
 responses (text/md + proof files), and teacher grading across four boards.
