@@ -274,6 +274,23 @@
   flex-shrink: 0;
 }
 
+/* Unicode glyph fallback when word/catalog SVG has no strokes. */
+.greek-letter-thumb--symbol,
+.greek-letter-slot__img.greek-letter-thumb--symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Times New Roman", "Noto Serif", serif;
+  font-size: 1.35rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.greek-letter-slot__trash {
+  align-self: center;
+  margin-bottom: 0.15rem;
+}
+
 .greek-canvas-modal__check {
   display: flex;
   align-items: center;

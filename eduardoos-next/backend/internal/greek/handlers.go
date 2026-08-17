@@ -588,6 +588,8 @@ func (h *Handler) AddLetter(w http.ResponseWriter, r *http.Request) {
 		Index:          index,
 		Slug:           letterSlug,
 		AlphabetNumber: alphabetNumber,
+		Label:          CatalogLabelFor(letterSlug, alphabetNumber),
+		Drawn:          GlyphHasDrawing(svg),
 		Key:            letterKey,
 		URL:            letterURL(groupSlug, chapterSlug, verseSlug, wordSlug, index),
 		Size:           int64(len(svg)),
@@ -681,10 +683,21 @@ func (h *Handler) UpdateLetter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lm := meta.LetterImages[idx]
+	drawn := false
+	if size > 0 && body.SVG != nil {
+		drawn = GlyphHasDrawing([]byte(strings.TrimSpace(*body.SVG)))
+	} else if existing, _, ok, gerr := h.Objects.GetBytes(r.Context(), letterKey, cid); gerr == nil && ok {
+		drawn = GlyphHasDrawing(existing)
+		if size == 0 {
+			size = int64(len(existing))
+		}
+	}
 	ref := LetterRef{
 		Index:          index,
 		Slug:           lm.Slug,
 		AlphabetNumber: lm.AlphabetNumber,
+		Label:          CatalogLabelFor(lm.Slug, lm.AlphabetNumber),
+		Drawn:          drawn,
 		Key:            letterKey,
 		URL:            letterURL(groupSlug, chapterSlug, verseSlug, wordSlug, index),
 		Size:           size,
@@ -741,6 +754,11 @@ func (h *Handler) DeleteLetter(w http.ResponseWriter, r *http.Request) {
 	if !h.requireGroup(w, r, owner, groupSlug) {
 		return
 	}
+	if !IsValidSlug(chapterSlug) || !IsValidSlug(verseSlug) || !IsValidSlug(wordSlug) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid path slug")
+		return
+	}
+	// Delete only the word-local SVG (letters/{i}.svg). Never touch gallery/ catalog glyphs.
 	key := LetterKey(owner, groupSlug, chapterSlug, verseSlug, wordSlug, index)
 	if err := h.Objects.DeleteKey(r.Context(), key, cid); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, "could not delete letter")
@@ -750,16 +768,26 @@ func (h *Handler) DeleteLetter(w http.ResponseWriter, r *http.Request) {
 	var meta WordMeta
 	if ok, err := h.Objects.GetJSON(r.Context(), keyMeta, &meta, cid); err == nil && ok {
 		filtered := make([]LetterMeta, 0, len(meta.LetterImages))
+		maxID := 0
 		for _, lm := range meta.LetterImages {
-			if lm.ID != index {
-				filtered = append(filtered, lm)
+			if lm.ID == index {
+				continue
+			}
+			filtered = append(filtered, lm)
+			if lm.ID > maxID {
+				maxID = lm.ID
 			}
 		}
 		meta.LetterImages = filtered
+		meta.LetterCount = maxID
 		meta.UpdatedAt = nowRFC3339()
-		_ = h.Objects.PutJSON(r.Context(), keyMeta, meta, cid)
+		if err := h.Objects.PutJSON(r.Context(), keyMeta, meta, cid); err != nil {
+			httpx.WriteError(w, http.StatusBadGateway, "could not update word letter metadata")
+			return
+		}
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"deleted": true, "index": index})
+	log.Printf("[correlation=%s] greek.letter.delete group=%s word=%s index=%d", cid, groupSlug, wordSlug, index)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"deleted": true, "index": index, "word": meta})
 }
 
 func (h *Handler) ListGallery(w http.ResponseWriter, r *http.Request) {
@@ -1332,12 +1360,21 @@ func (h *Handler) buildTree(r *http.Request, owner string, g Group, cid string) 
 					break
 				}
 			}
+			drawn := false
+			size := int64(0)
+			if body, _, ok, err := h.Objects.GetBytes(r.Context(), key, cid); err == nil && ok {
+				drawn = GlyphHasDrawing(body)
+				size = int64(len(body))
+			}
 			wn.Letters = append(wn.Letters, LetterRef{
 				Index:          idx,
 				Slug:           slug,
 				AlphabetNumber: alphabet,
+				Label:          CatalogLabelFor(slug, alphabet),
+				Drawn:          drawn,
 				Key:            key,
 				URL:            letterURL(g.Slug, chSlug, vSlug, wSlug, idx),
+				Size:           size,
 			})
 			ensureChapter(chapters, &chapterOrder, chSlug)
 			vk := chSlug + "|" + vSlug

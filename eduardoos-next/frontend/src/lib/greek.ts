@@ -35,6 +35,10 @@ export type GreekLetterRef = {
   index: number;
   slug: string;
   alphabetNumber: number;
+  /** Unicode glyph from catalog when known (Α, σ, ς, …). */
+  label?: string;
+  /** false when word-local SVG is an empty placeholder. */
+  drawn?: boolean;
   key: string;
   url: string;
   size?: number;
@@ -111,6 +115,148 @@ export function greekAlphabetNumberOptions(): number[] {
 
 export function formatAlphabetNumber(n: number): string {
   return (Math.round(n * 10) / 10).toFixed(1).replace(/\.0$/, "");
+}
+
+/** True when SVG looks like a drawn letter (mirrors Go GlyphHasDrawing). */
+export function svgHasDrawing(svg: string): boolean {
+  const s = svg.toLowerCase();
+  return (
+    s.includes("<path") ||
+    s.includes("<polyline") ||
+    s.includes("<line") ||
+    s.includes("<circle") ||
+    s.includes("<ellipse") ||
+    s.includes("<polygon")
+  );
+}
+
+/**
+ * Clean Greek alphabet Unicode labels (mirrors Go KoineCatalogSeed).
+ * Used as thumbnail fallback when a letter slot has no drawn SVG.
+ */
+const GREEK_SYMBOL_BY_SLUG: Record<string, string> = {
+  "alpha-upper": "Α",
+  "alpha-lower": "α",
+  "beta-upper": "Β",
+  "beta-lower": "β",
+  "gamma-upper": "Γ",
+  "gamma-lower": "γ",
+  "delta-upper": "Δ",
+  "delta-lower": "δ",
+  "epsilon-upper": "Ε",
+  "epsilon-lower": "ε",
+  "zeta-upper": "Ζ",
+  "zeta-lower": "ζ",
+  "eta-upper": "Η",
+  "eta-lower": "η",
+  "theta-upper": "Θ",
+  "theta-lower": "θ",
+  "iota-upper": "Ι",
+  "iota-lower": "ι",
+  "kappa-upper": "Κ",
+  "kappa-lower": "κ",
+  "lambda-upper": "Λ",
+  "lambda-lower": "λ",
+  "mu-upper": "Μ",
+  "mu-lower": "μ",
+  "nu-upper": "Ν",
+  "nu-lower": "ν",
+  "xi-upper": "Ξ",
+  "xi-lower": "ξ",
+  "omicron-upper": "Ο",
+  "omicron-lower": "ο",
+  "pi-upper": "Π",
+  "pi-lower": "π",
+  "rho-upper": "Ρ",
+  "rho-lower": "ρ",
+  "sigma-upper": "Σ",
+  "sigma-lower": "σ",
+  "sigma-final": "ς",
+  "tau-upper": "Τ",
+  "tau-lower": "τ",
+  "upsilon-upper": "Υ",
+  "upsilon-lower": "υ",
+  "phi-upper": "Φ",
+  "phi-lower": "φ",
+  "chi-upper": "Χ",
+  "chi-lower": "χ",
+  "psi-upper": "Ψ",
+  "psi-lower": "ψ",
+  "omega-upper": "Ω",
+  "omega-lower": "ω",
+};
+
+const GREEK_SYMBOL_BY_ALPHABET: Record<string, string> = Object.fromEntries(
+  Object.entries({
+    1: "Α",
+    1.1: "α",
+    2: "Β",
+    2.1: "β",
+    3: "Γ",
+    3.1: "γ",
+    4: "Δ",
+    4.1: "δ",
+    5: "Ε",
+    5.1: "ε",
+    6: "Ζ",
+    6.1: "ζ",
+    7: "Η",
+    7.1: "η",
+    8: "Θ",
+    8.1: "θ",
+    9: "Ι",
+    9.1: "ι",
+    10: "Κ",
+    10.1: "κ",
+    11: "Λ",
+    11.1: "λ",
+    12: "Μ",
+    12.1: "μ",
+    13: "Ν",
+    13.1: "ν",
+    14: "Ξ",
+    14.1: "ξ",
+    15: "Ο",
+    15.1: "ο",
+    16: "Π",
+    16.1: "π",
+    17: "Ρ",
+    17.1: "ρ",
+    18: "Σ",
+    18.1: "σ",
+    18.2: "ς",
+    19: "Τ",
+    19.1: "τ",
+    20: "Υ",
+    20.1: "υ",
+    21: "Φ",
+    21.1: "φ",
+    22: "Χ",
+    22.1: "χ",
+    23: "Ψ",
+    23.1: "ψ",
+    24: "Ω",
+    24.1: "ω",
+  }).map(([k, v]) => [formatAlphabetNumber(Number(k)), v]),
+);
+
+/** Resolve the Unicode Greek symbol for a letter slug and/or alphabet #. */
+export function resolveGreekLetterSymbol(
+  slug?: string,
+  alphabetNumber?: number,
+  label?: string,
+): string {
+  const fromLabel = (label ?? "").trim();
+  if (fromLabel) return fromLabel;
+  const cleanSlug = (slug ?? "").trim().toLowerCase();
+  if (cleanSlug && GREEK_SYMBOL_BY_SLUG[cleanSlug]) {
+    return GREEK_SYMBOL_BY_SLUG[cleanSlug];
+  }
+  if (alphabetNumber != null && Number.isFinite(alphabetNumber)) {
+    const key = formatAlphabetNumber(alphabetNumber);
+    if (GREEK_SYMBOL_BY_ALPHABET[key]) return GREEK_SYMBOL_BY_ALPHABET[key];
+  }
+  return "";
 }
 
 export function validateAlphabetNumber(n: number): string | null {
@@ -407,6 +553,21 @@ export async function updateGreekLetter(
   return data?.letter ?? null;
 }
 
+/** Remove a letter slot from a word (word-local SVG + letterImages). Catalog untouched. */
+export async function deleteGreekLetter(
+  groupSlug: string,
+  chapterSlug: string,
+  verseSlug: string,
+  wordSlug: string,
+  index: number,
+): Promise<boolean> {
+  const data = await greekRequest<{ deleted: boolean; index: number }>(
+    GREEK_ROUTES.letter(groupSlug, chapterSlug, verseSlug, wordSlug, index),
+    { method: "DELETE" },
+  );
+  return Boolean(data?.deleted);
+}
+
 export async function listGreekGallery(): Promise<GreekGalleryGlyph[]> {
   const data = await greekRequest<{ glyphs: GreekGalleryGlyph[] }>(GREEK_ROUTES.catalog);
   return data?.glyphs ?? [];
@@ -485,6 +646,17 @@ export function greekLetterApiUrl(
 }
 
 export async function fetchLetterBlobUrl(apiUrl: string): Promise<string | null> {
+  const preview = await fetchLetterPreview(apiUrl);
+  return preview?.blobUrl ?? null;
+}
+
+/**
+ * Load letter SVG text; build a blob URL only when the drawing has strokes.
+ * Callers show the Unicode catalog symbol when drawn is false.
+ */
+export async function fetchLetterPreview(
+  apiUrl: string,
+): Promise<{ blobUrl: string | null; drawn: boolean; svg: string } | null> {
   const token = getAuthToken();
   if (!token) return null;
   const correlationId = createCorrelationId();
@@ -503,8 +675,13 @@ export async function fetchLetterBlobUrl(apiUrl: string): Promise<string | null>
       );
       return null;
     }
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
+    const svg = await res.text();
+    const drawn = svgHasDrawing(svg);
+    if (!drawn) {
+      return { blobUrl: null, drawn: false, svg };
+    }
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    return { blobUrl: URL.createObjectURL(blob), drawn: true, svg };
   } catch (e) {
     reportGreekError(
       `HTTP 0 · ${e instanceof Error ? e.message : "network error"} · correlation_id=${correlationId}`,

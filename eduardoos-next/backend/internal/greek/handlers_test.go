@@ -97,6 +97,18 @@ func TestKeysAndSlugs(t *testing.T) {
 	if err := ValidateAlphabetNumber(31); err == nil {
 		t.Fatal("expected alphabetNumber max error")
 	}
+	if CatalogLabelFor("nu-lower", 0) != "ν" {
+		t.Fatalf("CatalogLabelFor slug=%q", CatalogLabelFor("nu-lower", 0))
+	}
+	if CatalogLabelFor("", 18.2) != "ς" {
+		t.Fatalf("CatalogLabelFor alphabet=%q", CatalogLabelFor("", 18.2))
+	}
+	if !GlyphHasDrawing([]byte(`<svg><path d="M1 1"/></svg>`)) {
+		t.Fatal("expected path drawing")
+	}
+	if GlyphHasDrawing([]byte(EmptyLetterSVG)) {
+		t.Fatal("empty placeholder must not count as drawn")
+	}
 }
 
 func TestAdminGate(t *testing.T) {
@@ -604,6 +616,130 @@ func TestCatalogSeedPrunesObsoleteUndrawn(t *testing.T) {
 	body, _, drawnKept, err := h.Objects.GetBytes(t.Context(), drawnWeirdKey, "test")
 	if err != nil || !drawnKept || !GlyphHasDrawing(body) {
 		t.Fatalf("drawn obsolete SVG must be kept on S3, ok=%v err=%v", drawnKept, err)
+	}
+}
+
+// TestDeleteWordLetter removes word-local SVG + letterImages metadata without
+// touching the shared gallery/catalog glyph.
+func TestDeleteWordLetter(t *testing.T) {
+	h, r, users := testRouter(t)
+	seedAdmin(t, users, "admin@example.com")
+	tok := bearer(t, "admin@example.com", auth.RoleAdmin)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/greek/groups",
+		bytes.NewBufferString(`{"title":"Romans","slug":"romans"}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create group status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	for _, path := range []string{
+		"/api/greek/groups/romans/chapters",
+		"/api/greek/groups/romans/chapters/ch1/verses",
+		"/api/greek/groups/romans/chapters/ch1/verses/v1/words",
+	} {
+		body := `{"title":"One","slug":"ch1"}`
+		if strings.Contains(path, "/verses") && !strings.Contains(path, "/words") {
+			body = `{"title":"One","slug":"v1"}`
+		}
+		if strings.Contains(path, "/words") {
+			body = `{"slug":"servant","translation1":"servant","translation2":"siervo","ordinalChapter":1,"ordinalBook":1}`
+		}
+		req = httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(body))
+		req.Header.Set("Authorization", "Bearer "+tok)
+		req.Header.Set("Content-Type", "application/json")
+		rec = httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("setup %s status=%d body=%s", path, rec.Code, rec.Body.String())
+		}
+	}
+
+	svg := `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="64" viewBox="0 0 32 64"><path d="M4 60 L16 4 L28 60" fill="none" stroke="black"/></svg>`
+	req = httptest.NewRequest(http.MethodPost, "/api/greek/gallery",
+		bytes.NewBufferString(`{"svg":`+jsonString(svg)+`,"slug":"sigma-lower","alphabetNumber":18.1}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("gallery add status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/greek/groups/romans/chapters/ch1/verses/v1/words/servant/letters",
+		bytes.NewBufferString(`{"gallerySlug":"sigma-lower","slug":"sigma-lower","alphabetNumber":18.1}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("add letter status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var addResp struct {
+		Letter LetterRef `json:"letter"`
+		Word   WordMeta  `json:"word"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &addResp); err != nil {
+		t.Fatal(err)
+	}
+	if !addResp.Letter.Drawn || addResp.Letter.Label != "σ" {
+		t.Fatalf("expected drawn sigma label, got %#v", addResp.Letter)
+	}
+	if len(addResp.Word.LetterImages) != 1 {
+		t.Fatalf("letterImages %#v", addResp.Word.LetterImages)
+	}
+
+	letterKey := LetterKey("admin@example.com", "romans", "ch1", "v1", "servant", 1)
+	galleryKey := GalleryGlyphKey("admin@example.com", "sigma-lower")
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/greek/groups/romans/chapters/ch1/verses/v1/words/servant/letters/1", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete letter status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var delResp struct {
+		Deleted bool     `json:"deleted"`
+		Index   int      `json:"index"`
+		Word    WordMeta `json:"word"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &delResp); err != nil {
+		t.Fatal(err)
+	}
+	if !delResp.Deleted || delResp.Index != 1 {
+		t.Fatalf("delete resp %#v", delResp)
+	}
+	if len(delResp.Word.LetterImages) != 0 || delResp.Word.LetterCount != 0 {
+		t.Fatalf("word meta after delete %#v", delResp.Word)
+	}
+
+	_, _, wordSVG, err := h.Objects.GetBytes(t.Context(), letterKey, "test")
+	if err != nil || wordSVG {
+		t.Fatalf("word-local SVG must be gone, ok=%v err=%v", wordSVG, err)
+	}
+	galleryBody, _, galleryOK, err := h.Objects.GetBytes(t.Context(), galleryKey, "test")
+	if err != nil || !galleryOK || !GlyphHasDrawing(galleryBody) {
+		t.Fatalf("catalog glyph must remain untouched, ok=%v err=%v", galleryOK, err)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/greek/groups/romans", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("tree status=%d", rec.Code)
+	}
+	var tree GroupTree
+	if err := json.Unmarshal(rec.Body.Bytes(), &tree); err != nil {
+		t.Fatal(err)
+	}
+	word := tree.Chapters[0].Verses[0].Words[0]
+	if len(word.Letters) != 0 || len(word.LetterImages) != 0 {
+		t.Fatalf("tree should have no letters after delete, got %#v", word)
 	}
 }
 

@@ -173,4 +173,68 @@ describe("greek helpers", () => {
     assert.match(svg, /height="64"/);
     assert.match(svg, /<path d=/);
   });
+
+  it("svgHasDrawing detects strokes vs empty placeholder", () => {
+    assert.equal(
+      svgHasDrawing(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="64"><path d="M1 1"/></svg>`,
+      ),
+      true,
+    );
+    assert.equal(
+      svgHasDrawing(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="64"><rect width="100%" height="100%" fill="none"/></svg>`,
+      ),
+      false,
+    );
+  });
+
+  it("resolveGreekLetterSymbol maps slug and alphabet # to Unicode", () => {
+    assert.equal(resolveGreekLetterSymbol("sigma-lower", 18.1), "σ");
+    assert.equal(resolveGreekLetterSymbol("sigma-final", 18.2), "ς");
+    assert.equal(resolveGreekLetterSymbol("", 13.1), "ν");
+    assert.equal(resolveGreekLetterSymbol("x", 1, "Α"), "Α");
+  });
 });
+
+function formatAlphabetNumber(n) {
+  return (Math.round(n * 10) / 10).toFixed(1).replace(/\.0$/, "");
+}
+
+function svgHasDrawing(svg) {
+  const s = svg.toLowerCase();
+  return (
+    s.includes("<path") ||
+    s.includes("<polyline") ||
+    s.includes("<line") ||
+    s.includes("<circle") ||
+    s.includes("<ellipse") ||
+    s.includes("<polygon")
+  );
+}
+
+const GREEK_SYMBOL_BY_SLUG = {
+  "sigma-lower": "σ",
+  "sigma-final": "ς",
+};
+
+const GREEK_SYMBOL_BY_ALPHABET = {
+  1: "Α",
+  "13.1": "ν",
+  "18.1": "σ",
+  "18.2": "ς",
+};
+
+function resolveGreekLetterSymbol(slug, alphabetNumber, label) {
+  const fromLabel = (label ?? "").trim();
+  if (fromLabel) return fromLabel;
+  const cleanSlug = (slug ?? "").trim().toLowerCase();
+  if (cleanSlug && GREEK_SYMBOL_BY_SLUG[cleanSlug]) {
+    return GREEK_SYMBOL_BY_SLUG[cleanSlug];
+  }
+  if (alphabetNumber != null && Number.isFinite(alphabetNumber)) {
+    const key = formatAlphabetNumber(alphabetNumber);
+    if (GREEK_SYMBOL_BY_ALPHABET[key]) return GREEK_SYMBOL_BY_ALPHABET[key];
+  }
+  return "";
+}

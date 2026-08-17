@@ -63,6 +63,23 @@ var standardGreekLetters = []koineLetter{
 	{24, "omega", "Ω", "ω"},
 }
 
+// CatalogLabelFor returns the Unicode glyph for a catalog slug or alphabet #.
+// Slug match wins; otherwise the first seed entry with the same alphabet number.
+func CatalogLabelFor(slug string, alphabetNumber float64) string {
+	slug = strings.TrimSpace(strings.ToLower(slug))
+	alphabetNumber = NormalizeAlphabetNumber(alphabetNumber)
+	var byNumber string
+	for _, e := range KoineCatalogSeed() {
+		if slug != "" && e.Slug == slug {
+			return e.Label
+		}
+		if alphabetNumber > 0 && e.AlphabetNumber == alphabetNumber && byNumber == "" {
+			byNumber = e.Label
+		}
+	}
+	return byNumber
+}
+
 // KoineCatalogSeed returns the clean standard Greek alphabet catalog:
 // 24 uppercase + 24 lowercase (Αα…Ωω), plus final sigma ς (standard form).
 // Polytonic / accent-heavy variants are intentionally omitted.

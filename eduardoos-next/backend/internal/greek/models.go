@@ -56,6 +56,8 @@ type LetterRef struct {
 	Index          int     `json:"index"`
 	Slug           string  `json:"slug"`
 	AlphabetNumber float64 `json:"alphabetNumber"`
+	Label          string  `json:"label,omitempty"` // Unicode glyph from catalog when known
+	Drawn          bool    `json:"drawn"`           // true when word-local SVG has stroke content
 	Key            string  `json:"key"`
 	URL            string  `json:"url"`
 	Size           int64   `json:"size"`

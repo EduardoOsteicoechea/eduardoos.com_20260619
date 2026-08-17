@@ -2,6 +2,8 @@
  * Greek group detail — top gallery of letter images; bottom hierarchy editor.
  * Words are composed of ordered letter-image slots picked from the letter catalog.
  * Drawing / SVG override happens in the letter catalog (or Edit on a word slot).
+ * Letter rows can delete a mistaken pick (confirm first); undrawn slots show the
+ * Unicode Greek symbol instead of a blank SVG placeholder.
  */
 
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
@@ -11,11 +13,13 @@ import {
   createGreekChapter,
   createGreekVerse,
   createGreekWord,
+  deleteGreekLetter,
   fetchGreekGroup,
-  fetchLetterBlobUrl,
+  fetchLetterPreview,
   flattenLetterUrls,
   formatAlphabetNumber,
   listGreekGallery,
+  resolveGreekLetterSymbol,
   resolveGroupSlugFromLocation,
   updateGreekLetter,
   updateGreekWord,
@@ -29,35 +33,91 @@ import LetterCatalog from "./LetterCatalog";
 import { GreekGateShell, useGreekAdminGate } from "./GreekHubPage";
 import "./Greek.css";
 
+/** Trash can glyph — fill currentColor for light/dark chrome. */
+function IconTrash({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        fill="currentColor"
+        d="M9 3h6l1 2h5v2H3V5h5l1-2zm1 6h2v10h-2V9zm4 0h2v10h-2V9zM7 7h10v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V7z"
+      />
+    </svg>
+  );
+}
+
 function LetterThumb({
   letter,
   className = "greek-gallery__letter",
 }: {
-  letter: { url: string };
+  letter: {
+    url: string;
+    slug?: string;
+    alphabetNumber?: number;
+    label?: string;
+    drawn?: boolean;
+  };
   className?: string;
 }) {
+  const symbol = resolveGreekLetterSymbol(
+    letter.slug,
+    letter.alphabetNumber,
+    letter.label,
+  );
   const [src, setSrc] = useState<string | null>(null);
+  const [showSymbol, setShowSymbol] = useState(letter.drawn === false);
 
   useEffect(() => {
     let revoked: string | null = null;
     let cancelled = false;
+
+    if (letter.drawn === false) {
+      setSrc(null);
+      setShowSymbol(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setShowSymbol(false);
     void (async () => {
-      const url = await fetchLetterBlobUrl(letter.url);
+      const preview = await fetchLetterPreview(letter.url);
       if (cancelled) {
-        if (url) URL.revokeObjectURL(url);
+        if (preview?.blobUrl) URL.revokeObjectURL(preview.blobUrl);
         return;
       }
-      revoked = url;
-      setSrc(url);
+      if (!preview || !preview.drawn || !preview.blobUrl) {
+        setSrc(null);
+        setShowSymbol(true);
+        return;
+      }
+      revoked = preview.blobUrl;
+      setSrc(preview.blobUrl);
+      setShowSymbol(false);
     })();
+
     return () => {
       cancelled = true;
       if (revoked) URL.revokeObjectURL(revoked);
     };
-  }, [letter.url]);
+  }, [letter.url, letter.drawn, letter.slug, letter.alphabetNumber, letter.label]);
 
-  if (!src) {
-    return <span className={className} aria-hidden="true" />;
+  if (showSymbol || !src) {
+    return (
+      <span
+        className={`${className} greek-letter-thumb--symbol`.trim()}
+        aria-hidden="true"
+        title={symbol || undefined}
+      >
+        {symbol || "·"}
+      </span>
+    );
   }
   return (
     <img
@@ -232,6 +292,7 @@ function LetterSlotRow({
   onEditSvg: () => void;
 }) {
   const [slug, setSlug] = useState(letter.slug || "");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setSlug(letter.slug || "");
@@ -244,6 +305,31 @@ function LetterSlotRow({
       slug: clean,
     });
     await onChanged();
+  }
+
+  async function onDelete() {
+    if (deleting) return;
+    const label =
+      resolveGreekLetterSymbol(letter.slug, letter.alphabetNumber, letter.label) ||
+      letter.slug ||
+      `#${letter.index}`;
+    const ok = window.confirm(
+      `Remove letter “${label}” (#${formatAlphabetNumber(letter.alphabetNumber || letter.index || 1)}) from this word?\n\nThis deletes the word-local SVG and letterImages entry. The shared catalog glyph is kept.`,
+    );
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      const deleted = await deleteGreekLetter(
+        groupSlug,
+        chapterSlug,
+        verseSlug,
+        wordSlug,
+        letter.index,
+      );
+      if (deleted) await onChanged();
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -268,6 +354,16 @@ function LetterSlotRow({
       </div>
       <button type="button" className="btn" onClick={onEditSvg}>
         Edit SVG
+      </button>
+      <button
+        type="button"
+        className="greek-catalog__trash greek-letter-slot__trash"
+        title="Remove letter from word"
+        aria-label={`Remove letter ${letter.slug || letter.index} from word`}
+        disabled={deleting}
+        onClick={() => void onDelete()}
+      >
+        <IconTrash className="greek-catalog__trash-icon" />
       </button>
     </li>
   );

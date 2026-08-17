@@ -26,6 +26,8 @@ Accent / breathing / iota-subscript variants were removed from the seed.
 1. **Letter catalog** button (Build + group workspace) → seed all slots → draw/edit SVG one-by-one (override same slug/key).
 2. **Word card**: **Pick from catalog only** (no free-draw on word). Optional **Edit SVG** on a word letter slot overrides that word’s `letters/{i}.svg`.
 3. Drawing pad displays at **128×256** (1:2, 4× of 32×64); export remains **32×64 SVG**.
+4. **Delete letter** (word row trash): confirm → `DELETE …/letters/{index}` removes the slot from `word.json` `letterImages` and deletes the **word-local** `letters/{i}.svg` only. Shared `gallery/{slug}.svg` is never wiped.
+5. **Symbol fallback**: if the word-local SVG is missing/empty (no strokes), the thumbnail shows the Unicode Greek character from the catalog (slug / alphabet # / `label`).
 
 ### S3 layout (catalog = gallery prefix)
 
@@ -47,6 +49,7 @@ greek/{userSafe}/gallery/{glyphSlug}.svg
 | DELETE | `/api/greek/catalog/{slug}` — **clear drawing** (EmptyLetterSVG + `drawn=false`; keeps seed slot) |
 | GET/POST | `/api/greek/gallery` (legacy + POST create/override) |
 | PUT/GET/DELETE | `/api/greek/gallery/{slug}` (gallery DELETE still removes the glyph from the index) |
+| DELETE | `/api/greek/groups/…/words/{w}/letters/{index}` — remove letter from word (word-local SVG + letterImages; catalog untouched) |
 
 Seed writes empty placeholder SVGs. **Re-seed / refresh**:
 - Replaces the listed slot set with the clean 49-slot alphabet
@@ -60,6 +63,10 @@ Response fields: `seeded`, `created`, `updated`, `keptDrawn`, `pruned`, `orphanD
 
 Drawn slots show the SVG preview **beside** the letter label, with a **trash** control (`currentColor` icon) that `confirm`s then clears the drawing via `DELETE /api/greek/catalog/{slug}`.
 
+### Word letter row UI
+
+Each letter slot under WORDS → LETTERS has **Edit SVG** plus a **trash** control that confirms then removes that letter from the word. Undrawn / empty-SVG slots show the catalog Unicode symbol in the thumbnail.
+
 ## Letter-image model
 
 Each letter-image has:
@@ -69,6 +76,7 @@ Each letter-image has:
 3. **Alphabet number** — fixed by clean catalog (validation still allows 1…30 @ 0.1 for legacy)
 
 Letter-images within a word sort by `alphabetNumber` ascending. Metadata in `word.json` as `letterImages[]`; SVG at `letters/{id}.svg`.
+Tree/API letter refs include `label` (Unicode) and `drawn` (stroke detection).
 
 ## Hotfix 2026-08-17 (create "romans" 502)
 
