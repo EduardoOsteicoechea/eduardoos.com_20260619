@@ -73,6 +73,9 @@ func TestKeysAndSlugs(t *testing.T) {
 	if got := LetterKey("a@b.com", "g", "c1", "v1", "w1", 3); !strings.HasSuffix(got, "/letters/3.svg") {
 		t.Fatalf("LetterKey=%s", got)
 	}
+	if got := GalleryGlyphKey("a@b.com", "alpha"); got != "greek/a_at_b.com/gallery/alpha.svg" {
+		t.Fatalf("GalleryGlyphKey=%s", got)
+	}
 	if err := ValidateOrdinals(1, 1); err != nil {
 		t.Fatal(err)
 	}
@@ -81,6 +84,18 @@ func TestKeysAndSlugs(t *testing.T) {
 	}
 	if err := ValidateOrdinals(1, 10001); err == nil {
 		t.Fatal("expected ordinalBook error")
+	}
+	if err := ValidateAlphabetNumber(1.1); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateAlphabetNumber(1.15); err == nil {
+		t.Fatal("expected alphabetNumber step error")
+	}
+	if err := ValidateAlphabetNumber(0); err == nil {
+		t.Fatal("expected alphabetNumber range error")
+	}
+	if err := ValidateAlphabetNumber(31); err == nil {
+		t.Fatal("expected alphabetNumber max error")
 	}
 }
 
@@ -149,13 +164,64 @@ func TestCreateGroupHierarchyAndLetter(t *testing.T) {
 
 	svg := `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="64" viewBox="0 0 32 64"><path d="M4 60 L16 4 L28 60" fill="none" stroke="black"/></svg>`
 	req = httptest.NewRequest(http.MethodPost, "/api/greek/groups/genesis/chapters/ch1/verses/v1/words/en-arche/letters",
-		bytes.NewBufferString(`{"svg":`+jsonString(svg)+`}`))
+		bytes.NewBufferString(`{"svg":`+jsonString(svg)+`,"slug":"alpha","alphabetNumber":2.1}`))
 	req.Header.Set("Authorization", "Bearer "+tok)
 	req.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("add letter status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var addResp struct {
+		Letter LetterRef `json:"letter"`
+		Word   WordMeta  `json:"word"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &addResp); err != nil {
+		t.Fatal(err)
+	}
+	if addResp.Letter.Slug != "alpha" || addResp.Letter.AlphabetNumber != 2.1 {
+		t.Fatalf("letter meta %#v", addResp.Letter)
+	}
+	if len(addResp.Word.LetterImages) != 1 || addResp.Word.LetterImages[0].Slug != "alpha" {
+		t.Fatalf("word letterImages %#v", addResp.Word.LetterImages)
+	}
+
+	// Second letter with lower alphabetNumber should sort first in tree.
+	req = httptest.NewRequest(http.MethodPost, "/api/greek/groups/genesis/chapters/ch1/verses/v1/words/en-arche/letters",
+		bytes.NewBufferString(`{"svg":`+jsonString(svg)+`,"slug":"beta","alphabetNumber":1.2}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("add letter 2 status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	// Gallery: save reusable glyph, then attach to word.
+	req = httptest.NewRequest(http.MethodPost, "/api/greek/gallery",
+		bytes.NewBufferString(`{"svg":`+jsonString(svg)+`,"slug":"shared-gamma","alphabetNumber":3}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("gallery add status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	req = httptest.NewRequest(http.MethodGet, "/api/greek/gallery", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("gallery list status=%d", rec.Code)
+	}
+	req = httptest.NewRequest(http.MethodPost, "/api/greek/groups/genesis/chapters/ch1/verses/v1/words/en-arche/letters",
+		bytes.NewBufferString(`{"gallerySlug":"shared-gamma","slug":"gamma","alphabetNumber":1.1}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("add from gallery status=%d body=%s", rec.Code, rec.Body.String())
 	}
 
 	// Get letter
@@ -168,6 +234,17 @@ func TestCreateGroupHierarchyAndLetter(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "<svg") {
 		t.Fatalf("expected svg body, got %s", rec.Body.String())
+	}
+
+	// Update letter metadata
+	req = httptest.NewRequest(http.MethodPut, "/api/greek/groups/genesis/chapters/ch1/verses/v1/words/en-arche/letters/1",
+		bytes.NewBufferString(`{"slug":"alpha-prime","alphabetNumber":2.2}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update letter status=%d body=%s", rec.Code, rec.Body.String())
 	}
 
 	// Tree
@@ -189,8 +266,15 @@ func TestCreateGroupHierarchyAndLetter(t *testing.T) {
 		t.Fatalf("unexpected hierarchy %#v", tree.Chapters)
 	}
 	word := tree.Chapters[0].Verses[0].Words[0]
-	if word.LetterCount != 1 || len(word.Letters) != 1 {
-		t.Fatalf("expected 1 letter, got %#v", word)
+	if word.LetterCount != 3 || len(word.Letters) != 3 {
+		t.Fatalf("expected 3 letters, got %#v", word)
+	}
+	// Sorted by alphabetNumber: gamma 1.1, beta 1.2, alpha-prime 2.2
+	if word.Letters[0].Slug != "gamma" || word.Letters[0].AlphabetNumber != 1.1 {
+		t.Fatalf("expected gamma first, got %#v", word.Letters)
+	}
+	if word.Letters[1].Slug != "beta" || word.Letters[2].Slug != "alpha-prime" {
+		t.Fatalf("unexpected letter order %#v", word.Letters)
 	}
 	if !strings.HasPrefix(word.Letters[0].Key, "greek/") {
 		t.Fatalf("letter key must be under greek/: %s", word.Letters[0].Key)

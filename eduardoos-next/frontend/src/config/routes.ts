@@ -166,6 +166,9 @@ export const GREEK_ROUTES = {
     index: number,
   ) =>
     `/api/greek/groups/${encodeURIComponent(groupSlug)}/chapters/${encodeURIComponent(chapterSlug)}/verses/${encodeURIComponent(verseSlug)}/words/${encodeURIComponent(wordSlug)}/letters/${index}`,
+  gallery: "/api/greek/gallery",
+  galleryGlyph: (slug: string) =>
+    `/api/greek/gallery/${encodeURIComponent(slug)}`,
 } as const;
 
 export const PLAYLIST_ROUTES = {

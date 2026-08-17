@@ -3,9 +3,11 @@ package greek
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,7 +59,13 @@ func (h *Handler) Routes(r chi.Router) {
 
 		pr.Post("/api/greek/groups/{groupSlug}/chapters/{chapterSlug}/verses/{verseSlug}/words/{wordSlug}/letters", h.AddLetter)
 		pr.Get("/api/greek/groups/{groupSlug}/chapters/{chapterSlug}/verses/{verseSlug}/words/{wordSlug}/letters/{index}", h.GetLetter)
+		pr.Put("/api/greek/groups/{groupSlug}/chapters/{chapterSlug}/verses/{verseSlug}/words/{wordSlug}/letters/{index}", h.UpdateLetter)
 		pr.Delete("/api/greek/groups/{groupSlug}/chapters/{chapterSlug}/verses/{verseSlug}/words/{wordSlug}/letters/{index}", h.DeleteLetter)
+
+		pr.Get("/api/greek/gallery", h.ListGallery)
+		pr.Post("/api/greek/gallery", h.AddGalleryGlyph)
+		pr.Get("/api/greek/gallery/{glyphSlug}", h.GetGalleryGlyph)
+		pr.Delete("/api/greek/gallery/{glyphSlug}", h.DeleteGalleryGlyph)
 	})
 }
 
@@ -477,33 +485,46 @@ func (h *Handler) AddLetter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ct := strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Type")))
-	var svg []byte
-	if strings.HasPrefix(ct, "multipart/") {
-		if err := r.ParseMultipartForm(maxLetterSVGBytes); err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid multipart form")
+	letterSlug, alphabetNumber, gallerySlug, svg, err := parseLetterCreateBody(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if letterSlug == "" {
+		letterSlug = fmt.Sprintf("letter-%d", meta.LetterCount+1)
+	}
+	if !IsValidSlug(letterSlug) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid letter slug")
+		return
+	}
+	if alphabetNumber == 0 {
+		alphabetNumber = float64(meta.LetterCount + 1)
+		if alphabetNumber > MaxAlphabetNumber {
+			alphabetNumber = MaxAlphabetNumber
+		}
+	}
+	if err := ValidateAlphabetNumber(alphabetNumber); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	alphabetNumber = NormalizeAlphabetNumber(alphabetNumber)
+
+	if gallerySlug != "" {
+		if !IsValidSlug(gallerySlug) {
+			httpx.WriteError(w, http.StatusBadRequest, "invalid gallery slug")
 			return
 		}
-		file, _, err := r.FormFile("file")
+		gKey := GalleryGlyphKey(owner, gallerySlug)
+		body, _, ok, err := h.Objects.GetBytes(r.Context(), gKey, cid)
 		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "file required")
+			httpx.WriteError(w, http.StatusBadGateway, "could not load gallery glyph")
 			return
 		}
-		defer file.Close()
-		svg, err = io.ReadAll(io.LimitReader(file, maxLetterSVGBytes+1))
-		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "could not read upload")
+		if !ok {
+			httpx.WriteError(w, http.StatusNotFound, "gallery glyph not found")
 			return
 		}
-	} else {
-		var body struct {
-			SVG string `json:"svg"`
-		}
-		if err := json.NewDecoder(io.LimitReader(r.Body, maxLetterSVGBytes+512)).Decode(&body); err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
-			return
-		}
-		svg = []byte(strings.TrimSpace(body.SVG))
+		svg = body
 	}
 	if len(svg) == 0 {
 		httpx.WriteError(w, http.StatusBadRequest, "empty svg")
@@ -525,20 +546,120 @@ func (h *Handler) AddLetter(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, "could not store letter")
 		return
 	}
+	lm := LetterMeta{ID: index, Slug: letterSlug, AlphabetNumber: alphabetNumber}
 	meta.LetterCount = index
+	meta.LetterImages = append(meta.LetterImages, lm)
 	meta.UpdatedAt = nowRFC3339()
 	if err := h.Objects.PutJSON(r.Context(), keyMeta, meta, cid); err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, "could not update word letter count")
+		httpx.WriteError(w, http.StatusBadGateway, "could not update word letter metadata")
 		return
 	}
 	ref := LetterRef{
-		Index: index,
-		Key:   letterKey,
-		URL:   letterURL(groupSlug, chapterSlug, verseSlug, wordSlug, index),
-		Size:  int64(len(svg)),
+		Index:          index,
+		Slug:           letterSlug,
+		AlphabetNumber: alphabetNumber,
+		Key:            letterKey,
+		URL:            letterURL(groupSlug, chapterSlug, verseSlug, wordSlug, index),
+		Size:           int64(len(svg)),
+		GallerySlug:    gallerySlug,
 	}
-	log.Printf("[correlation=%s] greek.letter.add group=%s word=%s index=%d", cid, groupSlug, wordSlug, index)
+	log.Printf("[correlation=%s] greek.letter.add group=%s word=%s index=%d alphabet=%.1f", cid, groupSlug, wordSlug, index, alphabetNumber)
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"letter": ref, "word": meta})
+}
+
+func (h *Handler) UpdateLetter(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	owner := auth.UserEmailFromRequest(r)
+	groupSlug := chi.URLParam(r, "groupSlug")
+	chapterSlug := chi.URLParam(r, "chapterSlug")
+	verseSlug := chi.URLParam(r, "verseSlug")
+	wordSlug := chi.URLParam(r, "wordSlug")
+	index, err := strconv.Atoi(chi.URLParam(r, "index"))
+	if err != nil || index < 1 {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid letter index")
+		return
+	}
+	if !h.requireGroup(w, r, owner, groupSlug) {
+		return
+	}
+	if !IsValidSlug(chapterSlug) || !IsValidSlug(verseSlug) || !IsValidSlug(wordSlug) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid path slug")
+		return
+	}
+	keyMeta := WordMetaKey(owner, groupSlug, chapterSlug, verseSlug, wordSlug)
+	var meta WordMeta
+	ok, err := h.Objects.GetJSON(r.Context(), keyMeta, &meta, cid)
+	if err != nil || !ok {
+		httpx.WriteError(w, http.StatusNotFound, "word not found")
+		return
+	}
+	var body struct {
+		Slug           *string  `json:"slug"`
+		AlphabetNumber *float64 `json:"alphabetNumber"`
+		SVG            *string  `json:"svg"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxLetterSVGBytes+1024)).Decode(&body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	idx := findLetterMetaIndex(meta.LetterImages, index)
+	if idx < 0 {
+		// Legacy SVG without metadata row: create one.
+		meta.LetterImages = append(meta.LetterImages, LetterMeta{
+			ID:             index,
+			Slug:           fmt.Sprintf("letter-%d", index),
+			AlphabetNumber: float64(index),
+		})
+		idx = len(meta.LetterImages) - 1
+	}
+	if body.Slug != nil {
+		s := SanitizeSlug(*body.Slug)
+		if s == "" {
+			httpx.WriteError(w, http.StatusBadRequest, "invalid letter slug")
+			return
+		}
+		meta.LetterImages[idx].Slug = s
+	}
+	if body.AlphabetNumber != nil {
+		if err := ValidateAlphabetNumber(*body.AlphabetNumber); err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		meta.LetterImages[idx].AlphabetNumber = NormalizeAlphabetNumber(*body.AlphabetNumber)
+	}
+	letterKey := LetterKey(owner, groupSlug, chapterSlug, verseSlug, wordSlug, index)
+	size := int64(0)
+	if body.SVG != nil {
+		svg := []byte(strings.TrimSpace(*body.SVG))
+		if len(svg) == 0 || !looksLikeSVG(svg) {
+			httpx.WriteError(w, http.StatusBadRequest, "svg required")
+			return
+		}
+		if len(svg) > maxLetterSVGBytes {
+			httpx.WriteError(w, http.StatusRequestEntityTooLarge, "svg too large")
+			return
+		}
+		if err := h.Objects.PutBytes(r.Context(), letterKey, svg, "image/svg+xml", cid); err != nil {
+			httpx.WriteError(w, http.StatusBadGateway, "could not store letter")
+			return
+		}
+		size = int64(len(svg))
+	}
+	meta.UpdatedAt = nowRFC3339()
+	if err := h.Objects.PutJSON(r.Context(), keyMeta, meta, cid); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not update letter metadata")
+		return
+	}
+	lm := meta.LetterImages[idx]
+	ref := LetterRef{
+		Index:          index,
+		Slug:           lm.Slug,
+		AlphabetNumber: lm.AlphabetNumber,
+		Key:            letterKey,
+		URL:            letterURL(groupSlug, chapterSlug, verseSlug, wordSlug, index),
+		Size:           size,
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"letter": ref, "word": meta})
 }
 
 func (h *Handler) GetLetter(w http.ResponseWriter, r *http.Request) {
@@ -595,7 +716,183 @@ func (h *Handler) DeleteLetter(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, "could not delete letter")
 		return
 	}
+	keyMeta := WordMetaKey(owner, groupSlug, chapterSlug, verseSlug, wordSlug)
+	var meta WordMeta
+	if ok, err := h.Objects.GetJSON(r.Context(), keyMeta, &meta, cid); err == nil && ok {
+		filtered := make([]LetterMeta, 0, len(meta.LetterImages))
+		for _, lm := range meta.LetterImages {
+			if lm.ID != index {
+				filtered = append(filtered, lm)
+			}
+		}
+		meta.LetterImages = filtered
+		meta.UpdatedAt = nowRFC3339()
+		_ = h.Objects.PutJSON(r.Context(), keyMeta, meta, cid)
+	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"deleted": true, "index": index})
+}
+
+func (h *Handler) ListGallery(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	owner := auth.UserEmailFromRequest(r)
+	idx, err := h.loadGalleryIndex(r, owner, cid)
+	if err != nil {
+		log.Printf("[correlation=%s] greek.gallery.list error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not list gallery")
+		return
+	}
+	if idx.Glyphs == nil {
+		idx.Glyphs = []GalleryGlyph{}
+	}
+	sort.Slice(idx.Glyphs, func(i, j int) bool {
+		if idx.Glyphs[i].AlphabetNumber == idx.Glyphs[j].AlphabetNumber {
+			return idx.Glyphs[i].Slug < idx.Glyphs[j].Slug
+		}
+		return idx.Glyphs[i].AlphabetNumber < idx.Glyphs[j].AlphabetNumber
+	})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"glyphs": idx.Glyphs})
+}
+
+func (h *Handler) AddGalleryGlyph(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	owner := auth.UserEmailFromRequest(r)
+	letterSlug, alphabetNumber, _, svg, err := parseLetterCreateBody(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if letterSlug == "" || !IsValidSlug(letterSlug) {
+		httpx.WriteError(w, http.StatusBadRequest, "glyph slug required")
+		return
+	}
+	if alphabetNumber == 0 {
+		alphabetNumber = 1
+	}
+	if err := ValidateAlphabetNumber(alphabetNumber); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	alphabetNumber = NormalizeAlphabetNumber(alphabetNumber)
+	if len(svg) == 0 || !looksLikeSVG(svg) {
+		httpx.WriteError(w, http.StatusBadRequest, "svg required")
+		return
+	}
+	if len(svg) > maxLetterSVGBytes {
+		httpx.WriteError(w, http.StatusRequestEntityTooLarge, "svg too large")
+		return
+	}
+	gKey := GalleryGlyphKey(owner, letterSlug)
+	if err := h.Objects.PutBytes(r.Context(), gKey, svg, "image/svg+xml", cid); err != nil {
+		log.Printf("[correlation=%s] greek.gallery.put error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not store gallery glyph")
+		return
+	}
+	idx, err := h.loadGalleryIndex(r, owner, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not load gallery index")
+		return
+	}
+	now := nowRFC3339()
+	glyph := GalleryGlyph{
+		Slug:           letterSlug,
+		AlphabetNumber: alphabetNumber,
+		Key:            gKey,
+		URL:            galleryURL(letterSlug),
+		Size:           int64(len(svg)),
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	replaced := false
+	for i := range idx.Glyphs {
+		if idx.Glyphs[i].Slug == letterSlug {
+			glyph.CreatedAt = idx.Glyphs[i].CreatedAt
+			if glyph.CreatedAt == "" {
+				glyph.CreatedAt = now
+			}
+			idx.Glyphs[i] = glyph
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		idx.Glyphs = append(idx.Glyphs, glyph)
+	}
+	idx.UpdatedAt = now
+	if err := h.Objects.PutJSON(r.Context(), GalleryIndexKey(owner), idx, cid); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not update gallery index")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"glyph": glyph})
+}
+
+func (h *Handler) GetGalleryGlyph(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	owner := auth.UserEmailFromRequest(r)
+	glyphSlug := chi.URLParam(r, "glyphSlug")
+	if !IsValidSlug(glyphSlug) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid gallery slug")
+		return
+	}
+	key := GalleryGlyphKey(owner, glyphSlug)
+	body, contentType, ok, err := h.Objects.GetBytes(r.Context(), key, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not load gallery glyph")
+		return
+	}
+	if !ok {
+		httpx.WriteError(w, http.StatusNotFound, "gallery glyph not found")
+		return
+	}
+	if contentType == "" {
+		contentType = "image/svg+xml"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "private, max-age=60")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
+func (h *Handler) DeleteGalleryGlyph(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	owner := auth.UserEmailFromRequest(r)
+	glyphSlug := chi.URLParam(r, "glyphSlug")
+	if !IsValidSlug(glyphSlug) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid gallery slug")
+		return
+	}
+	key := GalleryGlyphKey(owner, glyphSlug)
+	if err := h.Objects.DeleteKey(r.Context(), key, cid); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not delete gallery glyph")
+		return
+	}
+	idx, err := h.loadGalleryIndex(r, owner, cid)
+	if err == nil {
+		filtered := make([]GalleryGlyph, 0, len(idx.Glyphs))
+		for _, g := range idx.Glyphs {
+			if g.Slug != glyphSlug {
+				filtered = append(filtered, g)
+			}
+		}
+		idx.Glyphs = filtered
+		idx.UpdatedAt = nowRFC3339()
+		_ = h.Objects.PutJSON(r.Context(), GalleryIndexKey(owner), idx, cid)
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"deleted": true, "slug": glyphSlug})
+}
+
+func (h *Handler) loadGalleryIndex(r *http.Request, owner, cid string) (GalleryIndex, error) {
+	var idx GalleryIndex
+	ok, err := h.Objects.GetJSON(r.Context(), GalleryIndexKey(owner), &idx, cid)
+	if err != nil {
+		return GalleryIndex{}, err
+	}
+	if !ok {
+		return GalleryIndex{Glyphs: []GalleryGlyph{}}, nil
+	}
+	if idx.Glyphs == nil {
+		idx.Glyphs = []GalleryGlyph{}
+	}
+	return idx, nil
 }
 
 func (h *Handler) requireGroup(w http.ResponseWriter, r *http.Request, owner, groupSlug string) bool {
@@ -682,6 +979,7 @@ func (h *Handler) buildTree(r *http.Request, owner string, g Group, cid string) 
 			} else {
 				words[wk] = &WordNode{WordMeta: meta, Letters: []LetterRef{}}
 			}
+			applyLetterMetaToRefs(words[wk])
 			ensureChapter(chapters, &chapterOrder, chSlug)
 			vk := chSlug + "|" + vSlug
 			if _, exists := verses[vk]; !exists {
@@ -699,10 +997,25 @@ func (h *Handler) buildTree(r *http.Request, owner string, g Group, cid string) 
 				wn = &WordNode{WordMeta: WordMeta{Slug: wSlug}, Letters: []LetterRef{}}
 				words[wk] = wn
 			}
+			slug := fmt.Sprintf("letter-%d", idx)
+			alphabet := float64(idx)
+			for _, lm := range wn.LetterImages {
+				if lm.ID == idx {
+					if lm.Slug != "" {
+						slug = lm.Slug
+					}
+					if lm.AlphabetNumber > 0 {
+						alphabet = lm.AlphabetNumber
+					}
+					break
+				}
+			}
 			wn.Letters = append(wn.Letters, LetterRef{
-				Index: idx,
-				Key:   key,
-				URL:   letterURL(g.Slug, chSlug, vSlug, wSlug, idx),
+				Index:          idx,
+				Slug:           slug,
+				AlphabetNumber: alphabet,
+				Key:            key,
+				URL:            letterURL(g.Slug, chSlug, vSlug, wSlug, idx),
 			})
 			ensureChapter(chapters, &chapterOrder, chSlug)
 			vk := chSlug + "|" + vSlug
@@ -712,9 +1025,15 @@ func (h *Handler) buildTree(r *http.Request, owner string, g Group, cid string) 
 		}
 	}
 
-	// Assemble nested tree.
+	// Assemble nested tree; letter-images ordered by alphabetNumber ascending.
 	for wk, wn := range words {
-		sort.Slice(wn.Letters, func(i, j int) bool { return wn.Letters[i].Index < wn.Letters[j].Index })
+		applyLetterMetaToRefs(wn)
+		sort.Slice(wn.Letters, func(i, j int) bool {
+			if wn.Letters[i].AlphabetNumber == wn.Letters[j].AlphabetNumber {
+				return wn.Letters[i].Index < wn.Letters[j].Index
+			}
+			return wn.Letters[i].AlphabetNumber < wn.Letters[j].AlphabetNumber
+		})
 		parts := strings.SplitN(wk, "|", 3)
 		if len(parts) != 3 {
 			continue
@@ -777,4 +1096,88 @@ func titleOrSlug(title, slug string) string {
 func looksLikeSVG(b []byte) bool {
 	s := strings.ToLower(strings.TrimSpace(string(b)))
 	return strings.Contains(s, "<svg") && strings.Contains(s, "</svg>")
+}
+
+// parseLetterCreateBody reads SVG + letter metadata from JSON or multipart form.
+// Returns letterSlug, alphabetNumber (0 if omitted), gallerySlug, svg bytes.
+func parseLetterCreateBody(r *http.Request) (letterSlug string, alphabetNumber float64, gallerySlug string, svg []byte, err error) {
+	ct := strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Type")))
+	if strings.HasPrefix(ct, "multipart/") {
+		if err := r.ParseMultipartForm(maxLetterSVGBytes); err != nil {
+			return "", 0, "", nil, fmt.Errorf("invalid multipart form")
+		}
+		letterSlug = SanitizeSlug(r.FormValue("slug"))
+		gallerySlug = SanitizeSlug(r.FormValue("gallerySlug"))
+		if raw := strings.TrimSpace(r.FormValue("alphabetNumber")); raw != "" {
+			n, perr := strconv.ParseFloat(raw, 64)
+			if perr != nil {
+				return "", 0, "", nil, fmt.Errorf("invalid alphabetNumber")
+			}
+			alphabetNumber = n
+		}
+		if gallerySlug == "" {
+			file, _, ferr := r.FormFile("file")
+			if ferr != nil {
+				return "", 0, "", nil, fmt.Errorf("file required")
+			}
+			defer file.Close()
+			svg, err = io.ReadAll(io.LimitReader(file, maxLetterSVGBytes+1))
+			if err != nil {
+				return "", 0, "", nil, fmt.Errorf("could not read upload")
+			}
+		}
+		return letterSlug, alphabetNumber, gallerySlug, svg, nil
+	}
+	var body struct {
+		SVG            string   `json:"svg"`
+		Slug           string   `json:"slug"`
+		AlphabetNumber *float64 `json:"alphabetNumber"`
+		GallerySlug    string   `json:"gallerySlug"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxLetterSVGBytes+1024)).Decode(&body); err != nil {
+		return "", 0, "", nil, fmt.Errorf("invalid payload")
+	}
+	letterSlug = SanitizeSlug(body.Slug)
+	gallerySlug = SanitizeSlug(body.GallerySlug)
+	if body.AlphabetNumber != nil {
+		alphabetNumber = *body.AlphabetNumber
+	}
+	svg = []byte(strings.TrimSpace(body.SVG))
+	return letterSlug, alphabetNumber, gallerySlug, svg, nil
+}
+
+func findLetterMetaIndex(items []LetterMeta, id int) int {
+	for i, lm := range items {
+		if lm.ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+// applyLetterMetaToRefs overlays durable word.json LetterImages onto listed SVG refs.
+func applyLetterMetaToRefs(wn *WordNode) {
+	if wn == nil {
+		return
+	}
+	byID := make(map[int]LetterMeta, len(wn.LetterImages))
+	for _, lm := range wn.LetterImages {
+		byID[lm.ID] = lm
+	}
+	for i := range wn.Letters {
+		lm, ok := byID[wn.Letters[i].Index]
+		if !ok {
+			continue
+		}
+		if lm.Slug != "" {
+			wn.Letters[i].Slug = lm.Slug
+		}
+		if lm.AlphabetNumber > 0 {
+			wn.Letters[i].AlphabetNumber = lm.AlphabetNumber
+		}
+	}
+}
+
+func galleryURL(glyphSlug string) string {
+	return "/api/greek/gallery/" + path.Base(glyphSlug)
 }

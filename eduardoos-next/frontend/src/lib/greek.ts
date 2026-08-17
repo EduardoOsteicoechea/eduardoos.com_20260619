@@ -1,6 +1,10 @@
 /**
  * Greek API client — admin-only letter-by-letter book builder.
  * Failures surface via ServerErrorModal (openApiErrorModal).
+ *
+ * Letter-images (not whole-word images): each word is composed of letter slots
+ * with SVG + slug + alphabetNumber (1–30, 0.1 steps). Gallery glyphs under
+ * /api/greek/gallery can be reused instead of redrawing.
  */
 
 import { APP_ROUTES, GREEK_ROUTES } from "../config/routes";
@@ -13,6 +17,8 @@ export const GREEK_LETTER_WIDTH = 32;
 export const GREEK_LETTER_HEIGHT = 64;
 export const GREEK_MAX_ORDINAL_CHAPTER = 1000;
 export const GREEK_MAX_ORDINAL_BOOK = 10000;
+export const GREEK_MIN_ALPHABET = 1;
+export const GREEK_MAX_ALPHABET = 30;
 
 export type GreekGroup = {
   slug: string;
@@ -26,9 +32,22 @@ export type GreekGroup = {
 
 export type GreekLetterRef = {
   index: number;
+  slug: string;
+  alphabetNumber: number;
   key: string;
   url: string;
   size?: number;
+  gallerySlug?: string;
+};
+
+export type GreekGalleryGlyph = {
+  slug: string;
+  alphabetNumber: number;
+  key: string;
+  url: string;
+  size?: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type GreekWord = {
@@ -38,6 +57,11 @@ export type GreekWord = {
   ordinalChapter: number;
   ordinalBook: number;
   letterCount: number;
+  letterImages?: Array<{
+    id: number;
+    slug: string;
+    alphabetNumber: number;
+  }>;
   createdAt: string;
   updatedAt: string;
   letters?: GreekLetterRef[];
@@ -63,6 +87,34 @@ export type GreekGroupTree = {
   group: GreekGroup;
   chapters: GreekChapter[];
 };
+
+/** Dropdown values 1…30 with 0.1 steps (1, 1.1, …, 30). */
+export function greekAlphabetNumberOptions(): number[] {
+  const out: number[] = [];
+  for (let n = GREEK_MIN_ALPHABET; n <= GREEK_MAX_ALPHABET; n += 1) {
+    out.push(n);
+    if (n < GREEK_MAX_ALPHABET) {
+      for (let d = 1; d <= 9; d += 1) {
+        out.push(Math.round((n + d / 10) * 10) / 10);
+      }
+    }
+  }
+  return out;
+}
+
+export function formatAlphabetNumber(n: number): string {
+  return (Math.round(n * 10) / 10).toFixed(1).replace(/\.0$/, "");
+}
+
+export function validateAlphabetNumber(n: number): string | null {
+  if (!Number.isFinite(n) || n < GREEK_MIN_ALPHABET || n > GREEK_MAX_ALPHABET) {
+    return `alphabetNumber must be ${GREEK_MIN_ALPHABET}–${GREEK_MAX_ALPHABET}`;
+  }
+  if (Math.abs(n * 10 - Math.round(n * 10)) > 1e-6) {
+    return "alphabetNumber must use steps of 0.1 (e.g. 1.1, 1.2)";
+  }
+  return null;
+}
 
 /** Sanitize a title into a URL/S3 slug (mirrors Go SanitizeSlug). */
 export function sanitizeGreekSlug(raw: string): string {
@@ -111,7 +163,7 @@ export function greekGroupWorkspaceHref(slug: string): string {
   return `${APP_ROUTES.greekGroupWorkspace}?group=${encodeURIComponent(slug)}`;
 }
 
-/** Collect all letter image URLs from a group tree (top gallery). */
+/** Collect all letter image URLs from a group tree (top gallery), already sorted per word. */
 export function flattenLetterUrls(tree: GreekGroupTree | null): GreekLetterRef[] {
   if (!tree) return [];
   const out: GreekLetterRef[] = [];
@@ -288,18 +340,81 @@ export async function updateGreekWord(
   return data?.word ?? null;
 }
 
+export type AddGreekLetterInput = {
+  svg?: string;
+  slug?: string;
+  alphabetNumber?: number;
+  gallerySlug?: string;
+};
+
 export async function addGreekLetter(
   groupSlug: string,
   chapterSlug: string,
   verseSlug: string,
   wordSlug: string,
-  svg: string,
+  input: AddGreekLetterInput | string,
 ): Promise<GreekLetterRef | null> {
+  const body: AddGreekLetterInput =
+    typeof input === "string" ? { svg: input } : input;
+  if (body.alphabetNumber != null) {
+    const err = validateAlphabetNumber(body.alphabetNumber);
+    if (err) {
+      reportGreekError(
+        `HTTP 400 · ${err} · correlation_id=${createCorrelationId()}`,
+        err,
+        "Greek",
+      );
+      return null;
+    }
+  }
   const data = await greekRequest<{ letter: GreekLetterRef }>(
     GREEK_ROUTES.letters(groupSlug, chapterSlug, verseSlug, wordSlug),
-    { method: "POST", body: { svg } },
+    { method: "POST", body },
   );
   return data?.letter ?? null;
+}
+
+export async function updateGreekLetter(
+  groupSlug: string,
+  chapterSlug: string,
+  verseSlug: string,
+  wordSlug: string,
+  index: number,
+  patch: { slug?: string; alphabetNumber?: number; svg?: string },
+): Promise<GreekLetterRef | null> {
+  if (patch.alphabetNumber != null) {
+    const err = validateAlphabetNumber(patch.alphabetNumber);
+    if (err) {
+      reportGreekError(
+        `HTTP 400 · ${err} · correlation_id=${createCorrelationId()}`,
+        err,
+        "Greek",
+      );
+      return null;
+    }
+  }
+  const data = await greekRequest<{ letter: GreekLetterRef }>(
+    GREEK_ROUTES.letter(groupSlug, chapterSlug, verseSlug, wordSlug, index),
+    { method: "PUT", body: patch },
+  );
+  return data?.letter ?? null;
+}
+
+export async function listGreekGallery(): Promise<GreekGalleryGlyph[]> {
+  const data = await greekRequest<{ glyphs: GreekGalleryGlyph[] }>(GREEK_ROUTES.gallery);
+  return data?.glyphs ?? [];
+}
+
+export async function addGreekGalleryGlyph(input: {
+  svg: string;
+  slug: string;
+  alphabetNumber?: number;
+}): Promise<GreekGalleryGlyph | null> {
+  const data = await greekRequest<{ glyph: GreekGalleryGlyph }>(GREEK_ROUTES.gallery, {
+    method: "POST",
+    body: input,
+  });
+  return data?.glyph ?? null;
 }
 
 /** Authenticated letter URL for <img src> (blob fetch preferred). */

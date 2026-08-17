@@ -10,12 +10,16 @@
 //	greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/verse.json
 //	greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/words/{w}/word.json
 //	greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/words/{w}/letters/{i}.svg
+//	greek/{userSafe}/gallery/index.json
+//	greek/{userSafe}/gallery/{glyphSlug}.svg
 //
-// Hierarchy: group (book) → chapters → verses → words → letter SVGs (32×64).
-// Each word stores translation1 / translation2 and ordinals:
+// Hierarchy: group (book) → chapters → verses → words → letter-images (32×64 SVG).
+// Each word stores translation1 / translation2, ordinals, and letterImages metadata
+// (slug + alphabetNumber). Letter SVGs are ordered by alphabetNumber ascending.
+// Alphabet numbers are 1…30 with optional decimal steps (1.1, 1.2) for mid-integer order.
 //
-//	ordinalChapter: 1…1000 within the chapter
-//	ordinalBook:    1…10000 within the book/group
+// The admin letter-image gallery under greek/{userSafe}/gallery/ holds reusable glyphs
+// that can be copied into a word instead of redrawing.
 //
 // DynamoDB catalog (eduardoos_catalog when GREEK_BACKEND/DATABASE_BACKEND=dynamodb):
 //
@@ -25,6 +29,7 @@ package greek
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
 	"unicode"
@@ -34,10 +39,13 @@ import (
 const RootPrefix = "greek"
 
 const (
-	MaxOrdinalChapter = 1000
-	MaxOrdinalBook    = 10000
-	LetterWidthPx     = 32
-	LetterHeightPx    = 64
+	MaxOrdinalChapter   = 1000
+	MaxOrdinalBook      = 10000
+	LetterWidthPx       = 32
+	LetterHeightPx      = 64
+	MinAlphabetNumber   = 1.0
+	MaxAlphabetNumber   = 30.0
+	AlphabetNumberStep  = 0.1
 )
 
 var safeSlugRe = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
@@ -139,6 +147,21 @@ func LetterKey(ownerEmail, groupSlug, chapterSlug, verseSlug, wordSlug string, i
 	return fmt.Sprintf("%s/letters/%d.svg", WordPrefix(ownerEmail, groupSlug, chapterSlug, verseSlug, wordSlug), index)
 }
 
+// GalleryPrefix is greek/{userSafe}/gallery (reusable letter-image glyphs).
+func GalleryPrefix(ownerEmail string) string {
+	return UserPrefix(ownerEmail) + "/gallery"
+}
+
+// GalleryIndexKey is gallery/index.json for the owner's glyph catalog.
+func GalleryIndexKey(ownerEmail string) string {
+	return GalleryPrefix(ownerEmail) + "/index.json"
+}
+
+// GalleryGlyphKey is gallery/{glyphSlug}.svg.
+func GalleryGlyphKey(ownerEmail, glyphSlug string) string {
+	return GalleryPrefix(ownerEmail) + "/" + strings.Trim(glyphSlug, "/") + ".svg"
+}
+
 // ValidateOrdinals checks chapter (1–1000) and book (1–10000) ordinals.
 func ValidateOrdinals(ordinalChapter, ordinalBook int) error {
 	if ordinalChapter < 1 || ordinalChapter > MaxOrdinalChapter {
@@ -148,4 +171,27 @@ func ValidateOrdinals(ordinalChapter, ordinalBook int) error {
 		return fmt.Errorf("ordinalBook must be 1–%d", MaxOrdinalBook)
 	}
 	return nil
+}
+
+// ValidateAlphabetNumber checks letter ordering numbers in [1, 30] with 0.1 steps.
+// Values like 1.1 and 1.2 are allowed so letters can sit between integers.
+func ValidateAlphabetNumber(n float64) error {
+	if math.IsNaN(n) || math.IsInf(n, 0) {
+		return fmt.Errorf("alphabetNumber must be a finite number")
+	}
+	if n < MinAlphabetNumber || n > MaxAlphabetNumber {
+		return fmt.Errorf("alphabetNumber must be %.0f–%.0f", MinAlphabetNumber, MaxAlphabetNumber)
+	}
+	// Allow one-decimal steps (1.0, 1.1, …) with float tolerance.
+	scaled := n * 10
+	nearest := math.Round(scaled)
+	if math.Abs(scaled-nearest) > 1e-6 {
+		return fmt.Errorf("alphabetNumber must use steps of %.1f (e.g. 1.1, 1.2)", AlphabetNumberStep)
+	}
+	return nil
+}
+
+// NormalizeAlphabetNumber snaps a valid alphabet number onto the 0.1 grid.
+func NormalizeAlphabetNumber(n float64) float64 {
+	return math.Round(n*10) / 10
 }

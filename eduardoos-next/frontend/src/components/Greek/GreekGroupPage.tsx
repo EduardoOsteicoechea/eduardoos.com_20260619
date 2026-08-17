@@ -1,10 +1,12 @@
 /**
  * Greek group detail — top gallery of letter images; bottom hierarchy editor.
+ * Words are composed of ordered letter-image slots (SVG + slug + alphabet #).
  */
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
+  addGreekGalleryGlyph,
   addGreekLetter,
   createGreekChapter,
   createGreekVerse,
@@ -12,17 +14,29 @@ import {
   fetchGreekGroup,
   fetchLetterBlobUrl,
   flattenLetterUrls,
+  formatAlphabetNumber,
+  greekAlphabetNumberOptions,
+  listGreekGallery,
   resolveGroupSlugFromLocation,
+  sanitizeGreekSlug,
+  updateGreekLetter,
   updateGreekWord,
+  type GreekGalleryGlyph,
   type GreekGroupTree,
   type GreekLetterRef,
   type GreekWord,
 } from "../../lib/greek";
-import LetterCanvas from "./LetterCanvas";
+import LetterCanvas, { type LetterCanvasSave } from "./LetterCanvas";
 import { GreekGateShell, useGreekAdminGate } from "./GreekHubPage";
 import "./Greek.css";
 
-function LetterThumb({ letter }: { letter: GreekLetterRef }) {
+function LetterThumb({
+  letter,
+  className = "greek-gallery__letter",
+}: {
+  letter: { url: string };
+  className?: string;
+}) {
   const [src, setSrc] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,17 +58,243 @@ function LetterThumb({ letter }: { letter: GreekLetterRef }) {
   }, [letter.url]);
 
   if (!src) {
-    return <span className="greek-gallery__letter" aria-hidden="true" />;
+    return <span className={className} aria-hidden="true" />;
   }
   return (
     <img
-      className="greek-gallery__letter"
+      className={className}
       src={src}
       alt=""
       width={32}
       height={64}
       decoding="async"
     />
+  );
+}
+
+function nextAlphabetSuggestion(letters: GreekLetterRef[] | undefined): number {
+  const used = (letters ?? []).map((l) => l.alphabetNumber || 0);
+  const max = used.length ? Math.max(...used) : 0;
+  const next = Math.min(30, Math.round((max + 1) * 10) / 10);
+  return next < 1 ? 1 : next;
+}
+
+function GalleryPicker({
+  open,
+  onClose,
+  onPick,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onPick: (glyph: GreekGalleryGlyph, slug: string, alphabetNumber: number) => Promise<void>;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const [glyphs, setGlyphs] = useState<GreekGalleryGlyph[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<GreekGalleryGlyph | null>(null);
+  const [slug, setSlug] = useState("");
+  const [alphabetNumber, setAlphabetNumber] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const alphabetOpts = useMemo(() => greekAlphabetNumberOptions(), []);
+
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    if (open && !el.open) el.showModal();
+    if (!open && el.open) el.close();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    setSelected(null);
+    setSlug("");
+    setAlphabetNumber(1);
+    setLoading(true);
+    void (async () => {
+      try {
+        const items = await listGreekGallery();
+        setGlyphs(items);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [open]);
+
+  async function confirm() {
+    if (!selected || busy) return;
+    const clean = sanitizeGreekSlug(slug) || selected.slug;
+    setBusy(true);
+    try {
+      await onPick(selected, clean, alphabetNumber);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <dialog
+      ref={dialogRef}
+      className="greek-canvas-modal greek-gallery-picker"
+      aria-labelledby={titleId}
+      onClose={onClose}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+    >
+      <div className="greek-canvas-modal__body">
+        <h2 className="greek-canvas-modal__title" id={titleId}>
+          Pick letter from gallery
+        </h2>
+        <p className="greek-canvas-modal__hint">
+          Reuse a saved letter-image glyph, then set slug and alphabet # for this word.
+        </p>
+        {loading ? (
+          <p className="greek-gallery__empty">Loading gallery…</p>
+        ) : glyphs.length === 0 ? (
+          <p className="greek-gallery__empty">
+            Gallery empty — draw a letter and check “Also save to letter gallery”.
+          </p>
+        ) : (
+          <ul className="greek-gallery-picker__grid">
+            {glyphs.map((g) => (
+              <li key={g.slug}>
+                <button
+                  type="button"
+                  className={
+                    selected?.slug === g.slug
+                      ? "greek-gallery-picker__item is-selected"
+                      : "greek-gallery-picker__item"
+                  }
+                  onClick={() => {
+                    setSelected(g);
+                    setSlug(g.slug);
+                    setAlphabetNumber(g.alphabetNumber || 1);
+                  }}
+                >
+                  <LetterThumb letter={g} />
+                  <span className="greek-gallery-picker__meta">
+                    {g.slug}
+                    <br />#{formatAlphabetNumber(g.alphabetNumber || 1)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {selected && (
+          <div className="greek-editor__row">
+            <div className="greek-build__field">
+              <label htmlFor="greek-pick-slug">Letter slug</label>
+              <input
+                id="greek-pick-slug"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+              />
+            </div>
+            <div className="greek-build__field">
+              <label htmlFor="greek-pick-alphabet">Alphabet #</label>
+              <select
+                id="greek-pick-alphabet"
+                value={String(alphabetNumber)}
+                onChange={(e) => setAlphabetNumber(Number(e.target.value))}
+              >
+                {alphabetOpts.map((n) => (
+                  <option key={n} value={String(n)}>
+                    {Number.isInteger(n) ? String(n) : n.toFixed(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+        <div className="greek-canvas-modal__actions">
+          <button type="button" className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={!selected || busy}
+            onClick={() => void confirm()}
+          >
+            {busy ? "Adding…" : "Add letter"}
+          </button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+function LetterSlotRow({
+  letter,
+  groupSlug,
+  chapterSlug,
+  verseSlug,
+  wordSlug,
+  onChanged,
+}: {
+  letter: GreekLetterRef;
+  groupSlug: string;
+  chapterSlug: string;
+  verseSlug: string;
+  wordSlug: string;
+  onChanged: () => Promise<void>;
+}) {
+  const alphabetOpts = useMemo(() => greekAlphabetNumberOptions(), []);
+  const [slug, setSlug] = useState(letter.slug || "");
+  const [alphabetNumber, setAlphabetNumber] = useState(letter.alphabetNumber || letter.index || 1);
+
+  useEffect(() => {
+    setSlug(letter.slug || "");
+    setAlphabetNumber(letter.alphabetNumber || letter.index || 1);
+  }, [letter.slug, letter.alphabetNumber, letter.index]);
+
+  async function persistSlug() {
+    const clean = sanitizeGreekSlug(slug);
+    if (!clean || clean === letter.slug) return;
+    await updateGreekLetter(groupSlug, chapterSlug, verseSlug, wordSlug, letter.index, {
+      slug: clean,
+    });
+    await onChanged();
+  }
+
+  async function persistAlphabet(n: number) {
+    setAlphabetNumber(n);
+    if (n === letter.alphabetNumber) return;
+    await updateGreekLetter(groupSlug, chapterSlug, verseSlug, wordSlug, letter.index, {
+      alphabetNumber: n,
+    });
+    await onChanged();
+  }
+
+  return (
+    <li className="greek-letter-slot">
+      <LetterThumb letter={letter} className="greek-letter-slot__img" />
+      <div className="greek-build__field">
+        <label>Slug</label>
+        <input
+          value={slug}
+          onChange={(e) => setSlug(e.target.value)}
+          onBlur={() => void persistSlug()}
+        />
+      </div>
+      <div className="greek-build__field">
+        <label>Alphabet #</label>
+        <select
+          value={String(alphabetNumber)}
+          onChange={(e) => void persistAlphabet(Number(e.target.value))}
+        >
+          {alphabetOpts.map((n) => (
+            <option key={n} value={String(n)}>
+              {Number.isInteger(n) ? String(n) : n.toFixed(1)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </li>
   );
 }
 
@@ -73,6 +313,11 @@ export default function GreekGroupPage() {
   const [ordCh, setOrdCh] = useState(1);
   const [ordBk, setOrdBk] = useState(1);
   const [canvasTarget, setCanvasTarget] = useState<{
+    chapter: string;
+    verse: string;
+    word: GreekWord;
+  } | null>(null);
+  const [galleryTarget, setGalleryTarget] = useState<{
     chapter: string;
     verse: string;
     word: GreekWord;
@@ -175,6 +420,29 @@ export default function GreekGroupPage() {
     await refresh();
   }
 
+  async function onCanvasSave(payload: LetterCanvasSave) {
+    if (!slug || !canvasTarget) return;
+    await addGreekLetter(
+      slug,
+      canvasTarget.chapter,
+      canvasTarget.verse,
+      canvasTarget.word.slug,
+      {
+        svg: payload.svg,
+        slug: payload.slug,
+        alphabetNumber: payload.alphabetNumber,
+      },
+    );
+    if (payload.alsoSaveToGallery) {
+      await addGreekGalleryGlyph({
+        svg: payload.svg,
+        slug: payload.slug,
+        alphabetNumber: payload.alphabetNumber,
+      });
+    }
+    await refresh();
+  }
+
   if (!slug && gate === "allowed") {
     return (
       <GreekGateShell gate={gate}>
@@ -197,7 +465,7 @@ export default function GreekGroupPage() {
         <h1 className="greek-page__title">{tree?.group.title ?? slug}</h1>
         <p className="greek-page__lead">
           Top: letter images for this book. Bottom: chapters → verses → words
-          (idioma 1 / idioma 2) and draw letters.
+          composed of letter slots (draw or pick from gallery).
         </p>
 
         <section className="greek-gallery" aria-label="Grouped letter images">
@@ -205,7 +473,7 @@ export default function GreekGroupPage() {
             <p className="greek-gallery__empty">Loading…</p>
           ) : letters.length === 0 ? (
             <p className="greek-gallery__empty">
-              No letters yet — add a word and draw glyphs below.
+              No letters yet — add a word and add letter-images below.
             </p>
           ) : (
             letters.map((letter) => (
@@ -405,17 +673,44 @@ export default function GreekGroupPage() {
                         })
                       }
                     >
-                      Add image to word
+                      Draw letter
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() =>
+                        setGalleryTarget({
+                          chapter: activeChapter.slug,
+                          verse: activeVerse.slug,
+                          word,
+                        })
+                      }
+                    >
+                      Pick from gallery
                     </button>
                   </div>
-                  <div className="greek-word__letters">
-                    {(word.letters ?? []).map((letter) => (
-                      <LetterThumb
-                        key={`${word.slug}-${letter.index}`}
-                        letter={letter}
-                      />
-                    ))}
-                  </div>
+                  <h4 className="greek-word__letters-title">
+                    Letters (by alphabet #)
+                  </h4>
+                  {(word.letters ?? []).length === 0 ? (
+                    <p className="greek-gallery__empty">
+                      No letter-images yet — draw or pick one.
+                    </p>
+                  ) : (
+                    <ol className="greek-letter-slots">
+                      {(word.letters ?? []).map((letter) => (
+                        <LetterSlotRow
+                          key={`${word.slug}-${letter.index}`}
+                          letter={letter}
+                          groupSlug={slug}
+                          chapterSlug={activeChapter.slug}
+                          verseSlug={activeVerse.slug}
+                          wordSlug={word.slug}
+                          onChanged={refresh}
+                        />
+                      ))}
+                    </ol>
+                  )}
                 </article>
               ))}
             </section>
@@ -426,15 +721,26 @@ export default function GreekGroupPage() {
       <LetterCanvas
         open={Boolean(canvasTarget)}
         wordLabel={canvasTarget?.word.slug ?? ""}
+        defaultAlphabet={nextAlphabetSuggestion(canvasTarget?.word.letters)}
         onClose={() => setCanvasTarget(null)}
-        onSave={async (svg) => {
-          if (!slug || !canvasTarget) return;
+        onSave={onCanvasSave}
+      />
+
+      <GalleryPicker
+        open={Boolean(galleryTarget)}
+        onClose={() => setGalleryTarget(null)}
+        onPick={async (glyph, letterSlug, alphabetNumber) => {
+          if (!slug || !galleryTarget) return;
           await addGreekLetter(
             slug,
-            canvasTarget.chapter,
-            canvasTarget.verse,
-            canvasTarget.word.slug,
-            svg,
+            galleryTarget.chapter,
+            galleryTarget.verse,
+            galleryTarget.word.slug,
+            {
+              gallerySlug: glyph.slug,
+              slug: letterSlug,
+              alphabetNumber,
+            },
           );
           await refresh();
         }}

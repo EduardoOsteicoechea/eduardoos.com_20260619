@@ -29,27 +29,57 @@ type VerseMeta struct {
 	UpdatedAt string `json:"updatedAt"`
 }
 
-// WordMeta holds translations, ordinals, and letter count for one word.
+// WordMeta holds translations, ordinals, letter count, and durable letter-image metadata.
+// LetterImages is the source of truth for slug + alphabetNumber; SVGs live beside word.json.
 type WordMeta struct {
-	Slug            string `json:"slug"`
-	Translation1    string `json:"translation1"`
-	Translation2    string `json:"translation2"`
-	OrdinalChapter  int    `json:"ordinalChapter"` // n/1000 within chapter
-	OrdinalBook     int    `json:"ordinalBook"`    // n/10000 within book
-	LetterCount     int    `json:"letterCount"`
-	CreatedAt       string `json:"createdAt"`
-	UpdatedAt       string `json:"updatedAt"`
+	Slug           string       `json:"slug"`
+	Translation1   string       `json:"translation1"`
+	Translation2   string       `json:"translation2"`
+	OrdinalChapter int          `json:"ordinalChapter"` // n/1000 within chapter
+	OrdinalBook    int          `json:"ordinalBook"`    // n/10000 within book
+	LetterCount    int          `json:"letterCount"`
+	LetterImages   []LetterMeta `json:"letterImages,omitempty"`
+	CreatedAt      string       `json:"createdAt"`
+	UpdatedAt      string       `json:"updatedAt"`
 }
 
-// LetterRef is a listed letter SVG under a word.
+// LetterMeta is one letter-image slot belonging to a word (ordering + identity).
+// AlphabetNumber is in [1, 30] and may use decimal steps (1.1, 1.2) for mid-integer order.
+type LetterMeta struct {
+	ID             int     `json:"id"`
+	Slug           string  `json:"slug"`
+	AlphabetNumber float64 `json:"alphabetNumber"`
+}
+
+// LetterRef is a listed letter SVG under a word (API/tree view).
 type LetterRef struct {
-	Index int    `json:"index"`
-	Key   string `json:"key"`
-	URL   string `json:"url"`
-	Size  int64  `json:"size"`
+	Index          int     `json:"index"`
+	Slug           string  `json:"slug"`
+	AlphabetNumber float64 `json:"alphabetNumber"`
+	Key            string  `json:"key"`
+	URL            string  `json:"url"`
+	Size           int64   `json:"size"`
+	GallerySlug    string  `json:"gallerySlug,omitempty"`
 }
 
-// WordNode is a word plus its letter images (group detail tree).
+// GalleryGlyph is a reusable letter SVG in the admin gallery under greek/{user}/gallery/.
+type GalleryGlyph struct {
+	Slug           string  `json:"slug"`
+	AlphabetNumber float64 `json:"alphabetNumber"`
+	Key            string  `json:"key"`
+	URL            string  `json:"url"`
+	Size           int64   `json:"size,omitempty"`
+	CreatedAt      string  `json:"createdAt,omitempty"`
+	UpdatedAt      string  `json:"updatedAt,omitempty"`
+}
+
+// GalleryIndex is the durable gallery catalog at gallery/index.json.
+type GalleryIndex struct {
+	Glyphs    []GalleryGlyph `json:"glyphs"`
+	UpdatedAt string         `json:"updatedAt,omitempty"`
+}
+
+// WordNode is a word plus its letter images (group detail tree), sorted by alphabetNumber.
 type WordNode struct {
 	WordMeta
 	Letters []LetterRef `json:"letters"`

@@ -1,8 +1,37 @@
 # Milestone: Greek letter-by-letter builder — 2026-08-17
 
-## Status: SHIPPED + hotfix (create-group 502 / ServerErrorModal)
+## Status: SHIPPED + letter-image model (slug + alphabetNumber + gallery)
 
-Admin-only product to copy/visualize books glyph-by-glyph under S3 prefix `greek/`.
+Admin-only product to copy/visualize books **letter-image by letter-image** under S3 prefix `greek/`.
+A **word is composed** of letter-images (not one image per word).
+
+## Letter-image model (2026-08-17 refine)
+
+Each letter-image has:
+
+1. **Image** — 32×64 SVG (draw on canvas **or** pick from gallery)
+2. **Slug** — text field
+3. **Alphabet number** — 1…30 with **0.1 steps** (1.1, 1.2, …) for mid-integer ordering
+
+Letter-images within a word sort by `alphabetNumber` ascending. Metadata lives in `word.json` as `letterImages[]`; SVG at `letters/{id}.svg`.
+
+### Gallery
+
+Reusable glyphs per admin under:
+
+```
+greek/{userSafe}/gallery/index.json
+greek/{userSafe}/gallery/{glyphSlug}.svg
+```
+
+APIs: `GET/POST /api/greek/gallery`, `GET/DELETE /api/greek/gallery/{slug}`.
+Adding a letter to a word may send `{gallerySlug, slug, alphabetNumber}` to copy SVG into the word.
+
+### Word card UX
+
+- **Draw letter** / **Pick from gallery** (replaces “Add image to word”)
+- Ordered letter slots: thumb + slug + alphabet # dropdown
+- Canvas can also save the glyph into the gallery
 
 ## Hotfix 2026-08-17 (create "romans" 502)
 
@@ -32,7 +61,9 @@ Nav: Services → **Greek**. Client `isAdminOnlyPagePath` + JWT admin on APIs.
 | POST | `/api/greek/groups/{g}/chapters` |
 | POST | `…/chapters/{ch}/verses` |
 | POST/PUT | `…/verses/{v}/words` |
-| POST/GET/DELETE | `…/words/{w}/letters` (+ `…/letters/{i}`) |
+| POST/GET/PUT/DELETE | `…/words/{w}/letters` (+ `…/letters/{i}`) |
+| GET/POST | `/api/greek/gallery` |
+| GET/DELETE | `/api/greek/gallery/{slug}` |
 
 Admin = `role === admin` or bootstrap `eduardooost@gmail.com`.
 
@@ -51,10 +82,12 @@ greek/{userSafe}/{groupSlug}/chapters/{ch}/chapter.json
 greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/verse.json
 greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/words/{w}/word.json
 greek/{userSafe}/{groupSlug}/chapters/{ch}/verses/{v}/words/{w}/letters/{i}.svg
+greek/{userSafe}/gallery/index.json
+greek/{userSafe}/gallery/{glyphSlug}.svg
 ```
 
-`word.json`: `translation1`, `translation2`, `ordinalChapter` (1–1000), `ordinalBook` (1–10000), `letterCount`.
-Letters are **32×64** SVG (canvas stroke export).
+`word.json`: `translation1`, `translation2`, `ordinalChapter` (1–1000), `ordinalBook` (1–10000), `letterCount`, `letterImages[{id,slug,alphabetNumber}]`.
+Letters are **32×64** SVG (canvas stroke export or gallery copy).
 
 ## IAM
 

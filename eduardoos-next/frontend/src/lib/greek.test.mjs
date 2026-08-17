@@ -1,5 +1,5 @@
 /**
- * Unit checks for Greek slug/ordinal/path helpers (mirrors greek.ts; no TS loader).
+ * Unit checks for Greek slug/ordinal/path/alphabet helpers (mirrors greek.ts; no TS loader).
  * Run: node --test src/lib/greek.test.mjs
  */
 
@@ -39,6 +39,29 @@ function validateOrdinals(ordinalChapter, ordinalBook) {
     return "ordinalBook must be 1–10000";
   }
   return null;
+}
+
+function validateAlphabetNumber(n) {
+  if (!Number.isFinite(n) || n < 1 || n > 30) {
+    return "alphabetNumber must be 1–30";
+  }
+  if (Math.abs(n * 10 - Math.round(n * 10)) > 1e-6) {
+    return "alphabetNumber must use steps of 0.1 (e.g. 1.1, 1.2)";
+  }
+  return null;
+}
+
+function greekAlphabetNumberOptions() {
+  const out = [];
+  for (let n = 1; n <= 30; n += 1) {
+    out.push(n);
+    if (n < 30) {
+      for (let d = 1; d <= 9; d += 1) {
+        out.push(Math.round((n + d / 10) * 10) / 10);
+      }
+    }
+  }
+  return out;
 }
 
 function resolveGroupSlugFromLocation(pathname, search) {
@@ -82,6 +105,24 @@ describe("greek helpers", () => {
     assert.equal(validateOrdinals(1, 1), null);
     assert.ok(validateOrdinals(0, 1));
     assert.ok(validateOrdinals(1, 10001));
+  });
+
+  it("validateAlphabetNumber allows 1–30 with 0.1 steps", () => {
+    assert.equal(validateAlphabetNumber(1), null);
+    assert.equal(validateAlphabetNumber(1.1), null);
+    assert.equal(validateAlphabetNumber(30), null);
+    assert.ok(validateAlphabetNumber(0));
+    assert.ok(validateAlphabetNumber(31));
+    assert.ok(validateAlphabetNumber(1.15));
+  });
+
+  it("greekAlphabetNumberOptions includes decimals between integers", () => {
+    const opts = greekAlphabetNumberOptions();
+    assert.ok(opts.includes(1));
+    assert.ok(opts.includes(1.1));
+    assert.ok(opts.includes(1.2));
+    assert.ok(opts.includes(30));
+    assert.equal(opts[opts.length - 1], 30);
   });
 
   it("resolveGroupSlugFromLocation reads query and pretty path", () => {
