@@ -23,7 +23,7 @@ These names and shapes come from the production Eduardo OS deployment.
 
 | Table | Notes |
 |-------|--------|
-| `eduardoos_catalog` | Generic KV |
+| `eduardoos_catalog` | Generic KV (payments, catalog, **Homescool teacher→student links**) |
 | `eduardoos_users` | Users (`user:` keys / store mapping) |
 | `eduardoos_posts` | Posts |
 | `eduardoos_refresh_tokens` | Refresh |
@@ -37,6 +37,20 @@ These names and shapes come from the production Eduardo OS deployment.
 | `eduardoos_ifcbim` | PK `userId`, SK `modelId` |
 
 Env flags production uses: `*_BACKEND=dynamodb`, `S3_BACKEND=aws`, `IFCBIM_TABLE=eduardoos_ifcbim`, etc.
+
+### Homescool student links (DynamoDB via catalog)
+
+When `HOMESCOOL_BACKEND` or `DATABASE_BACKEND` is `dynamodb`, links persist in
+`HOMESCOOL_TABLE` (default `eduardoos_catalog`) with PK=`APP` and:
+
+| SK | Role |
+|----|------|
+| `homescool-link:t:{teacher}\|s:{student}` | Primary pair |
+| `homescool-by-student:s:{student}\|t:{teacher}` | Student-side list index |
+
+`data` is JSON: `id`, `teacherEmail`, `studentEmail`, `studentSlug`, `s3Prefix`, `folders`, `createdAt`.
+S3 folder bodies remain under `homeschool/...` (independent of the link row).
+Re-register is idempotent (existing link → HTTP 200 + re-ensure `.keep` markers).
 
 ## Auth hashing
 

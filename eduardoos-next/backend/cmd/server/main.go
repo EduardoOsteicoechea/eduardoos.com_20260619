@@ -24,8 +24,10 @@ import (
 )
 
 // main boots the Eduardo OS Next monolith on ADDR (default :3001).
-// Store backends are selected via DATABASE_BACKEND / EPAMS_BACKEND / IFCBIM_BACKEND
-// (memory default). DynamoDB mode falls back to memory when AWS creds are missing.
+// Store backends are selected via DATABASE_BACKEND / HOMESCOOL_BACKEND /
+// EPAMS_BACKEND / IFCBIM_BACKEND (memory default). DynamoDB mode falls back to
+// memory when AWS creds are missing. Homescool teacher→student links follow
+// HOMESCOOL_BACKEND or DATABASE_BACKEND into eduardoos_catalog.
 // SMTP_USER / SMTP_PASS drive OTP email delivery; empty SMTP_PASS logs codes locally.
 // DEV_RETURN_OTP=1 includes OTP in JSON for local testing only.
 func main() {
@@ -58,10 +60,12 @@ func main() {
 		Client:    aps.NewClient(aps.LoadConfig()),
 	}
 	paymentsHandler := payments.NewHandler(jwtSecret, httpx.Env("PAYPAL_HOSTED_BUTTON_ID", "PLACEHOLDER_HOSTED_BUTTON"))
+	paymentsHandler.Users = userStore
 	documentsHandler := documents.NewHandler(jwtSecret)
 	edebatHandler := edebat.NewHandler(jwtSecret)
 	instrumentalistHandler := instrumentalist.NewHandler(jwtSecret)
 	homescoolHandler := homescool.NewHandler(jwtSecret, userStore)
+	homescoolHandler.Links = homescool.OpenLinkStore(ctx)
 	homescoolHandler.Objects = homescool.OpenObjectSpace(ctx)
 	contactHandler := contact.NewHandler(authHandler)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
@@ -86,7 +90,8 @@ func main() {
 	adminHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
-	log.Printf("stores: auth=%s epams=%s ifcbim=%s", userStore.BackendName(), epamStore.BackendName(), bimStore.BackendName())
+	log.Printf("stores: auth=%s homescool=%s epams=%s ifcbim=%s",
+		userStore.BackendName(), homescoolHandler.Links.BackendName(), epamStore.BackendName(), bimStore.BackendName())
 	// pass_set / pass_norm_len use normalizeSMTPPass (Unicode spaces + quotes stripped).
 	// Never log the secret itself — only lengths for operator checks (Gmail app pw = 16).
 	passNorm := auth.NormalizeSMTPPassForLog(authHandler.SMTPPass)

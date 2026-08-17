@@ -11,8 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Link is one teacher→student registration row.
-// This is the in-memory stand-in for table homescool_student_links.
+// Link is one teacher→student registration row (JSON shape stored in DynamoDB data).
 type Link struct {
 	ID           string   `json:"id"`
 	TeacherEmail string   `json:"teacherEmail"`
@@ -23,7 +22,8 @@ type Link struct {
 	CreatedAt    string   `json:"createdAt"`
 }
 
-// Store persists teacher→student links. Memory is the local default.
+// Store persists teacher→student links. Memory is the local/test default;
+// production uses DynamoDB via OpenLinkStore (eduardoos_catalog).
 type Store interface {
 	BackendName() string
 	Create(ctx context.Context, teacherEmail, studentEmail string) (Link, error)

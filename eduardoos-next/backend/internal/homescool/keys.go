@@ -1,13 +1,16 @@
 // Package homescool implements the Homescool teacher→student registry and
 // per-student S3 learning spaces (portfolio, period, skills, study_section, tasks).
 //
-// Logical persistence table (memory today; DynamoDB-ready shape):
+// Logical persistence (DynamoDB when HOMESCOOL_BACKEND/DATABASE_BACKEND=dynamodb):
 //
-//	homescool_student_links
-//	  id (PK), teacherEmail, studentEmail, studentSlug, s3Prefix, createdAt
+//	Table: HOMESCOOL_TABLE (default eduardoos_catalog — generic PK/SK/data KV)
+//	SK: homescool-link:t:{teacher}|s:{student}           (primary)
+//	SK: homescool-by-student:s:{student}|t:{teacher}     (student index)
+//	data JSON: id, teacherEmail, studentEmail, studentSlug, s3Prefix, folders, createdAt
 //
 // Unique business key: (teacherEmail, studentEmail). Student-facing URL slug is
 // the sanitized student email (a_at_b.com), scoped under that teacher.
+// Re-register is idempotent: existing link → 200 + EnsureStudentFolders.
 //
 // S3 layout (bucket-root prefix, same pattern as ifcbim/ — NOT under media/):
 //

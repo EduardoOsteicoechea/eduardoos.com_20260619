@@ -139,8 +139,16 @@ func TestRegisterRejectsMissingUserDuplicateAndSelf(t *testing.T) {
 	dup.Header.Set("Content-Type", "application/json")
 	dupRec := httptest.NewRecorder()
 	r.ServeHTTP(dupRec, dup)
-	if dupRec.Code != http.StatusConflict {
-		t.Fatalf("dup status=%d", dupRec.Code)
+	// Re-register is idempotent: 200 + existing=true (S3 ensure is also idempotent).
+	if dupRec.Code != http.StatusOK {
+		t.Fatalf("dup status=%d body=%s", dupRec.Code, dupRec.Body.String())
+	}
+	var dupBody map[string]any
+	if err := json.Unmarshal(dupRec.Body.Bytes(), &dupBody); err != nil {
+		t.Fatal(err)
+	}
+	if dupBody["existing"] != true {
+		t.Fatalf("want existing=true, got %#v", dupBody)
 	}
 }
 

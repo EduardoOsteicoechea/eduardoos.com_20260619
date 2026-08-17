@@ -22,7 +22,9 @@ type Handler struct {
 	auth      *auth.Handler
 }
 
-// NewHandler wires stores. Callers may replace Objects/Links in tests.
+// NewHandler wires stores. Production main replaces Links/Objects via
+// OpenLinkStore / OpenObjectSpace so links survive process restart.
+// Tests keep the in-memory defaults unless they inject a shared Store.
 func NewHandler(jwtSecret string, users auth.UserStore) *Handler {
 	return &Handler{
 		JWTSecret: jwtSecret,
@@ -80,11 +82,19 @@ func (h *Handler) RegisterStudent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	link, err := h.Links.Create(r.Context(), teacher, studentEmail)
+	alreadyLinked := false
 	if errors.Is(err, ErrDuplicate) {
-		httpx.WriteError(w, http.StatusConflict, "student already registered")
-		return
-	}
-	if err != nil {
+		// Idempotent re-register: return the existing durable row and re-ensure
+		// S3 folder markers (PutObject on .keep is safe when prefixes already exist).
+		existing, ok, getErr := h.Links.GetByTeacherAndStudent(r.Context(), teacher, studentEmail)
+		if getErr != nil || !ok {
+			log.Printf("[correlation=%s] homescool.register duplicate_lookup_error: ok=%v err=%v", cid, ok, getErr)
+			httpx.WriteError(w, http.StatusConflict, "student already registered")
+			return
+		}
+		link = existing
+		alreadyLinked = true
+	} else if err != nil {
 		log.Printf("[correlation=%s] homescool.register create_error: %v", cid, err)
 		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 		return
@@ -96,11 +106,16 @@ func (h *Handler) RegisterStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[correlation=%s] homescool.register teacher=%s student=%s prefix=%s",
-		cid, teacher, studentEmail, link.S3Prefix)
-	httpx.WriteJSON(w, http.StatusCreated, map[string]any{
-		"link":    link,
-		"folders": FolderNames,
+	status := http.StatusCreated
+	if alreadyLinked {
+		status = http.StatusOK
+	}
+	log.Printf("[correlation=%s] homescool.register teacher=%s student=%s prefix=%s existing=%t",
+		cid, teacher, studentEmail, link.S3Prefix, alreadyLinked)
+	httpx.WriteJSON(w, status, map[string]any{
+		"link":     link,
+		"folders":  FolderNames,
+		"existing": alreadyLinked,
 	})
 }
 
