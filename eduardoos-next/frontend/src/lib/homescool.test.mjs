@@ -91,4 +91,16 @@ describe("homescool helpers", () => {
     assert.equal(scoreBand(8), "bueno");
     assert.equal(scoreBand(10), "bueno");
   });
+
+  it("folders sidebar preference parses 1/0/true (default open)", () => {
+    function parseFoldersOpen(stored) {
+      if (stored === null || stored === undefined) return true;
+      return stored === "1" || stored === "true";
+    }
+    assert.equal(parseFoldersOpen(null), true);
+    assert.equal(parseFoldersOpen("1"), true);
+    assert.equal(parseFoldersOpen("true"), true);
+    assert.equal(parseFoldersOpen("0"), false);
+    assert.equal(parseFoldersOpen("false"), false);
+  });
 });

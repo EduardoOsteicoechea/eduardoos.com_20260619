@@ -1,5 +1,6 @@
 /**
- * Student learning view — collapsible sidebar with the same folder cards.
+ * Student learning view — same folder cards; Folders sidebar toggles from
+ * Header Dynamic Menu (persisted in localStorage).
  * Content is scoped to relationships where the JWT user is the student.
  */
 
@@ -92,7 +93,6 @@ export default function LearningPage() {
             lead="Your folders under this teacher. Open Tasks for pending assignments."
             link={active}
             loadFolder={loadFolder}
-            collapsible
             mode="student"
             teacherSlug={teacherSlug}
           />

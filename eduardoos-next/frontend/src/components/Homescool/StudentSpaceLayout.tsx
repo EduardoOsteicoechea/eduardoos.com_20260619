@@ -1,16 +1,20 @@
 /**
  * Shared folder sidebar cards + object listing for teacher workspace and student learning.
  * When folder === tasks, swaps the object list for the Tasks board UI.
+ * Folders column toggles from Header Dynamic Menu (persisted in localStorage).
  */
 
 import { useEffect, useState } from "react";
 import {
   HOMESCOOL_FOLDERS,
   folderLabel,
+  readHomescoolFoldersOpen,
+  writeHomescoolFoldersOpen,
   type HomescoolFolderObject,
   type HomescoolLink,
 } from "../../lib/homescool";
 import AssignTasksModal from "./AssignTasksModal";
+import HomescoolHeaderMenu from "./HomescoolHeaderMenu";
 import StudentTasksBoard from "./StudentTasksBoard";
 import TaskTemplatesPanel from "./TaskTemplatesPanel";
 import TeacherTasksBoard from "./TeacherTasksBoard";
@@ -37,7 +41,7 @@ type Props = {
   lead: string;
   link?: HomescoolLink | null;
   loadFolder: FolderLoader;
-  /** When true, aside starts expanded but can collapse (learning view). */
+  /** @deprecated Sidebar collapse is always available via Header Dynamic Menu. */
   collapsible?: boolean;
   brand?: string;
   /** Teacher workspace: enable templates + assign + four boards. */
@@ -53,7 +57,6 @@ export default function StudentSpaceLayout({
   lead,
   link,
   loadFolder,
-  collapsible = false,
   brand = "Homescool",
   mode = "student",
   teacherSlug = "",
@@ -64,9 +67,13 @@ export default function StudentSpaceLayout({
   const [objects, setObjects] = useState<HomescoolFolderObject[]>([]);
   const [prefix, setPrefix] = useState("");
   const [loading, setLoading] = useState(true);
-  const [collapsed, setCollapsed] = useState(false);
+  const [foldersOpen, setFoldersOpen] = useState(true);
   const [assignOpen, setAssignOpen] = useState(false);
   const [tasksTick, setTasksTick] = useState(0);
+
+  useEffect(() => {
+    setFoldersOpen(readHomescoolFoldersOpen());
+  }, []);
 
   useEffect(() => {
     if (activeFolder === "tasks") {
@@ -98,56 +105,54 @@ export default function StudentSpaceLayout({
     };
   }, [activeFolder, loadFolder, link, tasksTick]);
 
+  const toggleFolders = () => {
+    setFoldersOpen((prev) => {
+      const next = !prev;
+      writeHomescoolFoldersOpen(next);
+      return next;
+    });
+  };
+
   const rootClass = [
     "homescool-workspace",
-    collapsible ? "homescool-workspace--learning" : "",
-    collapsed ? "homescool-workspace--collapsed" : "",
+    mode === "student" ? "homescool-workspace--learning" : "",
+    foldersOpen ? "" : "homescool-workspace--collapsed",
   ]
     .filter(Boolean)
     .join(" ");
 
   return (
     <div className={rootClass}>
-      <aside className="homescool-workspace__aside" aria-label="Student folders">
-        <div className="homescool-workspace__aside-head">
-          <p className="homescool-workspace__aside-title">Folders</p>
-          {collapsible ? (
-            <button
-              type="button"
-              className="homescool-workspace__collapse"
-              aria-expanded={!collapsed}
-              onClick={() => setCollapsed((v) => !v)}
-            >
-              {collapsed ? "Show" : "Hide"}
-            </button>
-          ) : null}
-        </div>
-        {!collapsed ? (
-          <>
-            <div className="homescool-folder-cards" role="list">
-              {HOMESCOOL_FOLDERS.map((folder) => (
-                <button
-                  key={folder}
-                  type="button"
-                  role="listitem"
-                  className={`homescool-folder-card${
-                    activeFolder === folder ? " homescool-folder-card--active" : ""
-                  }`}
-                  onClick={() => setActiveFolder(folder)}
-                >
-                  <span className="homescool-folder-card__label">{folderLabel(folder)}</span>
-                  <span className="homescool-folder-card__hint">{folder}</span>
-                </button>
-              ))}
+      <HomescoolHeaderMenu foldersOpen={foldersOpen} onToggleFolders={toggleFolders} />
+
+      {foldersOpen ? (
+        <aside className="homescool-workspace__aside" aria-label="Student folders">
+          <div className="homescool-workspace__aside-head">
+            <p className="homescool-workspace__aside-title">Folders</p>
+          </div>
+          <div className="homescool-folder-cards" role="list">
+            {HOMESCOOL_FOLDERS.map((folder) => (
+              <button
+                key={folder}
+                type="button"
+                role="listitem"
+                className={`homescool-folder-card${
+                  activeFolder === folder ? " homescool-folder-card--active" : ""
+                }`}
+                onClick={() => setActiveFolder(folder)}
+              >
+                <span className="homescool-folder-card__label">{folderLabel(folder)}</span>
+                <span className="homescool-folder-card__hint">{folder}</span>
+              </button>
+            ))}
+          </div>
+          {mode === "teacher" ? (
+            <div className="homescool-aside-extra">
+              <TaskTemplatesPanel onTemplatesChanged={() => setTasksTick((n) => n + 1)} />
             </div>
-            {mode === "teacher" ? (
-              <div className="homescool-aside-extra">
-                <TaskTemplatesPanel onTemplatesChanged={() => setTasksTick((n) => n + 1)} />
-              </div>
-            ) : null}
-          </>
-        ) : null}
-      </aside>
+          ) : null}
+        </aside>
+      ) : null}
 
       <section className="homescool-workspace__main">
         <p className="homescool-workspace__brand">{brand}</p>

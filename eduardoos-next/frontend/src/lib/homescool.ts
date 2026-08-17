@@ -19,6 +19,30 @@ export const HOMESCOOL_FOLDERS = [
 
 export type HomescoolFolder = (typeof HOMESCOOL_FOLDERS)[number];
 
+/** localStorage: Folders sidebar open/closed on workspace / learning routes. */
+export const HOMESCOOL_FOLDERS_SIDEBAR_KEY = "eduardoos-homescool-folders-open";
+
+/** Default open; persisted as "1" / "0" (same spirit as eduardoos-theme). */
+export function readHomescoolFoldersOpen(): boolean {
+  if (typeof localStorage === "undefined") return true;
+  try {
+    const stored = localStorage.getItem(HOMESCOOL_FOLDERS_SIDEBAR_KEY);
+    if (stored === null) return true;
+    return stored === "1" || stored === "true";
+  } catch {
+    return true;
+  }
+}
+
+export function writeHomescoolFoldersOpen(open: boolean): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(HOMESCOOL_FOLDERS_SIDEBAR_KEY, open ? "1" : "0");
+  } catch {
+    /* quota / private mode — ignore */
+  }
+}
+
 export type HomescoolLink = {
   id: string;
   teacherEmail: string;

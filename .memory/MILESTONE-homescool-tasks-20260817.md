@@ -32,7 +32,9 @@ Dashboard: **Assign tasks** modal — period → study area → pick template ca
 
 Validate → Listas; Reject → back to Pendientes (score retained for feedback).
 
-Workspace shell uses `page-shell--homescool-flush` (near-flush left padding like home).
+Workspace shell uses `page-shell--homescool-flush` (padding-left: 0 against the 60px rail).
+Folders sidebar toggles from Header Dynamic Menu; preference key
+`eduardoos-homescool-folders-open` (`1`/`0`).
 
 ## APIs (JWT)
 

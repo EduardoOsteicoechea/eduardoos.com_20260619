@@ -82,9 +82,11 @@
 .homescool-workspace {
   display: grid;
   grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
-  gap: 1.25rem;
+  gap: 1rem;
   min-height: calc(100vh - var(--header_offset, 60px) - 3rem);
-  margin-top: 0.5rem;
+  margin-top: 0.35rem;
+  /* Folders column sits flush to the page shell’s left edge (against the rail). */
+  padding-left: 0;
 }
 
 .homescool-workspace--learning {
@@ -93,7 +95,8 @@
 
 .homescool-workspace__aside {
   border-right: 1px solid var(--site-border);
-  padding-right: 1rem;
+  padding-left: 0;
+  padding-right: 0.85rem;
 }
 
 .homescool-workspace__aside-head {
@@ -126,14 +129,9 @@
   font-size: 0.75rem;
 }
 
-.homescool-workspace--collapsed .homescool-workspace__aside {
-  border-right: none;
-  padding-right: 0;
-  width: auto;
-}
-
+/* Folders column removed from DOM when collapsed (Header Dynamic Menu toggle). */
 .homescool-workspace--collapsed {
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .homescool-folder-cards {
@@ -282,14 +280,13 @@
   }
 }
 
-/* —— Flush workspace shell (almost edge-aligned like home) —— */
-.page-shell--homescool-flush {
+/* —— Flush workspace shell (home-like: flush to 60px left rail) —— */
+.page-shell.page-shell--homescool-flush {
   width: 100%;
   max-width: none;
   margin: 0;
-  /* Near-flush left; keep a hair of safe-area / rail breathing room. */
-  padding: 0.75rem max(0.35rem, env(safe-area-inset-right, 0px)) 2.5rem
-    max(0.25rem, env(safe-area-inset-left, 0px));
+  /* Left: 0 against rail (main already pads --header_width). Right: hair of safe-area. */
+  padding: 0.5rem max(0.35rem, env(safe-area-inset-right, 0px)) 2rem 0;
 }
 
 .homescool-workspace__section-head {
@@ -627,8 +624,10 @@
     grid-template-columns: 1fr;
   }
 
-  .page-shell--homescool-flush {
-    padding-inline: 0.5rem;
+  .page-shell.page-shell--homescool-flush {
+    /* Mobile: top bar, not left rail — keep a small inset both sides. */
+    padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
   }
 }
 
