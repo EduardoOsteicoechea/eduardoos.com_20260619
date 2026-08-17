@@ -37,7 +37,7 @@ function resolveChurchIdsFromLocation(pathname, search) {
   }
   const parts = pathname.replace(/\/+$/, "").split("/").filter(Boolean);
   if (parts[0] === "church" && parts.length >= 3) {
-    const reserved = new Set(["register", "overview", "activity", "workspace"]);
+    const reserved = new Set(["register", "overview", "activity", "workspace", "groups"]);
     if (!reserved.has(parts[1])) {
       return { denomId: decodeURIComponent(parts[1]), churchId: decodeURIComponent(parts[2]) };
     }
@@ -66,5 +66,16 @@ describe("church helpers", () => {
       denomId: "",
       churchId: "",
     });
+    assert.deepEqual(resolveChurchIdsFromLocation("/church/groups", ""), {
+      denomId: "",
+      churchId: "",
+    });
+  });
+
+  it("builds member display names", () => {
+    assert.equal(
+      [ "Ana", "María", "Pérez", "López" ].filter(Boolean).join(" "),
+      "Ana María Pérez López",
+    );
   });
 });

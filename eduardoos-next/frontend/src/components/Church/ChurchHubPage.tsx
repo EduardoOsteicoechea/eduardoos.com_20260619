@@ -114,6 +114,11 @@ export default function ChurchHubPage() {
           <a className="btn" href={APP_ROUTES.churchActivity}>
             My activities
           </a>
+          {authz?.isPlatformAdmin ? (
+            <a className="btn" href={APP_ROUTES.churchGroups}>
+              Redes / groups
+            </a>
+          ) : null}
         </div>
 
         {showRequest ? (

@@ -3,6 +3,7 @@
 //
 // S3 layout (bucket eduardoos20260607 when S3_BUCKET is set):
 //
+//	church/groups/{groupId}/group.json
 //	church/{denomOrWebId}/{churchId}/church.json
 //	church/{denomOrWebId}/{churchId}/activities/{activityId}/activity.json
 //	church/{denomOrWebId}/{churchId}/activities/{activityId}/reports/{reportId}.json
@@ -10,6 +11,7 @@
 //
 // DynamoDB catalog (eduardoos_catalog when CHURCH_BACKEND/DATABASE_BACKEND=dynamodb):
 //
+//	SK: church-group:g:{groupId}
 //	SK: church:d:{denom}|c:{churchId}
 //	SK: church-member:u:{email}|d:{denom}|c:{churchId}
 //	SK: church-auth:u:{email}  (platform approval to register; pay after approve)
@@ -17,7 +19,7 @@
 // Roles church-admin and church-member are membership records (not JWT claims).
 // Platform admin (role=admin / eduardooost@gmail.com) always has full access.
 // Register requires platform approval + active church-management entitlement
-// (admin bypasses both).
+// (admin bypasses both). Networks/denominations are admin-managed groups.
 package church
 
 import (
@@ -36,6 +38,53 @@ const (
 	RoleChurchAdmin  = "church-admin"
 	RoleChurchMember = "church-member"
 )
+
+// Fixed leader ministry role ids (multi-select on register / leaders list).
+const (
+	LeaderRoleElderBishopPastor              = "elder-bishop-pastor"
+	LeaderRoleEvangelist                     = "evangelist"
+	LeaderRoleTeacherPreacherProphet         = "teacher-preacher-prophet"
+	LeaderRoleMinistryLeader                 = "ministry-leader"
+	LeaderRoleApostolicPartnerChurchPlanter  = "apostolic-partner-church-planter-missionary"
+)
+
+// LeaderRoleOptions is the canonical ordered list of leader role ids.
+var LeaderRoleOptions = []string{
+	LeaderRoleElderBishopPastor,
+	LeaderRoleEvangelist,
+	LeaderRoleTeacherPreacherProphet,
+	LeaderRoleMinistryLeader,
+	LeaderRoleApostolicPartnerChurchPlanter,
+}
+
+// LeaderRoleLabel returns a Spanish/English display label for a role id.
+func LeaderRoleLabel(id string) string {
+	switch strings.TrimSpace(id) {
+	case LeaderRoleElderBishopPastor:
+		return "elder/bishop/pastor"
+	case LeaderRoleEvangelist:
+		return "evangelist"
+	case LeaderRoleTeacherPreacherProphet:
+		return "teacher/preacher/prophet"
+	case LeaderRoleMinistryLeader:
+		return "ministry leader"
+	case LeaderRoleApostolicPartnerChurchPlanter:
+		return "apostolic partner/church planter/missionary"
+	default:
+		return id
+	}
+}
+
+// IsValidLeaderRole reports whether id is one of the fixed leader roles.
+func IsValidLeaderRole(id string) bool {
+	id = strings.TrimSpace(id)
+	for _, opt := range LeaderRoleOptions {
+		if opt == id {
+			return true
+		}
+	}
+	return false
+}
 
 var safeSlugRe = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
@@ -139,4 +188,24 @@ func MembershipSK(email, denomID, churchID string) string {
 // MembershipSKPrefixForUser is begins_with for one user's memberships.
 func MembershipSKPrefixForUser(email string) string {
 	return "church-member:u:" + strings.ToLower(strings.TrimSpace(email)) + "|"
+}
+
+// GroupSK builds the Dynamo SK for a denomination/network group.
+func GroupSK(groupID string) string {
+	return "church-group:g:" + strings.TrimSpace(groupID)
+}
+
+// GroupSKPrefix is begins_with for all denomination groups.
+func GroupSKPrefix() string {
+	return "church-group:g:"
+}
+
+// GroupsPrefix is church/groups on S3.
+func GroupsPrefix() string {
+	return RootPrefix + "/groups"
+}
+
+// GroupMetaKey is church/groups/{groupId}/group.json.
+func GroupMetaKey(groupID string) string {
+	return GroupsPrefix() + "/" + strings.Trim(groupID, "/") + "/group.json"
 }

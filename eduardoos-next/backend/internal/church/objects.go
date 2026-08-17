@@ -325,6 +325,25 @@ func OpenAuthorizationStore(ctx context.Context) AuthorizationStore {
 	return store
 }
 
+// OpenGroupStore selects memory or DynamoDB for denomination/network groups.
+func OpenGroupStore(ctx context.Context) GroupStore {
+	mode := strings.ToLower(strings.TrimSpace(httpx.Env("CHURCH_BACKEND", "")))
+	if mode == "" {
+		mode = strings.ToLower(strings.TrimSpace(httpx.Env("DATABASE_BACKEND", "memory")))
+	}
+	if mode != "dynamodb" {
+		log.Printf("church group store backend=memory")
+		return NewMemoryGroups()
+	}
+	store, err := newDynamoGroups(ctx)
+	if err != nil {
+		log.Printf("church groups: dynamodb unavailable (%v); falling back to memory", err)
+		return NewMemoryGroups()
+	}
+	log.Printf("church group store backend=dynamodb table=%s", store.table)
+	return store
+}
+
 // parseActivityIDFromKey extracts the activity id from …/activities/{id}/….
 func parseActivityIDFromKey(key string) string {
 	marker := "/activities/"

@@ -81,6 +81,7 @@ func main() {
 	greekHandler.Objects = greek.OpenObjectSpace(ctx)
 	churchHandler := church.NewHandler(jwtSecret, userStore)
 	churchHandler.Catalog = church.OpenCatalogStore(ctx)
+	churchHandler.Groups = church.OpenGroupStore(ctx)
 	churchHandler.Memberships = church.OpenMembershipStore(ctx)
 	churchHandler.Authorizations = church.OpenAuthorizationStore(ctx)
 	churchHandler.Objects = church.OpenObjectSpace(ctx)

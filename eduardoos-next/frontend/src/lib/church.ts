@@ -1,5 +1,5 @@
 /**
- * Church API client — registry, overview, activities, reports.
+ * Church API client — registry, groups, overview, activities, reports.
  * Failures surface via ServerErrorModal (openApiErrorModal).
  */
 
@@ -22,11 +22,53 @@ export type ChurchCard = {
   updatedAt: string;
 };
 
+export type DenominationGroup = {
+  id: string;
+  name: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LeaderRoleOption = { id: string; label: string };
+
+/** Fixed líder ministry roles (mirrors backend LeaderRoleOptions). */
+export const LEADER_ROLE_OPTIONS: LeaderRoleOption[] = [
+  { id: "elder-bishop-pastor", label: "elder/bishop/pastor" },
+  { id: "evangelist", label: "evangelist" },
+  { id: "teacher-preacher-prophet", label: "teacher/preacher/prophet" },
+  { id: "ministry-leader", label: "ministry leader" },
+  {
+    id: "apostolic-partner-church-planter-missionary",
+    label: "apostolic partner/church planter/missionary",
+  },
+];
+
+export type ChurchLeader = {
+  name: string;
+  roles: string[];
+};
+
 export type ChurchMember = {
   email: string;
+  firstName?: string;
+  secondName?: string;
+  lastName1?: string;
+  lastName2?: string;
+  address?: string;
+  phone?: string;
   name?: string;
   role: "church-admin" | "church-member";
+  churchId?: string;
   authorizedActivityIds?: string[];
+};
+
+export type LocalChurchInput = {
+  churchId?: string;
+  name: string;
+  openedAt?: string;
+  address?: string;
+  leadership?: string[];
 };
 
 export type SectorActivity = {
@@ -38,7 +80,11 @@ export type ChurchDoc = {
   denominationId: string;
   churchId: string;
   name: string;
-  pastors: string[];
+  openedAt?: string;
+  address?: string;
+  leaders?: ChurchLeader[];
+  orgLeaders?: ChurchLeader[];
+  pastors?: string[];
   network?: string;
   localChurches?: string[];
   beliefsDocument?: string;
@@ -129,6 +175,18 @@ export function churchDetailHref(denomId: string, churchId: string): string {
   return APP_ROUTES.churchDetail(denomId, churchId);
 }
 
+export function memberDisplayName(m: ChurchMember): string {
+  if (m.name?.trim()) return m.name.trim();
+  return [m.firstName, m.secondName, m.lastName1, m.lastName2]
+    .map((p) => (p || "").trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+export function leaderRoleLabel(id: string): string {
+  return LEADER_ROLE_OPTIONS.find((r) => r.id === id)?.label || id;
+}
+
 /** Pretty /church/{denom}/{id} or workspace?denom=&church=. */
 export function resolveChurchIdsFromLocation(
   pathname = typeof window !== "undefined" ? window.location.pathname : "",
@@ -143,7 +201,7 @@ export function resolveChurchIdsFromLocation(
   const parts = pathname.replace(/\/+$/, "").split("/").filter(Boolean);
   // /church/{denom}/{churchId}
   if (parts[0] === "church" && parts.length >= 3) {
-    const reserved = new Set(["register", "overview", "activity", "workspace"]);
+    const reserved = new Set(["register", "overview", "activity", "workspace", "groups"]);
     if (!reserved.has(parts[1])) {
       return { denomId: decodeURIComponent(parts[1]), churchId: decodeURIComponent(parts[2]) };
     }
@@ -178,9 +236,33 @@ export function listChurches(q = ""): Promise<{ churches: ChurchCard[] }> {
   return churchRequest(`${CHURCH_ROUTES.list}${qs}`);
 }
 
+export function listChurchGroups(): Promise<{ groups: DenominationGroup[] }> {
+  return churchRequest(CHURCH_ROUTES.groups);
+}
+
+export function createChurchGroup(payload: {
+  id?: string;
+  name: string;
+}): Promise<{ group: DenominationGroup }> {
+  return churchRequest(CHURCH_ROUTES.groups, { method: "POST", body: payload });
+}
+
+export function updateChurchGroup(
+  id: string,
+  payload: { name: string },
+): Promise<{ group: DenominationGroup }> {
+  return churchRequest(CHURCH_ROUTES.group(id), { method: "PUT", body: payload });
+}
+
+export function deleteChurchGroup(id: string): Promise<{ deleted: boolean }> {
+  return churchRequest(CHURCH_ROUTES.group(id), { method: "DELETE" });
+}
+
 export function registerChurch(payload: Record<string, unknown>): Promise<{
   church: ChurchCard;
   document: ChurchDoc;
+  churches?: ChurchCard[];
+  documents?: ChurchDoc[];
 }> {
   return churchRequest(CHURCH_ROUTES.list, { method: "POST", body: payload });
 }

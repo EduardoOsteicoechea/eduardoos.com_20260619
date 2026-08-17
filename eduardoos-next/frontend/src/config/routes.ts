@@ -34,6 +34,7 @@ export const APP_ROUTES = {
   churchRegister: "/church/register",
   churchOverview: "/church/overview",
   churchActivity: "/church/activity",
+  churchGroups: "/church/groups",
   churchDetail: (denomId: string, churchId: string) =>
     `/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}`,
   churchWorkspace: "/church/workspace",
@@ -149,6 +150,9 @@ export const CHURCH_ROUTES = {
   activity: "/api/church/activity",
   authorization: "/api/church/authorization",
   requestAuthorization: "/api/church/authorization/request",
+  groups: "/api/church/groups",
+  group: (id: string) => `/api/church/groups/${encodeURIComponent(id)}`,
+  leaderRoles: "/api/church/leader-roles",
   church: (denomId: string, churchId: string) =>
     `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}`,
   members: (denomId: string, churchId: string) =>

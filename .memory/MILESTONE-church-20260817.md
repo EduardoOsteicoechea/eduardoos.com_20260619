@@ -13,7 +13,8 @@ See `MILESTONE-church-authz-20260817.md`.
 | Route | Notes |
 |-------|-------|
 | `/church` | Searchable church card grid |
-| `/church/register` | Register iglesia → S3 + Dynamo catalog |
+| `/church/groups` | Admin-only redes / denominaciones catalog |
+| `/church/register` | Multi-church cards + líderes + members under catalog group |
 | `/church/overview` | Linked churches; admin sees all; add activities; FullCalendar |
 | `/church/activity` | Authorized activities + text/image reports |
 | `/church/{denom}/{churchId}` | Detail tabs (nginx → workspace shell) |
@@ -36,18 +37,21 @@ overview, activity feed, members, create activity, report (+ images).
 ## Persistence
 
 ```
+church/groups/{groupId}/group.json
 church/{denomOrWebId}/{churchId}/church.json
 church/.../activities/{id}/activity.json
 church/.../activities/{id}/reports/{reportId}.json
 church/.../activities/{id}/images/{filename}
 ```
 
-Dynamo (`eduardoos_catalog`): `church:d:…|c:…`, `church-member:u:…|d:…|c:…`.
+Dynamo (`eduardoos_catalog`): `church-group:g:…`, `church:d:…|c:…`,
+`church-member:u:…|d:…|c:…`, `church-auth:u:…`.
 
 ## IAM
 
 `deploy/aws/ec2-iam-s3-policy.json` includes ListBucket `church/`/`church/*` and
-object CRUD on `arn:aws:s3:::eduardoos20260607/church/*`. Combined
+object CRUD on `arn:aws:s3:::eduardoos20260607/church/*`. Groups catalog uses
+`church/groups/` under that same prefix — **no extra IAM paths**. Combined
 `ec2-iam-policy.json` already allows `eduardoos20260607/*`. Re-apply EC2 role
 policy if the instance still uses an older inline policy; wait ~1 min for
 credential refresh.

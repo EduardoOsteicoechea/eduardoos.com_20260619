@@ -53,6 +53,16 @@ func grantRegisterAccess(t *testing.T, h *Handler, email string) {
 	))
 }
 
+func seedDenomGroup(t *testing.T, h *Handler, id, name string) {
+	t.Helper()
+	_, err := h.Groups.Create(t.Context(), DenominationGroup{
+		ID: id, Name: name, CreatedAt: nowRFC3339(), UpdatedAt: nowRFC3339(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func bearer(t *testing.T, email, role string) string {
 	t.Helper()
 	tok, err := auth.IssueJWTWithRole(email, role, "church-secret")
@@ -89,20 +99,30 @@ func TestRegisterListDetailAndMemberFilter(t *testing.T) {
 	seedUser(t, users, "pastor@example.com", auth.RoleUser)
 	seedUser(t, users, "member@example.com", auth.RoleUser)
 	grantRegisterAccess(t, h, "pastor@example.com")
+	seedDenomGroup(t, h, "asambleas", "Asambleas de Dios")
 
-	// Register as pastor.
+	// Register as pastor with leaders + church card + member assignment.
 	payload := map[string]any{
-		"name":           "Iglesia Central",
 		"denominationId": "asambleas",
-		"churchId":       "central",
-		"pastors":        []string{"Pastor Ana"},
-		"network":        "Asambleas de Dios",
+		"leaders": []map[string]any{
+			{"name": "Pastor Ana", "roles": []string{"elder-bishop-pastor"}},
+		},
+		"churches": []map[string]any{
+			{
+				"name": "Iglesia Central", "churchId": "central",
+				"openedAt": "2019-03-01", "address": "Calle 1",
+				"leadership": []string{"Pastor Ana"},
+			},
+		},
 		"beliefsDocument": "Creemos en un solo Dios.",
 		"sectorActivities": []map[string]string{
 			{"sector": "juventud", "description": "Viernes"},
 		},
 		"members": []map[string]string{
-			{"email": "member@example.com", "name": "Luis", "role": "church-member"},
+			{
+				"email": "member@example.com", "firstName": "Luis",
+				"role": "church-member", "churchId": "central",
+			},
 		},
 	}
 	body, _ := json.Marshal(payload)
@@ -223,6 +243,7 @@ func TestUnauthenticatedRejected(t *testing.T) {
 func TestRegisterRequiresApprovalAndSubscription(t *testing.T) {
 	h, r, users := testRouter(t)
 	seedUser(t, users, "pastor@example.com", auth.RoleUser)
+	seedDenomGroup(t, h, "local", "Local")
 
 	payload := map[string]any{
 		"name": "Iglesia Norte", "denominationId": "local", "churchId": "norte",
@@ -303,8 +324,104 @@ func TestRegisterRequiresApprovalAndSubscription(t *testing.T) {
 	}
 }
 
+func TestGroupsAdminOnlyAndRegisterRequiresCatalog(t *testing.T) {
+	h, r, users := testRouter(t)
+	seedUser(t, users, "admin@example.com", auth.RoleAdmin)
+	seedUser(t, users, "pastor@example.com", auth.RoleUser)
+	grantRegisterAccess(t, h, "pastor@example.com")
+
+	// Non-admin cannot create group.
+	body, _ := json.Marshal(map[string]string{"name": "Asambleas", "id": "asambleas"})
+	req := httptest.NewRequest(http.MethodPost, "/api/church/groups", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	req.Header.Set("Content-Type", "application/json")
+	rw := httptest.NewRecorder()
+	r.ServeHTTP(rw, req)
+	if rw.Code != http.StatusForbidden {
+		t.Fatalf("non-admin create group status=%d", rw.Code)
+	}
+
+	// Admin creates group.
+	req = httptest.NewRequest(http.MethodPost, "/api/church/groups", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+bearer(t, "admin@example.com", auth.RoleAdmin))
+	req.Header.Set("Content-Type", "application/json")
+	rw = httptest.NewRecorder()
+	r.ServeHTTP(rw, req)
+	if rw.Code != http.StatusCreated {
+		t.Fatalf("admin create group status=%d body=%s", rw.Code, rw.Body.String())
+	}
+
+	// Register without catalog denom fails.
+	regBody, _ := json.Marshal(map[string]any{
+		"name": "X", "denominationId": "missing", "churchId": "x",
+	})
+	reg := httptest.NewRequest(http.MethodPost, "/api/church", bytes.NewReader(regBody))
+	reg.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	reg.Header.Set("Content-Type", "application/json")
+	regRW := httptest.NewRecorder()
+	r.ServeHTTP(regRW, reg)
+	if regRW.Code != http.StatusBadRequest {
+		t.Fatalf("missing group register status=%d body=%s", regRW.Code, regRW.Body.String())
+	}
+
+	// Multi-church register with member assignment.
+	multi, _ := json.Marshal(map[string]any{
+		"denominationId": "asambleas",
+		"leaders": []map[string]any{
+			{"name": "Ana", "roles": []string{"evangelist"}},
+			{"name": "Luis", "roles": []string{"ministry-leader"}},
+		},
+		"churches": []map[string]any{
+			{"name": "Norte", "churchId": "norte", "openedAt": "2020-01-01", "address": "A", "leadership": []string{"Ana"}},
+			{"name": "Sur", "churchId": "sur", "openedAt": "2021-01-01", "address": "B", "leadership": []string{"Luis"}},
+		},
+		"members": []map[string]string{
+			{"email": "member@example.com", "firstName": "M", "churchId": "sur", "role": "church-member"},
+		},
+	})
+	seedUser(t, users, "member@example.com", auth.RoleUser)
+	reg2 := httptest.NewRequest(http.MethodPost, "/api/church", bytes.NewReader(multi))
+	reg2.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	reg2.Header.Set("Content-Type", "application/json")
+	reg2RW := httptest.NewRecorder()
+	r.ServeHTTP(reg2RW, reg2)
+	if reg2RW.Code != http.StatusCreated {
+		t.Fatalf("multi register status=%d body=%s", reg2RW.Code, reg2RW.Body.String())
+	}
+	if !strings.Contains(reg2RW.Body.String(), `"churchId":"norte"`) || !strings.Contains(reg2RW.Body.String(), `"churchId":"sur"`) {
+		t.Fatalf("expected both churches: %s", reg2RW.Body.String())
+	}
+
+	// Member only on sur.
+	get := httptest.NewRequest(http.MethodGet, "/api/church/asambleas/sur", nil)
+	get.Header.Set("Authorization", "Bearer "+bearer(t, "member@example.com", auth.RoleUser))
+	getRW := httptest.NewRecorder()
+	r.ServeHTTP(getRW, get)
+	if getRW.Code != http.StatusOK {
+		t.Fatalf("member sur status=%d", getRW.Code)
+	}
+	getNorte := httptest.NewRequest(http.MethodGet, "/api/church/asambleas/norte", nil)
+	getNorte.Header.Set("Authorization", "Bearer "+bearer(t, "member@example.com", auth.RoleUser))
+	norteRW := httptest.NewRecorder()
+	r.ServeHTTP(norteRW, getNorte)
+	if norteRW.Code != http.StatusForbidden {
+		t.Fatalf("member norte should be forbidden status=%d", norteRW.Code)
+	}
+
+	_ = h
+}
+
 func TestAuthRequestSK(t *testing.T) {
 	if AuthRequestSK("Pastor@Example.com") != "church-auth:u:pastor@example.com" {
 		t.Fatal("auth sk")
+	}
+	if GroupSK("asambleas") != "church-group:g:asambleas" {
+		t.Fatal("group sk")
+	}
+	if GroupMetaKey("asambleas") != "church/groups/asambleas/group.json" {
+		t.Fatal("group meta key")
+	}
+	if !IsValidLeaderRole(LeaderRoleEvangelist) {
+		t.Fatal("leader role")
 	}
 }

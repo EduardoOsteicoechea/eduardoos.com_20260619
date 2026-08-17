@@ -23,15 +23,16 @@ const maxImageBytes = 5 << 20 // 5 MiB
 
 // Handler serves JWT-gated Church APIs.
 type Handler struct {
-	JWTSecret       string
-	Users           auth.UserStore
-	Catalog         CatalogStore
-	Memberships     MembershipStore
-	Authorizations  AuthorizationStore
-	Entitlements    *payments.Store
-	Objects         ObjectSpace
-	Mail            Mailer
-	auth            *auth.Handler
+	JWTSecret      string
+	Users          auth.UserStore
+	Catalog        CatalogStore
+	Groups         GroupStore
+	Memberships    MembershipStore
+	Authorizations AuthorizationStore
+	Entitlements   *payments.Store
+	Objects        ObjectSpace
+	Mail           Mailer
+	auth           *auth.Handler
 }
 
 // NewHandler wires in-memory defaults; production replaces stores/objects.
@@ -40,6 +41,7 @@ func NewHandler(jwtSecret string, users auth.UserStore) *Handler {
 		JWTSecret:      jwtSecret,
 		Users:          users,
 		Catalog:        NewMemoryCatalog(),
+		Groups:         NewMemoryGroups(),
 		Memberships:    NewMemoryMemberships(),
 		Authorizations: NewMemoryAuthorizations(),
 		Objects:        NewMemoryObjectSpace(),
@@ -58,6 +60,14 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Get("/api/church/activity", h.MyActivities)
 		pr.Get("/api/church/authorization", h.GetAuthorization)
 		pr.Post("/api/church/authorization/request", h.RequestAuthorization)
+
+		// Groups catalog — list for any JWT; mutate platform-admin only.
+		// Mounted before /{denomID}/{churchID} so "groups" is not a denom slug.
+		pr.Get("/api/church/groups", h.ListGroups)
+		pr.Post("/api/church/groups", h.CreateGroup)
+		pr.Put("/api/church/groups/{groupID}", h.UpdateGroup)
+		pr.Delete("/api/church/groups/{groupID}", h.DeleteGroup)
+		pr.Get("/api/church/leader-roles", h.ListLeaderRoles)
 
 		pr.Get("/api/church/{denomID}/{churchID}", h.GetChurch)
 		pr.Put("/api/church/{denomID}/{churchID}", h.UpdateChurch)
@@ -95,94 +105,205 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Name             string           `json:"name"`
-		DenominationID   string           `json:"denominationId"`
-		ChurchID         string           `json:"churchId"`
-		Pastors          []string         `json:"pastors"`
-		Network          string           `json:"network"`
-		LocalChurches    []string         `json:"localChurches"`
-		BeliefsDocument  string           `json:"beliefsDocument"`
-		SectorActivities []SectorActivity `json:"sectorActivities"`
-		Members          []Member         `json:"members"`
+		Name             string             `json:"name"`
+		DenominationID   string             `json:"denominationId"`
+		ChurchID         string             `json:"churchId"`
+		OpenedAt         string             `json:"openedAt"`
+		Address          string             `json:"address"`
+		Pastors          []string           `json:"pastors"`
+		Leaders          []Leader           `json:"leaders"`
+		Network          string             `json:"network"`
+		LocalChurches    []string           `json:"localChurches"`
+		Churches         []LocalChurchInput `json:"churches"`
+		BeliefsDocument  string             `json:"beliefsDocument"`
+		SectorActivities []SectorActivity   `json:"sectorActivities"`
+		Members          []Member           `json:"members"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
 		return
 	}
-	name := strings.TrimSpace(body.Name)
+
 	denom := SanitizeSlug(body.DenominationID)
 	if denom == "" {
 		denom = SanitizeSlug(body.Network)
 	}
-	if denom == "" {
-		denom = "local"
-	}
-	churchID := SanitizeSlug(body.ChurchID)
-	if churchID == "" {
-		churchID = SanitizeSlug(name)
-	}
-	if name == "" || !IsValidSlug(denom) || !IsValidSlug(churchID) {
-		httpx.WriteError(w, http.StatusBadRequest, "name, denominationId, and churchId required")
+	if !IsValidSlug(denom) {
+		httpx.WriteError(w, http.StatusBadRequest, "denominationId required from groups catalog")
 		return
 	}
 
+	networkName := strings.TrimSpace(body.Network)
+	if h.Groups != nil {
+		group, ok, gerr := h.Groups.Get(r.Context(), denom)
+		if gerr != nil {
+			log.Printf("[correlation=%s] church.register group_lookup: %v", cid, gerr)
+			httpx.WriteError(w, http.StatusBadGateway, "could not verify denomination group")
+			return
+		}
+		if !ok {
+			httpx.WriteError(w, http.StatusBadRequest, "denominationId must exist in /church/groups catalog")
+			return
+		}
+		if networkName == "" {
+			networkName = group.Name
+		}
+	}
+
+	orgLeaders := normalizeLeaders(body.Leaders)
+	if len(orgLeaders) == 0 && len(body.Pastors) > 0 {
+		orgLeaders = leadersFromPastors(body.Pastors)
+	}
+
+	// Prefer multi church cards; fall back to single legacy name/churchId row.
+	churchInputs := body.Churches
+	if len(churchInputs) == 0 {
+		name := strings.TrimSpace(body.Name)
+		churchID := SanitizeSlug(body.ChurchID)
+		if churchID == "" {
+			churchID = SanitizeSlug(name)
+		}
+		if name == "" || !IsValidSlug(churchID) {
+			httpx.WriteError(w, http.StatusBadRequest, "at least one church card (name) is required")
+			return
+		}
+		leadership := make([]string, 0, len(orgLeaders))
+		for _, L := range orgLeaders {
+			leadership = append(leadership, L.Name)
+		}
+		churchInputs = []LocalChurchInput{{
+			ChurchID:   churchID,
+			Name:       name,
+			OpenedAt:   strings.TrimSpace(body.OpenedAt),
+			Address:    strings.TrimSpace(body.Address),
+			Leadership: leadership,
+		}}
+	}
+
 	now := nowRFC3339()
-	pastors := cleanStringList(body.Pastors)
-	members := normalizeMembers(body.Members, owner)
-	doc := ChurchDoc{
-		DenominationID:   denom,
-		ChurchID:         churchID,
-		Name:             name,
-		Pastors:          pastors,
-		Network:          strings.TrimSpace(body.Network),
-		LocalChurches:    cleanStringList(body.LocalChurches),
-		BeliefsDocument:  strings.TrimSpace(body.BeliefsDocument),
-		SectorActivities: body.SectorActivities,
-		Members:          members,
-		OwnerEmail:       owner,
-		S3Prefix:         ChurchPrefix(denom, churchID),
-		CreatedAt:        now,
-		UpdatedAt:        now,
-	}
-	card := ChurchCard{
-		DenominationID: denom,
-		ChurchID:       churchID,
-		Name:           name,
-		Network:        doc.Network,
-		S3Prefix:       doc.S3Prefix,
-		OwnerEmail:     owner,
-		CreatedAt:      now,
-		UpdatedAt:      now,
-	}
-	created, err := h.Catalog.Create(r.Context(), card)
-	if errors.Is(err, ErrDuplicate) {
-		httpx.WriteError(w, http.StatusConflict, "church already exists")
-		return
-	}
-	if err != nil {
-		log.Printf("[correlation=%s] church.register catalog_error: %v", cid, err)
-		httpx.WriteError(w, http.StatusBadGateway, "could not register church")
-		return
-	}
-	if err := h.Objects.PutJSON(r.Context(), ChurchMetaKey(denom, churchID), doc, cid); err != nil {
-		log.Printf("[correlation=%s] church.register s3_error: %v", cid, err)
-		_ = h.Catalog.Delete(r.Context(), denom, churchID)
-		httpx.WriteError(w, http.StatusBadGateway, fmt.Sprintf("could not persist church.json: %v", err))
-		return
-	}
-	for _, m := range members {
-		_, _ = h.Memberships.Upsert(r.Context(), Membership{
-			Email:          m.Email,
+	allMembers := body.Members
+	createdCards := make([]ChurchCard, 0, len(churchInputs))
+	createdDocs := make([]ChurchDoc, 0, len(churchInputs))
+	localNames := make([]string, 0, len(churchInputs))
+	validChurchIDs := map[string]string{} // id → name
+
+	for _, in := range churchInputs {
+		name := strings.TrimSpace(in.Name)
+		churchID := SanitizeSlug(in.ChurchID)
+		if churchID == "" {
+			churchID = SanitizeSlug(name)
+		}
+		if name == "" || !IsValidSlug(churchID) {
+			httpx.WriteError(w, http.StatusBadRequest, "each church card needs a valid name")
+			return
+		}
+		if _, dup := validChurchIDs[churchID]; dup {
+			httpx.WriteError(w, http.StatusBadRequest, "duplicate churchId in churches list: "+churchID)
+			return
+		}
+		validChurchIDs[churchID] = name
+		localNames = append(localNames, name)
+
+		leaders := pickLeadersByName(orgLeaders, in.Leadership)
+		if len(leaders) == 0 && len(orgLeaders) > 0 && len(in.Leadership) == 0 {
+			// No explicit pick → leave empty; UI should select liderazgo.
+			leaders = nil
+		}
+
+		// Members assigned to this church (or unassigned when only one church).
+		assigned := make([]Member, 0)
+		for _, m := range allMembers {
+			assignID := SanitizeSlug(m.ChurchID)
+			if assignID == churchID || (assignID == "" && len(churchInputs) == 1) {
+				cp := m
+				cp.ChurchID = churchID
+				assigned = append(assigned, cp)
+			}
+		}
+		members := normalizeMembers(assigned, owner)
+
+		doc := ChurchDoc{
+			DenominationID:   denom,
+			ChurchID:         churchID,
+			Name:             name,
+			OpenedAt:         strings.TrimSpace(in.OpenedAt),
+			Address:          strings.TrimSpace(in.Address),
+			Leaders:          leaders,
+			OrgLeaders:       orgLeaders,
+			Network:          networkName,
+			LocalChurches:    nil, // filled after loop
+			BeliefsDocument:  strings.TrimSpace(body.BeliefsDocument),
+			SectorActivities: body.SectorActivities,
+			Members:          members,
+			OwnerEmail:       owner,
+			S3Prefix:         ChurchPrefix(denom, churchID),
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		}
+		card := ChurchCard{
 			DenominationID: denom,
 			ChurchID:       churchID,
-			Role:           m.Role,
-			ChurchName:     name,
+			Name:           name,
+			Network:        networkName,
+			S3Prefix:       doc.S3Prefix,
+			OwnerEmail:     owner,
 			CreatedAt:      now,
 			UpdatedAt:      now,
-		})
+		}
+		created, err := h.Catalog.Create(r.Context(), card)
+		if errors.Is(err, ErrDuplicate) {
+			// Roll back prior creates in this request.
+			for _, prev := range createdCards {
+				_ = h.Catalog.Delete(r.Context(), prev.DenominationID, prev.ChurchID)
+				_ = h.Objects.DeleteKey(r.Context(), ChurchMetaKey(prev.DenominationID, prev.ChurchID), cid)
+			}
+			httpx.WriteError(w, http.StatusConflict, "church already exists: "+churchID)
+			return
+		}
+		if err != nil {
+			log.Printf("[correlation=%s] church.register catalog_error: %v", cid, err)
+			httpx.WriteError(w, http.StatusBadGateway, "could not register church")
+			return
+		}
+		createdCards = append(createdCards, created)
+		createdDocs = append(createdDocs, doc)
 	}
-	log.Printf("[correlation=%s] church.register owner=%s denom=%s id=%s", cid, owner, denom, churchID)
-	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"church": created, "document": doc})
+
+	// Persist docs with sibling local church names for network tab.
+	for i := range createdDocs {
+		createdDocs[i].LocalChurches = localNames
+		doc := createdDocs[i]
+		if err := h.Objects.PutJSON(r.Context(), ChurchMetaKey(doc.DenominationID, doc.ChurchID), doc, cid); err != nil {
+			log.Printf("[correlation=%s] church.register s3_error: %v", cid, err)
+			for _, prev := range createdCards {
+				_ = h.Catalog.Delete(r.Context(), prev.DenominationID, prev.ChurchID)
+				_ = h.Objects.DeleteKey(r.Context(), ChurchMetaKey(prev.DenominationID, prev.ChurchID), cid)
+			}
+			httpx.WriteError(w, http.StatusBadGateway, fmt.Sprintf("could not persist church.json: %v", err))
+			return
+		}
+		for _, m := range doc.Members {
+			_, _ = h.Memberships.Upsert(r.Context(), Membership{
+				Email:          m.Email,
+				DenominationID: denom,
+				ChurchID:       doc.ChurchID,
+				Role:           m.Role,
+				ChurchName:     doc.Name,
+				CreatedAt:      now,
+				UpdatedAt:      now,
+			})
+		}
+	}
+
+	log.Printf("[correlation=%s] church.register owner=%s denom=%s count=%d", cid, owner, denom, len(createdCards))
+	first := createdCards[0]
+	firstDoc := createdDocs[0]
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{
+		"church":    first,
+		"document":  firstDoc,
+		"churches":  createdCards,
+		"documents": createdDocs,
+	})
 }
 
 func (h *Handler) GetChurch(w http.ResponseWriter, r *http.Request) {
@@ -225,6 +346,7 @@ func (h *Handler) GetChurch(w http.ResponseWriter, r *http.Request) {
 		Activities: filterActivities(va, doc, acts),
 		ViewerRole: va.Role,
 	}
+	detail.Church.Leaders = ensureLeaders(detail.Church)
 	httpx.WriteJSON(w, http.StatusOK, detail)
 }
 
@@ -253,13 +375,34 @@ func (h *Handler) UpdateChurch(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "name required")
 		return
 	}
-	doc.Pastors = cleanStringList(body.Pastors)
+	doc.OpenedAt = strings.TrimSpace(body.OpenedAt)
+	doc.Address = strings.TrimSpace(body.Address)
+	if body.Leaders != nil {
+		doc.Leaders = normalizeLeaders(body.Leaders)
+	} else if body.Pastors != nil {
+		doc.Leaders = leadersFromPastors(body.Pastors)
+		doc.Pastors = cleanStringList(body.Pastors)
+	}
+	if body.OrgLeaders != nil {
+		doc.OrgLeaders = normalizeLeaders(body.OrgLeaders)
+	}
 	doc.Network = strings.TrimSpace(body.Network)
 	doc.LocalChurches = cleanStringList(body.LocalChurches)
 	doc.BeliefsDocument = strings.TrimSpace(body.BeliefsDocument)
 	doc.SectorActivities = body.SectorActivities
 	if body.Members != nil {
 		doc.Members = normalizeMembers(body.Members, doc.OwnerEmail)
+		for _, m := range doc.Members {
+			_, _ = h.Memberships.Upsert(r.Context(), Membership{
+				Email:          m.Email,
+				DenominationID: denom,
+				ChurchID:       churchID,
+				Role:           m.Role,
+				ChurchName:     doc.Name,
+				CreatedAt:      doc.UpdatedAt,
+				UpdatedAt:      doc.UpdatedAt,
+			})
+		}
 	}
 	doc.UpdatedAt = nowRFC3339()
 	if err := h.Objects.PutJSON(r.Context(), ChurchMetaKey(denom, churchID), doc, cid); err != nil {
@@ -293,6 +436,17 @@ func (h *Handler) UpsertMember(w http.ResponseWriter, r *http.Request) {
 	}
 	body.Email = auth.NormalizeEmail(body.Email)
 	body.Role = NormalizeChurchRole(body.Role)
+	body.FirstName = strings.TrimSpace(body.FirstName)
+	body.SecondName = strings.TrimSpace(body.SecondName)
+	body.LastName1 = strings.TrimSpace(body.LastName1)
+	body.LastName2 = strings.TrimSpace(body.LastName2)
+	body.Address = strings.TrimSpace(body.Address)
+	body.Phone = strings.TrimSpace(body.Phone)
+	body.ChurchID = SanitizeSlug(body.ChurchID)
+	if body.ChurchID == "" {
+		body.ChurchID = churchID
+	}
+	body.Name = memberDisplayName(body)
 	if body.Email == "" {
 		httpx.WriteError(w, http.StatusBadRequest, "email required")
 		return
@@ -684,10 +838,18 @@ func normalizeMembers(in []Member, ownerEmail string) []Member {
 		if email == ownerEmail {
 			role = RoleChurchAdmin
 		}
+		display := memberDisplayName(m)
 		out = append(out, Member{
 			Email:                 email,
-			Name:                  strings.TrimSpace(m.Name),
+			FirstName:             strings.TrimSpace(m.FirstName),
+			SecondName:            strings.TrimSpace(m.SecondName),
+			LastName1:             strings.TrimSpace(m.LastName1),
+			LastName2:             strings.TrimSpace(m.LastName2),
+			Address:               strings.TrimSpace(m.Address),
+			Phone:                 strings.TrimSpace(m.Phone),
+			Name:                  display,
 			Role:                  role,
+			ChurchID:              SanitizeSlug(m.ChurchID),
 			AuthorizedActivityIDs: m.AuthorizedActivityIDs,
 		})
 	}

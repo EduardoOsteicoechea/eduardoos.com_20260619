@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
   fetchChurch,
+  leaderRoleLabel,
+  memberDisplayName,
   resolveChurchIdsFromLocation,
   roleLabel,
   type ChurchDetail,
@@ -91,14 +93,44 @@ export default function ChurchDetailPage() {
             <div className="church-panel" role="tabpanel">
               {tab === "info" ? (
                 <>
-                  <h2>Pastores</h2>
+                  <h2>Líderes</h2>
                   <ul className="church-list">
-                    {(detail.church.pastors ?? []).map((p) => (
-                      <li key={p} className="church-list__item">
-                        {p}
+                    {(detail.church.leaders ?? detail.church.pastors ?? []).length ===
+                    0 ? (
+                      <li className="church-empty">Sin líderes.</li>
+                    ) : null}
+                    {(detail.church.leaders ?? []).map((L) => (
+                      <li key={L.name} className="church-list__item">
+                        <h3>{L.name}</h3>
+                        <p className="church-card__meta">
+                          {(L.roles ?? []).map(leaderRoleLabel).join(" · ") || "—"}
+                        </p>
                       </li>
                     ))}
+                    {!detail.church.leaders?.length &&
+                      (detail.church.pastors ?? []).map((p) => (
+                        <li key={p} className="church-list__item">
+                          {p}
+                        </li>
+                      ))}
                   </ul>
+                  {detail.church.openedAt || detail.church.address ? (
+                    <>
+                      <h2>Local</h2>
+                      <p className="church-panel__block">
+                        {[
+                          detail.church.openedAt
+                            ? `Apertura: ${detail.church.openedAt}`
+                            : "",
+                          detail.church.address
+                            ? `Dirección: ${detail.church.address}`
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join("\n")}
+                      </p>
+                    </>
+                  ) : null}
                   {(detail.church.sectorActivities ?? []).length > 0 ? (
                     <>
                       <h2>Actividades por sector</h2>
@@ -125,10 +157,14 @@ export default function ChurchDetailPage() {
                 <ul className="church-list">
                   {(detail.church.members ?? []).map((m) => (
                     <li key={m.email} className="church-list__item">
-                      <h3>{m.name || m.email}</h3>
+                      <h3>{memberDisplayName(m) || m.email}</h3>
                       <p className="church-card__meta">
                         {m.email} · {roleLabel(m.role)}
+                        {m.phone ? ` · ${m.phone}` : ""}
                       </p>
+                      {m.address ? (
+                        <p className="church-panel__block">{m.address}</p>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

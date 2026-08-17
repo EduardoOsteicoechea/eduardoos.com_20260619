@@ -428,3 +428,171 @@ func newDynamoAuthorizations(ctx context.Context) (*dynamoAuthorizations, error)
 	}
 	return &dynamoAuthorizations{client: dynamodb.NewFromConfig(cfg), table: table}, nil
 }
+
+// dynamoGroups persists denomination/network catalog rows
+// (SK church-group:g:{id}) in the same catalog table.
+type dynamoGroups struct {
+	client *dynamodb.Client
+	table  string
+}
+
+func (d *dynamoGroups) BackendName() string { return "dynamodb:" + d.table }
+
+func (d *dynamoGroups) putJSON(ctx context.Context, sk string, value any) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	_, err = d.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(d.table),
+		Item: map[string]types.AttributeValue{
+			"PK":   &types.AttributeValueMemberS{Value: "APP"},
+			"SK":   &types.AttributeValueMemberS{Value: sk},
+			"data": &types.AttributeValueMemberS{Value: string(raw)},
+		},
+	})
+	return err
+}
+
+func (d *dynamoGroups) getJSON(ctx context.Context, sk string, dest any) (bool, error) {
+	out, err := d.client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(d.table),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "APP"},
+			"SK": &types.AttributeValueMemberS{Value: sk},
+		},
+	})
+	if err != nil {
+		return false, err
+	}
+	if out.Item == nil {
+		return false, nil
+	}
+	data, ok := out.Item["data"].(*types.AttributeValueMemberS)
+	if !ok || data.Value == "" {
+		return false, nil
+	}
+	if err := json.Unmarshal([]byte(data.Value), dest); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (d *dynamoGroups) Create(ctx context.Context, g DenominationGroup) (DenominationGroup, error) {
+	g.ID = strings.TrimSpace(g.ID)
+	g.Name = strings.TrimSpace(g.Name)
+	g.CreatedBy = auth.NormalizeEmail(g.CreatedBy)
+	if g.ID == "" || g.Name == "" {
+		return DenominationGroup{}, fmt.Errorf("id and name required")
+	}
+	if !IsValidSlug(g.ID) {
+		return DenominationGroup{}, fmt.Errorf("invalid group id")
+	}
+	sk := GroupSK(g.ID)
+	var existing DenominationGroup
+	ok, err := d.getJSON(ctx, sk, &existing)
+	if err != nil {
+		return DenominationGroup{}, err
+	}
+	if ok {
+		return DenominationGroup{}, ErrDuplicate
+	}
+	if err := d.putJSON(ctx, sk, g); err != nil {
+		return DenominationGroup{}, err
+	}
+	return g, nil
+}
+
+func (d *dynamoGroups) Get(ctx context.Context, id string) (DenominationGroup, bool, error) {
+	var g DenominationGroup
+	ok, err := d.getJSON(ctx, GroupSK(id), &g)
+	if err != nil || !ok {
+		return DenominationGroup{}, ok, err
+	}
+	return g, true, nil
+}
+
+func (d *dynamoGroups) List(ctx context.Context) ([]DenominationGroup, error) {
+	out, err := d.client.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(d.table),
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: "APP"},
+			":sk": &types.AttributeValueMemberS{Value: GroupSKPrefix()},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	list := make([]DenominationGroup, 0, len(out.Items))
+	for _, item := range out.Items {
+		data, ok := item["data"].(*types.AttributeValueMemberS)
+		if !ok || data.Value == "" {
+			continue
+		}
+		var g DenominationGroup
+		if err := json.Unmarshal([]byte(data.Value), &g); err != nil {
+			continue
+		}
+		list = append(list, g)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return strings.ToLower(list[i].Name) < strings.ToLower(list[j].Name)
+	})
+	return list, nil
+}
+
+func (d *dynamoGroups) Update(ctx context.Context, g DenominationGroup) (DenominationGroup, error) {
+	g.ID = strings.TrimSpace(g.ID)
+	g.Name = strings.TrimSpace(g.Name)
+	sk := GroupSK(g.ID)
+	var existing DenominationGroup
+	ok, err := d.getJSON(ctx, sk, &existing)
+	if err != nil {
+		return DenominationGroup{}, err
+	}
+	if !ok {
+		return DenominationGroup{}, ErrNotFound
+	}
+	if g.Name == "" {
+		return DenominationGroup{}, fmt.Errorf("name required")
+	}
+	g.CreatedAt = existing.CreatedAt
+	g.CreatedBy = existing.CreatedBy
+	if err := d.putJSON(ctx, sk, g); err != nil {
+		return DenominationGroup{}, err
+	}
+	return g, nil
+}
+
+func (d *dynamoGroups) Delete(ctx context.Context, id string) error {
+	sk := GroupSK(id)
+	var existing DenominationGroup
+	ok, err := d.getJSON(ctx, sk, &existing)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrNotFound
+	}
+	_, err = d.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(d.table),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "APP"},
+			"SK": &types.AttributeValueMemberS{Value: sk},
+		},
+	})
+	return err
+}
+
+func newDynamoGroups(ctx context.Context) (*dynamoGroups, error) {
+	cfg, err := awsx.LoadConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	table := strings.TrimSpace(httpx.Env("CHURCH_TABLE", ""))
+	if table == "" {
+		table = strings.TrimSpace(httpx.Env("HOMESCOOL_TABLE", "eduardoos_catalog"))
+	}
+	return &dynamoGroups{client: dynamodb.NewFromConfig(cfg), table: table}, nil
+}

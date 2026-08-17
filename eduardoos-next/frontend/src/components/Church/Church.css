@@ -169,6 +169,10 @@
   max-width: 40rem;
 }
 
+.church-form--wide {
+  max-width: 48rem;
+}
+
 .church-form label {
   display: flex;
   flex-direction: column;
@@ -198,6 +202,116 @@
 .church-form textarea {
   min-height: 6rem;
   resize: vertical;
+}
+
+.church-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--site-border);
+}
+
+.church-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.church-section__head h2 {
+  margin: 0;
+  font-family: var(--font-display, var(--font-heading));
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.church-dyn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.church-dyn-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001);
+  background: color-mix(in srgb, var(--site-surface, var(--site-body-bg)) 90%, transparent);
+}
+
+.church-dyn-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem;
+}
+
+.church-dyn-card__grow {
+  flex: 1 1 12rem;
+}
+
+.church-dyn-card__title {
+  flex: 1;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--site-muted, var(--site-body-fg));
+}
+
+.church-dyn-card__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.65rem;
+}
+
+.church-role-set {
+  margin: 0;
+  padding: 0.5rem 0 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.church-role-set legend {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-muted, var(--site-body-fg));
+  padding: 0;
+}
+
+.church-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.9rem;
+  color: var(--site-body-fg);
+}
+
+.church-check input {
+  min-height: auto;
+  width: auto;
+}
+
+.church-inline-input {
+  flex: 1 1 12rem;
+  min-height: var(--control_min_height, 2.5rem);
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface, var(--site-body-bg));
+  color: var(--site-body-fg);
+  font-family: var(--font-body);
 }
 
 .church-tabs {

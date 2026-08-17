@@ -124,7 +124,17 @@ export default function ChurchOverviewPage() {
                 <span className="church-role">{roleLabel(ch.viewerRole)}</span>
                 {" · "}
                 {ch.activities.length} activities
+                {ch.church.openedAt ? ` · apertura ${ch.church.openedAt}` : ""}
               </p>
+              {ch.church.address ? (
+                <p className="church-panel__block">{ch.church.address}</p>
+              ) : null}
+              {(ch.church.leaders ?? []).length > 0 ? (
+                <p className="church-panel__block">
+                  Liderazgo:{" "}
+                  {(ch.church.leaders ?? []).map((L) => L.name).join(", ")}
+                </p>
+              ) : null}
               {(ch.viewerRole === "church-admin" || ch.viewerRole === "admin") && (
                 <p className="church-panel__block">
                   Plan: {ch.activities.map((a) => a.title).join(", ") || "—"}
