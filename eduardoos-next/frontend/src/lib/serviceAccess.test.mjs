@@ -1,5 +1,5 @@
 /**
- * Unit checks for platform-admin entitlement bypass (mirrors auth + payments helpers).
+ * Unit checks for platform-admin entitlement bypass and Homescool student access.
  * Run: node --test src/lib/serviceAccess.test.mjs
  */
 
@@ -28,6 +28,16 @@ function hasServiceAccess(serviceId, entitlements, email, role) {
   return entitlements.some(
     (e) => e.service_id === serviceId && entitlementActive(e),
   );
+}
+
+/**
+ * Mirrors ServiceGate decision for Homescool after CheckAccess response.
+ * requireSubscription=true → teacher surfaces (ignore student link).
+ */
+function gateAllowsHomescool(remote, requireSubscription) {
+  if (remote.isAdmin) return true;
+  if (requireSubscription) return Boolean(remote.hasEntitlement);
+  return Boolean(remote.allowed);
 }
 
 describe("platform admin service access", () => {
@@ -85,5 +95,62 @@ describe("platform admin service access", () => {
     assert.equal(isPlatformAdmin("other@example.com", "admin"), true);
     assert.equal(isPlatformAdmin("other@example.com", "user"), false);
     assert.equal(isPlatformAdmin(APS_ADMIN_EMAIL, "user"), true);
+  });
+});
+
+describe("homescool linked student gate", () => {
+  const linkedStudent = {
+    allowed: true,
+    isAdmin: false,
+    hasEntitlement: false,
+    isHomescoolStudent: true,
+  };
+  const teacherNoSub = {
+    allowed: false,
+    isAdmin: false,
+    hasEntitlement: false,
+    isHomescoolStudent: false,
+  };
+  const teacherWithSub = {
+    allowed: true,
+    isAdmin: false,
+    hasEntitlement: true,
+    isHomescoolStudent: false,
+  };
+  const admin = {
+    allowed: true,
+    isAdmin: true,
+    hasEntitlement: true,
+    isHomescoolStudent: false,
+  };
+  const stranger = {
+    allowed: false,
+    isAdmin: false,
+    hasEntitlement: false,
+    isHomescoolStudent: false,
+  };
+
+  it("linked student allowed on hub/learning without sub", () => {
+    assert.equal(gateAllowsHomescool(linkedStudent, false), true);
+  });
+
+  it("linked student denied on teacher surfaces without sub", () => {
+    assert.equal(gateAllowsHomescool(linkedStudent, true), false);
+  });
+
+  it("non-linked user without sub denied", () => {
+    assert.equal(gateAllowsHomescool(stranger, false), false);
+    assert.equal(gateAllowsHomescool(teacherNoSub, false), false);
+    assert.equal(gateAllowsHomescool(teacherNoSub, true), false);
+  });
+
+  it("teacher with entitlement allowed on teacher surfaces", () => {
+    assert.equal(gateAllowsHomescool(teacherWithSub, true), true);
+    assert.equal(gateAllowsHomescool(teacherWithSub, false), true);
+  });
+
+  it("admin always allowed", () => {
+    assert.equal(gateAllowsHomescool(admin, false), true);
+    assert.equal(gateAllowsHomescool(admin, true), true);
   });
 });

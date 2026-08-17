@@ -2,6 +2,7 @@ package payments
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
@@ -17,9 +18,12 @@ type Handler struct {
 	JWTSecret      string
 	Store          *Store
 	Users          auth.UserStore
-	HostedButtonID string
-	CheckoutURL    string
-	auth           *auth.Handler
+	// HomescoolStudents is optional; when set, CheckAccess for service
+	// "homescool" also allows linked students without a paid entitlement.
+	HomescoolStudents HomescoolStudentChecker
+	HostedButtonID    string
+	CheckoutURL       string
+	auth              *auth.Handler
 }
 
 // NewHandler builds a payments handler with memory store defaults.
@@ -186,6 +190,9 @@ func (h *Handler) ListMyEntitlements(w http.ResponseWriter, r *http.Request) {
 
 // CheckAccess reports whether the JWT user may use a given service.
 // Platform admins (bootstrap email or stored role admin) always pass.
+// Homescool exception: a user with at least one teacher→student link where
+// they are the student is allowed without a paid entitlement (teachers still
+// need a subscription — this flag only unlocks student/hub surfaces).
 func (h *Handler) CheckAccess(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
 	serviceID := strings.ToLower(strings.TrimSpace(chi.URLParam(r, "serviceID")))
@@ -194,12 +201,27 @@ func (h *Handler) CheckAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	admin := h.isAdminUser(r, email)
-	allowed := HasServiceAccess(admin, h.Store.ListEntitlements(email), serviceID)
+	ents := h.Store.ListEntitlements(email)
+	hasEntitlement := HasServiceAccess(false, ents, serviceID)
+	allowed := admin || hasEntitlement
+	isHomescoolStudent := false
+	if !allowed && serviceID == "homescool" && h.HomescoolStudents != nil {
+		ok, err := h.HomescoolStudents.IsHomescoolStudent(r.Context(), email)
+		if err != nil {
+			log.Printf("[correlation=%s] payments.access homescool_student_check error: %v",
+				httpx.CorrelationFromRequest(r), err)
+		} else if ok {
+			allowed = true
+			isHomescoolStudent = true
+		}
+	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"email":      email,
-		"service_id": serviceID,
-		"allowed":    allowed,
-		"is_admin":   admin,
+		"email":                 email,
+		"service_id":            serviceID,
+		"allowed":               allowed,
+		"is_admin":              admin,
+		"has_entitlement":       hasEntitlement,
+		"is_homescool_student":  isHomescoolStudent,
 	})
 }
 

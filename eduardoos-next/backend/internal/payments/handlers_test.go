@@ -195,3 +195,115 @@ func TestCheckAccessAdminBypassHomescoolAndDebate(t *testing.T) {
 		})
 	}
 }
+
+// stubHomescoolStudents implements HomescoolStudentChecker for access tests.
+type stubHomescoolStudents map[string]bool
+
+func (s stubHomescoolStudents) IsHomescoolStudent(_ context.Context, email string) (bool, error) {
+	return s[auth.NormalizeEmail(email)], nil
+}
+
+func TestCheckAccessHomescoolLinkedStudentBypass(t *testing.T) {
+	secret := "access-student-secret"
+	users := auth.NewMemoryStore()
+	for _, email := range []string{
+		"linked-student@example.com",
+		"teacher-no-sub@example.com",
+		"stranger@example.com",
+		auth.AdminEmail,
+	} {
+		role := auth.RoleUser
+		if auth.IsAdminEmail(email) {
+			role = auth.RoleAdmin
+		}
+		_ = users.PutUser(context.Background(), auth.User{
+			Email:        email,
+			PasswordHash: auth.HashPassword("password123"),
+			Verified:     true,
+			Role:         role,
+		})
+	}
+
+	h := NewHandler(secret, "BTN")
+	h.Users = users
+	h.HomescoolStudents = stubHomescoolStudents{
+		"linked-student@example.com": true,
+	}
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	access := func(t *testing.T, email, service string) map[string]any {
+		t.Helper()
+		u, ok, _ := users.GetUser(context.Background(), email)
+		role := auth.RoleUser
+		if ok {
+			role = u.Role
+		}
+		token, err := auth.IssueJWTWithRole(email, role, secret)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest(http.MethodGet, "/api/subscriptions/access/"+service, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+		}
+		var out map[string]any
+		if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+
+	t.Run("linked student allowed without entitlement", func(t *testing.T) {
+		out := access(t, "linked-student@example.com", "homescool")
+		if out["allowed"] != true {
+			t.Fatalf("allowed=%v want true", out["allowed"])
+		}
+		if out["is_homescool_student"] != true {
+			t.Fatalf("is_homescool_student=%v want true", out["is_homescool_student"])
+		}
+		if out["has_entitlement"] != false {
+			t.Fatalf("has_entitlement=%v want false", out["has_entitlement"])
+		}
+		if out["is_admin"] != false {
+			t.Fatalf("is_admin=%v want false", out["is_admin"])
+		}
+	})
+
+	t.Run("non-linked user denied without entitlement", func(t *testing.T) {
+		out := access(t, "stranger@example.com", "homescool")
+		if out["allowed"] != false {
+			t.Fatalf("allowed=%v want false", out["allowed"])
+		}
+		if out["is_homescool_student"] != false {
+			t.Fatalf("is_homescool_student=%v want false", out["is_homescool_student"])
+		}
+	})
+
+	t.Run("teacher without sub denied (not a linked student)", func(t *testing.T) {
+		out := access(t, "teacher-no-sub@example.com", "homescool")
+		if out["allowed"] != false {
+			t.Fatalf("allowed=%v want false", out["allowed"])
+		}
+	})
+
+	t.Run("admin allowed without entitlement or student link", func(t *testing.T) {
+		out := access(t, auth.AdminEmail, "homescool")
+		if out["allowed"] != true {
+			t.Fatalf("allowed=%v want true", out["allowed"])
+		}
+		if out["is_admin"] != true {
+			t.Fatalf("is_admin=%v want true", out["is_admin"])
+		}
+	})
+
+	t.Run("linked student still denied for other services", func(t *testing.T) {
+		out := access(t, "linked-student@example.com", "debate")
+		if out["allowed"] != false {
+			t.Fatalf("debate allowed=%v want false", out["allowed"])
+		}
+	})
+}

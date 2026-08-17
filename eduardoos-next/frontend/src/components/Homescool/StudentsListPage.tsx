@@ -35,7 +35,7 @@ export default function StudentsListPage() {
   }, []);
 
   return (
-    <ServiceGate serviceId="homescool" serviceLabel="Homescool">
+    <ServiceGate serviceId="homescool" serviceLabel="Homescool" requireSubscription>
       <article className="product-page">
         <p className="product-page__brand">Homescool</p>
         <h1 className="product-page__title">My students</h1>

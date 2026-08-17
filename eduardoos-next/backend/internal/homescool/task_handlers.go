@@ -15,8 +15,8 @@ import (
 
 const maxTaskUploadBytes = 12 << 20 // 12 MiB per proof/template file
 
-// mountTaskRoutes registers template + assigned-task endpoints (JWT already applied).
-func (h *Handler) mountTaskRoutes(pr chi.Router) {
+// mountTeacherTaskRoutes registers template + teacher board endpoints.
+func (h *Handler) mountTeacherTaskRoutes(pr chi.Router) {
 	pr.Post("/api/homescool/task-templates", h.CreateTaskTemplate)
 	pr.Get("/api/homescool/task-templates", h.ListTaskTemplates)
 	pr.Get("/api/homescool/task-templates/{templateId}", h.GetTaskTemplate)
@@ -26,7 +26,10 @@ func (h *Handler) mountTaskRoutes(pr chi.Router) {
 	pr.Get("/api/homescool/students/{studentSlug}/tasks", h.ListTeacherStudentTasks)
 	pr.Post("/api/homescool/students/{studentSlug}/tasks/{taskId}/grade", h.GradeTask)
 	pr.Post("/api/homescool/students/{studentSlug}/tasks/{taskId}/archive", h.ArchiveTask)
+}
 
+// mountLearningTaskRoutes registers student task board + submit endpoints.
+func (h *Handler) mountLearningTaskRoutes(pr chi.Router) {
 	pr.Get("/api/homescool/learning/{teacherSlug}/tasks", h.ListLearningTasks)
 	pr.Get("/api/homescool/learning/{teacherSlug}/tasks/{taskId}", h.GetLearningTask)
 	pr.Post("/api/homescool/learning/{teacherSlug}/tasks/{taskId}/submit", h.SubmitLearningTask)

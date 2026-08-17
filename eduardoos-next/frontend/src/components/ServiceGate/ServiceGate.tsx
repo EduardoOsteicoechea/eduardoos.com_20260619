@@ -1,6 +1,8 @@
 /**
  * Soft gate for billable services — platform admin always passes;
  * others need an active subscription entitlement.
+ * Homescool exception: linked students may enter hub/learning without a paid
+ * sub; teacher pages pass requireSubscription to keep that bypass off.
  */
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -17,12 +19,18 @@ interface ServiceGateProps {
   serviceId: string;
   serviceLabel: string;
   children: ReactNode;
+  /**
+   * When true, only admin or a paid entitlement unlocks the gate.
+   * Homescool student-link bypass is ignored (teacher surfaces).
+   */
+  requireSubscription?: boolean;
 }
 
 export default function ServiceGate({
   serviceId,
   serviceLabel,
   children,
+  requireSubscription = false,
 }: ServiceGateProps) {
   const [state, setState] = useState<"loading" | "ok" | "denied" | "signin">("loading");
 
@@ -41,7 +49,22 @@ export default function ServiceGate({
       try {
         const remote = await checkServiceAccess(serviceId);
         if (cancelled) return;
-        if (remote.allowed || remote.isAdmin) {
+        if (remote.isAdmin) {
+          setState("ok");
+          return;
+        }
+        if (requireSubscription) {
+          // Teacher / paid-only surfaces: entitlement required (not student link).
+          if (remote.hasEntitlement) {
+            setState("ok");
+            return;
+          }
+          const ents = await fetchMyEntitlements();
+          if (cancelled) return;
+          setState(hasServiceAccess(serviceId, ents) ? "ok" : "denied");
+          return;
+        }
+        if (remote.allowed) {
           setState("ok");
           return;
         }
@@ -57,7 +80,7 @@ export default function ServiceGate({
     return () => {
       cancelled = true;
     };
-  }, [serviceId]);
+  }, [serviceId, requireSubscription]);
 
   if (state === "loading") {
     return <p className="service-gate__status">Checking subscription…</p>;

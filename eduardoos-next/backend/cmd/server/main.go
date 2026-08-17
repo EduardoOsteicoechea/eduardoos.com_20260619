@@ -69,7 +69,9 @@ func main() {
 	homescoolHandler.Tasks = homescool.OpenTaskStore(ctx)
 	homescoolHandler.Objects = homescool.OpenObjectSpace(ctx)
 	homescoolHandler.Mail = authHandler // shared SMTP_USER / SMTP_PASS path
-
+	homescoolHandler.Entitlements = paymentsHandler.Store
+	// Linked Homescool students bypass paid entitlement on CheckAccess only.
+	paymentsHandler.HomescoolStudents = homescool.LinkStudentChecker{Links: homescoolHandler.Links}
 	contactHandler := contact.NewHandler(authHandler)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
 

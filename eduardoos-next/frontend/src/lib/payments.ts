@@ -191,19 +191,45 @@ export function hasServiceAccess(
 
 export async function checkServiceAccess(
   serviceId: string,
-): Promise<{ allowed: boolean; isAdmin: boolean }> {
+): Promise<{
+  allowed: boolean;
+  isAdmin: boolean;
+  hasEntitlement: boolean;
+  isHomescoolStudent: boolean;
+}> {
   const token = getAuthToken();
-  if (!token) return { allowed: false, isAdmin: false };
-  if (isPlatformAdmin()) {
-    return { allowed: true, isAdmin: true };
+  if (!token) {
+    return {
+      allowed: false,
+      isAdmin: false,
+      hasEntitlement: false,
+      isHomescoolStudent: false,
+    };
   }
-  const result = await apiRequest<{ allowed: boolean; is_admin?: boolean }>(
-    `${PAYMENT_ROUTES.access}/${encodeURIComponent(serviceId)}`,
-    { correlationId: createCorrelationId(), authToken: token },
-  );
+  if (isPlatformAdmin()) {
+    return {
+      allowed: true,
+      isAdmin: true,
+      hasEntitlement: true,
+      isHomescoolStudent: false,
+    };
+  }
+  const result = await apiRequest<{
+    allowed: boolean;
+    is_admin?: boolean;
+    has_entitlement?: boolean;
+    is_homescool_student?: boolean;
+  }>(`${PAYMENT_ROUTES.access}/${encodeURIComponent(serviceId)}`, {
+    correlationId: createCorrelationId(),
+    authToken: token,
+  });
   const isAdmin = Boolean(result.data?.is_admin);
+  const hasEntitlement = Boolean(result.data?.has_entitlement);
+  const isHomescoolStudent = Boolean(result.data?.is_homescool_student);
   return {
     allowed: Boolean(result.data?.allowed) || isAdmin,
     isAdmin,
+    hasEntitlement: hasEntitlement || isAdmin,
+    isHomescoolStudent,
   };
 }

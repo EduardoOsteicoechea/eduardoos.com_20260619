@@ -51,7 +51,7 @@ export default function StudentWorkspacePage() {
   );
 
   return (
-    <ServiceGate serviceId="homescool" serviceLabel="Homescool">
+    <ServiceGate serviceId="homescool" serviceLabel="Homescool" requireSubscription>
       <div className="page-shell page-shell--homescool-flush">
         <div className="product-page__cta-row homescool-workspace__nav">
           <a className="btn" href={APP_ROUTES.homescoolStudents}>

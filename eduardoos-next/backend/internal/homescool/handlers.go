@@ -9,6 +9,7 @@ import (
 
 	"eduardoos.nex/internal/auth"
 	"eduardoos.nex/internal/httpx"
+	"eduardoos.nex/internal/payments"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -20,6 +21,9 @@ type Handler struct {
 	Links     Store
 	Tasks     TaskStore
 	Objects   ObjectSpace
+	// Entitlements, when set, enforces paid homescool access on teacher routes.
+	// Linked students still use learning routes without a subscription.
+	Entitlements *payments.Store
 	// Mail uses the shared auth SMTP stack (SMTP_USER / SMTP_PASS). Optional;
 	// when nil, notification helpers no-op.
 	Mail Mailer
@@ -41,16 +45,25 @@ func NewHandler(jwtSecret string, users auth.UserStore) *Handler {
 }
 
 // Routes mounts /api/homescool/* behind RequireJWT.
+// Teacher routes additionally require an active homescool subscription (or
+// admin) when Entitlements is wired. Learning routes stay open to any JWT
+// user; handlers enforce teacher→student link ownership for students.
 func (h *Handler) Routes(r chi.Router) {
 	r.Group(func(pr chi.Router) {
 		pr.Use(h.auth.RequireJWT)
-		pr.Post("/api/homescool/students", h.RegisterStudent)
-		pr.Get("/api/homescool/students", h.ListStudents)
-		pr.Get("/api/homescool/students/{studentSlug}", h.GetStudent)
-		pr.Get("/api/homescool/students/{studentSlug}/folders/{folder}", h.ListTeacherStudentFolder)
+
+		pr.Group(func(tr chi.Router) {
+			tr.Use(h.requireTeacherAccess)
+			tr.Post("/api/homescool/students", h.RegisterStudent)
+			tr.Get("/api/homescool/students", h.ListStudents)
+			tr.Get("/api/homescool/students/{studentSlug}", h.GetStudent)
+			tr.Get("/api/homescool/students/{studentSlug}/folders/{folder}", h.ListTeacherStudentFolder)
+			h.mountTeacherTaskRoutes(tr)
+		})
+
 		pr.Get("/api/homescool/learning", h.ListLearning)
 		pr.Get("/api/homescool/learning/{teacherSlug}/folders/{folder}", h.ListLearningFolder)
-		h.mountTaskRoutes(pr)
+		h.mountLearningTaskRoutes(pr)
 	})
 }
 
