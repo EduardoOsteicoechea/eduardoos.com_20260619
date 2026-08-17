@@ -4,6 +4,10 @@
 
 JWT product under S3 prefix `church/` on bucket `eduardoos20260607`.
 
+**Register gate (2026-08-17):** request platform authorization → admin approve on
+`/admin/users` → email to subscribe `church-management` ($1) → then register.
+See `MILESTONE-church-authz-20260817.md`.
+
 ## Routes (UI)
 
 | Route | Notes |

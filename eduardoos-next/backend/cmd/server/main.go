@@ -82,9 +82,14 @@ func main() {
 	churchHandler := church.NewHandler(jwtSecret, userStore)
 	churchHandler.Catalog = church.OpenCatalogStore(ctx)
 	churchHandler.Memberships = church.OpenMembershipStore(ctx)
+	churchHandler.Authorizations = church.OpenAuthorizationStore(ctx)
 	churchHandler.Objects = church.OpenObjectSpace(ctx)
+	churchHandler.Entitlements = paymentsHandler.Store
+	churchHandler.Mail = authHandler // shared SMTP_USER / SMTP_PASS path
 	contactHandler := contact.NewHandler(authHandler)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
+	adminHandler.ChurchAuth = churchHandler.Authorizations
+	adminHandler.Mail = authHandler
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)

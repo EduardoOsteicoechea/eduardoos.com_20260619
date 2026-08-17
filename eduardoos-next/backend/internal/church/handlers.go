@@ -13,6 +13,7 @@ import (
 
 	"eduardoos.nex/internal/auth"
 	"eduardoos.nex/internal/httpx"
+	"eduardoos.nex/internal/payments"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -22,23 +23,27 @@ const maxImageBytes = 5 << 20 // 5 MiB
 
 // Handler serves JWT-gated Church APIs.
 type Handler struct {
-	JWTSecret   string
-	Users       auth.UserStore
-	Catalog     CatalogStore
-	Memberships MembershipStore
-	Objects     ObjectSpace
-	auth        *auth.Handler
+	JWTSecret       string
+	Users           auth.UserStore
+	Catalog         CatalogStore
+	Memberships     MembershipStore
+	Authorizations  AuthorizationStore
+	Entitlements    *payments.Store
+	Objects         ObjectSpace
+	Mail            Mailer
+	auth            *auth.Handler
 }
 
 // NewHandler wires in-memory defaults; production replaces stores/objects.
 func NewHandler(jwtSecret string, users auth.UserStore) *Handler {
 	return &Handler{
-		JWTSecret:   jwtSecret,
-		Users:       users,
-		Catalog:     NewMemoryCatalog(),
-		Memberships: NewMemoryMemberships(),
-		Objects:     NewMemoryObjectSpace(),
-		auth:        &auth.Handler{JWTSecret: jwtSecret, Store: users},
+		JWTSecret:      jwtSecret,
+		Users:          users,
+		Catalog:        NewMemoryCatalog(),
+		Memberships:    NewMemoryMemberships(),
+		Authorizations: NewMemoryAuthorizations(),
+		Objects:        NewMemoryObjectSpace(),
+		auth:           &auth.Handler{JWTSecret: jwtSecret, Store: users},
 	}
 }
 
@@ -51,6 +56,8 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Post("/api/church", h.RegisterChurch)
 		pr.Get("/api/church/overview", h.Overview)
 		pr.Get("/api/church/activity", h.MyActivities)
+		pr.Get("/api/church/authorization", h.GetAuthorization)
+		pr.Post("/api/church/authorization/request", h.RequestAuthorization)
 
 		pr.Get("/api/church/{denomID}/{churchID}", h.GetChurch)
 		pr.Put("/api/church/{denomID}/{churchID}", h.UpdateChurch)
@@ -81,6 +88,10 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 	owner := auth.UserEmailFromRequest(r)
 	if h.Catalog == nil || h.Objects == nil || h.Memberships == nil {
 		httpx.WriteError(w, http.StatusServiceUnavailable, "church storage not configured")
+		return
+	}
+	if allowed, reason := h.canRegisterChurches(r.Context(), owner); !allowed {
+		httpx.WriteError(w, http.StatusForbidden, reason)
 		return
 	}
 	var body struct {
@@ -687,4 +698,97 @@ func normalizeMembers(in []Member, ownerEmail string) []Member {
 		}}, out...)
 	}
 	return out
+}
+
+// GetAuthorization returns the caller's church-management authorization status
+// plus whether they may register (approved + entitlement, or platform admin).
+func (h *Handler) GetAuthorization(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+	isAdmin := h.isPlatformAdmin(r.Context(), email)
+	status, req, err := h.authorizationStatus(r.Context(), email)
+	if err != nil {
+		log.Printf("[correlation=%s] church.authorization get error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not load authorization")
+		return
+	}
+	hasEnt := isAdmin || h.hasChurchManagementEntitlement(email)
+	canReg, reason := h.canRegisterChurches(r.Context(), email)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"email":                   email,
+		"isPlatformAdmin":         isAdmin,
+		"authorizationStatus":     status,
+		"hasChurchManagement":     hasEnt,
+		"canRegister":             canReg,
+		"gateReason":              reason,
+		"requestedAt":             req.RequestedAt,
+		"decidedAt":               req.DecidedAt,
+		"subscribePath":           "/payments/subscription",
+		"serviceId":               "church-management",
+	})
+}
+
+// RequestAuthorization creates or renews a pending platform-admin approval request.
+// Rejected users may request again; approved/pending users are idempotent.
+func (h *Handler) RequestAuthorization(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+	if h.isPlatformAdmin(r.Context(), email) {
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{
+			"email":               email,
+			"authorizationStatus": AuthStatusApproved,
+			"isPlatformAdmin":     true,
+			"message":             "platform admin does not need authorization",
+		})
+		return
+	}
+	if h.Authorizations == nil {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "authorization store not configured")
+		return
+	}
+	existing, ok, err := h.Authorizations.Get(r.Context(), email)
+	if err != nil {
+		log.Printf("[correlation=%s] church.authorization request get error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not load authorization")
+		return
+	}
+	if ok {
+		switch NormalizeAuthStatus(existing.Status) {
+		case AuthStatusPending:
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{
+				"email":               email,
+				"authorizationStatus": AuthStatusPending,
+				"requestedAt":         existing.RequestedAt,
+				"message":             "request already pending",
+			})
+			return
+		case AuthStatusApproved:
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{
+				"email":               email,
+				"authorizationStatus": AuthStatusApproved,
+				"requestedAt":         existing.RequestedAt,
+				"decidedAt":           existing.DecidedAt,
+				"message":             "already approved; subscribe to church-management to register",
+			})
+			return
+		}
+	}
+	now := nowAuthRFC3339()
+	req := AuthorizationRequest{
+		Email:       email,
+		Status:      AuthStatusPending,
+		RequestedAt: now,
+	}
+	saved, err := h.Authorizations.Put(r.Context(), req)
+	if err != nil {
+		log.Printf("[correlation=%s] church.authorization request put error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not save authorization request")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{
+		"email":               saved.Email,
+		"authorizationStatus": saved.Status,
+		"requestedAt":         saved.RequestedAt,
+		"message":             "authorization requested; wait for platform admin approval",
+	})
 }

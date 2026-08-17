@@ -17,12 +17,16 @@ import {
 } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
+  approveChurchAuth,
   deleteAdminUser,
   fetchAdminServices,
   fetchAdminUsers,
+  fetchChurchAuthRequests,
   putUserEntitlements,
+  rejectChurchAuth,
   type AdminServiceRow,
   type AdminUserRow,
+  type ChurchAuthRequestRow,
 } from "../../lib/admin";
 import {
   APS_ADMIN_EMAIL,
@@ -40,6 +44,9 @@ export default function AdminUsersPage() {
   const [gate, setGate] = useState<Gate>("checking");
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [services, setServices] = useState<AdminServiceRow[]>([]);
+  const [churchAuthRequests, setChurchAuthRequests] = useState<
+    ChurchAuthRequestRow[]
+  >([]);
   const [selectedEmail, setSelectedEmail] = useState("");
   const [draftServices, setDraftServices] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -55,9 +62,14 @@ export default function AdminUsersPage() {
   const refresh = useCallback(async () => {
     setLoadingList(true);
     try {
-      const [u, s] = await Promise.all([fetchAdminUsers(), fetchAdminServices()]);
+      const [u, s, churchReqs] = await Promise.all([
+        fetchAdminUsers(),
+        fetchAdminServices(),
+        fetchChurchAuthRequests("pending"),
+      ]);
       setUsers(u);
       setServices(s);
+      setChurchAuthRequests(churchReqs);
     } finally {
       setLoadingList(false);
     }
@@ -208,6 +220,33 @@ export default function AdminUsersPage() {
       openApiErrorModal(msg, {
         title: "Admin users — server error",
         summary: "Could not update entitlements. Copy the block below when reporting.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function decideChurchAuth(email: string, action: "approve" | "reject") {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      if (action === "approve") {
+        await approveChurchAuth(email);
+        setMessage(
+          `Approved ${email} for church management. They were emailed to subscribe before registering.`,
+        );
+      } else {
+        await rejectChurchAuth(email);
+        setMessage(`Rejected church authorization for ${email}.`);
+      }
+      await refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Decision failed";
+      setError(msg);
+      openApiErrorModal(msg, {
+        title: "Admin users — server error",
+        summary: "Could not update church authorization. Copy the block below when reporting.",
       });
     } finally {
       setBusy(false);
@@ -396,6 +435,54 @@ export default function AdminUsersPage() {
           )}
         </section>
       </div>
+
+      <section
+        className="admin-users__church-auth"
+        aria-label="Church management authorization requests"
+      >
+        <h2 className="admin-users__section-title">
+          Church management requests ({churchAuthRequests.length})
+        </h2>
+        <p className="admin-users__church-auth-lead">
+          Users must be approved here before they can pay for Church Management and
+          register churches. Approval sends a subscription email; it does not grant
+          the entitlement.
+        </p>
+        {churchAuthRequests.length === 0 ? (
+          <p className="admin-users__status">No pending church authorization requests.</p>
+        ) : (
+          <ul className="admin-users__church-auth-list">
+            {churchAuthRequests.map((req) => (
+              <li key={req.email} className="admin-users__church-auth-row">
+                <div className="admin-users__church-auth-meta">
+                  <span className="admin-users__email">{req.email}</span>
+                  <span className="admin-users__meta">
+                    Requested {req.requestedAt || "—"} · {req.status}
+                  </span>
+                </div>
+                <div className="admin-users__church-auth-actions">
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    disabled={busy}
+                    onClick={() => void decideChurchAuth(req.email, "approve")}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => void decideChurchAuth(req.email, "reject")}
+                  >
+                    Reject
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <dialog
         ref={dialogRef}

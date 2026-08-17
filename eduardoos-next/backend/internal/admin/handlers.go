@@ -2,10 +2,13 @@ package admin
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"eduardoos.nex/internal/auth"
+	"eduardoos.nex/internal/church"
 	"eduardoos.nex/internal/httpx"
 	"eduardoos.nex/internal/payments"
 
@@ -14,10 +17,12 @@ import (
 
 // Handler serves admin-only user + entitlement management APIs.
 type Handler struct {
-	JWTSecret string
-	Users     auth.UserStore
-	Payments  *payments.Store
-	auth      *auth.Handler
+	JWTSecret  string
+	Users      auth.UserStore
+	Payments   *payments.Store
+	ChurchAuth church.AuthorizationStore
+	Mail       church.Mailer
+	auth       *auth.Handler
 }
 
 // NewHandler wires admin routes against auth + payments stores.
@@ -39,6 +44,9 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Delete("/api/admin/users/{email}", h.DeleteUser)
 		r.Put("/api/admin/users/{email}/entitlements", h.PutUserEntitlements)
 		r.Get("/api/admin/services", h.ListServices)
+		r.Get("/api/admin/church-authorization-requests", h.ListChurchAuthRequests)
+		r.Post("/api/admin/church-authorization-requests/{email}/approve", h.ApproveChurchAuth)
+		r.Post("/api/admin/church-authorization-requests/{email}/reject", h.RejectChurchAuth)
 	})
 }
 
@@ -221,5 +229,88 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"deleted": true,
 		"email":   target,
+	})
+}
+
+// ListChurchAuthRequests returns church-management authorization requests.
+// Default filter is pending; pass ?status=all|approved|rejected|pending.
+func (h *Handler) ListChurchAuthRequests(w http.ResponseWriter, r *http.Request) {
+	if h.ChurchAuth == nil {
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{
+			"count":    0,
+			"requests": []church.AuthorizationRequest{},
+		})
+		return
+	}
+	status := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("status")))
+	if status == "" || status == "pending" {
+		status = church.AuthStatusPending
+	} else if status == "all" {
+		status = ""
+	}
+	list, err := h.ChurchAuth.List(r.Context(), status)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not list church authorization requests")
+		return
+	}
+	if list == nil {
+		list = []church.AuthorizationRequest{}
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"count":    len(list),
+		"requests": list,
+	})
+}
+
+// ApproveChurchAuth marks a request approved and emails the user to subscribe
+// before registering churches. Does not grant entitlement.
+func (h *Handler) ApproveChurchAuth(w http.ResponseWriter, r *http.Request) {
+	h.decideChurchAuth(w, r, church.AuthStatusApproved)
+}
+
+// RejectChurchAuth marks a request rejected (no email required).
+func (h *Handler) RejectChurchAuth(w http.ResponseWriter, r *http.Request) {
+	h.decideChurchAuth(w, r, church.AuthStatusRejected)
+}
+
+func (h *Handler) decideChurchAuth(w http.ResponseWriter, r *http.Request, nextStatus string) {
+	cid := httpx.CorrelationFromRequest(r)
+	if h.ChurchAuth == nil {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "church authorization store not configured")
+		return
+	}
+	target := targetEmailFromRequest(r)
+	if !isStoredAccountEmail(target) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid email")
+		return
+	}
+	existing, ok, err := h.ChurchAuth.Get(r.Context(), target)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "store error")
+		return
+	}
+	if !ok {
+		httpx.WriteError(w, http.StatusNotFound, "authorization request not found")
+		return
+	}
+	actor := auth.UserEmailFromRequest(r)
+	req := existing
+	req.Status = nextStatus
+	req.DecidedBy = actor
+	req.DecidedAt = time.Now().UTC().Format(time.RFC3339)
+	saved, putErr := h.ChurchAuth.Put(r.Context(), req)
+	if putErr != nil {
+		log.Printf("[correlation=%s] admin.church_auth put error: %v", cid, putErr)
+		httpx.WriteError(w, http.StatusBadGateway, "could not update authorization")
+		return
+	}
+	if nextStatus == church.AuthStatusApproved {
+		church.NotifyAuthorizationApproved(h.Mail, cid, target)
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"email":               saved.Email,
+		"authorizationStatus": saved.Status,
+		"decidedAt":           saved.DecidedAt,
+		"decidedBy":           saved.DecidedBy,
 	})
 }

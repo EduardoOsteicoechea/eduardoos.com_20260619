@@ -81,3 +81,51 @@ export async function deleteAdminUser(email: string): Promise<void> {
   );
   if (result.error) throw new Error(formatApiError(result.error));
 }
+
+export type ChurchAuthRequestRow = {
+  email: string;
+  status: string;
+  requestedAt: string;
+  decidedAt?: string;
+  decidedBy?: string;
+  note?: string;
+};
+
+export async function fetchChurchAuthRequests(
+  status = "pending",
+): Promise<ChurchAuthRequestRow[]> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+  const result = await apiRequest<{ requests: ChurchAuthRequestRow[] }>(
+    `${ADMIN_ROUTES.churchAuthRequests}${qs}`,
+    {
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) throw new Error(formatApiError(result.error));
+  return result.data?.requests ?? [];
+}
+
+export async function approveChurchAuth(email: string): Promise<void> {
+  const result = await apiRequest(
+    ADMIN_ROUTES.approveChurchAuth(email),
+    {
+      method: "POST",
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) throw new Error(formatApiError(result.error));
+}
+
+export async function rejectChurchAuth(email: string): Promise<void> {
+  const result = await apiRequest(
+    ADMIN_ROUTES.rejectChurchAuth(email),
+    {
+      method: "POST",
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) throw new Error(formatApiError(result.error));
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"eduardoos.nex/internal/auth"
@@ -310,4 +311,120 @@ func newDynamoMemberships(ctx context.Context) (*dynamoMemberships, error) {
 		table = strings.TrimSpace(httpx.Env("HOMESCOOL_TABLE", "eduardoos_catalog"))
 	}
 	return &dynamoMemberships{client: dynamodb.NewFromConfig(cfg), table: table}, nil
+}
+
+// dynamoAuthorizations persists church-management approval requests
+// (SK church-auth:u:{email}) in the same catalog table.
+type dynamoAuthorizations struct {
+	client *dynamodb.Client
+	table  string
+}
+
+func (d *dynamoAuthorizations) BackendName() string { return "dynamodb:" + d.table }
+
+func (d *dynamoAuthorizations) putJSON(ctx context.Context, sk string, value any) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	_, err = d.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(d.table),
+		Item: map[string]types.AttributeValue{
+			"PK":   &types.AttributeValueMemberS{Value: "APP"},
+			"SK":   &types.AttributeValueMemberS{Value: sk},
+			"data": &types.AttributeValueMemberS{Value: string(raw)},
+		},
+	})
+	return err
+}
+
+func (d *dynamoAuthorizations) getJSON(ctx context.Context, sk string, dest any) (bool, error) {
+	out, err := d.client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(d.table),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "APP"},
+			"SK": &types.AttributeValueMemberS{Value: sk},
+		},
+	})
+	if err != nil {
+		return false, err
+	}
+	if out.Item == nil {
+		return false, nil
+	}
+	data, ok := out.Item["data"].(*types.AttributeValueMemberS)
+	if !ok || data.Value == "" {
+		return false, nil
+	}
+	if err := json.Unmarshal([]byte(data.Value), dest); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (d *dynamoAuthorizations) Get(ctx context.Context, email string) (AuthorizationRequest, bool, error) {
+	var req AuthorizationRequest
+	ok, err := d.getJSON(ctx, AuthRequestSK(email), &req)
+	if err != nil || !ok {
+		return AuthorizationRequest{}, ok, err
+	}
+	return req, true, nil
+}
+
+func (d *dynamoAuthorizations) Put(ctx context.Context, req AuthorizationRequest) (AuthorizationRequest, error) {
+	req.Email = auth.NormalizeEmail(req.Email)
+	req.Status = NormalizeAuthStatus(req.Status)
+	if req.Email == "" || req.Status == "" {
+		return AuthorizationRequest{}, fmt.Errorf("email and status required")
+	}
+	if err := d.putJSON(ctx, AuthRequestSK(req.Email), req); err != nil {
+		return AuthorizationRequest{}, err
+	}
+	return req, nil
+}
+
+func (d *dynamoAuthorizations) List(ctx context.Context, statusFilter string) ([]AuthorizationRequest, error) {
+	want := NormalizeAuthStatus(statusFilter)
+	out, err := d.client.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(d.table),
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: "APP"},
+			":sk": &types.AttributeValueMemberS{Value: AuthRequestSKPrefix()},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	list := make([]AuthorizationRequest, 0, len(out.Items))
+	for _, item := range out.Items {
+		data, ok := item["data"].(*types.AttributeValueMemberS)
+		if !ok || data.Value == "" {
+			continue
+		}
+		var req AuthorizationRequest
+		if err := json.Unmarshal([]byte(data.Value), &req); err != nil {
+			continue
+		}
+		if want != "" && req.Status != want {
+			continue
+		}
+		list = append(list, req)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].RequestedAt > list[j].RequestedAt
+	})
+	return list, nil
+}
+
+func newDynamoAuthorizations(ctx context.Context) (*dynamoAuthorizations, error) {
+	cfg, err := awsx.LoadConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	table := strings.TrimSpace(httpx.Env("CHURCH_TABLE", ""))
+	if table == "" {
+		table = strings.TrimSpace(httpx.Env("HOMESCOOL_TABLE", "eduardoos_catalog"))
+	}
+	return &dynamoAuthorizations{client: dynamodb.NewFromConfig(cfg), table: table}, nil
 }

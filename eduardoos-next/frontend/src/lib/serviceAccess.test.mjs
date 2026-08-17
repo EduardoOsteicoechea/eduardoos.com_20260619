@@ -91,6 +91,27 @@ describe("platform admin service access", () => {
     );
   });
 
+  it("church-management follows the same entitlement rules", () => {
+    assert.equal(
+      hasServiceAccess("church-management", [], APS_ADMIN_EMAIL),
+      true,
+    );
+    assert.equal(
+      hasServiceAccess("church-management", [], "member@example.com", "user"),
+      false,
+    );
+    const ents = [
+      {
+        service_id: "church-management",
+        valid_until: new Date(Date.now() + 86400000).toISOString(),
+      },
+    ];
+    assert.equal(
+      hasServiceAccess("church-management", ents, "member@example.com", "user"),
+      true,
+    );
+  });
+
   it("isPlatformAdmin prefers role when email is not bootstrap", () => {
     assert.equal(isPlatformAdmin("other@example.com", "admin"), true);
     assert.equal(isPlatformAdmin("other@example.com", "user"), false);

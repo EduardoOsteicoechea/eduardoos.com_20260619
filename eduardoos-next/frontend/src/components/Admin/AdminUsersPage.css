@@ -282,6 +282,52 @@
   max-width: 28rem;
 }
 
+.admin-users__church-auth {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--site-border, #d5d8de);
+}
+
+.admin-users__church-auth-lead {
+  margin: 0 0 1rem;
+  max-width: 42rem;
+  color: var(--site-meta-fg);
+  line-height: 1.5;
+  font-size: var(--font-sm);
+}
+
+.admin-users__church-auth-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-users__church-auth-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--site-border, #d5d8de);
+}
+
+.admin-users__church-auth-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.admin-users__church-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 @media (max-width: 560px) {
   .admin-users__service-head,
   .admin-users__service-row {

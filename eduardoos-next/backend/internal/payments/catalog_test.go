@@ -43,3 +43,18 @@ func TestInstrumentalistInCatalog(t *testing.T) {
 		t.Fatal("admin should access instrumentalist")
 	}
 }
+
+func TestChurchManagementInCatalog(t *testing.T) {
+	if !KnownService("church-management") {
+		t.Fatal("church-management must be a known service")
+	}
+	if got := MonthlyPriceUSD("church-management"); got != 1 {
+		t.Fatalf("church-management monthly=%v want 1", got)
+	}
+	if !HasServiceAccess(true, nil, "church-management") {
+		t.Fatal("admin should access church-management")
+	}
+	if HasServiceAccess(false, nil, "church-management") {
+		t.Fatal("non-admin without entitlement must be denied")
+	}
+}

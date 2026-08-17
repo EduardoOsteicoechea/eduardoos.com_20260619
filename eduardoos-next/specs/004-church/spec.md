@@ -16,7 +16,7 @@ calendar (same library pattern as Homescool).
 | Path | Audience | Behavior |
 |------|----------|----------|
 | `/church` | Signed-in | Grid of church cards + search |
-| `/church/register` | Signed-in | Register a church → S3 + catalog |
+| `/church/register` | Approved + `church-management` sub (or platform admin) | Register a church → S3 + catalog |
 | `/church/overview` | Member/admin | Linked church data; admin sees all; members see authorized; add activities; calendar at bottom |
 | `/church/activity` | Member/admin | Per-user authorized activities; upload images + text report |
 | `/church/{denomOrWebId}/{churchId}` | Signed-in | Detail with tabs (info, creencias, miembros, actividades, red) |
@@ -39,7 +39,9 @@ Dynamo membership rows (+ mirrored on `church.json` members list).
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | `/api/church` | List/search (`?q=`) |
-| POST | `/api/church` | Register; caller becomes `church-admin` |
+| POST | `/api/church` | Register; gated: platform admin OR (approved authz + `church-management`); caller becomes `church-admin` |
+| GET | `/api/church/authorization` | Caller authz status + canRegister |
+| POST | `/api/church/authorization/request` | Request platform approval (pending queue) |
 | GET | `/api/church/{denom}/{churchId}` | Detail (membership or platform admin) |
 | PUT | `/api/church/{denom}/{churchId}` | Update (`church-admin` / platform admin) |
 | GET | `/api/church/overview` | Caller's linked church overview |
@@ -66,6 +68,14 @@ church/{denomOrWebId}/{churchId}/activities/{activityId}/images/{filename}
 |----|---------|
 | `church:d:{denom}\|c:{churchId}` | Searchable church card |
 | `church-member:u:{email}\|d:{denom}\|c:{churchId}` | User → church membership + role |
+| `church-auth:u:{email}` | Platform approval to register (pay after approve) |
+
+## Register gate
+
+1. User requests authorization (`POST /api/church/authorization/request`).
+2. Admin reviews pending list on `/admin/users` (bottom section).
+3. On approve: SMTP HTML email → subscribe to `church-management` ($1/mo), then register.
+4. Platform admin always bypasses approval + entitlement.
 
 ## Church document fields
 

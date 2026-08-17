@@ -1,12 +1,16 @@
 /**
  * /church — searchable grid of church cards.
+ * Browse stays open to any signed-in user; register requires authz + sub.
  */
 
 import { useEffect, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
   churchDetailHref,
+  fetchChurchAuthorization,
   listChurches,
+  requestChurchAuthorization,
+  type ChurchAuthorization,
   type ChurchCard,
 } from "../../lib/church";
 import { ChurchGateShell, useChurchAuthGate } from "./ChurchGate";
@@ -18,6 +22,9 @@ export default function ChurchHubPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [churches, setChurches] = useState<ChurchCard[]>([]);
+  const [authz, setAuthz] = useState<ChurchAuthorization | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authMsg, setAuthMsg] = useState("");
 
   async function load(query = q) {
     setLoading(true);
@@ -33,9 +40,19 @@ export default function ChurchHubPage() {
     }
   }
 
+  async function loadAuthz() {
+    try {
+      const data = await fetchChurchAuthorization();
+      setAuthz(data);
+    } catch {
+      setAuthz(null);
+    }
+  }
+
   useEffect(() => {
     if (gate !== "allowed") return;
     void load("");
+    void loadAuthz();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gate]);
 
@@ -43,6 +60,34 @@ export default function ChurchHubPage() {
     e.preventDefault();
     void load(q);
   }
+
+  async function onRequestAuthorization() {
+    setAuthBusy(true);
+    setAuthMsg("");
+    try {
+      await requestChurchAuthorization();
+      setAuthMsg("Authorization requested. An admin will review it on Admin Users.");
+      await loadAuthz();
+    } catch (err) {
+      setAuthMsg(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  const canRegister = Boolean(authz?.isPlatformAdmin || authz?.canRegister);
+  const showRequest =
+    authz &&
+    !authz.isPlatformAdmin &&
+    (authz.authorizationStatus === "none" ||
+      authz.authorizationStatus === "rejected");
+  const showPending =
+    authz && !authz.isPlatformAdmin && authz.authorizationStatus === "pending";
+  const showSubscribe =
+    authz &&
+    !authz.isPlatformAdmin &&
+    authz.authorizationStatus === "approved" &&
+    !authz.hasChurchManagement;
 
   return (
     <ChurchGateShell gate={gate}>
@@ -54,9 +99,15 @@ export default function ChurchHubPage() {
           under the S3 church/ prefix.
         </p>
         <div className="church-page__actions">
-          <a className="btn btn--primary" href={APP_ROUTES.churchRegister}>
-            Register church
-          </a>
+          {canRegister ? (
+            <a className="btn btn--primary" href={APP_ROUTES.churchRegister}>
+              Register church
+            </a>
+          ) : (
+            <a className="btn" href={APP_ROUTES.churchRegister}>
+              Register church
+            </a>
+          )}
           <a className="btn" href={APP_ROUTES.churchOverview}>
             My overview
           </a>
@@ -64,6 +115,41 @@ export default function ChurchHubPage() {
             My activities
           </a>
         </div>
+
+        {showRequest ? (
+          <div className="church-auth-banner">
+            <p className="church-auth-banner__text">
+              To register churches, request platform authorization first. After
+              approval you subscribe to Church Management ($1/mo), then register.
+            </p>
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={authBusy}
+              onClick={() => void onRequestAuthorization()}
+            >
+              {authBusy ? "Sending…" : "Request authorization"}
+            </button>
+            {authMsg ? <p className="church-auth-banner__msg">{authMsg}</p> : null}
+          </div>
+        ) : null}
+        {showPending ? (
+          <div className="church-auth-banner">
+            <p className="church-auth-banner__text">
+              Authorization request pending admin review.
+            </p>
+          </div>
+        ) : null}
+        {showSubscribe ? (
+          <div className="church-auth-banner">
+            <p className="church-auth-banner__text">
+              You are approved. Subscribe to Church Management to unlock registration.
+            </p>
+            <a className="btn btn--primary" href={APP_ROUTES.subscription}>
+              Subscribe
+            </a>
+          </div>
+        ) : null}
 
         <form className="church-search" onSubmit={onSearch}>
           <input

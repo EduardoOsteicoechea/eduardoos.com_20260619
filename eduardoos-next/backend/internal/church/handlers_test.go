@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"eduardoos.nex/internal/auth"
+	"eduardoos.nex/internal/payments"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -29,9 +30,27 @@ func testRouter(t *testing.T) (*Handler, chi.Router, auth.UserStore) {
 	t.Helper()
 	users := auth.NewMemoryStore()
 	h := NewHandler("church-secret", users)
+	h.Entitlements = payments.NewStore()
 	r := chi.NewRouter()
 	h.Routes(r)
 	return h, r, users
+}
+
+func grantRegisterAccess(t *testing.T, h *Handler, email string) {
+	t.Helper()
+	_, err := h.Authorizations.Put(t.Context(), AuthorizationRequest{
+		Email:       email,
+		Status:      AuthStatusApproved,
+		RequestedAt: nowAuthRFC3339(),
+		DecidedAt:   nowAuthRFC3339(),
+		DecidedBy:   "admin@example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.Entitlements.PutEntitlements(email, payments.BuildEntitlements(
+		[]string{"church-management"}, "monthly", 1,
+	))
 }
 
 func bearer(t *testing.T, email, role string) string {
@@ -69,6 +88,7 @@ func TestRegisterListDetailAndMemberFilter(t *testing.T) {
 	seedUser(t, users, "admin@example.com", auth.RoleAdmin)
 	seedUser(t, users, "pastor@example.com", auth.RoleUser)
 	seedUser(t, users, "member@example.com", auth.RoleUser)
+	grantRegisterAccess(t, h, "pastor@example.com")
 
 	// Register as pastor.
 	payload := map[string]any{
@@ -197,5 +217,94 @@ func TestUnauthenticatedRejected(t *testing.T) {
 	r.ServeHTTP(rw, req)
 	if rw.Code != http.StatusUnauthorized {
 		t.Fatalf("status=%d", rw.Code)
+	}
+}
+
+func TestRegisterRequiresApprovalAndSubscription(t *testing.T) {
+	h, r, users := testRouter(t)
+	seedUser(t, users, "pastor@example.com", auth.RoleUser)
+
+	payload := map[string]any{
+		"name": "Iglesia Norte", "denominationId": "local", "churchId": "norte",
+	}
+	body, _ := json.Marshal(payload)
+
+	// No request yet → forbidden.
+	reg := httptest.NewRequest(http.MethodPost, "/api/church", bytes.NewReader(body))
+	reg.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	reg.Header.Set("Content-Type", "application/json")
+	rw := httptest.NewRecorder()
+	r.ServeHTTP(rw, reg)
+	if rw.Code != http.StatusForbidden {
+		t.Fatalf("unapproved register status=%d body=%s", rw.Code, rw.Body.String())
+	}
+
+	// Request authorization.
+	reqAuth := httptest.NewRequest(http.MethodPost, "/api/church/authorization/request", nil)
+	reqAuth.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	reqRW := httptest.NewRecorder()
+	r.ServeHTTP(reqRW, reqAuth)
+	if reqRW.Code != http.StatusCreated {
+		t.Fatalf("request status=%d body=%s", reqRW.Code, reqRW.Body.String())
+	}
+
+	// Still pending → forbidden.
+	reg2 := httptest.NewRequest(http.MethodPost, "/api/church", bytes.NewReader(body))
+	reg2.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	reg2.Header.Set("Content-Type", "application/json")
+	rw2 := httptest.NewRecorder()
+	r.ServeHTTP(rw2, reg2)
+	if rw2.Code != http.StatusForbidden {
+		t.Fatalf("pending register status=%d", rw2.Code)
+	}
+
+	// Approve but no entitlement → still forbidden.
+	_, err := h.Authorizations.Put(t.Context(), AuthorizationRequest{
+		Email: "pastor@example.com", Status: AuthStatusApproved,
+		RequestedAt: nowAuthRFC3339(), DecidedAt: nowAuthRFC3339(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg3 := httptest.NewRequest(http.MethodPost, "/api/church", bytes.NewReader(body))
+	reg3.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	reg3.Header.Set("Content-Type", "application/json")
+	rw3 := httptest.NewRecorder()
+	r.ServeHTTP(rw3, reg3)
+	if rw3.Code != http.StatusForbidden || !strings.Contains(rw3.Body.String(), "subscribe") {
+		t.Fatalf("approved-no-sub status=%d body=%s", rw3.Code, rw3.Body.String())
+	}
+
+	// Entitlement unlocks register.
+	h.Entitlements.PutEntitlements("pastor@example.com", payments.BuildEntitlements(
+		[]string{"church-management"}, "monthly", 1,
+	))
+	reg4 := httptest.NewRequest(http.MethodPost, "/api/church", bytes.NewReader(body))
+	reg4.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	reg4.Header.Set("Content-Type", "application/json")
+	rw4 := httptest.NewRecorder()
+	r.ServeHTTP(rw4, reg4)
+	if rw4.Code != http.StatusCreated {
+		t.Fatalf("approved+sub register status=%d body=%s", rw4.Code, rw4.Body.String())
+	}
+
+	// Platform admin bypasses without auth row / entitlement.
+	seedUser(t, users, "admin@example.com", auth.RoleAdmin)
+	adminBody, _ := json.Marshal(map[string]any{
+		"name": "Admin Church", "denominationId": "local", "churchId": "admin-chapel",
+	})
+	regAdmin := httptest.NewRequest(http.MethodPost, "/api/church", bytes.NewReader(adminBody))
+	regAdmin.Header.Set("Authorization", "Bearer "+bearer(t, "admin@example.com", auth.RoleAdmin))
+	regAdmin.Header.Set("Content-Type", "application/json")
+	rwAdmin := httptest.NewRecorder()
+	r.ServeHTTP(rwAdmin, regAdmin)
+	if rwAdmin.Code != http.StatusCreated {
+		t.Fatalf("admin register status=%d body=%s", rwAdmin.Code, rwAdmin.Body.String())
+	}
+}
+
+func TestAuthRequestSK(t *testing.T) {
+	if AuthRequestSK("Pastor@Example.com") != "church-auth:u:pastor@example.com" {
+		t.Fatal("auth sk")
 	}
 }

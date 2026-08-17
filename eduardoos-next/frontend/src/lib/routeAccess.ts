@@ -87,5 +87,8 @@ export function serviceIdForPath(pathname: string): string | null {
   ) {
     return "instrumentalist";
   }
+  if (path === normalizePath(APP_ROUTES.churchRegister)) {
+    return "church-management";
+  }
   return null;
 }

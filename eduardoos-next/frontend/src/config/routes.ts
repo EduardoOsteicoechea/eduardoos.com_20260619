@@ -147,6 +147,8 @@ export const CHURCH_ROUTES = {
   list: "/api/church",
   overview: "/api/church/overview",
   activity: "/api/church/activity",
+  authorization: "/api/church/authorization",
+  requestAuthorization: "/api/church/authorization/request",
   church: (denomId: string, churchId: string) =>
     `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}`,
   members: (denomId: string, churchId: string) =>
@@ -228,6 +230,11 @@ export const PAYMENT_ROUTES = {
 export const ADMIN_ROUTES = {
   users: "/api/admin/users",
   services: "/api/admin/services",
+  churchAuthRequests: "/api/admin/church-authorization-requests",
+  approveChurchAuth: (email: string) =>
+    `/api/admin/church-authorization-requests/${encodeURIComponent(email)}/approve?email=${encodeURIComponent(email)}`,
+  rejectChurchAuth: (email: string) =>
+    `/api/admin/church-authorization-requests/${encodeURIComponent(email)}/reject?email=${encodeURIComponent(email)}`,
   userEntitlements: (email: string) =>
     `/api/admin/users/${encodeURIComponent(email)}/entitlements?email=${encodeURIComponent(email)}`,
   // Prefer ?email= so dotted / encoded local-parts are not lost if the path

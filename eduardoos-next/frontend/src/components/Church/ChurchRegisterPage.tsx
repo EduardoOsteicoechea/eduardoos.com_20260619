@@ -1,5 +1,6 @@
 /**
  * /church/register — persist a new church under church/{denom}/{id}/.
+ * Gated: platform admin OR (approved authorization + church-management sub).
  */
 
 import { useState, type FormEvent } from "react";
@@ -9,11 +10,15 @@ import {
   registerChurch,
   sanitizeChurchSlug,
 } from "../../lib/church";
-import { ChurchGateShell, useChurchAuthGate } from "./ChurchGate";
+import {
+  ChurchRegisterGateShell,
+  useChurchRegisterGate,
+} from "./ChurchGate";
 import "./Church.css";
 
 export default function ChurchRegisterPage() {
-  const gate = useChurchAuthGate();
+  const { gate, requestAccess, busy: authBusy, error: authError } =
+    useChurchRegisterGate();
   const [name, setName] = useState("");
   const [denominationId, setDenominationId] = useState("");
   const [churchId, setChurchId] = useState("");
@@ -85,7 +90,12 @@ export default function ChurchRegisterPage() {
   }
 
   return (
-    <ChurchGateShell gate={gate}>
+    <ChurchRegisterGateShell
+      gate={gate}
+      busy={authBusy}
+      error={authError}
+      onRequest={() => void requestAccess()}
+    >
       <article className="church-page">
         <p className="church-page__brand">Church</p>
         <h1 className="church-page__title">Register church</h1>
@@ -161,6 +171,6 @@ export default function ChurchRegisterPage() {
           </button>
         </form>
       </article>
-    </ChurchGateShell>
+    </ChurchRegisterGateShell>
   );
 }

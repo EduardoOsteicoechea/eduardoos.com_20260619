@@ -12,9 +12,12 @@
 //
 //	SK: church:d:{denom}|c:{churchId}
 //	SK: church-member:u:{email}|d:{denom}|c:{churchId}
+//	SK: church-auth:u:{email}  (platform approval to register; pay after approve)
 //
 // Roles church-admin and church-member are membership records (not JWT claims).
 // Platform admin (role=admin / eduardooost@gmail.com) always has full access.
+// Register requires platform approval + active church-management entitlement
+// (admin bypasses both).
 package church
 
 import (

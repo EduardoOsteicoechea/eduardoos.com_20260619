@@ -185,6 +185,34 @@ export function registerChurch(payload: Record<string, unknown>): Promise<{
   return churchRequest(CHURCH_ROUTES.list, { method: "POST", body: payload });
 }
 
+export type ChurchAuthStatus = "none" | "pending" | "approved" | "rejected";
+
+export type ChurchAuthorization = {
+  email: string;
+  isPlatformAdmin: boolean;
+  authorizationStatus: ChurchAuthStatus;
+  hasChurchManagement: boolean;
+  canRegister: boolean;
+  gateReason?: string;
+  requestedAt?: string;
+  decidedAt?: string;
+  subscribePath?: string;
+  serviceId?: string;
+};
+
+export function fetchChurchAuthorization(): Promise<ChurchAuthorization> {
+  return churchRequest(CHURCH_ROUTES.authorization);
+}
+
+export function requestChurchAuthorization(): Promise<{
+  email: string;
+  authorizationStatus: ChurchAuthStatus;
+  message?: string;
+  requestedAt?: string;
+}> {
+  return churchRequest(CHURCH_ROUTES.requestAuthorization, { method: "POST" });
+}
+
 export function fetchChurch(denomId: string, churchId: string): Promise<ChurchDetail> {
   return churchRequest(CHURCH_ROUTES.church(denomId, churchId));
 }

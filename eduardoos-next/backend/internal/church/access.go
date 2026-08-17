@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"eduardoos.nex/internal/auth"
+	"eduardoos.nex/internal/payments"
 )
 
 // viewerAccess resolves platform-admin bypass and church membership role.
@@ -115,4 +116,70 @@ func filterActivities(va viewerAccess, doc ChurchDoc, acts []Activity) []Activit
 		}
 	}
 	return out
+}
+
+// isPlatformAdmin reports bootstrap email / stored role admin for the email.
+func (h *Handler) isPlatformAdmin(ctx context.Context, email string) bool {
+	email = auth.NormalizeEmail(email)
+	role := auth.RoleUser
+	if h.Users != nil {
+		if u, ok, err := h.Users.GetUser(ctx, email); err == nil && ok {
+			role = u.Role
+		}
+	}
+	return auth.IsAdmin(email, role)
+}
+
+// hasChurchManagementEntitlement is true when the user has an active
+// church-management subscription row.
+func (h *Handler) hasChurchManagementEntitlement(email string) bool {
+	if h.Entitlements == nil {
+		return false
+	}
+	return payments.HasServiceAccess(false, h.Entitlements.ListEntitlements(email), "church-management")
+}
+
+// authorizationStatus returns none|pending|approved|rejected for the user.
+func (h *Handler) authorizationStatus(ctx context.Context, email string) (string, AuthorizationRequest, error) {
+	if h.Authorizations == nil {
+		return "none", AuthorizationRequest{}, nil
+	}
+	req, ok, err := h.Authorizations.Get(ctx, email)
+	if err != nil {
+		return "none", AuthorizationRequest{}, err
+	}
+	if !ok {
+		return "none", AuthorizationRequest{}, nil
+	}
+	st := NormalizeAuthStatus(req.Status)
+	if st == "" {
+		return "none", req, nil
+	}
+	return st, req, nil
+}
+
+// canRegisterChurches enforces: platform admin OR (approved + entitlement).
+// reason is a stable client-facing message when allowed is false.
+func (h *Handler) canRegisterChurches(ctx context.Context, email string) (allowed bool, reason string) {
+	email = auth.NormalizeEmail(email)
+	if h.isPlatformAdmin(ctx, email) {
+		return true, ""
+	}
+	status, _, err := h.authorizationStatus(ctx, email)
+	if err != nil {
+		return false, "could not verify authorization"
+	}
+	switch status {
+	case AuthStatusPending:
+		return false, "authorization request pending admin approval"
+	case AuthStatusRejected:
+		return false, "authorization rejected; request again from Church"
+	case AuthStatusApproved:
+		if h.hasChurchManagementEntitlement(email) {
+			return true, ""
+		}
+		return false, "subscribe to church-management before registering churches"
+	default:
+		return false, "request platform authorization before registering churches"
+	}
 }

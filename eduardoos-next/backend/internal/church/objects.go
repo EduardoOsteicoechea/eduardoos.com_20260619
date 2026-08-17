@@ -305,6 +305,26 @@ func OpenMembershipStore(ctx context.Context) MembershipStore {
 	return store
 }
 
+// OpenAuthorizationStore selects memory or DynamoDB for church-management
+// authorization requests (approve → pay → register).
+func OpenAuthorizationStore(ctx context.Context) AuthorizationStore {
+	mode := strings.ToLower(strings.TrimSpace(httpx.Env("CHURCH_BACKEND", "")))
+	if mode == "" {
+		mode = strings.ToLower(strings.TrimSpace(httpx.Env("DATABASE_BACKEND", "memory")))
+	}
+	if mode != "dynamodb" {
+		log.Printf("church authorization store backend=memory")
+		return NewMemoryAuthorizations()
+	}
+	store, err := newDynamoAuthorizations(ctx)
+	if err != nil {
+		log.Printf("church authorizations: dynamodb unavailable (%v); falling back to memory", err)
+		return NewMemoryAuthorizations()
+	}
+	log.Printf("church authorization store backend=dynamodb table=%s", store.table)
+	return store
+}
+
 // parseActivityIDFromKey extracts the activity id from …/activities/{id}/….
 func parseActivityIDFromKey(key string) string {
 	marker := "/activities/"

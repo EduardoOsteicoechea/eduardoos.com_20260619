@@ -54,6 +54,12 @@ export const SUBSCRIPTION_SERVICES: SubscriptionService[] = [
     description: "Self-evaluate ideas with weighted belief trees and formal-logic analysis.",
     monthlyUsd: 3,
   },
+  {
+    id: "church-management",
+    label: "Church Management",
+    description: "Register and manage churches, activities, and reports.",
+    monthlyUsd: 1,
+  },
 ];
 
 export type PaymentIntentResponse = {
