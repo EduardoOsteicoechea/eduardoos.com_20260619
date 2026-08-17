@@ -107,6 +107,7 @@ func normalizeLeaders(in []Leader) []Leader {
 			roles = append(roles, r)
 		}
 		out = append(out, Leader{
+			ID:        strings.TrimSpace(L.ID),
 			FirstName: first,
 			LastName:  last,
 			Phone:     phone,
@@ -116,6 +117,83 @@ func normalizeLeaders(in []Leader) []Leader {
 		})
 	}
 	return out
+}
+
+// pickLeadersByID selects catalog leaders by id (preferred leadership reference).
+func pickLeadersByID(catalog []LeaderDoc, ids []string) ([]Leader, []string) {
+	if len(ids) == 0 || len(catalog) == 0 {
+		return nil, nil
+	}
+	byID := map[string]LeaderDoc{}
+	for _, L := range catalog {
+		byID[strings.TrimSpace(L.ID)] = L
+	}
+	out := make([]Leader, 0, len(ids))
+	idOut := make([]string, 0, len(ids))
+	seen := map[string]bool{}
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" || seen[id] {
+			continue
+		}
+		if L, ok := byID[id]; ok {
+			seen[id] = true
+			out = append(out, leaderDocToEmbedded(L))
+			idOut = append(idOut, id)
+		}
+	}
+	return out, idOut
+}
+
+// pickLeadershipFromRefs resolves church-card leadership refs as catalog ids first,
+// then falls back to display-name match (legacy inline / name-only data).
+func pickLeadershipFromRefs(catalog []LeaderDoc, refs []string, legacyInline []Leader) ([]Leader, []string) {
+	if len(refs) == 0 {
+		return nil, nil
+	}
+	byID := map[string]LeaderDoc{}
+	byName := map[string]LeaderDoc{}
+	for _, L := range catalog {
+		byID[L.ID] = L
+		byName[strings.ToLower(leaderDocDisplayName(L))] = L
+	}
+	legacyByName := map[string]Leader{}
+	for _, L := range legacyInline {
+		legacyByName[strings.ToLower(leaderDisplayName(L))] = L
+	}
+
+	out := make([]Leader, 0, len(refs))
+	ids := make([]string, 0, len(refs))
+	seen := map[string]bool{}
+	for _, ref := range refs {
+		ref = strings.TrimSpace(ref)
+		if ref == "" {
+			continue
+		}
+		key := strings.ToLower(ref)
+		if seen[key] {
+			continue
+		}
+		if L, ok := byID[ref]; ok {
+			seen[key] = true
+			seen[strings.ToLower(L.ID)] = true
+			out = append(out, leaderDocToEmbedded(L))
+			ids = append(ids, L.ID)
+			continue
+		}
+		if L, ok := byName[key]; ok {
+			seen[key] = true
+			seen[strings.ToLower(L.ID)] = true
+			out = append(out, leaderDocToEmbedded(L))
+			ids = append(ids, L.ID)
+			continue
+		}
+		if L, ok := legacyByName[key]; ok {
+			seen[key] = true
+			out = append(out, L)
+		}
+	}
+	return out, ids
 }
 
 // leadersFromPastors migrates legacy pastors[] into leaders[] when needed.

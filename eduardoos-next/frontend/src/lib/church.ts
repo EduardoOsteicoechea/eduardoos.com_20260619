@@ -45,6 +45,7 @@ export const LEADER_ROLE_OPTIONS: LeaderRoleOption[] = [
 ];
 
 export type ChurchLeader = {
+  id?: string;
   firstName?: string;
   lastName?: string;
   phone?: string;
@@ -52,6 +53,28 @@ export type ChurchLeader = {
   /** Display name; derived from first+last, or legacy single-string records. */
   name?: string;
   roles: string[];
+};
+
+/** Independent leaders catalog row (Dynamo + S3 church/leaders/{id}/leader.json). */
+export type LeaderCatalogEntry = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+  name?: string;
+  roles: string[];
+  networkIds?: string[];
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** One structured creed item on church.json. */
+export type ChurchBelief = {
+  heading: string;
+  keyTexts?: string[];
+  body?: string;
 };
 
 export type ChurchMember = {
@@ -88,10 +111,12 @@ export type ChurchDoc = {
   openedAt?: string;
   address?: string;
   leaders?: ChurchLeader[];
+  leaderIds?: string[];
   orgLeaders?: ChurchLeader[];
   pastors?: string[];
   network?: string;
   localChurches?: string[];
+  beliefs?: ChurchBelief[];
   beliefsDocument?: string;
   sectorActivities?: SectorActivity[];
   members: ChurchMember[];
@@ -214,7 +239,7 @@ export function resolveChurchIdsFromLocation(
   const parts = pathname.replace(/\/+$/, "").split("/").filter(Boolean);
   // /church/{denom}/{churchId}
   if (parts[0] === "church" && parts.length >= 3) {
-    const reserved = new Set(["register", "overview", "activity", "workspace", "groups"]);
+    const reserved = new Set(["register", "overview", "activity", "workspace", "groups", "leaders"]);
     if (!reserved.has(parts[1])) {
       return { denomId: decodeURIComponent(parts[1]), churchId: decodeURIComponent(parts[2]) };
     }
@@ -269,6 +294,59 @@ export function updateChurchGroup(
 
 export function deleteChurchGroup(id: string): Promise<{ deleted: boolean }> {
   return churchRequest(CHURCH_ROUTES.group(id), { method: "DELETE" });
+}
+
+export function listChurchLeaders(networkId = ""): Promise<{
+  leaders: LeaderCatalogEntry[];
+  canManageLeaders?: boolean;
+  isPlatformAdmin?: boolean;
+}> {
+  const qs = networkId.trim()
+    ? `?networkId=${encodeURIComponent(networkId.trim())}`
+    : "";
+  return churchRequest(`${CHURCH_ROUTES.leaders}${qs}`);
+}
+
+export function createChurchLeader(payload: {
+  id?: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+  roles?: string[];
+  networkIds?: string[];
+}): Promise<{ leader: LeaderCatalogEntry }> {
+  return churchRequest(CHURCH_ROUTES.leaders, { method: "POST", body: payload });
+}
+
+export function updateChurchLeader(
+  id: string,
+  payload: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    email?: string;
+    roles?: string[];
+    networkIds?: string[];
+    setNetworks?: boolean;
+  },
+): Promise<{ leader: LeaderCatalogEntry }> {
+  return churchRequest(CHURCH_ROUTES.leader(id), { method: "PUT", body: payload });
+}
+
+export function deleteChurchLeader(id: string): Promise<{ deleted: boolean }> {
+  return churchRequest(CHURCH_ROUTES.leader(id), { method: "DELETE" });
+}
+
+/** Resolve structured beliefs, migrating legacy beliefsDocument blob when needed. */
+export function ensureChurchBeliefs(doc: {
+  beliefs?: ChurchBelief[];
+  beliefsDocument?: string;
+}): ChurchBelief[] {
+  if (doc.beliefs && doc.beliefs.length > 0) return doc.beliefs;
+  const blob = (doc.beliefsDocument || "").trim();
+  if (!blob) return [];
+  return [{ heading: "Documento de creencias", body: blob }];
 }
 
 export function registerChurch(payload: Record<string, unknown>): Promise<{

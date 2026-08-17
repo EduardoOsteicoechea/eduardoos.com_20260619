@@ -27,6 +27,7 @@ type Handler struct {
 	Users          auth.UserStore
 	Catalog        CatalogStore
 	Groups         GroupStore
+	Leaders        LeaderStore
 	Memberships    MembershipStore
 	Authorizations AuthorizationStore
 	Entitlements   *payments.Store
@@ -42,6 +43,7 @@ func NewHandler(jwtSecret string, users auth.UserStore) *Handler {
 		Users:          users,
 		Catalog:        NewMemoryCatalog(),
 		Groups:         NewMemoryGroups(),
+		Leaders:        NewMemoryLeaders(),
 		Memberships:    NewMemoryMemberships(),
 		Authorizations: NewMemoryAuthorizations(),
 		Objects:        NewMemoryObjectSpace(),
@@ -68,6 +70,12 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Put("/api/church/groups/{groupID}", h.UpdateGroup)
 		pr.Delete("/api/church/groups/{groupID}", h.DeleteGroup)
 		pr.Get("/api/church/leader-roles", h.ListLeaderRoles)
+
+		// Leaders catalog — list for any JWT; mutate register-gate / platform admin.
+		pr.Get("/api/church/leaders", h.ListLeaders)
+		pr.Post("/api/church/leaders", h.CreateLeader)
+		pr.Put("/api/church/leaders/{leaderID}", h.UpdateLeader)
+		pr.Delete("/api/church/leaders/{leaderID}", h.DeleteLeader)
 
 		pr.Get("/api/church/{denomID}/{churchID}", h.GetChurch)
 		pr.Put("/api/church/{denomID}/{churchID}", h.UpdateChurch)
@@ -111,10 +119,11 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 		OpenedAt         string             `json:"openedAt"`
 		Address          string             `json:"address"`
 		Pastors          []string           `json:"pastors"`
-		Leaders          []Leader           `json:"leaders"`
+		Leaders          []Leader           `json:"leaders"` // legacy inline; upserted into catalog
 		Network          string             `json:"network"`
 		LocalChurches    []string           `json:"localChurches"`
 		Churches         []LocalChurchInput `json:"churches"`
+		Beliefs          []Belief           `json:"beliefs"`
 		BeliefsDocument  string             `json:"beliefsDocument"`
 		SectorActivities []SectorActivity   `json:"sectorActivities"`
 		Members          []Member           `json:"members"`
@@ -154,10 +163,36 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	// Load leaders catalog; migrate any legacy inline líderes into it.
+	var catalogDocs []LeaderDoc
+	if h.Leaders != nil {
+		var lerr error
+		catalogDocs, lerr = h.Leaders.List(r.Context())
+		if lerr != nil {
+			log.Printf("[correlation=%s] church.register leaders_list: %v", cid, lerr)
+			httpx.WriteError(w, http.StatusBadGateway, "could not list leaders catalog")
+			return
+		}
+	}
 	orgLeaders := normalizeLeaders(body.Leaders)
 	if len(orgLeaders) == 0 && len(body.Pastors) > 0 {
 		orgLeaders = leadersFromPastors(body.Pastors)
 	}
+	if len(orgLeaders) > 0 {
+		migrated, _, merr := h.upsertInlineLeadersIntoCatalog(r, cid, owner, orgLeaders)
+		if merr != nil {
+			log.Printf("[correlation=%s] church.register leaders_migrate: %v", cid, merr)
+			httpx.WriteError(w, http.StatusBadGateway, "could not migrate inline leaders")
+			return
+		}
+		orgLeaders = migrated
+		if h.Leaders != nil {
+			catalogDocs, _ = h.Leaders.List(r.Context())
+		}
+	}
+
+	beliefs, beliefsSummary := resolveBeliefsForWrite(body.Beliefs, body.BeliefsDocument)
 
 	// Prefer multi church cards; fall back to single legacy name/churchId row.
 	churchInputs := body.Churches
@@ -173,7 +208,11 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 		}
 		leadership := make([]string, 0, len(orgLeaders))
 		for _, L := range orgLeaders {
-			leadership = append(leadership, leaderDisplayName(L))
+			if L.ID != "" {
+				leadership = append(leadership, L.ID)
+			} else {
+				leadership = append(leadership, leaderDisplayName(L))
+			}
 		}
 		churchInputs = []LocalChurchInput{{
 			ChurchID:   churchID,
@@ -208,11 +247,7 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 		validChurchIDs[churchID] = name
 		localNames = append(localNames, name)
 
-		leaders := pickLeadersByName(orgLeaders, in.Leadership)
-		if len(leaders) == 0 && len(orgLeaders) > 0 && len(in.Leadership) == 0 {
-			// No explicit pick → leave empty; UI should select liderazgo.
-			leaders = nil
-		}
+		leaders, leaderIDs := pickLeadershipFromRefs(catalogDocs, in.Leadership, orgLeaders)
 
 		// Members assigned to this church (or unassigned when only one church).
 		assigned := make([]Member, 0)
@@ -232,11 +267,13 @@ func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
 			Name:             name,
 			OpenedAt:         strings.TrimSpace(in.OpenedAt),
 			Address:          strings.TrimSpace(in.Address),
+			LeaderIDs:        leaderIDs,
 			Leaders:          leaders,
 			OrgLeaders:       orgLeaders,
 			Network:          networkName,
 			LocalChurches:    nil, // filled after loop
-			BeliefsDocument:  strings.TrimSpace(body.BeliefsDocument),
+			Beliefs:          beliefs,
+			BeliefsDocument:  beliefsSummary,
 			SectorActivities: body.SectorActivities,
 			Members:          members,
 			OwnerEmail:       owner,
@@ -351,6 +388,7 @@ func (h *Handler) GetChurch(w http.ResponseWriter, r *http.Request) {
 		ViewerRole: va.Role,
 	}
 	detail.Church.Leaders = ensureLeaders(detail.Church)
+	detail.Church.Beliefs = ensureBeliefs(detail.Church)
 	httpx.WriteJSON(w, http.StatusOK, detail)
 }
 
@@ -400,7 +438,14 @@ func (h *Handler) UpdateChurch(w http.ResponseWriter, r *http.Request) {
 	}
 	doc.Network = strings.TrimSpace(body.Network)
 	doc.LocalChurches = cleanStringList(body.LocalChurches)
-	doc.BeliefsDocument = strings.TrimSpace(body.BeliefsDocument)
+	if body.Beliefs != nil || strings.TrimSpace(body.BeliefsDocument) != "" {
+		beliefs, summary := resolveBeliefsForWrite(body.Beliefs, body.BeliefsDocument)
+		doc.Beliefs = beliefs
+		doc.BeliefsDocument = summary
+	}
+	if body.LeaderIDs != nil {
+		doc.LeaderIDs = cleanStringList(body.LeaderIDs)
+	}
 	doc.SectorActivities = body.SectorActivities
 	if body.Members != nil {
 		doc.Members = normalizeMembers(body.Members, doc.OwnerEmail)
@@ -762,6 +807,8 @@ func (h *Handler) buildOverview(ctx context.Context, email, cid string) (Overvie
 			continue
 		}
 		acts, _ := h.listActivities(ctx, mem.DenominationID, mem.ChurchID, cid)
+		doc.Leaders = ensureLeaders(doc)
+		doc.Beliefs = ensureBeliefs(doc)
 		churches = append(churches, OverviewChurch{
 			Church:     filterChurchForViewer(va, doc),
 			Activities: filterActivities(va, doc, acts),

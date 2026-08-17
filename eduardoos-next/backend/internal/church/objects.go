@@ -344,6 +344,25 @@ func OpenGroupStore(ctx context.Context) GroupStore {
 	return store
 }
 
+// OpenLeaderStore selects memory or DynamoDB for the independent leaders catalog.
+func OpenLeaderStore(ctx context.Context) LeaderStore {
+	mode := strings.ToLower(strings.TrimSpace(httpx.Env("CHURCH_BACKEND", "")))
+	if mode == "" {
+		mode = strings.ToLower(strings.TrimSpace(httpx.Env("DATABASE_BACKEND", "memory")))
+	}
+	if mode != "dynamodb" {
+		log.Printf("church leader store backend=memory")
+		return NewMemoryLeaders()
+	}
+	store, err := newDynamoLeaders(ctx)
+	if err != nil {
+		log.Printf("church leaders: dynamodb unavailable (%v); falling back to memory", err)
+		return NewMemoryLeaders()
+	}
+	log.Printf("church leader store backend=dynamodb table=%s", store.table)
+	return store
+}
+
 // parseActivityIDFromKey extracts the activity id from …/activities/{id}/….
 func parseActivityIDFromKey(key string) string {
 	marker := "/activities/"

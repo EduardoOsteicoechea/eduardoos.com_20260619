@@ -37,12 +37,19 @@ function resolveChurchIdsFromLocation(pathname, search) {
   }
   const parts = pathname.replace(/\/+$/, "").split("/").filter(Boolean);
   if (parts[0] === "church" && parts.length >= 3) {
-    const reserved = new Set(["register", "overview", "activity", "workspace", "groups"]);
+    const reserved = new Set(["register", "overview", "activity", "workspace", "groups", "leaders"]);
     if (!reserved.has(parts[1])) {
       return { denomId: decodeURIComponent(parts[1]), churchId: decodeURIComponent(parts[2]) };
     }
   }
   return { denomId: "", churchId: "" };
+}
+
+function ensureChurchBeliefs(doc) {
+  if (doc.beliefs && doc.beliefs.length > 0) return doc.beliefs;
+  const blob = (doc.beliefsDocument || "").trim();
+  if (!blob) return [];
+  return [{ heading: "Documento de creencias", body: blob }];
 }
 
 describe("church helpers", () => {
@@ -70,6 +77,10 @@ describe("church helpers", () => {
       denomId: "",
       churchId: "",
     });
+    assert.deepEqual(resolveChurchIdsFromLocation("/church/leaders", ""), {
+      denomId: "",
+      churchId: "",
+    });
   });
 
   it("builds member display names", () => {
@@ -93,6 +104,18 @@ describe("church helpers", () => {
     assert.equal(
       leaderDisplayName({ name: "Pastor Ana", roles: [] }),
       "Pastor Ana",
+    );
+  });
+
+  it("migrates legacy beliefsDocument into structured list", () => {
+    assert.deepEqual(ensureChurchBeliefs({ beliefsDocument: "Creemos" }), [
+      { heading: "Documento de creencias", body: "Creemos" },
+    ]);
+    assert.deepEqual(
+      ensureChurchBeliefs({
+        beliefs: [{ heading: "Dios", keyTexts: ["Jn 1:1"], body: "Uno" }],
+      }),
+      [{ heading: "Dios", keyTexts: ["Jn 1:1"], body: "Uno" }],
     );
   });
 });

@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
+  ensureChurchBeliefs,
   fetchChurch,
   leaderDisplayName,
   leaderRoleLabel,
@@ -154,9 +155,35 @@ export default function ChurchDetailPage() {
               ) : null}
 
               {tab === "beliefs" ? (
-                <p className="church-panel__block">
-                  {detail.church.beliefsDocument || "No beliefs document yet."}
-                </p>
+                (() => {
+                  const list = ensureChurchBeliefs(detail.church);
+                  if (list.length === 0) {
+                    return (
+                      <p className="church-panel__block">
+                        No hay creencias registradas aún.
+                      </p>
+                    );
+                  }
+                  return (
+                    <ul className="church-list">
+                      {list.map((b, i) => (
+                        <li key={`${b.heading}-${i}`} className="church-list__item">
+                          <h3>{b.heading}</h3>
+                          {(b.keyTexts ?? []).length > 0 ? (
+                            <ul className="church-belief-keys">
+                              {(b.keyTexts ?? []).map((t, j) => (
+                                <li key={j}>{t}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {b.body ? (
+                            <p className="church-panel__block">{b.body}</p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()
               ) : null}
 
               {tab === "members" ? (

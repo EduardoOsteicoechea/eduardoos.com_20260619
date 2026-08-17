@@ -4,6 +4,7 @@
 // S3 layout (bucket eduardoos20260607 when S3_BUCKET is set):
 //
 //	church/groups/{groupId}/group.json
+//	church/leaders/{leaderId}/leader.json
 //	church/{denomOrWebId}/{churchId}/church.json
 //	church/{denomOrWebId}/{churchId}/activities/{activityId}/activity.json
 //	church/{denomOrWebId}/{churchId}/activities/{activityId}/reports/{reportId}.json
@@ -12,6 +13,7 @@
 // DynamoDB catalog (eduardoos_catalog when CHURCH_BACKEND/DATABASE_BACKEND=dynamodb):
 //
 //	SK: church-group:g:{groupId}
+//	SK: church-leader:l:{leaderId}
 //	SK: church:d:{denom}|c:{churchId}
 //	SK: church-member:u:{email}|d:{denom}|c:{churchId}
 //	SK: church-auth:u:{email}  (platform approval to register; pay after approve)
@@ -20,6 +22,7 @@
 // Platform admin (role=admin / eduardooost@gmail.com) always has full access.
 // Register requires platform approval + active church-management entitlement
 // (admin bypasses both). Networks/denominations are admin-managed groups.
+// Leaders are an independent catalog; church.json stores leader IDs (+ snapshot).
 package church
 
 import (
@@ -208,4 +211,24 @@ func GroupsPrefix() string {
 // GroupMetaKey is church/groups/{groupId}/group.json.
 func GroupMetaKey(groupID string) string {
 	return GroupsPrefix() + "/" + strings.Trim(groupID, "/") + "/group.json"
+}
+
+// LeaderSK builds the Dynamo SK for a catalog leader.
+func LeaderSK(leaderID string) string {
+	return "church-leader:l:" + strings.TrimSpace(leaderID)
+}
+
+// LeaderSKPrefix is begins_with for all catalog leaders.
+func LeaderSKPrefix() string {
+	return "church-leader:l:"
+}
+
+// LeadersPrefix is church/leaders on S3.
+func LeadersPrefix() string {
+	return RootPrefix + "/leaders"
+}
+
+// LeaderMetaKey is church/leaders/{leaderId}/leader.json.
+func LeaderMetaKey(leaderID string) string {
+	return LeadersPrefix() + "/" + strings.Trim(leaderID, "/") + "/leader.json"
 }

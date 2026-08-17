@@ -24,10 +24,27 @@ type DenominationGroup struct {
 	UpdatedAt string `json:"updatedAt"`
 }
 
-// Leader is a church leader with one or more ministry role tags.
-// New rows use firstName + lastName (nombre / apellido); phone and email are optional.
-// Legacy rows may only have name (a single display string) — still accepted on read.
+// LeaderDoc is an independent catalog row (Dynamo + S3 church/leaders/{id}/leader.json).
+// Platform admin may associate each leader with one or more network group ids.
+type LeaderDoc struct {
+	ID         string   `json:"id"`
+	FirstName  string   `json:"firstName"` // nombre
+	LastName   string   `json:"lastName"`  // apellido
+	Phone      string   `json:"phone,omitempty"`
+	Email      string   `json:"email,omitempty"`
+	Name       string   `json:"name,omitempty"` // display "nombre apellido"
+	Roles      []string `json:"roles"`
+	NetworkIDs []string `json:"networkIds,omitempty"` // denomination group ids
+	CreatedBy  string   `json:"createdBy,omitempty"`
+	CreatedAt  string   `json:"createdAt"`
+	UpdatedAt  string   `json:"updatedAt"`
+}
+
+// Leader is an embedded leadership snapshot on church.json (or legacy inline row).
+// Prefer ID from the leaders catalog; firstName/lastName/phone/email/roles are
+// denormalized for display. Legacy rows may only have name.
 type Leader struct {
+	ID        string   `json:"id,omitempty"`        // catalog leader id when known
 	FirstName string   `json:"firstName,omitempty"` // nombre
 	LastName  string   `json:"lastName,omitempty"`  // apellido
 	Phone     string   `json:"phone,omitempty"`
@@ -51,7 +68,7 @@ type Member struct {
 	Phone                 string   `json:"phone,omitempty"`
 	Name                  string   `json:"name,omitempty"` // display; derived from parts when empty
 	Role                  string   `json:"role"`          // church-admin | church-member
-	ChurchID              string   `json:"churchId,omitempty"` // assignment to a registered local church
+	ChurchID              string   `json:"churchId,omitempty"`
 	AuthorizedActivityIDs []string `json:"authorizedActivityIds,omitempty"`
 }
 
@@ -61,13 +78,21 @@ type LocalChurchInput struct {
 	Name       string   `json:"name"`
 	OpenedAt   string   `json:"openedAt,omitempty"` // YYYY-MM-DD
 	Address    string   `json:"address,omitempty"`
-	Leadership []string `json:"leadership,omitempty"` // leader names from org líderes catalog
+	Leadership []string `json:"leadership,omitempty"` // catalog leader ids (legacy: display names)
 }
 
 // SectorActivity is a named activity bucket by ministry sector.
 type SectorActivity struct {
 	Sector      string `json:"sector"`
 	Description string `json:"description,omitempty"`
+}
+
+// Belief is one registered creed item (heading + key passages + full text).
+// Slice order in ChurchDoc.Beliefs is the display order (up/down on register).
+type Belief struct {
+	Heading  string   `json:"heading"`
+	KeyTexts []string `json:"keyTexts,omitempty"` // lista de textos claves
+	Body     string   `json:"body,omitempty"`     // texto completo de la creencia
 }
 
 // ChurchDoc is the durable church.json document.
@@ -77,12 +102,14 @@ type ChurchDoc struct {
 	Name             string           `json:"name"`
 	OpenedAt         string           `json:"openedAt,omitempty"` // YYYY-MM-DD
 	Address          string           `json:"address,omitempty"`
-	Leaders          []Leader         `json:"leaders,omitempty"`
-	OrgLeaders       []Leader         `json:"orgLeaders,omitempty"` // snapshot of church-admin líderes catalog
+	LeaderIDs        []string         `json:"leaderIds,omitempty"`  // catalog ids for this church's leadership
+	Leaders          []Leader         `json:"leaders,omitempty"`    // denormalized snapshot (prefer id)
+	OrgLeaders       []Leader         `json:"orgLeaders,omitempty"` // legacy register-time inline catalog
 	Pastors          []string         `json:"pastors,omitempty"`    // legacy; prefer Leaders
 	Network          string           `json:"network,omitempty"`
 	LocalChurches    []string         `json:"localChurches,omitempty"`
-	BeliefsDocument  string           `json:"beliefsDocument,omitempty"`
+	Beliefs          []Belief         `json:"beliefs,omitempty"`         // structured creencias list
+	BeliefsDocument  string           `json:"beliefsDocument,omitempty"` // legacy single blob
 	SectorActivities []SectorActivity `json:"sectorActivities,omitempty"`
 	Members          []Member         `json:"members"`
 	OwnerEmail       string           `json:"ownerEmail"`

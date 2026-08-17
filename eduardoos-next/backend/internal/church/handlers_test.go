@@ -425,6 +425,12 @@ func TestAuthRequestSK(t *testing.T) {
 	if GroupMetaKey("asambleas") != "church/groups/asambleas/group.json" {
 		t.Fatal("group meta key")
 	}
+	if LeaderSK("ana-garcia") != "church-leader:l:ana-garcia" {
+		t.Fatal("leader sk")
+	}
+	if LeaderMetaKey("ana-garcia") != "church/leaders/ana-garcia/leader.json" {
+		t.Fatal("leader meta key")
+	}
 	if !IsValidLeaderRole(LeaderRoleEvangelist) {
 		t.Fatal("leader role")
 	}
@@ -471,5 +477,123 @@ func TestNormalizeLeadersLegacyAndStructured(t *testing.T) {
 	}
 	if err := validateLeaderContacts([]Leader{{Phone: "+58 412 1234567", Email: "ok@ex.com"}}); err != nil {
 		t.Fatalf("valid contacts: %v", err)
+	}
+}
+
+func TestLeadersCatalogAndBeliefsRegister(t *testing.T) {
+	h, r, users := testRouter(t)
+	seedUser(t, users, "admin@example.com", auth.RoleAdmin)
+	seedUser(t, users, "pastor@example.com", auth.RoleUser)
+	seedUser(t, users, "member@example.com", auth.RoleUser)
+	grantRegisterAccess(t, h, "pastor@example.com")
+	seedDenomGroup(t, h, "asambleas", "Asambleas de Dios")
+
+	// Member without register gate cannot create leaders.
+	denyBody, _ := json.Marshal(map[string]any{
+		"firstName": "X", "lastName": "Y", "roles": []string{"evangelist"},
+	})
+	deny := httptest.NewRequest(http.MethodPost, "/api/church/leaders", bytes.NewReader(denyBody))
+	deny.Header.Set("Authorization", "Bearer "+bearer(t, "member@example.com", auth.RoleUser))
+	deny.Header.Set("Content-Type", "application/json")
+	denyRW := httptest.NewRecorder()
+	r.ServeHTTP(denyRW, deny)
+	if denyRW.Code != http.StatusForbidden {
+		t.Fatalf("member create leader status=%d", denyRW.Code)
+	}
+
+	// Pastor creates leader in catalog.
+	leadBody, _ := json.Marshal(map[string]any{
+		"firstName": "Ana", "lastName": "Garcia",
+		"phone": "+58 412 1234567", "email": "ana@example.com",
+		"roles": []string{"elder-bishop-pastor"},
+	})
+	leadReq := httptest.NewRequest(http.MethodPost, "/api/church/leaders", bytes.NewReader(leadBody))
+	leadReq.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	leadReq.Header.Set("Content-Type", "application/json")
+	leadRW := httptest.NewRecorder()
+	r.ServeHTTP(leadRW, leadReq)
+	if leadRW.Code != http.StatusCreated {
+		t.Fatalf("create leader status=%d body=%s", leadRW.Code, leadRW.Body.String())
+	}
+	if !strings.Contains(leadRW.Body.String(), `"id":"ana-garcia"`) {
+		t.Fatalf("expected leader id slug: %s", leadRW.Body.String())
+	}
+
+	// Admin associates leader with network.
+	netBody, _ := json.Marshal(map[string]any{
+		"firstName": "Ana", "lastName": "Garcia",
+		"roles": []string{"elder-bishop-pastor"},
+		"networkIds": []string{"asambleas"}, "setNetworks": true,
+	})
+	netReq := httptest.NewRequest(http.MethodPut, "/api/church/leaders/ana-garcia", bytes.NewReader(netBody))
+	netReq.Header.Set("Authorization", "Bearer "+bearer(t, "admin@example.com", auth.RoleAdmin))
+	netReq.Header.Set("Content-Type", "application/json")
+	netRW := httptest.NewRecorder()
+	r.ServeHTTP(netRW, netReq)
+	if netRW.Code != http.StatusOK || !strings.Contains(netRW.Body.String(), "asambleas") {
+		t.Fatalf("admin network assoc status=%d body=%s", netRW.Code, netRW.Body.String())
+	}
+
+	// Register church with leader id + structured beliefs.
+	regBody, _ := json.Marshal(map[string]any{
+		"denominationId": "asambleas",
+		"churches": []map[string]any{
+			{
+				"name": "Central", "churchId": "central",
+				"leadership": []string{"ana-garcia"},
+			},
+		},
+		"beliefs": []map[string]any{
+			{
+				"heading":  "Dios",
+				"keyTexts": []string{"Gn 1:1", "Jn 1:1"},
+				"body":     "Creemos en un solo Dios.",
+			},
+			{
+				"heading":  "Iglesia",
+				"keyTexts": []string{"Mt 16:18"},
+				"body":     "El cuerpo de Cristo.",
+			},
+		},
+	})
+	reg := httptest.NewRequest(http.MethodPost, "/api/church", bytes.NewReader(regBody))
+	reg.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	reg.Header.Set("Content-Type", "application/json")
+	regRW := httptest.NewRecorder()
+	r.ServeHTTP(regRW, reg)
+	if regRW.Code != http.StatusCreated {
+		t.Fatalf("register status=%d body=%s", regRW.Code, regRW.Body.String())
+	}
+	if !strings.Contains(regRW.Body.String(), `"leaderIds":["ana-garcia"]`) {
+		t.Fatalf("expected leaderIds: %s", regRW.Body.String())
+	}
+	if !strings.Contains(regRW.Body.String(), `"heading":"Dios"`) {
+		t.Fatalf("expected beliefs: %s", regRW.Body.String())
+	}
+
+	get := httptest.NewRequest(http.MethodGet, "/api/church/asambleas/central", nil)
+	get.Header.Set("Authorization", "Bearer "+bearer(t, "pastor@example.com", auth.RoleUser))
+	getRW := httptest.NewRecorder()
+	r.ServeHTTP(getRW, get)
+	if getRW.Code != http.StatusOK {
+		t.Fatalf("get status=%d", getRW.Code)
+	}
+	if !strings.Contains(getRW.Body.String(), "Ana Garcia") || !strings.Contains(getRW.Body.String(), "keyTexts") {
+		t.Fatalf("detail missing leaders/beliefs: %s", getRW.Body.String())
+	}
+}
+
+func TestNormalizeBeliefsAndLegacyBlob(t *testing.T) {
+	list := normalizeBeliefs([]Belief{
+		{Heading: " A ", KeyTexts: []string{"", " Jn 3:16 "}, Body: " texto "},
+		{Heading: "", KeyTexts: nil, Body: ""},
+	})
+	if len(list) != 1 || list[0].Heading != "A" || len(list[0].KeyTexts) != 1 {
+		t.Fatalf("normalize: %+v", list)
+	}
+	doc := ChurchDoc{BeliefsDocument: "Legacy creed"}
+	ensured := ensureBeliefs(doc)
+	if len(ensured) != 1 || ensured[0].Body != "Legacy creed" {
+		t.Fatalf("legacy migrate: %+v", ensured)
 	}
 }

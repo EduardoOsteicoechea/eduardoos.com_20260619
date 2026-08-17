@@ -1,6 +1,6 @@
 /**
- * /church/register — denomination from admin catalog, líderes catalog,
- * local church cards, members assigned to those churches.
+ * /church/register — denomination + líderes catalog dropdown, church cards,
+ * structured creencias (heading / key texts / body + reorder), members.
  * Gated: platform admin OR (approved authorization + church-management sub).
  */
 
@@ -8,36 +8,27 @@ import { useEffect, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
   churchDetailHref,
-  LEADER_ROLE_OPTIONS,
+  leaderDisplayName,
   listChurchGroups,
+  listChurchLeaders,
   registerChurch,
   sanitizeChurchSlug,
+  type ChurchBelief,
   type DenominationGroup,
+  type LeaderCatalogEntry,
 } from "../../lib/church";
-import {
-  validateOptionalEmail,
-  validateOptionalPhone,
-} from "../../lib/validation";
 import {
   ChurchRegisterGateShell,
   useChurchRegisterGate,
 } from "./ChurchGate";
 import "./Church.css";
 
-type LeaderRow = {
-  key: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  email: string;
-  roles: string[];
-};
 type ChurchRow = {
   key: string;
   name: string;
   openedAt: string;
   address: string;
-  leadership: string;
+  leadership: string; // catalog leader id
 };
 type MemberRow = {
   key: string;
@@ -50,37 +41,27 @@ type MemberRow = {
   email: string;
   churchKey: string;
 };
+type BeliefRow = ChurchBelief & { key: string };
 
 function newKey(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function emptyLeader(): LeaderRow {
-  return {
-    key: newKey(),
-    firstName: "",
-    lastName: "",
-    phone: "",
-    email: "",
-    roles: [],
-  };
-}
-
-function leaderRowDisplay(L: LeaderRow): string {
-  return `${L.firstName.trim()} ${L.lastName.trim()}`.trim();
+function emptyBelief(): BeliefRow {
+  return { key: newKey(), heading: "", keyTexts: [""], body: "" };
 }
 
 export default function ChurchRegisterPage() {
   const { gate, requestAccess, busy: authBusy, error: authError } =
     useChurchRegisterGate();
   const [groups, setGroups] = useState<DenominationGroup[]>([]);
+  const [leaders, setLeaders] = useState<LeaderCatalogEntry[]>([]);
   const [denominationId, setDenominationId] = useState("");
-  const [leaders, setLeaders] = useState<LeaderRow[]>([emptyLeader()]);
   const [churches, setChurches] = useState<ChurchRow[]>([
     { key: newKey(), name: "", openedAt: "", address: "", leadership: "" },
   ]);
   const [members, setMembers] = useState<MemberRow[]>([]);
-  const [beliefsDocument, setBeliefsDocument] = useState("");
+  const [beliefs, setBeliefs] = useState<BeliefRow[]>([emptyBelief()]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -98,21 +79,43 @@ export default function ChurchRegisterPage() {
     })();
   }, [gate]);
 
-  function patchLeader(key: string, patch: Partial<LeaderRow>) {
-    setLeaders((rows) =>
+  useEffect(() => {
+    if (gate !== "allowed") return;
+    void (async () => {
+      try {
+        const data = await listChurchLeaders(denominationId);
+        setLeaders(data.leaders ?? []);
+      } catch {
+        setLeaders([]);
+      }
+    })();
+  }, [gate, denominationId]);
+
+  function patchBelief(key: string, patch: Partial<BeliefRow>) {
+    setBeliefs((rows) =>
       rows.map((row) => (row.key === key ? { ...row, ...patch } : row)),
     );
   }
 
-  function toggleLeaderRole(key: string, roleId: string) {
-    setLeaders((rows) =>
+  function moveBelief(key: string, delta: number) {
+    setBeliefs((rows) => {
+      const i = rows.findIndex((r) => r.key === key);
+      if (i < 0) return rows;
+      const j = i + delta;
+      if (j < 0 || j >= rows.length) return rows;
+      const next = [...rows];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  }
+
+  function patchKeyText(beliefKey: string, idx: number, value: string) {
+    setBeliefs((rows) =>
       rows.map((row) => {
-        if (row.key !== key) return row;
-        const has = row.roles.includes(roleId);
-        return {
-          ...row,
-          roles: has ? row.roles.filter((r) => r !== roleId) : [...row.roles, roleId],
-        };
+        if (row.key !== beliefKey) return row;
+        const keyTexts = [...(row.keyTexts ?? [])];
+        keyTexts[idx] = value;
+        return { ...row, keyTexts };
       }),
     );
   }
@@ -127,55 +130,10 @@ export default function ChurchRegisterPage() {
         setBusy(false);
         return;
       }
-
-      for (const L of leaders) {
-        const first = L.firstName.trim();
-        const last = L.lastName.trim();
-        if (
-          !first &&
-          !last &&
-          !L.phone.trim() &&
-          !L.email.trim() &&
-          L.roles.length === 0
-        ) {
-          continue;
-        }
-        if (!first || !last) {
-          setError("Cada líder necesita nombre y apellido.");
-          setBusy(false);
-          return;
-        }
-        const phoneErr = validateOptionalPhone(L.phone);
-        if (phoneErr) {
-          setError(`Teléfono de líder inválido (${first} ${last}).`);
-          setBusy(false);
-          return;
-        }
-        const emailErr = validateOptionalEmail(L.email);
-        if (emailErr) {
-          setError(`Correo de líder inválido (${first} ${last}).`);
-          setBusy(false);
-          return;
-        }
-      }
-
-      const leaderCatalog = leaders
-        .map((L) => {
-          const firstName = L.firstName.trim();
-          const lastName = L.lastName.trim();
-          if (!firstName || !lastName) return null;
-          return {
-            firstName,
-            lastName,
-            phone: L.phone.trim(),
-            email: L.email.trim(),
-            name: `${firstName} ${lastName}`,
-            roles: L.roles,
-          };
-        })
-        .filter((L): L is NonNullable<typeof L> => L !== null);
-      if (leaderCatalog.length === 0) {
-        setError("Agregue al menos un líder.");
+      if (leaders.length === 0) {
+        setError(
+          "Registre al menos un líder en /church/leaders antes de asignar liderazgo.",
+        );
         setBusy(false);
         return;
       }
@@ -200,8 +158,25 @@ export default function ChurchRegisterPage() {
         setBusy(false);
         return;
       }
+      for (const c of churchPayload) {
+        if (!c.leadership.length) {
+          setError(`Seleccione liderazgo para «${c.name}».`);
+          setBusy(false);
+          return;
+        }
+      }
 
-      const keyToChurchId = new Map(churchPayload.map((c) => [c.key, c.churchId]));
+      const beliefPayload = beliefs
+        .map((b) => ({
+          heading: b.heading.trim(),
+          keyTexts: (b.keyTexts ?? []).map((t) => t.trim()).filter(Boolean),
+          body: (b.body || "").trim(),
+        }))
+        .filter((b) => b.heading || b.body || b.keyTexts.length > 0);
+
+      const keyToChurchId = new Map(
+        churchPayload.map((c) => [c.key, c.churchId]),
+      );
       const memberPayload = members
         .map((m) => {
           const email = m.email.trim();
@@ -222,20 +197,19 @@ export default function ChurchRegisterPage() {
 
       const data = await registerChurch({
         denominationId,
-        leaders: leaderCatalog,
         churches: churchPayload.map(({ key: _k, ...rest }) => rest),
         members: memberPayload,
-        beliefsDocument: beliefsDocument.trim(),
+        beliefs: beliefPayload,
       });
       const first = data.churches?.[0] ?? data.church;
-      window.location.assign(churchDetailHref(first.denominationId, first.churchId));
+      window.location.assign(
+        churchDetailHref(first.denominationId, first.churchId),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
       setBusy(false);
     }
   }
-
-  const namedLeaders = leaders.map((L) => leaderRowDisplay(L)).filter(Boolean);
 
   return (
     <ChurchRegisterGateShell
@@ -248,12 +222,15 @@ export default function ChurchRegisterPage() {
         <p className="church-page__brand">Church</p>
         <h1 className="church-page__title">Registrar iglesias</h1>
         <p className="church-page__lead">
-          Elija la red del catálogo, registre líderes, agregue iglesias locales en
-          tarjetas y asigne miembros a esas iglesias. Usted queda como church-admin.
+          Elija la red, asigne liderazgo desde el catálogo de líderes, agregue
+          iglesias y creencias una a una. Usted queda como church-admin.
         </p>
         <div className="church-page__actions">
           <a className="btn" href={APP_ROUTES.church}>
             Volver
+          </a>
+          <a className="btn" href={APP_ROUTES.churchLeaders}>
+            Catálogo de líderes
           </a>
         </div>
 
@@ -262,7 +239,12 @@ export default function ChurchRegisterPage() {
             Red / denominación
             <select
               value={denominationId}
-              onChange={(e) => setDenominationId(e.target.value)}
+              onChange={(e) => {
+                setDenominationId(e.target.value);
+                setChurches((rows) =>
+                  rows.map((r) => ({ ...r, leadership: "" })),
+                );
+              }}
               required
             >
               <option value="">Seleccionar…</option>
@@ -275,99 +257,17 @@ export default function ChurchRegisterPage() {
           </label>
           {groups.length === 0 ? (
             <p className="church-empty">
-              No hay redes en el catálogo. Un admin de plataforma debe crearlas en{" "}
-              <a href={APP_ROUTES.churchGroups}>/church/groups</a>.
+              No hay redes en el catálogo. Un admin de plataforma debe crearlas
+              en <a href={APP_ROUTES.churchGroups}>/church/groups</a>.
             </p>
           ) : null}
-
-          <section className="church-section">
-            <div className="church-section__head">
-              <h2>Líderes</h2>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => setLeaders((rows) => [...rows, emptyLeader()])}
-              >
-                +
-              </button>
-            </div>
-            <ul className="church-dyn-list">
-              {leaders.map((row) => (
-                <li key={row.key} className="church-dyn-card">
-                  <div className="church-dyn-card__row">
-                    <span className="church-dyn-card__title">Líder</span>
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={leaders.length <= 1}
-                      onClick={() =>
-                        setLeaders((rows) => rows.filter((r) => r.key !== row.key))
-                      }
-                    >
-                      −
-                    </button>
-                  </div>
-                  <div className="church-dyn-card__grid">
-                    <label>
-                      Nombre
-                      <input
-                        value={row.firstName}
-                        onChange={(e) =>
-                          patchLeader(row.key, { firstName: e.target.value })
-                        }
-                        required
-                      />
-                    </label>
-                    <label>
-                      Apellido
-                      <input
-                        value={row.lastName}
-                        onChange={(e) =>
-                          patchLeader(row.key, { lastName: e.target.value })
-                        }
-                        required
-                      />
-                    </label>
-                    <label>
-                      Teléfono
-                      <input
-                        type="tel"
-                        value={row.phone}
-                        onChange={(e) =>
-                          patchLeader(row.key, { phone: e.target.value })
-                        }
-                        placeholder="Opcional"
-                      />
-                    </label>
-                    <label>
-                      Correo
-                      <input
-                        type="email"
-                        value={row.email}
-                        onChange={(e) =>
-                          patchLeader(row.key, { email: e.target.value })
-                        }
-                        placeholder="Opcional"
-                      />
-                    </label>
-                  </div>
-                  <fieldset className="church-role-set">
-                    <legend>Roles</legend>
-                    {LEADER_ROLE_OPTIONS.map((opt) => (
-                      <label key={opt.id} className="church-check">
-                        <input
-                          type="checkbox"
-                          checked={row.roles.includes(opt.id)}
-                          onChange={() => toggleLeaderRole(row.key, opt.id)}
-                        />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </fieldset>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {leaders.length === 0 ? (
+            <p className="church-empty">
+              No hay líderes para esta red. Regístrelos en{" "}
+              <a href={APP_ROUTES.churchLeaders}>/church/leaders</a> (mismo
+              permiso que registrar iglesias).
+            </p>
+          ) : null}
 
           <section className="church-section">
             <div className="church-section__head">
@@ -383,7 +283,7 @@ export default function ChurchRegisterPage() {
                       name: "",
                       openedAt: "",
                       address: "",
-                      leadership: namedLeaders[0] || "",
+                      leadership: leaders[0]?.id || "",
                     },
                   ])
                 }
@@ -401,10 +301,14 @@ export default function ChurchRegisterPage() {
                       className="btn"
                       disabled={churches.length <= 1}
                       onClick={() => {
-                        setChurches((rows) => rows.filter((r) => r.key !== row.key));
+                        setChurches((rows) =>
+                          rows.filter((r) => r.key !== row.key),
+                        );
                         setMembers((ms) =>
                           ms.map((m) =>
-                            m.churchKey === row.key ? { ...m, churchKey: "" } : m,
+                            m.churchKey === row.key
+                              ? { ...m, churchKey: "" }
+                              : m,
                           ),
                         );
                       }}
@@ -419,7 +323,9 @@ export default function ChurchRegisterPage() {
                       onChange={(e) =>
                         setChurches((rows) =>
                           rows.map((r) =>
-                            r.key === row.key ? { ...r, name: e.target.value } : r,
+                            r.key === row.key
+                              ? { ...r, name: e.target.value }
+                              : r,
                           ),
                         )
                       }
@@ -434,7 +340,9 @@ export default function ChurchRegisterPage() {
                       onChange={(e) =>
                         setChurches((rows) =>
                           rows.map((r) =>
-                            r.key === row.key ? { ...r, openedAt: e.target.value } : r,
+                            r.key === row.key
+                              ? { ...r, openedAt: e.target.value }
+                              : r,
                           ),
                         )
                       }
@@ -447,7 +355,9 @@ export default function ChurchRegisterPage() {
                       onChange={(e) =>
                         setChurches((rows) =>
                           rows.map((r) =>
-                            r.key === row.key ? { ...r, address: e.target.value } : r,
+                            r.key === row.key
+                              ? { ...r, address: e.target.value }
+                              : r,
                           ),
                         )
                       }
@@ -469,12 +379,138 @@ export default function ChurchRegisterPage() {
                       required
                     >
                       <option value="">Seleccionar líder…</option>
-                      {namedLeaders.map((n) => (
-                        <option key={n} value={n}>
-                          {n}
+                      {leaders.map((L) => (
+                        <option key={L.id} value={L.id}>
+                          {leaderDisplayName(L)}
                         </option>
                       ))}
                     </select>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="church-section">
+            <div className="church-section__head">
+              <h2>Creencias</h2>
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  setBeliefs((rows) => [...rows, emptyBelief()])
+                }
+              >
+                +
+              </button>
+            </div>
+            <p className="church-empty">
+              Registre creencias una a una: encabezado, textos claves (+/−) y
+              texto completo. Use ↑/↓ para reordenar.
+            </p>
+            <ul className="church-dyn-list">
+              {beliefs.map((row, idx) => (
+                <li key={row.key} className="church-dyn-card">
+                  <div className="church-dyn-card__row">
+                    <span className="church-dyn-card__title">
+                      Creencia {idx + 1}
+                    </span>
+                    <div className="church-page__actions">
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={idx === 0}
+                        onClick={() => moveBelief(row.key, -1)}
+                        aria-label="Subir"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={idx === beliefs.length - 1}
+                        onClick={() => moveBelief(row.key, 1)}
+                        aria-label="Bajar"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={beliefs.length <= 1}
+                        onClick={() =>
+                          setBeliefs((rows) =>
+                            rows.filter((r) => r.key !== row.key),
+                          )
+                        }
+                      >
+                        −
+                      </button>
+                    </div>
+                  </div>
+                  <label>
+                    Encabezado
+                    <input
+                      value={row.heading}
+                      onChange={(e) =>
+                        patchBelief(row.key, { heading: e.target.value })
+                      }
+                      placeholder="Título de la creencia"
+                    />
+                  </label>
+                  <div className="church-key-texts">
+                    <div className="church-section__head">
+                      <h3 className="church-key-texts__title">
+                        Textos claves
+                      </h3>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() =>
+                          patchBelief(row.key, {
+                            keyTexts: [...(row.keyTexts ?? []), ""],
+                          })
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+                    {(row.keyTexts ?? [""]).map((t, ti) => (
+                      <div key={ti} className="church-key-texts__row">
+                        <input
+                          value={t}
+                          onChange={(e) =>
+                            patchKeyText(row.key, ti, e.target.value)
+                          }
+                          placeholder="Pasaje o texto clave"
+                        />
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={(row.keyTexts ?? []).length <= 1}
+                          onClick={() =>
+                            patchBelief(row.key, {
+                              keyTexts: (row.keyTexts ?? []).filter(
+                                (_, j) => j !== ti,
+                              ),
+                            })
+                          }
+                        >
+                          −
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <label>
+                    Texto completo
+                    <textarea
+                      value={row.body || ""}
+                      onChange={(e) =>
+                        patchBelief(row.key, { body: e.target.value })
+                      }
+                      rows={5}
+                      placeholder="Desarrollo de la creencia"
+                    />
                   </label>
                 </li>
               ))}
@@ -516,7 +552,9 @@ export default function ChurchRegisterPage() {
                       type="button"
                       className="btn"
                       onClick={() =>
-                        setMembers((rows) => rows.filter((r) => r.key !== row.key))
+                        setMembers((rows) =>
+                          rows.filter((r) => r.key !== row.key),
+                        )
                       }
                     >
                       −
@@ -591,7 +629,9 @@ export default function ChurchRegisterPage() {
                       onChange={(e) =>
                         setMembers((rows) =>
                           rows.map((r) =>
-                            r.key === row.key ? { ...r, address: e.target.value } : r,
+                            r.key === row.key
+                              ? { ...r, address: e.target.value }
+                              : r,
                           ),
                         )
                       }
@@ -604,7 +644,9 @@ export default function ChurchRegisterPage() {
                       onChange={(e) =>
                         setMembers((rows) =>
                           rows.map((r) =>
-                            r.key === row.key ? { ...r, phone: e.target.value } : r,
+                            r.key === row.key
+                              ? { ...r, phone: e.target.value }
+                              : r,
                           ),
                         )
                       }
@@ -618,7 +660,9 @@ export default function ChurchRegisterPage() {
                       onChange={(e) =>
                         setMembers((rows) =>
                           rows.map((r) =>
-                            r.key === row.key ? { ...r, email: e.target.value } : r,
+                            r.key === row.key
+                              ? { ...r, email: e.target.value }
+                              : r,
                           ),
                         )
                       }
@@ -653,20 +697,10 @@ export default function ChurchRegisterPage() {
             </ul>
             {members.length === 0 ? (
               <p className="church-empty">
-                Opcional: agregue miembros con +; cada uno elige su iglesia. Con
-                cuenta eduardoos.com al mismo correo pueden ver el dashboard sin
-                suscripción church-management.
+                Opcional: agregue miembros con +; cada uno elige su iglesia.
               </p>
             ) : null}
           </section>
-
-          <label>
-            Documento de creencias (opcional, se copia a cada iglesia)
-            <textarea
-              value={beliefsDocument}
-              onChange={(e) => setBeliefsDocument(e.target.value)}
-            />
-          </label>
 
           {error ? <p className="church-empty">{error}</p> : null}
           <button type="submit" className="btn btn--primary" disabled={busy}>

@@ -451,6 +451,37 @@
   cursor: pointer;
 }
 
+.church-key-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.church-key-texts__title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.church-key-texts__row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.church-key-texts__row input {
+  flex: 1;
+}
+
+.church-belief-keys {
+  margin: 0.35rem 0 0.5rem;
+  padding-left: 1.15rem;
+  color: var(--site-muted, var(--site-body-fg));
+  font-family: var(--font-body);
+  line-height: 1.45;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .church-card {
     transition: none;

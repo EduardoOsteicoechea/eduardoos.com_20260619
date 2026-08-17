@@ -596,3 +596,168 @@ func newDynamoGroups(ctx context.Context) (*dynamoGroups, error) {
 	}
 	return &dynamoGroups{client: dynamodb.NewFromConfig(cfg), table: table}, nil
 }
+
+// dynamoLeaders persists leaders catalog rows
+// (SK church-leader:l:{id}) in the same catalog table.
+type dynamoLeaders struct {
+	client *dynamodb.Client
+	table  string
+}
+
+func (d *dynamoLeaders) BackendName() string { return "dynamodb:" + d.table }
+
+func (d *dynamoLeaders) putJSON(ctx context.Context, sk string, value any) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	_, err = d.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(d.table),
+		Item: map[string]types.AttributeValue{
+			"PK":   &types.AttributeValueMemberS{Value: "APP"},
+			"SK":   &types.AttributeValueMemberS{Value: sk},
+			"data": &types.AttributeValueMemberS{Value: string(raw)},
+		},
+	})
+	return err
+}
+
+func (d *dynamoLeaders) getJSON(ctx context.Context, sk string, dest any) (bool, error) {
+	out, err := d.client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(d.table),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "APP"},
+			"SK": &types.AttributeValueMemberS{Value: sk},
+		},
+	})
+	if err != nil {
+		return false, err
+	}
+	if out.Item == nil {
+		return false, nil
+	}
+	data, ok := out.Item["data"].(*types.AttributeValueMemberS)
+	if !ok || data.Value == "" {
+		return false, nil
+	}
+	if err := json.Unmarshal([]byte(data.Value), dest); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (d *dynamoLeaders) Create(ctx context.Context, L LeaderDoc) (LeaderDoc, error) {
+	L = sanitizeLeaderDoc(L)
+	if L.ID == "" || L.FirstName == "" || L.LastName == "" {
+		return LeaderDoc{}, fmt.Errorf("id, firstName and lastName required")
+	}
+	if !IsValidSlug(L.ID) {
+		return LeaderDoc{}, fmt.Errorf("invalid leader id")
+	}
+	sk := LeaderSK(L.ID)
+	var existing LeaderDoc
+	ok, err := d.getJSON(ctx, sk, &existing)
+	if err != nil {
+		return LeaderDoc{}, err
+	}
+	if ok {
+		return LeaderDoc{}, ErrDuplicate
+	}
+	if err := d.putJSON(ctx, sk, L); err != nil {
+		return LeaderDoc{}, err
+	}
+	return L, nil
+}
+
+func (d *dynamoLeaders) Get(ctx context.Context, id string) (LeaderDoc, bool, error) {
+	var L LeaderDoc
+	ok, err := d.getJSON(ctx, LeaderSK(id), &L)
+	if err != nil || !ok {
+		return LeaderDoc{}, ok, err
+	}
+	return L, true, nil
+}
+
+func (d *dynamoLeaders) List(ctx context.Context) ([]LeaderDoc, error) {
+	out, err := d.client.Query(ctx, &dynamodb.QueryInput{
+		TableName:              aws.String(d.table),
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk": &types.AttributeValueMemberS{Value: "APP"},
+			":sk": &types.AttributeValueMemberS{Value: LeaderSKPrefix()},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	list := make([]LeaderDoc, 0, len(out.Items))
+	for _, item := range out.Items {
+		data, ok := item["data"].(*types.AttributeValueMemberS)
+		if !ok || data.Value == "" {
+			continue
+		}
+		var L LeaderDoc
+		if err := json.Unmarshal([]byte(data.Value), &L); err != nil {
+			continue
+		}
+		list = append(list, L)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return strings.ToLower(leaderDocDisplayName(list[i])) < strings.ToLower(leaderDocDisplayName(list[j]))
+	})
+	return list, nil
+}
+
+func (d *dynamoLeaders) Update(ctx context.Context, L LeaderDoc) (LeaderDoc, error) {
+	L = sanitizeLeaderDoc(L)
+	sk := LeaderSK(L.ID)
+	var existing LeaderDoc
+	ok, err := d.getJSON(ctx, sk, &existing)
+	if err != nil {
+		return LeaderDoc{}, err
+	}
+	if !ok {
+		return LeaderDoc{}, ErrNotFound
+	}
+	if L.FirstName == "" || L.LastName == "" {
+		return LeaderDoc{}, fmt.Errorf("firstName and lastName required")
+	}
+	L.CreatedAt = existing.CreatedAt
+	L.CreatedBy = existing.CreatedBy
+	if err := d.putJSON(ctx, sk, L); err != nil {
+		return LeaderDoc{}, err
+	}
+	return L, nil
+}
+
+func (d *dynamoLeaders) Delete(ctx context.Context, id string) error {
+	sk := LeaderSK(id)
+	var existing LeaderDoc
+	ok, err := d.getJSON(ctx, sk, &existing)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrNotFound
+	}
+	_, err = d.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(d.table),
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "APP"},
+			"SK": &types.AttributeValueMemberS{Value: sk},
+		},
+	})
+	return err
+}
+
+func newDynamoLeaders(ctx context.Context) (*dynamoLeaders, error) {
+	cfg, err := awsx.LoadConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	table := strings.TrimSpace(httpx.Env("CHURCH_TABLE", ""))
+	if table == "" {
+		table = strings.TrimSpace(httpx.Env("HOMESCOOL_TABLE", "eduardoos_catalog"))
+	}
+	return &dynamoLeaders{client: dynamodb.NewFromConfig(cfg), table: table}, nil
+}

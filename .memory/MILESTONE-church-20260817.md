@@ -14,7 +14,8 @@ See `MILESTONE-church-authz-20260817.md`.
 |-------|-------|
 | `/church` | Searchable church card grid |
 | `/church/groups` | Admin-only redes / denominaciones catalog |
-| `/church/register` | Multi-church cards + líderes + members under catalog group |
+| `/church/leaders` | Independent líderes catalog (register-gate / admin) |
+| `/church/register` | Multi-church cards + liderazgo dropdown + creencias + members |
 | `/church/overview` | Linked churches; admin sees all; add activities; FullCalendar |
 | `/church/activity` | Authorized activities + text/image reports |
 | `/church/{denom}/{churchId}` | Detail tabs (nginx → workspace shell) |
@@ -38,13 +39,14 @@ overview, activity feed, members, create activity, report (+ images).
 
 ```
 church/groups/{groupId}/group.json
+church/leaders/{leaderId}/leader.json
 church/{denomOrWebId}/{churchId}/church.json
 church/.../activities/{id}/activity.json
 church/.../activities/{id}/reports/{reportId}.json
 church/.../activities/{id}/images/{filename}
 ```
 
-Dynamo (`eduardoos_catalog`): `church-group:g:…`, `church:d:…|c:…`,
+Dynamo (`eduardoos_catalog`): `church-group:g:…`, `church-leader:l:…`, `church:d:…|c:…`,
 `church-member:u:…|d:…|c:…`, `church-auth:u:…`.
 
 ## IAM

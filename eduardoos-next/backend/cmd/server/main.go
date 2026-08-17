@@ -82,6 +82,7 @@ func main() {
 	churchHandler := church.NewHandler(jwtSecret, userStore)
 	churchHandler.Catalog = church.OpenCatalogStore(ctx)
 	churchHandler.Groups = church.OpenGroupStore(ctx)
+	churchHandler.Leaders = church.OpenLeaderStore(ctx)
 	churchHandler.Memberships = church.OpenMembershipStore(ctx)
 	churchHandler.Authorizations = church.OpenAuthorizationStore(ctx)
 	churchHandler.Objects = church.OpenObjectSpace(ctx)

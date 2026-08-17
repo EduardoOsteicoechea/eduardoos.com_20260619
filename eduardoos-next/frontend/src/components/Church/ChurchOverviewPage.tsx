@@ -7,6 +7,7 @@ import { APP_ROUTES } from "../../config/routes";
 import {
   churchDetailHref,
   createChurchActivity,
+  ensureChurchBeliefs,
   fetchChurchOverview,
   leaderDisplayName,
   roleLabel,
@@ -137,6 +138,14 @@ export default function ChurchOverviewPage() {
                     .map((L) => leaderDisplayName(L))
                     .filter(Boolean)
                     .join(", ")}
+                </p>
+              ) : null}
+              {ensureChurchBeliefs(ch.church).length > 0 ? (
+                <p className="church-panel__block">
+                  Creencias:{" "}
+                  {ensureChurchBeliefs(ch.church)
+                    .map((b) => b.heading)
+                    .join(" · ")}
                 </p>
               ) : null}
               {(ch.viewerRole === "church-admin" || ch.viewerRole === "admin") && (

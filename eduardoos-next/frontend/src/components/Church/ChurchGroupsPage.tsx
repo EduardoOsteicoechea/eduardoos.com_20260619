@@ -141,6 +141,9 @@ export default function ChurchGroupsPage() {
         <a className="btn" href={APP_ROUTES.churchRegister}>
           Register
         </a>
+        <a className="btn" href={APP_ROUTES.churchLeaders}>
+          Líderes
+        </a>
       </div>
 
       <form className="church-form" onSubmit={onCreate}>
