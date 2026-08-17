@@ -457,6 +457,20 @@ export async function updateGreekCatalogGlyph(
   return data?.glyph ?? null;
 }
 
+/**
+ * Clear a catalog slot drawing (EmptyLetterSVG + drawn=false).
+ * Keeps seed metadata (slug, label, alphabet #). Uses DELETE /api/greek/catalog/{slug}.
+ */
+export async function clearGreekCatalogGlyph(
+  slug: string,
+): Promise<GreekGalleryGlyph | null> {
+  const data = await greekRequest<{ cleared: boolean; glyph: GreekGalleryGlyph }>(
+    GREEK_ROUTES.catalogGlyph(slug),
+    { method: "DELETE" },
+  );
+  return data?.glyph ?? null;
+}
+
 /** Authenticated letter URL for <img src> (blob fetch preferred). */
 export function greekLetterApiUrl(
   groupSlug: string,

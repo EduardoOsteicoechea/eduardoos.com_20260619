@@ -432,6 +432,23 @@
   border-bottom: 1px solid color-mix(in srgb, var(--site-border) 70%, transparent);
 }
 
+.greek-catalog__meta {
+  flex: 1 1 8rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* Drawn SVG (or undrawn label placeholder) beside the letter label + trash. */
+.greek-catalog__preview {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
 .greek-catalog__thumb {
   width: 32px;
   height: 64px;
@@ -451,12 +468,34 @@
   opacity: 0.55;
 }
 
-.greek-catalog__meta {
-  flex: 1 1 10rem;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+.greek-catalog__trash {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--site-border) 80%, transparent);
+  border-radius: var(--border_radius_001, 4px);
+  background: transparent;
+  color: var(--site-body-fg);
+  cursor: pointer;
+}
+
+.greek-catalog__trash:hover:not(:disabled) {
+  color: var(--site-accent, var(--site-body-fg));
+  border-color: color-mix(in srgb, var(--site-accent, var(--site-border)) 55%, transparent);
+}
+
+.greek-catalog__trash:disabled {
+  opacity: 0.45;
+  cursor: wait;
+}
+
+.greek-catalog__trash-icon {
+  display: block;
+  fill: currentColor;
 }
 
 .greek-catalog__label {

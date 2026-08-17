@@ -69,11 +69,12 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Delete("/api/greek/gallery/{glyphSlug}", h.DeleteGalleryGlyph)
 
 		// Catalog aliases (letter catalog UI; storage remains greek/{user}/gallery/).
+		// DELETE catalog clears the drawing but keeps the seeded slot metadata.
 		pr.Get("/api/greek/catalog", h.ListGallery)
 		pr.Post("/api/greek/catalog/seed", h.SeedCatalog)
 		pr.Get("/api/greek/catalog/{glyphSlug}", h.GetGalleryGlyph)
 		pr.Put("/api/greek/catalog/{glyphSlug}", h.UpdateGalleryGlyph)
-		pr.Delete("/api/greek/catalog/{glyphSlug}", h.DeleteGalleryGlyph)
+		pr.Delete("/api/greek/catalog/{glyphSlug}", h.ClearCatalogGlyph)
 	})
 }
 
@@ -1108,6 +1109,59 @@ func (h *Handler) DeleteGalleryGlyph(w http.ResponseWriter, r *http.Request) {
 		_ = h.Objects.PutJSON(r.Context(), GalleryIndexKey(owner), idx, cid)
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"deleted": true, "slug": glyphSlug})
+}
+
+// ClearCatalogGlyph resets a catalog slot drawing to EmptyLetterSVG and marks
+// the glyph undrawn. Seed metadata (slug, label, name, alphabet #, case/variant)
+// stays in gallery/index.json so the admin can redraw the same slot.
+func (h *Handler) ClearCatalogGlyph(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	owner := auth.UserEmailFromRequest(r)
+	glyphSlug := chi.URLParam(r, "glyphSlug")
+	if !IsValidSlug(glyphSlug) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid gallery slug")
+		return
+	}
+	idx, err := h.loadGalleryIndex(r, owner, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not load catalog index")
+		return
+	}
+	gi := -1
+	for i := range idx.Glyphs {
+		if idx.Glyphs[i].Slug == glyphSlug {
+			gi = i
+			break
+		}
+	}
+	if gi < 0 {
+		httpx.WriteError(w, http.StatusNotFound, "catalog glyph not found")
+		return
+	}
+	empty := []byte(EmptyLetterSVG)
+	gKey := GalleryGlyphKey(owner, glyphSlug)
+	if err := h.Objects.PutBytes(r.Context(), gKey, empty, "image/svg+xml", cid); err != nil {
+		log.Printf("[correlation=%s] greek.catalog.clear put error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not clear catalog glyph")
+		return
+	}
+	glyph := idx.Glyphs[gi]
+	glyph.Key = gKey
+	glyph.URL = galleryURL(glyphSlug)
+	glyph.Size = int64(len(empty))
+	glyph.Drawn = false
+	glyph.UpdatedAt = nowRFC3339()
+	if glyph.CreatedAt == "" {
+		glyph.CreatedAt = glyph.UpdatedAt
+	}
+	idx.Glyphs[gi] = glyph
+	idx.UpdatedAt = glyph.UpdatedAt
+	if err := h.Objects.PutJSON(r.Context(), GalleryIndexKey(owner), idx, cid); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not update catalog index")
+		return
+	}
+	log.Printf("[correlation=%s] greek.catalog.clear owner=%s slug=%s", cid, owner, glyphSlug)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"cleared": true, "glyph": glyph})
 }
 
 func (h *Handler) loadGalleryIndex(r *http.Request, owner, cid string) (GalleryIndex, error) {

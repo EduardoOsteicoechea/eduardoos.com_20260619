@@ -2,10 +2,14 @@
  * Letter catalog modal — Koine Greek slots (upper/lower + accents).
  * Admin seeds structure, then draws/overrides SVG one-by-one.
  * Storage: greek/{user}/gallery/ (catalog UI over gallery prefix).
+ *
+ * Drawn rows show the SVG preview beside the letter label, plus a trash
+ * control that clears the drawing (confirm first) while keeping the slot.
  */
 
 import { useEffect, useId, useRef, useState } from "react";
 import {
+  clearGreekCatalogGlyph,
   fetchLetterBlobUrl,
   formatAlphabetNumber,
   listGreekGallery,
@@ -15,6 +19,25 @@ import {
 } from "../../lib/greek";
 import LetterCanvas, { type LetterCanvasSave } from "./LetterCanvas";
 import "./Greek.css";
+
+/** Trash can glyph — fill currentColor for light/dark chrome. */
+function IconTrash({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        fill="currentColor"
+        d="M9 3h6l1 2h5v2H3V5h5l1-2zm1 6h2v10h-2V9zm4 0h2v10h-2V9zM7 7h10v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V7z"
+      />
+    </svg>
+  );
+}
 
 function CatalogThumb({ glyph }: { glyph: GreekGalleryGlyph }) {
   const [src, setSrc] = useState<string | null>(null);
@@ -71,6 +94,7 @@ export default function LetterCatalog({ open, onClose }: LetterCatalogProps) {
   const [glyphs, setGlyphs] = useState<GreekGalleryGlyph[]>([]);
   const [loading, setLoading] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [clearingSlug, setClearingSlug] = useState<string | null>(null);
   const [drawTarget, setDrawTarget] = useState<GreekGalleryGlyph | null>(null);
   const [filter, setFilter] = useState("");
 
@@ -95,6 +119,7 @@ export default function LetterCatalog({ open, onClose }: LetterCatalogProps) {
     if (!open) return;
     setFilter("");
     setDrawTarget(null);
+    setClearingSlug(null);
     void refresh();
   }, [open]);
 
@@ -114,6 +139,28 @@ export default function LetterCatalog({ open, onClose }: LetterCatalogProps) {
     if (!drawTarget) return;
     await updateGreekCatalogGlyph(drawTarget.slug, { svg: payload.svg });
     await refresh();
+  }
+
+  async function onClearDrawing(g: GreekGalleryGlyph) {
+    if (!g.drawn || clearingSlug) return;
+    const label = g.label || g.slug;
+    const ok = window.confirm(
+      `Delete the drawing for “${label}” (#${formatAlphabetNumber(g.alphabetNumber)})?\n\nThis clears the SVG in S3 (gallery/). The catalog slot and seed metadata are kept.`,
+    );
+    if (!ok) return;
+    setClearingSlug(g.slug);
+    try {
+      const cleared = await clearGreekCatalogGlyph(g.slug);
+      if (cleared) {
+        setGlyphs((prev) =>
+          prev.map((item) => (item.slug === cleared.slug ? cleared : item)),
+        );
+      } else {
+        await refresh();
+      }
+    } finally {
+      setClearingSlug(null);
+    }
   }
 
   const q = filter.trim().toLowerCase();
@@ -186,7 +233,6 @@ export default function LetterCatalog({ open, onClose }: LetterCatalogProps) {
             <ul className="greek-catalog__list">
               {visible.map((g) => (
                 <li key={g.slug} className="greek-catalog__row">
-                  <CatalogThumb glyph={g} />
                   <div className="greek-catalog__meta">
                     <span className="greek-catalog__label" title={g.name}>
                       {g.label || "—"}{" "}
@@ -196,6 +242,21 @@ export default function LetterCatalog({ open, onClose }: LetterCatalogProps) {
                       #{formatAlphabetNumber(g.alphabetNumber)}
                       {g.drawn ? "" : " · undrawn"}
                     </span>
+                  </div>
+                  <div className="greek-catalog__preview">
+                    <CatalogThumb glyph={g} />
+                    {g.drawn ? (
+                      <button
+                        type="button"
+                        className="greek-catalog__trash"
+                        title="Delete drawing"
+                        aria-label={`Delete drawing for ${g.label || g.slug}`}
+                        disabled={clearingSlug === g.slug}
+                        onClick={() => void onClearDrawing(g)}
+                      >
+                        <IconTrash className="greek-catalog__trash-icon" />
+                      </button>
+                    ) : null}
                   </div>
                   <button
                     type="button"

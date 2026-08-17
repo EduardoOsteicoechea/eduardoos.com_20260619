@@ -39,11 +39,16 @@ greek/{userSafe}/gallery/{glyphSlug}.svg
 | GET | `/api/greek/catalog` (alias of gallery list) |
 | POST | `/api/greek/catalog/seed` |
 | PUT | `/api/greek/catalog/{slug}` (SVG override) |
-| GET/DELETE | `/api/greek/catalog/{slug}` |
+| GET | `/api/greek/catalog/{slug}` |
+| DELETE | `/api/greek/catalog/{slug}` — **clear drawing** (EmptyLetterSVG + `drawn=false`; keeps seed slot) |
 | GET/POST | `/api/greek/gallery` (legacy + POST create/override) |
-| PUT/GET/DELETE | `/api/greek/gallery/{slug}` |
+| PUT/GET/DELETE | `/api/greek/gallery/{slug}` (gallery DELETE still removes the glyph from the index) |
 
 Seed writes empty placeholder SVGs; re-seed keeps already-drawn glyphs.
+
+### Catalog row UI
+
+Drawn slots show the SVG preview **beside** the letter label, with a **trash** control (`currentColor` icon) that `confirm`s then clears the drawing via `DELETE /api/greek/catalog/{slug}`.
 
 ## Letter-image model
 

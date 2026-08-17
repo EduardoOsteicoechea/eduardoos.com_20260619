@@ -430,6 +430,61 @@ func TestCatalogSeedAndOverride(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "<path") {
 		t.Fatalf("expected drawn svg kept, status=%d body=%s", rec.Code, rec.Body.String())
 	}
+
+	// DELETE catalog clears drawing but keeps seed slot metadata.
+	req = httptest.NewRequest(http.MethodDelete, "/api/greek/catalog/nu-lower", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("clear status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var clearResp struct {
+		Cleared bool         `json:"cleared"`
+		Glyph   GalleryGlyph `json:"glyph"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &clearResp); err != nil {
+		t.Fatal(err)
+	}
+	if !clearResp.Cleared || clearResp.Glyph.Drawn || clearResp.Glyph.Slug != "nu-lower" ||
+		clearResp.Glyph.AlphabetNumber != 13.1 || clearResp.Glyph.Label != "ν" {
+		t.Fatalf("expected undrawn nu-lower slot kept, got %#v", clearResp)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/greek/catalog/nu-lower", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "<path") {
+		t.Fatalf("expected empty placeholder svg, status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/greek/catalog", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list after clear status=%d", rec.Code)
+	}
+	var listResp struct {
+		Glyphs []GalleryGlyph `json:"glyphs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &listResp); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, g := range listResp.Glyphs {
+		if g.Slug == "nu-lower" {
+			found = true
+			if g.Drawn || g.AlphabetNumber != 13.1 {
+				t.Fatalf("list should keep undrawn nu-lower @13.1, got %#v", g)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatal("nu-lower slot missing from catalog after clear")
+	}
 }
 
 func TestKoineCatalogSeedNumbering(t *testing.T) {
