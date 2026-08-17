@@ -52,7 +52,7 @@ export default function StudentWorkspacePage() {
 
   return (
     <ServiceGate serviceId="homescool" serviceLabel="Homescool">
-      <div className="page-shell">
+      <div className="page-shell page-shell--homescool-flush">
         <div className="product-page__cta-row homescool-workspace__nav">
           <a className="btn" href={APP_ROUTES.homescoolStudents}>
             All students
@@ -66,9 +66,11 @@ export default function StudentWorkspacePage() {
           <StudentSpaceLayout
             brand="Teacher workspace"
             title={link?.studentEmail ?? slug}
-            lead="Choose a folder card to list objects stored for this student under your teacher prefix."
+            lead="Choose a folder card. Tasks opens four boards; create templates in the sidebar and assign from the dashboard."
             link={link}
             loadFolder={loadFolder}
+            mode="teacher"
+            studentSlug={slug}
           />
         ) : null}
       </div>

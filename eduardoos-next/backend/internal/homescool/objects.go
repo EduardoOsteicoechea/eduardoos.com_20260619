@@ -5,8 +5,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path"
 	"strings"
 	"sync"
+	"unicode"
 
 	"eduardoos.nex/internal/awsx"
 	"eduardoos.nex/internal/httpx"
@@ -24,12 +26,14 @@ type FolderObject struct {
 	URL          string `json:"url,omitempty"`
 }
 
-// ObjectSpace creates folder markers and lists objects under a relationship.
+// ObjectSpace creates folder markers, lists objects, and stores task/template bytes.
 // Production uses S3; tests inject MemoryObjectSpace.
 type ObjectSpace interface {
 	BackendName() string
 	EnsureStudentFolders(ctx context.Context, teacherEmail, studentEmail, correlationID string) error
 	ListFolder(ctx context.Context, teacherEmail, studentEmail, folder, correlationID string) ([]FolderObject, error)
+	// PutBytes writes an object at an absolute key under the Homescool bucket/prefix.
+	PutBytes(ctx context.Context, key string, body []byte, contentType, correlationID string) error
 }
 
 // MemoryObjectSpace records written keys and lists them for unit tests.
@@ -78,6 +82,19 @@ func (m *MemoryObjectSpace) ListFolder(_ context.Context, teacherEmail, studentE
 		})
 	}
 	return out, nil
+}
+
+func (m *MemoryObjectSpace) PutBytes(_ context.Context, key string, body []byte, _, _ string) error {
+	key = strings.TrimSpace(key)
+	if key == "" || !strings.HasPrefix(key, RootPrefix+"/") {
+		return fmt.Errorf("invalid object key")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	cp := make([]byte, len(body))
+	copy(cp, body)
+	m.keys[key] = cp
+	return nil
 }
 
 // S3ObjectSpace writes markers and lists under the configured media bucket
@@ -145,6 +162,51 @@ func (s *S3ObjectSpace) ListFolder(ctx context.Context, teacherEmail, studentEma
 	}
 	log.Printf("[correlation=%s] homescool.s3.list prefix=%s count=%d", correlationID, prefix, len(items))
 	return items, nil
+}
+
+func (s *S3ObjectSpace) PutBytes(ctx context.Context, key string, body []byte, contentType, correlationID string) error {
+	key = strings.TrimSpace(key)
+	if key == "" || !strings.HasPrefix(key, RootPrefix+"/") {
+		return fmt.Errorf("invalid object key")
+	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucket),
+		Key:         aws.String(key),
+		Body:        bytes.NewReader(body),
+		ContentType: aws.String(contentType),
+	})
+	if err != nil {
+		return err
+	}
+	log.Printf("[correlation=%s] homescool.s3.put key=%s bytes=%d", correlationID, key, len(body))
+	return nil
+}
+
+// SanitizeUploadName turns an upload filename into a safe S3 leaf name.
+func SanitizeUploadName(name string) string {
+	name = path.Base(strings.TrimSpace(name))
+	if name == "" || name == "." || name == ".." {
+		return "file.bin"
+	}
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r) || r == '.' || r == '-' || r == '_':
+			b.WriteRune(r)
+		case r == ' ':
+			b.WriteByte('_')
+		default:
+			b.WriteByte('_')
+		}
+	}
+	out := b.String()
+	if out == "" || out == "." || out == ".." {
+		return "file.bin"
+	}
+	return out
 }
 
 func mediaBucket() string {

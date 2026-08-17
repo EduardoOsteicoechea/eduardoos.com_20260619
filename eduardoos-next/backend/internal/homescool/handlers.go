@@ -18,18 +18,23 @@ type Handler struct {
 	JWTSecret string
 	Users     auth.UserStore
 	Links     Store
+	Tasks     TaskStore
 	Objects   ObjectSpace
-	auth      *auth.Handler
+	// Mail uses the shared auth SMTP stack (SMTP_USER / SMTP_PASS). Optional;
+	// when nil, notification helpers no-op.
+	Mail Mailer
+	auth *auth.Handler
 }
 
-// NewHandler wires stores. Production main replaces Links/Objects via
-// OpenLinkStore / OpenObjectSpace so links survive process restart.
+// NewHandler wires stores. Production main replaces Links/Tasks/Objects via
+// OpenLinkStore / OpenTaskStore / OpenObjectSpace so data survives process restart.
 // Tests keep the in-memory defaults unless they inject a shared Store.
 func NewHandler(jwtSecret string, users auth.UserStore) *Handler {
 	return &Handler{
 		JWTSecret: jwtSecret,
 		Users:     users,
 		Links:     NewMemoryStore(),
+		Tasks:     NewMemoryTaskStore(),
 		Objects:   NewMemoryObjectSpace(),
 		auth:      &auth.Handler{JWTSecret: jwtSecret, Store: users},
 	}
@@ -45,6 +50,7 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Get("/api/homescool/students/{studentSlug}/folders/{folder}", h.ListTeacherStudentFolder)
 		pr.Get("/api/homescool/learning", h.ListLearning)
 		pr.Get("/api/homescool/learning/{teacherSlug}/folders/{folder}", h.ListLearningFolder)
+		h.mountTaskRoutes(pr)
 	})
 }
 
@@ -112,6 +118,9 @@ func (h *Handler) RegisterStudent(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("[correlation=%s] homescool.register teacher=%s student=%s prefix=%s existing=%t",
 		cid, teacher, studentEmail, link.S3Prefix, alreadyLinked)
+	// Notify on first registration (and on idempotent re-register so the student
+	// still gets a fresh pointer to their space). Mail failure is logged only.
+	h.notifyStudentRegistered(cid, link)
 	httpx.WriteJSON(w, status, map[string]any{
 		"link":     link,
 		"folders":  FolderNames,

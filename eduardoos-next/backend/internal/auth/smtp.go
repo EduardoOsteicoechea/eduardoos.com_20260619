@@ -204,6 +204,115 @@ func (h *Handler) sendPlainMailTraced(correlationID, to, subject, body string) e
 	return nil
 }
 
+// SendHTMLMail delivers a multipart/alternative message (plain + HTML) using the
+// same SMTP_USER / SMTP_PASS path as OTP mail. Empty SMTP_PASS logs locally and
+// returns nil so product mutations never hard-fail on mail in local/dev.
+func (h *Handler) SendHTMLMail(correlationID, to, subject, plainBody, htmlBody string) error {
+	return h.sendMultipartMailTraced(correlationID, to, subject, plainBody, htmlBody)
+}
+
+func (h *Handler) sendMultipartMailTraced(correlationID, to, subject, plainBody, htmlBody string) error {
+	started := time.Now()
+	to = strings.TrimSpace(to)
+	subject = strings.TrimSpace(subject)
+	plainBody = strings.TrimSpace(plainBody)
+	htmlBody = strings.TrimSpace(htmlBody)
+	if htmlBody == "" {
+		return h.sendPlainMailTraced(correlationID, to, subject, plainBody)
+	}
+	if plainBody == "" {
+		plainBody = "Open this message in an HTML-capable mail client."
+	}
+
+	pass := ""
+	if h != nil {
+		pass = normalizeSMTPPass(h.SMTPPass)
+	}
+	smtpStep(correlationID, "begin_html", fmt.Sprintf(
+		"to=%s subject=%q pass_set=%t html_bytes=%d plain_bytes=%d",
+		to, subject, pass != "", len(htmlBody), len(plainBody),
+	))
+
+	if pass == "" {
+		smtpStep(correlationID, "skip_empty_pass",
+			"SMTP_PASS empty after normalize — not contacting Gmail (dev/log-only path)")
+		log.Printf("[correlation=%s] auth.smtp skip_empty_pass html mail subject=%q to=%s\n---plain---\n%s\n---html---\n%s",
+			correlationID, subject, to, plainBody, htmlBody)
+		return nil
+	}
+
+	user := ""
+	if h != nil {
+		user = strings.TrimSpace(h.SMTPUser)
+	}
+	if user == "" {
+		user = "eduardooost@gmail.com"
+	}
+
+	const (
+		host = "smtp.gmail.com"
+		addr = "smtp.gmail.com:587"
+	)
+
+	client, err := smtp.Dial(addr)
+	if err != nil {
+		smtpStep(correlationID, "dial_failed", err.Error())
+		return fmt.Errorf("smtp dial %s: %w", addr, err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if err := client.Hello(host); err != nil {
+		return fmt.Errorf("smtp hello: %w", err)
+	}
+	if ok, _ := client.Extension("STARTTLS"); ok {
+		tlsConfig := &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}
+		if err := client.StartTLS(tlsConfig); err != nil {
+			return fmt.Errorf("smtp starttls: %w", err)
+		}
+	}
+	auth := smtp.PlainAuth("", user, pass, host)
+	if err := client.Auth(auth); err != nil {
+		smtpStep(correlationID, "auth_failed", err.Error())
+		return fmt.Errorf("smtp auth user=%s: %w", user, err)
+	}
+	if err := client.Mail(user); err != nil {
+		return fmt.Errorf("smtp MAIL FROM: %w", err)
+	}
+	if err := client.Rcpt(to); err != nil {
+		return fmt.Errorf("smtp RCPT TO=%s: %w", to, err)
+	}
+	wc, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("smtp DATA: %w", err)
+	}
+
+	boundary := fmt.Sprintf("eduardoos_%d", time.Now().UnixNano())
+	var msg strings.Builder
+	msg.WriteString(fmt.Sprintf("To: %s\r\n", to))
+	msg.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
+	msg.WriteString("MIME-Version: 1.0\r\n")
+	msg.WriteString(fmt.Sprintf("Content-Type: multipart/alternative; boundary=\"%s\"\r\n\r\n", boundary))
+	msg.WriteString(fmt.Sprintf("--%s\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n%s\r\n\r\n",
+		boundary, plainBody))
+	msg.WriteString(fmt.Sprintf("--%s\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n%s\r\n\r\n",
+		boundary, htmlBody))
+	msg.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
+
+	if _, err := wc.Write([]byte(msg.String())); err != nil {
+		_ = wc.Close()
+		return fmt.Errorf("smtp DATA write: %w", err)
+	}
+	if err := wc.Close(); err != nil {
+		return fmt.Errorf("smtp DATA close: %w", err)
+	}
+	_ = client.Quit()
+	smtpStep(correlationID, "done_html", fmt.Sprintf(
+		"ok to=%s subject=%q elapsed_ms=%d",
+		to, subject, time.Since(started).Milliseconds(),
+	))
+	return nil
+}
+
 // sendOTP emails the registration verification code (or logs it when SMTP_PASS is empty).
 // When real SMTP is configured, delivery errors are returned so Register can tell the
 // client the mail failed (OTP remains stored for a later retry / operator fix).

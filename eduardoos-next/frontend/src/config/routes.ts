@@ -99,16 +99,33 @@ export const INSTRUMENTALIST_ROUTES = {
   chat: (id: string) => `/api/instrumentalist/${encodeURIComponent(id)}/chat`,
 } as const;
 
-/** Homescool teacher→student registry + folder listing (JWT). */
+/** Homescool teacher→student registry + folders + tasks (JWT). */
 export const HOMESCOOL_ROUTES = {
   students: "/api/homescool/students",
   student: (slug: string) =>
     `/api/homescool/students/${encodeURIComponent(slug)}`,
   teacherFolder: (slug: string, folder: string) =>
     `/api/homescool/students/${encodeURIComponent(slug)}/folders/${encodeURIComponent(folder)}`,
+  teacherTasks: (slug: string) =>
+    `/api/homescool/students/${encodeURIComponent(slug)}/tasks`,
+  teacherTaskGrade: (slug: string, taskId: string) =>
+    `/api/homescool/students/${encodeURIComponent(slug)}/tasks/${encodeURIComponent(taskId)}/grade`,
+  teacherTaskArchive: (slug: string, taskId: string) =>
+    `/api/homescool/students/${encodeURIComponent(slug)}/tasks/${encodeURIComponent(taskId)}/archive`,
   learning: "/api/homescool/learning",
   learningFolder: (teacherSlug: string, folder: string) =>
     `/api/homescool/learning/${encodeURIComponent(teacherSlug)}/folders/${encodeURIComponent(folder)}`,
+  learningTasks: (teacherSlug: string) =>
+    `/api/homescool/learning/${encodeURIComponent(teacherSlug)}/tasks`,
+  learningTask: (teacherSlug: string, taskId: string) =>
+    `/api/homescool/learning/${encodeURIComponent(teacherSlug)}/tasks/${encodeURIComponent(taskId)}`,
+  learningTaskSubmit: (teacherSlug: string, taskId: string) =>
+    `/api/homescool/learning/${encodeURIComponent(teacherSlug)}/tasks/${encodeURIComponent(taskId)}/submit`,
+  taskTemplates: "/api/homescool/task-templates",
+  taskTemplate: (id: string) =>
+    `/api/homescool/task-templates/${encodeURIComponent(id)}`,
+  taskTemplateImages: (id: string) =>
+    `/api/homescool/task-templates/${encodeURIComponent(id)}/images`,
 } as const;
 
 export const PLAYLIST_ROUTES = {

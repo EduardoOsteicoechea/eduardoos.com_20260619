@@ -66,7 +66,10 @@ func main() {
 	instrumentalistHandler := instrumentalist.NewHandler(jwtSecret)
 	homescoolHandler := homescool.NewHandler(jwtSecret, userStore)
 	homescoolHandler.Links = homescool.OpenLinkStore(ctx)
+	homescoolHandler.Tasks = homescool.OpenTaskStore(ctx)
 	homescoolHandler.Objects = homescool.OpenObjectSpace(ctx)
+	homescoolHandler.Mail = authHandler // shared SMTP_USER / SMTP_PASS path
+
 	contactHandler := contact.NewHandler(authHandler)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
 
@@ -90,8 +93,8 @@ func main() {
 	adminHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
-	log.Printf("stores: auth=%s homescool=%s epams=%s ifcbim=%s",
-		userStore.BackendName(), homescoolHandler.Links.BackendName(), epamStore.BackendName(), bimStore.BackendName())
+	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s epams=%s ifcbim=%s",
+		userStore.BackendName(), homescoolHandler.Links.BackendName(), homescoolHandler.Tasks.BackendName(), epamStore.BackendName(), bimStore.BackendName())
 	// pass_set / pass_norm_len use normalizeSMTPPass (Unicode spaces + quotes stripped).
 	// Never log the secret itself — only lengths for operator checks (Gmail app pw = 16).
 	passNorm := auth.NormalizeSMTPPassForLog(authHandler.SMTPPass)

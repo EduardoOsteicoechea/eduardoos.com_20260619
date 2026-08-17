@@ -1,5 +1,5 @@
 /**
- * Unit checks for Homescool URL helpers (mirrors homescool.ts; no TS loader).
+ * Unit checks for Homescool URL helpers + score bands (mirrors homescool.ts; no TS loader).
  * Run: node --test src/lib/homescool.test.mjs
  */
 
@@ -44,6 +44,15 @@ function studentWorkspaceHref(slug) {
   return `${HOMESCOOL_WORKSPACE}?student=${encodeURIComponent(slug)}`;
 }
 
+/** Mirrors Go ScoreBand / frontend scoreBand. */
+function scoreBand(score) {
+  if (score <= 0) return "";
+  if (score <= 3) return "minimo";
+  if (score <= 5) return "pobre";
+  if (score <= 7) return "aprobado";
+  return "bueno";
+}
+
 describe("homescool helpers", () => {
   it("safeEmailKey mirrors Go @ → _at_", () => {
     assert.equal(safeEmailKey("A@Example.COM"), "a_at_example.com");
@@ -70,5 +79,16 @@ describe("homescool helpers", () => {
       studentWorkspaceHref("s_at_x.com"),
       "/homescool/students/workspace?student=s_at_x.com",
     );
+  });
+
+  it("scoreBand maps 1–10 into color bands", () => {
+    assert.equal(scoreBand(1), "minimo");
+    assert.equal(scoreBand(3), "minimo");
+    assert.equal(scoreBand(4), "pobre");
+    assert.equal(scoreBand(5), "pobre");
+    assert.equal(scoreBand(6), "aprobado");
+    assert.equal(scoreBand(7), "aprobado");
+    assert.equal(scoreBand(8), "bueno");
+    assert.equal(scoreBand(10), "bueno");
   });
 });

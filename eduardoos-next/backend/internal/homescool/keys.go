@@ -21,6 +21,17 @@
 //
 // On register we write a zero-byte `.keep` marker into each folder so empty
 // prefixes still exist as navigable spaces.
+//
+// Task templates + assigned tasks (DynamoDB catalog, same table as links):
+//
+//	SK: homescool-tpl:t:{teacher}|id:{id}
+//	SK: homescool-task:t:{teacher}|s:{student}|id:{id}
+//	SK: homescool-task-by-student:s:{student}|t:{teacher}|id:{id}
+//
+// Submission / template images (S3):
+//
+//	homeschool/{teacher}/templates/{templateId}/{file}
+//	homeschool/{teacher}/{student}/tasks/{taskId}/submission/{file}
 package homescool
 
 import (

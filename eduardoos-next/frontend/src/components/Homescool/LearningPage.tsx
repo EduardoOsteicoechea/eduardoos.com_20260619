@@ -57,7 +57,7 @@ export default function LearningPage() {
 
   return (
     <ServiceGate serviceId="homescool" serviceLabel="Homescool">
-      <div className="page-shell">
+      <div className="page-shell page-shell--homescool-flush">
         <div className="product-page__cta-row homescool-workspace__nav">
           <a className="btn" href={APP_ROUTES.homescool}>
             Hub
@@ -89,10 +89,12 @@ export default function LearningPage() {
           <StudentSpaceLayout
             brand="Learning space"
             title={`Under ${active.teacherEmail}`}
-            lead="Your folders under this teacher. Collapse the sidebar when you need more reading room."
+            lead="Your folders under this teacher. Open Tasks for pending assignments."
             link={active}
             loadFolder={loadFolder}
             collapsible
+            mode="student"
+            teacherSlug={teacherSlug}
           />
         ) : null}
       </div>

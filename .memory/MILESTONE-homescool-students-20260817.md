@@ -9,6 +9,8 @@
 | `ffd7872` | fix: Homescool S3 objects under bucket-root `homeschool/` (not `media/homescool/`) |
 | `9f2415c` | fix: persist Homescool teacher→student links in DynamoDB (`eduardoos_catalog`) |
 
+**Follow-on:** tasks / templates / grading — see `MILESTONE-homescool-tasks-20260817.md`.
+
 ## Product routes (brand: Homescool → `/homescool/*`)
 
 | Route | Role |
