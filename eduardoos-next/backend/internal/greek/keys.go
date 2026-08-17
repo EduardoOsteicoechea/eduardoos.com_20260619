@@ -62,8 +62,12 @@ func SanitizeSlug(raw string) string {
 	for _, r := range raw {
 		switch {
 		case unicode.IsLetter(r) || unicode.IsDigit(r):
-			b.WriteRune(unicode.ToLower(r))
-			prevHyphen = false
+			// Only keep ASCII [a-z0-9] so the result always matches safeSlugRe.
+			lower := unicode.ToLower(r)
+			if (lower >= 'a' && lower <= 'z') || (lower >= '0' && lower <= '9') {
+				b.WriteRune(lower)
+				prevHyphen = false
+			}
 		case r == ' ' || r == '_' || r == '-' || r == '.' || r == '/':
 			if b.Len() > 0 && !prevHyphen {
 				b.WriteByte('-')

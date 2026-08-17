@@ -1,8 +1,16 @@
 # Milestone: Greek letter-by-letter builder — 2026-08-17
 
-## Status: SHIPPED (this commit)
+## Status: SHIPPED + hotfix (create-group 502 / ServerErrorModal)
 
 Admin-only product to copy/visualize books glyph-by-glyph under S3 prefix `greek/`.
+
+## Hotfix 2026-08-17 (create "romans" 502)
+
+**Root cause of HTTP 502:** `POST /api/greek/groups` intentionally returns **502** when the catalog write succeeds but **S3 `PutObject` for `greek/…/group.json` fails** (typical: EC2 role missing `greek/*`). Routes were already registered in `main.go` + chi; nginx `location /api/` proxies all `/api/greek/*`.
+
+**Modal crash:** `greek.ts` called `openApiErrorModal({ title, status, message, … })` but the helper expects a **string** first arg → `details.trim is not a function`. Fixed call sites + hardened `coerceErrorDetails` so non-string details never crash.
+
+**Ops:** If the copyable modal shows `AccessDenied` / `greek/*`, re-apply IAM from `deploy/aws/ec2-iam-s3-policy.json` (or the combined `ec2-iam-policy.json` which already allows `eduardoos20260607/*`). Wait ~1 min for instance credentials to refresh.
 
 ## Routes (UI)
 
@@ -59,3 +67,4 @@ Update EC2 role inline policy from `deploy/aws/ec2-iam-s3-policy.json`:
 
 - `go test ./internal/greek/...`
 - `npm run test:greek`
+- `npm run test:server-error-modal`

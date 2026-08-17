@@ -2,6 +2,10 @@
  * Operator-facing server error dialog.
  * Spec rule: every failed server response must surface here with a copyable block
  * (not a silent console log or a transient toast).
+ *
+ * details may arrive as a string OR a mistaken object payload (e.g. callers that
+ * passed `{ title, message, status, … }` into openApiErrorModal). Never call
+ * `.trim()` on a non-string — coerce first so the modal never crashes the page.
  */
 
 import "./ServerErrorModal.css";
@@ -13,8 +17,55 @@ export type ServerErrorModalInput = {
   /** Human summary shown above the copy block. */
   summary?: string;
   /** Full diagnostic text (HTTP status, message, correlation id, body, etc.). */
-  details: string;
+  details: unknown;
 };
+
+/**
+ * Coerce any details value into a safe display/copy string.
+ * Handles strings, nullish, Error, and the mistaken openApiErrorModal object shape.
+ */
+export function coerceErrorDetails(details: unknown): string {
+  if (details == null) return "";
+  if (typeof details === "string") return details.trim();
+  if (details instanceof Error) return (details.message || String(details)).trim();
+
+  if (typeof details === "object") {
+    const o = details as Record<string, unknown>;
+    // Mistaken call shape: openApiErrorModal({ title, status, message, … })
+    if (typeof o.message === "string" || typeof o.error === "string") {
+      const parts: string[] = [];
+      if (o.method != null || o.path != null) {
+        parts.push(`${String(o.method ?? "GET")} ${String(o.path ?? "")}`.trim());
+      }
+      if (o.status != null && o.status !== "") {
+        parts.push(`HTTP ${String(o.status)}`);
+      }
+      const msg =
+        typeof o.message === "string"
+          ? o.message
+          : typeof o.error === "string"
+            ? o.error
+            : "";
+      if (msg) parts.push(msg);
+      const cid = o.correlationId ?? o.correlation_id;
+      if (cid != null && String(cid)) parts.push(`correlation_id=${String(cid)}`);
+      if (o.rawBody != null && String(o.rawBody).trim()) {
+        const raw = String(o.rawBody);
+        const clipped = raw.length > 1200 ? `${raw.slice(0, 1200)}…` : raw;
+        parts.push(`body=${clipped}`);
+      }
+      const joined = parts.join(" · ").trim();
+      if (joined) return joined;
+    }
+    try {
+      return JSON.stringify(details, null, 2).trim();
+    } catch {
+      return String(details).trim();
+    }
+  }
+
+  return String(details).trim();
+}
 
 function ensureRoot(): HTMLElement {
   let root = document.getElementById(ROOT_ID);
@@ -75,7 +126,7 @@ export function openServerErrorModal(input: ServerErrorModalInput): void {
   const pre = document.createElement("pre");
   pre.className = "server-error-modal__copyblock";
   pre.tabIndex = 0;
-  pre.textContent = input.details.trim() || "(empty error payload)";
+  pre.textContent = coerceErrorDetails(input.details) || "(empty error payload)";
 
   const actions = document.createElement("div");
   actions.className = "server-error-modal__actions";
@@ -117,13 +168,33 @@ export function openServerErrorModal(input: ServerErrorModalInput): void {
   closeBtn.focus();
 }
 
+/**
+ * Open the modal from an API failure.
+ * Accepts a diagnostic string OR a mistaken object payload (never throws).
+ */
 export function openApiErrorModal(
-  errorText: string,
+  errorText: unknown,
   options?: { title?: string; summary?: string },
 ): void {
+  let title = options?.title ?? "Server error";
+  let summary =
+    options?.summary ??
+    "The server rejected this request. Copy the block below when reporting the issue.";
+
+  // If callers pass the whole diagnostic object as the first arg, prefer its title.
+  if (
+    errorText != null &&
+    typeof errorText === "object" &&
+    !Array.isArray(errorText) &&
+    typeof (errorText as { title?: unknown }).title === "string" &&
+    (errorText as { title: string }).title.trim()
+  ) {
+    title = (errorText as { title: string }).title.trim();
+  }
+
   openServerErrorModal({
-    title: options?.title ?? "Server error",
-    summary: options?.summary ?? "The server rejected this request. Copy the block below when reporting the issue.",
+    title,
+    summary,
     details: errorText,
   });
 }

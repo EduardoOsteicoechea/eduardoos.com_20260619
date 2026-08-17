@@ -159,18 +159,21 @@ export function strokesToLetterSvg(
   ].join("");
 }
 
+function reportGreekError(details: unknown, summary: string, title = "Greek API"): void {
+  openApiErrorModal(details, { title, summary });
+}
+
 async function greekRequest<T>(
   path: string,
   options: { method?: string; body?: unknown } = {},
 ): Promise<T | null> {
   const token = getAuthToken();
   if (!token) {
-    openApiErrorModal({
-      title: "Greek",
-      status: 401,
-      message: "Sign in required",
-      correlationId: createCorrelationId(),
-    });
+    reportGreekError(
+      `HTTP 401 · Sign in required · correlation_id=${createCorrelationId()}`,
+      "Sign in required",
+      "Greek",
+    );
     return null;
   }
   const correlationId = createCorrelationId();
@@ -181,13 +184,7 @@ async function greekRequest<T>(
     authToken: token,
   });
   if (response.error) {
-    openApiErrorModal({
-      title: "Greek API",
-      status: response.error.status,
-      message: formatApiError(response.error),
-      correlationId: response.error.correlationId ?? correlationId,
-      rawBody: response.error.rawBody,
-    });
+    reportGreekError(formatApiError(response.error), "Greek request failed");
     return null;
   }
   return response.data ?? null;
@@ -249,12 +246,11 @@ export async function createGreekWord(
 ): Promise<GreekWord | null> {
   const err = validateOrdinals(input.ordinalChapter, input.ordinalBook);
   if (err) {
-    openApiErrorModal({
-      title: "Greek",
-      status: 400,
-      message: err,
-      correlationId: createCorrelationId(),
-    });
+    reportGreekError(
+      `HTTP 400 · ${err} · correlation_id=${createCorrelationId()}`,
+      err,
+      "Greek",
+    );
     return null;
   }
   const data = await greekRequest<{ word: GreekWord }>(
@@ -329,23 +325,21 @@ export async function fetchLetterBlobUrl(apiUrl: string): Promise<string | null>
       },
     });
     if (!res.ok) {
-      openApiErrorModal({
-        title: "Greek letter",
-        status: res.status,
-        message: `Could not load letter (${res.status})`,
-        correlationId,
-      });
+      reportGreekError(
+        `HTTP ${res.status} · Could not load letter · correlation_id=${correlationId}`,
+        "Could not load letter",
+        "Greek letter",
+      );
       return null;
     }
     const blob = await res.blob();
     return URL.createObjectURL(blob);
   } catch (e) {
-    openApiErrorModal({
-      title: "Greek letter",
-      status: 0,
-      message: e instanceof Error ? e.message : "network error",
-      correlationId,
-    });
+    reportGreekError(
+      `HTTP 0 · ${e instanceof Error ? e.message : "network error"} · correlation_id=${correlationId}`,
+      "Could not load letter",
+      "Greek letter",
+    );
     return null;
   }
 }

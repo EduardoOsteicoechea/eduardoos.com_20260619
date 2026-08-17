@@ -28,6 +28,18 @@ export interface RequestOptions {
   fetchFn?: typeof fetch;
 }
 
+/** Coerce unknown API message/body fields to a safe string (never assume .trim). */
+function asErrorText(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 /** Flatten an ApiError into a single toast-friendly diagnostic string. */
 export function formatApiError(error: ApiError): string {
   const parts: string[] = [];
@@ -35,14 +47,15 @@ export function formatApiError(error: ApiError): string {
     parts.push(`${error.method ?? "GET"} ${error.path ?? ""}`.trim());
   }
   parts.push(`HTTP ${error.status}`);
-  if (error.message) parts.push(error.message);
+  const message = asErrorText(error.message);
+  if (message) parts.push(message);
   if (error.correlationId) parts.push(`correlation_id=${error.correlationId}`);
   if (error.debugLogs?.length) {
     parts.push(`debug_logs=[${error.debugLogs.join(" | ")}]`);
   }
-  if (error.rawBody && error.rawBody.trim() && error.rawBody.trim() !== error.message) {
-    const clipped =
-      error.rawBody.length > 1200 ? `${error.rawBody.slice(0, 1200)}…` : error.rawBody;
+  const rawBody = asErrorText(error.rawBody);
+  if (rawBody && rawBody !== message) {
+    const clipped = rawBody.length > 1200 ? `${rawBody.slice(0, 1200)}…` : rawBody;
     parts.push(`body=${clipped}`);
   }
   return parts.join(" · ");
@@ -80,12 +93,14 @@ export async function apiRequest<T>(
 
   if (!response.ok) {
     const payload = data as
-      | { message?: string; error?: string; correlation_id?: string; debug_logs?: string[] }
+      | { message?: unknown; error?: unknown; correlation_id?: unknown; debug_logs?: unknown }
       | undefined;
     const message =
-      payload?.message ??
-      payload?.error ??
-      (text.trim() || response.statusText || "request failed");
+      asErrorText(payload?.message) ||
+      asErrorText(payload?.error) ||
+      text.trim() ||
+      response.statusText ||
+      "request failed";
 
     if (response.status === 401) {
       const normalized = message.toLowerCase();
@@ -98,13 +113,17 @@ export async function apiRequest<T>(
       }
     }
 
+    const debugLogs = Array.isArray(payload?.debug_logs)
+      ? payload.debug_logs.map((entry) => asErrorText(entry)).filter(Boolean)
+      : undefined;
+
     return {
       data,
       error: {
         message,
         status: response.status,
-        correlationId: payload?.correlation_id ?? options.correlationId,
-        debugLogs: payload?.debug_logs,
+        correlationId: asErrorText(payload?.correlation_id) || options.correlationId,
+        debugLogs,
         rawBody: text || undefined,
         path,
         method,

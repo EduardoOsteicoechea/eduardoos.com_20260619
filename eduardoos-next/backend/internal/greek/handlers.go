@@ -96,6 +96,10 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	owner := auth.UserEmailFromRequest(r)
+	if h.Catalog == nil || h.Objects == nil {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "greek storage not configured")
+		return
+	}
 	var body struct {
 		Slug  string `json:"slug"`
 		Title string `json:"title"`
@@ -129,16 +133,34 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		log.Printf("[correlation=%s] greek.groups.create error: %v", cid, err)
-		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		writeGreekStorageError(w, err, "could not create group")
 		return
 	}
 	if err := h.Objects.PutJSON(r.Context(), GroupMetaKey(owner, slug), created, cid); err != nil {
 		log.Printf("[correlation=%s] greek.groups.create s3_error: %v", cid, err)
-		httpx.WriteError(w, http.StatusBadGateway, "could not write group metadata")
+		// Roll back catalog row so the admin can retry create after fixing IAM/S3.
+		_ = h.Catalog.Delete(r.Context(), owner, slug)
+		writeGreekStorageError(w, err, "could not write group metadata")
 		return
 	}
 	log.Printf("[correlation=%s] greek.groups.create owner=%s slug=%s", cid, owner, slug)
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"group": created})
+}
+
+// writeGreekStorageError returns a clean JSON 502 with a string error message.
+// AccessDenied is called out so operators know to refresh the EC2 IAM greek/* policy.
+func writeGreekStorageError(w http.ResponseWriter, err error, fallback string) {
+	msg := fallback
+	if err != nil {
+		low := strings.ToLower(err.Error())
+		if strings.Contains(low, "accessdenied") ||
+			strings.Contains(low, "not authorized") ||
+			strings.Contains(low, "explicit deny") ||
+			strings.Contains(low, "access denied") {
+			msg = fallback + " (S3/IAM AccessDenied — update EC2 role for prefix greek/*)"
+		}
+	}
+	httpx.WriteError(w, http.StatusBadGateway, msg)
 }
 
 func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {

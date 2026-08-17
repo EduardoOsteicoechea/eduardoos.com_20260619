@@ -2,7 +2,9 @@ package greek
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -206,6 +208,64 @@ func TestCreateGroupHierarchyAndLetter(t *testing.T) {
 	}
 
 	_ = h
+}
+
+// failPutObjects wraps MemoryObjectSpace and forces PutJSON/PutBytes to fail.
+type failPutObjects struct {
+	*MemoryObjectSpace
+	err error
+}
+
+func (f *failPutObjects) PutJSON(ctx context.Context, key string, value any, cid string) error {
+	if f.err != nil {
+		return f.err
+	}
+	return f.MemoryObjectSpace.PutJSON(ctx, key, value, cid)
+}
+
+func (f *failPutObjects) PutBytes(ctx context.Context, key string, body []byte, contentType, cid string) error {
+	if f.err != nil {
+		return f.err
+	}
+	return f.MemoryObjectSpace.PutBytes(ctx, key, body, contentType, cid)
+}
+
+func TestCreateGroupS3FailureReturnsCleanJSON502(t *testing.T) {
+	h, r, users := testRouter(t)
+	seedAdmin(t, users, "admin@example.com")
+	tok := bearer(t, "admin@example.com", auth.RoleAdmin)
+	h.Objects = &failPutObjects{
+		MemoryObjectSpace: NewMemoryObjectSpace(),
+		err:               errors.New("AccessDenied: User is not authorized to perform: s3:PutObject on greek/*"),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/greek/groups",
+		bytes.NewBufferString(`{"title":"Romans","slug":"romans"}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var payload map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON body: %v body=%s", err, rec.Body.String())
+	}
+	errMsg, ok := payload["error"]
+	if !ok || errMsg == "" {
+		t.Fatalf("expected string error field, got %#v", payload)
+	}
+	if !strings.Contains(errMsg, "could not write group metadata") {
+		t.Fatalf("unexpected error message: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "AccessDenied") || !strings.Contains(errMsg, "greek/*") {
+		t.Fatalf("expected IAM hint in message: %s", errMsg)
+	}
+	// Catalog row must be rolled back so retry is not a 409.
+	if _, ok, err := h.Catalog.Get(t.Context(), "admin@example.com", "romans"); err != nil || ok {
+		t.Fatalf("expected catalog rollback, ok=%v err=%v", ok, err)
+	}
 }
 
 func jsonString(s string) string {
