@@ -10,6 +10,7 @@ jobs:
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     concurrency:
       group: deploy-ec2
@@ -51,7 +52,7 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o ServerAliveInterval=30 -o ServerAliveCountMax=120" >> "$GITHUB_ENV"
+          echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=5 -o ServerAliveCountMax=4" >> "$GITHUB_ENV"
 
       - name: Build production .env (Eduardo OS Next)
         env:
@@ -150,7 +151,7 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          ssh -i ~/.ssh/deploy_key $SSH_OPTS \
+          ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
             "mkdir -p ~/eduardoos.com_20260619/eduardoos-next/deploy"
 
@@ -175,13 +176,14 @@ jobs:
             "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/eduardoos-next/deploy/deploy-remote-production.sh"
 
       - name: Run remote deploy
+        timeout-minutes: 20
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          ssh -i ~/.ssh/deploy_key $SSH_OPTS \
+          ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
-            "cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x deploy/ec2/*.sh deploy/aws/*.sh eduardoos-next/deploy/*.sh 2>/dev/null || true && APP_DIR=~/eduardoos.com_20260619 bash deploy/ec2/deploy-remote.sh"
+            "flock -w 1500 /tmp/eduardoos-ec2-deploy.lock bash -lc 'cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x deploy/ec2/*.sh deploy/aws/*.sh eduardoos-next/deploy/*.sh 2>/dev/null || true && APP_DIR=~/eduardoos.com_20260619 bash deploy/ec2/deploy-remote.sh'"
 
       - name: Smoke check
         env:
@@ -190,14 +192,14 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           sleep 15
-          onbox=$(ssh -i ~/.ssh/deploy_key $SSH_OPTS "${EC2_USER}@${EC2_HOST}" \
+          onbox=$(ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS "${EC2_USER}@${EC2_HOST}" \
             'api=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/health || true); \
              echo "api=${api}"')
           echo "On-box smoke: ${onbox}"
           echo "${onbox}" | grep -q 'api=200' || { echo "::error::Next production backend :3000 unhealthy"; exit 1; }
 
           # Confirm systemd loaded SMTP without printing secret values (length + flags only).
-          smtp_smoke=$(ssh -i ~/.ssh/deploy_key $SSH_OPTS "${EC2_USER}@${EC2_HOST}" \
+          smtp_smoke=$(ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS "${EC2_USER}@${EC2_HOST}" \
             'set -e
              ENV=~/eduardoos.com_20260619/.env
              line=$(grep -E "^SMTP_PASS=" "$ENV" | head -n1 | cut -d= -f2- | tr -d "\r" | sed "s/^\"//; s/\"$//; s/^'\''//; s/'\''$//" | tr -d "[:space:]")
