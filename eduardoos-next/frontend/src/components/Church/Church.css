@@ -1,0 +1,318 @@
+/**
+ * Church product styles — elegant formal / BIM-AEC tokens via --site-*.
+ */
+
+.church-gate {
+  max-width: 36rem;
+  margin: 2.5rem auto;
+  padding: 0 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.church-gate__title {
+  font-family: var(--font-display, var(--font-heading));
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  margin: 0;
+  color: var(--site-body-fg);
+}
+
+.church-gate__text {
+  margin: 0;
+  color: var(--site-muted, var(--site-body-fg));
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+.church-page {
+  max-width: var(--max_desktop_width, 1100px);
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.church-page__brand {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--site-muted, var(--site-body-fg));
+  font-family: var(--font-body);
+}
+
+.church-page__title {
+  margin: 0;
+  font-family: var(--font-display, var(--font-heading));
+  font-weight: 500;
+  font-size: clamp(1.75rem, 3.5vw, 2.35rem);
+  letter-spacing: 0.02em;
+  color: var(--site-body-fg);
+}
+
+.church-page__lead {
+  margin: 0;
+  max-width: 42rem;
+  color: var(--site-muted, var(--site-body-fg));
+  line-height: 1.55;
+  font-family: var(--font-body);
+}
+
+.church-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.church-search {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.church-search__input {
+  flex: 1 1 16rem;
+  min-height: var(--control_min_height, 2.5rem);
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface, var(--site-body-bg));
+  color: var(--site-body-fg);
+  font-family: var(--font-body);
+}
+
+.church-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.church-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001);
+  background: color-mix(in srgb, var(--site-surface, var(--site-body-bg)) 88%, transparent);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+
+.church-card:hover {
+  border-color: var(--site-accent);
+  transform: translateY(-1px);
+}
+
+.church-card__name {
+  font-family: var(--font-display, var(--font-heading));
+  font-size: 1.15rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.church-card__meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--site-muted, var(--site-body-fg));
+  font-family: var(--font-utility, var(--font-body));
+}
+
+.church-empty {
+  margin: 0;
+  color: var(--site-muted, var(--site-body-fg));
+  font-family: var(--font-body);
+}
+
+.church-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-width: 40rem;
+}
+
+.church-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-muted, var(--site-body-fg));
+  font-family: var(--font-body);
+}
+
+.church-form input,
+.church-form textarea,
+.church-form select {
+  min-height: var(--control_min_height, 2.5rem);
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface, var(--site-body-bg));
+  color: var(--site-body-fg);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.church-form textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.church-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--site-border);
+  padding-bottom: 0.35rem;
+}
+
+.church-tabs__btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--site-body-fg);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--border_radius_001);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+
+.church-tabs__btn--active {
+  border-color: var(--site-border);
+  background: color-mix(in srgb, var(--site-accent) 12%, transparent);
+}
+
+.church-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+.church-panel h2 {
+  margin: 0;
+  font-family: var(--font-display, var(--font-heading));
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.church-panel__block {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.55;
+  font-family: var(--font-body);
+}
+
+.church-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.church-list__item {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001);
+}
+
+.church-list__item h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-family: var(--font-heading, var(--font-body));
+  font-weight: 600;
+}
+
+.church-role {
+  display: inline-block;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--site-accent);
+  font-family: var(--font-utility, var(--font-body));
+}
+
+.church-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.church-calendar__frame {
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface, var(--site-body-bg));
+  padding: 0.65rem 0.75rem 0.85rem;
+  overflow: auto;
+}
+
+.church-calendar__frame .fc {
+  --fc-border-color: var(--site-border);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: color-mix(in srgb, var(--site-border) 35%, transparent);
+  --fc-today-bg-color: color-mix(in srgb, var(--site-accent) 10%, transparent);
+  --fc-event-bg-color: var(--site-accent);
+  --fc-event-border-color: var(--site-accent);
+  --fc-event-text-color: var(--site-accent-fg, #fff);
+  --fc-button-bg-color: transparent;
+  --fc-button-border-color: var(--site-border);
+  --fc-button-text-color: var(--site-body-fg);
+  --fc-button-hover-bg-color: color-mix(in srgb, var(--site-accent) 12%, transparent);
+  --fc-button-hover-border-color: var(--site-accent);
+  --fc-button-active-bg-color: color-mix(in srgb, var(--site-accent) 18%, transparent);
+  --fc-button-active-border-color: var(--site-accent);
+  font-family: var(--font-body);
+  color: var(--site-body-fg);
+}
+
+.church-calendar__frame .fc .fc-toolbar-title {
+  font-family: var(--font-display, var(--font-body));
+  font-size: 1.15rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.church-calendar__frame .fc .fc-button {
+  border-radius: var(--border_radius_001);
+  text-transform: none;
+  font-weight: 500;
+  box-shadow: none !important;
+}
+
+.church-calendar__frame .fc .fc-col-header-cell-cushion,
+.church-calendar__frame .fc .fc-daygrid-day-number {
+  color: var(--site-body-fg);
+  text-decoration: none;
+}
+
+.church-calendar__frame .fc .fc-event {
+  border-radius: 2px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .church-card {
+    transition: none;
+  }
+  .church-card:hover {
+    transform: none;
+  }
+}

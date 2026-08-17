@@ -16,7 +16,9 @@
             "homeschool/",
             "homeschool/*",
             "greek/",
-            "greek/*"
+            "greek/*",
+            "church/",
+            "church/*"
           ]
         }
       }
@@ -44,6 +46,12 @@
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
       "Resource": "arn:aws:s3:::eduardoos20260607/greek/*"
+    },
+    {
+      "Sid": "S3ChurchObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::eduardoos20260607/church/*"
     },
     {
       "Sid": "S3ListApsBucket",

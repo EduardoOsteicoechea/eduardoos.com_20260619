@@ -53,6 +53,7 @@ const PRIMARY_LINKS = [
 
 const SERVICES_LINKS = [
   { href: APP_ROUTES.homescool, label: "Homescool" },
+  { href: APP_ROUTES.church, label: "Church" },
   { href: APP_ROUTES.greek, label: "Greek" },
   { href: APP_ROUTES.mediaPlaylist, label: "Music" },
   { href: APP_ROUTES.pamphlet, label: "Pamphlet" },

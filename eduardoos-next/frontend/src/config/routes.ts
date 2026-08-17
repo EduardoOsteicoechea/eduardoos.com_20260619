@@ -29,6 +29,14 @@ export const APP_ROUTES = {
   greekBuild: "/greek/build",
   greekGroup: (grupo: string) => `/greek/build/${encodeURIComponent(grupo)}`,
   greekGroupWorkspace: "/greek/build/workspace",
+  /** Church registry, overview, activities (JWT + church-* membership). */
+  church: "/church",
+  churchRegister: "/church/register",
+  churchOverview: "/church/overview",
+  churchActivity: "/church/activity",
+  churchDetail: (denomId: string, churchId: string) =>
+    `/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}`,
+  churchWorkspace: "/church/workspace",
   bim: "/bim",
   apsAdmin: "/aps-admin",
   /** Public page path (UI label: Debate App). Format/API stay `.edebat` / `/api/edebat`. */
@@ -132,6 +140,23 @@ export const HOMESCOOL_ROUTES = {
   taskTemplateImages: (id: string) =>
     `/api/homescool/task-templates/${encodeURIComponent(id)}/images`,
   catalogs: "/api/homescool/catalogs",
+} as const;
+
+/** Church registry under S3 church/ (JWT + membership roles). */
+export const CHURCH_ROUTES = {
+  list: "/api/church",
+  overview: "/api/church/overview",
+  activity: "/api/church/activity",
+  church: (denomId: string, churchId: string) =>
+    `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}`,
+  members: (denomId: string, churchId: string) =>
+    `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/members`,
+  activities: (denomId: string, churchId: string) =>
+    `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/activities`,
+  report: (denomId: string, churchId: string, activityId: string) =>
+    `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/activities/${encodeURIComponent(activityId)}/report`,
+  image: (denomId: string, churchId: string, activityId: string, name: string) =>
+    `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/activities/${encodeURIComponent(activityId)}/images/${encodeURIComponent(name)}`,
 } as const;
 
 /** Greek builder — admin-only letter hierarchy under S3 greek/. */

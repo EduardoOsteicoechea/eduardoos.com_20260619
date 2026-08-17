@@ -1,0 +1,690 @@
+package church
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"path"
+	"strings"
+
+	"eduardoos.nex/internal/auth"
+	"eduardoos.nex/internal/httpx"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+)
+
+const maxImageBytes = 5 << 20 // 5 MiB
+
+// Handler serves JWT-gated Church APIs.
+type Handler struct {
+	JWTSecret   string
+	Users       auth.UserStore
+	Catalog     CatalogStore
+	Memberships MembershipStore
+	Objects     ObjectSpace
+	auth        *auth.Handler
+}
+
+// NewHandler wires in-memory defaults; production replaces stores/objects.
+func NewHandler(jwtSecret string, users auth.UserStore) *Handler {
+	return &Handler{
+		JWTSecret:   jwtSecret,
+		Users:       users,
+		Catalog:     NewMemoryCatalog(),
+		Memberships: NewMemoryMemberships(),
+		Objects:     NewMemoryObjectSpace(),
+		auth:        &auth.Handler{JWTSecret: jwtSecret, Store: users},
+	}
+}
+
+// Routes mounts /api/church/* behind RequireJWT.
+func (h *Handler) Routes(r chi.Router) {
+	r.Group(func(pr chi.Router) {
+		pr.Use(h.auth.RequireJWT)
+
+		pr.Get("/api/church", h.ListChurches)
+		pr.Post("/api/church", h.RegisterChurch)
+		pr.Get("/api/church/overview", h.Overview)
+		pr.Get("/api/church/activity", h.MyActivities)
+
+		pr.Get("/api/church/{denomID}/{churchID}", h.GetChurch)
+		pr.Put("/api/church/{denomID}/{churchID}", h.UpdateChurch)
+		pr.Post("/api/church/{denomID}/{churchID}/members", h.UpsertMember)
+		pr.Post("/api/church/{denomID}/{churchID}/activities", h.CreateActivity)
+		pr.Post("/api/church/{denomID}/{churchID}/activities/{activityID}/report", h.PostReport)
+		pr.Get("/api/church/{denomID}/{churchID}/activities/{activityID}/images/{name}", h.GetImage)
+	})
+}
+
+func (h *Handler) ListChurches(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	q := r.URL.Query().Get("q")
+	items, err := h.Catalog.List(r.Context(), q)
+	if err != nil {
+		log.Printf("[correlation=%s] church.list error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not list churches")
+		return
+	}
+	if items == nil {
+		items = []ChurchCard{}
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"churches": items})
+}
+
+func (h *Handler) RegisterChurch(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	owner := auth.UserEmailFromRequest(r)
+	if h.Catalog == nil || h.Objects == nil || h.Memberships == nil {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "church storage not configured")
+		return
+	}
+	var body struct {
+		Name             string           `json:"name"`
+		DenominationID   string           `json:"denominationId"`
+		ChurchID         string           `json:"churchId"`
+		Pastors          []string         `json:"pastors"`
+		Network          string           `json:"network"`
+		LocalChurches    []string         `json:"localChurches"`
+		BeliefsDocument  string           `json:"beliefsDocument"`
+		SectorActivities []SectorActivity `json:"sectorActivities"`
+		Members          []Member         `json:"members"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	name := strings.TrimSpace(body.Name)
+	denom := SanitizeSlug(body.DenominationID)
+	if denom == "" {
+		denom = SanitizeSlug(body.Network)
+	}
+	if denom == "" {
+		denom = "local"
+	}
+	churchID := SanitizeSlug(body.ChurchID)
+	if churchID == "" {
+		churchID = SanitizeSlug(name)
+	}
+	if name == "" || !IsValidSlug(denom) || !IsValidSlug(churchID) {
+		httpx.WriteError(w, http.StatusBadRequest, "name, denominationId, and churchId required")
+		return
+	}
+
+	now := nowRFC3339()
+	pastors := cleanStringList(body.Pastors)
+	members := normalizeMembers(body.Members, owner)
+	doc := ChurchDoc{
+		DenominationID:   denom,
+		ChurchID:         churchID,
+		Name:             name,
+		Pastors:          pastors,
+		Network:          strings.TrimSpace(body.Network),
+		LocalChurches:    cleanStringList(body.LocalChurches),
+		BeliefsDocument:  strings.TrimSpace(body.BeliefsDocument),
+		SectorActivities: body.SectorActivities,
+		Members:          members,
+		OwnerEmail:       owner,
+		S3Prefix:         ChurchPrefix(denom, churchID),
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	card := ChurchCard{
+		DenominationID: denom,
+		ChurchID:       churchID,
+		Name:           name,
+		Network:        doc.Network,
+		S3Prefix:       doc.S3Prefix,
+		OwnerEmail:     owner,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	created, err := h.Catalog.Create(r.Context(), card)
+	if errors.Is(err, ErrDuplicate) {
+		httpx.WriteError(w, http.StatusConflict, "church already exists")
+		return
+	}
+	if err != nil {
+		log.Printf("[correlation=%s] church.register catalog_error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not register church")
+		return
+	}
+	if err := h.Objects.PutJSON(r.Context(), ChurchMetaKey(denom, churchID), doc, cid); err != nil {
+		log.Printf("[correlation=%s] church.register s3_error: %v", cid, err)
+		_ = h.Catalog.Delete(r.Context(), denom, churchID)
+		httpx.WriteError(w, http.StatusBadGateway, fmt.Sprintf("could not persist church.json: %v", err))
+		return
+	}
+	for _, m := range members {
+		_, _ = h.Memberships.Upsert(r.Context(), Membership{
+			Email:          m.Email,
+			DenominationID: denom,
+			ChurchID:       churchID,
+			Role:           m.Role,
+			ChurchName:     name,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		})
+	}
+	log.Printf("[correlation=%s] church.register owner=%s denom=%s id=%s", cid, owner, denom, churchID)
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"church": created, "document": doc})
+}
+
+func (h *Handler) GetChurch(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+	denom := chi.URLParam(r, "denomID")
+	churchID := chi.URLParam(r, "churchID")
+	if !IsValidSlug(denom) || !IsValidSlug(churchID) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid ids")
+		return
+	}
+	va, err := h.resolveAccess(r.Context(), email, denom, churchID)
+	if err != nil {
+		log.Printf("[correlation=%s] church.get access_error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not resolve access")
+		return
+	}
+	if !va.OK {
+		httpx.WriteError(w, http.StatusForbidden, "not a member of this church")
+		return
+	}
+	doc, ok, err := h.loadChurchDoc(r.Context(), denom, churchID, cid)
+	if err != nil {
+		log.Printf("[correlation=%s] church.get error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not load church")
+		return
+	}
+	if !ok {
+		httpx.WriteError(w, http.StatusNotFound, "church not found")
+		return
+	}
+	acts, err := h.listActivities(r.Context(), denom, churchID, cid)
+	if err != nil {
+		log.Printf("[correlation=%s] church.get activities_error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not load activities")
+		return
+	}
+	detail := ChurchDetail{
+		Church:     filterChurchForViewer(va, doc),
+		Activities: filterActivities(va, doc, acts),
+		ViewerRole: va.Role,
+	}
+	httpx.WriteJSON(w, http.StatusOK, detail)
+}
+
+func (h *Handler) UpdateChurch(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+	denom := chi.URLParam(r, "denomID")
+	churchID := chi.URLParam(r, "churchID")
+	va, err := h.resolveAccess(r.Context(), email, denom, churchID)
+	if err != nil || !va.OK || !va.IsAdmin {
+		httpx.WriteError(w, http.StatusForbidden, "church-admin required")
+		return
+	}
+	doc, ok, err := h.loadChurchDoc(r.Context(), denom, churchID, cid)
+	if err != nil || !ok {
+		httpx.WriteError(w, http.StatusNotFound, "church not found")
+		return
+	}
+	var body ChurchDoc
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	doc.Name = strings.TrimSpace(body.Name)
+	if doc.Name == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "name required")
+		return
+	}
+	doc.Pastors = cleanStringList(body.Pastors)
+	doc.Network = strings.TrimSpace(body.Network)
+	doc.LocalChurches = cleanStringList(body.LocalChurches)
+	doc.BeliefsDocument = strings.TrimSpace(body.BeliefsDocument)
+	doc.SectorActivities = body.SectorActivities
+	if body.Members != nil {
+		doc.Members = normalizeMembers(body.Members, doc.OwnerEmail)
+	}
+	doc.UpdatedAt = nowRFC3339()
+	if err := h.Objects.PutJSON(r.Context(), ChurchMetaKey(denom, churchID), doc, cid); err != nil {
+		log.Printf("[correlation=%s] church.update s3_error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not update church")
+		return
+	}
+	if card, ok, _ := h.Catalog.Get(r.Context(), denom, churchID); ok {
+		card.Name = doc.Name
+		card.Network = doc.Network
+		card.UpdatedAt = doc.UpdatedAt
+		_, _ = h.Catalog.Update(r.Context(), card)
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"church": doc})
+}
+
+func (h *Handler) UpsertMember(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+	denom := chi.URLParam(r, "denomID")
+	churchID := chi.URLParam(r, "churchID")
+	va, err := h.resolveAccess(r.Context(), email, denom, churchID)
+	if err != nil || !va.OK || !va.IsAdmin {
+		httpx.WriteError(w, http.StatusForbidden, "church-admin required")
+		return
+	}
+	var body Member
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	body.Email = auth.NormalizeEmail(body.Email)
+	body.Role = NormalizeChurchRole(body.Role)
+	if body.Email == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "email required")
+		return
+	}
+	doc, ok, err := h.loadChurchDoc(r.Context(), denom, churchID, cid)
+	if err != nil || !ok {
+		httpx.WriteError(w, http.StatusNotFound, "church not found")
+		return
+	}
+	found := false
+	for i, m := range doc.Members {
+		if auth.NormalizeEmail(m.Email) == body.Email {
+			doc.Members[i] = body
+			found = true
+			break
+		}
+	}
+	if !found {
+		doc.Members = append(doc.Members, body)
+	}
+	doc.UpdatedAt = nowRFC3339()
+	if err := h.Objects.PutJSON(r.Context(), ChurchMetaKey(denom, churchID), doc, cid); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not save member")
+		return
+	}
+	now := nowRFC3339()
+	mem, err := h.Memberships.Upsert(r.Context(), Membership{
+		Email:          body.Email,
+		DenominationID: denom,
+		ChurchID:       churchID,
+		Role:           body.Role,
+		ChurchName:     doc.Name,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	})
+	if err != nil {
+		log.Printf("[correlation=%s] church.member upsert_error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not upsert membership")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"member": body, "membership": mem})
+}
+
+func (h *Handler) CreateActivity(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+	denom := chi.URLParam(r, "denomID")
+	churchID := chi.URLParam(r, "churchID")
+	va, err := h.resolveAccess(r.Context(), email, denom, churchID)
+	if err != nil || !va.OK || !va.IsAdmin {
+		httpx.WriteError(w, http.StatusForbidden, "church-admin required")
+		return
+	}
+	var body struct {
+		Title            string   `json:"title"`
+		Sector           string   `json:"sector"`
+		Description      string   `json:"description"`
+		StartDate        string   `json:"startDate"`
+		EndDate          string   `json:"endDate"`
+		AuthorizedEmails []string `json:"authorizedEmails"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	title := strings.TrimSpace(body.Title)
+	if title == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "title required")
+		return
+	}
+	now := nowRFC3339()
+	id := uuid.NewString()
+	act := Activity{
+		ID:               id,
+		Title:            title,
+		Sector:           strings.TrimSpace(body.Sector),
+		Description:      strings.TrimSpace(body.Description),
+		StartDate:        strings.TrimSpace(body.StartDate),
+		EndDate:          strings.TrimSpace(body.EndDate),
+		AuthorizedEmails: cleanStringList(body.AuthorizedEmails),
+		CreatedBy:        email,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	if err := h.Objects.PutJSON(r.Context(), ActivityMetaKey(denom, churchID, id), act, cid); err != nil {
+		log.Printf("[correlation=%s] church.activity.create error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not create activity")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"activity": act})
+}
+
+func (h *Handler) Overview(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+	ov, err := h.buildOverview(r.Context(), email, cid)
+	if err != nil {
+		log.Printf("[correlation=%s] church.overview error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not load overview")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, ov)
+}
+
+func (h *Handler) MyActivities(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+	ov, err := h.buildOverview(r.Context(), email, cid)
+	if err != nil {
+		log.Printf("[correlation=%s] church.activity overview_error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not load activities")
+		return
+	}
+	type row struct {
+		DenominationID string           `json:"denominationId"`
+		ChurchID       string           `json:"churchId"`
+		ChurchName     string           `json:"churchName"`
+		Activity       Activity         `json:"activity"`
+		Reports        []ActivityReport `json:"reports"`
+		ViewerRole     string           `json:"viewerRole"`
+	}
+	rows := make([]row, 0)
+	for _, ch := range ov.Churches {
+		for _, act := range ch.Activities {
+			reports, _ := h.listReports(r.Context(), ch.Church.DenominationID, ch.Church.ChurchID, act.ID, cid)
+			rows = append(rows, row{
+				DenominationID: ch.Church.DenominationID,
+				ChurchID:       ch.Church.ChurchID,
+				ChurchName:     ch.Church.Name,
+				Activity:       act,
+				Reports:        reports,
+				ViewerRole:     ch.ViewerRole,
+			})
+		}
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"activities": rows})
+}
+
+func (h *Handler) PostReport(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+	denom := chi.URLParam(r, "denomID")
+	churchID := chi.URLParam(r, "churchID")
+	activityID := chi.URLParam(r, "activityID")
+	va, err := h.resolveAccess(r.Context(), email, denom, churchID)
+	if err != nil || !va.OK {
+		httpx.WriteError(w, http.StatusForbidden, "membership required")
+		return
+	}
+	doc, ok, err := h.loadChurchDoc(r.Context(), denom, churchID, cid)
+	if err != nil || !ok {
+		httpx.WriteError(w, http.StatusNotFound, "church not found")
+		return
+	}
+	var act Activity
+	found, err := h.Objects.GetJSON(r.Context(), ActivityMetaKey(denom, churchID, activityID), &act, cid)
+	if err != nil || !found {
+		httpx.WriteError(w, http.StatusNotFound, "activity not found")
+		return
+	}
+	if !canSeeActivity(va, doc, act) {
+		httpx.WriteError(w, http.StatusForbidden, "not authorized for this activity")
+		return
+	}
+
+	ct := r.Header.Get("Content-Type")
+	var text string
+	imageNames := make([]string, 0)
+	if strings.HasPrefix(ct, "multipart/form-data") {
+		if err := r.ParseMultipartForm(maxImageBytes * 4); err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, "invalid multipart")
+			return
+		}
+		text = strings.TrimSpace(r.FormValue("text"))
+		files := r.MultipartForm.File["images"]
+		for _, fh := range files {
+			f, err := fh.Open()
+			if err != nil {
+				continue
+			}
+			body, err := io.ReadAll(io.LimitReader(f, maxImageBytes+1))
+			_ = f.Close()
+			if err != nil || len(body) > maxImageBytes {
+				httpx.WriteError(w, http.StatusBadRequest, "image too large")
+				return
+			}
+			safe := SanitizeSlug(strings.TrimSuffix(fh.Filename, path.Ext(fh.Filename)))
+			if safe == "" {
+				safe = "img"
+			}
+			ext := strings.ToLower(path.Ext(fh.Filename))
+			if ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".webp" && ext != ".gif" {
+				ext = ".jpg"
+			}
+			name := fmt.Sprintf("%s-%s%s", safe, uuid.NewString()[:8], ext)
+			mime := fh.Header.Get("Content-Type")
+			if mime == "" {
+				mime = "image/jpeg"
+			}
+			if err := h.Objects.PutBytes(r.Context(), ImageKey(denom, churchID, activityID, name), body, mime, cid); err != nil {
+				log.Printf("[correlation=%s] church.report.image error: %v", cid, err)
+				httpx.WriteError(w, http.StatusBadGateway, "could not store image")
+				return
+			}
+			imageNames = append(imageNames, name)
+		}
+	} else {
+		var body struct {
+			Text string `json:"text"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
+			return
+		}
+		text = strings.TrimSpace(body.Text)
+	}
+	if text == "" && len(imageNames) == 0 {
+		httpx.WriteError(w, http.StatusBadRequest, "text or images required")
+		return
+	}
+	now := nowRFC3339()
+	rep := ActivityReport{
+		ID:          uuid.NewString(),
+		ActivityID:  activityID,
+		AuthorEmail: email,
+		Text:        text,
+		ImageNames:  imageNames,
+		CreatedAt:   now,
+	}
+	if err := h.Objects.PutJSON(r.Context(), ReportKey(denom, churchID, activityID, rep.ID), rep, cid); err != nil {
+		log.Printf("[correlation=%s] church.report error: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, "could not save report")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"report": rep})
+}
+
+func (h *Handler) GetImage(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+	denom := chi.URLParam(r, "denomID")
+	churchID := chi.URLParam(r, "churchID")
+	activityID := chi.URLParam(r, "activityID")
+	name := path.Base(chi.URLParam(r, "name"))
+	va, err := h.resolveAccess(r.Context(), email, denom, churchID)
+	if err != nil || !va.OK {
+		httpx.WriteError(w, http.StatusForbidden, "membership required")
+		return
+	}
+	body, ct, ok, err := h.Objects.GetBytes(r.Context(), ImageKey(denom, churchID, activityID, name), cid)
+	if err != nil || !ok {
+		httpx.WriteError(w, http.StatusNotFound, "image not found")
+		return
+	}
+	w.Header().Set("Content-Type", ct)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
+func (h *Handler) buildOverview(ctx context.Context, email, cid string) (OverviewPayload, error) {
+	role := auth.RoleUser
+	if h.Users != nil {
+		if u, ok, err := h.Users.GetUser(ctx, email); err == nil && ok {
+			role = u.Role
+		}
+	}
+	var memberships []Membership
+	var err error
+	if auth.IsAdmin(email, role) {
+		cards, listErr := h.Catalog.List(ctx, "")
+		if listErr != nil {
+			return OverviewPayload{}, listErr
+		}
+		memberships = make([]Membership, 0, len(cards))
+		for _, c := range cards {
+			memberships = append(memberships, Membership{
+				Email:          email,
+				DenominationID: c.DenominationID,
+				ChurchID:       c.ChurchID,
+				Role:           "admin",
+				ChurchName:     c.Name,
+			})
+		}
+	} else {
+		memberships, err = h.Memberships.ListByUser(ctx, email)
+		if err != nil {
+			return OverviewPayload{}, err
+		}
+	}
+	if memberships == nil {
+		memberships = []Membership{}
+	}
+	churches := make([]OverviewChurch, 0, len(memberships))
+	for _, mem := range memberships {
+		va, aerr := h.resolveAccess(ctx, email, mem.DenominationID, mem.ChurchID)
+		if aerr != nil || !va.OK {
+			continue
+		}
+		doc, ok, lerr := h.loadChurchDoc(ctx, mem.DenominationID, mem.ChurchID, cid)
+		if lerr != nil || !ok {
+			continue
+		}
+		acts, _ := h.listActivities(ctx, mem.DenominationID, mem.ChurchID, cid)
+		churches = append(churches, OverviewChurch{
+			Church:     filterChurchForViewer(va, doc),
+			Activities: filterActivities(va, doc, acts),
+			ViewerRole: va.Role,
+		})
+	}
+	return OverviewPayload{Memberships: memberships, Churches: churches}, nil
+}
+
+func (h *Handler) loadChurchDoc(ctx context.Context, denom, churchID, cid string) (ChurchDoc, bool, error) {
+	var doc ChurchDoc
+	ok, err := h.Objects.GetJSON(ctx, ChurchMetaKey(denom, churchID), &doc, cid)
+	return doc, ok, err
+}
+
+func (h *Handler) listActivities(ctx context.Context, denom, churchID, cid string) ([]Activity, error) {
+	prefix := ChurchPrefix(denom, churchID) + "/activities/"
+	keys, err := h.Objects.ListKeys(ctx, prefix, cid)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Activity, 0)
+	seen := map[string]bool{}
+	for _, key := range keys {
+		if !strings.HasSuffix(key, "/activity.json") {
+			continue
+		}
+		id := parseActivityIDFromKey(key)
+		if id == "" || seen[id] {
+			continue
+		}
+		var act Activity
+		ok, err := h.Objects.GetJSON(ctx, key, &act, cid)
+		if err != nil || !ok {
+			continue
+		}
+		seen[id] = true
+		out = append(out, act)
+	}
+	return out, nil
+}
+
+func (h *Handler) listReports(ctx context.Context, denom, churchID, activityID, cid string) ([]ActivityReport, error) {
+	prefix := ActivityPrefix(denom, churchID, activityID) + "/reports/"
+	keys, err := h.Objects.ListKeys(ctx, prefix, cid)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ActivityReport, 0)
+	for _, key := range keys {
+		if !strings.HasSuffix(key, ".json") {
+			continue
+		}
+		var rep ActivityReport
+		ok, err := h.Objects.GetJSON(ctx, key, &rep, cid)
+		if err != nil || !ok {
+			continue
+		}
+		out = append(out, rep)
+	}
+	return out, nil
+}
+
+func cleanStringList(in []string) []string {
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		s = strings.TrimSpace(s)
+		if s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func normalizeMembers(in []Member, ownerEmail string) []Member {
+	ownerEmail = auth.NormalizeEmail(ownerEmail)
+	out := make([]Member, 0, len(in)+1)
+	seen := map[string]bool{}
+	for _, m := range in {
+		email := auth.NormalizeEmail(m.Email)
+		if email == "" || seen[email] {
+			continue
+		}
+		seen[email] = true
+		role := NormalizeChurchRole(m.Role)
+		if email == ownerEmail {
+			role = RoleChurchAdmin
+		}
+		out = append(out, Member{
+			Email:                 email,
+			Name:                  strings.TrimSpace(m.Name),
+			Role:                  role,
+			AuthorizedActivityIDs: m.AuthorizedActivityIDs,
+		})
+	}
+	if !seen[ownerEmail] {
+		out = append([]Member{{
+			Email: ownerEmail,
+			Role:  RoleChurchAdmin,
+		}}, out...)
+	}
+	return out
+}

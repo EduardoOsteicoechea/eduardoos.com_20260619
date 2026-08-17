@@ -1,0 +1,14 @@
+---
+/**
+ * Pretty URLs /church/{denom}/{churchId} rewrite here via nginx;
+ * React reads denom/church from path or ?denom=&church=.
+ */
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ChurchDetailPage from "../../components/Church/ChurchDetailPage";
+---
+
+<BaseLayout title="Church detail — Eduardo Osteicoechea">
+  <div class="page-shell">
+    <ChurchDetailPage client:load />
+  </div>
+</BaseLayout>
