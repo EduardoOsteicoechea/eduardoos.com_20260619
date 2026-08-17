@@ -1,0 +1,10 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import StudentsListPage from "../../../components/Homescool/StudentsListPage";
+---
+
+<BaseLayout title="My students — Homescool">
+  <div class="page-shell">
+    <StudentsListPage client:load />
+  </div>
+</BaseLayout>

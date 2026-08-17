@@ -18,6 +18,12 @@ export const APP_ROUTES = {
   articles: "/articulos",
   article: (id: string) => `/articulos/ver?id=${encodeURIComponent(id)}`,
   homescool: "/homescool",
+  homescoolRegisterStudent: "/homescool/register-student",
+  homescoolStudents: "/homescool/students",
+  homescoolStudent: (slug: string) =>
+    `/homescool/students/${encodeURIComponent(slug)}`,
+  homescoolStudentWorkspace: "/homescool/students/workspace",
+  homescoolLearning: "/homescool/learning",
   bim: "/bim",
   apsAdmin: "/aps-admin",
   /** Public page path (UI label: Debate App). Format/API stay `.edebat` / `/api/edebat`. */
@@ -91,6 +97,18 @@ export const INSTRUMENTALIST_ROUTES = {
   item: (id: string) => `/api/instrumentalist/${encodeURIComponent(id)}`,
   analyze: (id: string) => `/api/instrumentalist/${encodeURIComponent(id)}/analyze`,
   chat: (id: string) => `/api/instrumentalist/${encodeURIComponent(id)}/chat`,
+} as const;
+
+/** Homescool teacher→student registry + folder listing (JWT). */
+export const HOMESCOOL_ROUTES = {
+  students: "/api/homescool/students",
+  student: (slug: string) =>
+    `/api/homescool/students/${encodeURIComponent(slug)}`,
+  teacherFolder: (slug: string, folder: string) =>
+    `/api/homescool/students/${encodeURIComponent(slug)}/folders/${encodeURIComponent(folder)}`,
+  learning: "/api/homescool/learning",
+  learningFolder: (teacherSlug: string, folder: string) =>
+    `/api/homescool/learning/${encodeURIComponent(teacherSlug)}/folders/${encodeURIComponent(folder)}`,
 } as const;
 
 export const PLAYLIST_ROUTES = {

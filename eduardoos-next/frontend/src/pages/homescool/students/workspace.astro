@@ -1,0 +1,13 @@
+---
+/**
+ * Student workspace shell.
+ * Pretty URLs /homescool/students/{slug} are rewritten here by nginx;
+ * Astro dev / static hosts can also use ?student={slug}.
+ */
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import StudentWorkspacePage from "../../../components/Homescool/StudentWorkspacePage";
+---
+
+<BaseLayout title="Student space — Homescool">
+  <StudentWorkspacePage client:load />
+</BaseLayout>

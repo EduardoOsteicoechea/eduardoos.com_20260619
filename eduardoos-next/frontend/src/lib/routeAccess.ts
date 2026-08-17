@@ -60,7 +60,12 @@ export function serviceIdForPath(pathname: string): string | null {
   ) {
     return "debate";
   }
-  if (path === normalizePath(APP_ROUTES.homescool)) return "homescool";
+  if (
+    path === normalizePath(APP_ROUTES.homescool) ||
+    path.startsWith(`${normalizePath(APP_ROUTES.homescool)}/`)
+  ) {
+    return "homescool";
+  }
   if (
     path === normalizePath(APP_ROUTES.mediaGallery) ||
     path.startsWith(`${normalizePath(APP_ROUTES.mediaGallery)}/`)

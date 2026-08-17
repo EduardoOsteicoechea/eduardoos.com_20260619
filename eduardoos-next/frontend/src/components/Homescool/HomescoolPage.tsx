@@ -1,5 +1,10 @@
+/**
+ * Homescool hub — entry CTAs for teacher register / roster and student learning.
+ */
+
 import { APP_ROUTES } from "../../config/routes";
 import ServiceGate from "../ServiceGate/ServiceGate";
+import "./Homescool.css";
 
 export default function HomescoolPage() {
   return (
@@ -8,21 +13,25 @@ export default function HomescoolPage() {
         <p className="product-page__brand">Services</p>
         <h1 className="product-page__title">Homescool</h1>
         <p className="product-page__lead">
-          A home-education hub for resources, reading lists, and practical tools.
+          Register platform users as your students, open their learning spaces,
+          or enter your own space when another teacher has enrolled you.
         </p>
-        <ul className="product-page__list">
-          <li>Cloud pamphlets via EPAM documents</li>
-          <li>Articles library for structured reading</li>
-          <li>Contact assistant for enrollment questions</li>
-        </ul>
-        <div className="product-page__cta-row">
-          <a className="btn btn--primary" href={APP_ROUTES.pamphlet}>
-            Open pamphlets
+        <div className="homescool-hub__actions product-page__cta-row">
+          <a className="btn btn--primary" href={APP_ROUTES.homescoolRegisterStudent}>
+            Register a student
           </a>
-          <a className="btn" href={APP_ROUTES.articles}>
-            Browse articles
+          <a className="btn" href={APP_ROUTES.homescoolStudents}>
+            My students
+          </a>
+          <a className="btn" href={APP_ROUTES.homescoolLearning}>
+            My learning space
           </a>
         </div>
+        <ul className="product-page__list">
+          <li>Student folders: portfolio, period, skills, study section, tasks</li>
+          <li>Cloud objects live under each teacher→student S3 prefix</li>
+          <li>Only existing platform accounts can be registered as students</li>
+        </ul>
       </article>
     </ServiceGate>
   );
