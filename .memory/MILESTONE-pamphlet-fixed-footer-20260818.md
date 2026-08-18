@@ -37,3 +37,8 @@ Footer type now uses mm matching PDF pts:
 | Message / meta | 2.469mm | 7pt |
 
 `drawFooter` paints the same stack as the sheet (heading → message → 2×2 gray meta).
+
+## Follow-ups (2026-08-18)
+
+- Desktop: body columns use `overflow: hidden` so ink past the column box stays in the DOM but is not painted over the left margin.
+- Mobile header/footer inputs use `--column-content-width` (same as columns) + `--mobile-inv-scale` sizing — no more `92vw` overflow off-screen. Column layout untouched.

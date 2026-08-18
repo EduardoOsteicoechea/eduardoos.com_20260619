@@ -330,6 +330,16 @@
     /*border: solid 1px blue;*/
 }
 
+/* Desktop only: keep overflow ink inside the column box (still in DOM, just clipped).
+   Without this, long lines from cols 7–8 paint over the left page margin. */
+.pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"] {
+    overflow: hidden;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"]:has(.element_edit_tray) {
+    overflow: visible;
+}
+
 /* Page 1: left = cols 7–8 + footer; right = header + cols 1–2 */
 .pamphlet-page-header {
     grid-column: 6 / 9;
@@ -1106,31 +1116,33 @@
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header {
   order: 1;
-  /* Full-width form chrome — not the narrow print column. */
-  width: min(92vw, 28rem);
-  max-width: min(92vw, 28rem);
+  /* Same width as body columns — never 92vw (that escapes the scaled sheet). */
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
   height: auto;
   min-height: 0;
   max-height: none;
-  padding: 0.65rem 0.75rem 0.85rem;
+  padding: calc(6px * var(--mobile-inv-scale, 1));
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: calc(6px * var(--mobile-inv-scale, 1));
   overflow: visible;
+  box-sizing: border-box;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer {
   order: 2;
-  width: min(92vw, 28rem);
-  max-width: min(92vw, 28rem);
+  width: var(--column-content-width);
+  max-width: var(--column-content-width);
   height: auto;
   min-height: 0;
   max-height: none;
-  padding: 0.65rem 0.75rem 0.85rem;
+  padding: calc(6px * var(--mobile-inv-scale, 1));
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: calc(6px * var(--mobile-inv-scale, 1));
   overflow: visible;
+  box-sizing: border-box;
 }
 
 /* Mobile: stack meta as normal labeled inputs (desktop header layout unchanged). */
@@ -1138,32 +1150,40 @@
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-bar {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: calc(5px * var(--mobile-inv-scale, 1));
   overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-row,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: calc(5px * var(--mobile-inv-scale, 1));
+  width: 100%;
+  max-width: 100%;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field {
   flex-direction: column;
   align-items: stretch;
-  gap: 0.25rem;
+  gap: calc(3px * var(--mobile-inv-scale, 1));
   overflow: visible;
   border: 1px solid rgba(128, 128, 128, 0.45);
   border-radius: 3px;
-  padding: 0.45rem 0.55rem;
+  padding: calc(5px * var(--mobile-inv-scale, 1)) calc(6px * var(--mobile-inv-scale, 1));
   background: #fff;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-label,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-label {
-  font-size: 0.7rem;
+  font-size: calc(11px * var(--mobile-inv-scale, 1));
   line-height: 1.2;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1177,22 +1197,24 @@
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message {
   border: 1px solid rgba(128, 128, 128, 0.45) !important;
   border-radius: 3px;
-  padding: 0.55rem 0.65rem !important;
+  padding: calc(6px * var(--mobile-inv-scale, 1)) calc(7px * var(--mobile-inv-scale, 1)) !important;
   background: #fff;
-  min-height: 2.5rem;
+  min-height: calc(36px * var(--mobile-inv-scale, 1));
   overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title {
-  /* Título as a normal top input */
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: calc(3px * var(--mobile-inv-scale, 1));
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title::before {
   content: "Título";
-  font-size: 0.7rem;
+  font-size: calc(11px * var(--mobile-inv-scale, 1));
   line-height: 1.2;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1203,12 +1225,12 @@
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: calc(3px * var(--mobile-inv-scale, 1));
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action::before {
   content: "Acción";
-  font-size: 0.7rem;
+  font-size: calc(11px * var(--mobile-inv-scale, 1));
   line-height: 1.2;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1217,7 +1239,7 @@
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message::before {
   content: "Mensaje";
-  font-size: 0.7rem;
+  font-size: calc(11px * var(--mobile-inv-scale, 1));
   line-height: 1.2;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1229,11 +1251,13 @@
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action h1,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message p,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-item p {
-  font-size: 0.95rem !important;
+  font-size: calc(14px * var(--mobile-inv-scale, 1)) !important;
   line-height: 1.35 !important;
   white-space: normal !important;
   text-overflow: unset !important;
   overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
   color: #000 !important;
 }
 
