@@ -93,7 +93,14 @@ type PamphletHeader struct {
 }
 
 type PamphletFooter struct {
-	Items []PamphletItem `json:"items"`
+	Action     string `json:"action"`
+	Message    string `json:"message"`
+	Whatsapp   string `json:"whatsapp"`
+	Phone      string `json:"phone"`
+	Address    string `json:"address"`
+	Activities string `json:"activities"`
+	// Legacy free-form items (migrated when structured fields are empty).
+	Items []PamphletItem `json:"items,omitempty"`
 }
 
 type PamphletItem struct {
@@ -230,7 +237,6 @@ func collectPamphletImages(doc PamphletDocument) []pdfImage {
 	for _, col := range [][]PamphletItem{
 		doc.Column1, doc.Column2, doc.Column3, doc.Column4,
 		doc.Column5, doc.Column6, doc.Column7, doc.Column8,
-		doc.Footer.Items,
 	} {
 		for _, it := range col {
 			add(it)
@@ -357,7 +363,7 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
 
 	footerTop := PamphletMarginMm + PamphletFooterHMm
-	drawFooter(&s, doc.Footer.Items, colX(2), footerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm, images)
+	drawFooter(&s, normalizeFooter(doc.Footer), colX(2), footerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm)
 	return s.String()
 }
 
@@ -451,6 +457,32 @@ func labeledMeta(label, value string) string {
 	return label + ": " + value
 }
 
+// normalizeFooter upgrades legacy footer.items[] into fixed chrome fields.
+func normalizeFooter(f PamphletFooter) PamphletFooter {
+	hasStructured := strings.TrimSpace(f.Action) != "" ||
+		strings.TrimSpace(f.Message) != "" ||
+		strings.TrimSpace(f.Whatsapp) != "" ||
+		strings.TrimSpace(f.Phone) != "" ||
+		strings.TrimSpace(f.Address) != "" ||
+		strings.TrimSpace(f.Activities) != ""
+	if hasStructured || len(f.Items) == 0 {
+		return f
+	}
+	textAt := func(i int) string {
+		if i < 0 || i >= len(f.Items) {
+			return ""
+		}
+		return f.Items[i].Content
+	}
+	f.Action = textAt(0)
+	f.Message = textAt(1)
+	f.Whatsapp = textAt(2)
+	f.Phone = textAt(3)
+	f.Address = textAt(4)
+	f.Activities = textAt(5)
+	return f
+}
+
 // writeGrayText paints a single line in medium gray (UI meta color), clipped by width via wrap.
 func writeGrayText(s *strings.Builder, font string, sizePt float64, xMm, yMm, widthMm float64, text string) {
 	text = strings.TrimSpace(toWinAnsi(text))
@@ -476,8 +508,80 @@ func writeGrayText(s *strings.Builder, font string, sizePt float64, xMm, yMm, wi
 	s.WriteString("0 0 0 rg\n")
 }
 
-func drawFooter(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage) {
-	drawStackedItems(s, items, x, top, width, heightMm, images, pamphletFooterBodyPt, pamphletFooterHeadPt, 1.25, 1.25)
+// drawFooter paints fixed chrome matching the sheet: action heading, message,
+// then a 2×2 labeled meta grid (WhatsApp/Teléfono/Dirección/Actividades) at
+// the same half-widths as cols 7–8.
+func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm float64) {
+	floor := top - heightMm
+	cursorTop := top
+
+	headSizeMm := pamphletFooterHeadPt * 25.4 / 72.0
+	bodySizeMm := pamphletFooterBodyPt * 25.4 / 72.0
+	const lh = 1.25
+	headLineH := headSizeMm * lh
+	bodyLineH := bodySizeMm * lh
+
+	action := strings.TrimSpace(f.Action)
+	if action != "" && cursorTop > floor {
+		y := cursorTop - cssBaselineOffsetMm(headSizeMm, lh)
+		used := writeWrapped(s, "F2", pamphletFooterHeadPt, lh, x, y, width, action, floor)
+		n := 1
+		if used > 0 {
+			n = int(used/headLineH + 0.5)
+			if n < 1 {
+				n = 1
+			}
+		}
+		cursorTop -= float64(n) * headLineH
+		cursorTop -= PamphletHeaderTitleMetaGapMm
+	}
+
+	message := strings.TrimSpace(f.Message)
+	if message != "" && cursorTop > floor {
+		y := cursorTop - cssBaselineOffsetMm(bodySizeMm, lh)
+		used := writeWrapped(s, "F1", pamphletFooterBodyPt, lh, x, y, width, message, floor)
+		n := 1
+		if used > 0 {
+			n = int(used/bodyLineH + 0.5)
+			if n < 1 {
+				n = 1
+			}
+		}
+		cursorTop -= float64(n) * bodyLineH
+		cursorTop -= PamphletHeaderTitleMetaGapMm
+	}
+
+	const colGapMm = 2.5
+	half := (width - colGapMm) / 2
+	if half < 10 {
+		half = width / 2
+	}
+	rightX := x + half + colGapMm
+	metaY := cursorTop - cssBaselineOffsetMm(bodySizeMm, lh)
+
+	left1 := labeledMeta("WhatsApp", f.Whatsapp)
+	right1 := labeledMeta("Teléfono", f.Phone)
+	left2 := labeledMeta("Dirección", f.Address)
+	right2 := labeledMeta("Actividades", f.Activities)
+
+	if (left1 != "" || right1 != "") && metaY > floor {
+		if left1 != "" {
+			writeGrayText(s, "F1", pamphletFooterBodyPt, x, metaY, half, left1)
+		}
+		if right1 != "" {
+			writeGrayText(s, "F1", pamphletFooterBodyPt, rightX, metaY, half, right1)
+		}
+		cursorTop -= bodyLineH + PamphletHeaderMetaRowGapMm
+		metaY = cursorTop - cssBaselineOffsetMm(bodySizeMm, lh)
+	}
+	if (left2 != "" || right2 != "") && metaY > floor {
+		if left2 != "" {
+			writeGrayText(s, "F1", pamphletFooterBodyPt, x, metaY, half, left2)
+		}
+		if right2 != "" {
+			writeGrayText(s, "F1", pamphletFooterBodyPt, rightX, metaY, half, right2)
+		}
+	}
 }
 
 func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage) {

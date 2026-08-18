@@ -21,8 +21,9 @@ export function clonePamphlet(data: PamphletStructure): PamphletStructure {
     return structuredClone(data);
 }
 
+/** Body columns only — header/footer are fixed chrome fields, not item lists. */
 export function getRegionItems(data: PamphletStructure, column: number): PamphletItem[] {
-    if (column === FOOTER_COLUMN) return data.footer.items;
+    if (column === FOOTER_COLUMN || column === HEADER_COLUMN) return [];
     if (column >= 1 && column <= 8) return data[columnKey(column)];
     return [];
 }
@@ -37,6 +38,11 @@ export function resolveLocation(data: PamphletStructure, loc: LastEditedElement)
         return { column: HEADER_COLUMN, index: loc.index };
     }
 
+    if (loc.column === FOOTER_COLUMN) {
+        if (loc.index < 0 || loc.index > 5) return null;
+        return { column: FOOTER_COLUMN, index: loc.index };
+    }
+
     const items = getRegionItems(data, loc.column);
     if (!items || loc.index < 0 || loc.index >= items.length) {
         return null;
@@ -45,8 +51,8 @@ export function resolveLocation(data: PamphletStructure, loc: LastEditedElement)
 }
 
 export function previousLocation(data: PamphletStructure, loc: FlatRef): LastEditedElement | null {
-    if (loc.column === FOOTER_COLUMN) {
-        if (loc.index > 0) return { column: FOOTER_COLUMN, index: loc.index - 1 };
+    if (loc.column === FOOTER_COLUMN || loc.column === HEADER_COLUMN) {
+        if (loc.index > 0) return { column: loc.column, index: loc.index - 1 };
         return null;
     }
 
@@ -63,9 +69,8 @@ export function previousLocation(data: PamphletStructure, loc: FlatRef): LastEdi
 }
 
 export function nextLocation(data: PamphletStructure, loc: FlatRef): LastEditedElement | null {
-    if (loc.column === FOOTER_COLUMN) {
-        const len = data.footer.items.length;
-        if (loc.index < len - 1) return { column: FOOTER_COLUMN, index: loc.index + 1 };
+    if (loc.column === FOOTER_COLUMN || loc.column === HEADER_COLUMN) {
+        if (loc.index < 5) return { column: loc.column, index: loc.index + 1 };
         return null;
     }
 
@@ -90,19 +95,19 @@ function swapItems(data: PamphletStructure, a: FlatRef, b: FlatRef): void {
 }
 
 export function moveItemUp(data: PamphletStructure, loc: FlatRef): LastEditedElement | null {
+    if (loc.column === FOOTER_COLUMN || loc.column === HEADER_COLUMN) return null;
     const prev = previousLocation(data, loc);
     if (!prev) return null;
-    if (loc.column === FOOTER_COLUMN && prev.column !== FOOTER_COLUMN) return null;
-    if (loc.column !== FOOTER_COLUMN && prev.column === FOOTER_COLUMN) return null;
+    if (prev.column === FOOTER_COLUMN || prev.column === HEADER_COLUMN) return null;
     swapItems(data, loc, prev);
     return prev;
 }
 
 export function moveItemDown(data: PamphletStructure, loc: FlatRef): LastEditedElement | null {
+    if (loc.column === FOOTER_COLUMN || loc.column === HEADER_COLUMN) return null;
     const next = nextLocation(data, loc);
     if (!next) return null;
-    if (loc.column === FOOTER_COLUMN && next.column !== FOOTER_COLUMN) return null;
-    if (loc.column !== FOOTER_COLUMN && next.column === FOOTER_COLUMN) return null;
+    if (next.column === FOOTER_COLUMN || next.column === HEADER_COLUMN) return null;
     swapItems(data, loc, next);
     return next;
 }
@@ -113,6 +118,9 @@ export function insertItem(
     item: PamphletItem,
     where: "above" | "below",
 ): LastEditedElement {
+    if (loc.column === FOOTER_COLUMN || loc.column === HEADER_COLUMN) {
+        return { column: loc.column, index: loc.index };
+    }
     const items = getRegionItems(data, loc.column);
     const insertAt = where === "above" ? loc.index : loc.index + 1;
     items.splice(insertAt, 0, item);
@@ -124,6 +132,9 @@ export function appendItem(
     column: number,
     item: PamphletItem,
 ): LastEditedElement {
+    if (column === FOOTER_COLUMN || column === HEADER_COLUMN) {
+        return { column, index: 0 };
+    }
     const items = getRegionItems(data, column);
     items.push(item);
     return { column, index: items.length - 1 };
@@ -133,13 +144,8 @@ export function deleteItem(
     data: PamphletStructure,
     loc: FlatRef,
 ): { focus: LastEditedElement } {
-    if (loc.column === FOOTER_COLUMN) {
-        const prev = previousLocation(data, loc);
-        const next = nextLocation(data, loc);
-        data.footer.items.splice(loc.index, 1);
-        if (prev) return { focus: prev };
-        if (next) return { focus: { column: FOOTER_COLUMN, index: loc.index } };
-        return { focus: { column: FOOTER_COLUMN, index: 0 } };
+    if (loc.column === FOOTER_COLUMN || loc.column === HEADER_COLUMN) {
+        return { focus: { column: loc.column, index: loc.index } };
     }
 
     if (totalItemCount(data) <= 1) {
@@ -178,7 +184,7 @@ export function applyBoldRange(
 ): void {
     const items = getRegionItems(data, loc.column);
     const item = items[loc.index];
-    if (item.type === "image") return;
+    if (!item || item.type === "image") return;
     const a = Math.max(0, Math.min(start, end));
     const b = Math.min(item.content.length, Math.max(start, end));
     if (b <= a) return;
@@ -202,6 +208,7 @@ export function updateItemContent(
 ): void {
     const items = getRegionItems(data, loc.column);
     const item = items[loc.index];
+    if (!item) return;
     item.content = content;
     if (item.type === "image") return;
     const [start, end] = item.style_indexes[0];
@@ -217,7 +224,7 @@ export function updateItemHeightMm(
 ): void {
     const items = getRegionItems(data, loc.column);
     const item = items[loc.index];
-    if (item.type !== "image") return;
+    if (!item || item.type !== "image") return;
     item.height_mm = heightMm;
 }
 
@@ -228,6 +235,7 @@ export function updateItemStyleIndexes(
 ): void {
     const items = getRegionItems(data, loc.column);
     const item = items[loc.index];
+    if (!item) return;
     item.style_indexes = structuredClone(styleIndexes) as StyleIndexes;
 }
 

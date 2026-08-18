@@ -48,7 +48,7 @@ import {
     createItemSpacer,
     getFlatIndex,
     getItemLocation,
-    isHeaderItem,
+    isChromeItem,
     isImageItem,
     renderFromPamphlet,
     renderPageChrome,
@@ -58,11 +58,13 @@ import {
 } from "./pamphlet_io";
 import {
     FOOTER_COLUMN,
+    FOOTER_FIELD_KEYS,
     HEADER_COLUMN,
     HEADER_FIELD_KEYS,
     createParagraphItem,
     createEmptyPamphlet,
     type CreatePamphletMeta,
+    type FooterFieldKey,
     type HeaderFieldKey,
     type LastEditedElement,
     type PamphletHeader,
@@ -336,7 +338,6 @@ async function ensurePamphletImagesAreJpeg(doc: PamphletStructure): Promise<void
         doc.column_6,
         doc.column_7,
         doc.column_8,
-        doc.footer.items,
     ];
     for (const items of cols) {
         for (const item of items) {
@@ -590,26 +591,6 @@ function stripTrailingItemSpacer(parent: HTMLElement): number {
     return mm;
 }
 
-function measureBlockMm(item: HTMLElement, spacer: HTMLElement | null): number {
-    const prevParent = item.parentElement;
-    // Anchor must be the node AFTER the whole (item + optional spacer) block.
-    // Using item.nextSibling when a spacer follows is wrong: measureBlockInSandbox
-    // moves both nodes into the sandbox, so that "nextSibling" is no longer a
-    // child of prevParent and insertBefore fails — leaving the first footer
-    // item stranded in the measure root (looks like it was deleted).
-    const anchor = spacer ? spacer.nextSibling : item.nextSibling;
-
-    const { blockMm } = measureBlockInSandbox(item, spacer);
-
-    if (prevParent) {
-        prevParent.insertBefore(item, anchor);
-        if (spacer) {
-            prevParent.insertBefore(spacer, anchor);
-        }
-    }
-    return blockMm;
-}
-
 /** Probe how much vertical space a new starter item (+ spacer) and the + button need. */
 function measureAddControlsMm(_host: HTMLElement): { newItemMm: number; buttonMm: number } {
     const { column } = ensureMeasureRoot();
@@ -685,29 +666,6 @@ function placeColumnAddButton(
         }
         colIdx++;
         filled = 0;
-    }
-}
-
-function placeFooterAddButton(footer: HTMLElement): void {
-    footer.querySelector(":scope > .pamphlet-add-item-button")?.remove();
-
-    let filledMm = 0;
-    const items = footer.querySelectorAll<HTMLElement>(":scope > .pamphlet-item");
-    items.forEach((item) => {
-        const spacer = item.nextElementSibling?.classList.contains("pamphlet-item-spacer")
-            ? (item.nextElementSibling as HTMLElement)
-            : null;
-        filledMm += measureBlockMm(item, spacer);
-    });
-
-    const { newItemMm, buttonMm } = measureAddControlsMm(footer);
-    // Empty footer: only the + needs to fit; otherwise require room for item + button
-    const fits =
-        filledMm === 0
-            ? buttonMm <= pageFooterHeightMm
-            : filledMm + newItemMm + buttonMm <= pageFooterHeightMm;
-    if (fits) {
-        footer.appendChild(createAddItemButton(FOOTER_COLUMN));
     }
 }
 
@@ -880,10 +838,6 @@ function reflowAndReport(container: HTMLElement) {
 
     if (currentDoc) {
         renderPageChrome(container, currentDoc);
-        const footer = container.querySelector<HTMLElement>(":scope > .pamphlet-page-footer");
-        if (footer) {
-            placeFooterAddButton(footer);
-        }
     }
 
     console.log("--- Auto-Reflow Layout Report ---");
@@ -959,11 +913,11 @@ function activateEditAt(data: PamphletStructure, loc: LastEditedElement): void {
     }
 
     if (loc.column === FOOTER_COLUMN) {
-        const items = Array.from(
-            main.querySelectorAll<HTMLElement>(":scope > .pamphlet-page-footer > .pamphlet-item"),
+        const field = FOOTER_FIELD_KEYS[Math.min(Math.max(loc.index, 0), FOOTER_FIELD_KEYS.length - 1)];
+        const item = main.querySelector<HTMLElement>(
+            `:scope > .pamphlet-page-footer .pamphlet-item[data-footer-field="${field}"]`,
         );
-        if (items.length === 0) return;
-        clickInner(items[Math.min(Math.max(loc.index, 0), items.length - 1)]);
+        if (item) clickInner(item);
         return;
     }
 
@@ -1077,6 +1031,17 @@ function syncContentIntoDoc(
         return loc;
     }
 
+    if (loc.column === FOOTER_COLUMN) {
+        syncItemContentFromTextarea(container);
+        const tray = container.querySelector<HTMLTextAreaElement>(".edit_tray_text_area");
+        const content = tray?.value ?? "";
+        const field = container.getAttribute("data-footer-field") as FooterFieldKey | null;
+        if (field && FOOTER_FIELD_KEYS.includes(field)) {
+            data.footer[field] = content;
+        }
+        return loc;
+    }
+
     const resolved = resolveLocation(data, loc);
     if (!resolved) return null;
 
@@ -1145,7 +1110,7 @@ async function handleAddItemButton(column: number): Promise<void> {
         setError("No pamphlet file is open.");
         return;
     }
-    if (column !== FOOTER_COLUMN && (column < 1 || column > 8)) return;
+    if (column < 1 || column > 8) return;
     openItemTypeModal({ mode: "end", column });
 }
 
@@ -1185,7 +1150,7 @@ async function handleTrayAction(detail: PamphletTrayAction): Promise<void> {
     }
 
     if (detail.action === "undo") {
-        if (isHeaderItem(detail.container)) return;
+        if (isChromeItem(detail.container)) return;
         if (!undoSnapshot) {
             setError("Nothing to undo.");
             return;
@@ -1202,11 +1167,13 @@ async function handleTrayAction(detail: PamphletTrayAction): Promise<void> {
     const loc = syncContentIntoDoc(detail.container, base);
     if (!loc) return;
 
-    // Header: only close updates JSON (undo is local in the tray)
-    if (loc.column === HEADER_COLUMN) {
+    // Header / footer chrome: only close updates JSON (undo is local in the tray)
+    if (loc.column === HEADER_COLUMN || loc.column === FOOTER_COLUMN) {
         if (detail.action !== "close") return;
         base.last_edited_element = loc;
-        currentHeader = { ...base.header };
+        if (loc.column === HEADER_COLUMN) {
+            currentHeader = { ...base.header };
+        }
         pushUndoSnapshot();
         await commitDocument(base, false);
         return;

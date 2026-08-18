@@ -35,6 +35,7 @@ export type PamphletTrayAction =
 export interface CreateElementOptions {
     trayMode?: EditTrayMode;
     headerField?: string;
+    footerField?: string;
     extraClasses?: string[];
     itemType?: "paragraph" | "heading_1" | "image";
 }
@@ -242,6 +243,9 @@ export default function CreateElement(
     elContainer.setAttribute("data-tray-mode", trayMode);
     if (options.headerField) {
         elContainer.setAttribute("data-header-field", options.headerField);
+    }
+    if (options.footerField) {
+        elContainer.setAttribute("data-footer-field", options.footerField);
     }
     const itemType =
         options.itemType ??

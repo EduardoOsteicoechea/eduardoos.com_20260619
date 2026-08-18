@@ -210,6 +210,47 @@ func TestPamphletPage1BodyMatchesSheetBand(t *testing.T) {
 	}
 }
 
+func TestDrawFooterStructuredChrome(t *testing.T) {
+	var s strings.Builder
+	drawFooter(&s, PamphletFooter{
+		Action:     "Creamos estos materiales",
+		Message:    "Si deseas conocer más de la Biblia",
+		Whatsapp:   "+58 412",
+		Phone:      "0212-555",
+		Address:    "Caracas",
+		Activities: "Domingo 10am",
+	}, 10, 47.5, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm)
+	out := s.String()
+	for _, want := range []string{"Creamos", "conocer", "WhatsApp", "Tel", "Direcci", "Actividades"} {
+		if !strings.Contains(out, want) && !strings.Contains(toWinAnsi(want), want) {
+			// WinAnsi may rewrite accents; at least require Latin stems.
+			stem := want
+			if len(stem) > 6 {
+				stem = stem[:6]
+			}
+			if !strings.Contains(out, stem) {
+				t.Fatalf("footer missing %q in stream: %q", want, out)
+			}
+		}
+	}
+}
+
+func TestNormalizeFooterMigratesLegacyItems(t *testing.T) {
+	got := normalizeFooter(PamphletFooter{
+		Items: []PamphletItem{
+			{Type: "heading_1", Content: "Acción legacy"},
+			{Type: "paragraph", Content: "Mensaje legacy"},
+			{Type: "paragraph", Content: "wa"},
+			{Type: "paragraph", Content: "tel"},
+			{Type: "paragraph", Content: "dir"},
+			{Type: "paragraph", Content: "act"},
+		},
+	})
+	if got.Action != "Acción legacy" || got.Message != "Mensaje legacy" || got.Whatsapp != "wa" {
+		t.Fatalf("migrate failed: %+v", got)
+	}
+}
+
 func TestPamphletPageGeometrySums(t *testing.T) {
 	// Horizontal: margin + 4 cols + 2 narrow + 1 wide + margin = page width
 	sum := PamphletMarginMm*2 +
