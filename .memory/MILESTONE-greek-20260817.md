@@ -2,6 +2,9 @@
 
 ## Status: SHIPPED + clean Greek letter catalog (Αα…Ωω + ς)
 
+**Nav (2026-08-18):** Greek is **hidden** from Header Services for now.
+Routes `/greek*` and `/api/greek*` remain; admin can still open them by URL.
+
 Admin-only product to copy/visualize books **letter-image by letter-image** under S3 prefix `greek/`.
 A **word is composed** of letter-images (not one image per word).
 

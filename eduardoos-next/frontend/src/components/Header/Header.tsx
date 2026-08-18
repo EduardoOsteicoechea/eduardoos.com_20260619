@@ -54,7 +54,7 @@ const PRIMARY_LINKS = [
 const SERVICES_LINKS = [
   { href: APP_ROUTES.homescool, label: "Homescool" },
   { href: APP_ROUTES.church, label: "Church" },
-  { href: APP_ROUTES.greek, label: "Greek" },
+  // Greek hidden from Services nav for now (routes/API remain for direct admin use).
   { href: APP_ROUTES.mediaPlaylist, label: "Music" },
   { href: APP_ROUTES.pamphlet, label: "Pamphlet" },
   { href: APP_ROUTES.articles, label: "Articles" },
