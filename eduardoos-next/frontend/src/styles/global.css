@@ -35,11 +35,16 @@ body {
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   font-family: var(--font-body, var(--font-sans));
-  font-size: var(--font-base);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Body type uses rem → inherits the scaled html root from --site-text-scale.
+   Do not set font-size on html here or A+/A− has no effect. */
+body {
+  font-size: var(--font-base);
 }
 
 a {

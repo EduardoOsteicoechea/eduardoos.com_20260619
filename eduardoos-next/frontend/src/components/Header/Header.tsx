@@ -245,7 +245,7 @@ function ServicesMenu({ pathname, navClass, onNavigate }: ServicesMenuProps) {
         aria-haspopup="menu"
         onClick={() => setOpen((current) => !current)}
       >
-        Services
+        Services Apps & Subscriptions
         <span className="site-header__services-caret" aria-hidden="true">
           {open ? "▴" : "▾"}
         </span>
@@ -255,7 +255,7 @@ function ServicesMenu({ pathname, navClass, onNavigate }: ServicesMenuProps) {
           id="site-header-services-menu"
           className="site-header__services-menu"
           role="menu"
-          aria-label="Services"
+          aria-label="Services Apps & Subscriptions"
         >
           {SERVICES_LINKS.map(({ href, label }) => (
             <a
