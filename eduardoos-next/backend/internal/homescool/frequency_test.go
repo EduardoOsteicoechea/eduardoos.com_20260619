@@ -46,4 +46,14 @@ func TestExpandOccurrenceDates(t *testing.T) {
 	if NormalizeFrequency(nil).Kind != FrequencyOnce {
 		t.Fatal("nil defaults to once")
 	}
+
+	if err := ValidateFrequencyWindow("2026-08-17", "2026-08-17", TaskFrequency{Kind: FrequencyDaily}); err == nil {
+		t.Fatal("daily with same start/end must fail")
+	}
+	if err := ValidateFrequencyWindow("2026-08-17", "2026-08-18", TaskFrequency{Kind: FrequencyDaily}); err != nil {
+		t.Fatalf("daily window ok: %v", err)
+	}
+	if err := ValidateFrequencyWindow("2026-08-17", "2026-08-17", TaskFrequency{Kind: FrequencyOnce}); err != nil {
+		t.Fatalf("once may be single day: %v", err)
+	}
 }

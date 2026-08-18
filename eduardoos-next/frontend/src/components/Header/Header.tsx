@@ -3,9 +3,10 @@
  * Desktop rail (top → bottom): logo → menu → avatar → separator → Header
  * Dynamic Menu (per-route tools, e.g. Pamphlet). Mobile bar: logo left,
  * dynamic section centered, avatar then menu on the right. Hamburger opens
- * the nav tray from the left (after the 60px rail on desktop). Services,
- * Theme, and auth links live inside the tray. Music keeps the bottom
- * Activity Bar and does not register a dynamic header section.
+ * the nav tray from the left (after the 60px rail on desktop). Tray chrome
+ * (A+ / A− / theme / close) sits in a top toolbar; Services and auth links
+ * follow. Music keeps the bottom Activity Bar and does not register a
+ * dynamic header section.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -23,6 +24,7 @@ import {
   resolveProfileImageUrl,
 } from "../../lib/profile";
 import { applyTheme, resolveTheme, toggleTheme, type SiteTheme } from "../../lib/theme";
+import { applyUiScale, bumpUiScale, resolveUiScale, type UiScale } from "../../lib/uiScale";
 import HeaderDynamicMenu from "../HeaderDynamicMenu/HeaderDynamicMenu";
 import "./Header.css";
 
@@ -44,8 +46,8 @@ interface HeaderProps {
   pathname: string;
 }
 
+/** Home is the logo; omit a redundant "Home" row in the tray. */
 const PRIMARY_LINKS = [
-  { href: APP_ROUTES.home, label: "Home" },
   { href: APP_ROUTES.contact, label: "Contact" },
   { href: APP_ROUTES.bim, label: "OpenBIM" },
   { href: APP_ROUTES.apsAdmin, label: "APS" },
@@ -304,6 +306,7 @@ export function Header({ pathname }: HeaderProps) {
   const [profileImageUrl, setProfileImageUrl] = useState("");
   const [clientReady, setClientReady] = useState(false);
   const [theme, setTheme] = useState<SiteTheme>("light");
+  const [uiScale, setUiScale] = useState<UiScale>(1);
   const [isAdmin, setIsAdmin] = useState(false);
   const trayRef = useRef<HTMLElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
@@ -384,6 +387,9 @@ export function Header({ pathname }: HeaderProps) {
     syncAuthState();
     setTheme(resolveTheme());
     applyTheme(resolveTheme());
+    const scale = resolveUiScale();
+    setUiScale(scale);
+    applyUiScale(scale);
     void loadProfileImage();
   }, [pathname]);
 
@@ -480,6 +486,58 @@ export function Header({ pathname }: HeaderProps) {
         aria-label="Main"
         hidden={!menuOpen}
       >
+        <div className="site-header__tray-toolbar" role="toolbar" aria-label="Tray controls">
+          <button
+            type="button"
+            className="site-header__tray-btn"
+            aria-label="Increase text size"
+            title="Increase text size"
+            onClick={() => setUiScale(bumpUiScale(1))}
+          >
+            <span className="site-header__tray-btn-label" aria-hidden="true">
+              A+
+            </span>
+          </button>
+          <button
+            type="button"
+            className="site-header__tray-btn"
+            aria-label="Decrease text size"
+            title="Decrease text size"
+            onClick={() => setUiScale(bumpUiScale(-1))}
+          >
+            <span className="site-header__tray-btn-label" aria-hidden="true">
+              A−
+            </span>
+          </button>
+          <button
+            type="button"
+            className="site-header__tray-btn site-header__tray-btn--theme"
+            aria-pressed={theme === "dark"}
+            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            title={theme === "dark" ? "Light theme" : "Dark theme"}
+            onClick={() => {
+              const next = toggleTheme();
+              setTheme(next);
+            }}
+          >
+            <span className="site-header__tray-theme-icon" aria-hidden="true">
+              {theme === "dark" ? "☀" : "☾"}
+            </span>
+          </button>
+          <span className="site-header__tray-spacer" aria-hidden="true" />
+          <button
+            type="button"
+            className="site-header__tray-btn site-header__tray-btn--close"
+            aria-label="Close menu"
+            title="Close menu"
+            onClick={closeMenu}
+          >
+            <span className="site-header__tray-close-x" aria-hidden="true">
+              ×
+            </span>
+          </button>
+        </div>
+        <span className="visually-hidden">Text scale {Math.round(uiScale * 100)}%</span>
         {PRIMARY_LINKS.map(({ href, label }) => (
           <a key={href} className={navClass(href)} href={href} onClick={closeMenu}>
             {label}
@@ -495,21 +553,6 @@ export function Header({ pathname }: HeaderProps) {
             Admin users
           </a>
         ) : null}
-        <button
-          type="button"
-          className="site-header__theme-toggle"
-          aria-pressed={theme === "dark"}
-          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          onClick={() => {
-            const next = toggleTheme();
-            setTheme(next);
-          }}
-        >
-          <span className="site-header__theme-toggle-label">Theme</span>
-          <span className="site-header__theme-toggle-value">
-            {theme === "dark" ? "Dark" : "Light"}
-          </span>
-        </button>
         {showAuth ? (
           <AuthControls
             variant="nav"

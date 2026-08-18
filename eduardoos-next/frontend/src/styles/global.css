@@ -10,6 +10,8 @@
 
 html {
   scroll-behavior: smooth;
+  /* Rem root — A+/A− in the nav tray adjust --site-text-scale (see lib/uiScale.ts). */
+  font-size: calc(100% * var(--site-text-scale, 1));
 }
 
 @media (prefers-reduced-motion: reduce) {

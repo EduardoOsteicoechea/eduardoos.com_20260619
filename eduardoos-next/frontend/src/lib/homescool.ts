@@ -20,7 +20,18 @@ export const HOMESCOOL_FOLDERS = [
 
 export type HomescoolFolder = (typeof HOMESCOOL_FOLDERS)[number];
 
-/** S3-backed folders only (calendar is a virtual UI surface like tasks boards). */
+/**
+ * Student learning sidebar: overview (calendar + pending) lands first.
+ * Teacher workspace keeps HOMESCOOL_FOLDERS without overview.
+ */
+export const HOMESCOOL_STUDENT_FOLDERS = [
+  "overview",
+  ...HOMESCOOL_FOLDERS,
+] as const;
+
+export type HomescoolStudentFolder = (typeof HOMESCOOL_STUDENT_FOLDERS)[number];
+
+/** S3-backed folders only (calendar/overview are virtual UI surfaces). */
 export const HOMESCOOL_S3_FOLDERS = [
   "portfolio",
   "period",
@@ -325,11 +336,16 @@ export function formatFrequencyLabel(freq?: HomescoolTaskFrequency | null): stri
 /**
  * Expand assignment window into YYYY-MM-DD occurrence dates for the calendar.
  * Caps at 400 days (mirrors Go ExpandOccurrenceDates).
+ *
+ * Legacy repair: daily / daily_except tasks that were saved with endDate===startDate
+ * (End left blank in the assign form) get a display window from durationMin when it
+ * is at least one day; otherwise a 7-day window so the calendar is not a single cell.
  */
 export function expandOccurrenceDates(
   startDate: string,
   endDate: string,
   freq?: HomescoolTaskFrequency | null,
+  durationMin?: number,
 ): string[] {
   const n = normalizeFrequency(freq);
   const start = parseDateOnly(startDate);
@@ -339,6 +355,12 @@ export function expandOccurrenceDates(
 
   if (n.kind === "once") {
     return [formatDateOnly(start)];
+  }
+
+  if (end.getTime() === start.getTime()) {
+    const days = repairDailyWindowDays(durationMin);
+    end = new Date(start.getTime());
+    end.setUTCDate(end.getUTCDate() + days - 1);
   }
 
   const exclude = new Set(n.excludeWeekdays ?? []);
@@ -352,6 +374,32 @@ export function expandOccurrenceDates(
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return out;
+}
+
+/** Days to span when repairing a collapsed daily window (start===end). */
+export function repairDailyWindowDays(durationMin?: number): number {
+  if (Number.isFinite(durationMin) && (durationMin as number) >= DAY_MIN) {
+    return Math.min(400, Math.max(2, Math.ceil((durationMin as number) / DAY_MIN)));
+  }
+  return 7;
+}
+
+/** True when daily kinds need an exclusive end date after start. */
+export function frequencyNeedsEndWindow(freq?: HomescoolTaskFrequency | null): boolean {
+  const kind = normalizeFrequency(freq).kind;
+  return kind === "daily" || kind === "daily_except";
+}
+
+function addDaysISO(iso: string, days: number): string {
+  const d = parseDateOnly(iso);
+  if (!d) return iso;
+  d.setUTCDate(d.getUTCDate() + days);
+  return formatDateOnly(d);
+}
+
+/** Suggest endDate when switching to a recurring frequency (start + 13 days). */
+export function suggestRecurrenceEndDate(startDate: string): string {
+  return addDaysISO(startDate, 13);
 }
 
 function parseDateOnly(raw: string): Date | null {
@@ -437,6 +485,8 @@ async function homescoolRequest<T>(
 
 export function folderLabel(folder: string): string {
   switch (folder) {
+    case "overview":
+      return "Home";
     case "portfolio":
       return "Portfolio";
     case "period":

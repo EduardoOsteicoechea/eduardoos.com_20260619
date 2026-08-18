@@ -76,6 +76,33 @@ func ValidateFrequency(f TaskFrequency) error {
 	}
 }
 
+// ValidateFrequencyWindow enforces that recurring kinds span more than one day.
+// Daily with start==end collapses to a single calendar cell (the bug users hit when
+// leaving End empty — the client used to default endDate=startDate).
+func ValidateFrequencyWindow(startDate, endDate string, f TaskFrequency) error {
+	n := NormalizeFrequency(&f)
+	start, err := parseDateOnly(startDate)
+	if err != nil {
+		return fmt.Errorf("invalid startDate")
+	}
+	end := start
+	if strings.TrimSpace(endDate) != "" {
+		end, err = parseDateOnly(endDate)
+		if err != nil {
+			return fmt.Errorf("invalid endDate")
+		}
+	}
+	if end.Before(start) {
+		return fmt.Errorf("endDate must be on or after startDate")
+	}
+	if n.Kind == FrequencyDaily || n.Kind == FrequencyDailyExcept {
+		if !end.After(start) {
+			return fmt.Errorf("daily frequency requires endDate after startDate (recurrence window)")
+		}
+	}
+	return nil
+}
+
 // FormatFrequencyLabel is a short English label for cards/emails.
 func FormatFrequencyLabel(f TaskFrequency) string {
 	n := NormalizeFrequency(&f)

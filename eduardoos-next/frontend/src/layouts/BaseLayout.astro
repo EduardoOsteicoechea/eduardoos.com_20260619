@@ -121,6 +121,13 @@ const pathname = Astro.url.pathname;
           document.documentElement.setAttribute("data-theme", theme);
           document.documentElement.classList.toggle("dark", theme === "dark");
         } catch (_) {}
+        try {
+          var scaleKey = "eduardoos-text-scale";
+          var raw = localStorage.getItem(scaleKey);
+          var n = raw != null ? Number(raw) : 1;
+          if (!Number.isFinite(n) || n < 0.5 || n > 2) n = 1;
+          document.documentElement.style.setProperty("--site-text-scale", String(n));
+        } catch (_) {}
       })();
     </script>
   </head>

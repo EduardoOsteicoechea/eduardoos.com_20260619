@@ -1,17 +1,22 @@
 /**
  * Shared folder sidebar cards + object listing for teacher workspace and student learning.
- * When folder === tasks, swaps the object list for the Tasks board UI.
+ * Student default: Home (calendar on top + pending tasks below), sharing one Dynamo task list.
  * Folders column toggles from Header Dynamic Menu (persisted in localStorage).
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   HOMESCOOL_FOLDERS,
+  HOMESCOOL_STUDENT_FOLDERS,
   folderLabel,
+  isHomescoolS3Folder,
+  listLearningTasks,
+  listTeacherStudentTasks,
   readHomescoolFoldersOpen,
   writeHomescoolFoldersOpen,
   type HomescoolFolderObject,
   type HomescoolLink,
+  type HomescoolTask,
 } from "../../lib/homescool";
 import AssignTasksModal from "./AssignTasksModal";
 import CatalogsPanel from "./CatalogsPanel";
@@ -26,11 +31,17 @@ type FolderLoader = (
   folder: string,
 ) => Promise<{ objects: HomescoolFolderObject[]; prefix: string }>;
 
-function folderFromLocation(): string {
-  if (typeof window === "undefined") return HOMESCOOL_FOLDERS[0];
+function folderFromLocation(mode: "teacher" | "student"): string {
+  if (typeof window === "undefined") {
+    return mode === "student" ? "overview" : HOMESCOOL_FOLDERS[0];
+  }
   const q = new URLSearchParams(window.location.search).get("folder");
-  if (q && (HOMESCOOL_FOLDERS as readonly string[]).includes(q)) return q;
-  return HOMESCOOL_FOLDERS[0];
+  const allowed =
+    mode === "student"
+      ? (HOMESCOOL_STUDENT_FOLDERS as readonly string[])
+      : (HOMESCOOL_FOLDERS as readonly string[]);
+  if (q && allowed.includes(q)) return q;
+  return mode === "student" ? "overview" : HOMESCOOL_FOLDERS[0];
 }
 
 function taskIdFromLocation(): string {
@@ -64,7 +75,9 @@ export default function StudentSpaceLayout({
   teacherSlug = "",
   studentSlug = "",
 }: Props) {
-  const [activeFolder, setActiveFolder] = useState<string>(folderFromLocation);
+  const folderList =
+    mode === "student" ? HOMESCOOL_STUDENT_FOLDERS : HOMESCOOL_FOLDERS;
+  const [activeFolder, setActiveFolder] = useState<string>(() => folderFromLocation(mode));
   const [deepTaskId] = useState<string>(taskIdFromLocation);
   const [objects, setObjects] = useState<HomescoolFolderObject[]>([]);
   const [prefix, setPrefix] = useState("");
@@ -73,16 +86,51 @@ export default function StudentSpaceLayout({
   const [assignOpen, setAssignOpen] = useState(false);
   const [tasksTick, setTasksTick] = useState(0);
   const [catalogsTick, setCatalogsTick] = useState(0);
+  const [sharedTasks, setSharedTasks] = useState<HomescoolTask[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
 
   useEffect(() => {
     setFoldersOpen(readHomescoolFoldersOpen());
   }, []);
 
+  const reloadSharedTasks = useCallback(async () => {
+    setTasksLoading(true);
+    try {
+      if (mode === "teacher" && studentSlug) {
+        const data = await listTeacherStudentTasks(studentSlug);
+        setSharedTasks(data.tasks ?? []);
+      } else if (mode === "student" && teacherSlug) {
+        const data = await listLearningTasks(teacherSlug);
+        setSharedTasks(data.tasks ?? []);
+      } else {
+        setSharedTasks([]);
+      }
+    } catch {
+      setSharedTasks([]);
+    } finally {
+      setTasksLoading(false);
+    }
+  }, [mode, studentSlug, teacherSlug]);
+
   useEffect(() => {
-    if (activeFolder === "tasks" || activeFolder === "calendar") {
+    void reloadSharedTasks();
+  }, [reloadSharedTasks, tasksTick]);
+
+  useEffect(() => {
+    if (
+      activeFolder === "tasks" ||
+      activeFolder === "calendar" ||
+      activeFolder === "overview"
+    ) {
       setLoading(false);
       setObjects([]);
-      setPrefix(link ? `${link.s3Prefix}/${activeFolder === "calendar" ? "tasks" : activeFolder}` : "");
+      setPrefix(link ? `${link.s3Prefix}/tasks` : "");
+      return;
+    }
+    if (!isHomescoolS3Folder(activeFolder)) {
+      setLoading(false);
+      setObjects([]);
+      setPrefix("");
       return;
     }
     let cancelled = false;
@@ -108,6 +156,16 @@ export default function StudentSpaceLayout({
     };
   }, [activeFolder, loadFolder, link, tasksTick]);
 
+  const selectFolder = (folder: string) => {
+    setActiveFolder(folder);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("folder", folder);
+      if (folder !== "tasks") url.searchParams.delete("task");
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
+
   const toggleFolders = () => {
     setFoldersOpen((prev) => {
       const next = !prev;
@@ -115,6 +173,8 @@ export default function StudentSpaceLayout({
       return next;
     });
   };
+
+  const bumpTasks = () => setTasksTick((n) => n + 1);
 
   const rootClass = [
     "homescool-workspace",
@@ -134,7 +194,7 @@ export default function StudentSpaceLayout({
             <p className="homescool-workspace__aside-title">Folders</p>
           </div>
           <div className="homescool-folder-cards" role="list">
-            {HOMESCOOL_FOLDERS.map((folder) => (
+            {folderList.map((folder) => (
               <button
                 key={folder}
                 type="button"
@@ -142,7 +202,7 @@ export default function StudentSpaceLayout({
                 className={`homescool-folder-card${
                   activeFolder === folder ? " homescool-folder-card--active" : ""
                 }`}
-                onClick={() => setActiveFolder(folder)}
+                onClick={() => selectFolder(folder)}
               >
                 <span className="homescool-folder-card__label">{folderLabel(folder)}</span>
                 <span className="homescool-folder-card__hint">{folder}</span>
@@ -154,7 +214,7 @@ export default function StudentSpaceLayout({
               <CatalogsPanel onCatalogsChanged={() => setCatalogsTick((n) => n + 1)} />
               <TaskTemplatesPanel
                 catalogsTick={catalogsTick}
-                onTemplatesChanged={() => setTasksTick((n) => n + 1)}
+                onTemplatesChanged={bumpTasks}
               />
             </div>
           ) : null}
@@ -186,28 +246,49 @@ export default function StudentSpaceLayout({
           ) : null}
         </div>
 
-        {activeFolder === "tasks" ? (
+        {activeFolder === "overview" && mode === "student" && teacherSlug ? (
+          <div className="homescool-learning-home">
+            <TasksCalendarBoard
+              mode="student"
+              teacherSlug={teacherSlug}
+              tasks={sharedTasks}
+              loading={tasksLoading}
+              embedded
+            />
+            <StudentTasksBoard
+              teacherSlug={teacherSlug}
+              initialTaskId={deepTaskId}
+              tasks={sharedTasks}
+              loading={tasksLoading}
+              onChanged={bumpTasks}
+              embedded
+            />
+          </div>
+        ) : activeFolder === "tasks" ? (
           mode === "teacher" && studentSlug ? (
             <TeacherTasksBoard
               key={tasksTick}
               studentSlug={studentSlug}
-              onChanged={() => setTasksTick((n) => n + 1)}
+              onChanged={bumpTasks}
             />
           ) : mode === "student" && teacherSlug ? (
             <StudentTasksBoard
-              key={tasksTick}
               teacherSlug={teacherSlug}
               initialTaskId={deepTaskId}
+              tasks={sharedTasks}
+              loading={tasksLoading}
+              onChanged={bumpTasks}
             />
           ) : (
             <p className="homescool-empty">Tasks board unavailable.</p>
           )
         ) : activeFolder === "calendar" ? (
           <TasksCalendarBoard
-            key={tasksTick}
             mode={mode}
             teacherSlug={teacherSlug}
             studentSlug={studentSlug}
+            tasks={sharedTasks}
+            loading={tasksLoading}
           />
         ) : (
           <>
@@ -243,7 +324,7 @@ export default function StudentSpaceLayout({
           studentSlug={studentSlug}
           open={assignOpen}
           onClose={() => setAssignOpen(false)}
-          onAssigned={() => setTasksTick((n) => n + 1)}
+          onAssigned={bumpTasks}
         />
       ) : null}
     </div>

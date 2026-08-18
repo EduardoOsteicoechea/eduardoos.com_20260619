@@ -313,6 +313,13 @@ func (h *Handler) AssignTasks(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "startDate required")
 		return
 	}
+	if endDate == "" {
+		endDate = startDate
+	}
+	if err := ValidateFrequencyWindow(startDate, endDate, freq); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if _, err := ExpandOccurrenceDates(startDate, endDate, freq); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 		return

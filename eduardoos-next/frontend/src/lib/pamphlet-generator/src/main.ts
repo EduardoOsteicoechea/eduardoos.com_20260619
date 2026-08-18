@@ -592,17 +592,20 @@ function stripTrailingItemSpacer(parent: HTMLElement): number {
 
 function measureBlockMm(item: HTMLElement, spacer: HTMLElement | null): number {
     const prevParent = item.parentElement;
-    const nextSibling = item.nextSibling;
-    const spacerParent = spacer?.parentElement ?? null;
-    const spacerNext = spacer?.nextSibling ?? null;
+    // Anchor must be the node AFTER the whole (item + optional spacer) block.
+    // Using item.nextSibling when a spacer follows is wrong: measureBlockInSandbox
+    // moves both nodes into the sandbox, so that "nextSibling" is no longer a
+    // child of prevParent and insertBefore fails — leaving the first footer
+    // item stranded in the measure root (looks like it was deleted).
+    const anchor = spacer ? spacer.nextSibling : item.nextSibling;
 
     const { blockMm } = measureBlockInSandbox(item, spacer);
 
     if (prevParent) {
-        prevParent.insertBefore(item, nextSibling);
-    }
-    if (spacer && spacerParent) {
-        spacerParent.insertBefore(spacer, spacerNext);
+        prevParent.insertBefore(item, anchor);
+        if (spacer) {
+            prevParent.insertBefore(spacer, anchor);
+        }
     }
     return blockMm;
 }

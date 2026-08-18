@@ -765,6 +765,18 @@
   margin: 0;
 }
 
+/* Learning Home: calendar on top, pending tasks below (shared task list). */
+.homescool-learning-home {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.homescool-calendar--embedded .homescool-calendar__frame {
+  max-height: min(28rem, 55vh);
+}
+
 @media (max-width: 720px) {
   .page-shell.page-shell--homescool-flush {
     /* Mobile: top bar, not left rail — keep a small inset both sides. */

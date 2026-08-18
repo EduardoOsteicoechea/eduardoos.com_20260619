@@ -90,7 +90,7 @@ export default function LearningPage() {
           <StudentSpaceLayout
             brand="Learning space"
             title={`Under ${active.teacherEmail}`}
-            lead="Your folders under this teacher. Open Tasks for pending assignments."
+            lead="Calendar on top, pending tasks below. Same assignment data as Tasks and Calendar folders."
             link={active}
             loadFolder={loadFolder}
             mode="student"

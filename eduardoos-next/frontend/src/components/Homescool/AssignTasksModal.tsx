@@ -10,10 +10,12 @@ import {
   assignStudentTasks,
   formatDurationLabel,
   formatStudyAreas,
+  frequencyNeedsEndWindow,
   hasStudyArea,
   listCatalogEntries,
   listTaskTemplates,
   normalizeFrequency,
+  suggestRecurrenceEndDate,
   type HomescoolCatalogEntry,
   type HomescoolTaskFrequencyKind,
   type HomescoolTaskTemplate,
@@ -115,12 +117,19 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
       kind: freqKind,
       excludeWeekdays: freqKind === "daily_except" ? excludeWeekdays : [],
     });
+    const resolvedEnd = endDate || startDate;
+    if (frequencyNeedsEndWindow(frequency) && resolvedEnd <= startDate) {
+      window.alert(
+        "Daily frequency needs an End date after Start — that window is what the calendar expands.",
+      );
+      return;
+    }
     setBusy(true);
     try {
       await assignStudentTasks(studentSlug, {
         templateIds: Array.from(selected),
         startDate,
-        endDate: endDate || startDate,
+        endDate: resolvedEnd,
         frequency,
       });
       setSelected(new Set());
@@ -135,7 +144,11 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
 
   if (!open) return null;
 
-  const canAssign = selected.size > 0 && Boolean(startDate);
+  const needsEnd = frequencyNeedsEndWindow({ kind: freqKind });
+  const canAssign =
+    selected.size > 0 &&
+    Boolean(startDate) &&
+    (!needsEnd || (Boolean(endDate) && endDate > startDate));
 
   return (
     <div className="homescool-modal" role="dialog" aria-modal="true" aria-labelledby="assign-modal-title">
@@ -199,7 +212,17 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
               Frequency
               <select
                 value={freqKind}
-                onChange={(e) => setFreqKind(e.target.value as HomescoolTaskFrequencyKind)}
+                onChange={(e) => {
+                  const next = e.target.value as HomescoolTaskFrequencyKind;
+                  setFreqKind(next);
+                  if (
+                    (next === "daily" || next === "daily_except") &&
+                    startDate &&
+                    (!endDate || endDate <= startDate)
+                  ) {
+                    setEndDate(suggestRecurrenceEndDate(startDate));
+                  }
+                }}
                 disabled={busy}
               >
                 <option value="once">Specific day (one-shot)</option>
@@ -236,17 +259,29 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setStartDate(next);
+                  if (
+                    needsEnd &&
+                    next &&
+                    (!endDate || endDate <= next)
+                  ) {
+                    setEndDate(suggestRecurrenceEndDate(next));
+                  }
+                }}
                 required
                 disabled={busy}
               />
             </label>
             <label>
-              End / conclusion
+              End / conclusion{needsEnd ? " (required for daily)" : ""}
               <input
                 type="date"
                 value={endDate}
+                min={startDate || undefined}
                 onChange={(e) => setEndDate(e.target.value)}
+                required={needsEnd}
                 disabled={busy}
               />
             </label>
@@ -254,7 +289,7 @@ export default function AssignTasksModal({ studentSlug, open, onClose, onAssigne
           <p className="homescool-form__hint">
             {freqKind === "once"
               ? "One calendar appearance on the start date. End date is the conclusion / due marker."
-              : "Start and end define the recurrence window. Boards keep one card; Calendar expands each occurrence day."}
+              : "Start and End define the recurrence window (End must be after Start). Boards keep one card; Calendar expands each occurrence day."}
           </p>
           <div className="homescool-task-board" role="list">
             {filtered.map((tpl) => {

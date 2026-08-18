@@ -227,7 +227,7 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
     headerEl.appendChild(subtitle);
 
     const footerEl = document.createElement("footer");
-    footerEl.className = "pamphlet-page-footer dumb-column pamphlet-footer-column";
+    footerEl.className = "pamphlet-page-footer dumb-column pamphlet-footer-region";
     const footerItems = data.footer.items;
     footerItems.forEach((item, index) => {
         appendItemWithSpacer(footerEl, createItemElement(item), index < footerItems.length - 1);

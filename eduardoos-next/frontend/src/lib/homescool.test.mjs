@@ -15,6 +15,8 @@ function safeEmailKey(email) {
 
 function folderLabel(folder) {
   switch (folder) {
+    case "overview":
+      return "Home";
     case "portfolio":
       return "Portfolio";
     case "period":
