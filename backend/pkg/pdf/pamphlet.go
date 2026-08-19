@@ -91,6 +91,9 @@ type PamphletFooterLayout struct {
 	Pad         float64 `json:"pad"`
 	Radius      float64 `json:"radius"`
 	Stroke      float64 `json:"stroke"`
+	InnerInset  float64 `json:"inner_inset"`
+	InnerStroke float64 `json:"inner_stroke"`
+	InnerRadius float64 `json:"inner_radius"`
 	ChromeGap   float64 `json:"chrome_gap"`
 	ActionSize  float64 `json:"action_size"`
 	ActionLH    float64 `json:"action_lh"`
@@ -503,21 +506,24 @@ var pamphletFooterDefaultLabels = [4]string{"WhatsApp", "Teléfono", "Dirección
 // defaultFooterLayout mirrors frontend PAMPHLET_FOOTER_LAYOUT_MM / style.css.
 func defaultFooterLayout() PamphletFooterLayout {
 	return PamphletFooterLayout{
-		Height:      PamphletFooterHMm,
-		Pad:         1.2,
-		Radius:      1.0,
-		Stroke:      0.2,
-		ChromeGap:   0.6,
-		ActionSize:  3.175,
-		ActionLH:    1.25,
-		ActionPadX:  1.4,
-		ActionPadY:  0.7,
-		ActionMinH:  4.5,
-		MessageSize: 2.469,
-		MessageLH:   1.25,
-		MessagePadX: 1.4,
-		MessagePadY: 0.7,
-		MessageMinH: 4.5,
+		Height:        PamphletFooterHMm,
+		Pad:           1.2,
+		Radius:        1.0,
+		Stroke:        0.2,
+		InnerInset:    0.45,
+		InnerStroke:   0.1,
+		InnerRadius:   0.6,
+		ChromeGap:     0.6,
+		ActionSize:    3.175,
+		ActionLH:      1.25,
+		ActionPadX:    1.4,
+		ActionPadY:    0.7,
+		ActionMinH:    4.5,
+		MessageSize:   2.469,
+		MessageLH:     1.25,
+		MessagePadX:   1.4,
+		MessagePadY:   0.7,
+		MessageMinH:   4.5,
 		MetaGap:       0.4,
 		MetaColGap:    2.0,
 		MetaRowH:      5.5,
@@ -544,6 +550,9 @@ func normalizeFooterLayout(l PamphletFooterLayout) PamphletFooterLayout {
 		Pad:           pick(l.Pad, d.Pad),
 		Radius:        pick(l.Radius, d.Radius),
 		Stroke:        pick(l.Stroke, d.Stroke),
+		InnerInset:    pick(l.InnerInset, d.InnerInset),
+		InnerStroke:   pick(l.InnerStroke, d.InnerStroke),
+		InnerRadius:   pick(l.InnerRadius, d.InnerRadius),
 		ChromeGap:     pick(l.ChromeGap, d.ChromeGap),
 		ActionSize:    pick(l.ActionSize, d.ActionSize),
 		ActionLH:      pick(l.ActionLH, d.ActionLH),
@@ -716,6 +725,16 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	heightMm := layout.Height
 
 	strokeRoundedRectMm(s, x, top, width, heightMm, layout.Radius, layout.Stroke)
+	// Thinner second frame inset from the outer border (matches CSS ::after).
+	if layout.InnerInset > 0 && layout.InnerStroke > 0 {
+		ix := x + layout.InnerInset
+		it := top - layout.InnerInset
+		iw := width - 2*layout.InnerInset
+		ih := heightMm - 2*layout.InnerInset
+		if iw > 0 && ih > 0 {
+			strokeRoundedRectMm(s, ix, it, iw, ih, layout.InnerRadius, layout.InnerStroke)
+		}
+	}
 
 	pad := layout.Pad
 	innerX := x + pad

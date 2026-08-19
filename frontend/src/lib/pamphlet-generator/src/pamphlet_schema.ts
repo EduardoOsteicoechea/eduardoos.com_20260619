@@ -122,6 +122,12 @@ export type PamphletFooterLayoutMm = {
     pad: number;
     radius: number;
     stroke: number;
+    /** Inset from outer edge to the thinner inner frame (mm). */
+    inner_inset: number;
+    /** Thinner inner frame stroke (mm). */
+    inner_stroke: number;
+    /** Inner frame corner radius (mm). */
+    inner_radius: number;
     chrome_gap: number;
     action_size: number;
     action_lh: number;
@@ -150,7 +156,10 @@ export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
     height: 33, // --page-footer-height (tighter value rows + meta gaps)
     pad: 1.2, // .pamphlet-page-footer { padding }
     radius: 1, // border-radius
-    stroke: 0.2, // border width
+    stroke: 0.2, // outer border width
+    inner_inset: 0.45, // gap from outer edge to inner frame
+    inner_stroke: 0.1, // thinner inner frame
+    inner_radius: 0.6,
     chrome_gap: 0.6, // gap between action / message / meta
     action_size: 3.175, // h1 font-size
     action_lh: 1.25,

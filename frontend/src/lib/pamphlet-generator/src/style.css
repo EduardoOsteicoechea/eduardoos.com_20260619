@@ -396,6 +396,17 @@
     background: #ffffff;
 }
 
+/* Thinner second frame inset from the outer border (inner_inset / inner_stroke). */
+.pamphlet-page-footer::after {
+    content: "";
+    position: absolute;
+    inset: 0.45mm;
+    border: 0.1mm solid #222222;
+    border-radius: 0.6mm;
+    pointer-events: none;
+    z-index: 1;
+}
+
 /* While editing, allow the absolute tray to escape downward into the page margin
    (not upward into columns 7–8). */
 .pamphlet-page-footer:has(.element_edit_tray) {
