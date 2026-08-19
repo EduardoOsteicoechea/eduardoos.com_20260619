@@ -38,26 +38,26 @@ const (
 	PamphletGutterWide = 20.0
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
 	PamphletColWidthMm = 57.85
-	// Header band fits 6.75mm 2-line title + 0.6mm gap + two 2.5mm meta rows (~22.3mm).
+	// Header band: title + meta + rule_clearance (2mm) + double rule.
 	// Overridden by header_layout.height from frontend when present.
-	PamphletHeaderHMm = 23.0
+	PamphletHeaderHMm = 25.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
-	PamphletHeaderBodyGutterMm = 5.0
+	PamphletHeaderBodyGutterMm = 1.0
 	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 23 − 5 − 2 − 30 − 10
-	PamphletPage1BodyMm = 135.9
+	// 215.9 − 10 − 25 − 1 − 2 − 30 − 10
+	PamphletPage1BodyMm = 137.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// CSS .pamphlet-page-header { gap } between title block and meta bar.
 	PamphletHeaderTitleMetaGapMm = 0.6
 	// CSS .pamphlet-header-meta-bar { row-gap }.
 	PamphletHeaderMetaRowGapMm = 0.8
-	// Right-side cols 1–2: 195.9 − 23 − 5
-	PamphletPage1RightColMm = 167.9
+	// Right-side cols 1–2: 195.9 − 25 − 1
+	PamphletPage1RightColMm = 169.9
 	// Left-side cols 7–8 above footer: 195.9 − 2 − 30 (default layout.height)
 	PamphletPage1LeftColMm = 163.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
-	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band is 23mm so both meta rows fit
+	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band fits title + meta + rule
 	pamphletTitleLH     = 1.1
 	pamphletMetaSizeMm  = 2.5 // .pamphlet-header-meta-label { font-size: 2.5mm; line-height: 1.2 }
 	pamphletMetaLH      = 1.2
@@ -98,6 +98,7 @@ type PamphletHeaderLayout struct {
 	MetaLH           float64 `json:"meta_lh"`
 	MetaRowGap       float64 `json:"meta_row_gap"`
 	MetaColGap       float64 `json:"meta_col_gap"`
+	RuleClearance    float64 `json:"rule_clearance"`
 	RuleOuterStroke  float64 `json:"rule_outer_stroke"`
 	RuleGap          float64 `json:"rule_gap"`
 	RuleInnerStroke  float64 `json:"rule_inner_stroke"`
@@ -468,9 +469,10 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 	layout = normalizeHeaderLayout(layout)
 	heightMm := layout.Height
 	ruleH := layout.RuleOuterStroke + layout.RuleGap + layout.RuleInnerStroke
+	clearance := layout.RuleClearance
 	floor := top - heightMm
-	// Text must stay above the bottom double rule (rule lives inside the band).
-	textFloor := floor + ruleH
+	// Text must stay above clearance + bottom double rule (both inside the band).
+	textFloor := floor + ruleH + clearance
 	titleSizeMm := layout.TitleSize
 	titleLH := layout.TitleLH
 	titleSizePt := MmToPoints(titleSizeMm)
@@ -568,6 +570,7 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		MetaLH:          pamphletMetaLH,
 		MetaRowGap:      PamphletHeaderMetaRowGapMm,
 		MetaColGap:      2.5,
+		RuleClearance:   2,
 		RuleOuterStroke: 0.2,
 		RuleGap:         0.45,
 		RuleInnerStroke: 0.1,
@@ -594,6 +597,7 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 		MetaLH:          pick(l.MetaLH, d.MetaLH),
 		MetaRowGap:      pick(l.MetaRowGap, d.MetaRowGap),
 		MetaColGap:      pick(l.MetaColGap, d.MetaColGap),
+		RuleClearance:   pick(l.RuleClearance, d.RuleClearance),
 		RuleOuterStroke: pick(l.RuleOuterStroke, d.RuleOuterStroke),
 		RuleGap:         pick(l.RuleGap, d.RuleGap),
 		RuleInnerStroke: pick(l.RuleInnerStroke, d.RuleInnerStroke),

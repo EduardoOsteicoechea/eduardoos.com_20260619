@@ -207,25 +207,26 @@
   --header-meta-lh: 1.2;
   --header-meta-row-gap: 0.8mm;
   --header-meta-col-gap: 2.5mm;
-  /* Header bottom double rule (PAMPHLET_HEADER_LAYOUT_MM.rule_*) — inside band, no extra gutter. */
+  /* Header bottom double rule (PAMPHLET_HEADER_LAYOUT_MM.rule_*) — inside band. */
+  --header-rule-clearance: 2mm; /* space meta → rule */
   --header-rule-outer: 0.2mm;
   --header-rule-gap: 0.45mm;
   --header-rule-inner: 0.1mm;
-  /* 6.75mm 2-line title + 0.6mm gap + two meta rows (~22.3mm). Same as PDF PamphletHeaderHMm. */
-  --page-header-height: 23mm;
-  /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
-  --header-body-gutter: 5mm;
+  /* Title + meta + rule_clearance + rule. Same as PDF PamphletHeaderHMm. */
+  --page-header-height: 25mm;
+  /* Margin under header band before cols 1–2 (PDF uses the same). */
+  --header-body-gutter: 1mm;
   --page-footer-height: 30mm; /* PAMPHLET_FOOTER_LAYOUT_MM.height — value rows hidden when empty */
-  /* Page 1 body: 215.9 − 10 − 23 − 5 − 2 − 30 − 10 = 135.9mm */
-  --page1-body-height: 135.9mm;
+  /* Page 1 body: 215.9 − 10 − 25 − 1 − 2 − 30 − 10 = 137.9mm */
+  --page1-body-height: 137.9mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
   --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
-  /* Cols 1–2 under header: 195.9 − 23 − 5 = 167.9mm */
-  --page1-right-col-height: 167.9mm;
+  /* Cols 1–2 under header: 195.9 − 25 − 1 = 169.9mm */
+  --page1-right-col-height: 169.9mm;
   /* Cols 7–8 above footer: 195.9 − 2 − 30 = 163.9mm */
   --page1-left-col-height: 163.9mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
@@ -381,9 +382,10 @@
     min-width: 0;
     min-height: 0;
     z-index: 5;
-    /* Leave room inside the band for the bottom rule (no extra body_gutter). */
+    /* Leave room inside the band for clearance + bottom rule. */
     padding-bottom: calc(
-        var(--header-rule-outer) + var(--header-rule-gap) + var(--header-rule-inner)
+        var(--header-rule-clearance) + var(--header-rule-outer) + var(--header-rule-gap) +
+            var(--header-rule-inner)
     );
     box-sizing: border-box;
 }
@@ -562,7 +564,7 @@
 
 .pamphlet-footer-action h1 {
     font-family: Roboto, sans-serif;
-    font-size: 3.175mm; /* 9pt */
+    font-size: 3.175mm; /* 9pt — PDF print uses PAMPHLET_FOOTER_LAYOUT_MM.action_size */
     font-weight: 600;
     line-height: 1.25;
     color: #000000;
@@ -572,6 +574,11 @@
     overflow-wrap: break-word;
     word-break: break-word;
     white-space: normal;
+}
+
+/* Desktop only: slightly smaller Acción than PDF (spec 011). */
+.pamphlet-app[data-view-mode="desktop"] .pamphlet-footer-action h1 {
+    font-size: 2.8mm;
 }
 
 .pamphlet-footer-message p {
