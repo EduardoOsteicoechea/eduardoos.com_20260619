@@ -59,10 +59,7 @@ const SERVICES_LINKS = [
   { href: APP_ROUTES.mediaPlaylist, label: "Music" },
   { href: APP_ROUTES.pamphlet, label: "Pamphlet" },
   { href: APP_ROUTES.articles, label: "Articles" },
-  { href: APP_ROUTES.mediaGallery, label: "Videos" },
-  { href: APP_ROUTES.debateApp, label: "Debate App" },
-  { href: APP_ROUTES.instrumentalist, label: "Instrumentalist" },
-  { href: APP_ROUTES.subscription, label: "Subscribe" },
+  // Videos / Debate App / Instrumentalist / Subscribe hidden for now (URLs stay live).
 ] as const;
 
 interface AccountMenuProps {

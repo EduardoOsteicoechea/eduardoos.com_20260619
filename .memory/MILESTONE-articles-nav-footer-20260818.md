@@ -1,9 +1,10 @@
 # Milestone: Nav hide + Articles crawl + footer editable labels — 2026-08-18
 
-## Status: IN PROGRESS / shipping
+## Status: SHIPPED
 
 ## 1. Main menu
 - OpenBIM (`/bim`) and APS (`/aps-admin`) removed from `PRIMARY_LINKS` in Header.
+- Videos / Debate App / Instrumentalist / Subscribe also hidden from Services tray.
 - Routes remain reachable by URL.
 
 ## 2. Articles (`/articulos`)
@@ -11,6 +12,8 @@
 - Detail: `GET /api/articles/{id}` (+ `/text`, `/html`), crawlable index at `/api/articles/index.html`.
 - Frontend: `ArticlesList` / `ArticleView` (no auth gate); `llms.txt` + `robots.txt`.
 - Semantic HTML includes JSON-LD `Article` + `plainText` in JSON for AI crawlers.
+- **UI:** crawl formats (HTML / text / JSON / llms.txt) are not shown to readers — clipped
+  `.articles-crawl-only` nav + `<link rel="alternate">` + `/llms.txt` for crawlers only.
 
 ## 3. Pamphlet footer
 - Schema: `action`, `message`, `label1`…`label4`, `value1`…`value4`.

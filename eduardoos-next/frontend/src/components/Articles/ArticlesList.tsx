@@ -4,6 +4,33 @@ import { fetchArticles, type ArticlesListResponse } from "../../lib/articles";
 import type { EpamRecord } from "../../lib/epams";
 import "./Articles.css";
 
+/**
+ * Visually hidden crawl discovery — clipped from the viewport but still in the
+ * DOM so AI/search crawlers can follow HTML / text / JSON / llms.txt.
+ */
+function CrawlOnlyLinks({ items }: { items: EpamRecord[] }) {
+  return (
+    <nav className="articles-crawl-only" aria-hidden="true" data-crawl="articles">
+      <a href={ARTICLE_ROUTES.indexHtml}>Articles HTML index</a>
+      <a href={ARTICLE_ROUTES.list}>Articles JSON</a>
+      <a href="/llms.txt">llms.txt</a>
+      {items.map((item) => (
+        <span key={item.epamId}>
+          <a href={ARTICLE_ROUTES.html(item.epamId)}>
+            {item.title || item.fileName || item.epamId} HTML
+          </a>
+          <a href={ARTICLE_ROUTES.text(item.epamId)}>
+            {item.title || item.fileName || item.epamId} text
+          </a>
+          <a href={ARTICLE_ROUTES.item(item.epamId)}>
+            {item.title || item.fileName || item.epamId} JSON
+          </a>
+        </span>
+      ))}
+    </nav>
+  );
+}
+
 export default function ArticlesList() {
   const [items, setItems] = useState<EpamRecord[]>([]);
   const [error, setError] = useState("");
@@ -31,16 +58,7 @@ export default function ArticlesList() {
       <header className="articles__header">
         <h1 className="articles__title">Articles</h1>
         <p className="articles__lead">
-          Pamphlets in continuous reading order — public for people and AI
-          crawlers (ChatGPT, Claude, Gemini, Perplexity).
-        </p>
-        <p className="articles__crawl">
-          Machine index:{" "}
-          <a href={ARTICLE_ROUTES.indexHtml}>HTML</a>
-          {" · "}
-          <a href={ARTICLE_ROUTES.list}>JSON</a>
-          {" · "}
-          <a href="/llms.txt">llms.txt</a>
+          Pamphlets in continuous reading order.
         </p>
       </header>
       {loading && <p className="articles__status">Loading…</p>}
@@ -65,16 +83,10 @@ export default function ArticlesList() {
                   .join(" · ")}
               </span>
             </a>
-            <p className="articles__card-formats">
-              <a href={ARTICLE_ROUTES.html(item.epamId)}>HTML</a>
-              {" · "}
-              <a href={ARTICLE_ROUTES.text(item.epamId)}>text</a>
-              {" · "}
-              <a href={ARTICLE_ROUTES.item(item.epamId)}>JSON</a>
-            </p>
           </li>
         ))}
       </ul>
+      <CrawlOnlyLinks items={items} />
     </div>
   );
 }

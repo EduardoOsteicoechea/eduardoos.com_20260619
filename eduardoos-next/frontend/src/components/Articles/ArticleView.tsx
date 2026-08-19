@@ -33,6 +33,21 @@ function StyledArticleText({
   );
 }
 
+function upsertAlternateLink(id: string, type: string, href: string): () => void {
+  let link = document.getElementById(id) as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement("link");
+    link.id = id;
+    link.rel = "alternate";
+    document.head.appendChild(link);
+  }
+  link.type = type;
+  link.href = href;
+  return () => {
+    link?.remove();
+  };
+}
+
 export default function ArticleView() {
   const epamId = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -92,6 +107,19 @@ export default function ArticleView() {
     };
   }, [title, plainText]);
 
+  // Machine formats stay in <head> / clipped nav — not shown in the reading UI.
+  useEffect(() => {
+    if (!epamId) return;
+    const cleanups = [
+      upsertAlternateLink("article-alt-html", "text/html", ARTICLE_ROUTES.html(epamId)),
+      upsertAlternateLink("article-alt-text", "text/plain", ARTICLE_ROUTES.text(epamId)),
+      upsertAlternateLink("article-alt-json", "application/json", ARTICLE_ROUTES.item(epamId)),
+    ];
+    return () => {
+      cleanups.forEach((fn) => fn());
+    };
+  }, [epamId]);
+
   if (loading) {
     return (
       <div className="article-view">
@@ -105,16 +133,6 @@ export default function ArticleView() {
       <a className="article-view__back" href={APP_ROUTES.articles}>
         ← Articles
       </a>
-      {epamId && (
-        <p className="article-view__crawl">
-          Crawler copies:{" "}
-          <a href={ARTICLE_ROUTES.html(epamId)}>semantic HTML</a>
-          {" · "}
-          <a href={ARTICLE_ROUTES.text(epamId)}>plain text</a>
-          {" · "}
-          <a href={ARTICLE_ROUTES.item(epamId)}>JSON</a>
-        </p>
-      )}
       <article className="article-view__sheet" itemScope itemType="https://schema.org/Article">
         <meta itemProp="headline" content={title} />
         {error && <p className="article-view__error">{error}</p>}
@@ -153,6 +171,14 @@ export default function ArticleView() {
           );
         })}
       </article>
+      {epamId ? (
+        <nav className="articles-crawl-only" aria-hidden="true" data-crawl="article">
+          <a href={ARTICLE_ROUTES.html(epamId)}>semantic HTML</a>
+          <a href={ARTICLE_ROUTES.text(epamId)}>plain text</a>
+          <a href={ARTICLE_ROUTES.item(epamId)}>JSON</a>
+          <a href="/llms.txt">llms.txt</a>
+        </nav>
+      ) : null}
     </div>
   );
 }
