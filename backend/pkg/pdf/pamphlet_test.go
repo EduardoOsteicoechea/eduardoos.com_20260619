@@ -93,8 +93,8 @@ func TestToWinAnsiSpanish(t *testing.T) {
 
 func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	layout := defaultHeaderLayout()
-	if layout.TitleMetaGap < 0.5 || layout.TitleMetaGap > 1.0 {
-		t.Fatalf("header title→meta CSS gap want ~0.6mm, got %v", layout.TitleMetaGap)
+	if layout.TitleMetaGap < 2.4 || layout.TitleMetaGap > 2.8 {
+		t.Fatalf("header divider→meta CSS gap want ~2.6mm, got %v", layout.TitleMetaGap)
 	}
 	if layout.MetaRowGap < 0.6 || layout.MetaRowGap > 1.0 {
 		t.Fatalf("header meta row-gap want ~0.8mm, got %v", layout.MetaRowGap)
@@ -134,8 +134,8 @@ func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	titleY := ys[len(ys)-1]
 	metaY := ys[len(ys)-2]
 	gapMm := (titleY - metaY) * 25.4 / 72.0
-	// Title baseline → meta baseline includes descent + 0.6mm gap + meta ascent ≈ 3mm+
-	if gapMm < 2.5 {
+	// Title baseline → meta baseline includes descent + divider + 2.6mm gap + meta ascent.
+	if gapMm < 4.0 {
 		t.Fatalf("title→meta baseline gap=%.2fmm too tight (overlap risk); ys=%v", gapMm, ys)
 	}
 	bandFloor := 200.0 - layout.Height
@@ -188,12 +188,16 @@ func TestHeaderFrameFromLayout(t *testing.T) {
 		Series: "Romanos",
 	}, layout, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow)
 	out := s.String()
-	// Outer + inner rounded frames → at least two stroke path blocks.
-	if strings.Count(out, "\nS\n") < 2 {
-		t.Fatalf("expected ≥2 frame strokes in header stream, got %q", out)
+	// Outer + inner frames (`\nS\n`) + title double-divider (`l S\n`).
+	strokeCount := strings.Count(out, "S\n")
+	if strokeCount < 4 {
+		t.Fatalf("expected ≥4 strokes (frame+title divider) in header stream, got %d in %q", strokeCount, out)
 	}
-	if layout.Pad != 1.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
+	if layout.Pad != 1.2 || layout.PadX != 3.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
 		t.Fatalf("header frame mm mismatch: %+v", layout)
+	}
+	if layout.DividerOuterStroke != 0.2 || layout.DividerGap != 0.45 || layout.DividerInnerStroke != 0.1 {
+		t.Fatalf("header title divider mm mismatch: %+v", layout)
 	}
 }
 

@@ -38,22 +38,22 @@ const (
 	PamphletGutterWide = 20.0
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
 	PamphletColWidthMm = 57.85
-	// Header band: title + meta + rule_clearance (2mm) + double rule.
+	// Header band: title + title divider + title_meta_gap + meta + frame.
 	// Overridden by header_layout.height from frontend when present.
-	PamphletHeaderHMm = 27.0
+	PamphletHeaderHMm = 30.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 1.0
 	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 27 − 1 − 2 − 30 − 10
-	PamphletPage1BodyMm = 135.9
+	// 215.9 − 10 − 30 − 1 − 2 − 30 − 10
+	PamphletPage1BodyMm = 132.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
-	// CSS .pamphlet-page-header { gap } between title block and meta bar.
-	PamphletHeaderTitleMetaGapMm = 0.6
+	// Clear space under title divider → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
+	PamphletHeaderTitleMetaGapMm = 2.6
 	// CSS .pamphlet-header-meta-bar { row-gap }.
 	PamphletHeaderMetaRowGapMm = 0.8
-	// Right-side cols 1–2: 195.9 − 27 − 1
-	PamphletPage1RightColMm = 167.9
+	// Right-side cols 1–2: 195.9 − 30 − 1
+	PamphletPage1RightColMm = 164.9
 	// Left-side cols 7–8 above footer: 195.9 − 2 − 30 (default layout.height)
 	PamphletPage1LeftColMm = 163.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
@@ -89,21 +89,25 @@ type PamphletDocument struct {
 // PamphletHeaderLayout is the exact mm type/spacing from the frontend sheet CSS
 // (PAMPHLET_HEADER_LAYOUT_MM). Print POSTs these; PDF must not invent sizes.
 type PamphletHeaderLayout struct {
-	Height       float64 `json:"height"`
-	BodyGutter   float64 `json:"body_gutter"`
-	Pad          float64 `json:"pad"`
-	Radius       float64 `json:"radius"`
-	Stroke       float64 `json:"stroke"`
-	InnerInset   float64 `json:"inner_inset"`
-	InnerStroke  float64 `json:"inner_stroke"`
-	InnerRadius  float64 `json:"inner_radius"`
-	TitleSize    float64 `json:"title_size"`
-	TitleLH      float64 `json:"title_lh"`
-	TitleMetaGap float64 `json:"title_meta_gap"`
-	MetaSize     float64 `json:"meta_size"`
-	MetaLH       float64 `json:"meta_lh"`
-	MetaRowGap   float64 `json:"meta_row_gap"`
-	MetaColGap   float64 `json:"meta_col_gap"`
+	Height              float64 `json:"height"`
+	BodyGutter          float64 `json:"body_gutter"`
+	Pad                 float64 `json:"pad"`
+	PadX                float64 `json:"pad_x"`
+	Radius              float64 `json:"radius"`
+	Stroke              float64 `json:"stroke"`
+	InnerInset          float64 `json:"inner_inset"`
+	InnerStroke         float64 `json:"inner_stroke"`
+	InnerRadius         float64 `json:"inner_radius"`
+	TitleSize           float64 `json:"title_size"`
+	TitleLH             float64 `json:"title_lh"`
+	TitleMetaGap        float64 `json:"title_meta_gap"`
+	DividerOuterStroke  float64 `json:"divider_outer_stroke"`
+	DividerGap          float64 `json:"divider_gap"`
+	DividerInnerStroke  float64 `json:"divider_inner_stroke"`
+	MetaSize            float64 `json:"meta_size"`
+	MetaLH              float64 `json:"meta_lh"`
+	MetaRowGap          float64 `json:"meta_row_gap"`
+	MetaColGap          float64 `json:"meta_col_gap"`
 }
 
 // PamphletFooterLayout is the exact mm chrome from the frontend sheet CSS
@@ -462,8 +466,8 @@ func cssBaselineOffsetMm(sizeMm, lineHeight float64) float64 {
 	return sizeMm*(lineHeight-1.0)/2.0 + sizeMm*0.80
 }
 
-// drawHeader paints footer-style double frame, then title + 2x2 gray meta.
-// Type sizes and chrome come from header_layout (FE mm).
+// drawHeader paints footer-style double frame, title, title double-divider,
+// then 2x2 gray meta. Type sizes and chrome come from header_layout (FE mm).
 func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayout, x, top, width float64) float64 {
 	layout = normalizeHeaderLayout(layout)
 	heightMm := layout.Height
@@ -483,11 +487,12 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		}
 	}
 
-	pad := layout.Pad
-	innerX := x + pad
-	innerTop := top - pad
-	innerW := width - 2*pad
-	textFloor := floor + pad
+	padY := layout.Pad
+	padX := layout.PadX
+	innerX := x + padX
+	innerTop := top - padY
+	innerW := width - 2*padX
+	textFloor := floor + padY
 
 	titleSizeMm := layout.TitleSize
 	titleLH := layout.TitleLH
@@ -505,7 +510,17 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		return floor
 	}
 	titleBoxBottom := innerTop - float64(nTitle)*titleLineHMm
-	metaLineTop := titleBoxBottom - layout.TitleMetaGap
+
+	// Double rule under title (same strokes as footer Acción→Mensaje divider).
+	cursorTop := titleBoxBottom
+	dividerH := layout.DividerOuterStroke + layout.DividerGap + layout.DividerInnerStroke
+	if dividerH > 0 {
+		strokeHorizontalRuleMm(s, innerX, cursorTop, innerW, layout.DividerOuterStroke)
+		cursorTop -= layout.DividerOuterStroke + layout.DividerGap
+		strokeHorizontalRuleMm(s, innerX, cursorTop, innerW, layout.DividerInnerStroke)
+		cursorTop -= layout.DividerInnerStroke
+	}
+	metaLineTop := cursorTop - layout.TitleMetaGap
 
 	metaSizeMm := layout.MetaSize
 	metaLH := layout.MetaLH
@@ -566,21 +581,25 @@ var pamphletFooterDefaultLabels = [4]string{"WhatsApp", "Teléfono", "Dirección
 // defaultHeaderLayout mirrors frontend PAMPHLET_HEADER_LAYOUT_MM / style.css.
 func defaultHeaderLayout() PamphletHeaderLayout {
 	return PamphletHeaderLayout{
-		Height:          PamphletHeaderHMm,
-		BodyGutter:      PamphletHeaderBodyGutterMm,
-		Pad:             1.2,
-		Radius:          1,
-		Stroke:          0.2,
-		InnerInset:      0.45,
-		InnerStroke:     0.1,
-		InnerRadius:     0.6,
-		TitleSize:       pamphletTitleSizeMm,
-		TitleLH:         pamphletTitleLH,
-		TitleMetaGap:    PamphletHeaderTitleMetaGapMm,
-		MetaSize:        pamphletMetaSizeMm,
-		MetaLH:          pamphletMetaLH,
-		MetaRowGap:   PamphletHeaderMetaRowGapMm,
-		MetaColGap:   2.5,
+		Height:             PamphletHeaderHMm,
+		BodyGutter:         PamphletHeaderBodyGutterMm,
+		Pad:                1.2,
+		PadX:               3.2,
+		Radius:             1,
+		Stroke:             0.2,
+		InnerInset:         0.45,
+		InnerStroke:        0.1,
+		InnerRadius:        0.6,
+		TitleSize:          pamphletTitleSizeMm,
+		TitleLH:            pamphletTitleLH,
+		TitleMetaGap:       PamphletHeaderTitleMetaGapMm,
+		DividerOuterStroke: 0.2,
+		DividerGap:         0.45,
+		DividerInnerStroke: 0.1,
+		MetaSize:           pamphletMetaSizeMm,
+		MetaLH:             pamphletMetaLH,
+		MetaRowGap:         PamphletHeaderMetaRowGapMm,
+		MetaColGap:         2.5,
 	}
 }
 
@@ -595,21 +614,25 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 		return def
 	}
 	return PamphletHeaderLayout{
-		Height:          pick(l.Height, d.Height),
-		BodyGutter:      pick(l.BodyGutter, d.BodyGutter),
-		Pad:             pick(l.Pad, d.Pad),
-		Radius:          pick(l.Radius, d.Radius),
-		Stroke:          pick(l.Stroke, d.Stroke),
-		InnerInset:      pick(l.InnerInset, d.InnerInset),
-		InnerStroke:     pick(l.InnerStroke, d.InnerStroke),
-		InnerRadius:     pick(l.InnerRadius, d.InnerRadius),
-		TitleSize:       pick(l.TitleSize, d.TitleSize),
-		TitleLH:         pick(l.TitleLH, d.TitleLH),
-		TitleMetaGap:    pick(l.TitleMetaGap, d.TitleMetaGap),
-		MetaSize:        pick(l.MetaSize, d.MetaSize),
-		MetaLH:          pick(l.MetaLH, d.MetaLH),
-		MetaRowGap:   pick(l.MetaRowGap, d.MetaRowGap),
-		MetaColGap:   pick(l.MetaColGap, d.MetaColGap),
+		Height:             pick(l.Height, d.Height),
+		BodyGutter:         pick(l.BodyGutter, d.BodyGutter),
+		Pad:                pick(l.Pad, d.Pad),
+		PadX:               pick(l.PadX, d.PadX),
+		Radius:             pick(l.Radius, d.Radius),
+		Stroke:             pick(l.Stroke, d.Stroke),
+		InnerInset:         pick(l.InnerInset, d.InnerInset),
+		InnerStroke:        pick(l.InnerStroke, d.InnerStroke),
+		InnerRadius:        pick(l.InnerRadius, d.InnerRadius),
+		TitleSize:          pick(l.TitleSize, d.TitleSize),
+		TitleLH:            pick(l.TitleLH, d.TitleLH),
+		TitleMetaGap:       pick(l.TitleMetaGap, d.TitleMetaGap),
+		DividerOuterStroke: pick(l.DividerOuterStroke, d.DividerOuterStroke),
+		DividerGap:         pick(l.DividerGap, d.DividerGap),
+		DividerInnerStroke: pick(l.DividerInnerStroke, d.DividerInnerStroke),
+		MetaSize:           pick(l.MetaSize, d.MetaSize),
+		MetaLH:             pick(l.MetaLH, d.MetaLH),
+		MetaRowGap:         pick(l.MetaRowGap, d.MetaRowGap),
+		MetaColGap:         pick(l.MetaColGap, d.MetaColGap),
 	}
 }
 

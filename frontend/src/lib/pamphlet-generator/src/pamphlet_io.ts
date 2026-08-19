@@ -253,6 +253,12 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
     headerEl.className = "pamphlet-page-header";
     headerEl.appendChild(createHeaderFieldElement("title", data.header.title ?? ""));
 
+    // Double rule under title — same chrome language as footer Acción→Mensaje divider.
+    const headerDivider = document.createElement("div");
+    headerDivider.className = "pamphlet-header-divider";
+    headerDivider.setAttribute("aria-hidden", "true");
+    headerEl.appendChild(headerDivider);
+
     const metaBar = document.createElement("div");
     metaBar.className = "pamphlet-header-meta-bar";
 

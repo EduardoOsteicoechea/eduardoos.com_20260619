@@ -435,7 +435,7 @@ const headerBodyGutterMm = PAMPHLET_HEADER_LAYOUT_MM.body_gutter;
 const columnContentHeightMm = usLetterHeightInMillimeters - pageMarginMm * 2;
 /** Cols 1–2: under page header → discount header + header→body gutter */
 const page1RightColHeightMm =
-    columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 167.9
+    columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 164.9
 /** Cols 7–8: above page footer → discount footer↔body gutter + footer */
 const page1LeftColHeightMm =
     columnContentHeightMm - footerBodyGutterMm - pageFooterHeightMm; // 160.9 when footer=33

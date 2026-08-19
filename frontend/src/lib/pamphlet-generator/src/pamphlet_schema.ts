@@ -127,8 +127,10 @@ export type PamphletHeaderLayoutMm = {
     height: number;
     /** Gap under the header before cols 1–2 (--header-body-gutter). */
     body_gutter: number;
-    /** Outer frame (same language as footer chrome). */
+    /** Vertical pad inside outer frame. */
     pad: number;
+    /** Lateral pad inside outer frame (pad + 2mm vs original 1.2). */
+    pad_x: number;
     radius: number;
     stroke: number;
     inner_inset: number;
@@ -136,8 +138,15 @@ export type PamphletHeaderLayoutMm = {
     inner_radius: number;
     title_size: number;
     title_lh: number;
-    /** Flex gap between title block and meta bar. */
+    /**
+     * Clear space from title double-divider bottom → meta bar
+     * (was 0.6; +2mm → 2.6). Header flex gap is 0; this is divider margin-bottom.
+     */
     title_meta_gap: number;
+    /** Double rule under title — same language as footer Acción→Mensaje divider. */
+    divider_outer_stroke: number;
+    divider_gap: number;
+    divider_inner_stroke: number;
     meta_size: number;
     meta_lh: number;
     /** Meta grid row-gap. */
@@ -148,9 +157,11 @@ export type PamphletHeaderLayoutMm = {
 
 /** Exact mm from style.css `.pamphlet-page-header` — PDF must use these, not invent sizes. */
 export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
-    height: 27, // pad + title + meta + frame
+    // pad + title + divider (0.75) + title_meta_gap 2.6 + meta + frame
+    height: 30,
     body_gutter: 1, // --header-body-gutter
     pad: 1.2,
+    pad_x: 3.2, // 1.2 + 2mm lateral
     radius: 1,
     stroke: 0.2,
     inner_inset: 0.45,
@@ -158,7 +169,10 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     inner_radius: 0.6,
     title_size: 6.75, // .pamphlet-header-title p
     title_lh: 1.1,
-    title_meta_gap: 0.6, // .pamphlet-page-header { gap }
+    title_meta_gap: 2.6, // divider → meta (+2mm from prior 0.6)
+    divider_outer_stroke: 0.2,
+    divider_gap: 0.45,
+    divider_inner_stroke: 0.1,
     meta_size: 2.5, // .pamphlet-header-meta-label / meta values
     meta_lh: 1.2,
     meta_row_gap: 0.8, // .pamphlet-header-meta-bar { row-gap }
