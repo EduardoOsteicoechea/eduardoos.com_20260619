@@ -1,194 +1,131 @@
-# Eduardo OS — Zero Trust Microservices Platform
+# Eduardo OS
 
-Fully decoupled, multi-container architecture orchestrated via Docker Compose. The stack runs on Docker Desktop (local) and AWS EC2 with a single `docker compose up -d` command.
+Production tree at the repo root: Astro frontend, unified Go backend (`eduardoos.nex`), nginx edge, and EC2 deploy scripts.
 
 ## Architecture
 
 | Layer | Technology | Role |
 |-------|-----------|------|
 | Edge | Nginx + Certbot | HTTPS termination, static Astro site, `/api/*` proxy |
-| Gateway | Go `backend` | Correlation IDs, internal token signing, auth exemptions |
-| Services | 8 Go microservices | Authenticator, database, documents, telemetry, s3, chatbot, tester, payments |
-| Frontend | Astro + React | Plain CSS, flight-log telemetry, auth UI |
+| Backend | Go `backend/` (`cmd/server`) | Auth, content APIs, payments, APS, DynamoDB/S3 |
+| Frontend | Astro + React in `frontend/` | Plain CSS, auth UI, pamphlet, articles, BIM |
 
 ## Directory Tree
 
 ```
-frontend/                  Astro + React client
-cmd/
-  backend/                 API gateway
-  authenticator/           OTP + SMTP + JWT
-  database/                Key-value persistence (memory / DynamoDB)
-  documents/               Raw PDF generator (no external PDF libs)
-  telemetry/               Flight log ingestion
-  s3/                      Object storage proxy (stub / AWS S3)
-  chatbot/                 Conversational routing
-  tester/                  QA automation engine
-  payments/                PayPal subscription intents + IPN
-pkg/
-  common/                  Shared token, telemetry, HTTP helpers
-  pdf/                     Raw PDF byte-stream generator
-docker/                    golang-service.Dockerfile (multi-service build)
+frontend/                  Astro + React client (dist → nginx html)
+backend/                   Go module eduardoos.nex (bin/eduardoos-next)
+deploy/ec2/                Remote deploy + frontend build scripts
+deploy/aws/                IAM / DynamoDB bootstrap helpers
 nginx/                     Reverse proxy config + TLS certs
-.github/workflows/         Path-scoped CI pipelines
+.github/workflows/         Production deploy (selective scopes)
+specs/                     Feature specs
+revitapi/                  APS / Revit tooling
 ```
 
 ## Prerequisites
 
-- Docker Desktop or Docker Engine + Compose v2
+- Docker Desktop or Docker Engine + Compose v2 (nginx + certbot only)
 - OpenSSL (for local TLS certificates)
-- Node.js 22+ (frontend development)
-- Go 1.23+ (backend development; optional — Docker builds compile Go inside containers)
+- Node.js 20+ (frontend)
+- Go 1.23+ (backend)
 
-## Local Run (Docker Compose)
+## Local Run
 
 ```bash
 # 1. Configure secrets
 cp .env.example .env
-# Edit .env — set JWT_SECRET, INTERNAL_SERVICE_SECRET, SMTP_PASS
+# Edit .env — set JWT_SECRET, INTERNAL_SERVICE_SECRET, SMTP_PASS, ADDR=:3000
 
-# 2. Generate self-signed TLS for local HTTPS
+# 2. Backend
+cd backend && go run ./cmd/server
+
+# 3. Frontend (separate terminal)
+cd frontend && npm ci && npm run dev
+
+# 4. Optional: nginx + certbot edge
 mkdir -p nginx/certs/live/localhost
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout nginx/certs/live/localhost/privkey.pem \
   -out nginx/certs/live/localhost/fullchain.pem \
   -subj "/CN=localhost"
-
-# 3. Build and start all services
-docker compose up -d --build
-
-# 4. Open the app
+# Build frontend/dist first, then:
+docker compose up -d
 # https://localhost  (accept self-signed cert warning)
 ```
 
 ## EC2 Deploy (ARM64 / Graviton)
 
-On an **arm64** EC2 instance with Docker and an IAM instance role (see
-[`deploy/aws/README.md`](deploy/aws/README.md)):
+Pushes to `master` deploy via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml):
 
-```bash
-cp .env.example .env
-# Set DOMAIN, CERTBOT_EMAIL, secrets
+- Selective scopes: `backend/*`, `frontend/*`, `nginx/*` + compose, `deploy/*`
+- Remote: `deploy/ec2/deploy-remote.sh` → `deploy-remote-production.sh`
+- Production `.env` at `APP_DIR/.env` (`ADDR=:3000`)
+- systemd: `WorkingDirectory=$APP_DIR`, `ExecStart=$APP_DIR/backend/bin/eduardoos-next`
+- Static: `./frontend/dist` → `/usr/share/nginx/html`
 
-docker compose -f docker-compose.yml -f docker-compose.ec2.yml up -d --build
-```
+Staging (`:8080` / `:3001`) was removed in the flatten cutover.
 
-The EC2 overlay enables `linux/arm64` builds and switches to real **DynamoDB**
-and **S3** backends. Local Docker Desktop keeps in-memory DB + stub S3.
+IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-policy.json). Secrets: `npm run secrets:generate` — see [`deploy/aws/README.md`](deploy/aws/README.md).
 
-IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-policy.json)
-
-**CI/CD:** pushes to `master` auto-deploy **Eduardo OS Next** to EC2 via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (HTTPS `:443` + API `:3000`). Staging secondary: [`.github/workflows/deploy-next-staging.yml`](.github/workflows/deploy-next-staging.yml) (`:8080` / `:3001`). Cutover/rollback: [`eduardoos-next/CUTOVER.md`](eduardoos-next/CUTOVER.md). Generate secrets with `npm run secrets:generate` — see [`deploy/aws/README.md`](deploy/aws/README.md).
-
-## Public API Endpoints (via Nginx → Gateway)
+## Public API Endpoints (via Nginx → Backend)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/api/auth/register` | Public | Register + send OTP |
 | POST | `/api/auth/login` | Public | Login (verified users) |
 | POST | `/api/auth/verify-otp` | Public | Verify email OTP |
-| POST | `/api/auth/forgot-password` | Public | Email a password-reset code (does not reveal whether the account exists) |
+| POST | `/api/auth/forgot-password` | Public | Email a password-reset code |
 | POST | `/api/auth/reset-password` | Public | Set a new password with email + OTP |
-| POST | `/api/logger` | Public | Flight log ingestion proxy |
-| POST | `/api/tester` | Public | QA engine proxy |
-| POST | `/api/payments/intents` | Public | Create PayPal payment intent (verified user) |
+| POST | `/api/logger` | Public | Flight log ingestion |
+| POST | `/api/tester` | Public | QA engine |
+| POST | `/api/payments/intents` | Public | Create PayPal payment intent |
 | GET | `/api/payments/status/:id` | Public | Poll payment intent status |
 | POST | `/api/payments/webhook/paypal` | Public | PayPal IPN webhook |
-| GET | `/api/logger/logs` | Public | Filtered flight logs |
-| GET | `/api/logger/analytics` | Public | Log aggregates |
-| GET | `/api/logger/trace/:id` | Public | Distributed trace |
-| GET | `/api/tester/runs` | Public | QA run history |
-| GET | `/api/tester/runs/:run_id` | Public | Single QA run detail |
-| GET | `/api/media/skills/:skillId` | Public | Skill portfolio media (images/videos under `media/skills/{skillId}/`) |
-| POST | `/api/profile/ask` | Public + humanToken | Home skill chat (DeepSeek `profile_qa`); can email leads to `eduardooost@gmail.com` or return WhatsApp action `https://wa.me/584147281033` |
-| POST | `/api/contact/ask` | Public + humanToken | Contact-page chat (same profile/contact agent) |
-| GET | `/api/bim/models` | JWT | List IFC models for the signed-in user |
-| POST | `/api/bim/models` | JWT | Upload `.ifc` to S3 `ifcbim/` + DynamoDB `eduardoos_ifcbim` |
-| GET | `/api/bim/models/:id/file` | JWT | Download IFC bytes for the viewer |
+| GET | `/api/media/skills/:skillId` | Public | Skill portfolio media |
+| POST | `/api/profile/ask` | Public + humanToken | Home skill chat |
+| POST | `/api/contact/ask` | Public + humanToken | Contact-page chat |
+| GET | `/api/bim/models` | JWT | List IFC models |
+| POST | `/api/bim/models` | JWT | Upload `.ifc` |
+| GET | `/api/bim/models/:id/file` | JWT | Download IFC bytes |
 | DELETE | `/api/bim/models/:id` | JWT | Unlink model metadata |
-
-Home skill cards open a modal media viewer + timed checkbox gate (hold ~5s) before chat unlocks. Upload portfolio assets to S3 under `media/skills/{skillId}/` (e.g. `media/skills/architect/`).
+| GET | `/api/articles` | Public | Pamphlet articles index |
+| GET | `/health` | Public | Backend health |
 
 ## Frontend Pages
 
 | Page | Path |
 |------|------|
 | Home | `/` |
-| Register | `/auth/register` |
-| Login | `/auth/login` |
-| Reset password | `/auth/reset-password` |
-| Verify OTP | `/auth/verify-otp` |
-| Flight Logger UI | `/observability/logger` |
-| QA Tester UI | `/observability/tester` |
-| Monthly Basic Subscription | `/payments/subscription/montly/basic` |
-| Edebat (admin allowlist) | `/edebat` |
+| Register / Login / OTP / Reset | `/auth/*` |
+| Flight Logger / QA Tester | `/observability/*` |
+| Subscription | `/payments/subscription/montly/basic` |
 | Pamphlet editor | `/documents/pamphlet` |
 | Articles | `/articulos`, `/articulos/ver?id=` |
-| Homescool | `/homescool` (articles from pamphlets, resources, interest form → email/WhatsApp) |
-| Contact | `/contact` (email, WhatsApp, agent chat) |
-| BIM | `/bim` (signed-in IFC library + That Open viewer) |
-
-Authenticated Edebat APIs (JWT + `eduardooost@gmail.com`): `GET/POST /api/edebat`, `GET/PUT /api/edebat/:id`, `POST /api/edebat/:id/turn`. Bodies persist as `.edebat` under `media/edebats/{email}/` via S3; LLM turns use the chatbot service + DeepSeek (`DEEPSEEK_*`).
-
-Authenticated pamphlet PDF: `POST /api/documents/pamphlet/pdf` (JWT) → `documents` service `POST /pamphlet`. Body is the `.epam` pamphlet JSON; response is a two-page US Letter landscape PDF (279.4 × 215.9 mm, column width 57.85 mm, center gutter 20 mm). Header geometry is copied from the editor CSS: 23 mm band + 5 mm gutter (band grown so the 6.75 mm title and both meta rows fit; cols 1–2 are 167.9 mm). Title 6.75 mm / line-height 1.1, meta 2.5 mm / 1.2, **Roboto** (website font) on the desktop sheet and embedded TrueType in the PDF. Desktop view scales the letter sheet to the viewport width (PDF-viewer fit-to-width) so on-screen size matches Imprimir; layout mm is unchanged. Column stacking matches the sheet: item-top cursor, heading 4.25 mm / line-height 1.2, only 2.5 mm item gaps, and last lines paint with CSS `overflow:visible` (into the 10 mm page margin) so the bottom heading/paragraph is not clipped. Built by `pkg/pdf.BuildPamphletPDF` (no external PDF libs). Imprimir on the editor downloads that attachment; browser `window.print()` remains commented as fallback.
-
-Editor UX (desktop): compact edit-tray button bar; click-outside saves/closes like OK; bold toggles off when the selection already overlaps bold; header meta fields show borders + `overflow: visible` only while editing; status toasts removed; pull-to-refresh/overscroll disabled on the pamphlet page. Image edit tray: file picker fills leftover width beside height +/− (same control height as activity bar); pan ←↑→↓ (±2mm) and zoom on row 2. Image pan/zoom persist in `style_indexes[1]`/`[2]` and apply in PDF cover draw. Paragraph/header trays include a copy button (selection, or full textarea if none).
-
-Authenticated articles (JWT): `GET /api/articles`, `GET /api/articles/:epamId`, `GET /api/articles/:epamId/quiz` (DeepSeek quiz cached as `media/epams/{user}/{id}.quiz.json` beside the `.epam`; regenerates only when article text hash changes), `POST /api/articles/:epamId/ask` (Q&A with article context).
+| Homescool | `/homescool` |
+| Contact | `/contact` |
+| BIM | `/bim` |
 
 ## Development Tests
 
 ```bash
-# Frontend (Vitest)
+cd backend && go test ./...
 cd frontend && npm test
-
-# Go workspace
-go test ./...
 ```
 
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `JWT_SECRET` | JWT signing key for authenticator |
-| `INTERNAL_SERVICE_SECRET` | HMAC secret for `X-Internal-Token` |
-| `SMTP_USER` | Gmail address (`eduardooost@gmail.com`) |
-| `SMTP_PASS` | Gmail app password for OTP delivery |
-| `DOMAIN` | Production domain for Certbot |
-| `CERTBOT_EMAIL` | Let's Encrypt contact email |
-| `AWS_REGION` | AWS region (`us-east-1`) |
-| `S3_BUCKET` | S3 bucket (`eduardoos20260607`) |
-| `S3_PREFIX` | Object prefix (`media`) |
-| `S3_BACKEND` | `stub` (local) or `aws` (EC2) |
-| `DATABASE_BACKEND` | `memory` (local) or `dynamodb` (EC2) |
-| `DYNAMODB_TABLE_PREFIX` | Table prefix (`eduardoos`) |
-| `EDEBATS_BACKEND` | `memory` (local) or `dynamodb` (EC2) |
-| `EDEBATS_TABLE` | Debate metadata table (`eduardoos_edebats`) |
-| `IFCBIM_BACKEND` | `memory` (local) or `dynamodb` (EC2) |
-| `IFCBIM_TABLE` | IFC model metadata table (`eduardoos_ifcbim`) |
-| `DEEPSEEK_API_KEY` | DeepSeek API key (chatbot only) |
-| `DEEPSEEK_BASE_URL` | Default `https://api.deepseek.com` |
-| `DEEPSEEK_MODEL_EXPERT` | Opponent model (`deepseek-v4-flash`) |
-| `DEEPSEEK_MODEL_REFREE` | Referee model (`deepseek-v4-pro`) |
+| `ADDR` / `PORT` | Backend listen (`:3000` in production) |
+| `JWT_SECRET` | JWT signing key |
+| `INTERNAL_SERVICE_SECRET` | HMAC secret for internal tokens |
+| `SMTP_USER` / `SMTP_PASS` | Gmail OTP delivery |
+| `DOMAIN` / `CERTBOT_EMAIL` | Production TLS |
+| `AWS_REGION` / `S3_*` / `*_BACKEND` / `*_TABLE` | AWS data plane |
+| `DEEPSEEK_*` | Chat / debate models |
+| `APS_*` | Autodesk Platform Services |
 
 ## CI/CD
 
-GitHub Actions workflows:
-
-- `frontend.yml` — Astro/Vitest build
-- `backend.yml` — gateway + shared packages
-- `microservices.yml` — all Go services
-- `deploy.yml` — full test suite + EC2 deploy on `master`
-
-## Test Outcomes (Latest)
-
-- Frontend: Vitest — 24 tests (telemetry, API, auth, validation, observability, payments)
-- Go: `go test ./...` — `pkg/common` (internal token, flight log) and `pkg/pdf` unit tests
-
-## GitHub Repository
-
-Create the remote repository (GitHub CLI required):
-
-```bash
-gh repo create eduardoos.com_20260619 --public --source=. --remote=origin --push
-```
+- `deploy.yml` — selective EC2 production deploy on `master`

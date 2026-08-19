@@ -1,9 +1,26 @@
+/**
+ * Forgot / reset password two-step form.
+ */
+
 import { useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../config/routes";
+import { formatApiError, type ApiError } from "../lib/api";
 import { confirmPasswordReset, requestPasswordReset } from "../lib/auth";
 import { validateEmail, validateOtp, validatePassword } from "../lib/validation";
 import PasswordField from "./PasswordField/PasswordField";
+import { openApiErrorModal } from "./ServerErrorModal/ServerErrorModal";
 import "./AuthForm.css";
+
+function showResetApiError(apiError: ApiError | undefined, fallback: string) {
+  const message = apiError?.message ?? fallback;
+  if (apiError) {
+    openApiErrorModal(formatApiError(apiError), {
+      title: "Password reset failed",
+      summary: message,
+    });
+  }
+  return message;
+}
 
 type ResetStep = "email" | "code";
 
@@ -46,18 +63,23 @@ export default function ResetPasswordForm() {
       if (!validateEmailStep()) return;
       setLoading(true);
       try {
-        const { result, log, error: apiError } = await requestPasswordReset(email);
+        const { result, correlationId, error: apiError } = await requestPasswordReset(email);
         if (!result) {
-          setError(apiError?.message ?? "Could not send reset code");
+          setError(showResetApiError(apiError, "Could not send reset code"));
           return;
         }
-        setMessage(`${result.message} (trace: ${log.correlationId})`);
+        setMessage(`${result.message} (trace: ${correlationId})`);
         setStep("code");
         setOtp("");
         setPassword("");
         setConfirm("");
-      } catch {
-        setError("Network error — is the gateway running?");
+      } catch (err) {
+        const networkMsg = "Network error — is the Next backend running on :3001?";
+        openApiErrorModal(err instanceof Error ? err.message : networkMsg, {
+          title: "Password reset network error",
+          summary: networkMsg,
+        });
+        setError(networkMsg);
       } finally {
         setLoading(false);
       }
@@ -67,19 +89,24 @@ export default function ResetPasswordForm() {
     if (!validateCodeStep()) return;
     setLoading(true);
     try {
-      const { result, log, error: apiError } = await confirmPasswordReset({
+      const { result, correlationId, error: apiError } = await confirmPasswordReset({
         email,
         otp,
         password,
       });
       if (!result) {
-        setError(apiError?.message ?? "Could not reset password");
+        setError(showResetApiError(apiError, "Could not reset password"));
         return;
       }
-      setMessage(`${result.message} (trace: ${log.correlationId})`);
+      setMessage(`${result.message} (trace: ${correlationId})`);
       window.location.href = `${APP_ROUTES.login}?reset=1`;
-    } catch {
-      setError("Network error — is the gateway running?");
+    } catch (err) {
+      const networkMsg = "Network error — is the Next backend running on :3001?";
+      openApiErrorModal(err instanceof Error ? err.message : networkMsg, {
+        title: "Password reset network error",
+        summary: networkMsg,
+      });
+      setError(networkMsg);
     } finally {
       setLoading(false);
     }
@@ -104,12 +131,14 @@ export default function ResetPasswordForm() {
           autoComplete="email"
           readOnly={step === "code"}
         />
-        {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
+        {fieldErrors.email ? <span className="field-error">{fieldErrors.email}</span> : null}
       </div>
 
-      {step === "code" && (
+      {step === "code" ? (
         <>
-          <div className={`form-field auth-form__otp-field ${fieldErrors.otp ? "form-field--error" : ""}`}>
+          <div
+            className={`form-field auth-form__otp-field ${fieldErrors.otp ? "form-field--error" : ""}`}
+          >
             <label htmlFor="reset-otp">Reset code</label>
             <input
               id="reset-otp"
@@ -123,7 +152,7 @@ export default function ResetPasswordForm() {
               placeholder="123456"
               autoFocus
             />
-            {fieldErrors.otp && <span className="field-error">{fieldErrors.otp}</span>}
+            {fieldErrors.otp ? <span className="field-error">{fieldErrors.otp}</span> : null}
           </div>
           <PasswordField
             id="reset-password"
@@ -142,16 +171,16 @@ export default function ResetPasswordForm() {
             error={fieldErrors.confirm}
           />
         </>
-      )}
+      ) : null}
 
-      {error && <p className="status-message status-message--error">{error}</p>}
-      {message && <p className="status-message status-message--success">{message}</p>}
+      {error ? <p className="status-message status-message--error">{error}</p> : null}
+      {message ? <p className="status-message status-message--success">{message}</p> : null}
 
       <div className="panel__actions">
         <button className="btn btn--primary" type="submit" disabled={loading}>
           {loading ? "Working…" : step === "email" ? "Send code" : "Update password"}
         </button>
-        {step === "code" && (
+        {step === "code" ? (
           <button
             type="button"
             className="btn"
@@ -166,7 +195,7 @@ export default function ResetPasswordForm() {
           >
             Back
           </button>
-        )}
+        ) : null}
       </div>
       <p className="auth-form__links">
         <a href={APP_ROUTES.login}>Back to sign in</a>

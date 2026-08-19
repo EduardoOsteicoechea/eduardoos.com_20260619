@@ -81,7 +81,10 @@ export const EMUSIC_BLOCK_KINDS: EmusicBlockKind[] = ["estrofa", "coro", "precor
 const KIND_SET = new Set<string>(EMUSIC_BLOCK_KINDS);
 
 export function trackLyricsSlug(objectKey: string): string {
-    const name = trackDisplayName(objectKey).replace(/\.mp3$/i, "");
+    const name = trackDisplayName(objectKey).replace(
+        /\.(mp3|webm|wav|ogg|m4a|aac|flac)$/i,
+        "",
+    );
     return name
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
@@ -582,6 +585,28 @@ export function removeEmusicLineWord(
         const line = unidades[unitIndex]?.l[lineIndex];
         if (!line || wordIndex < 0 || wordIndex >= line.p.length) return;
         line.p.splice(wordIndex, 1);
+    });
+}
+
+/**
+ * Delete many words in one mutation. Targets are sorted descending by
+ * (unit, line, word) so earlier splices do not shift later indices.
+ */
+export function removeEmusicLineWords(
+    doc: EmusicDocument,
+    targets: Array<{ unitIndex: number; lineIndex: number; wordIndex: number }>,
+): EmusicDocument {
+    const ordered = [...targets].sort((a, b) => {
+        if (a.unitIndex !== b.unitIndex) return b.unitIndex - a.unitIndex;
+        if (a.lineIndex !== b.lineIndex) return b.lineIndex - a.lineIndex;
+        return b.wordIndex - a.wordIndex;
+    });
+    return mutateNormalized(doc, (unidades) => {
+        for (const target of ordered) {
+            const line = unidades[target.unitIndex]?.l[target.lineIndex];
+            if (!line || target.wordIndex < 0 || target.wordIndex >= line.p.length) continue;
+            line.p.splice(target.wordIndex, 1);
+        }
     });
 }
 

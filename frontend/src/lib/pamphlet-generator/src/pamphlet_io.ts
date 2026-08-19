@@ -2,15 +2,19 @@ import CreateElement, { applyImageTransform, openItemEditTray } from "./create_e
 import {
     COLUMN_KEYS,
     FOOTER_COLUMN,
+    FOOTER_FIELD_KEYS,
     HEADER_COLUMN,
     HEADER_FIELD_KEYS,
     DEFAULT_IMAGE_HEIGHT_MM,
     DEFAULT_STYLE_INDEXES,
     clampImageHeightMm,
+    emptyFooter,
     itemTypeToTag,
     tagToItemType,
+    type FooterFieldKey,
     type HeaderFieldKey,
     type LastEditedElement,
+    type PamphletFooter,
     type PamphletHeader,
     type PamphletItem,
     type PamphletItemType,
@@ -31,12 +35,33 @@ const HEADER_FIELD_CLASSES: Record<HeaderFieldKey, string> = {
     date: "pamphlet-header-date",
 };
 
+const FOOTER_FIELD_CLASSES: Record<FooterFieldKey, string[]> = {
+    action: ["pamphlet-footer-action"],
+    message: ["pamphlet-footer-message"],
+    label1: ["pamphlet-footer-label", "pamphlet-footer-label-1"],
+    value1: ["pamphlet-footer-value", "pamphlet-footer-value-1"],
+    label2: ["pamphlet-footer-label", "pamphlet-footer-label-2"],
+    value2: ["pamphlet-footer-value", "pamphlet-footer-value-2"],
+    label3: ["pamphlet-footer-label", "pamphlet-footer-label-3"],
+    value3: ["pamphlet-footer-value", "pamphlet-footer-value-3"],
+    label4: ["pamphlet-footer-label", "pamphlet-footer-label-4"],
+    value4: ["pamphlet-footer-value", "pamphlet-footer-value-4"],
+};
+
 /** Visible meta-bar fields under the title (subtitle stays in DOM but hidden). */
 const HEADER_META_FIELDS: { field: HeaderFieldKey; label: string }[] = [
     { field: "series", label: "Serie" },
     { field: "series_chapter", label: "Capítulo" },
     { field: "author", label: "Autor" },
     { field: "date", label: "Fecha" },
+];
+
+/** Footer 2×2 meta slots (editable label + value each). */
+const FOOTER_META_SLOTS: { labelField: FooterFieldKey; valueField: FooterFieldKey }[] = [
+    { labelField: "label1", valueField: "value1" },
+    { labelField: "label2", valueField: "value2" },
+    { labelField: "label3", valueField: "value3" },
+    { labelField: "label4", valueField: "value4" },
 ];
 
 export function parseStyleIndexes(raw: string | null): StyleIndexes {
@@ -168,6 +193,27 @@ function createHeaderFieldElement(field: HeaderFieldKey, value: string): HTMLEle
     return container;
 }
 
+function createFooterFieldElement(
+    field: FooterFieldKey,
+    value: string,
+    tag: "h1" | "p" = "p",
+): HTMLElement {
+    const container = CreateElement(
+        tag,
+        "",
+        [],
+        [],
+        value,
+        {
+            trayMode: "header",
+            footerField: field,
+            itemType: tag === "h1" ? "heading_1" : "paragraph",
+            extraClasses: ["pamphlet-footer-item", ...FOOTER_FIELD_CLASSES[field]],
+        },
+    );
+    return container;
+}
+
 function createLabeledHeaderMetaField(
     field: HeaderFieldKey,
     label: string,
@@ -181,6 +227,21 @@ function createLabeledHeaderMetaField(
     labelEl.textContent = `${label}:`;
     wrap.appendChild(labelEl);
     wrap.appendChild(createHeaderFieldElement(field, value));
+    return wrap;
+}
+
+function createLabeledFooterMetaField(
+    labelField: FooterFieldKey,
+    valueField: FooterFieldKey,
+    labelText: string,
+    valueText: string,
+): HTMLElement {
+    const wrap = document.createElement("div");
+    wrap.className = "pamphlet-footer-meta-field";
+
+    // Editable caption (defaults WhatsApp / Teléfono / …) — not a static span.
+    wrap.appendChild(createFooterFieldElement(labelField, labelText, "p"));
+    wrap.appendChild(createFooterFieldElement(valueField, valueText, "p"));
     return wrap;
 }
 
@@ -226,12 +287,33 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
     subtitle.classList.add("pamphlet-header-field-hidden");
     headerEl.appendChild(subtitle);
 
+    const footer = data.footer;
     const footerEl = document.createElement("footer");
-    footerEl.className = "pamphlet-page-footer dumb-column pamphlet-footer-column";
-    const footerItems = data.footer.items;
-    footerItems.forEach((item, index) => {
-        appendItemWithSpacer(footerEl, createItemElement(item), index < footerItems.length - 1);
-    });
+    footerEl.className = "pamphlet-page-footer pamphlet-footer-region";
+
+    // Acción + Mensaje as full-width editable fields (input chrome in CSS).
+    footerEl.appendChild(createFooterFieldElement("action", footer.action ?? "", "h1"));
+    footerEl.appendChild(createFooterFieldElement("message", footer.message ?? "", "p"));
+
+    const footerMeta = document.createElement("div");
+    footerMeta.className = "pamphlet-footer-meta-bar";
+    const footerRows = [FOOTER_META_SLOTS.slice(0, 2), FOOTER_META_SLOTS.slice(2, 4)];
+    for (const rowSlots of footerRows) {
+        const row = document.createElement("div");
+        row.className = "pamphlet-footer-meta-row";
+        for (const { labelField, valueField } of rowSlots) {
+            row.appendChild(
+                createLabeledFooterMetaField(
+                    labelField,
+                    valueField,
+                    footer[labelField] ?? "",
+                    footer[valueField] ?? "",
+                ),
+            );
+        }
+        footerMeta.appendChild(row);
+    }
+    footerEl.appendChild(footerMeta);
 
     main.appendChild(headerEl);
     main.appendChild(footerEl);
@@ -309,12 +391,22 @@ export function serializeHeaderFromDom(main: HTMLElement): PamphletHeader {
     return header;
 }
 
-export function serializeFooterFromDom(main: HTMLElement): PamphletItem[] {
-    const footer = main.querySelector<HTMLElement>(":scope > .pamphlet-page-footer");
-    if (!footer) return [];
-    return Array.from(footer.querySelectorAll<HTMLElement>(":scope > .pamphlet-item")).map(
-        serializeItem,
+export function serializeFooterFromDom(main: HTMLElement): PamphletFooter {
+    const footer: PamphletFooter = emptyFooter();
+    const root = main.querySelector<HTMLElement>(":scope > .pamphlet-page-footer");
+    if (!root) return footer;
+
+    const items = root.querySelectorAll<HTMLElement>(
+        ".pamphlet-item[data-footer-field]",
     );
+    items.forEach((item) => {
+        const field = item.getAttribute("data-footer-field") as FooterFieldKey | null;
+        if (!field || !(field in footer)) return;
+        const inner = item.firstElementChild as HTMLElement | null;
+        footer[field] = inner?.textContent ?? "";
+    });
+
+    return footer;
 }
 
 export function getItemLocation(container: HTMLElement): LastEditedElement | null {
@@ -329,8 +421,9 @@ export function getItemLocation(container: HTMLElement): LastEditedElement | nul
 
     const footer = container.closest<HTMLElement>(".pamphlet-page-footer");
     if (footer) {
-        const items = Array.from(footer.querySelectorAll<HTMLElement>(":scope > .pamphlet-item"));
-        const index = items.indexOf(container);
+        const field = container.getAttribute("data-footer-field") as FooterFieldKey | null;
+        if (!field) return null;
+        const index = FOOTER_FIELD_KEYS.indexOf(field);
         if (index < 0) return null;
         return { column: FOOTER_COLUMN, index };
     }
@@ -372,7 +465,7 @@ export function serializePamphlet(
     const pamphlet: PamphletStructure = {
         type: "pamphlet_single_sheet",
         header: serializeHeaderFromDom(main),
-        footer: { items: serializeFooterFromDom(main) },
+        footer: serializeFooterFromDom(main),
         last_edited_element: { ...lastEdited },
         column_1: [],
         column_2: [],
@@ -434,6 +527,15 @@ export function syncImageItemFromDom(
 
 export function isHeaderItem(container: HTMLElement): boolean {
     return container.hasAttribute("data-header-field");
+}
+
+export function isFooterItem(container: HTMLElement): boolean {
+    return container.hasAttribute("data-footer-field");
+}
+
+/** Header or footer chrome field — simple tray, no column item ops. */
+export function isChromeItem(container: HTMLElement): boolean {
+    return isHeaderItem(container) || isFooterItem(container);
 }
 
 export function isImageItem(container: HTMLElement): boolean {

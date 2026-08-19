@@ -1,113 +1,98 @@
 #!/usr/bin/env bash
-# Builds the Astro static site on the EC2 host (no Docker). Output: frontend/dist/
+# build-frontend.sh — build Eduardo OS Astro frontend only.
+# Serialize with flock so concurrent CI jobs do not corrupt frontend/dist mid-build.
+#
+# CRITICAL: nginx mounts frontend/dist live. Astro empties outDir at build
+# start — building straight into dist causes blank/403/500 pages (especially
+# /admin/users via try_files directory redirect cycles). Always build into a
+# sibling directory, verify critical routes, then rsync into dist.
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-$HOME/eduardoos.com_20260619}"
-FRONTEND_DIR="${APP_DIR}/frontend"
-LOCK_FILE="${LOCK_FILE:-/tmp/eduardoos-frontend-build.lock}"
+# Script lives in deploy/ec2/ — repo root is two levels up (parent of frontend/).
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+FRONTEND="$ROOT/frontend"
+LOCK_DIR="${ROOT}/.cache"
+LOCK_FILE="${LOCK_DIR}/frontend-build.lock"
+DIST_LIVE="${FRONTEND}/dist"
+DIST_STAGE="${FRONTEND}/dist-build"
+# Vite client transform can thrash forever on small EC2 if heap is too large
+# (swap) or too small (GC spin). Cap tightly; override via env if needed.
+BUILD_TIMEOUT_SEC="${FRONTEND_BUILD_TIMEOUT_SEC:-720}"
 
-ensure_node() {
-  if command -v node >/dev/null 2>&1; then
-    local major
-    major="$(node -p "process.versions.node.split('.')[0]")"
-    if [ "${major}" -ge 20 ] 2>/dev/null; then
-      echo "==> Node $(node -v) OK"
-      return 0
-    fi
-    echo "==> Node $(node -v) is older than v20; installing Node 22"
-  else
-    echo "==> Node not found; installing Node 22"
-  fi
+# Small EC2 instances OOM / thrash when Node asks for 4GiB. Prefer ~1.5GiB.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1536}"
 
-  if command -v dnf >/dev/null 2>&1; then
-    curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
-    sudo dnf install -y nodejs
-  elif command -v yum >/dev/null 2>&1; then
-    curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
-    sudo yum install -y nodejs
-  elif command -v apt-get >/dev/null 2>&1; then
-    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-    sudo apt-get install -y nodejs
-  else
-    echo "ERROR: install Node.js 20+ manually, then re-run this script."
-    exit 1
-  fi
-}
+echo "==> Eduardo OS frontend build"
+echo "    ROOT=$ROOT"
+echo "    NODE_OPTIONS=$NODE_OPTIONS"
+echo "    BUILD_TIMEOUT_SEC=$BUILD_TIMEOUT_SEC"
 
-verify_node_modules() {
-  # Incomplete installs show up as missing Astro CLI internals + Vite optimizeDeps misses.
-  local required=(
-    "node_modules/astro/package.json"
-    "node_modules/astro/dist/cli/index.js"
-    "node_modules/react/package.json"
-    "node_modules/react-dom/package.json"
-    "node_modules/@astrojs/react/package.json"
-    "node_modules/localforage/package.json"
-  )
-  local missing=0
-  local path
-  for path in "${required[@]}"; do
-    if [ ! -e "${path}" ]; then
-      echo "ERROR: missing ${path}"
-      missing=1
-    fi
-  done
-  # Astro 5 ships throw-and-exit; older broken trees fail here.
-  if [ -f "node_modules/astro/dist/cli/index.js" ] && [ ! -f "node_modules/astro/dist/cli/throw-and-exit.js" ]; then
-    echo "ERROR: astro CLI tree is incomplete (throw-and-exit.js missing)"
-    missing=1
-  fi
-  return "${missing}"
-}
-
-install_deps() {
-  echo "==> Clean install (wipe node_modules to avoid partial trees from concurrent deploys)"
-  rm -rf node_modules
-  # Install with default env so npm ci does not skip needed transitive deps.
-  unset NODE_ENV || true
-  if ! npm ci --no-audit --no-fund; then
-    echo "==> npm ci failed — falling back to npm install"
-    rm -rf node_modules
-    npm install --no-audit --no-fund
-  fi
-  if ! verify_node_modules; then
-    echo "==> node_modules verification failed — retrying once with npm install"
-    rm -rf node_modules
-    unset NODE_ENV || true
-    npm install --no-audit --no-fund
-    verify_node_modules
-  fi
-}
-
-echo "==> Building frontend on host (${FRONTEND_DIR})"
-ensure_node
-
-mkdir -p "$(dirname "${LOCK_FILE}")"
+mkdir -p "${LOCK_DIR}"
 exec 9>"${LOCK_FILE}"
 echo "==> Waiting for frontend build lock (${LOCK_FILE})"
 if ! flock -w 900 9; then
-  echo "ERROR: timed out waiting for frontend build lock"
+  echo "ERROR: timed out waiting for frontend build lock (${LOCK_FILE})"
   exit 1
 fi
+echo "==> Acquired frontend build lock"
 
-cd "${FRONTEND_DIR}"
-
-echo "==> Disk free before npm install"
-df -h . || true
-
-install_deps
-
-export NODE_ENV=production
-# Small EC2 instances OOM on the Vite client pass (Three / That Open). Cap heap
-# explicitly; override with NODE_OPTIONS in the environment if needed.
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1536}"
-echo "==> Astro build with NODE_OPTIONS=${NODE_OPTIONS}"
-# Tests run in GitHub Actions; EC2 deploy only builds static assets.
-npm run build
-
-if [ ! -f dist/index.html ]; then
-  echo "ERROR: frontend/dist/index.html missing after build"
-  exit 1
+cd "$FRONTEND"
+if [[ -f package-lock.json ]]; then
+  npm ci
+else
+  npm install
 fi
 
-echo "==> Frontend ready at ${FRONTEND_DIR}/dist"
+echo "==> Building into staging dir (${DIST_STAGE})"
+rm -rf "${DIST_STAGE}"
+
+# Bound the Astro/Vite pass so a hung transform cannot hold the deploy flock
+# until GitHub Actions kills SSH (leaving orphans on the host).
+if command -v timeout >/dev/null 2>&1; then
+  if ! timeout --signal=TERM --kill-after=30 "${BUILD_TIMEOUT_SEC}" \
+    npx astro build --outDir "${DIST_STAGE}"; then
+    rc=$?
+    echo "ERROR: astro build failed or timed out after ${BUILD_TIMEOUT_SEC}s (exit ${rc})"
+    # Best-effort cleanup of runaway node/vite children from this tree.
+    pkill -f "${FRONTEND}/node_modules" 2>/dev/null || true
+    exit "${rc}"
+  fi
+else
+  npx astro build --outDir "${DIST_STAGE}"
+fi
+
+echo "==> Verifying critical static routes in staging build"
+required_files=(
+  "index.html"
+  "admin/users/index.html"
+  "aps-admin/index.html"
+  "contact/index.html"
+  "favicon.svg"
+)
+for rel in "${required_files[@]}"; do
+  if [[ ! -f "${DIST_STAGE}/${rel}" ]]; then
+    echo "ERROR: missing required build output: ${DIST_STAGE}/${rel}"
+    exit 1
+  fi
+done
+
+echo "==> Publishing staging build → live dist (rsync, nginx-safe)"
+mkdir -p "${DIST_LIVE}"
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --delete "${DIST_STAGE}/" "${DIST_LIVE}/"
+else
+  # Fallback when rsync is unavailable (e.g. some Windows CI hosts).
+  rm -rf "${DIST_LIVE}.prev"
+  if [[ -d "${DIST_LIVE}" ]]; then
+    mv "${DIST_LIVE}" "${DIST_LIVE}.prev"
+  fi
+  mv "${DIST_STAGE}" "${DIST_LIVE}"
+  rm -rf "${DIST_LIVE}.prev"
+  # Recreate stage path marker for clarity in logs.
+  DIST_STAGE="${DIST_LIVE}"
+fi
+
+rm -rf "${FRONTEND}/dist-build"
+
+echo "==> Build complete: $DIST_LIVE"
+echo "    Verified: /admin/users → admin/users/index.html"

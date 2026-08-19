@@ -37,7 +37,7 @@ Site assistants are **AI agents**, not Eduardo Osteicoechea and not the site own
 - Any skill-card / profile Q&A that uses `profile_qa`
 - Cursor agents editing those prompts or welcome strings
 
-Production system prompt source of truth (Next): `eduardoos-next/backend/internal/contact/identity.go` (`ProfileQASystemPrompt`). Legacy mirror: `pkg/contact/agent_identity.go`. Keep welcome copy aligned with the same identity rules.
+Production system prompt source of truth: `backend/internal/contact/identity.go` (`ProfileQASystemPrompt`). Keep welcome copy aligned with the same identity rules.
 
 ## Quick self-check before shipping copy
 

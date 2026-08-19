@@ -1,20 +1,8 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import BimPage from "../components/Bim/BimPage";
-import "./bim.css";
 ---
 
-<BaseLayout title="BIM — Eduardo Osteicoechea" requireAuth>
-  <div class="bim-page-shell" data-page="bim">
-    <BimPage client:only="react" />
-  </div>
+<BaseLayout title="OpenBIM — Eduardo Osteicoechea" requireAuth={true}>
+  <BimPage client:load />
 </BaseLayout>
-
-<script is:inline>
-  (function () {
-    var path = location.pathname.replace(/\/$/, "") || "/";
-    if (path !== "/bim") return;
-    if (document.querySelector('[data-page="bim"]')) return;
-    location.reload();
-  })();
-</script>

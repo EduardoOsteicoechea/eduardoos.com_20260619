@@ -1,14 +1,14 @@
 ---
 /**
- * Worship music / playlist builder (nav label: Música).
+ * Worship music / playlist builder (nav: Music).
+ * Subscription-gated; admin (eduardooost@gmail.com) always allowed.
  */
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import PlaylistBuilder from "../../components/PlaylistBuilder/PlaylistBuilder";
-import "../observability/observability.css";
+import MusicPage from "../../components/Playlist/MusicPage";
 ---
 
-<BaseLayout title="Music — Eduardo Osteicoechea" activityBarMode="editor" pagePlaylist>
+<BaseLayout title="Music — Eduardo Osteicoechea">
   <div class="page-shell page-shell--wide">
-    <PlaylistBuilder client:load />
+    <MusicPage client:load />
   </div>
 </BaseLayout>

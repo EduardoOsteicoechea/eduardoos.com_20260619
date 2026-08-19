@@ -17,7 +17,7 @@
 }
 
 .articles__lead {
-  margin: 0;
+  margin: 0 0 0.5rem;
   opacity: 0.85;
   line-height: 1.5;
 }
@@ -64,4 +64,18 @@
 
 .articles__error {
   color: #c62828;
+}
+
+/* Crawl-only: in the DOM for bots, clipped so humans never see it.
+   Avoid display:none — some crawlers skip those nodes. */
+.articles-crawl-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

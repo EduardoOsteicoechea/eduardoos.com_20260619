@@ -6,6 +6,7 @@ bin/
 # Node / Astro
 node_modules/
 frontend/dist/
+frontend/dist-build/
 frontend/.astro/
 
 # Environment secrets

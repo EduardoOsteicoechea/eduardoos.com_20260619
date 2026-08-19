@@ -1,114 +1,6 @@
 /* Portable pamphlet generator — styles scoped to .pamphlet-app for Astro layout embed */
 
-/* Chrome is teleported to document.body; never leak onto other routes. */
-body.page-pamphlet #file-toolbar {
-  position: fixed;
-  top: auto;
-  bottom: 0;
-  right: 0;
-  left: auto;
-  width: calc(100% * var(--ui-zoom, 1));
-  height: 55px;
-  z-index: 30;
-  margin: 0;
-  padding: 0;
-  pointer-events: none;
-  transform: scale(var(--ui-inv-zoom, 1));
-  transform-origin: bottom right;
-}
-
-body.page-pamphlet .menu-toggle {
-  position: absolute;
-  bottom: 15px;
-  right: 15px;
-  top: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  background: var(--site-body-fg, #222);
-  border: 1px solid var(--site-body-fg, #222);
-  border-radius: 0px;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-body.page-pamphlet .menu-toggle[aria-expanded="true"] {
-  background: var(--site-medium, #444);
-  border-color: var(--site-medium, #444);
-}
-
-body.page-pamphlet .menu-toggle-icon {
-  width: 24px;
-  height: 24px;
-  display: block;
-  pointer-events: none;
-}
-
-body.page-pamphlet .sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  z-index: 40;
-}
-
-body.page-pamphlet .sidebar-backdrop[hidden] {
-  display: none !important;
-}
-
-body.page-pamphlet .app-sidebar {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: min(280px, 85vw);
-  height: 100vh;
-  background: #1e1e1e;
-  color: #f2f2f2;
-  z-index: 50;
-  transform: translateX(100%);
-  transition: transform 0.2s ease;
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25);
-  padding: 72px 20px 32px;
-  border-radius: 0;
-}
-
-body.page-pamphlet .app-sidebar.is-open {
-  transform: translateX(0);
-}
-
-.app-sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 4px 0;
-}
-
-.app-sidebar-nav button {
-  width: 100%;
-  padding: 14px 16px;
-  text-align: left;
-  background: #333;
-  color: #fff;
-  cursor: pointer;
-  border-radius: 0;
-  font-size: 14px;
-}
-
-.app-sidebar-nav button:hover:not(:disabled) {
-  background: #454545;
-}
-
-.app-sidebar-nav button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.app-sidebar-nav button.is-active {
-  background: #555;
-  outline: 1px solid #888;
-}
+/* Activity bar chrome is shared (ActivityBar.css); hide on print below. */
 
 .create-modal {
   border: 1px solid #c8c8c8;
@@ -309,9 +201,9 @@ body.page-pamphlet .app-sidebar.is-open {
   --page-header-height: 23mm;
   /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
   --header-body-gutter: 5mm;
-  --page-footer-height: 37.5mm; /* 15mm × 2.5 */
-  /* Page 1 body: 215.9 − 10 − 23 − 5 − 4 − 37.5 − 10 = 126.4mm */
-  --page1-body-height: 126.4mm;
+  --page-footer-height: 48mm; /* fits Acción + Mensaje + 2×2 editable meta */
+  /* Page 1 body: 215.9 − 10 − 23 − 5 − 4 − 48 − 10 = 115.9mm */
+  --page1-body-height: 115.9mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
@@ -320,8 +212,8 @@ body.page-pamphlet .app-sidebar.is-open {
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
   /* Cols 1–2 under header: 195.9 − 23 − 5 = 167.9mm */
   --page1-right-col-height: 167.9mm;
-  /* Cols 7–8 above footer: 195.9 − 4 − 37.5 = 154.4mm */
-  --page1-left-col-height: 154.4mm;
+  /* Cols 7–8 above footer: 195.9 − 4 − 48 = 143.9mm */
+  --page1-left-col-height: 143.9mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
   --item-gap-height: 2.5mm;
   --b1: solid 1px rgb(231, 231, 231);
@@ -438,6 +330,16 @@ body.page-pamphlet .app-sidebar.is-open {
     /*border: solid 1px blue;*/
 }
 
+/* Desktop only: keep overflow ink inside the column box (still in DOM, just clipped).
+   Without this, long lines from cols 7–8 paint over the left page margin. */
+.pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"] {
+    overflow: hidden;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"]:has(.element_edit_tray) {
+    overflow: visible;
+}
+
 /* Page 1: left = cols 7–8 + footer; right = header + cols 1–2 */
 .pamphlet-page-header {
     grid-column: 6 / 9;
@@ -465,16 +367,26 @@ body.page-pamphlet .app-sidebar.is-open {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 0;
+    align-items: stretch;
+    gap: 0.6mm;
+    /* Keep chrome inside the band so trays don't paint over cols 7–8. */
     overflow: hidden;
     min-width: 0;
     min-height: 0;
     height: 100%;
     z-index: 5;
+    box-sizing: border-box;
+    padding: 1.2mm;
+    border: 0.45mm solid #222222;
+    border-radius: 3mm;
+    background: #ffffff;
 }
 
+/* While editing, allow the absolute tray to escape downward into the page margin
+   (not upward into columns 7–8). */
 .pamphlet-page-footer:has(.element_edit_tray) {
     overflow: visible;
+    z-index: 20;
 }
 
 .pamphlet-page-header > .pamphlet-header-title {
@@ -554,9 +466,109 @@ body.page-pamphlet .app-sidebar.is-open {
     border: 0;
 }
 
-.pamphlet-page-footer > .pamphlet-item {
-    flex: 0 0 auto;
+/* Footer fixed chrome — Acción + Mensaje, then 2×2 meta (editable label | value).
+   Type sizes match PDF pamphletFooterHeadPt (9pt) / Body (7pt). */
+.pamphlet-footer-action,
+.pamphlet-footer-message {
     width: 100%;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    border: 1px solid rgba(100, 100, 100, 0.55) !important;
+    padding: 0.5mm 0.9mm !important;
+    background: #fff;
+    min-height: 3.8mm;
+}
+
+.pamphlet-footer-action h1 {
+    font-family: Roboto, sans-serif;
+    font-size: 3.175mm; /* 9pt */
+    font-weight: 600;
+    line-height: 1.25;
+    color: #000000;
+    min-height: 1.25em;
+}
+
+.pamphlet-footer-message p {
+    font-family: Roboto, sans-serif;
+    font-size: 2.469mm; /* 7pt — matches pamphletFooterBodyPt */
+    line-height: 1.25;
+    color: #000000;
+    min-height: 1.25em;
+}
+
+.pamphlet-footer-meta-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 2mm;
+    row-gap: 1mm;
+    width: 100%;
+    min-width: 0;
+    /* Occupy remaining footer band so the 2×2 never collapses to 0. */
+    flex: 1 1 auto;
+    min-height: 16mm;
+    overflow: hidden;
+    color: #666666;
+    align-content: start;
+}
+
+.pamphlet-footer-meta-row {
+    display: contents;
+}
+
+.pamphlet-footer-meta-field {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0.6mm;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.pamphlet-footer-meta-field > .pamphlet-item {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 1px solid rgba(100, 100, 100, 0.55) !important;
+    padding: 0.35mm 0.7mm !important;
+    background: #fff;
+    min-height: 4mm;
+}
+
+.pamphlet-footer-meta-field > .pamphlet-footer-label {
+    flex: 0 1 38%;
+    max-width: 42%;
+}
+
+.pamphlet-footer-meta-field > .pamphlet-footer-value {
+    flex: 1 1 58%;
+}
+
+.pamphlet-footer-meta-field > .pamphlet-item p {
+    font-family: Roboto, sans-serif;
+    font-size: 2.469mm;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #666666;
+    min-height: 1.25em;
+}
+
+.pamphlet-footer-meta-field > .pamphlet-footer-label p {
+    font-weight: 600;
+    color: #444444;
+}
+
+/* Compact chrome edit tray so it stays mostly inside the footer / page margin. */
+.pamphlet-page-footer .edit_tray_text_area,
+.pamphlet-page-header .edit_tray_text_area {
+    height: 10mm;
 }
 
 .pamphlet-item {
@@ -640,16 +652,6 @@ body.page-pamphlet .app-sidebar.is-open {
     /* Pan (mm) + zoom; origin stays frame center for stable re-centering on src change */
     transform: translate(var(--img-offset-x, 0mm), var(--img-offset-y, 0mm)) scale(var(--img-scale, 1));
     transform-origin: center center;
-}
-
-.pamphlet-page-footer .pamphlet-item {
-    font-size: 9px;
-    line-height: 1.25;
-}
-
-.pamphlet-page-footer .pamphlet-item h1 {
-    font-size: 11px;
-    font-weight: 600;
 }
 
 /*
@@ -1136,21 +1138,160 @@ body.page-pamphlet .app-sidebar.is-open {
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header {
   order: 1;
+  /* Same width as body columns — never 92vw (that escapes the scaled sheet). */
   width: var(--column-content-width);
   max-width: var(--column-content-width);
-  height: var(--page-header-height);
-  min-height: var(--page-header-height);
-  max-height: var(--page-header-height);
-  padding: 0;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  padding: calc(6px * var(--mobile-inv-scale, 1));
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--mobile-inv-scale, 1));
+  overflow: visible;
+  box-sizing: border-box;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer {
   order: 2;
   width: var(--column-content-width);
   max-width: var(--column-content-width);
-  height: var(--page-footer-height);
-  min-height: var(--page-footer-height);
-  max-height: var(--page-footer-height);
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  padding: calc(6px * var(--mobile-inv-scale, 1));
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--mobile-inv-scale, 1));
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+/* Mobile: stack meta as normal labeled inputs (desktop header layout unchanged). */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-bar,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-bar {
+  display: flex;
+  flex-direction: column;
+  gap: calc(5px * var(--mobile-inv-scale, 1));
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-row,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: calc(5px * var(--mobile-inv-scale, 1));
+  width: 100%;
+  max-width: 100%;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field {
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(3px * var(--mobile-inv-scale, 1));
+  overflow: visible;
+  border: 1px solid rgba(128, 128, 128, 0.45);
+  border-radius: 3px;
+  padding: calc(5px * var(--mobile-inv-scale, 1)) calc(6px * var(--mobile-inv-scale, 1));
+  background: #fff;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-label {
+  font-size: calc(11px * var(--mobile-inv-scale, 1));
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field > .pamphlet-item,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-item,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message {
+  border: 1px solid rgba(128, 128, 128, 0.45) !important;
+  border-radius: 3px;
+  padding: calc(6px * var(--mobile-inv-scale, 1)) calc(7px * var(--mobile-inv-scale, 1)) !important;
+  background: #fff;
+  min-height: calc(36px * var(--mobile-inv-scale, 1));
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-footer-label,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-footer-value {
+  flex: 1 1 auto;
+  max-width: 100%;
+  width: 100%;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3px * var(--mobile-inv-scale, 1));
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title::before {
+  content: "Título";
+  font-size: calc(11px * var(--mobile-inv-scale, 1));
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3px * var(--mobile-inv-scale, 1));
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action::before {
+  content: "Acción";
+  font-size: calc(11px * var(--mobile-inv-scale, 1));
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message::before {
+  content: "Mensaje";
+  font-size: calc(11px * var(--mobile-inv-scale, 1));
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title p,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field > .pamphlet-item p,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action h1,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message p,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-item p {
+  font-size: calc(14px * var(--mobile-inv-scale, 1)) !important;
+  line-height: 1.35 !important;
+  white-space: normal !important;
+  text-overflow: unset !important;
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  color: #000 !important;
+}
+
+/* Mobile header fields: Título, Serie, Capítulo, Autor (hide Fecha). */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field:has(.pamphlet-header-date) {
+  display: none !important;
 }
 
 /* Cols 1–2: page-1 right band (under header) */
@@ -1197,10 +1338,9 @@ body.page-pamphlet .app-sidebar.is-open {
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-8 { order: 10; }
 
 @media print {
-  .pamphlet-app #file-toolbar,
-  .pamphlet-app .app-sidebar,
-  .pamphlet-app .sidebar-backdrop,
-  .pamphlet-app .menu-toggle,
+  .header-dynamic-menu-host,
+  .header-dynamic-menu,
+  .pamphlet-header-menu,
   .pamphlet-app .pamphlet-add-item-button,
   .pamphlet-app .element_edit_tray {
     display: none !important;

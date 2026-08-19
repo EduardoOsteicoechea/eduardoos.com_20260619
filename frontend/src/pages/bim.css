@@ -1,8 +1,0 @@
-.bim-page-shell {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 0;
-  height: calc(100dvh - var(--header_height, 60px));
-  overflow: hidden;
-}

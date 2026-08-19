@@ -1,5 +1,5 @@
 [Unit]
-Description=Eduardo OS unified backend (all Go microservices)
+Description=Eduardo OS backend (production)
 After=network-online.target docker.service
 Wants=network-online.target
 
@@ -8,8 +8,8 @@ Type=simple
 User=@DEPLOY_USER@
 WorkingDirectory=@APP_DIR@
 EnvironmentFile=@APP_DIR@/.env
-# Prebuilt by deploy/ec2/deploy-remote.sh — never `go run` (compile races / OOM → 502).
-ExecStart=@APP_DIR@/bin/eduardoos
+# Built by deploy/ec2/deploy-remote-production.sh
+ExecStart=@APP_DIR@/backend/bin/eduardoos-next
 Restart=on-failure
 RestartSec=5
 Environment=PORT=3000

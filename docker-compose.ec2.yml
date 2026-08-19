@@ -2,10 +2,8 @@
 #
 # docker compose -f docker-compose.yml -f docker-compose.ec2.yml up -d
 #
-# Host: eduardoos-next frontend/dist, eduardoos-next backend (:3000 via systemd)
+# Host: frontend/dist, backend (:3000 via systemd)
 # Docker: nginx + certbot only
-# Staging: eduardoos-next on :8080 via extra conf.d file (does not replace default.conf)
-# Rollback: remount ./frontend/dist → /usr/share/nginx/html and restart bin/eduardoos.prev
 
 services:
   nginx:
@@ -13,12 +11,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
     volumes:
       - ./nginx/default.prod.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx/eduardoos-next-staging.conf:/etc/nginx/conf.d/eduardoos-next-staging.conf:ro
-      - ./eduardoos-next/frontend/dist:/usr/share/nginx/html:ro
-      - ./eduardoos-next/frontend/dist:/usr/share/nginx/eduardoos-next:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
       - ./nginx/certs:/etc/nginx/certs:ro
       - certbot_www:/var/www/certbot:ro
 

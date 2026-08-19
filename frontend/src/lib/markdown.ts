@@ -1,7 +1,17 @@
 /**
- * Small, dependency-free Markdown → safe HTML for portfolio chat replies.
- * Escapes raw HTML first, then applies a practical subset (headings, lists,
- * bold/italic, links, code, paragraphs).
+ * Small, dependency-free Markdown → safe HTML for agent chat replies.
+ *
+ * Why this exists:
+ * Model answers often include **bold**, lists, and links. If we dump the raw
+ * string into a React text node, visitors see literal asterisks. We convert a
+ * practical Markdown subset to HTML after escaping so raw tags from the model
+ * cannot execute as XSS.
+ *
+ * Flow:
+ * 1. Normalize newlines and trim.
+ * 2. Optionally unwrap a whole-answer ```markdown fence.
+ * 3. Walk line-by-line for headings, lists, fenced code, and paragraphs.
+ * 4. Escape every text segment, then apply inline **bold** / *italic* / `code` / links.
  */
 
 function escapeHtml(raw: string): string {
@@ -13,17 +23,14 @@ function escapeHtml(raw: string): string {
     .replace(/'/g, "&#39;");
 }
 
+/** Inline formatting on already-escaped text (no raw HTML reintroduced). */
 function inlineMarkdown(escaped: string): string {
   let s = escaped;
-  // Inline code
   s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
-  // Bold **text** or __text__
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   s = s.replace(/__([^_]+)__/g, "<strong>$1</strong>");
-  // Italic *text* or _text_ (avoid matching mid-word underscores heavily)
   s = s.replace(/(^|[^\w])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
   s = s.replace(/(^|[^\w])_([^_\n]+)_(?!_)/g, "$1<em>$2</em>");
-  // Links [label](https://...)
   s = s.replace(
     /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
     '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
@@ -32,13 +39,12 @@ function inlineMarkdown(escaped: string): string {
 }
 
 /**
- * Convert Markdown text to sanitized HTML string for dangerouslySetInnerHTML.
+ * Convert Markdown text to sanitized HTML for dangerouslySetInnerHTML.
  */
 export function markdownToSafeHtml(source: string): string {
   const text = source.replace(/\r\n/g, "\n").trim();
   if (!text) return "";
 
-  // Strip wrapping ``` fences if the model dumps the whole answer as a fence.
   const unfenced = text.replace(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/i, "$1");
 
   const lines = unfenced.split("\n");

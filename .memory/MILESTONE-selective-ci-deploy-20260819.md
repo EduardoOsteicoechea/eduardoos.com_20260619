@@ -10,8 +10,8 @@
 ### Path map
 | Paths | Scope |
 |-------|--------|
-| `eduardoos-next/backend/**` | backend |
-| `eduardoos-next/frontend/**` | frontend |
+| `backend/**` | backend |
+| `frontend/**` | frontend |
 | `nginx/**`, compose files | nginx |
-| `deploy/**`, `eduardoos-next/deploy/**`, `deploy.yml` | full |
+| `deploy/**`, `deploy.yml` | full |
 | `.memory`, docs, unrelated | skip remote deploy |

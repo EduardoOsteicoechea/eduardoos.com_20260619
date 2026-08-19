@@ -77,7 +77,7 @@ export async function ensureEmusicForTrack(objectKey: string): Promise<EnsureEmu
     if (!isApsAdminEmail(getAuthEmailFromToken())) return null;
 
     const trackFile = trackDisplayName(objectKey);
-    const title = trackFile.replace(/\.mp3$/i, "");
+    const title = trackFile.replace(/\.(mp3|webm|wav|ogg|m4a|aac|flac)$/i, "");
     const blank = emptyEmusicDocument(trackFile, title);
     const saved = await saveEmusicToCloud(slug, blank);
     return { document: saved, created: true, slug };

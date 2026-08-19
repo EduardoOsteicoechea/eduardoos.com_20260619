@@ -11,14 +11,40 @@ import PamphletLayout from "../../layouts/PamphletLayout.astro";
 </PamphletLayout>
 
 <script>
-  import { mountPamphletGenerator, type PamphletMountHandle } from "../../lib/pamphlet-generator/src/index.ts";
+  import {
+    mountPamphletGenerator,
+    type PamphletMountHandle,
+  } from "../../lib/pamphlet-generator/src/index.ts";
+  import { getAuthToken, isPlatformAdmin, getAuthEmailFromToken } from "../../lib/auth";
+  import { checkServiceAccess } from "../../lib/payments";
+  import { APP_ROUTES } from "../../config/routes";
 
   let handle: PamphletMountHandle | null = null;
 
-  function mount() {
+  async function ensureAccess(host: HTMLElement): Promise<boolean> {
+    const token = getAuthToken();
+    if (!token) {
+      host.innerHTML = `<section class="service-gate"><h1 class="service-gate__title">Pamphlet</h1><p class="service-gate__lead">Sign in to use the pamphlet editor.</p><a class="btn btn--primary" href="${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.pamphlet)}">Sign in</a></section>`;
+      return false;
+    }
+    if (isPlatformAdmin(getAuthEmailFromToken())) return true;
+    try {
+      const { allowed, isAdmin } = await checkServiceAccess("pamphlet");
+      if (allowed || isAdmin) return true;
+    } catch {
+      if (isPlatformAdmin(getAuthEmailFromToken())) return true;
+    }
+    host.innerHTML = `<section class="service-gate"><h1 class="service-gate__title">Pamphlet</h1><p class="service-gate__lead">This service requires an active subscription.</p><div class="service-gate__actions"><a class="btn btn--primary" href="${APP_ROUTES.subscription}">Subscribe</a></div></section>`;
+    return false;
+  }
+
+  async function mount() {
     const host = document.getElementById("pamphlet-root");
     if (!host) return;
     handle?.destroy();
+    handle = null;
+    host.innerHTML = "";
+    if (!(await ensureAccess(host))) return;
     handle = mountPamphletGenerator(host);
   }
 
@@ -27,8 +53,9 @@ import PamphletLayout from "../../layouts/PamphletLayout.astro";
     handle = null;
   }
 
-  // Initial load + every ClientRouter navigation that lands on this page.
-  document.addEventListener("astro:page-load", mount);
+  document.addEventListener("astro:page-load", () => {
+    void mount();
+  });
   document.addEventListener("astro:before-swap", destroy);
-  mount();
+  void mount();
 </script>

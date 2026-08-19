@@ -1,5 +1,0 @@
-{
-  "description": "Pamphlet editor has no extra host dependencies beyond the Astro/React stack.",
-  "dependencies": {},
-  "devDependencies": {}
-}

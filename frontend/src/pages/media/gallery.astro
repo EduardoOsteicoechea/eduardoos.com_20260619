@@ -1,11 +1,10 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import MediaGallery from "../../components/MediaGallery/MediaGallery";
-import "../observability/observability.css";
+import GalleryPage from "../../components/Gallery/GalleryPage";
 ---
 
-<BaseLayout title="Media Gallery — Eduardo Osteicoechea" activityBarMode="editor">
-  <div class="page-shell page-shell--wide">
-    <MediaGallery client:load />
+<BaseLayout title="Videos — Eduardo Osteicoechea">
+  <div class="page-shell">
+    <GalleryPage client:load />
   </div>
 </BaseLayout>

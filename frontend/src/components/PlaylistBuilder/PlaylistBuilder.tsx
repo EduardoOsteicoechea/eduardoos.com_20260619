@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuthEmailFromToken, isApsAdminEmail } from "../../lib/auth";
-import { ensureEmusicForLibrary } from "../../lib/emusicCloud";
+import { ensureEmusicForLibrary, ensureEmusicForTrack } from "../../lib/emusicCloud";
 import {
     buildEmusicsBundle,
     downloadEmusicsBundle,
@@ -9,11 +9,13 @@ import {
     offlineItemsToAudioLibrary,
     readEmusicsFile,
 } from "../../lib/emusicsBundle";
-import { fetchAudioLibrary, isLocalTrackKey, makeLocalTrackKey, mediaObjectPlaybackUrl, persistableTrackIds, trackDisplayName, type AudioLibraryItem, } from "../../lib/mediaLibrary";
+import { fetchAudioLibrary, isLocalTrackKey, makeLocalTrackKey, mediaObjectPlaybackUrl, persistableTrackIds, removeWorshipLibraryTrack, trackDisplayName, type AudioLibraryItem, } from "../../lib/mediaLibrary";
 import { countOfflineTracks, getOfflineTrackUrl, revokeOfflineTrackUrl, saveTrackOffline } from "../../lib/offlineAudio";
 import { getOfflineLibraryCatalog, saveOfflineLibraryCatalog } from "../../lib/offlineEmusic";
+import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import PlaylistControls from "./PlaylistControls";
 import PlaylistLyrics from "./PlaylistLyrics";
+import SongRecorder from "./SongRecorder";
 import { IconAddToPlaylist, IconChevronDown, IconChevronUp, IconRemove, } from "./PlaylistIcons";
 import "./PlaylistBuilder.css";
 const DRAG_MIME = "application/x-eduardoos-track-key";
@@ -46,6 +48,7 @@ export default function PlaylistBuilder() {
     const [offlineReadyCount, setOfflineReadyCount] = useState(0);
     const [offlineDownloading, setOfflineDownloading] = useState(false);
     const [offlineProgress, setOfflineProgress] = useState("");
+    const [isAdmin, setIsAdmin] = useState(false);
     const emusicsFileInputRef = useRef<HTMLInputElement>(null);
     const localBlobUrlsRef = useRef<Map<string, string>>(new Map());
     const loadedTrackKeyRef = useRef<string>("");
@@ -76,6 +79,10 @@ export default function PlaylistBuilder() {
             }
             setUrlByKey(map);
             await refreshOfflineCount(tracks.map((track) => track.key));
+            // Show the selectable queue immediately — no separate "create playlist" step.
+            setActiveTracks((current) =>
+                current.length > 0 ? current : tracks.map((track) => track.key),
+            );
 
             if (isApsAdminEmail(getAuthEmailFromToken())) {
                 void ensureEmusicForLibrary(
@@ -95,6 +102,9 @@ export default function PlaylistBuilder() {
                 setLibrary(tracks);
                 setUrlByKey(new Map());
                 await refreshOfflineCount(tracks.map((track) => track.key));
+                setActiveTracks((current) =>
+                    current.length > 0 ? current : tracks.map((track) => track.key),
+                );
                 setMessage(`Biblioteca offline: ${tracks.length} pistas desde .emusics / caché local.`);
                 return;
             }
@@ -116,6 +126,9 @@ export default function PlaylistBuilder() {
             }
         })();
     }, [loadLibrary]);
+    useEffect(() => {
+        setIsAdmin(isApsAdminEmail(getAuthEmailFromToken()));
+    }, []);
     const currentTrackKey = activeTracks[currentIndex] ?? "";
     const nowPlayingLabel = currentTrackKey
         ? `Now playing: ${trackDisplayName(currentTrackKey)}`
@@ -263,6 +276,60 @@ export default function PlaylistBuilder() {
         setActiveTracks((tracks) => [...tracks, ...addedKeys]);
         setMessage(`Added ${addedKeys.length} local track(s) for this session only (not saved).`);
     }
+
+    /**
+     * After admin mic upload: put the S3 track in the library + session playlist,
+     * select it, and ensure an empty .emusic shell so lyrics editing is ready.
+     */
+    async function handleRecordedTrack(track: AudioLibraryItem) {
+        const playbackUrl = mediaObjectPlaybackUrl(track.key, track.url);
+        setLibrary((prev) => {
+            if (prev.some((item) => item.key === track.key)) return prev;
+            return [...prev, { ...track, url: playbackUrl }];
+        });
+        setUrlByKey((prev) => {
+            const next = new Map(prev);
+            next.set(track.key, playbackUrl);
+            return next;
+        });
+        setActiveTracks((tracks) => {
+            if (tracks.includes(track.key)) return tracks;
+            return [...tracks, track.key];
+        });
+        // Select after append — use functional update against the ref snapshot.
+        setCurrentIndex(() => {
+            const keys = activeTracksRef.current;
+            const existing = keys.indexOf(track.key);
+            if (existing >= 0) return existing;
+            // Ref may not include the new key yet; point at the forthcoming last index.
+            return keys.includes(track.key) ? keys.indexOf(track.key) : keys.length;
+        });
+        // Second pass once React has committed activeTracks (ref is synced each render).
+        queueMicrotask(() => {
+            const keys = activeTracksRef.current;
+            const idx = keys.indexOf(track.key);
+            if (idx >= 0) setCurrentIndex(idx);
+        });
+
+        setMessage(`Grabación en lista: ${trackDisplayName(track.key)}`);
+        setError("");
+        try {
+            const ensured = await ensureEmusicForTrack(track.key);
+            if (ensured?.created) {
+                setMessage(
+                    `Grabación en lista: ${trackDisplayName(track.key)} · letras .emusic listas para editar.`,
+                );
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            openApiErrorModal(message, {
+                title: "Letras .emusic",
+                summary: "La grabación entró en la lista, pero no se pudo crear/abrir .emusic.",
+            });
+        }
+        void refreshOfflineCount([...library.map((item) => item.key), track.key]);
+    }
+
     function removeTrack(index: number) {
         setActiveTracks((tracks) => {
             const removed = tracks[index];
@@ -278,6 +345,45 @@ export default function PlaylistBuilder() {
             return idx;
         });
     }
+
+    /**
+     * Admin permanent remove from the shared library listing (soft-delete).
+     * Confirms first; backend keeps the S3 audio object and only tombstones the key.
+     */
+    async function permanentlyRemoveLibraryTrack(item: AudioLibraryItem) {
+        const label = trackDisplayName(item.key);
+        const ok = window.confirm(
+            `¿Eliminar permanentemente «${label}» de la biblioteca?\n\n` +
+                "El archivo de audio se conserva en S3; solo se quita de la lista.",
+        );
+        if (!ok) return;
+
+        try {
+            await removeWorshipLibraryTrack(item.key);
+            setLibrary((prev) => prev.filter((row) => row.key !== item.key));
+            setUrlByKey((prev) => {
+                const next = new Map(prev);
+                next.delete(item.key);
+                return next;
+            });
+            setActiveTracks((tracks) => {
+                const next = tracks.filter((key) => key !== item.key);
+                setCurrentIndex((idx) => Math.min(idx, Math.max(0, next.length - 1)));
+                return next;
+            });
+            setMessage(`Eliminado de la biblioteca (S3 retenido): ${label}`);
+            void refreshOfflineCount(
+                library.filter((row) => row.key !== item.key).map((row) => row.key),
+            );
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            openApiErrorModal(message, {
+                title: "Eliminar de la biblioteca",
+                summary: "DELETE /api/media/audio/library rechazó la eliminación (admin + S3).",
+            });
+        }
+    }
+
     function moveTrack(from: number, to: number) {
         if (from === to || from < 0 || to < 0)
             return;
@@ -541,6 +647,8 @@ export default function PlaylistBuilder() {
         }}
       />
 
+      <SongRecorder onRecorded={(track) => void handleRecordedTrack(track)} />
+
       <div className="playlist-builder__grid">
         <section className="playlist-builder__panel playlist-builder__panel--library" aria-label="Audio library">
           <ul className="playlist-builder__list">
@@ -550,12 +658,28 @@ export default function PlaylistBuilder() {
                 files to <code>media/worship_playlists/</code>.
               </li>) : (library.map((item) => (<li key={item.key} className="playlist-builder__item playlist-builder__item--library" draggable onDragStart={(e) => handleLibraryDragStart(item.key, e)} onDoubleClick={() => addTrack(item.key)}>
                   <span className="playlist-builder__item-label">{trackDisplayName(item.key)}</span>
-                  <button type="button" className="playlist-builder__icon-btn" title="Add to playlist" aria-label="Add to playlist" onClick={(e) => {
+                  <div className="playlist-builder__item-actions">
+                    {isAdmin ? (
+                      <button
+                        type="button"
+                        className="playlist-builder__icon-btn playlist-builder__icon-btn--danger"
+                        title="Eliminar permanentemente de la biblioteca"
+                        aria-label={`Eliminar permanentemente ${trackDisplayName(item.key)} de la biblioteca`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void permanentlyRemoveLibraryTrack(item);
+                        }}
+                      >
+                        <IconRemove />
+                      </button>
+                    ) : null}
+                    <button type="button" className="playlist-builder__icon-btn" title="Add to playlist" aria-label="Add to playlist" onClick={(e) => {
                 e.stopPropagation();
                 addTrack(item.key);
             }}>
                     <IconAddToPlaylist />
                   </button>
+                  </div>
                 </li>)))}
           </ul>
         </section>

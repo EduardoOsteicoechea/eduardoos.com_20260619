@@ -1,6 +1,15 @@
 import "./style.css";
-import { MENU_ICON } from "./icons";
+import "../../../components/HeaderDynamicMenu/HeaderDynamicMenu.css";
 import { renderShell } from "./shell";
+
+/** Must match HeaderDynamicMenu host id (Header always renders this empty slot). */
+const HEADER_DYNAMIC_MENU_HOST_ID = "header-dynamic-menu-host";
+
+declare global {
+    interface Window {
+        __eduardoosHeaderDynamicMenu?: HTMLElement | null;
+    }
+}
 import type { PamphletTrayAction } from "./create_element";
 import { normalizeImageDataUrlToJpeg } from "./create_element";
 import {
@@ -28,17 +37,18 @@ import {
     savePamphlet,
     setOpenFileName,
 } from "./pamphlet_file";
-import { fetchEpam, fetchEpams, saveEpamToCloud } from "../../epams";
+import { fetchEpam, fetchEpams, fetchEpamSeriesTree, saveEpamToCloud } from "../../epams";
 import { getAuthToken, isAuthenticated } from "../../auth";
 import { DOCUMENT_ROUTES } from "../../../config/routes";
 import { createCorrelationId } from "../../telemetry";
+import { openApiErrorModal } from "../../../components/ServerErrorModal/ServerErrorModal";
 import {
     createAddItemButton,
     createItemElement,
     createItemSpacer,
     getFlatIndex,
     getItemLocation,
-    isHeaderItem,
+    isChromeItem,
     isImageItem,
     renderFromPamphlet,
     renderPageChrome,
@@ -48,11 +58,13 @@ import {
 } from "./pamphlet_io";
 import {
     FOOTER_COLUMN,
+    FOOTER_FIELD_KEYS,
     HEADER_COLUMN,
     HEADER_FIELD_KEYS,
     createParagraphItem,
     createEmptyPamphlet,
     type CreatePamphletMeta,
+    type FooterFieldKey,
     type HeaderFieldKey,
     type LastEditedElement,
     type PamphletHeader,
@@ -71,7 +83,7 @@ export interface PamphletMountHandle {
 export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const appRoot = document.createElement("div");
     appRoot.className = "pamphlet-app";
-    appRoot.innerHTML = renderShell(MENU_ICON);
+    appRoot.innerHTML = renderShell();
     host.replaceChildren(appRoot);
 
     function requireElement<T extends HTMLElement>(selector: string): T {
@@ -87,9 +99,9 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const printBtn = requireElement<HTMLButtonElement>("#btn-print");
     const viewDesktopBtn = requireElement<HTMLButtonElement>("#btn-view-desktop");
     const viewMobileBtn = requireElement<HTMLButtonElement>("#btn-view-mobile");
-    const menuBtn = requireElement<HTMLButtonElement>("#btn-menu");
-    const sidebar = requireElement<HTMLElement>("#app-sidebar");
-    const sidebarBackdrop = requireElement<HTMLElement>("#sidebar-backdrop");
+    const seriesBtn = requireElement<HTMLButtonElement>("#btn-series");
+    const trayToggleBtn = requireElement<HTMLButtonElement>("#btn-activity-expand");
+    const activityTray = requireElement<HTMLElement>("#pamphlet-header-menu-tray");
     const createModal = requireElement<HTMLDialogElement>("#create-modal");
     const createSaveModal = requireElement<HTMLDialogElement>("#create-save-modal");
     const createSaveLocalBtn = requireElement<HTMLButtonElement>("#create-save-local");
@@ -110,12 +122,25 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const modalSeries = requireElement<HTMLInputElement>("#modal-series");
     const modalChapter = requireElement<HTMLInputElement>("#modal-chapter");
     const modalAuthor = requireElement<HTMLInputElement>("#modal-author");
+    const seriesModal = requireElement<HTMLDialogElement>("#series-modal");
+    const seriesForm = requireElement<HTMLFormElement>("#series-form");
+    const seriesModalSeries = requireElement<HTMLInputElement>("#series-modal-series");
+    const seriesModalChapter = requireElement<HTMLInputElement>("#series-modal-chapter");
+    const seriesTreeEl = requireElement<HTMLElement>("#series-tree");
+    const seriesTreeHint = requireElement<HTMLElement>("#series-tree-hint");
+    const seriesModalCancelBtn = requireElement<HTMLButtonElement>("#series-modal-cancel");
     const itemTypeModal = requireElement<HTMLDialogElement>("#item-type-modal");
     const itemTypeCancelBtn = requireElement<HTMLButtonElement>("#item-type-cancel");
-    const fileToolbar = requireElement<HTMLElement>("#file-toolbar");
+    const headerMenu = requireElement<HTMLElement>("#pamphlet-header-menu");
 
-    // Escape .pamphlet-app { isolation: isolate } so fixed chrome can sit above the site header
-    document.body.append(fileToolbar, sidebarBackdrop, sidebar);
+    // Mount tools into Header Dynamic Menu host (inside Header rail / mobile bar).
+    const menuHost = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
+    window.__eduardoosHeaderDynamicMenu = headerMenu;
+    if (menuHost) {
+        menuHost.replaceChildren(headerMenu);
+    } else {
+        document.body.append(headerMenu);
+    }
 
     type ViewMode = "desktop" | "mobile";
     /** Narrow / phone viewports start in stacked mobile layout (letter sheet is desktop-only). */
@@ -141,21 +166,28 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
 
 function updatePrintAvailability(): void {
     printBtn.disabled = !hasEditableSession() || !currentDoc;
+    syncSeriesButtonVisibility();
 }
 
-function setSidebarOpen(open: boolean): void {
-    sidebar.classList.toggle("is-open", open);
-    sidebar.setAttribute("aria-hidden", open ? "false" : "true");
-    menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
-    sidebarBackdrop.hidden = !open;
+function setActivityTrayOpen(open: boolean): void {
+    headerMenu.classList.toggle("header-dynamic-menu--tray-open", open);
+    activityTray.classList.toggle("header-dynamic-menu__tray--open", open);
+    activityTray.hidden = !open;
+    trayToggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    trayToggleBtn.classList.toggle("header-dynamic-menu__tray-toggle--open", open);
 }
 
-function closeSidebar(): void {
-    setSidebarOpen(false);
+function closeActivityTray(): void {
+    setActivityTrayOpen(false);
 }
 
-function toggleSidebar(): void {
-    setSidebarOpen(!sidebar.classList.contains("is-open"));
+function toggleActivityTray(): void {
+    setActivityTrayOpen(activityTray.hidden);
+}
+
+function syncSeriesButtonVisibility(): void {
+    const open = hasEditableSession() && currentDoc !== null;
+    seriesBtn.hidden = !open;
 }
 
 /** Body column width in mm — never wider than print; scale down only if viewport is narrower. */
@@ -218,21 +250,23 @@ function syncSheetScale(): void {
     syncDesktopViewScale();
 }
 
-function applyViewMode(mode: ViewMode, options?: { closeSidebar?: boolean }): void {
+function applyViewMode(mode: ViewMode, options?: { closeTray?: boolean }): void {
     viewMode = mode;
     appRoot.setAttribute("data-view-mode", mode);
     viewDesktopBtn.classList.toggle("is-active", mode === "desktop");
+    viewDesktopBtn.classList.toggle("header-dynamic-menu__btn--active", mode === "desktop");
     viewMobileBtn.classList.toggle("is-active", mode === "mobile");
+    viewMobileBtn.classList.toggle("header-dynamic-menu__btn--active", mode === "mobile");
     viewDesktopBtn.setAttribute("aria-pressed", mode === "desktop" ? "true" : "false");
     viewMobileBtn.setAttribute("aria-pressed", mode === "mobile" ? "true" : "false");
     syncSheetScale();
-    if (options?.closeSidebar !== false) {
-        closeSidebar();
+    if (options?.closeTray !== false) {
+        closeActivityTray();
     }
 }
 
 function setViewMode(mode: ViewMode): void {
-    applyViewMode(mode, { closeSidebar: true });
+    applyViewMode(mode, { closeTray: true });
 }
 
 /** While printing, force desktop letter layout even if the screen is in mobile view. */
@@ -242,7 +276,7 @@ function beginPrintDesktopLayout(): void {
     if (viewModeBeforePrint !== null) return;
     viewModeBeforePrint = viewMode;
     if (viewMode === "mobile") {
-        applyViewMode("desktop", { closeSidebar: false });
+        applyViewMode("desktop", { closeTray: false });
         void main.offsetHeight;
     }
 }
@@ -252,7 +286,7 @@ function endPrintDesktopLayout(): void {
     const restore = viewModeBeforePrint;
     viewModeBeforePrint = null;
     if (restore === "mobile") {
-        applyViewMode("mobile", { closeSidebar: false });
+        applyViewMode("mobile", { closeTray: false });
     }
 }
 
@@ -304,7 +338,6 @@ async function ensurePamphletImagesAreJpeg(doc: PamphletStructure): Promise<void
         doc.column_6,
         doc.column_7,
         doc.column_8,
-        doc.footer.items,
     ];
     for (const items of cols) {
         for (const item of items) {
@@ -329,7 +362,7 @@ async function printDocument(): Promise<void> {
         return;
     }
 
-    closeSidebar();
+    closeActivityTray();
 
     // Capture pan/zoom/height from the live DOM BEFORE any desktop remount can wipe them.
     const live = serializePamphlet(main, currentDoc.last_edited_element, currentDoc);
@@ -383,7 +416,7 @@ async function printDocument(): Promise<void> {
 const usLetterHeightInMillimeters = 215.9;
 const pageMarginMm = 10;
 const pageHeaderHeightMm = 23; // matches --page-header-height / PamphletHeaderHMm
-const pageFooterHeightMm = 37.5; // 15mm × 2.5
+const pageFooterHeightMm = 48; // matches --page-footer-height / PamphletFooterHMm
 const colGutterNarrowMm = 4;
 /** Gap between page header and cols 1–2 (matches --header-body-gutter). */
 const headerBodyGutterMm = 5;
@@ -394,7 +427,7 @@ const page1RightColHeightMm =
     columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 167.9
 /** Cols 7–8: above page footer → discount gutter above footer + footer */
 const page1LeftColHeightMm =
-    columnContentHeightMm - colGutterNarrowMm - pageFooterHeightMm; // 154.4
+    columnContentHeightMm - colGutterNarrowMm - pageFooterHeightMm; // 143.9
 
 function maxHeightForColumn(columnIndex: number): number {
     if (columnIndex === 1 || columnIndex === 2) return page1RightColHeightMm;
@@ -443,8 +476,8 @@ function readLastEpamId(): string | null {
 
 async function openCloudDocumentById(epamId: string): Promise<void> {
     const loaded = await fetchEpam(epamId);
-    const doc = loaded.document as { type?: string } | undefined;
-    if (!doc || typeof doc !== "object" || !doc.type) {
+    const doc = loaded.document as PamphletStructure | undefined;
+    if (!doc || typeof doc !== "object" || !(doc as { type?: string }).type) {
         throw new Error(
             "El servidor devolvió un panfleto vacío (sin documento). Suele ser un .epam sin cuerpo en S3.",
         );
@@ -453,7 +486,7 @@ async function openCloudDocumentById(epamId: string): Promise<void> {
     memorySession = false;
     cloudEpamId = loaded.meta.epamId;
     setOpenFileName(loaded.meta.fileName);
-    loadPamphlet(loaded.document);
+    loadPamphlet(doc);
     rememberLastEpamId(loaded.meta.epamId);
 }
 
@@ -558,23 +591,6 @@ function stripTrailingItemSpacer(parent: HTMLElement): number {
     return mm;
 }
 
-function measureBlockMm(item: HTMLElement, spacer: HTMLElement | null): number {
-    const prevParent = item.parentElement;
-    const nextSibling = item.nextSibling;
-    const spacerParent = spacer?.parentElement ?? null;
-    const spacerNext = spacer?.nextSibling ?? null;
-
-    const { blockMm } = measureBlockInSandbox(item, spacer);
-
-    if (prevParent) {
-        prevParent.insertBefore(item, nextSibling);
-    }
-    if (spacer && spacerParent) {
-        spacerParent.insertBefore(spacer, spacerNext);
-    }
-    return blockMm;
-}
-
 /** Probe how much vertical space a new starter item (+ spacer) and the + button need. */
 function measureAddControlsMm(_host: HTMLElement): { newItemMm: number; buttonMm: number } {
     const { column } = ensureMeasureRoot();
@@ -593,7 +609,7 @@ function measureAddControlsMm(_host: HTMLElement): { newItemMm: number; buttonMm
     return { newItemMm, buttonMm };
 }
 
-/** Keep #file-toolbar at a constant visual size when the user zooms the page. */
+/** Keep header-menu chrome tokens stable when the user zooms the page. */
 function syncFixedChromeScale(): void {
     const dpr = window.devicePixelRatio || 1;
     const zoom = dpr / uiChromeBaselineDpr;
@@ -650,29 +666,6 @@ function placeColumnAddButton(
         }
         colIdx++;
         filled = 0;
-    }
-}
-
-function placeFooterAddButton(footer: HTMLElement): void {
-    footer.querySelector(":scope > .pamphlet-add-item-button")?.remove();
-
-    let filledMm = 0;
-    const items = footer.querySelectorAll<HTMLElement>(":scope > .pamphlet-item");
-    items.forEach((item) => {
-        const spacer = item.nextElementSibling?.classList.contains("pamphlet-item-spacer")
-            ? (item.nextElementSibling as HTMLElement)
-            : null;
-        filledMm += measureBlockMm(item, spacer);
-    });
-
-    const { newItemMm, buttonMm } = measureAddControlsMm(footer);
-    // Empty footer: only the + needs to fit; otherwise require room for item + button
-    const fits =
-        filledMm === 0
-            ? buttonMm <= pageFooterHeightMm
-            : filledMm + newItemMm + buttonMm <= pageFooterHeightMm;
-    if (fits) {
-        footer.appendChild(createAddItemButton(FOOTER_COLUMN));
     }
 }
 
@@ -845,10 +838,6 @@ function reflowAndReport(container: HTMLElement) {
 
     if (currentDoc) {
         renderPageChrome(container, currentDoc);
-        const footer = container.querySelector<HTMLElement>(":scope > .pamphlet-page-footer");
-        if (footer) {
-            placeFooterAddButton(footer);
-        }
     }
 
     console.log("--- Auto-Reflow Layout Report ---");
@@ -924,11 +913,11 @@ function activateEditAt(data: PamphletStructure, loc: LastEditedElement): void {
     }
 
     if (loc.column === FOOTER_COLUMN) {
-        const items = Array.from(
-            main.querySelectorAll<HTMLElement>(":scope > .pamphlet-page-footer > .pamphlet-item"),
+        const field = FOOTER_FIELD_KEYS[Math.min(Math.max(loc.index, 0), FOOTER_FIELD_KEYS.length - 1)];
+        const item = main.querySelector<HTMLElement>(
+            `:scope > .pamphlet-page-footer .pamphlet-item[data-footer-field="${field}"]`,
         );
-        if (items.length === 0) return;
-        clickInner(items[Math.min(Math.max(loc.index, 0), items.length - 1)]);
+        if (item) clickInner(item);
         return;
     }
 
@@ -950,6 +939,7 @@ function renderDocument(data: PamphletStructure, openEdit: boolean): void {
     currentHeader = { ...data.header };
     renderFromPamphlet(main, data);
     reflowAndReport(main);
+    updatePrintAvailability();
     syncSheetScale();
     if (openEdit) {
         activateEditAt(data, data.last_edited_element);
@@ -1008,6 +998,41 @@ async function commitDocument(data: PamphletStructure, openEdit: boolean): Promi
     }
 }
 
+/**
+ * Persist header/footer chrome without reflowing body columns.
+ * Full renderDocument/reflow after chrome edits reshuffled / hid column 8 ink.
+ */
+async function commitChromeOnly(data: PamphletStructure): Promise<void> {
+    if (!hasEditableSession()) {
+        setError("No pamphlet file is open. Open or create a file first.");
+        return;
+    }
+
+    try {
+        let next = ensureDocumentId(data);
+        currentDoc = next;
+        currentHeader = { ...next.header };
+        renderPageChrome(main, next);
+        if (hasOpenFile()) {
+            await savePamphlet(next);
+            setStatus(`Saved: ${getOpenFileName() || "document"}`, "success");
+        } else if (cloudEpamId) {
+            next = await persistCloud(next);
+            currentDoc = next;
+            currentHeader = { ...next.header };
+            renderPageChrome(main, next);
+            setStatus(`Saved to cloud: ${getOpenFileName() || cloudEpamId}`, "success");
+        } else {
+            setStatus("Updated in browser — use Save to cloud to keep a copy.", "info");
+        }
+        clearError();
+        syncSheetScale();
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(`Save failed: ${message}`);
+    }
+}
+
 function pushUndoSnapshot(): void {
     if (currentDoc) {
         undoSnapshot = clonePamphlet(currentDoc);
@@ -1037,6 +1062,17 @@ function syncContentIntoDoc(
         const field = container.getAttribute("data-header-field") as HeaderFieldKey | null;
         if (field && HEADER_FIELD_KEYS.includes(field)) {
             data.header[field] = content;
+        }
+        return loc;
+    }
+
+    if (loc.column === FOOTER_COLUMN) {
+        syncItemContentFromTextarea(container);
+        const tray = container.querySelector<HTMLTextAreaElement>(".edit_tray_text_area");
+        const content = tray?.value ?? "";
+        const field = container.getAttribute("data-footer-field") as FooterFieldKey | null;
+        if (field && FOOTER_FIELD_KEYS.includes(field)) {
+            data.footer[field] = content;
         }
         return loc;
     }
@@ -1109,7 +1145,7 @@ async function handleAddItemButton(column: number): Promise<void> {
         setError("No pamphlet file is open.");
         return;
     }
-    if (column !== FOOTER_COLUMN && (column < 1 || column > 8)) return;
+    if (column < 1 || column > 8) return;
     openItemTypeModal({ mode: "end", column });
 }
 
@@ -1149,7 +1185,7 @@ async function handleTrayAction(detail: PamphletTrayAction): Promise<void> {
     }
 
     if (detail.action === "undo") {
-        if (isHeaderItem(detail.container)) return;
+        if (isChromeItem(detail.container)) return;
         if (!undoSnapshot) {
             setError("Nothing to undo.");
             return;
@@ -1166,13 +1202,16 @@ async function handleTrayAction(detail: PamphletTrayAction): Promise<void> {
     const loc = syncContentIntoDoc(detail.container, base);
     if (!loc) return;
 
-    // Header: only close updates JSON (undo is local in the tray)
-    if (loc.column === HEADER_COLUMN) {
+    // Header / footer chrome: only close updates JSON (undo is local in the tray).
+    // Do NOT full-reflow body columns — that reshuffled / hid col 7–8 ink.
+    if (loc.column === HEADER_COLUMN || loc.column === FOOTER_COLUMN) {
         if (detail.action !== "close") return;
         base.last_edited_element = loc;
-        currentHeader = { ...base.header };
+        if (loc.column === HEADER_COLUMN) {
+            currentHeader = { ...base.header };
+        }
         pushUndoSnapshot();
-        await commitDocument(base, false);
+        await commitChromeOnly(base);
         return;
     }
 
@@ -1270,12 +1309,15 @@ on(main, "pamphlet-tray-action", (event: Event) => {
     void handleTrayAction(custom.detail);
 });
 
-on(menuBtn, "click", () => {
-    toggleSidebar();
+on(trayToggleBtn, "click", () => {
+    toggleActivityTray();
 });
 
-on(sidebarBackdrop, "click", () => {
-    closeSidebar();
+on(document, "pointerdown", (event: Event) => {
+    if (activityTray.hidden) return;
+    const target = event.target as Node;
+    if (headerMenu.contains(target)) return;
+    closeActivityTray();
 });
 
 function syncOpenSourceModalForFsa(): void {
@@ -1293,7 +1335,7 @@ function syncOpenSourceModalForFsa(): void {
 }
 
 on(openBtn, "click", () => {
-    closeSidebar();
+    closeActivityTray();
     clearError();
     syncOpenSourceModalForFsa();
     openSourceModal.showModal();
@@ -1382,7 +1424,10 @@ on(openSourceCloudBtn, "click", async () => {
                     } catch (err) {
                         const message = err instanceof Error ? err.message : String(err);
                         setError(`Cloud open failed: ${message}`);
-                        window.alert(`No se pudo abrir el panfleto.\n\n${message}`);
+                        openApiErrorModal(message, {
+                            title: "Cloud pamphlet error",
+                            summary: "Could not open this .epam from the server.",
+                        });
                         hint.textContent = "Clic para abrir";
                     } finally {
                         btn.disabled = false;
@@ -1396,7 +1441,10 @@ on(openSourceCloudBtn, "click", async () => {
         closeOpenCloudModal();
         const message = err instanceof Error ? err.message : String(err);
         setError(`Cloud list failed: ${message}`);
-        window.alert(`No se pudo listar panfletos en la nube.\n\n${message}`);
+        openApiErrorModal(message, {
+            title: "Cloud pamphlet error",
+            summary: "Could not list pamphlets from the server.",
+        });
     }
 });
 
@@ -1404,8 +1452,154 @@ on(openCloudCancelBtn, "click", () => {
     closeOpenCloudModal();
 });
 
+function closeSeriesModal(): void {
+    if (seriesModal.open) seriesModal.close();
+}
+
+async function refreshSeriesTree(activeEpamId: string | null): Promise<void> {
+    seriesTreeEl.replaceChildren();
+    seriesTreeHint.hidden = false;
+    seriesTreeHint.textContent = "Loading tree…";
+    if (!getAuthToken() || !isAuthenticated()) {
+        seriesTreeHint.textContent = "Sign in to browse your series tree from the cloud.";
+        return;
+    }
+    try {
+        const tree = await fetchEpamSeriesTree();
+        seriesTreeEl.replaceChildren();
+        if (tree.count === 0) {
+            seriesTreeHint.textContent = "No cloud pamphlets yet — save one to grow the tree.";
+            return;
+        }
+        seriesTreeHint.hidden = true;
+        for (const seriesNode of tree.series) {
+            const seriesBlock = document.createElement("div");
+            seriesBlock.className = "series-tree__series";
+            seriesBlock.setAttribute("role", "treeitem");
+            seriesBlock.setAttribute("aria-expanded", "true");
+            const seriesTitle = document.createElement("h3");
+            seriesTitle.className = "series-tree__series-title";
+            seriesTitle.textContent = seriesNode.name;
+            seriesBlock.appendChild(seriesTitle);
+            for (const chapter of seriesNode.chapters) {
+                const chapterBlock = document.createElement("div");
+                chapterBlock.className = "series-tree__chapter";
+                const chapterTitle = document.createElement("h4");
+                chapterTitle.className = "series-tree__chapter-title";
+                chapterTitle.textContent = `Capítulo ${chapter.name}`;
+                chapterBlock.appendChild(chapterTitle);
+                const list = document.createElement("ul");
+                list.className = "series-tree__items";
+                for (const item of chapter.items) {
+                    const li = document.createElement("li");
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "series-tree__item";
+                    if (activeEpamId && item.epamId === activeEpamId) {
+                        btn.classList.add("is-current");
+                    }
+                    btn.textContent = item.title;
+                    btn.title = item.fileName || item.epamId;
+                    btn.addEventListener("click", () => {
+                        void (async () => {
+                            try {
+                                await openCloudDocumentById(item.epamId);
+                                closeSeriesModal();
+                                setStatus(`Opened from series tree: ${item.title}`, "success");
+                            } catch (err) {
+                                const message = err instanceof Error ? err.message : String(err);
+                                setError(`Cloud open failed: ${message}`);
+                                openApiErrorModal(message, {
+                                    title: "Series tree error",
+                                    summary: "Could not open this pamphlet from the series tree.",
+                                });
+                            }
+                        })();
+                    });
+                    li.appendChild(btn);
+                    list.appendChild(li);
+                }
+                chapterBlock.appendChild(list);
+                seriesBlock.appendChild(chapterBlock);
+            }
+            seriesTreeEl.appendChild(seriesBlock);
+        }
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        seriesTreeHint.hidden = false;
+        seriesTreeHint.textContent = `Could not load series tree: ${message}`;
+        openApiErrorModal(message, {
+            title: "Series tree error",
+            summary: "Could not load series → chapters → pamphlet from the server.",
+        });
+    }
+}
+
+async function openSeriesModal(): Promise<void> {
+    closeActivityTray();
+    clearError();
+    if (!currentDoc) {
+        setError("Open a pamphlet before editing its series.");
+        return;
+    }
+    seriesModalSeries.value = currentDoc.header.series || "";
+    seriesModalChapter.value = currentDoc.header.series_chapter || "";
+    seriesModal.showModal();
+    seriesModalSeries.focus();
+    await refreshSeriesTree(cloudEpamId);
+}
+
+on(seriesBtn, "click", () => {
+    void openSeriesModal();
+});
+
+on(seriesModalCancelBtn, "click", () => {
+    closeSeriesModal();
+});
+
+on(seriesForm, "submit", (event: Event) => {
+    event.preventDefault();
+    void (async () => {
+        if (!currentDoc) return;
+        const series = seriesModalSeries.value.trim();
+        const series_chapter = seriesModalChapter.value.trim();
+        if (!series || !series_chapter) {
+            setError("Series and chapter are required.");
+            return;
+        }
+        const nextHeader = {
+            ...currentDoc.header,
+            series,
+            series_chapter,
+        };
+        currentHeader = nextHeader;
+        const base = serializePamphlet(main, currentDoc.last_edited_element, currentDoc);
+        const nextDoc: PamphletStructure = { ...base, header: nextHeader };
+        currentDoc = nextDoc;
+        renderPageChrome(main, nextDoc);
+        try {
+            if (getAuthToken() && isAuthenticated()) {
+                const saved = await persistCloud(nextDoc);
+                memorySession = false;
+                renderDocument(saved, false);
+            } else {
+                renderDocument(nextDoc, false);
+            }
+            closeSeriesModal();
+            setStatus("Series updated", "success");
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            setError(`Series save failed: ${message}`);
+            openApiErrorModal(message, {
+                title: "Series save error",
+                summary: "Could not save series metadata for this pamphlet.",
+            });
+        }
+    })();
+});
+
 on(saveCloudBtn, "click", async () => {
-    closeSidebar();
+    closeActivityTray();
     clearError();
     if (!currentDoc) {
         setError("No hay panfleto abierto para guardar.");
@@ -1468,7 +1662,7 @@ function openCreateSaveModal(): void {
 }
 
 on(createBtn, "click", () => {
-    closeSidebar();
+    closeActivityTray();
     openCreateModal();
 });
 
@@ -1618,7 +1812,7 @@ on(viewMobileBtn, "click", () => {
 
 updatePrintAvailability();
 syncFixedChromeScale();
-applyViewMode(viewMode, { closeSidebar: false });
+applyViewMode(viewMode, { closeTray: false });
 on(window, "resize", () => {
     syncFixedChromeScale();
     syncSheetScale();
@@ -1646,9 +1840,11 @@ syncOpenSourceModalForFsa();
             for (const dispose of disposers) dispose();
             disposers.length = 0;
             appRoot.querySelector(":scope > .pamphlet-measure-root")?.remove();
-            fileToolbar.remove();
-            sidebarBackdrop.remove();
-            sidebar.remove();
+            if (window.__eduardoosHeaderDynamicMenu === headerMenu) {
+                window.__eduardoosHeaderDynamicMenu = null;
+            }
+            headerMenu.remove();
+            document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID)?.replaceChildren();
             host.replaceChildren();
         },
     };

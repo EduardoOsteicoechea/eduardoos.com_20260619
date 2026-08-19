@@ -1,17 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { isAuthenticated } from "../../lib/auth";
-import { APP_ROUTES } from "../../config/routes";
-import {
-  askArticle,
-  fetchArticle,
-  fetchArticleQuiz,
-  type ArticleBlock,
-  type QuizDocument,
-  type QuizQuestion,
-} from "../../lib/articles";
+import { APP_ROUTES, ARTICLE_ROUTES } from "../../config/routes";
+import { fetchArticle, type ArticleBlock } from "../../lib/articles";
 import "./ArticleView.css";
-
-type ChatMsg = { role: "user" | "assistant"; text: string };
 
 /** Apply pamphlet bold range style_indexes[0] = [start, end). */
 function StyledArticleText({
@@ -43,6 +33,21 @@ function StyledArticleText({
   );
 }
 
+function upsertAlternateLink(id: string, type: string, href: string): () => void {
+  let link = document.getElementById(id) as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement("link");
+    link.id = id;
+    link.rel = "alternate";
+    document.head.appendChild(link);
+  }
+  link.type = type;
+  link.href = href;
+  return () => {
+    link?.remove();
+  };
+}
+
 export default function ArticleView() {
   const epamId = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -51,29 +56,11 @@ export default function ArticleView() {
 
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState<ArticleBlock[]>([]);
-  const [quiz, setQuiz] = useState<QuizDocument | null>(null);
-  const [quizLoading, setQuizLoading] = useState(false);
+  const [plainText, setPlainText] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [modal, setModal] = useState<null | { passed: boolean; score: number; total: number; misses: QuizQuestion[] }>(
-    null,
-  );
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [chat, setChat] = useState<ChatMsg[]>([]);
-  const [draft, setDraft] = useState("");
-  const [asking, setAsking] = useState(false);
-
   useEffect(() => {
-    if (!isAuthenticated()) {
-      const next = epamId
-        ? APP_ROUTES.article(epamId)
-        : APP_ROUTES.articles;
-      window.location.href = `${APP_ROUTES.login}?next=${encodeURIComponent(next)}`;
-      return;
-    }
     if (!epamId) {
       setError("Article id is missing.");
       setLoading(false);
@@ -86,17 +73,7 @@ export default function ArticleView() {
         if (cancelled) return;
         setTitle(article.title || article.meta.title || "Article");
         setBlocks(article.blocks ?? []);
-        setQuizLoading(true);
-        try {
-          const q = await fetchArticleQuiz(epamId);
-          if (!cancelled) setQuiz(q.quiz);
-        } catch (quizErr) {
-          if (!cancelled) {
-            setError(quizErr instanceof Error ? quizErr.message : "No se pudo generar el quiz");
-          }
-        } finally {
-          if (!cancelled) setQuizLoading(false);
-        }
+        setPlainText(article.plainText ?? "");
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Error al cargar");
       } finally {
@@ -108,49 +85,40 @@ export default function ArticleView() {
     };
   }, [epamId]);
 
-  const allAnswered = useMemo(() => {
-    if (!quiz?.questions?.length) return false;
-    return quiz.questions.every((q) => answers[q.id] !== undefined);
-  }, [quiz, answers]);
-
   useEffect(() => {
-    if (!allAnswered || !quiz || modal) return;
-    const misses = quiz.questions.filter((q) => answers[q.id] !== q.answerIndex);
-    const score = quiz.questions.length - misses.length;
-    setModal({
-      passed: misses.length === 0,
-      score,
-      total: quiz.questions.length,
-      misses,
+    if (!title && !plainText) return;
+    const existing = document.getElementById("article-jsonld");
+    existing?.remove();
+    const script = document.createElement("script");
+    script.id = "article-jsonld";
+    script.type = "application/ld+json";
+    script.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: title,
+      inLanguage: "es",
+      isAccessibleForFree: true,
+      articleBody: plainText,
+      url: typeof window !== "undefined" ? window.location.href : undefined,
     });
-  }, [allAnswered, quiz, answers, modal]);
+    document.head.appendChild(script);
+    return () => {
+      script.remove();
+    };
+  }, [title, plainText]);
 
-  function restoreQuiz() {
-    setAnswers({});
-    setModal(null);
-  }
-
-  async function sendQuestion() {
-    const q = draft.trim();
-    if (!q || asking) return;
-    setAsking(true);
-    setDraft("");
-    setChat((prev) => [...prev, { role: "user", text: q }]);
-    const history = chat.flatMap((m) =>
-      m.role === "user" ? [`P: ${m.text}`] : [`R: ${m.text}`],
-    );
-    try {
-      const res = await askArticle(epamId, q, history);
-      setChat((prev) => [...prev, { role: "assistant", text: res.answer || "(sin respuesta)" }]);
-    } catch (err) {
-      setChat((prev) => [
-        ...prev,
-        { role: "assistant", text: err instanceof Error ? err.message : "Error" },
-      ]);
-    } finally {
-      setAsking(false);
-    }
-  }
+  // Machine formats stay in <head> / clipped nav — not shown in the reading UI.
+  useEffect(() => {
+    if (!epamId) return;
+    const cleanups = [
+      upsertAlternateLink("article-alt-html", "text/html", ARTICLE_ROUTES.html(epamId)),
+      upsertAlternateLink("article-alt-text", "text/plain", ARTICLE_ROUTES.text(epamId)),
+      upsertAlternateLink("article-alt-json", "application/json", ARTICLE_ROUTES.item(epamId)),
+    ];
+    return () => {
+      cleanups.forEach((fn) => fn());
+    };
+  }, [epamId]);
 
   if (loading) {
     return (
@@ -165,12 +133,13 @@ export default function ArticleView() {
       <a className="article-view__back" href={APP_ROUTES.articles}>
         ← Articles
       </a>
-      <article className="article-view__sheet">
+      <article className="article-view__sheet" itemScope itemType="https://schema.org/Article">
+        <meta itemProp="headline" content={title} />
         {error && <p className="article-view__error">{error}</p>}
         {blocks.map((block, i) => {
           if (block.type === "heading_1") {
             return (
-              <h2 key={i} className="article-view__h">
+              <h2 key={i} className="article-view__h" itemProp={i === 0 ? "name" : undefined}>
                 <StyledArticleText
                   content={block.content}
                   styleIndexes={block.style_indexes}
@@ -193,7 +162,7 @@ export default function ArticleView() {
             );
           }
           return (
-            <p key={i} className="article-view__p">
+            <p key={i} className="article-view__p" itemProp="articleBody">
               <StyledArticleText
                 content={block.content}
                 styleIndexes={block.style_indexes}
@@ -201,120 +170,15 @@ export default function ArticleView() {
             </p>
           );
         })}
-
-        <section className="article-quiz" aria-label="Article quiz">
-          <h2 className="article-quiz__title">Quiz</h2>
-          {quizLoading && <p className="article-view__status">Generating questions with AI…</p>}
-          {!quizLoading && quiz?.questions?.map((q) => (
-            <fieldset key={q.id} className="article-quiz__q">
-              <legend className="article-quiz__prompt">{q.prompt}</legend>
-              <div className="article-quiz__choices">
-                {q.choices.map((choice, idx) => {
-                  const selected = answers[q.id] === idx;
-                  return (
-                    <label key={idx} className={`article-quiz__choice${selected ? " is-selected" : ""}`}>
-                      <input
-                        type="radio"
-                        name={q.id}
-                        checked={selected}
-                        onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: idx }))}
-                      />
-                      <span>{choice}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
-          ))}
-        </section>
       </article>
-
-      <button
-        type="button"
-        className="article-view__fab"
-        aria-label="Ask about this article"
-        onClick={() => setSidebarOpen(true)}
-      >
-        ?
-      </button>
-
-      {sidebarOpen && (
-        <div className="article-ask" role="dialog" aria-modal="true" aria-label="Questions about this article">
-          <div className="article-ask__panel">
-            <header className="article-ask__head">
-              <h2 className="article-ask__title">Ask</h2>
-              <p className="article-ask__context">Context: {title}</p>
-              <button type="button" className="article-ask__close" onClick={() => setSidebarOpen(false)}>
-                Close
-              </button>
-            </header>
-            <div className="article-ask__thread">
-              {chat.length === 0 && (
-                <p className="article-ask__hint">Ask anything you want about this article.</p>
-              )}
-              {chat.map((m, i) => (
-                <div key={i} className={`article-ask__msg article-ask__msg--${m.role}`}>
-                  {m.text}
-                </div>
-              ))}
-            </div>
-            <form
-              className="article-ask__form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void sendQuestion();
-              }}
-            >
-              <textarea
-                className="article-ask__input"
-                rows={3}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Write your question…"
-                disabled={asking}
-              />
-              <button type="submit" className="btn btn--primary" disabled={asking || !draft.trim()}>
-                {asking ? "Thinking…" : "Send"}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {modal && (
-        <div className="article-quiz-modal" role="dialog" aria-modal="true">
-          <div className="article-quiz-modal__card">
-            <div
-              className={`article-quiz-modal__gesture${modal.passed ? " is-pass" : " is-fail"}`}
-              aria-hidden
-            >
-              {modal.passed ? "✓" : "✕"}
-            </div>
-            <h2 className="article-quiz-modal__title">
-              {modal.passed ? "Passed" : "Needs review"}
-            </h2>
-            <p className="article-quiz-modal__score">
-              {modal.score} / {modal.total} correct
-            </p>
-            {!modal.passed && (
-              <ul className="article-quiz-modal__misses">
-                {modal.misses.map((q) => (
-                  <li key={q.id}>
-                    <strong>{q.prompt}</strong>
-                    <span>{q.explanation || `Answer: ${q.choices[q.answerIndex]}`}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {modal.passed && (
-              <p className="article-quiz-modal__ok">You mastered this article.</p>
-            )}
-            <button type="button" className="btn btn--primary" onClick={restoreQuiz}>
-              Restore quiz
-            </button>
-          </div>
-        </div>
-      )}
+      {epamId ? (
+        <nav className="articles-crawl-only" aria-hidden="true" data-crawl="article">
+          <a href={ARTICLE_ROUTES.html(epamId)}>semantic HTML</a>
+          <a href={ARTICLE_ROUTES.text(epamId)}>plain text</a>
+          <a href={ARTICLE_ROUTES.item(epamId)}>JSON</a>
+          <a href="/llms.txt">llms.txt</a>
+        </nav>
+      ) : null}
     </div>
   );
 }

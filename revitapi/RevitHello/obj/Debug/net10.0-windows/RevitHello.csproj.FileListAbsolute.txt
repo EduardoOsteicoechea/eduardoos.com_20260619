@@ -1,0 +1,15 @@
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\bin\Debug\net10.0-windows\RevitHello.deps.json
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\bin\Debug\net10.0-windows\RevitHello.dll
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\bin\Debug\net10.0-windows\RevitHello.pdb
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\bin\Debug\net10.0-windows\DesignAutomationBridge.dll
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\obj\Debug\net10.0-windows\RevitHello.csproj.AssemblyReference.cache
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\obj\Debug\net10.0-windows\RevitHello.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\obj\Debug\net10.0-windows\RevitHello.AssemblyInfoInputs.cache
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\obj\Debug\net10.0-windows\RevitHello.AssemblyInfo.cs
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\obj\Debug\net10.0-windows\RevitHello.csproj.CoreCompileInputs.cache
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\obj\Debug\net10.0-windows\RevitHello.sourcelink.json
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\obj\Debug\net10.0-windows\RevitHello.csproj.Up2Date
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\obj\Debug\net10.0-windows\RevitHello.dll
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\obj\Debug\net10.0-windows\refint\RevitHello.dll
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\obj\Debug\net10.0-windows\RevitHello.pdb
+C:\Users\eduar\Documents\work\int\eduardoos.com_20260619\aps_app\RevitHello\obj\Debug\net10.0-windows\ref\RevitHello.dll

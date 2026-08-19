@@ -1,11 +1,10 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
-import SubscriptionBuilder from "../../../components/SubscriptionBuilder/SubscriptionBuilder";
-import "../../observability/observability.css";
+import SubscriptionPage from "../../../components/Subscription/SubscriptionPage";
 ---
 
-<BaseLayout title="Subscription — Eduardo Osteicoechea">
+<BaseLayout title="Subscribe — Eduardo Osteicoechea">
   <div class="page-shell">
-    <SubscriptionBuilder client:load />
+    <SubscriptionPage client:load />
   </div>
 </BaseLayout>

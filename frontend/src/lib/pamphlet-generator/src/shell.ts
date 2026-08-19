@@ -1,23 +1,80 @@
-/** Chrome markup injected into the host mount node (Astro layout slot). */
-export function renderShell(menuIconSrc: string): string {
-    return `
-<header id="file-toolbar">
-  <button type="button" id="btn-menu" class="menu-toggle" aria-label="Menu" aria-expanded="false" aria-controls="app-sidebar">
-    <img src="${menuIconSrc}" alt="" class="menu-toggle-icon" />
-  </button>
-</header>
+/**
+ * Pamphlet chrome markup: Header Dynamic Menu tools + dialogs.
+ * Buttons keep stable ids so main.ts can wire them without a React mount.
+ * Tools mount into #header-dynamic-menu-host inside Header (rail / mobile bar).
+ */
 
-<div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
-<aside id="app-sidebar" class="app-sidebar" aria-hidden="true">
-  <nav class="app-sidebar-nav">
-    <button type="button" id="btn-open">Open file</button>
-    <button type="button" id="btn-create">New pamphlet</button>
-    <button type="button" id="btn-save-cloud">Save to cloud</button>
-    <button type="button" id="btn-print" disabled>Print</button>
-    <button type="button" id="btn-view-desktop" class="is-active" aria-pressed="true">Desktop view</button>
-    <button type="button" id="btn-view-mobile" aria-pressed="false">Mobile view</button>
-  </nav>
-</aside>
+function iconSvg(paths: string, viewBox = "0 0 24 24"): string {
+  return `<svg class="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="${viewBox}" aria-hidden="true" focusable="false">${paths}</svg>`;
+}
+
+const ICONS = {
+  open: iconSvg(
+    `<path d="M4 4h7l2 2h7v14H4V4zm2 4v10h12V8H6z" fill="currentColor"/>`,
+  ),
+  create: iconSvg(
+    `<path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z" fill="currentColor"/>`,
+  ),
+  save: iconSvg(
+    `<path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z" fill="currentColor"/>`,
+  ),
+  print: iconSvg(
+    `<path d="M18 7V3H6v4H4v10h3v4h10v-4h3V7h-2zM8 5h8v2H8V5zm8 14H8v-4h8v4zm2-6h-2v-2H8v2H6V9h12v4z" fill="currentColor"/>`,
+  ),
+  desktop: iconSvg(
+    `<path d="M21 3H3v13h7v2H8v2h8v-2h-2v-2h7V3zm-2 11H5V5h14v9z" fill="currentColor"/>`,
+  ),
+  mobile: iconSvg(
+    `<path d="M15 1H7a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm0 18H7V5h8v14z" fill="currentColor"/>`,
+  ),
+  series: iconSvg(
+    `<path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z" fill="currentColor"/>`,
+  ),
+  expand: iconSvg(
+    `<path d="M7 10l5 5 5-5H7z" fill="currentColor"/>`,
+  ),
+};
+
+/** @param _menuIconSrc retained for call-site compatibility; unused (icons are inline). */
+export function renderShell(_menuIconSrc?: string): string {
+  return `
+<section id="pamphlet-header-menu" class="header-dynamic-menu" aria-label="Pamphlet tools">
+  <div class="header-dynamic-menu__inner">
+    <div class="header-dynamic-menu__actions" role="toolbar" aria-label="Pamphlet actions">
+      <button type="button" id="btn-open" class="header-dynamic-menu__btn" title="Open pamphlet" aria-label="Open pamphlet">
+        ${ICONS.open}
+      </button>
+      <button type="button" id="btn-create" class="header-dynamic-menu__btn" title="New pamphlet" aria-label="New pamphlet">
+        ${ICONS.create}
+      </button>
+      <button type="button" id="btn-save-cloud" class="header-dynamic-menu__btn" title="Save to cloud" aria-label="Save to cloud">
+        ${ICONS.save}
+      </button>
+      <button type="button" id="btn-print" class="header-dynamic-menu__btn" title="Print" aria-label="Print" disabled>
+        ${ICONS.print}
+      </button>
+      <button type="button" id="btn-view-desktop" class="header-dynamic-menu__btn header-dynamic-menu__btn--active is-active" title="Desktop view" aria-label="Desktop view" aria-pressed="true">
+        ${ICONS.desktop}
+      </button>
+      <button type="button" id="btn-view-mobile" class="header-dynamic-menu__btn" title="Mobile view" aria-label="Mobile view" aria-pressed="false">
+        ${ICONS.mobile}
+      </button>
+      <button type="button" id="btn-series" class="header-dynamic-menu__btn" title="Series and chapters" aria-label="Series and chapters" hidden>
+        ${ICONS.series}
+      </button>
+      <button type="button" id="btn-activity-expand" class="header-dynamic-menu__btn header-dynamic-menu__tray-toggle" title="Show action labels" aria-label="Show action labels" aria-expanded="false" aria-controls="pamphlet-header-menu-tray">
+        ${ICONS.expand}
+      </button>
+    </div>
+    <div id="pamphlet-header-menu-tray" class="header-dynamic-menu__tray" role="region" aria-label="Action labels" hidden>
+      <ul class="pamphlet-header-menu-tray__labels">
+        <li>Open · New · Save · Print</li>
+        <li>Desktop / Mobile view</li>
+        <li>Series (when a pamphlet is open)</li>
+      </ul>
+    </div>
+  </div>
+</section>
 
 <dialog id="open-source-modal" class="create-modal">
   <div class="create-modal-form">
@@ -84,6 +141,27 @@ export function renderShell(menuIconSrc: string): string {
       <button type="button" id="create-save-cancel">Cancel</button>
     </div>
   </div>
+</dialog>
+
+<dialog id="series-modal" class="create-modal series-modal">
+  <form id="series-form" class="create-modal-form">
+    <h2>Serie y capítulos</h2>
+    <p class="create-modal-hint">Define the series this pamphlet belongs to, then browse the tree series → chapter → pamphlet.</p>
+    <label>
+      Series
+      <input id="series-modal-series" name="series" type="text" required autocomplete="off" />
+    </label>
+    <label>
+      Chapter
+      <input id="series-modal-chapter" name="series_chapter" type="text" required autocomplete="off" />
+    </label>
+    <div id="series-tree" class="series-tree" role="tree" aria-label="Series tree"></div>
+    <p class="create-modal-hint" id="series-tree-hint">Loading tree…</p>
+    <div class="create-modal-actions">
+      <button type="button" id="series-modal-cancel">Cancel</button>
+      <button type="submit" id="series-modal-save">Save series</button>
+    </div>
+  </form>
 </dialog>
 
 <dialog id="item-type-modal" class="create-modal item-type-modal">

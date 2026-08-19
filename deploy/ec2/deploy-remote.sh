@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Runs on the EC2 host during CI/CD deploy (or manually over SSH).
-# After cutover: production HTTPS serves Eduardo OS Next on :3000 + next frontend dist.
-# Staging (:8080 / :3001) is left alone unless a separate staging workflow runs.
+# Production HTTPS serves frontend/dist + backend on :3000 (systemd eduardoos.service).
 #
 # Selective scopes (CI detects from git diff; defaults = full deploy):
 #   DEPLOY_BACKEND=1|0
@@ -25,7 +24,7 @@ if [[ -z "${DEPLOY_DISK_CLEAN:-}" ]]; then
   fi
 fi
 
-echo "==> Deploying Eduardo OS (Next production) to ${APP_DIR} (${BRANCH})"
+echo "==> Deploying Eduardo OS to ${APP_DIR} (${BRANCH})"
 echo "    scopes: backend=${DEPLOY_BACKEND} frontend=${DEPLOY_FRONTEND} nginx=${DEPLOY_NGINX} disk_clean=${DEPLOY_DISK_CLEAN}"
 
 if [ ! -d "${APP_DIR}/.git" ]; then
@@ -188,11 +187,11 @@ docker rm -f \
   eduardooscom_20260619-database-1 \
   2>/dev/null || true
 
-chmod +x eduardoos-next/deploy/deploy-remote-production.sh
+chmod +x deploy/ec2/deploy-remote-production.sh deploy/ec2/build-frontend.sh
 APP_DIR="${APP_DIR}" \
   DEPLOY_BACKEND="${DEPLOY_BACKEND}" \
   DEPLOY_FRONTEND="${DEPLOY_FRONTEND}" \
-  bash eduardoos-next/deploy/deploy-remote-production.sh
+  bash deploy/ec2/deploy-remote-production.sh
 
 # DynamoDB / S3 markers — only on backend deploys (schema-related).
 if [[ "${DEPLOY_BACKEND}" == "1" ]]; then
@@ -231,5 +230,5 @@ else
   fi
 fi
 
-echo "==> Deploy complete (Eduardo OS Next on production)"
+echo "==> Deploy complete"
 "${COMPOSE[@]}" ps || true

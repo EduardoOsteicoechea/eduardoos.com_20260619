@@ -19,12 +19,26 @@ export interface PamphletHeader {
     date: string;
 }
 
+/**
+ * Fixed footer chrome (mirrors header): action heading, message paragraph,
+ * then a 2×2 meta grid. Each meta slot has an editable label + editable value
+ * so the author can replace “WhatsApp” / “Teléfono” / etc. with any caption.
+ */
 export interface PamphletFooter {
-    items: PamphletItem[];
+    action: string;
+    message: string;
+    label1: string;
+    value1: string;
+    label2: string;
+    value2: string;
+    label3: string;
+    value3: string;
+    label4: string;
+    value4: string;
 }
 
 /**
- * column: 0 = header field, 1–8 = body columns, 9 = footer
+ * column: 0 = header field, 1–8 = body columns, 9 = footer field
  * index: item/field index within that region
  */
 export interface LastEditedElement {
@@ -45,6 +59,29 @@ export const HEADER_FIELD_KEYS = [
 ] as const;
 
 export type HeaderFieldKey = (typeof HEADER_FIELD_KEYS)[number];
+
+export const FOOTER_FIELD_KEYS = [
+    "action",
+    "message",
+    "label1",
+    "value1",
+    "label2",
+    "value2",
+    "label3",
+    "value3",
+    "label4",
+    "value4",
+] as const;
+
+export type FooterFieldKey = (typeof FOOTER_FIELD_KEYS)[number];
+
+/** Default captions for the four meta slots (user can rewrite each label). */
+export const FOOTER_DEFAULT_LABELS = {
+    label1: "WhatsApp",
+    label2: "Teléfono",
+    label3: "Dirección",
+    label4: "Actividades",
+} as const;
 
 export const COLUMN_KEYS = [
     "column_1",
@@ -81,6 +118,21 @@ export const IMAGE_SCALE_STEP = 0.1;
 export const MIN_IMAGE_SCALE = 0.5;
 export const MAX_IMAGE_SCALE = 3;
 export const DEFAULT_IMAGE_SCALE = 1;
+
+export function emptyFooter(): PamphletFooter {
+    return {
+        action: "",
+        message: "",
+        label1: FOOTER_DEFAULT_LABELS.label1,
+        value1: "",
+        label2: FOOTER_DEFAULT_LABELS.label2,
+        value2: "",
+        label3: FOOTER_DEFAULT_LABELS.label3,
+        value3: "",
+        label4: FOOTER_DEFAULT_LABELS.label4,
+        value4: "",
+    };
+}
 
 /**
  * Image pan/zoom reuse unused style_indexes slots (text bold uses [0]):
@@ -136,10 +188,79 @@ const HEADER_KEYS = [
     "series_chapter",
     "date",
 ] as const;
-const FOOTER_KEYS = ["items"] as const;
+const FOOTER_KEYS = [
+    "action",
+    "message",
+    "label1",
+    "value1",
+    "label2",
+    "value2",
+    "label3",
+    "value3",
+    "label4",
+    "value4",
+] as const;
 const LAST_EDITED_KEYS = ["column", "index"] as const;
 const ITEM_KEYS = ["type", "content", "style_indexes", "height_mm"] as const;
 const ITEM_TYPES = new Set<string>(["paragraph", "heading_1", "image"]);
+
+/** Pull text out of a legacy footer.items[] entry. */
+function legacyFooterItemText(item: unknown): string {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) return "";
+    const content = (item as Record<string, unknown>).content;
+    return typeof content === "string" ? content : "";
+}
+
+/**
+ * Upgrade legacy footers into fixed chrome fields.
+ * Supports: items[], whatsapp/phone/… keys, and the current labelN/valueN shape.
+ */
+export function normalizeFooter(raw: unknown): PamphletFooter {
+    const base = emptyFooter();
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return base;
+    const f = raw as Record<string, unknown>;
+
+    const hasNewShape = FOOTER_KEYS.some(
+        (k) => typeof f[k] === "string" && (k.startsWith("label") || k.startsWith("value") || k === "action" || k === "message") && String(f[k]).length > 0,
+    ) || ("label1" in f && "value1" in f);
+
+    if (hasNewShape || FOOTER_KEYS.every((k) => k in f)) {
+        for (const key of FOOTER_KEYS) {
+            const v = f[key];
+            if (typeof v === "string") {
+                base[key] = v;
+            }
+        }
+        // Keep default labels when an empty string was stored for a label slot.
+        if (!base.label1.trim()) base.label1 = FOOTER_DEFAULT_LABELS.label1;
+        if (!base.label2.trim()) base.label2 = FOOTER_DEFAULT_LABELS.label2;
+        if (!base.label3.trim()) base.label3 = FOOTER_DEFAULT_LABELS.label3;
+        if (!base.label4.trim()) base.label4 = FOOTER_DEFAULT_LABELS.label4;
+        return base;
+    }
+
+    // Prior fixed chrome (whatsapp/phone/address/activities as values only).
+    if ("whatsapp" in f || "phone" in f || "address" in f || "activities" in f) {
+        base.action = typeof f.action === "string" ? f.action : "";
+        base.message = typeof f.message === "string" ? f.message : "";
+        base.value1 = typeof f.whatsapp === "string" ? f.whatsapp : "";
+        base.value2 = typeof f.phone === "string" ? f.phone : "";
+        base.value3 = typeof f.address === "string" ? f.address : "";
+        base.value4 = typeof f.activities === "string" ? f.activities : "";
+        return base;
+    }
+
+    if (Array.isArray(f.items)) {
+        const texts = f.items.map(legacyFooterItemText);
+        base.action = texts[0] ?? "";
+        base.message = texts[1] ?? "";
+        base.value1 = texts[2] ?? "";
+        base.value2 = texts[3] ?? "";
+        base.value3 = texts[4] ?? "";
+        base.value4 = texts[5] ?? "";
+    }
+    return base;
+}
 
 function assertExactKeys(obj: object, expected: readonly string[], label: string): void {
     const keys = Object.keys(obj).sort();
@@ -256,8 +377,7 @@ export function normalizePamphletData(data: unknown): unknown {
 
     const footer = root.footer;
     if (typeof footer === "object" && footer !== null && !Array.isArray(footer)) {
-        const f = footer as Record<string, unknown>;
-        root.footer = { ...f, items: normalizeList(f.items) };
+        root.footer = normalizeFooter(footer);
     }
 
     for (const col of COLUMN_KEYS) {
@@ -297,14 +417,13 @@ export function assertPamphletStructure(data: unknown): asserts data is Pamphlet
     if (typeof root.footer !== "object" || root.footer === null || Array.isArray(root.footer)) {
         throw new Error("footer must be an object");
     }
-    assertExactKeys(root.footer, FOOTER_KEYS, "footer");
+    // Allow legacy keys during assert only after normalize; strict shape is FOOTER_KEYS.
+    root.footer = normalizeFooter(root.footer);
+    assertExactKeys(root.footer as object, FOOTER_KEYS, "footer");
     const footer = root.footer as Record<string, unknown>;
-    if (!Array.isArray(footer.items)) {
-        throw new Error("footer.items must be an array");
+    for (const key of FOOTER_KEYS) {
+        assertString(footer[key], `footer.${key}`);
     }
-    footer.items.forEach((item, index) => {
-        assertPamphletItem(item, `footer.items[${index}]`);
-    });
 
     assertLastEditedElement(root.last_edited_element, "last_edited_element");
 
@@ -379,7 +498,7 @@ export function createEmptyPamphlet(meta: CreatePamphletMeta): PamphletStructure
             series_chapter: meta.series_chapter,
             date: new Date().toISOString().slice(0, 10),
         },
-        footer: { items: [] },
+        footer: emptyFooter(),
         last_edited_element: { column: 1, index: 0 },
         column_1: [],
         column_2: [],

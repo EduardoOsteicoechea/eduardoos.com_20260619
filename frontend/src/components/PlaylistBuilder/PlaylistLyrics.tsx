@@ -16,6 +16,7 @@ import {
 import { ensureEmusicForTrack, saveEmusicToCloud } from "../../lib/emusicCloud";
 import { getAuthEmailFromToken, isApsAdminEmail } from "../../lib/auth";
 import { isLocalTrackKey, trackDisplayName } from "../../lib/mediaLibrary";
+import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import LyricsStructureEditor from "./LyricsStructureEditor";
 import "./PlaylistLyrics.css";
 
@@ -150,6 +151,11 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             setSaveStatus(`Error al guardar: ${message}`);
+            openApiErrorModal(message, {
+                title: "Error al guardar .emusic",
+                summary:
+                    "No se pudo guardar la letra en S3. Copia el bloque siguiente para depurar.",
+            });
             throw err;
         } finally {
             savingRef.current = false;

@@ -1,36 +1,37 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import SkillCards from "../components/Home/SkillCards";
 import ContactAgent from "../components/Contact/ContactAgent";
-import "./index.css";
+import { APP_ROUTES, CONTACT_API_ROUTES } from "../config/routes";
+import { HOME_AGENT_WELCOME } from "../lib/agentVoice";
 ---
 
-<BaseLayout title="Eduardo Osteicoechea">
-  <div class="page-shell hero home-hero">
+<BaseLayout title="Eduardo Osteicoechea — AEC Technologist" pageHome={true}>
+  <div class="page-shell home-hero">
     <div class="home-hero__stage">
-      <picture class="home-hero__photo">
-        <img
-          src="/personal_photo_1080x1920_side_placed.webp"
-          alt="Eduardo Osteicoechea"
-          width="1080"
-          height="1920"
-          decoding="async"
-          fetchpriority="high"
-        />
-      </picture>
-
-      <div class="home-hero__copy">
-        <p class="home-hero__brand">Eduardo Osteicoechea</p>
-        <h1>AEC Technologist</h1>
-        <p class="page-lead">
-          I'm a Licensed Building Architect, BIM Practitioner, Full Stack
-          BIM–Desktop–Web–Cloud Software Developer, AI Integrationist, English
-          proficient and Spanish native, research enthusiast, and interdisciplinary
-          professional.
-        </p>
-        <SkillCards client:load />
+      <div class="home-hero__primary">
+        <picture class="home-hero__photo" aria-hidden="true">
+          <img
+            src="/personal_photo_1080x1920_side_placed.webp"
+            alt=""
+            width="1080"
+            height="1920"
+            decoding="async"
+            fetchpriority="high"
+          />
+        </picture>
+        <div class="home-hero__copy">
+          <p class="home-hero__brand">Eduardo Osteicoechea</p>
+          <h1>AEC Technologist</h1>
+          <p class="home-hero__lead">
+            Licensed Building Architect, BIM practitioner, and full-stack
+            BIM–desktop–web–cloud developer. Eduardo OS Next is the greenfield
+            rebuild — production stays live until cutover.
+          </p>
+          <div class="home-hero__links">
+            <a class="btn btn--primary" href={APP_ROUTES.contact}>Contact</a>
+          </div>
+        </div>
       </div>
-
       <aside class="home-hero__chat" aria-label="AI agent">
         <ContactAgent
           client:load
@@ -38,9 +39,9 @@ import "./index.css";
           showDirectLinks={false}
           scopeId="home"
           title="AI agent"
-          askPath="/api/profile/ask"
+          askPath={CONTACT_API_ROUTES.profileAsk}
           skillLabel="Home"
-          welcomeMessage="Hello — I am Eduardo’s AI agent (not Eduardo). Confirm you are not a bot below, then ask about his work, skills, or how to get in touch."
+          welcomeMessage={HOME_AGENT_WELCOME}
         />
       </aside>
     </div>
