@@ -433,7 +433,7 @@ const page1RightColHeightMm =
     columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 167.9
 /** Cols 7–8: above page footer → discount gutter above footer + footer */
 const page1LeftColHeightMm =
-    columnContentHeightMm - colGutterNarrowMm - pageFooterHeightMm; // 143.9
+    columnContentHeightMm - colGutterNarrowMm - pageFooterHeightMm; // 149.9 when footer=42
 
 function maxHeightForColumn(columnIndex: number): number {
     if (columnIndex === 1 || columnIndex === 2) return page1RightColHeightMm;

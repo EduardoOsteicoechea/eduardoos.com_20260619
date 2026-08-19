@@ -5,7 +5,7 @@ package pdf
 // Geometry matches the frontend sheet CSS exactly:
 //   page  279.4mm × 215.9mm (US Letter landscape)
 //   cols  57.85mm wide, gutters 4mm / 20mm (center), margins 10mm
-//   page1 left  cols 7–8 (135.9mm tall) + footer; right header + cols 1–2
+//   page1 left  cols 7–8 (149.9mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
 // Text uses embedded Roboto / Roboto-Bold (website font) with WinAnsiEncoding.
@@ -40,9 +40,9 @@ const (
 	PamphletHeaderHMm = 23.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
-	PamphletFooterHMm          = 56.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 23 − 5 − 4 − 56 − 10
-	PamphletPage1BodyMm = 107.9
+	PamphletFooterHMm          = 42.0 // default; overridden by footer_layout.height from frontend
+	// 215.9 − 10 − 23 − 5 − 4 − 42 − 10
+	PamphletPage1BodyMm = 121.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// CSS .pamphlet-page-header { gap } between title block and meta bar.
@@ -51,8 +51,8 @@ const (
 	PamphletHeaderMetaRowGapMm = 0.8
 	// Right-side cols 1–2: 195.9 − 23 − 5
 	PamphletPage1RightColMm = 167.9
-	// Left-side cols 7–8 above footer: 195.9 − 4 − 56 (default layout.height)
-	PamphletPage1LeftColMm = 135.9
+	// Left-side cols 7–8 above footer: 195.9 − 4 − 42 (default layout.height)
+	PamphletPage1LeftColMm = 149.9
 	// Exact CSS type sizes on the sheet (source of truth for PDF).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band is 23mm so both meta rows fit
 	pamphletTitleLH     = 1.1

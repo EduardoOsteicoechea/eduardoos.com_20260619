@@ -144,7 +144,7 @@ export type PamphletFooterLayoutMm = {
 
 /** Exact mm from style.css `.pamphlet-page-footer` — PDF must use these, not invent sizes. */
 export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
-    height: 56, // --page-footer-height
+    height: 42, // --page-footer-height (tight under last meta row)
     pad: 1.2, // .pamphlet-page-footer { padding }
     radius: 1, // border-radius
     stroke: 0.2, // border width
