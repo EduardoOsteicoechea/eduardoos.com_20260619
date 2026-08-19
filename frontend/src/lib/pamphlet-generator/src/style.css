@@ -201,9 +201,9 @@
   --page-header-height: 23mm;
   /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
   --header-body-gutter: 5mm;
-  --page-footer-height: 48mm; /* fits Acción + Mensaje + 2×2 editable meta */
-  /* Page 1 body: 215.9 − 10 − 23 − 5 − 4 − 48 − 10 = 115.9mm */
-  --page1-body-height: 115.9mm;
+  --page-footer-height: 56mm; /* Acción + Mensaje + 4×5.5mm meta rows + pad */
+  /* Page 1 body: 215.9 − 10 − 23 − 5 − 4 − 56 − 10 = 107.9mm */
+  --page1-body-height: 107.9mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
@@ -212,8 +212,8 @@
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
   /* Cols 1–2 under header: 195.9 − 23 − 5 = 167.9mm */
   --page1-right-col-height: 167.9mm;
-  /* Cols 7–8 above footer: 195.9 − 4 − 48 = 143.9mm */
-  --page1-left-col-height: 143.9mm;
+  /* Cols 7–8 above footer: 195.9 − 4 − 56 = 135.9mm */
+  --page1-left-col-height: 135.9mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
   --item-gap-height: 2.5mm;
   --b1: solid 1px rgb(231, 231, 231);
@@ -251,16 +251,18 @@
  * Lives under .pamphlet-app but outside main.pamphlet-sheet (which may be scaled).
  */
 .pamphlet-measure-root {
-  position: absolute;
-  left: -10000px;
-  top: 0;
+  position: fixed;
+  left: -100vw;
+  top: -100vh;
   width: var(--column-content-width);
   max-width: var(--column-content-width);
   margin: 0;
   padding: 0;
-  overflow: visible;
+  overflow: hidden;
   visibility: hidden;
+  opacity: 0;
   pointer-events: none;
+  z-index: -1;
   transform: none !important;
   zoom: 1 !important;
   -webkit-text-size-adjust: 100%;
@@ -317,8 +319,9 @@
 .pamphlet-app[data-view-mode="desktop"] main.pamphlet-sheet {
     transform: scale(var(--desktop-view-scale, 1));
     transform-origin: top center;
-    /* Clip column/footer ink so wrapped glyphs never paint into the activity-bar gutter. */
-    overflow: hidden;
+    /* Clip all ink to the letter box (stops col 7–8 glyphs in the left page margin). */
+    overflow: clip;
+    contain: paint;
 }
 
 .dumb-column {
@@ -332,14 +335,20 @@
     /*border: solid 1px blue;*/
 }
 
-/* Desktop only: keep overflow ink inside the column box (still in DOM, just clipped).
-   Without this, long lines from cols 7–8 paint over the left page margin. */
+/* Desktop: never let column ink paint into the 10mm page margins / activity gutter. */
 .pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"] {
-    overflow: hidden;
+    overflow: clip !important;
 }
 
 .pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"]:has(.element_edit_tray) {
-    overflow: visible;
+    overflow: visible !important;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item,
+.pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item p,
+.pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item h1 {
+    overflow: hidden !important;
+    max-width: 100%;
 }
 
 /* Page 1: left = cols 7–8 + footer; right = header + cols 1–2 */
@@ -518,9 +527,9 @@
     gap: 1mm;
     width: 100%;
     min-width: 0;
-    /* Occupy remaining footer band so the 4×2 never collapses to 0. */
     flex: 1 1 auto;
-    min-height: 26mm;
+    /* 4×5.5mm rows + 3×1mm gaps */
+    min-height: calc(4 * 5.5mm + 3 * 1mm);
     overflow: hidden;
     color: #666666;
 }
@@ -531,8 +540,11 @@
     column-gap: 2mm;
     width: 100%;
     min-width: 0;
-    flex: 1 1 0;
+    /* Fixed row height — match PDF pamphletFooterMetaRowMm (do not flex-shrink). */
+    flex: 0 0 5.5mm;
+    height: 5.5mm;
     min-height: 5.5mm;
+    max-height: 5.5mm;
 }
 
 .pamphlet-footer-meta-row > .pamphlet-item {

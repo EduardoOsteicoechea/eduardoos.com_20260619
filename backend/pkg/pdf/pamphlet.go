@@ -5,7 +5,7 @@ package pdf
 // Geometry matches the frontend sheet CSS exactly:
 //   page  279.4mm × 215.9mm (US Letter landscape)
 //   cols  57.85mm wide, gutters 4mm / 20mm (center), margins 10mm
-//   page1 left  cols 7–8 (143.9mm tall) + footer; right header + cols 1–2
+//   page1 left  cols 7–8 (135.9mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
 // Text uses embedded Roboto / Roboto-Bold (website font) with WinAnsiEncoding.
@@ -40,9 +40,9 @@ const (
 	PamphletHeaderHMm = 23.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
-	PamphletFooterHMm          = 48.0
-	// 215.9 − 10 − 23 − 5 − 4 − 48 − 10
-	PamphletPage1BodyMm = 115.9
+	PamphletFooterHMm          = 56.0
+	// 215.9 − 10 − 23 − 5 − 4 − 56 − 10
+	PamphletPage1BodyMm = 107.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// CSS .pamphlet-page-header { gap } between title block and meta bar.
@@ -51,8 +51,8 @@ const (
 	PamphletHeaderMetaRowGapMm = 0.8
 	// Right-side cols 1–2: 195.9 − 23 − 5
 	PamphletPage1RightColMm = 167.9
-	// Left-side cols 7–8 above footer: 195.9 − 4 − 48
-	PamphletPage1LeftColMm = 143.9
+	// Left-side cols 7–8 above footer: 195.9 − 4 − 56
+	PamphletPage1LeftColMm = 135.9
 	// Exact CSS type sizes on the sheet (source of truth for PDF).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band is 23mm so both meta rows fit
 	pamphletTitleLH     = 1.1
@@ -64,8 +64,10 @@ const (
 	pamphletHeadingLH     = 1.2
 	pamphletBodySizePt    = 8.503937007874016 // 3mm
 	pamphletHeadingSizePt = 12.04724409448819 // 4.25mm
-	pamphletFooterBodyPt  = 7.0
-	pamphletFooterHeadPt  = 9.0
+	// Footer type — exact CSS mm (source of truth), not rounded pt guesses.
+	pamphletFooterActionSizeMm  = 3.175 // .pamphlet-footer-action h1
+	pamphletFooterMessageSizeMm = 2.469 // .pamphlet-footer-message p
+	pamphletFooterMetaSizeMm    = 2.8   // .pamphlet-footer-meta-row p
 )
 
 // PamphletDocument mirrors the frontend .epam pamphlet_single_sheet JSON body.
@@ -618,8 +620,10 @@ func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm fl
 	floor := top - heightMm + pad
 	cursorTop := innerTop
 
-	headSizeMm := pamphletFooterHeadPt * 25.4 / 72.0
-	bodySizeMm := pamphletFooterBodyPt * 25.4 / 72.0
+	headSizeMm := pamphletFooterActionSizeMm
+	bodySizeMm := pamphletFooterMessageSizeMm
+	headPt := MmToPoints(headSizeMm)
+	bodyPt := MmToPoints(bodySizeMm)
 	const lh = 1.25
 	headLineH := headSizeMm * lh
 	bodyLineH := bodySizeMm * lh
@@ -627,7 +631,7 @@ func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm fl
 	action := strings.TrimSpace(f.Action)
 	if action != "" && cursorTop > floor {
 		y := cursorTop - cssBaselineOffsetMm(headSizeMm, lh)
-		used := writeWrapped(s, "F2", pamphletFooterHeadPt, lh, innerX, y, innerW, action, floor)
+		used := writeWrapped(s, "F2", headPt, lh, innerX, y, innerW, action, floor)
 		n := 1
 		if used > 0 {
 			n = int(used/headLineH + 0.5)
@@ -642,7 +646,7 @@ func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm fl
 	message := strings.TrimSpace(f.Message)
 	if message != "" && cursorTop > floor {
 		y := cursorTop - cssBaselineOffsetMm(bodySizeMm, lh)
-		used := writeWrapped(s, "F1", pamphletFooterBodyPt, lh, innerX, y, innerW, message, floor)
+		used := writeWrapped(s, "F1", bodyPt, lh, innerX, y, innerW, message, floor)
 		n := 1
 		if used > 0 {
 			n = int(used/bodyLineH + 0.5)
@@ -674,9 +678,8 @@ func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm fl
 		{f.Value3, f.Value4},
 	}
 	labelRows := map[int]bool{0: true, 2: true}
-	// Slightly larger meta type than body 7pt so cells read like the sheet (~2.8mm).
-	metaPt := pamphletFooterBodyPt * (2.8 / 2.469)
-	metaSizeMm := metaPt * 25.4 / 72.0
+	metaPt := MmToPoints(pamphletFooterMetaSizeMm)
+	metaSizeMm := pamphletFooterMetaSizeMm
 
 	for i, pair := range rows {
 		if cursorTop <= floor {
