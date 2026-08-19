@@ -377,8 +377,8 @@
     z-index: 5;
     box-sizing: border-box;
     padding: 1.2mm;
-    border: 0.45mm solid #222222;
-    border-radius: 3mm;
+    border: 0.2mm solid #222222;
+    border-radius: 1mm;
     background: #ffffff;
 }
 
@@ -466,7 +466,7 @@
     border: 0;
 }
 
-/* Footer fixed chrome — Acción + Mensaje, then 2×2 meta (editable label | value).
+/* Footer fixed chrome — Acción + Mensaje, then 4×2 meta (label row, value row ×2).
    Type sizes match PDF pamphletFooterHeadPt (9pt) / Body (7pt). */
 .pamphlet-footer-action,
 .pamphlet-footer-message {
@@ -497,59 +497,41 @@
 }
 
 .pamphlet-footer-meta-bar {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-    column-gap: 2mm;
-    row-gap: 1mm;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8mm;
     width: 100%;
     min-width: 0;
-    /* Occupy remaining footer band so the 2×2 never collapses to 0. */
+    /* Occupy remaining footer band so the 4×2 never collapses to 0. */
     flex: 1 1 auto;
-    min-height: 16mm;
+    min-height: 18mm;
     overflow: hidden;
     color: #666666;
-    align-content: start;
 }
 
 .pamphlet-footer-meta-row {
-    display: contents;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 2mm;
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 0;
+    min-height: 3.6mm;
 }
 
-.pamphlet-footer-meta-field {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: stretch;
-    gap: 0.6mm;
+.pamphlet-footer-meta-row > .pamphlet-item {
     min-width: 0;
     width: 100%;
     max-width: 100%;
-    overflow: hidden;
-}
-
-.pamphlet-footer-meta-field > .pamphlet-item {
-    flex: 1 1 0;
-    width: auto;
-    min-width: 0;
     overflow: hidden;
     box-sizing: border-box;
     border: 1px solid rgba(100, 100, 100, 0.55) !important;
     padding: 0.35mm 0.7mm !important;
     background: #fff;
-    min-height: 4mm;
+    min-height: 3.6mm;
 }
 
-.pamphlet-footer-meta-field > .pamphlet-footer-label {
-    flex: 0 1 38%;
-    max-width: 42%;
-}
-
-.pamphlet-footer-meta-field > .pamphlet-footer-value {
-    flex: 1 1 58%;
-}
-
-.pamphlet-footer-meta-field > .pamphlet-item p {
+.pamphlet-footer-meta-row > .pamphlet-item p {
     font-family: Roboto, sans-serif;
     font-size: 2.469mm;
     line-height: 1.25;
@@ -560,7 +542,7 @@
     min-height: 1.25em;
 }
 
-.pamphlet-footer-meta-field > .pamphlet-footer-label p {
+.pamphlet-footer-meta-row > .pamphlet-footer-label p {
     font-weight: 600;
     color: #444444;
 }
@@ -1188,8 +1170,7 @@
   max-width: 100%;
 }
 
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field,
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field {
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field {
   flex-direction: column;
   align-items: stretch;
   gap: calc(3px * var(--mobile-inv-scale, 1));
@@ -1212,7 +1193,7 @@
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field > .pamphlet-item,
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-item,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row > .pamphlet-item,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message {
@@ -1227,8 +1208,8 @@
   box-sizing: border-box;
 }
 
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-footer-label,
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-footer-value {
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row > .pamphlet-footer-label,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row > .pamphlet-footer-value {
   flex: 1 1 auto;
   max-width: 100%;
   width: 100%;
@@ -1278,7 +1259,7 @@
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field > .pamphlet-item p,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action h1,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message p,
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-item p {
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row > .pamphlet-item p {
   font-size: calc(14px * var(--mobile-inv-scale, 1)) !important;
   line-height: 1.35 !important;
   white-space: normal !important;

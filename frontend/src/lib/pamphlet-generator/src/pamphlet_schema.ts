@@ -21,8 +21,9 @@ export interface PamphletHeader {
 
 /**
  * Fixed footer chrome (mirrors header): action heading, message paragraph,
- * then a 2×2 meta grid. Each meta slot has an editable label + editable value
- * so the author can replace “WhatsApp” / “Teléfono” / etc. with any caption.
+ * then a 4×2 meta grid painted as:
+ *   label1|label2, value1|value2, label3|label4, value3|value4
+ * so captions (WhatsApp / Teléfono / …) sit on their own row above values.
  */
 export interface PamphletFooter {
     action: string;

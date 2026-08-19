@@ -225,9 +225,14 @@ func TestDrawFooterStructuredChrome(t *testing.T) {
 		Value4:  "Domingo 10am",
 	}, 10, 58, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm)
 	out := s.String()
-	for _, want := range []string{"Creamos", "conocer", "WhatsApp", "Tel", "Direcci", "Actividades"} {
+	if !strings.Contains(out, " S\n") && !strings.Contains(out, "S\n") {
+		t.Fatalf("footer missing stroke S op for rounded frame: %q", out)
+	}
+	if !strings.Contains(out, " c\n") {
+		t.Fatalf("footer missing cubic curve ops for 1mm radius: %q", out)
+	}
+	for _, want := range []string{"Creamos", "conocer", "WhatsApp", "Tel", "Direcci", "Actividades", "+58", "Caracas"} {
 		if !strings.Contains(out, want) && !strings.Contains(toWinAnsi(want), want) {
-			// WinAnsi may rewrite accents; at least require Latin stems.
 			stem := want
 			if len(stem) > 6 {
 				stem = stem[:6]
@@ -235,6 +240,28 @@ func TestDrawFooterStructuredChrome(t *testing.T) {
 			if !strings.Contains(out, stem) {
 				t.Fatalf("footer missing %q in stream: %q", want, out)
 			}
+		}
+	}
+}
+
+func TestDrawFooterShowsLabelsWhenValuesEmpty(t *testing.T) {
+	var s strings.Builder
+	drawFooter(&s, PamphletFooter{
+		Action:  "Acción",
+		Message: "Mensaje",
+		Label1:  "WhatsApp",
+		Label2:  "Teléfono",
+		Label3:  "Dirección",
+		Label4:  "Actividades",
+	}, 10, 58, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm)
+	out := s.String()
+	for _, want := range []string{"WhatsApp", "Tel", "Direcci", "Actividades", "Acci", "Mensaje"} {
+		stem := want
+		if len(stem) > 6 {
+			stem = stem[:6]
+		}
+		if !strings.Contains(out, stem) && !strings.Contains(out, want) {
+			t.Fatalf("empty-value footer missing %q: %q", want, out)
 		}
 	}
 }

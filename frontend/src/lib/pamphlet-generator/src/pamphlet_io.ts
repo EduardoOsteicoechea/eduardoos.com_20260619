@@ -56,12 +56,18 @@ const HEADER_META_FIELDS: { field: HeaderFieldKey; label: string }[] = [
     { field: "date", label: "Fecha" },
 ];
 
-/** Footer 2×2 meta slots (editable label + value each). */
-const FOOTER_META_SLOTS: { labelField: FooterFieldKey; valueField: FooterFieldKey }[] = [
-    { labelField: "label1", valueField: "value1" },
-    { labelField: "label2", valueField: "value2" },
-    { labelField: "label3", valueField: "value3" },
-    { labelField: "label4", valueField: "value4" },
+/**
+ * Footer meta as 4 rows × 2 cells (not label|value side-by-side):
+ *   f1: label1 | label2
+ *   f2: value1 | value2
+ *   f3: label3 | label4
+ *   f4: value3 | value4
+ */
+const FOOTER_META_ROWS: [FooterFieldKey, FooterFieldKey][] = [
+    ["label1", "label2"],
+    ["value1", "value2"],
+    ["label3", "label4"],
+    ["value3", "value4"],
 ];
 
 export function parseStyleIndexes(raw: string | null): StyleIndexes {
@@ -230,21 +236,6 @@ function createLabeledHeaderMetaField(
     return wrap;
 }
 
-function createLabeledFooterMetaField(
-    labelField: FooterFieldKey,
-    valueField: FooterFieldKey,
-    labelText: string,
-    valueText: string,
-): HTMLElement {
-    const wrap = document.createElement("div");
-    wrap.className = "pamphlet-footer-meta-field";
-
-    // Editable caption (defaults WhatsApp / Teléfono / …) — not a static span.
-    wrap.appendChild(createFooterFieldElement(labelField, labelText, "p"));
-    wrap.appendChild(createFooterFieldElement(valueField, valueText, "p"));
-    return wrap;
-}
-
 export function createAddItemButton(column: number): HTMLButtonElement {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -297,20 +288,11 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
 
     const footerMeta = document.createElement("div");
     footerMeta.className = "pamphlet-footer-meta-bar";
-    const footerRows = [FOOTER_META_SLOTS.slice(0, 2), FOOTER_META_SLOTS.slice(2, 4)];
-    for (const rowSlots of footerRows) {
+    for (const [leftField, rightField] of FOOTER_META_ROWS) {
         const row = document.createElement("div");
         row.className = "pamphlet-footer-meta-row";
-        for (const { labelField, valueField } of rowSlots) {
-            row.appendChild(
-                createLabeledFooterMetaField(
-                    labelField,
-                    valueField,
-                    footer[labelField] ?? "",
-                    footer[valueField] ?? "",
-                ),
-            );
-        }
+        row.appendChild(createFooterFieldElement(leftField, footer[leftField] ?? "", "p"));
+        row.appendChild(createFooterFieldElement(rightField, footer[rightField] ?? "", "p"));
         footerMeta.appendChild(row);
     }
     footerEl.appendChild(footerMeta);

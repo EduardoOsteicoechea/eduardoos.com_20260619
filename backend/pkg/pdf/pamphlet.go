@@ -467,6 +467,66 @@ func labeledMeta(label, value string) string {
 
 var pamphletFooterDefaultLabels = [4]string{"WhatsApp", "Teléfono", "Dirección", "Actividades"}
 
+// CSS .pamphlet-page-footer frame (must match style.css).
+const (
+	pamphletFooterPadMm    = 1.2
+	pamphletFooterRadiusMm = 1.0
+	pamphletFooterStrokeMm = 0.2
+	pamphletFooterMetaGapMm = 0.8
+	pamphletFooterColGapMm  = 2.0
+)
+
+// strokeRoundedRectMm strokes a rounded rectangle. x/top/width/height are mm;
+// top is the CSS box top (PDF y increases upward). radius and strokeMm are mm.
+func strokeRoundedRectMm(s *strings.Builder, x, top, width, height, radius, strokeMm float64) {
+	if width <= 0 || height <= 0 {
+		return
+	}
+	r := radius
+	if r < 0 {
+		r = 0
+	}
+	maxR := width / 2
+	if height/2 < maxR {
+		maxR = height / 2
+	}
+	if r > maxR {
+		r = maxR
+	}
+
+	bx := MmToPoints(x)
+	by := MmToPoints(top - height) // bottom-left
+	bw := MmToPoints(width)
+	bh := MmToPoints(height)
+	rp := MmToPoints(r)
+	// Cubic Bézier kappa for quarter-circle approximation.
+	const k = 0.5522847498
+	rk := rp * k
+
+	left, right := bx, bx+bw
+	bottom, topPt := by, by+bh
+
+	s.WriteString("q\n")
+	s.WriteString("0 0 0 RG\n")
+	s.WriteString(fmt.Sprintf("%.3f w\n", MmToPoints(strokeMm)))
+	// Start at bottom edge just after left radius, go counter-clockwise.
+	s.WriteString(fmt.Sprintf("%.2f %.2f m\n", left+rp, bottom))
+	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", right-rp, bottom))
+	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
+		right-rp+rk, bottom, right, bottom+rp-rk, right, bottom+rp))
+	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", right, topPt-rp))
+	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
+		right, topPt-rp+rk, right-rp+rk, topPt, right-rp, topPt))
+	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", left+rp, topPt))
+	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
+		left+rp-rk, topPt, left, topPt-rp+rk, left, topPt-rp))
+	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", left, bottom+rp))
+	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
+		left, bottom+rp-rk, left+rp-rk, bottom, left+rp, bottom))
+	s.WriteString("S\n")
+	s.WriteString("Q\n")
+}
+
 // normalizeFooter upgrades legacy footer shapes into labelN/valueN chrome fields.
 func normalizeFooter(f PamphletFooter) PamphletFooter {
 	// Prior fixed chrome used whatsapp/phone/address/activities as values only.
@@ -542,13 +602,19 @@ func writeGrayText(s *strings.Builder, font string, sizePt float64, xMm, yMm, wi
 	s.WriteString("0 0 0 rg\n")
 }
 
-// drawFooter paints fixed chrome matching the sheet: action heading, message,
-// then a 2×2 meta grid with editable captions (labelN) and values at the same
-// half-widths as cols 7–8.
+// drawFooter paints fixed chrome matching the sheet: rounded frame, action,
+// message, then a 4×2 meta grid (label|label, value|value ×2).
 func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm float64) {
-	floor := top - heightMm
-	cursorTop := top
 	f = normalizeFooter(f)
+
+	strokeRoundedRectMm(s, x, top, width, heightMm, pamphletFooterRadiusMm, pamphletFooterStrokeMm)
+
+	pad := pamphletFooterPadMm
+	innerX := x + pad
+	innerTop := top - pad
+	innerW := width - 2*pad
+	floor := top - heightMm + pad
+	cursorTop := innerTop
 
 	headSizeMm := pamphletFooterHeadPt * 25.4 / 72.0
 	bodySizeMm := pamphletFooterBodyPt * 25.4 / 72.0
@@ -559,7 +625,7 @@ func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm fl
 	action := strings.TrimSpace(f.Action)
 	if action != "" && cursorTop > floor {
 		y := cursorTop - cssBaselineOffsetMm(headSizeMm, lh)
-		used := writeWrapped(s, "F2", pamphletFooterHeadPt, lh, x, y, width, action, floor)
+		used := writeWrapped(s, "F2", pamphletFooterHeadPt, lh, innerX, y, innerW, action, floor)
 		n := 1
 		if used > 0 {
 			n = int(used/headLineH + 0.5)
@@ -574,7 +640,7 @@ func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm fl
 	message := strings.TrimSpace(f.Message)
 	if message != "" && cursorTop > floor {
 		y := cursorTop - cssBaselineOffsetMm(bodySizeMm, lh)
-		used := writeWrapped(s, "F1", pamphletFooterBodyPt, lh, x, y, width, message, floor)
+		used := writeWrapped(s, "F1", pamphletFooterBodyPt, lh, innerX, y, innerW, message, floor)
 		n := 1
 		if used > 0 {
 			n = int(used/bodyLineH + 0.5)
@@ -586,36 +652,37 @@ func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm fl
 		cursorTop -= PamphletHeaderTitleMetaGapMm
 	}
 
-	const colGapMm = 2.5
-	half := (width - colGapMm) / 2
-	if half < 10 {
-		half = width / 2
+	half := (innerW - pamphletFooterColGapMm) / 2
+	if half < 8 {
+		half = innerW / 2
 	}
-	rightX := x + half + colGapMm
-	metaY := cursorTop - cssBaselineOffsetMm(bodySizeMm, lh)
+	rightX := innerX + half + pamphletFooterColGapMm
 
-	left1 := labeledMeta(f.Label1, f.Value1)
-	right1 := labeledMeta(f.Label2, f.Value2)
-	left2 := labeledMeta(f.Label3, f.Value3)
-	right2 := labeledMeta(f.Label4, f.Value4)
-
-	if (left1 != "" || right1 != "") && metaY > floor {
-		if left1 != "" {
-			writeGrayText(s, "F1", pamphletFooterBodyPt, x, metaY, half, left1)
-		}
-		if right1 != "" {
-			writeGrayText(s, "F1", pamphletFooterBodyPt, rightX, metaY, half, right1)
-		}
-		cursorTop -= bodyLineH + PamphletHeaderMetaRowGapMm
-		metaY = cursorTop - cssBaselineOffsetMm(bodySizeMm, lh)
+	// Always paint 4 meta rows so empty values still reserve sheet space.
+	rows := [4][2]string{
+		{f.Label1, f.Label2},
+		{f.Value1, f.Value2},
+		{f.Label3, f.Label4},
+		{f.Value3, f.Value4},
 	}
-	if (left2 != "" || right2 != "") && metaY > floor {
-		if left2 != "" {
-			writeGrayText(s, "F1", pamphletFooterBodyPt, x, metaY, half, left2)
+	labelRows := map[int]bool{0: true, 2: true}
+
+	for i, pair := range rows {
+		if cursorTop <= floor {
+			break
 		}
-		if right2 != "" {
-			writeGrayText(s, "F1", pamphletFooterBodyPt, rightX, metaY, half, right2)
+		metaY := cursorTop - cssBaselineOffsetMm(bodySizeMm, lh)
+		font := "F1"
+		if labelRows[i] {
+			font = "F2"
 		}
+		if strings.TrimSpace(pair[0]) != "" {
+			writeGrayText(s, font, pamphletFooterBodyPt, innerX, metaY, half, pair[0])
+		}
+		if strings.TrimSpace(pair[1]) != "" {
+			writeGrayText(s, font, pamphletFooterBodyPt, rightX, metaY, half, pair[1])
+		}
+		cursorTop -= bodyLineH + pamphletFooterMetaGapMm
 	}
 }
 
