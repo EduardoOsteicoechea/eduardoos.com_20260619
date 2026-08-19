@@ -37,3 +37,8 @@ aps_app/**/*.zip
 
 
 .cache/
+
+revitapi/**/bin/
+revitapi/**/obj/
+revitapi/**/*.zip
+
