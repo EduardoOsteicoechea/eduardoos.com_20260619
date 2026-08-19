@@ -201,9 +201,9 @@
   --page-header-height: 23mm;
   /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
   --header-body-gutter: 5mm;
-  --page-footer-height: 42mm; /* tight: acción+mensaje+4 meta rows+pad (no dead band) */
-  /* Page 1 body: 215.9 − 10 − 23 − 5 − 4 − 42 − 10 = 121.9mm */
-  --page1-body-height: 121.9mm;
+  --page-footer-height: 36.5mm; /* label 5.5 + value 2.75 ×2 + gaps + chrome */
+  /* Page 1 body: 215.9 − 10 − 23 − 5 − 4 − 36.5 − 10 = 127.4mm */
+  --page1-body-height: 127.4mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
@@ -212,8 +212,8 @@
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
   /* Cols 1–2 under header: 195.9 − 23 − 5 = 167.9mm */
   --page1-right-col-height: 167.9mm;
-  /* Cols 7–8 above footer: 195.9 − 4 − 42 = 149.9mm */
-  --page1-left-col-height: 149.9mm;
+  /* Cols 7–8 above footer: 195.9 − 4 − 36.5 = 155.4mm */
+  --page1-left-col-height: 155.4mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
   --item-gap-height: 2.5mm;
   --b1: solid 1px rgb(231, 231, 231);
@@ -530,10 +530,10 @@
     min-width: 0;
     /* Do not stretch — dead space under the last meta row looked like a huge bottom margin. */
     flex: 0 0 auto;
-    /* 4×5.5mm rows + 3×1mm gaps */
-    height: calc(4 * 5.5mm + 3 * 1mm);
-    min-height: calc(4 * 5.5mm + 3 * 1mm);
-    max-height: calc(4 * 5.5mm + 3 * 1mm);
+    /* 2×5.5mm label + 2×2.75mm value + 3×1mm gaps */
+    height: calc(2 * 5.5mm + 2 * 2.75mm + 3 * 1mm);
+    min-height: calc(2 * 5.5mm + 2 * 2.75mm + 3 * 1mm);
+    max-height: calc(2 * 5.5mm + 2 * 2.75mm + 3 * 1mm);
     overflow: hidden;
     color: #666666;
 }
@@ -544,11 +544,19 @@
     column-gap: 2mm;
     width: 100%;
     min-width: 0;
-    /* Fixed row height — match PDF pamphletFooterMetaRowMm (do not flex-shrink). */
+    /* Label rows (1 & 3) — full height. */
     flex: 0 0 5.5mm;
     height: 5.5mm;
     min-height: 5.5mm;
     max-height: 5.5mm;
+}
+
+/* Value rows (2 & 4) — half of label row height. */
+.pamphlet-footer-meta-row:nth-child(even) {
+    flex: 0 0 2.75mm;
+    height: 2.75mm;
+    min-height: 2.75mm;
+    max-height: 2.75mm;
 }
 
 .pamphlet-footer-meta-row > .pamphlet-item {
@@ -560,9 +568,14 @@
     border: 0.15mm solid rgba(100, 100, 100, 0.45) !important;
     padding: 0.7mm 1mm !important;
     background: #fff;
-    min-height: 5.5mm;
+    min-height: 0;
+    height: 100%;
     display: flex;
     align-items: center;
+}
+
+.pamphlet-footer-meta-row:nth-child(even) > .pamphlet-item {
+    padding: 0.2mm 1mm !important;
 }
 
 .pamphlet-footer-meta-row > .pamphlet-item p {

@@ -135,7 +135,10 @@ export type PamphletFooterLayoutMm = {
     message_min_h: number;
     meta_gap: number;
     meta_col_gap: number;
+    /** Label rows (1 & 3): WhatsApp|Teléfono, Dirección|Actividades. */
     meta_row_h: number;
+    /** Value rows (2 & 4): half of meta_row_h. */
+    meta_value_row_h: number;
     meta_size: number;
     meta_pad_x: number;
     meta_pad_y: number;
@@ -144,7 +147,7 @@ export type PamphletFooterLayoutMm = {
 
 /** Exact mm from style.css `.pamphlet-page-footer` — PDF must use these, not invent sizes. */
 export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
-    height: 42, // --page-footer-height (tight under last meta row)
+    height: 36.5, // --page-footer-height (label 5.5 + value 2.75 ×2 + gaps)
     pad: 1.2, // .pamphlet-page-footer { padding }
     radius: 1, // border-radius
     stroke: 0.2, // border width
@@ -161,7 +164,8 @@ export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
     message_min_h: 4.5,
     meta_gap: 1, // .pamphlet-footer-meta-bar { gap }
     meta_col_gap: 2, // .pamphlet-footer-meta-row { column-gap }
-    meta_row_h: 5.5, // fixed meta row height
+    meta_row_h: 5.5, // label rows 1 & 3
+    meta_value_row_h: 2.75, // value rows 2 & 4 (half of label)
     meta_size: 2.8, // meta p font-size
     meta_pad_x: 1,
     meta_pad_y: 0.7,
