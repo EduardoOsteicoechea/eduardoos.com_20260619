@@ -40,7 +40,7 @@ const (
 	PamphletHeaderHMm = 23.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
-	PamphletFooterHMm          = 56.0
+	PamphletFooterHMm          = 56.0 // default; overridden by footer_layout.height from frontend
 	// 215.9 − 10 − 23 − 5 − 4 − 56 − 10
 	PamphletPage1BodyMm = 107.9
 	PamphletPage2BodyMm = 195.9
@@ -51,7 +51,7 @@ const (
 	PamphletHeaderMetaRowGapMm = 0.8
 	// Right-side cols 1–2: 195.9 − 23 − 5
 	PamphletPage1RightColMm = 167.9
-	// Left-side cols 7–8 above footer: 195.9 − 4 − 56
+	// Left-side cols 7–8 above footer: 195.9 − 4 − 56 (default layout.height)
 	PamphletPage1LeftColMm = 135.9
 	// Exact CSS type sizes on the sheet (source of truth for PDF).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band is 23mm so both meta rows fit
@@ -64,25 +64,49 @@ const (
 	pamphletHeadingLH     = 1.2
 	pamphletBodySizePt    = 8.503937007874016 // 3mm
 	pamphletHeadingSizePt = 12.04724409448819 // 4.25mm
-	// Footer type — exact CSS mm (source of truth), not rounded pt guesses.
-	pamphletFooterActionSizeMm  = 3.175 // .pamphlet-footer-action h1
-	pamphletFooterMessageSizeMm = 2.469 // .pamphlet-footer-message p
-	pamphletFooterMetaSizeMm    = 2.8   // .pamphlet-footer-meta-row p
 )
 
 // PamphletDocument mirrors the frontend .epam pamphlet_single_sheet JSON body.
 type PamphletDocument struct {
-	Type    string         `json:"type"`
-	Header  PamphletHeader `json:"header"`
-	Footer  PamphletFooter `json:"footer"`
-	Column1 []PamphletItem `json:"column_1"`
-	Column2 []PamphletItem `json:"column_2"`
-	Column3 []PamphletItem `json:"column_3"`
-	Column4 []PamphletItem `json:"column_4"`
-	Column5 []PamphletItem `json:"column_5"`
-	Column6 []PamphletItem `json:"column_6"`
-	Column7 []PamphletItem `json:"column_7"`
-	Column8 []PamphletItem `json:"column_8"`
+	Type         string               `json:"type"`
+	Header       PamphletHeader       `json:"header"`
+	Footer       PamphletFooter       `json:"footer"`
+	FooterLayout PamphletFooterLayout `json:"footer_layout,omitempty"`
+	Column1      []PamphletItem       `json:"column_1"`
+	Column2      []PamphletItem       `json:"column_2"`
+	Column3      []PamphletItem       `json:"column_3"`
+	Column4      []PamphletItem       `json:"column_4"`
+	Column5      []PamphletItem       `json:"column_5"`
+	Column6      []PamphletItem       `json:"column_6"`
+	Column7      []PamphletItem       `json:"column_7"`
+	Column8      []PamphletItem       `json:"column_8"`
+}
+
+// PamphletFooterLayout is the exact mm chrome from the frontend sheet CSS
+// (PAMPHLET_FOOTER_LAYOUT_MM). Print POSTs these; PDF must not invent sizes.
+type PamphletFooterLayout struct {
+	Height      float64 `json:"height"`
+	Pad         float64 `json:"pad"`
+	Radius      float64 `json:"radius"`
+	Stroke      float64 `json:"stroke"`
+	ChromeGap   float64 `json:"chrome_gap"`
+	ActionSize  float64 `json:"action_size"`
+	ActionLH    float64 `json:"action_lh"`
+	ActionPadX  float64 `json:"action_pad_x"`
+	ActionPadY  float64 `json:"action_pad_y"`
+	ActionMinH  float64 `json:"action_min_h"`
+	MessageSize float64 `json:"message_size"`
+	MessageLH   float64 `json:"message_lh"`
+	MessagePadX float64 `json:"message_pad_x"`
+	MessagePadY float64 `json:"message_pad_y"`
+	MessageMinH float64 `json:"message_min_h"`
+	MetaGap     float64 `json:"meta_gap"`
+	MetaColGap  float64 `json:"meta_col_gap"`
+	MetaRowH    float64 `json:"meta_row_h"`
+	MetaSize    float64 `json:"meta_size"`
+	MetaPadX    float64 `json:"meta_pad_x"`
+	MetaPadY    float64 `json:"meta_pad_y"`
+	CellStroke  float64 `json:"cell_stroke"`
 }
 
 type PamphletHeader struct {
@@ -359,21 +383,25 @@ func colX(track int) float64 {
 
 func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string {
 	var s strings.Builder
+	layout := normalizeFooterLayout(doc.FooterLayout)
+	footerH := layout.Height
+	leftColH := PamphletPage2BodyMm - PamphletGutterNarrow - footerH
+
 	headerX := colX(6)
 	headerTop := PamphletPageHeightMm - PamphletMarginMm
 	// Same vertical tracks as CSS grid: margin → 23mm header → gutter → cols.
 	_ = drawHeader(&s, doc.Header, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
 
 	leftTop := PamphletPageHeightMm - PamphletMarginMm
-	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, PamphletPage1LeftColMm, images)
-	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, PamphletPage1LeftColMm, images)
+	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, leftColH, images)
+	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, leftColH, images)
 
 	rightTop := headerTop - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
 	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
 	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
 
-	footerTop := PamphletMarginMm + PamphletFooterHMm
-	drawFooter(&s, normalizeFooter(doc.Footer), colX(2), footerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm)
+	footerTop := PamphletMarginMm + footerH
+	drawFooter(&s, normalizeFooter(doc.Footer), layout, colX(2), footerTop, PamphletColWidthMm*2+PamphletGutterNarrow)
 	return s.String()
 }
 
@@ -469,16 +497,69 @@ func labeledMeta(label, value string) string {
 
 var pamphletFooterDefaultLabels = [4]string{"WhatsApp", "Teléfono", "Dirección", "Actividades"}
 
-// CSS .pamphlet-page-footer frame (must match style.css).
-const (
-	pamphletFooterPadMm     = 1.4
-	pamphletFooterRadiusMm  = 1.0
-	pamphletFooterStrokeMm  = 0.2
-	pamphletFooterMetaGapMm = 1.0
-	pamphletFooterColGapMm  = 2.0
-	// Desktop meta cell min-height (~5.5mm) — keep PDF rows the same height.
-	pamphletFooterMetaRowMm = 5.5
-)
+// defaultFooterLayout mirrors frontend PAMPHLET_FOOTER_LAYOUT_MM / style.css.
+func defaultFooterLayout() PamphletFooterLayout {
+	return PamphletFooterLayout{
+		Height:      PamphletFooterHMm,
+		Pad:         1.2,
+		Radius:      1.0,
+		Stroke:      0.2,
+		ChromeGap:   0.6,
+		ActionSize:  3.175,
+		ActionLH:    1.25,
+		ActionPadX:  1.4,
+		ActionPadY:  0.7,
+		ActionMinH:  4.5,
+		MessageSize: 2.469,
+		MessageLH:   1.25,
+		MessagePadX: 1.4,
+		MessagePadY: 0.7,
+		MessageMinH: 4.5,
+		MetaGap:     1.0,
+		MetaColGap:  2.0,
+		MetaRowH:    5.5,
+		MetaSize:    2.8,
+		MetaPadX:    1.0,
+		MetaPadY:    0.7,
+		CellStroke:  0.25,
+	}
+}
+
+// normalizeFooterLayout fills zero fields from the frontend defaults so older
+// print clients without footer_layout still render a coherent chrome band.
+func normalizeFooterLayout(l PamphletFooterLayout) PamphletFooterLayout {
+	d := defaultFooterLayout()
+	pick := func(v, def float64) float64 {
+		if v > 0 {
+			return v
+		}
+		return def
+	}
+	return PamphletFooterLayout{
+		Height:      pick(l.Height, d.Height),
+		Pad:         pick(l.Pad, d.Pad),
+		Radius:      pick(l.Radius, d.Radius),
+		Stroke:      pick(l.Stroke, d.Stroke),
+		ChromeGap:   pick(l.ChromeGap, d.ChromeGap),
+		ActionSize:  pick(l.ActionSize, d.ActionSize),
+		ActionLH:    pick(l.ActionLH, d.ActionLH),
+		ActionPadX:  pick(l.ActionPadX, d.ActionPadX),
+		ActionPadY:  pick(l.ActionPadY, d.ActionPadY),
+		ActionMinH:  pick(l.ActionMinH, d.ActionMinH),
+		MessageSize: pick(l.MessageSize, d.MessageSize),
+		MessageLH:   pick(l.MessageLH, d.MessageLH),
+		MessagePadX: pick(l.MessagePadX, d.MessagePadX),
+		MessagePadY: pick(l.MessagePadY, d.MessagePadY),
+		MessageMinH: pick(l.MessageMinH, d.MessageMinH),
+		MetaGap:     pick(l.MetaGap, d.MetaGap),
+		MetaColGap:  pick(l.MetaColGap, d.MetaColGap),
+		MetaRowH:    pick(l.MetaRowH, d.MetaRowH),
+		MetaSize:    pick(l.MetaSize, d.MetaSize),
+		MetaPadX:    pick(l.MetaPadX, d.MetaPadX),
+		MetaPadY:    pick(l.MetaPadY, d.MetaPadY),
+		CellStroke:  pick(l.CellStroke, d.CellStroke),
+	}
+}
 
 // strokeRoundedRectMm strokes a rounded rectangle. x/top/width/height are mm;
 // top is the CSS box top (PDF y increases upward). radius and strokeMm are mm.
@@ -528,6 +609,22 @@ func strokeRoundedRectMm(s *strings.Builder, x, top, width, height, radius, stro
 	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
 		left, bottom+rp-rk, left+rp-rk, bottom, left+rp, bottom))
 	s.WriteString("S\n")
+	s.WriteString("Q\n")
+}
+
+// strokeRectMm strokes a sharp rectangle (footer action/message/meta cells).
+func strokeRectMm(s *strings.Builder, x, top, width, height, strokeMm float64) {
+	if width <= 0 || height <= 0 {
+		return
+	}
+	left := MmToPoints(x)
+	bottom := MmToPoints(top - height)
+	w := MmToPoints(width)
+	h := MmToPoints(height)
+	s.WriteString("q\n")
+	s.WriteString("0.4 0.4 0.4 RG\n") // matches desktop rgba(100,100,100,…)
+	s.WriteString(fmt.Sprintf("%.3f w\n", MmToPoints(strokeMm)))
+	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re\nS\n", left, bottom, w, h))
 	s.WriteString("Q\n")
 }
 
@@ -606,71 +703,94 @@ func writeGrayText(s *strings.Builder, font string, sizePt float64, xMm, yMm, wi
 	s.WriteString("0 0 0 rg\n")
 }
 
-// drawFooter paints fixed chrome matching the sheet: rounded frame, action,
-// message, then a 4×2 meta grid (label|label, value|value ×2).
-func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm float64) {
+// measureWrappedHeightMm returns how many mm of line-box height text needs.
+func measureWrappedHeightMm(text string, sizeMm, lh, widthMm float64) float64 {
+	text = strings.TrimSpace(text)
+	lineH := sizeMm * lh
+	if text == "" {
+		return lineH
+	}
+	lines := wrapWordsToWidth(toWinAnsi(text), MmToPoints(sizeMm), MmToPoints(widthMm), false)
+	n := len(lines)
+	if n < 1 {
+		n = 1
+	}
+	return float64(n) * lineH
+}
+
+// drawFooter paints fixed chrome using frontend footer_layout mm: outer frame,
+// bordered Acción/Mensaje cells, then a 4×2 bordered meta grid.
+func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayout, x, top, width float64) {
 	f = normalizeFooter(f)
+	layout = normalizeFooterLayout(layout)
+	heightMm := layout.Height
 
-	strokeRoundedRectMm(s, x, top, width, heightMm, pamphletFooterRadiusMm, pamphletFooterStrokeMm)
+	strokeRoundedRectMm(s, x, top, width, heightMm, layout.Radius, layout.Stroke)
 
-	pad := pamphletFooterPadMm
+	pad := layout.Pad
 	innerX := x + pad
 	innerTop := top - pad
 	innerW := width - 2*pad
 	floor := top - heightMm + pad
 	cursorTop := innerTop
+	cellStroke := layout.CellStroke
 
-	headSizeMm := pamphletFooterActionSizeMm
-	bodySizeMm := pamphletFooterMessageSizeMm
-	headPt := MmToPoints(headSizeMm)
-	bodyPt := MmToPoints(bodySizeMm)
-	const lh = 1.25
-	headLineH := headSizeMm * lh
-	bodyLineH := bodySizeMm * lh
-
-	action := strings.TrimSpace(f.Action)
-	if action != "" && cursorTop > floor {
-		y := cursorTop - cssBaselineOffsetMm(headSizeMm, lh)
-		used := writeWrapped(s, "F2", headPt, lh, innerX, y, innerW, action, floor)
-		n := 1
-		if used > 0 {
-			n = int(used/headLineH + 0.5)
-			if n < 1 {
-				n = 1
-			}
+	// Acción — always paint the bordered box (desktop always shows the cell).
+	actionTextW := innerW - 2*layout.ActionPadX
+	if actionTextW < 4 {
+		actionTextW = innerW
+	}
+	actionTextH := measureWrappedHeightMm(f.Action, layout.ActionSize, layout.ActionLH, actionTextW)
+	actionBoxH := layout.ActionPadY*2 + actionTextH
+	if actionBoxH < layout.ActionMinH {
+		actionBoxH = layout.ActionMinH
+	}
+	if cursorTop-actionBoxH < floor {
+		actionBoxH = cursorTop - floor
+	}
+	if actionBoxH > 0 {
+		strokeRectMm(s, innerX, cursorTop, innerW, actionBoxH, cellStroke)
+		if strings.TrimSpace(f.Action) != "" {
+			textTop := cursorTop - layout.ActionPadY
+			y := textTop - cssBaselineOffsetMm(layout.ActionSize, layout.ActionLH)
+			textFloor := cursorTop - actionBoxH + layout.ActionPadY
+			writeWrapped(s, "F2", MmToPoints(layout.ActionSize), layout.ActionLH,
+				innerX+layout.ActionPadX, y, actionTextW, f.Action, textFloor)
 		}
-		cursorTop -= float64(n) * headLineH
-		cursorTop -= PamphletHeaderTitleMetaGapMm
+		cursorTop -= actionBoxH + layout.ChromeGap
 	}
 
-	message := strings.TrimSpace(f.Message)
-	if message != "" && cursorTop > floor {
-		y := cursorTop - cssBaselineOffsetMm(bodySizeMm, lh)
-		used := writeWrapped(s, "F1", bodyPt, lh, innerX, y, innerW, message, floor)
-		n := 1
-		if used > 0 {
-			n = int(used/bodyLineH + 0.5)
-			if n < 1 {
-				n = 1
-			}
+	// Mensaje — same bordered cell contract as Acción.
+	msgTextW := innerW - 2*layout.MessagePadX
+	if msgTextW < 4 {
+		msgTextW = innerW
+	}
+	msgTextH := measureWrappedHeightMm(f.Message, layout.MessageSize, layout.MessageLH, msgTextW)
+	msgBoxH := layout.MessagePadY*2 + msgTextH
+	if msgBoxH < layout.MessageMinH {
+		msgBoxH = layout.MessageMinH
+	}
+	if cursorTop-msgBoxH < floor {
+		msgBoxH = cursorTop - floor
+	}
+	if msgBoxH > 0 {
+		strokeRectMm(s, innerX, cursorTop, innerW, msgBoxH, cellStroke)
+		if strings.TrimSpace(f.Message) != "" {
+			textTop := cursorTop - layout.MessagePadY
+			y := textTop - cssBaselineOffsetMm(layout.MessageSize, layout.MessageLH)
+			textFloor := cursorTop - msgBoxH + layout.MessagePadY
+			writeWrapped(s, "F1", MmToPoints(layout.MessageSize), layout.MessageLH,
+				innerX+layout.MessagePadX, y, msgTextW, f.Message, textFloor)
 		}
-		cursorTop -= float64(n) * bodyLineH
-		cursorTop -= PamphletHeaderTitleMetaGapMm
+		cursorTop -= msgBoxH + layout.ChromeGap
 	}
 
-	half := (innerW - pamphletFooterColGapMm) / 2
+	half := (innerW - layout.MetaColGap) / 2
 	if half < 8 {
 		half = innerW / 2
 	}
-	rightX := innerX + half + pamphletFooterColGapMm
-	// Inset text slightly inside each meta cell (matches CSS padding ~1mm).
-	const cellPadMm = 1.0
-	cellW := half - cellPadMm
-	if cellW < 6 {
-		cellW = half
-	}
+	rightX := innerX + half + layout.MetaColGap
 
-	// Always paint 4 meta rows so empty values still reserve sheet space.
 	rows := [4][2]string{
 		{f.Label1, f.Label2},
 		{f.Value1, f.Value2},
@@ -678,25 +798,36 @@ func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm fl
 		{f.Value3, f.Value4},
 	}
 	labelRows := map[int]bool{0: true, 2: true}
-	metaPt := MmToPoints(pamphletFooterMetaSizeMm)
-	metaSizeMm := pamphletFooterMetaSizeMm
+	metaPt := MmToPoints(layout.MetaSize)
+	metaSizeMm := layout.MetaSize
+	cellW := half - layout.MetaPadX
+	if cellW < 4 {
+		cellW = half
+	}
 
 	for i, pair := range rows {
-		if cursorTop <= floor {
+		if cursorTop-layout.MetaRowH < floor-0.01 {
 			break
 		}
-		metaY := cursorTop - cssBaselineOffsetMm(metaSizeMm, lh)
+		rowH := layout.MetaRowH
+		strokeRectMm(s, innerX, cursorTop, half, rowH, cellStroke)
+		strokeRectMm(s, rightX, cursorTop, half, rowH, cellStroke)
+
+		metaY := cursorTop - layout.MetaPadY - cssBaselineOffsetMm(metaSizeMm, 1.25)
 		font := "F1"
 		if labelRows[i] {
 			font = "F2"
 		}
 		if strings.TrimSpace(pair[0]) != "" {
-			writeGrayText(s, font, metaPt, innerX+cellPadMm*0.5, metaY, cellW, pair[0])
+			writeGrayText(s, font, metaPt, innerX+layout.MetaPadX*0.5, metaY, cellW, pair[0])
 		}
 		if strings.TrimSpace(pair[1]) != "" {
-			writeGrayText(s, font, metaPt, rightX+cellPadMm*0.5, metaY, cellW, pair[1])
+			writeGrayText(s, font, metaPt, rightX+layout.MetaPadX*0.5, metaY, cellW, pair[1])
 		}
-		cursorTop -= pamphletFooterMetaRowMm + pamphletFooterMetaGapMm
+		cursorTop -= rowH
+		if i < len(rows)-1 {
+			cursorTop -= layout.MetaGap
+		}
 	}
 }
 

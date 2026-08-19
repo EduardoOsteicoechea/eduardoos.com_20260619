@@ -61,6 +61,7 @@ import {
     FOOTER_FIELD_KEYS,
     HEADER_COLUMN,
     HEADER_FIELD_KEYS,
+    PAMPHLET_FOOTER_LAYOUT_MM,
     createParagraphItem,
     createEmptyPamphlet,
     type CreatePamphletMeta,
@@ -378,6 +379,11 @@ async function printDocument(): Promise<void> {
 
     setStatus("Generando PDF…", "info");
     try {
+        // Footer mm sizes come from the frontend sheet CSS — backend must not invent them.
+        const printPayload: PamphletStructure = {
+            ...live,
+            footer_layout: PAMPHLET_FOOTER_LAYOUT_MM,
+        };
         const res = await fetch(DOCUMENT_ROUTES.pamphletPdf, {
             method: "POST",
             headers: {
@@ -385,7 +391,7 @@ async function printDocument(): Promise<void> {
                 Authorization: `Bearer ${token}`,
                 "X-Correlation-ID": createCorrelationId(),
             },
-            body: JSON.stringify(live),
+            body: JSON.stringify(printPayload),
         });
         if (!res.ok) {
             const text = await res.text();
@@ -416,7 +422,7 @@ async function printDocument(): Promise<void> {
 const usLetterHeightInMillimeters = 215.9;
 const pageMarginMm = 10;
 const pageHeaderHeightMm = 23; // matches --page-header-height / PamphletHeaderHMm
-const pageFooterHeightMm = 56; // matches --page-footer-height / PamphletFooterHMm
+const pageFooterHeightMm = PAMPHLET_FOOTER_LAYOUT_MM.height;
 const colGutterNarrowMm = 4;
 /** Gap between page header and cols 1–2 (matches --header-body-gutter). */
 const headerBodyGutterMm = 5;

@@ -223,13 +223,17 @@ func TestDrawFooterStructuredChrome(t *testing.T) {
 		Value3:  "Caracas",
 		Label4:  "Actividades",
 		Value4:  "Domingo 10am",
-	}, 10, 58, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm)
+	}, defaultFooterLayout(), 10, 58, PamphletColWidthMm*2+PamphletGutterNarrow)
 	out := s.String()
 	if !strings.Contains(out, " S\n") && !strings.Contains(out, "S\n") {
 		t.Fatalf("footer missing stroke S op for rounded frame: %q", out)
 	}
 	if !strings.Contains(out, " c\n") {
 		t.Fatalf("footer missing cubic curve ops for 1mm radius: %q", out)
+	}
+	// Outer frame + Acción + Mensaje + 8 meta cells = many re strokes.
+	if strings.Count(out, " re\n") < 8 {
+		t.Fatalf("footer expected bordered cells (re ops), got %d in %q", strings.Count(out, " re\n"), out)
 	}
 	for _, want := range []string{"Creamos", "conocer", "WhatsApp", "Tel", "Direcci", "Actividades", "+58", "Caracas"} {
 		if !strings.Contains(out, want) && !strings.Contains(toWinAnsi(want), want) {
@@ -253,7 +257,7 @@ func TestDrawFooterShowsLabelsWhenValuesEmpty(t *testing.T) {
 		Label2:  "Teléfono",
 		Label3:  "Dirección",
 		Label4:  "Actividades",
-	}, 10, 58, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm)
+	}, defaultFooterLayout(), 10, 58, PamphletColWidthMm*2+PamphletGutterNarrow)
 	out := s.String()
 	for _, want := range []string{"WhatsApp", "Tel", "Direcci", "Actividades", "Acci", "Mensaje"} {
 		stem := want
@@ -263,6 +267,22 @@ func TestDrawFooterShowsLabelsWhenValuesEmpty(t *testing.T) {
 		if !strings.Contains(out, stem) && !strings.Contains(out, want) {
 			t.Fatalf("empty-value footer missing %q: %q", want, out)
 		}
+	}
+	// Empty value cells must still be stroked (desktop shows empty boxes).
+	if strings.Count(out, " re\n") < 8 {
+		t.Fatalf("empty values should still paint cell borders, re=%d", strings.Count(out, " re\n"))
+	}
+}
+
+func TestNormalizeFooterLayoutUsesFrontendDefaults(t *testing.T) {
+	got := normalizeFooterLayout(PamphletFooterLayout{})
+	want := defaultFooterLayout()
+	if got != want {
+		t.Fatalf("empty layout want %+v got %+v", want, got)
+	}
+	got = normalizeFooterLayout(PamphletFooterLayout{Height: 60, Pad: 2})
+	if got.Height != 60 || got.Pad != 2 || got.MetaRowH != want.MetaRowH {
+		t.Fatalf("partial layout merge failed: %+v", got)
 	}
 }
 

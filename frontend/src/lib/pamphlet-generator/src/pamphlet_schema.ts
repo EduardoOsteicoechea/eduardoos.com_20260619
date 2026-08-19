@@ -105,8 +105,68 @@ export type PamphletStructure = {
     ownerUserId?: string;
     header: PamphletHeader;
     footer: PamphletFooter;
+    /**
+     * Footer chrome sizes in mm — source of truth for PDF parity.
+     * Sent on print; not required in saved .epam files.
+     */
+    footer_layout?: PamphletFooterLayoutMm;
     last_edited_element: LastEditedElement;
 } & Record<ColumnKey, PamphletItem[]>;
+
+/**
+ * Exact CSS mm for `.pamphlet-page-footer` — keep in sync with style.css.
+ * Print POSTs this so the PDF builder does not invent its own sizes.
+ */
+export type PamphletFooterLayoutMm = {
+    height: number;
+    pad: number;
+    radius: number;
+    stroke: number;
+    chrome_gap: number;
+    action_size: number;
+    action_lh: number;
+    action_pad_x: number;
+    action_pad_y: number;
+    action_min_h: number;
+    message_size: number;
+    message_lh: number;
+    message_pad_x: number;
+    message_pad_y: number;
+    message_min_h: number;
+    meta_gap: number;
+    meta_col_gap: number;
+    meta_row_h: number;
+    meta_size: number;
+    meta_pad_x: number;
+    meta_pad_y: number;
+    cell_stroke: number;
+};
+
+/** Exact mm from style.css `.pamphlet-page-footer` — PDF must use these, not invent sizes. */
+export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
+    height: 56, // --page-footer-height
+    pad: 1.2, // .pamphlet-page-footer { padding }
+    radius: 1, // border-radius
+    stroke: 0.2, // border width
+    chrome_gap: 0.6, // gap between action / message / meta
+    action_size: 3.175, // h1 font-size
+    action_lh: 1.25,
+    action_pad_x: 1.4,
+    action_pad_y: 0.7,
+    action_min_h: 4.5,
+    message_size: 2.469, // p font-size
+    message_lh: 1.25,
+    message_pad_x: 1.4,
+    message_pad_y: 0.7,
+    message_min_h: 4.5,
+    meta_gap: 1, // .pamphlet-footer-meta-bar { gap }
+    meta_col_gap: 2, // .pamphlet-footer-meta-row { column-gap }
+    meta_row_h: 5.5, // fixed meta row height
+    meta_size: 2.8, // meta p font-size
+    meta_pad_x: 1,
+    meta_pad_y: 0.7,
+    cell_stroke: 0.25, // ~1px cell border
+};
 
 export const DEFAULT_STYLE_INDEXES: StyleIndexes = [[0, 0], [0, 0], [0, 0]];
 export const DEFAULT_IMAGE_HEIGHT_MM = 30;
