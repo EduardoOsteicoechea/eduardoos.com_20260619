@@ -612,22 +612,6 @@ func strokeRoundedRectMm(s *strings.Builder, x, top, width, height, radius, stro
 	s.WriteString("Q\n")
 }
 
-// strokeRectMm strokes a sharp rectangle (footer action/message/meta cells).
-func strokeRectMm(s *strings.Builder, x, top, width, height, strokeMm float64) {
-	if width <= 0 || height <= 0 {
-		return
-	}
-	left := MmToPoints(x)
-	bottom := MmToPoints(top - height)
-	w := MmToPoints(width)
-	h := MmToPoints(height)
-	s.WriteString("q\n")
-	s.WriteString("0.4 0.4 0.4 RG\n") // matches desktop rgba(100,100,100,…)
-	s.WriteString(fmt.Sprintf("%.3f w\n", MmToPoints(strokeMm)))
-	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re\nS\n", left, bottom, w, h))
-	s.WriteString("Q\n")
-}
-
 // normalizeFooter upgrades legacy footer shapes into labelN/valueN chrome fields.
 func normalizeFooter(f PamphletFooter) PamphletFooter {
 	// Prior fixed chrome used whatsapp/phone/address/activities as values only.
@@ -719,7 +703,8 @@ func measureWrappedHeightMm(text string, sizeMm, lh, widthMm float64) float64 {
 }
 
 // drawFooter paints fixed chrome using frontend footer_layout mm: outer frame,
-// bordered Acción/Mensaje cells, then a 4×2 bordered meta grid.
+// Acción/Mensaje text, then a 4×2 meta grid. Inner input cell borders are
+// desktop edit chrome only — never stroked in the PDF print.
 func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayout, x, top, width float64) {
 	f = normalizeFooter(f)
 	layout = normalizeFooterLayout(layout)
@@ -733,9 +718,8 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	innerW := width - 2*pad
 	floor := top - heightMm + pad
 	cursorTop := innerTop
-	cellStroke := layout.CellStroke
 
-	// Acción — always paint the bordered box (desktop always shows the cell).
+	// Acción — reserve the same box height as desktop; no cell border in print.
 	actionTextW := innerW - 2*layout.ActionPadX
 	if actionTextW < 4 {
 		actionTextW = innerW
@@ -749,7 +733,6 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 		actionBoxH = cursorTop - floor
 	}
 	if actionBoxH > 0 {
-		strokeRectMm(s, innerX, cursorTop, innerW, actionBoxH, cellStroke)
 		if strings.TrimSpace(f.Action) != "" {
 			textTop := cursorTop - layout.ActionPadY
 			y := textTop - cssBaselineOffsetMm(layout.ActionSize, layout.ActionLH)
@@ -760,7 +743,7 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 		cursorTop -= actionBoxH + layout.ChromeGap
 	}
 
-	// Mensaje — same bordered cell contract as Acción.
+	// Mensaje — same height contract as Acción; no cell border in print.
 	msgTextW := innerW - 2*layout.MessagePadX
 	if msgTextW < 4 {
 		msgTextW = innerW
@@ -774,7 +757,6 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 		msgBoxH = cursorTop - floor
 	}
 	if msgBoxH > 0 {
-		strokeRectMm(s, innerX, cursorTop, innerW, msgBoxH, cellStroke)
 		if strings.TrimSpace(f.Message) != "" {
 			textTop := cursorTop - layout.MessagePadY
 			y := textTop - cssBaselineOffsetMm(layout.MessageSize, layout.MessageLH)
@@ -810,8 +792,6 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 			break
 		}
 		rowH := layout.MetaRowH
-		strokeRectMm(s, innerX, cursorTop, half, rowH, cellStroke)
-		strokeRectMm(s, rightX, cursorTop, half, rowH, cellStroke)
 
 		metaY := cursorTop - layout.MetaPadY - cssBaselineOffsetMm(metaSizeMm, 1.25)
 		font := "F1"

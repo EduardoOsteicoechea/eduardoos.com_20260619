@@ -231,9 +231,9 @@ func TestDrawFooterStructuredChrome(t *testing.T) {
 	if !strings.Contains(out, " c\n") {
 		t.Fatalf("footer missing cubic curve ops for 1mm radius: %q", out)
 	}
-	// Outer frame + Acción + Mensaje + 8 meta cells = many re strokes.
-	if strings.Count(out, " re\n") < 8 {
-		t.Fatalf("footer expected bordered cells (re ops), got %d in %q", strings.Count(out, " re\n"), out)
+	// Input cell borders (re) are editor-only — PDF print must not stroke them.
+	if strings.Contains(out, " re\n") {
+		t.Fatalf("footer must not stroke input cell borders in PDF: %q", out)
 	}
 	for _, want := range []string{"Creamos", "conocer", "WhatsApp", "Tel", "Direcci", "Actividades", "+58", "Caracas"} {
 		if !strings.Contains(out, want) && !strings.Contains(toWinAnsi(want), want) {
@@ -268,9 +268,8 @@ func TestDrawFooterShowsLabelsWhenValuesEmpty(t *testing.T) {
 			t.Fatalf("empty-value footer missing %q: %q", want, out)
 		}
 	}
-	// Empty value cells must still be stroked (desktop shows empty boxes).
-	if strings.Count(out, " re\n") < 8 {
-		t.Fatalf("empty values should still paint cell borders, re=%d", strings.Count(out, " re\n"))
+	if strings.Contains(out, " re\n") {
+		t.Fatalf("empty-value footer must not stroke input cell borders: %q", out)
 	}
 }
 
