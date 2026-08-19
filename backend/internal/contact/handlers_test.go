@@ -57,11 +57,61 @@ func TestProfileQASystemPromptRejectsImpersonation(t *testing.T) {
 		"never default to Spanish",
 		"[[CONTACT_EMAIL",
 		"[[CONTACT_WHATSAPP]]",
+		"residing in Venezuela",
+		"Never disclose family",
+		"based on the provided context",
+		"this individual",
+		"eduardooost@gmail.com",
+		"https://wa.me/584147281033",
 	}
 	for _, s := range mustContain {
 		if !strings.Contains(ProfileQASystemPrompt, s) {
 			t.Fatalf("ProfileQASystemPrompt missing %q", s)
 		}
+	}
+}
+
+func TestProfessionalProfileContextThirdPersonFacts(t *testing.T) {
+	mustContain := []string{
+		"Eduardo Osteicoechea",
+		"Universidad de Los Andes",
+		"Avant Leap",
+		"March 2024–present",
+		"eduardooost@gmail.com",
+		"BIMIQs",
+		"Venezuela",
+	}
+	for _, s := range mustContain {
+		if !strings.Contains(professionalProfileContext, s) {
+			t.Fatalf("professionalProfileContext missing %q", s)
+		}
+	}
+	// Factual brief must stay third person — no first-person work claims.
+	banned := []string{"I worked", "I'm developing", "I started", "my license"}
+	lower := strings.ToLower(professionalProfileContext)
+	for _, s := range banned {
+		if strings.Contains(lower, strings.ToLower(s)) {
+			t.Fatalf("professionalProfileContext must not use first person %q", s)
+		}
+	}
+}
+
+func TestBuildUserPromptInjectsProfile(t *testing.T) {
+	got := buildUserPrompt("Architecture", "Who is Eduardo?", nil)
+	if !strings.Contains(got, "Professional profile context:") {
+		t.Fatal("missing profile header")
+	}
+	if !strings.Contains(got, professionalProfileContext) {
+		t.Fatal("missing full professionalProfileContext")
+	}
+	if !strings.Contains(got, OwnerEmail) || !strings.Contains(got, WhatsAppURL) {
+		t.Fatal("missing public contact lines")
+	}
+	if !strings.Contains(got, "Optional skill focus: Architecture") {
+		t.Fatal("missing skill focus")
+	}
+	if !strings.Contains(got, "Visitor question:\nWho is Eduardo?") {
+		t.Fatal("missing visitor question")
 	}
 }
 
