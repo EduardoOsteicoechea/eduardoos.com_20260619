@@ -841,22 +841,40 @@ function reflowAndReport(container: HTMLElement) {
         renderPageChrome(container, currentDoc);
     }
 
-    // Single diagnostic: column payloads after layout (no reflow noise).
+    // Readable column text for debugging (not nested object dumps).
     const columnPayload = serializePamphlet(
         container,
         currentDoc?.last_edited_element ?? { column: 1, index: 0 },
         currentDoc,
     );
-    console.log("[pamphlet] column data", {
-        column_1: columnPayload.column_1,
-        column_2: columnPayload.column_2,
-        column_3: columnPayload.column_3,
-        column_4: columnPayload.column_4,
-        column_5: columnPayload.column_5,
-        column_6: columnPayload.column_6,
-        column_7: columnPayload.column_7,
-        column_8: columnPayload.column_8,
-    });
+    const lines: string[] = ["[pamphlet] column text"];
+    for (const key of [
+        "column_1",
+        "column_2",
+        "column_3",
+        "column_4",
+        "column_5",
+        "column_6",
+        "column_7",
+        "column_8",
+    ] as const) {
+        const items = columnPayload[key] ?? [];
+        lines.push(`=== ${key} (${items.length}) ===`);
+        if (items.length === 0) {
+            lines.push("(empty)");
+            continue;
+        }
+        items.forEach((item, i) => {
+            if (item.type === "image") {
+                lines.push(`[${i}] image height_mm=${item.height_mm}`);
+                return;
+            }
+            const text = (item.content || "").replace(/\s+/g, " ").trim();
+            const preview = text.length > 160 ? `${text.slice(0, 160)}…` : text;
+            lines.push(`[${i}] ${item.type}: ${preview || "(blank)"}`);
+        });
+    }
+    console.log(lines.join("\n"));
 
     // After chrome/grid resolve, refresh scroll gap after reflow.
     requestAnimationFrame(() => {

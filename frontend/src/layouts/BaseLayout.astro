@@ -134,8 +134,8 @@ const pathname = Astro.url.pathname;
     </script>
   </head>
   <body>
-    <AuthGate client:load pathname={pathname} />
-    <Header client:load pathname={pathname} />
+    <AuthGate client:only="react" pathname={pathname} />
+    <Header client:only="react" pathname={pathname} />
     <main>
       <slot />
     </main>

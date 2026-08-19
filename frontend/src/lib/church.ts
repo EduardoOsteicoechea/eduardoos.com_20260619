@@ -204,7 +204,13 @@ export function sanitizeChurchSlug(raw: string): string {
 }
 
 export function churchDetailHref(denomId: string, churchId: string): string {
-  return APP_ROUTES.churchDetail(denomId, churchId);
+  // Prefer the static workspace shell + query (always present in dist).
+  // Pretty /church/{denom}/{id} still works via nginx try_files → same shell.
+  const q = new URLSearchParams({
+    denom: denomId,
+    church: churchId,
+  });
+  return `${APP_ROUTES.churchWorkspace}?${q.toString()}`;
 }
 
 export function memberDisplayName(m: ChurchMember): string {

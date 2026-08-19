@@ -67,6 +67,7 @@ required_files=(
   "admin/users/index.html"
   "aps-admin/index.html"
   "contact/index.html"
+  "church/workspace/index.html"
   "favicon.svg"
 )
 for rel in "${required_files[@]}"; do
