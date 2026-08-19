@@ -147,7 +147,7 @@ export type PamphletFooterLayoutMm = {
 
 /** Exact mm from style.css `.pamphlet-page-footer` — PDF must use these, not invent sizes. */
 export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
-    height: 36.5, // --page-footer-height (label 5.5 + value 2.75 ×2 + gaps)
+    height: 33, // --page-footer-height (tighter value rows + meta gaps)
     pad: 1.2, // .pamphlet-page-footer { padding }
     radius: 1, // border-radius
     stroke: 0.2, // border width
@@ -162,10 +162,10 @@ export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
     message_pad_x: 1.4,
     message_pad_y: 0.7,
     message_min_h: 4.5,
-    meta_gap: 1, // .pamphlet-footer-meta-bar { gap }
+    meta_gap: 0.4, // gap between meta rows (tight under labels)
     meta_col_gap: 2, // .pamphlet-footer-meta-row { column-gap }
     meta_row_h: 5.5, // label rows 1 & 3
-    meta_value_row_h: 2.75, // value rows 2 & 4 (half of label)
+    meta_value_row_h: 1.5, // value rows 2 & 4 (smaller write-in band)
     meta_size: 2.8, // meta p font-size
     meta_pad_x: 1,
     meta_pad_y: 0.7,

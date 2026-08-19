@@ -5,7 +5,7 @@ package pdf
 // Geometry matches the frontend sheet CSS exactly:
 //   page  279.4mm × 215.9mm (US Letter landscape)
 //   cols  57.85mm wide, gutters 4mm / 20mm (center), margins 10mm
-//   page1 left  cols 7–8 (155.4mm tall) + footer; right header + cols 1–2
+//   page1 left  cols 7–8 (158.9mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
 // Text uses embedded Roboto / Roboto-Bold (website font) with WinAnsiEncoding.
@@ -40,9 +40,9 @@ const (
 	PamphletHeaderHMm = 23.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
-	PamphletFooterHMm          = 36.5 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 23 − 5 − 4 − 36.5 − 10
-	PamphletPage1BodyMm = 127.4
+	PamphletFooterHMm          = 33.0 // default; overridden by footer_layout.height from frontend
+	// 215.9 − 10 − 23 − 5 − 4 − 33 − 10
+	PamphletPage1BodyMm = 130.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// CSS .pamphlet-page-header { gap } between title block and meta bar.
@@ -51,8 +51,12 @@ const (
 	PamphletHeaderMetaRowGapMm = 0.8
 	// Right-side cols 1–2: 195.9 − 23 − 5
 	PamphletPage1RightColMm = 167.9
-	// Left-side cols 7–8 above footer: 195.9 − 4 − 36.5 (default layout.height)
-	PamphletPage1LeftColMm = 155.4
+	// Left-side cols 7–8 above footer: 195.9 − 4 − 33 (default layout.height)
+	PamphletPage1LeftColMm = 158.9
+	// Desktop .pamphlet-column-7/8 frame.
+	pamphletColFrameRadiusMm = 0.5
+	pamphletColFrameStrokeMm = 0.2
+	pamphletColFramePadMm    = 0.6
 	// Exact CSS type sizes on the sheet (source of truth for PDF).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band is 23mm so both meta rows fit
 	pamphletTitleLH     = 1.1
@@ -394,8 +398,13 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	_ = drawHeader(&s, doc.Header, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
 
 	leftTop := PamphletPageHeightMm - PamphletMarginMm
-	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, leftColH, images)
-	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, leftColH, images)
+	// Match desktop borders on columns 7–8.
+	strokeRoundedRectMm(&s, colX(2), leftTop, PamphletColWidthMm, leftColH, pamphletColFrameRadiusMm, pamphletColFrameStrokeMm)
+	strokeRoundedRectMm(&s, colX(4), leftTop, PamphletColWidthMm, leftColH, pamphletColFrameRadiusMm, pamphletColFrameStrokeMm)
+	innerW := PamphletColWidthMm - 2*pamphletColFramePadMm
+	innerH := leftColH - 2*pamphletColFramePadMm
+	drawColumn(&s, doc.Column7, colX(2)+pamphletColFramePadMm, leftTop-pamphletColFramePadMm, innerW, innerH, images)
+	drawColumn(&s, doc.Column8, colX(4)+pamphletColFramePadMm, leftTop-pamphletColFramePadMm, innerW, innerH, images)
 
 	rightTop := headerTop - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
 	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
@@ -516,10 +525,10 @@ func defaultFooterLayout() PamphletFooterLayout {
 		MessagePadX: 1.4,
 		MessagePadY: 0.7,
 		MessageMinH: 4.5,
-		MetaGap:       1.0,
+		MetaGap:       0.4,
 		MetaColGap:    2.0,
 		MetaRowH:      5.5,
-		MetaValueRowH: 2.75,
+		MetaValueRowH: 1.5,
 		MetaSize:      2.8,
 		MetaPadX:      1.0,
 		MetaPadY:      0.7,
