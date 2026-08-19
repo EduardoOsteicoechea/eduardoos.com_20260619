@@ -18,7 +18,7 @@ func TestEpamsListEmptyWhenAuthenticated(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := NewHandler(secret, NewMemoryEpamStore(), NewMemoryBIMStore())
+	h := NewHandler(secret, NewMemoryEpamStore())
 	r := chi.NewRouter()
 	h.Routes(r)
 
@@ -45,7 +45,7 @@ func TestEpamsListEmptyWhenAuthenticated(t *testing.T) {
 }
 
 func TestEpamsUnauthorizedWithoutToken(t *testing.T) {
-	h := NewHandler("secret", nil, nil)
+	h := NewHandler("secret", nil)
 	r := chi.NewRouter()
 	h.Routes(r)
 	rec := httptest.NewRecorder()
@@ -58,14 +58,6 @@ func TestEpamsUnauthorizedWithoutToken(t *testing.T) {
 func TestEpamObjectKey(t *testing.T) {
 	got := EpamObjectKey("a@b.com", "uuid-1")
 	want := "media/epams/a_at_b.com/uuid-1.epam"
-	if got != want {
-		t.Fatalf("got %q want %q", got, want)
-	}
-}
-
-func TestIfcBimObjectKey(t *testing.T) {
-	got := IfcBimObjectKey("a@b.com", "uuid-1")
-	want := "ifcbim/a_at_b.com/uuid-1.ifc"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}

@@ -1,56 +1,61 @@
-# Feature 008 — Footer meta cleanup + route prune (milestone)
+# Feature 008 — Footer mm contract + meta row hide + route prune
 
 ## Status
 
-Draft — blocked on clarifying questions (esp. route prune). Do not implement prune until confirmed.
+Ready to implement (clarified 2026-08-19).
 
-## Milestone note (locked)
+## Milestone (locked)
 
-1. **Footer outer margin / page relationship** is accepted as perfect — do not change page margin or footer placement on the sheet.
+1. Footer **outer** page relationship is perfect — do not change page margin / footer band placement.
 
-## Remaining footer work
+## Goals
 
-### 2. Desktop footer still ≠ PDF
-Desktop still shows cell borders / different chrome vs PDF. Goal: desktop print view matches PDF (PDF remains reference where they diverge unless noted below).
+### 2. Exhaustive footer mm contract (desktop → PDF)
+Desktop and PDF still differ in **sizes**. Fix:
 
-Open questions for (2):
-- Match means: hide input cell borders on desktop (PDF already omits them), keep double outer frame, same gaps/type?
-- Or something else still wrong after last inner-frame + action_message_gap fix?
+- Frontend `PAMPHLET_FOOTER_LAYOUT_MM` (and print payload `footer_layout`) must report **every** mm used to paint the footer: total height/width of the band, pad, outer/inner stroke + inset + radii, chrome gaps, **action_message separator** geometry, Acción box (font, lh, pad, min_h, computed section height rules), Mensaje box (same), meta col/row gaps, label vs value row heights, meta font/pad, cell stroke (editor only).
+- Backend `drawFooter` must **only** use posted `footer_layout` values (after normalize defaults for legacy clients). **No parallel invented geometry** for footer chrome/type/section heights.
+- If a size is needed and missing from the payload, add it to the FE constant first — never hardcode a new magic number only in Go.
 
-### 3. Remove the middle meta row (red X)
-In the 2-column meta block, remove the empty row between label row 1 (WhatsApp|Teléfono) and label row 3 (Dirección|Actividades) — i.e. the empty **value1|value2** band when values are blank / the spacer the user marked with X.
+### 3. Hide empty value meta rows
+In the 2-column meta block, **hide** the value row between label row 1 (WhatsApp|Teléfono) and label row 3 (Dirección|Actividades) when both value cells are empty (same for value row 4 if empty). Labels stay. Desktop + PDF.
 
-Proposed default: **collapse empty value rows** in editor + PDF (hide row 2 and/or 4 when both cells empty). Keep label rows. Values still editable when present / when focusing a slot.
+### 4. Double border between heading and `<p>`
+Not a larger plain gap alone: between Acción (heading) and Mensaje (`<p>`), paint a **double horizontal rule** matching the footer’s double-frame language (outer + thinner inner), driven by `footer_layout` mm. Desktop CSS + PDF from the same tokens.
 
-Alternative (ask): permanently drop value rows and put value on the same line as the label (header-style `Label: value`).
+### 5. Route prune (KEEP / DELETE)
 
-### 4. Margin between heading and `<p>`
-Increase Acción → Mensaje gap again (currently `action_message_gap: 1.2mm`). Propose **2.0mm** unless user picks another mm.
+**KEEP (pages + needed API):**
+- Home, Contact
+- Services: Homescool (+ subpages), Church (+ subpages), Music (`/media/musica`), Pamphlet, Articles
+- Auth (login/register/verify-otp/reset-password/profile)
+- Admin users
+- **Subscribe** (`/payments/subscription`) — ensure visible in UI (account menu / chrome as today or restore if missing from Services)
 
-### 5. Delete routes not on the current website (except Subscribe)
-**Keep visible:** Subscribe (`/payments/subscription`) — restore/show in UI if hidden.
-**Prune:** pages, FE libs, and backend handlers for routes **not** linked from the current public website chrome — but only after an explicit keep-list.
+**DELETE (FE pages, unused libs, and backend handlers/routes — shrink repo; do not break KEEP):**
+- BIM (`/bim` + `/api/bim`)
+- APS Admin (`/aps-admin` + `/api/aps`)
+- Debate App / edebat (`/debate-app`, `/edebat` + `/api/edebat`)
+- Instrumentalist (`/instrumentalist` + `/api/instrumentalist`)
+- Greek (`/greek/**` + `/api/greek`)
+- Media Gallery (`/media/gallery`) — Music stays
+- Any “Videos” UI if present
 
-#### Current Header surface (from `Header.tsx` today)
+**Safety:**
+- Update CI critical static routes (drop `aps-admin` from required list).
+- Remove dead imports; keep payments/subscribe + auth + remaining services compiling.
+- `npm run build` + `go test` for remaining packages before push.
 
-| Area | Routes |
-|------|--------|
-| Primary | Home, Contact |
-| Services menu | Homescool, Church, Music, Pamphlet, Articles |
-| Auth chrome | Subscribe, Profile, Login/Register, Admin (admin only) |
+## Non-goals
 
-Also existing pages **not** in that nav (candidates to delete unless kept): BIM, APS Admin, Debate App, Instrumentalist, Greek (+ build/workspace), Media Gallery (Music stays?), Homescool subpages?, Church subpages?, Articles ver?, Pamphlet stays?, auth OTP/reset, etc.
+- Changing DynamoDB table deletion in AWS.
+- Removing pamphlet PDF or payments/IPN stack.
+- Changing page-level Letter margins.
 
-## Non-goals until confirmed
+## Acceptance
 
-- Deleting DynamoDB tables or production data.
-- Removing auth/login/register/OTP/reset/profile (needed for Subscribe).
-- Removing pamphlet PDF pipeline or payments backend for Subscribe.
-
-## Acceptance (when unblocked)
-
-- [ ] Milestone 1 documented; no page-margin churn.
-- [ ] Desktop footer visual parity with PDF for agreed chrome.
-- [ ] Meta middle empty row gone (per chosen approach).
-- [ ] Acción→Mensaje gap = agreed mm on desktop + PDF via `footer_layout`.
-- [ ] Route prune matches approved keep-list; Subscribe visible; site builds; smoke `/`, `/payments/subscription`, `/auth/login`.
+- [x] `footer_layout` documents all footer mm; PDF uses only those for footer paint.
+- [x] Empty meta value rows hidden desktop + PDF.
+- [x] Double rule between Acción and Mensaje matches footer double-chrome language.
+- [x] DELETE list gone from pages/routes/handlers; Subscribe visible; KEEP flows build.
+- [x] Spec 005: FE build green before push when FE changed.

@@ -2,15 +2,15 @@ package payments
 
 import "testing"
 
-func TestQuoteTotalUSDDebateAndBundle(t *testing.T) {
-	if got := QuoteTotalUSD([]string{"debate"}, "monthly"); got != 3 {
-		t.Fatalf("debate monthly=%v want 3", got)
+func TestQuoteTotalUSDBundle(t *testing.T) {
+	if got := QuoteTotalUSD([]string{"homescool"}, "monthly"); got != 1 {
+		t.Fatalf("homescool monthly=%v want 1", got)
 	}
 	if got := QuoteTotalUSD([]string{"playlist", "pamphlet"}, "monthly"); got != 2 {
 		t.Fatalf("two dollar services=%v want 2", got)
 	}
-	if got := QuoteTotalUSD([]string{"debate", "playlist"}, "monthly"); got != 4 {
-		t.Fatalf("debate+music=%v want 4", got)
+	if got := QuoteTotalUSD([]string{"homescool", "playlist"}, "monthly"); got != 2 {
+		t.Fatalf("homescool+music=%v want 2", got)
 	}
 	if got := QuoteTotalUSD([]string{"playlist"}, "yearly"); got != 10 {
 		t.Fatalf("playlist yearly=%v want 10", got)
@@ -18,13 +18,13 @@ func TestQuoteTotalUSDDebateAndBundle(t *testing.T) {
 }
 
 func TestHasServiceAccessAdminBypass(t *testing.T) {
-	if !HasServiceAccess(true, nil, "debate") {
-		t.Fatal("admin should access debate without entitlements")
+	if !HasServiceAccess(true, nil, "pamphlet") {
+		t.Fatal("admin should access pamphlet without entitlements")
 	}
 	if !HasServiceAccess(true, nil, "homescool") {
 		t.Fatal("admin should access homescool without entitlements")
 	}
-	if HasServiceAccess(false, nil, "debate") {
+	if HasServiceAccess(false, nil, "pamphlet") {
 		t.Fatal("non-admin without entitlements must be denied")
 	}
 	if HasServiceAccess(false, nil, "homescool") {
@@ -32,15 +32,15 @@ func TestHasServiceAccessAdminBypass(t *testing.T) {
 	}
 }
 
-func TestInstrumentalistInCatalog(t *testing.T) {
-	if !KnownService("instrumentalist") {
-		t.Fatal("instrumentalist must be a known service")
+func TestPamphletInCatalog(t *testing.T) {
+	if !KnownService("pamphlet") {
+		t.Fatal("pamphlet must be a known service")
 	}
-	if got := MonthlyPriceUSD("instrumentalist"); got != 3 {
-		t.Fatalf("instrumentalist monthly=%v want 3", got)
+	if got := MonthlyPriceUSD("pamphlet"); got != 1 {
+		t.Fatalf("pamphlet monthly=%v want 1", got)
 	}
-	if !HasServiceAccess(true, nil, "instrumentalist") {
-		t.Fatal("admin should access instrumentalist")
+	if !HasServiceAccess(true, nil, "pamphlet") {
+		t.Fatal("admin should access pamphlet")
 	}
 }
 

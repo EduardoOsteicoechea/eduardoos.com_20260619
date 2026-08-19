@@ -16,7 +16,7 @@ export type SubscriptionService = {
   monthlyUsd: number;
 };
 
-/** Billable catalog — debate is $3/mo; other services $1/mo. */
+/** Billable catalog — services still offered on Subscribe. */
 export const SUBSCRIPTION_SERVICES: SubscriptionService[] = [
   {
     id: "playlist",
@@ -31,28 +31,10 @@ export const SUBSCRIPTION_SERVICES: SubscriptionService[] = [
     monthlyUsd: 1,
   },
   {
-    id: "debate",
-    label: "Debate App",
-    description: "Structured debate workspace.",
-    monthlyUsd: 3,
-  },
-  {
     id: "homescool",
     label: "Homescool",
     description: "Homescool learning surface.",
     monthlyUsd: 1,
-  },
-  {
-    id: "videos",
-    label: "Videos",
-    description: "Media gallery / videos library.",
-    monthlyUsd: 1,
-  },
-  {
-    id: "instrumentalist",
-    label: "Instrumentalist",
-    description: "Self-evaluate ideas with weighted belief trees and formal-logic analysis.",
-    monthlyUsd: 3,
   },
   {
     id: "church-management",

@@ -46,8 +46,7 @@ interface HeaderProps {
   pathname: string;
 }
 
-/** Home is the logo; omit a redundant "Home" row in the tray.
- * OpenBIM / APS stay reachable by URL but are hidden from the main tray for now. */
+/** Home is the logo; omit a redundant "Home" row in the tray. */
 const PRIMARY_LINKS = [
   { href: APP_ROUTES.contact, label: "Contact" },
 ] as const;
@@ -55,11 +54,9 @@ const PRIMARY_LINKS = [
 const SERVICES_LINKS = [
   { href: APP_ROUTES.homescool, label: "Homescool" },
   { href: APP_ROUTES.church, label: "Church" },
-  // Greek hidden from Services nav for now (routes/API remain for direct admin use).
   { href: APP_ROUTES.mediaPlaylist, label: "Music" },
   { href: APP_ROUTES.pamphlet, label: "Pamphlet" },
   { href: APP_ROUTES.articles, label: "Articles" },
-  // Videos / Debate App / Instrumentalist / Subscribe hidden for now (URLs stay live).
 ] as const;
 
 interface AccountMenuProps {

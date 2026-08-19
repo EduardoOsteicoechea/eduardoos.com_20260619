@@ -93,7 +93,7 @@ func TestRemoveMediaAudioLibraryRejectsNonAdmin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := NewHandler(secret, nil, nil)
+	h := NewHandler(secret, nil)
 	r := chi.NewRouter()
 	h.Routes(r)
 
@@ -115,7 +115,7 @@ func TestRemoveMediaAudioLibraryRejectsNonAdmin(t *testing.T) {
 }
 
 func TestRemoveMediaAudioLibraryRequiresAuth(t *testing.T) {
-	h := NewHandler("media-remove-secret", nil, nil)
+	h := NewHandler("media-remove-secret", nil)
 	r := chi.NewRouter()
 	h.Routes(r)
 
@@ -150,7 +150,7 @@ func TestRemoveMediaAudioLibraryRetainsS3Object(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := NewHandler(secret, nil, nil)
+	h := NewHandler(secret, nil)
 	r := chi.NewRouter()
 	h.Routes(r)
 

@@ -19,7 +19,7 @@ func TestUploadMediaAudioRejectsNonAdmin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := NewHandler(secret, nil, nil)
+	h := NewHandler(secret, nil)
 	r := chi.NewRouter()
 	h.Routes(r)
 
@@ -39,7 +39,7 @@ func TestUploadMediaAudioRejectsNonAdmin(t *testing.T) {
 }
 
 func TestUploadMediaAudioRequiresAuth(t *testing.T) {
-	h := NewHandler("media-upload-secret", nil, nil)
+	h := NewHandler("media-upload-secret", nil)
 	r := chi.NewRouter()
 	h.Routes(r)
 
@@ -64,7 +64,7 @@ func TestUploadMediaAudioAdminWithoutS3ReturnsUnavailable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := NewHandler(secret, nil, nil)
+	h := NewHandler(secret, nil)
 	r := chi.NewRouter()
 	h.Routes(r)
 
@@ -87,7 +87,7 @@ func TestUploadMediaAudioAdminRejectsMissingFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := NewHandler(secret, nil, nil)
+	h := NewHandler(secret, nil)
 	r := chi.NewRouter()
 	h.Routes(r)
 

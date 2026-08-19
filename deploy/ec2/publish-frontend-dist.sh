@@ -70,7 +70,7 @@ echo "==> Verifying critical static routes in staging build"
 required_files=(
   "index.html"
   "admin/users/index.html"
-  "aps-admin/index.html"
+  "payments/subscription/index.html"
   "contact/index.html"
   "church/workspace/index.html"
   "favicon.svg"

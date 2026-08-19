@@ -19,7 +19,7 @@ func TestPlaylistCreateAndAddTrack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := NewHandler(secret, NewMemoryEpamStore(), NewMemoryBIMStore())
+	h := NewHandler(secret, NewMemoryEpamStore())
 	r := chi.NewRouter()
 	h.Routes(r)
 

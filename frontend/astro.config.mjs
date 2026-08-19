@@ -12,13 +12,6 @@ export default defineConfig({
     port: 4322,
   },
   vite: {
-    optimizeDeps: {
-      // web-ifc ships WASM; keep Vite from pre-bundling it incorrectly.
-      exclude: ["web-ifc"],
-    },
-    worker: {
-      format: "es",
-    },
     server: {
       proxy: {
         "/api": "http://127.0.0.1:3001",

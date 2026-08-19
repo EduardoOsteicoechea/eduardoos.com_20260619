@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strings"
 
-	"eduardoos.nex/internal/aps"
 	"eduardoos.nex/internal/auth"
 	"eduardoos.nex/internal/httpx"
 
@@ -90,8 +89,8 @@ func (h *Handler) GetEmusic(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PutEmusic(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	email := auth.UserEmailFromRequest(r)
-	if !aps.IsAdminEmail(email) {
-		httpx.WriteError(w, http.StatusForbidden, "aps admin only")
+	if !auth.IsAdminEmail(email) {
+		httpx.WriteError(w, http.StatusForbidden, "admin only")
 		return
 	}
 

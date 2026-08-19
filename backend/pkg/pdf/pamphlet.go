@@ -5,7 +5,7 @@ package pdf
 // Geometry matches the frontend sheet CSS exactly:
 //   page  279.4mm × 215.9mm (US Letter landscape)
 //   cols  57.85mm wide, gutters 4mm / 20mm (center), margins 10mm
-//   page1 left  cols 7–8 (160.3mm tall) + footer; right header + cols 1–2
+//   page1 left  cols 7–8 (163.9mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
 // Text uses embedded Roboto / Roboto-Bold (website font) with WinAnsiEncoding.
@@ -43,9 +43,9 @@ const (
 	PamphletHeaderHMm = 23.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
-	PamphletFooterHMm          = 33.6 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 23 − 5 − 2 − 33.6 − 10
-	PamphletPage1BodyMm = 132.3
+	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
+	// 215.9 − 10 − 23 − 5 − 2 − 30 − 10
+	PamphletPage1BodyMm = 135.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// CSS .pamphlet-page-header { gap } between title block and meta bar.
@@ -54,8 +54,8 @@ const (
 	PamphletHeaderMetaRowGapMm = 0.8
 	// Right-side cols 1–2: 195.9 − 23 − 5
 	PamphletPage1RightColMm = 167.9
-	// Left-side cols 7–8 above footer: 195.9 − 2 − 33.6 (default layout.height)
-	PamphletPage1LeftColMm = 160.3
+	// Left-side cols 7–8 above footer: 195.9 − 2 − 30 (default layout.height)
+	PamphletPage1LeftColMm = 163.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band is 23mm so both meta rows fit
 	pamphletTitleLH     = 1.1
@@ -103,34 +103,40 @@ type PamphletHeaderLayout struct {
 // PamphletFooterLayout is the exact mm chrome from the frontend sheet CSS
 // (PAMPHLET_FOOTER_LAYOUT_MM). Print POSTs these; PDF must not invent sizes.
 type PamphletFooterLayout struct {
-	Height      float64 `json:"height"`
-	Pad         float64 `json:"pad"`
-	Radius      float64 `json:"radius"`
-	Stroke      float64 `json:"stroke"`
-	InnerInset  float64 `json:"inner_inset"`
-	InnerStroke float64 `json:"inner_stroke"`
-	InnerRadius float64 `json:"inner_radius"`
-	ChromeGap   float64 `json:"chrome_gap"`
-	// ActionMessageGap is Acción → Mensaje only (desktop: 2× chrome_gap).
+	Height               float64 `json:"height"`
+	Width                float64 `json:"width"`
+	Pad                  float64 `json:"pad"`
+	Radius               float64 `json:"radius"`
+	Stroke               float64 `json:"stroke"`
+	InnerInset           float64 `json:"inner_inset"`
+	InnerStroke          float64 `json:"inner_stroke"`
+	InnerRadius          float64 `json:"inner_radius"`
+	ChromeGap            float64 `json:"chrome_gap"`
+	DividerOuterStroke   float64 `json:"divider_outer_stroke"`
+	DividerGap           float64 `json:"divider_gap"`
+	DividerInnerStroke   float64 `json:"divider_inner_stroke"`
+	ActionSize           float64 `json:"action_size"`
+	ActionLH             float64 `json:"action_lh"`
+	ActionPadX           float64 `json:"action_pad_x"`
+	ActionPadY           float64 `json:"action_pad_y"`
+	ActionMinH           float64 `json:"action_min_h"`
+	MessageSize          float64 `json:"message_size"`
+	MessageLH            float64 `json:"message_lh"`
+	MessagePadX          float64 `json:"message_pad_x"`
+	MessagePadY          float64 `json:"message_pad_y"`
+	MessageMinH          float64 `json:"message_min_h"`
+	MetaGap              float64 `json:"meta_gap"`
+	MetaColGap           float64 `json:"meta_col_gap"`
+	MetaRowH             float64 `json:"meta_row_h"`
+	MetaValueRowH        float64 `json:"meta_value_row_h"`
+	MetaSize             float64 `json:"meta_size"`
+	MetaLH               float64 `json:"meta_lh"`
+	MetaPadX             float64 `json:"meta_pad_x"`
+	MetaPadY             float64 `json:"meta_pad_y"`
+	MetaValuePadY        float64 `json:"meta_value_pad_y"`
+	CellStroke           float64 `json:"cell_stroke"`
+	// Legacy: older clients sent action_message_gap; ignored when divider_* present.
 	ActionMessageGap float64 `json:"action_message_gap"`
-	ActionSize       float64 `json:"action_size"`
-	ActionLH         float64 `json:"action_lh"`
-	ActionPadX       float64 `json:"action_pad_x"`
-	ActionPadY       float64 `json:"action_pad_y"`
-	ActionMinH       float64 `json:"action_min_h"`
-	MessageSize      float64 `json:"message_size"`
-	MessageLH        float64 `json:"message_lh"`
-	MessagePadX      float64 `json:"message_pad_x"`
-	MessagePadY      float64 `json:"message_pad_y"`
-	MessageMinH      float64 `json:"message_min_h"`
-	MetaGap          float64 `json:"meta_gap"`
-	MetaColGap       float64 `json:"meta_col_gap"`
-	MetaRowH         float64 `json:"meta_row_h"`
-	MetaValueRowH    float64 `json:"meta_value_row_h"`
-	MetaSize         float64 `json:"meta_size"`
-	MetaPadX         float64 `json:"meta_pad_x"`
-	MetaPadY         float64 `json:"meta_pad_y"`
-	CellStroke       float64 `json:"cell_stroke"`
 }
 
 type PamphletHeader struct {
@@ -574,33 +580,38 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 // defaultFooterLayout mirrors frontend PAMPHLET_FOOTER_LAYOUT_MM / style.css.
 func defaultFooterLayout() PamphletFooterLayout {
 	return PamphletFooterLayout{
-		Height:           PamphletFooterHMm,
-		Pad:              1.2,
-		Radius:           1.0,
-		Stroke:           0.2,
-		InnerInset:       0.45,
-		InnerStroke:      0.1,
-		InnerRadius:      0.6,
-		ChromeGap:        0.6,
-		ActionMessageGap: 1.2,
-		ActionSize:       3.175,
-		ActionLH:         1.25,
-		ActionPadX:       1.4,
-		ActionPadY:       0.7,
-		ActionMinH:       4.5,
-		MessageSize:      2.469,
-		MessageLH:        1.25,
-		MessagePadX:      1.4,
-		MessagePadY:      0.7,
-		MessageMinH:      4.5,
-		MetaGap:          0.4,
-		MetaColGap:       2.0,
-		MetaRowH:         5.5,
-		MetaValueRowH:    1.5,
-		MetaSize:         2.8,
-		MetaPadX:         1.0,
-		MetaPadY:         0.7,
-		CellStroke:       0.15,
+		Height:             PamphletFooterHMm,
+		Width:              PamphletColWidthMm*2 + PamphletGutterNarrow,
+		Pad:                1.2,
+		Radius:             1.0,
+		Stroke:             0.2,
+		InnerInset:         0.45,
+		InnerStroke:        0.1,
+		InnerRadius:        0.6,
+		ChromeGap:          0.6,
+		DividerOuterStroke: 0.2,
+		DividerGap:         0.45,
+		DividerInnerStroke: 0.1,
+		ActionSize:         3.175,
+		ActionLH:           1.25,
+		ActionPadX:         1.4,
+		ActionPadY:         0.7,
+		ActionMinH:         4.5,
+		MessageSize:        2.469,
+		MessageLH:          1.25,
+		MessagePadX:        1.4,
+		MessagePadY:        0.7,
+		MessageMinH:        4.5,
+		MetaGap:            0.4,
+		MetaColGap:         2.0,
+		MetaRowH:           5.5,
+		MetaValueRowH:      1.5,
+		MetaSize:           2.8,
+		MetaLH:             1.25,
+		MetaPadX:           1.0,
+		MetaPadY:           0.7,
+		MetaValuePadY:      0.2,
+		CellStroke:         0.15,
 	}
 }
 
@@ -615,33 +626,38 @@ func normalizeFooterLayout(l PamphletFooterLayout) PamphletFooterLayout {
 		return def
 	}
 	return PamphletFooterLayout{
-		Height:           pick(l.Height, d.Height),
-		Pad:              pick(l.Pad, d.Pad),
-		Radius:           pick(l.Radius, d.Radius),
-		Stroke:           pick(l.Stroke, d.Stroke),
-		InnerInset:       pick(l.InnerInset, d.InnerInset),
-		InnerStroke:      pick(l.InnerStroke, d.InnerStroke),
-		InnerRadius:      pick(l.InnerRadius, d.InnerRadius),
-		ChromeGap:        pick(l.ChromeGap, d.ChromeGap),
-		ActionMessageGap: pick(l.ActionMessageGap, d.ActionMessageGap),
-		ActionSize:       pick(l.ActionSize, d.ActionSize),
-		ActionLH:         pick(l.ActionLH, d.ActionLH),
-		ActionPadX:       pick(l.ActionPadX, d.ActionPadX),
-		ActionPadY:       pick(l.ActionPadY, d.ActionPadY),
-		ActionMinH:       pick(l.ActionMinH, d.ActionMinH),
-		MessageSize:      pick(l.MessageSize, d.MessageSize),
-		MessageLH:        pick(l.MessageLH, d.MessageLH),
-		MessagePadX:      pick(l.MessagePadX, d.MessagePadX),
-		MessagePadY:      pick(l.MessagePadY, d.MessagePadY),
-		MessageMinH:      pick(l.MessageMinH, d.MessageMinH),
-		MetaGap:          pick(l.MetaGap, d.MetaGap),
-		MetaColGap:       pick(l.MetaColGap, d.MetaColGap),
-		MetaRowH:         pick(l.MetaRowH, d.MetaRowH),
-		MetaValueRowH:    pick(l.MetaValueRowH, d.MetaValueRowH),
-		MetaSize:         pick(l.MetaSize, d.MetaSize),
-		MetaPadX:         pick(l.MetaPadX, d.MetaPadX),
-		MetaPadY:         pick(l.MetaPadY, d.MetaPadY),
-		CellStroke:       pick(l.CellStroke, d.CellStroke),
+		Height:             pick(l.Height, d.Height),
+		Width:              pick(l.Width, d.Width),
+		Pad:                pick(l.Pad, d.Pad),
+		Radius:             pick(l.Radius, d.Radius),
+		Stroke:             pick(l.Stroke, d.Stroke),
+		InnerInset:         pick(l.InnerInset, d.InnerInset),
+		InnerStroke:        pick(l.InnerStroke, d.InnerStroke),
+		InnerRadius:        pick(l.InnerRadius, d.InnerRadius),
+		ChromeGap:          pick(l.ChromeGap, d.ChromeGap),
+		DividerOuterStroke: pick(l.DividerOuterStroke, d.DividerOuterStroke),
+		DividerGap:         pick(l.DividerGap, d.DividerGap),
+		DividerInnerStroke: pick(l.DividerInnerStroke, d.DividerInnerStroke),
+		ActionSize:         pick(l.ActionSize, d.ActionSize),
+		ActionLH:           pick(l.ActionLH, d.ActionLH),
+		ActionPadX:         pick(l.ActionPadX, d.ActionPadX),
+		ActionPadY:         pick(l.ActionPadY, d.ActionPadY),
+		ActionMinH:         pick(l.ActionMinH, d.ActionMinH),
+		MessageSize:        pick(l.MessageSize, d.MessageSize),
+		MessageLH:          pick(l.MessageLH, d.MessageLH),
+		MessagePadX:        pick(l.MessagePadX, d.MessagePadX),
+		MessagePadY:        pick(l.MessagePadY, d.MessagePadY),
+		MessageMinH:        pick(l.MessageMinH, d.MessageMinH),
+		MetaGap:            pick(l.MetaGap, d.MetaGap),
+		MetaColGap:         pick(l.MetaColGap, d.MetaColGap),
+		MetaRowH:           pick(l.MetaRowH, d.MetaRowH),
+		MetaValueRowH:      pick(l.MetaValueRowH, d.MetaValueRowH),
+		MetaSize:           pick(l.MetaSize, d.MetaSize),
+		MetaLH:             pick(l.MetaLH, d.MetaLH),
+		MetaPadX:           pick(l.MetaPadX, d.MetaPadX),
+		MetaPadY:           pick(l.MetaPadY, d.MetaPadY),
+		MetaValuePadY:      pick(l.MetaValuePadY, d.MetaValuePadY),
+		CellStroke:         pick(l.CellStroke, d.CellStroke),
 	}
 }
 
@@ -793,6 +809,10 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	f = normalizeFooter(f)
 	layout = normalizeFooterLayout(layout)
 	heightMm := layout.Height
+	// Prefer exhaustive FE footer_layout.width when posted; caller width is fallback only.
+	if layout.Width > 0 {
+		width = layout.Width
+	}
 
 	strokeRoundedRectMm(s, x, top, width, heightMm, layout.Radius, layout.Stroke)
 	// Thinner second frame: CSS ::after inset is from the padding edge (inner face
@@ -817,12 +837,9 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	floor := top - heightMm + pad
 	cursorTop := innerTop
 
-	actionToMessageGap := layout.ActionMessageGap
-	if actionToMessageGap <= 0 {
-		actionToMessageGap = layout.ChromeGap
-	}
+	dividerH := layout.DividerOuterStroke + layout.DividerGap + layout.DividerInnerStroke
 
-	// Acción — reserve the same box height as desktop; no cell border in print.
+	// Acción — box height from FE layout only; no cell border in print.
 	actionTextW := innerW - 2*layout.ActionPadX
 	if actionTextW < 4 {
 		actionTextW = innerW
@@ -843,10 +860,18 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 			writeWrapped(s, "F2", MmToPoints(layout.ActionSize), layout.ActionLH,
 				innerX+layout.ActionPadX, y, actionTextW, f.Action, textFloor)
 		}
-		cursorTop -= actionBoxH + actionToMessageGap
+		cursorTop -= actionBoxH
 	}
 
-	// Mensaje — same height contract as Acción; no cell border in print.
+	// Double horizontal rule (same language as footer outer/inner frame).
+	if dividerH > 0 && cursorTop-dividerH > floor {
+		strokeHorizontalRuleMm(s, innerX, cursorTop, innerW, layout.DividerOuterStroke)
+		cursorTop -= layout.DividerOuterStroke + layout.DividerGap
+		strokeHorizontalRuleMm(s, innerX, cursorTop, innerW, layout.DividerInnerStroke)
+		cursorTop -= layout.DividerInnerStroke
+	}
+
+	// Mensaje
 	msgTextW := innerW - 2*layout.MessagePadX
 	if msgTextW < 4 {
 		msgTextW = innerW
@@ -876,48 +901,75 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	}
 	rightX := innerX + half + layout.MetaColGap
 
-	rows := [4][2]string{
-		{f.Label1, f.Label2},
-		{f.Value1, f.Value2},
-		{f.Label3, f.Label4},
-		{f.Value3, f.Value4},
+	type metaRow struct {
+		left, right string
+		isLabel     bool
 	}
-	labelRows := map[int]bool{0: true, 2: true}
+	allRows := []metaRow{
+		{f.Label1, f.Label2, true},
+		{f.Value1, f.Value2, false},
+		{f.Label3, f.Label4, true},
+		{f.Value3, f.Value4, false},
+	}
 	metaPt := MmToPoints(layout.MetaSize)
 	metaSizeMm := layout.MetaSize
+	metaLH := layout.MetaLH
+	if metaLH <= 0 {
+		metaLH = 1.25
+	}
 	cellW := half - layout.MetaPadX
 	if cellW < 4 {
 		cellW = half
 	}
 
-	for i, pair := range rows {
-		isLabel := labelRows[i]
+	drawn := 0
+	for _, row := range allRows {
+		if !row.isLabel {
+			if strings.TrimSpace(row.left) == "" && strings.TrimSpace(row.right) == "" {
+				continue // hide empty value rows (spec 008)
+			}
+		}
 		rowH := layout.MetaRowH
 		padY := layout.MetaPadY
-		if !isLabel {
+		if !row.isLabel {
 			rowH = layout.MetaValueRowH
-			padY = 0.2 // matches CSS value-row padding
+			padY = layout.MetaValuePadY
 		}
 		if cursorTop-rowH < floor-0.01 {
 			break
 		}
-
-		metaY := cursorTop - padY - cssBaselineOffsetMm(metaSizeMm, 1.25)
-		font := "F1"
-		if isLabel {
-			font = "F2"
-		}
-		if strings.TrimSpace(pair[0]) != "" {
-			writeGrayText(s, font, metaPt, innerX+layout.MetaPadX*0.5, metaY, cellW, pair[0])
-		}
-		if strings.TrimSpace(pair[1]) != "" {
-			writeGrayText(s, font, metaPt, rightX+layout.MetaPadX*0.5, metaY, cellW, pair[1])
-		}
-		cursorTop -= rowH
-		if i < len(rows)-1 {
+		if drawn > 0 {
 			cursorTop -= layout.MetaGap
 		}
+
+		metaY := cursorTop - padY - cssBaselineOffsetMm(metaSizeMm, metaLH)
+		font := "F1"
+		if row.isLabel {
+			font = "F2"
+		}
+		if strings.TrimSpace(row.left) != "" {
+			writeGrayText(s, font, metaPt, innerX+layout.MetaPadX*0.5, metaY, cellW, row.left)
+		}
+		if strings.TrimSpace(row.right) != "" {
+			writeGrayText(s, font, metaPt, rightX+layout.MetaPadX*0.5, metaY, cellW, row.right)
+		}
+		cursorTop -= rowH
+		drawn++
 	}
+}
+
+// strokeHorizontalRuleMm draws a hairline across the footer (divider outer/inner).
+func strokeHorizontalRuleMm(s *strings.Builder, x, top, width, strokeMm float64) {
+	if width <= 0 || strokeMm <= 0 {
+		return
+	}
+	y := MmToPoints(top)
+	s.WriteString("q\n")
+	s.WriteString("0 0 0 RG\n")
+	s.WriteString(fmt.Sprintf("%.3f w\n", MmToPoints(strokeMm)))
+	s.WriteString(fmt.Sprintf("%.2f %.2f m %.2f %.2f l S\n",
+		MmToPoints(x), y, MmToPoints(x+width), y))
+	s.WriteString("Q\n")
 }
 
 func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage) {

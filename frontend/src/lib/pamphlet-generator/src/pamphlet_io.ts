@@ -284,6 +284,12 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
 
     // Acción + Mensaje as full-width editable fields (input chrome in CSS).
     footerEl.appendChild(createFooterFieldElement("action", footer.action ?? "", "h1"));
+
+    const divider = document.createElement("div");
+    divider.className = "pamphlet-footer-divider";
+    divider.setAttribute("aria-hidden", "true");
+    footerEl.appendChild(divider);
+
     footerEl.appendChild(createFooterFieldElement("message", footer.message ?? "", "p"));
 
     const footerMeta = document.createElement("div");
@@ -291,8 +297,15 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
     for (const [leftField, rightField] of FOOTER_META_ROWS) {
         const row = document.createElement("div");
         row.className = "pamphlet-footer-meta-row";
+        const isValues = leftField.startsWith("value");
+        row.dataset.metaKind = isValues ? "values" : "labels";
         row.appendChild(createFooterFieldElement(leftField, footer[leftField] ?? "", "p"));
         row.appendChild(createFooterFieldElement(rightField, footer[rightField] ?? "", "p"));
+        if (isValues) {
+            const leftEmpty = !(footer[leftField] ?? "").trim();
+            const rightEmpty = !(footer[rightField] ?? "").trim();
+            if (leftEmpty && rightEmpty) row.dataset.empty = "1";
+        }
         footerMeta.appendChild(row);
     }
     footerEl.appendChild(footerMeta);
@@ -388,6 +401,37 @@ export function serializeFooterFromDom(main: HTMLElement): PamphletFooter {
         footer[field] = inner?.textContent ?? "";
     });
 
+    syncFooterMetaEmptyFlags(root, footer);
+    return footer;
+}
+
+/** Hide empty value rows (WhatsApp/Teléfono values, Dirección/Actividades values). */
+export function syncFooterMetaEmptyFlags(root: HTMLElement, footer?: PamphletFooter): void {
+    const data = footer ?? serializeFooterFieldsOnly(root);
+    const pairs: [FooterFieldKey, FooterFieldKey][] = [
+        ["value1", "value2"],
+        ["value3", "value4"],
+    ];
+    const rows = root.querySelectorAll<HTMLElement>(
+        ".pamphlet-footer-meta-row[data-meta-kind='values']",
+    );
+    rows.forEach((row, i) => {
+        const pair = pairs[i];
+        if (!pair) return;
+        const empty = !data[pair[0]].trim() && !data[pair[1]].trim();
+        if (empty) row.dataset.empty = "1";
+        else delete row.dataset.empty;
+    });
+}
+
+function serializeFooterFieldsOnly(root: HTMLElement): PamphletFooter {
+    const footer = emptyFooter();
+    root.querySelectorAll<HTMLElement>(".pamphlet-item[data-footer-field]").forEach((item) => {
+        const field = item.getAttribute("data-footer-field") as FooterFieldKey | null;
+        if (!field || !(field in footer)) return;
+        const inner = item.firstElementChild as HTMLElement | null;
+        footer[field] = inner?.textContent ?? "";
+    });
     return footer;
 }
 

@@ -2,8 +2,6 @@
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -17,29 +15,24 @@ import (
 	"github.com/google/uuid"
 )
 
-// Handler serves epams, playlists, and BIM model APIs.
+// Handler serves epams, playlists, media, emusic, and articles APIs.
 type Handler struct {
 	JWTSecret string
 	Epams     EpamStore
 	Playlists *PlaylistStore
-	BIM       BIMStore
 	auth      *auth.Handler
 }
 
 // NewHandler constructs content handlers with the given stores (or memory defaults).
-func NewHandler(jwtSecret string, epams EpamStore, bim BIMStore) *Handler {
+func NewHandler(jwtSecret string, epams EpamStore) *Handler {
 	if epams == nil {
 		epams = NewMemoryEpamStore()
-	}
-	if bim == nil {
-		bim = NewMemoryBIMStore()
 	}
 	ah := &auth.Handler{JWTSecret: jwtSecret}
 	return &Handler{
 		JWTSecret: jwtSecret,
 		Epams:     epams,
 		Playlists: NewPlaylistStore(),
-		BIM:       bim,
 		auth:      ah,
 	}
 }
@@ -78,10 +71,6 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Post("/api/playlists", h.CreatePlaylist)
 		r.Post("/api/playlists/{id}/tracks", h.AddPlaylistTrack)
 		r.Put("/api/playlists/{id}", h.UpdatePlaylist)
-
-		r.Get("/api/bim/models", h.ListBIMModels)
-		r.Post("/api/bim/models", h.CreateBIMModel)
-		r.Get("/api/bim/models/{id}/file", h.GetBIMFile)
 	})
 }
 
@@ -463,121 +452,4 @@ func (h *Handler) AddPlaylistTrack(w http.ResponseWriter, r *http.Request) {
 	existing.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	h.Playlists.items[key] = existing
 	httpx.WriteJSON(w, http.StatusCreated, existing)
-}
-
-func (h *Handler) ListBIMModels(w http.ResponseWriter, r *http.Request) {
-	email := auth.UserEmailFromRequest(r)
-	cid := httpx.CorrelationFromRequest(r)
-	out, err := h.BIM.ListByUser(r.Context(), email, cid)
-	if err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, err.Error())
-		return
-	}
-	if out == nil {
-		out = []IfcBimRecord{}
-	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
-}
-
-// CreateBIMModel accepts either multipart/form-data (field "file") with optional
-// "name", or JSON { "name": "..." } for a placeholder IFC body.
-func (h *Handler) CreateBIMModel(w http.ResponseWriter, r *http.Request) {
-	email := auth.UserEmailFromRequest(r)
-	cid := httpx.CorrelationFromRequest(r)
-
-	var (
-		name        string
-		fileBytes   []byte
-		contentType = "application/octet-stream"
-	)
-
-	ct := r.Header.Get("Content-Type")
-	if strings.HasPrefix(strings.ToLower(ct), "multipart/form-data") {
-		// Cap uploads at 64 MiB — enough for typical IFC without unbounded memory.
-		if err := r.ParseMultipartForm(64 << 20); err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid multipart form")
-			return
-		}
-		name = strings.TrimSpace(r.FormValue("name"))
-		f, hdr, err := r.FormFile("file")
-		if err == nil && f != nil {
-			defer f.Close()
-			fileBytes, err = io.ReadAll(io.LimitReader(f, 64<<20))
-			if err != nil {
-				httpx.WriteError(w, http.StatusBadRequest, "could not read upload")
-				return
-			}
-			if name == "" && hdr != nil {
-				name = hdr.Filename
-			}
-			if hdr != nil && hdr.Header.Get("Content-Type") != "" {
-				contentType = hdr.Header.Get("Content-Type")
-			}
-		}
-	} else {
-		var body struct {
-			Name string `json:"name"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
-			return
-		}
-		name = strings.TrimSpace(body.Name)
-	}
-
-	if name == "" {
-		name = "untitled.ifc"
-	}
-
-	saved, err := h.BIM.Save(r.Context(), IfcBimRecord{
-		UserID:           email,
-		Name:             name,
-		Title:            name,
-		FileName:         name,
-		ContentType:      contentType,
-		ContentSizeBytes: int64(len(fileBytes)),
-	}, fileBytes, cid)
-	if err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, err.Error())
-		return
-	}
-	if saved.ContentSizeBytes == 0 && len(fileBytes) == 0 {
-		// Placeholder path — store reports size after Save fills default bytes.
-		if b, ok, _ := h.BIM.GetFile(r.Context(), email, saved.ModelID); ok {
-			saved.ContentSizeBytes = int64(len(b))
-		}
-	}
-	httpx.WriteJSON(w, http.StatusCreated, saved)
-}
-
-func (h *Handler) GetBIMFile(w http.ResponseWriter, r *http.Request) {
-	email := auth.UserEmailFromRequest(r)
-	id := chi.URLParam(r, "id")
-	rec, ok, err := h.BIM.Get(r.Context(), email, id, httpx.CorrelationFromRequest(r))
-	if err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, err.Error())
-		return
-	}
-	if !ok && h.BIM.BackendName() == "memory" {
-		httpx.WriteError(w, http.StatusNotFound, "not found")
-		return
-	}
-	b, ok, err := h.BIM.GetFile(r.Context(), email, id)
-	if err != nil || !ok {
-		httpx.WriteError(w, http.StatusNotFound, "not found")
-		return
-	}
-	ctype := "application/octet-stream"
-	if rec.ContentType != "" {
-		ctype = rec.ContentType
-	}
-	filename := rec.FileName
-	if filename == "" {
-		filename = id + ".ifc"
-	}
-	w.Header().Set("Content-Type", ctype)
-	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(b)))
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(b)
 }

@@ -12,7 +12,7 @@
 // the sanitized student email (a_at_b.com), scoped under that teacher.
 // Re-register is idempotent: existing link → 200 + EnsureStudentFolders.
 //
-// S3 layout (bucket-root prefix, same pattern as ifcbim/ — NOT under media/):
+// S3 layout (bucket-root prefix — NOT under media/):
 //
 //	homeschool/{teacherSafe}/{studentSafe}/{folder}/...
 //
@@ -64,7 +64,7 @@ func IsValidFolder(name string) bool {
 }
 
 // SafeEmailKey turns an email into a filesystem/S3/URL-safe segment.
-// Matches the rest of Eduardo OS Next (epams, instrumentalist, bim): @ → _at_.
+// Matches the rest of Eduardo OS Next (epams): @ → _at_.
 func SafeEmailKey(email string) string {
 	email = strings.ToLower(strings.TrimSpace(email))
 	email = strings.ReplaceAll(email, "@", "_at_")

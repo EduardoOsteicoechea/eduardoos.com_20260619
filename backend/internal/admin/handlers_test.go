@@ -69,7 +69,7 @@ func TestListUsersAdminOnlyAndGrantEntitlements(t *testing.T) {
 		t.Fatalf("count=%v", listed["count"])
 	}
 
-	grantBody := `{"services":["debate","playlist"],"billing_period":"monthly","months":1}`
+	grantBody := `{"services":["homescool","playlist"],"billing_period":"monthly","months":1}`
 	grant := httptest.NewRequest(http.MethodPut, "/api/admin/users/member@example.com/entitlements",
 		bytes.NewBufferString(grantBody))
 	grant.Header.Set("Authorization", "Bearer "+adminToken)
@@ -221,8 +221,8 @@ func TestDeleteUserAdminOnlyBlocksSelfAndAdmin(t *testing.T) {
 	})
 	pay := payments.NewStore()
 	pay.PutEntitlements("spam@example.com", []payments.Entitlement{{
-		ServiceID:     "debate",
-		ServiceLabel:  "Debate",
+		ServiceID:     "homescool",
+		ServiceLabel:  "Homescool",
 		BillingPeriod: "monthly",
 	}})
 	h := NewHandler(secret, store, pay)

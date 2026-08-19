@@ -52,17 +52,17 @@ describe("platform admin service access", () => {
     );
   });
 
-  it("bootstrap admin bypasses debate (second gated service)", () => {
-    assert.equal(hasServiceAccess("debate", [], APS_ADMIN_EMAIL), true);
+  it("bootstrap admin bypasses pamphlet (second gated service)", () => {
+    assert.equal(hasServiceAccess("pamphlet", [], APS_ADMIN_EMAIL), true);
   });
 
-  it("stored role admin bypasses homescool and debate", () => {
+  it("stored role admin bypasses homescool and pamphlet", () => {
     assert.equal(
       hasServiceAccess("homescool", [], "teacher@example.com", "admin"),
       true,
     );
     assert.equal(
-      hasServiceAccess("debate", [], "teacher@example.com", "admin"),
+      hasServiceAccess("pamphlet", [], "teacher@example.com", "admin"),
       true,
     );
   });
@@ -73,7 +73,7 @@ describe("platform admin service access", () => {
       false,
     );
     assert.equal(
-      hasServiceAccess("debate", [], "member@example.com", "user"),
+      hasServiceAccess("pamphlet", [], "member@example.com", "user"),
       false,
     );
   });

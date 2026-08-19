@@ -12,7 +12,7 @@ import (
 
 func TestPublicArticlesListAndGet(t *testing.T) {
 	store := NewMemoryEpamStore()
-	h := NewHandler("test-secret", store, nil)
+	h := NewHandler("test-secret", store)
 	owner := publicArticlesUserID()
 	doc := map[string]any{
 		"type": "pamphlet_single_sheet",

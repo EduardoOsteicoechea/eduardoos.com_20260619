@@ -121,7 +121,7 @@ func TestEntitlementsPreviewAndMine(t *testing.T) {
 	}
 }
 
-func TestCheckAccessAdminBypassHomescoolAndDebate(t *testing.T) {
+func TestCheckAccessAdminBypassHomescoolAndPamphlet(t *testing.T) {
 	secret := "access-secret"
 	users := auth.NewMemoryStore()
 	_ = users.PutUser(context.Background(), auth.User{
@@ -155,11 +155,11 @@ func TestCheckAccessAdminBypassHomescoolAndDebate(t *testing.T) {
 		wantOK  bool
 	}{
 		{"bootstrap admin homescool", auth.AdminEmail, "homescool", true},
-		{"bootstrap admin debate", auth.AdminEmail, "debate", true},
+		{"bootstrap admin pamphlet", auth.AdminEmail, "pamphlet", true},
 		{"role admin homescool", "role-admin@example.com", "homescool", true},
-		{"role admin debate", "role-admin@example.com", "debate", true},
+		{"role admin pamphlet", "role-admin@example.com", "pamphlet", true},
 		{"member denied homescool", "member@example.com", "homescool", false},
-		{"member denied debate", "member@example.com", "debate", false},
+		{"member denied pamphlet", "member@example.com", "pamphlet", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -301,9 +301,9 @@ func TestCheckAccessHomescoolLinkedStudentBypass(t *testing.T) {
 	})
 
 	t.Run("linked student still denied for other services", func(t *testing.T) {
-		out := access(t, "linked-student@example.com", "debate")
+		out := access(t, "linked-student@example.com", "pamphlet")
 		if out["allowed"] != false {
-			t.Fatalf("debate allowed=%v want false", out["allowed"])
+			t.Fatalf("pamphlet allowed=%v want false", out["allowed"])
 		}
 	})
 }

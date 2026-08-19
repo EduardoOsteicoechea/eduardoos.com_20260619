@@ -12,7 +12,7 @@ func TestListMediaAudioWithoutS3ReturnsEmpty(t *testing.T) {
 	t.Setenv("S3_BUCKET", "")
 	t.Setenv("EPAMS_S3_BUCKET", "")
 
-	h := NewHandler("test-secret", nil, nil)
+	h := NewHandler("test-secret", nil)
 	r := chi.NewRouter()
 	h.Routes(r)
 
@@ -33,7 +33,7 @@ func TestListMediaAudioWithoutS3ReturnsEmpty(t *testing.T) {
 }
 
 func TestGetEmusicInvalidSlug(t *testing.T) {
-	h := NewHandler("test-secret", nil, nil)
+	h := NewHandler("test-secret", nil)
 	r := chi.NewRouter()
 	h.Routes(r)
 

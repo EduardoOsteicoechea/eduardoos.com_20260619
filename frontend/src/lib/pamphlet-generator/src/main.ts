@@ -53,6 +53,7 @@ import {
     renderFromPamphlet,
     renderPageChrome,
     serializePamphlet,
+    syncFooterMetaEmptyFlags,
     syncImageItemFromDom,
     syncItemContentFromTextarea,
 } from "./pamphlet_io";
@@ -1088,6 +1089,8 @@ function syncContentIntoDoc(
         if (field && FOOTER_FIELD_KEYS.includes(field)) {
             data.footer[field] = content;
         }
+        const footerRoot = container.closest<HTMLElement>(".pamphlet-page-footer");
+        if (footerRoot) syncFooterMetaEmptyFlags(footerRoot, data.footer);
         return loc;
     }
 

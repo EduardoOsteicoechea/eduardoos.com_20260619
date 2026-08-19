@@ -7,8 +7,8 @@ Production tree at the repo root: Astro frontend, unified Go backend (`eduardoos
 | Layer | Technology | Role |
 |-------|-----------|------|
 | Edge | Nginx + Certbot | HTTPS termination, static Astro site, `/api/*` proxy |
-| Backend | Go `backend/` (`cmd/server`) | Auth, content APIs, payments, APS, DynamoDB/S3 |
-| Frontend | Astro + React in `frontend/` | Plain CSS, auth UI, pamphlet, articles, BIM |
+| Backend | Go `backend/` (`cmd/server`) | Auth, content APIs, payments, church, homescool, DynamoDB/S3 |
+| Frontend | Astro + React in `frontend/` | Plain CSS, auth UI, pamphlet, articles, church, homescool, music |
 
 ## Directory Tree
 
@@ -88,11 +88,8 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | GET | `/api/media/skills/:skillId` | Public | Skill portfolio media |
 | POST | `/api/profile/ask` | Public + humanToken | Home skill chat |
 | POST | `/api/contact/ask` | Public + humanToken | Contact-page chat |
-| GET | `/api/bim/models` | JWT | List IFC models |
-| POST | `/api/bim/models` | JWT | Upload `.ifc` |
-| GET | `/api/bim/models/:id/file` | JWT | Download IFC bytes |
-| DELETE | `/api/bim/models/:id` | JWT | Unlink model metadata |
 | GET | `/api/articles` | Public | Pamphlet articles index |
+| GET | `/api/media/audio` | Public | Worship audio library |
 | GET | `/health` | Public | Backend health |
 
 ## Frontend Pages
@@ -102,12 +99,13 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | Home | `/` |
 | Register / Login / OTP / Reset | `/auth/*` |
 | Flight Logger / QA Tester | `/observability/*` |
-| Subscription | `/payments/subscription/montly/basic` |
+| Subscription | `/payments/subscription` |
 | Pamphlet editor | `/documents/pamphlet` (print POSTs `header_layout` + `footer_layout` mm from CSS to PDF) |
 | Articles | `/articulos`, `/articulos/ver?id=` |
 | Homescool | `/homescool` |
+| Church | `/church` |
+| Music | `/media/musica` |
 | Contact | `/contact` |
-| BIM | `/bim` |
 
 ## Development Tests
 

@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"eduardoos.nex/internal/aps"
 	"eduardoos.nex/internal/auth"
 	"eduardoos.nex/internal/httpx"
 
@@ -163,7 +162,7 @@ func markLibraryTrackRemoved(ctx context.Context, api mediaObjectAPI, bucket, au
 func (h *Handler) RemoveMediaAudioLibrary(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	email := auth.UserEmailFromRequest(r)
-	if !aps.IsAdminEmail(email) {
+	if !auth.IsAdminEmail(email) {
 		httpx.WriteError(w, http.StatusForbidden, "admin only")
 		return
 	}

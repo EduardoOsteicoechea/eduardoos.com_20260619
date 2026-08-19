@@ -83,7 +83,7 @@ func TestListEpamSeriesTreeAuthenticated(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := NewHandler(secret, store, NewMemoryBIMStore())
+	h := NewHandler(secret, store)
 	r := chi.NewRouter()
 	h.Routes(r)
 
@@ -108,7 +108,7 @@ func TestListEpamSeriesTreeAuthenticated(t *testing.T) {
 }
 
 func TestListEpamSeriesTreeUnauthorized(t *testing.T) {
-	h := NewHandler("secret", nil, nil)
+	h := NewHandler("secret", nil)
 	r := chi.NewRouter()
 	h.Routes(r)
 	rec := httptest.NewRecorder()

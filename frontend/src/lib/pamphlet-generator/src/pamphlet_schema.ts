@@ -155,21 +155,29 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
 /**
  * Exact CSS mm for `.pamphlet-page-footer` — keep in sync with style.css.
  * Print POSTs this so the PDF builder does not invent its own sizes.
+ * Every paint dimension the footer needs must live here.
  */
 export type PamphletFooterLayoutMm = {
+    /** Full footer band height (--page-footer-height). */
     height: number;
+    /** Band width: 2 cols + narrow gutter (same as header). */
+    width: number;
     pad: number;
     radius: number;
     stroke: number;
-    /** Inset from outer border inner face to thinner inner frame (mm). CSS ::after inset. */
+    /** Clear gap inside outer border face → inner frame (CSS ::after inset). */
     inner_inset: number;
-    /** Thinner inner frame stroke (mm). */
     inner_stroke: number;
-    /** Inner frame corner radius (mm). */
     inner_radius: number;
+    /** Gap between Mensaje and meta bar. */
     chrome_gap: number;
-    /** Flex gap between Acción (title) and Mensaje only — 2× chrome_gap. */
-    action_message_gap: number;
+    /**
+     * Double horizontal rule between Acción and Mensaje (footer double-chrome language).
+     * Total block height = divider_outer_stroke + divider_gap + divider_inner_stroke.
+     */
+    divider_outer_stroke: number;
+    divider_gap: number;
+    divider_inner_stroke: number;
     action_size: number;
     action_lh: number;
     action_pad_x: number;
@@ -182,46 +190,52 @@ export type PamphletFooterLayoutMm = {
     message_min_h: number;
     meta_gap: number;
     meta_col_gap: number;
-    /** Label rows (1 & 3): WhatsApp|Teléfono, Dirección|Actividades. */
     meta_row_h: number;
-    /** Value rows (2 & 4): half of meta_row_h. */
     meta_value_row_h: number;
     meta_size: number;
+    meta_lh: number;
     meta_pad_x: number;
     meta_pad_y: number;
+    meta_value_pad_y: number;
+    /** Editor hairline only; PDF and resting desktop use 0. */
     cell_stroke: number;
 };
 
 /** Exact mm from style.css `.pamphlet-page-footer` — PDF must use these, not invent sizes. */
 export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
-    height: 33.6, // +0.6mm for action_message_gap vs prior 33
-    pad: 1.2, // .pamphlet-page-footer { padding }
-    radius: 1, // border-radius
-    stroke: 0.2, // outer border width
-    // CSS ::after inset from padding edge (= clear gap inside outer border face).
+    // 2×label 5.5 + 1×meta_gap 0.4 (value rows hidden when empty) + chrome + divider + pads
+    height: 30,
+    width: 119.7, // 57.85×2 + 4
+    pad: 1.2,
+    radius: 1,
+    stroke: 0.2,
     inner_inset: 0.45,
-    inner_stroke: 0.1, // thinner inner frame
+    inner_stroke: 0.1,
     inner_radius: 0.6,
-    chrome_gap: 0.6, // message → meta (and default flex gap)
-    action_message_gap: 1.2, // Acción → Mensaje (double chrome_gap)
-    action_size: 3.175, // h1 font-size
+    chrome_gap: 0.6,
+    divider_outer_stroke: 0.2,
+    divider_gap: 0.45,
+    divider_inner_stroke: 0.1,
+    action_size: 3.175,
     action_lh: 1.25,
     action_pad_x: 1.4,
     action_pad_y: 0.7,
     action_min_h: 4.5,
-    message_size: 2.469, // p font-size
+    message_size: 2.469,
     message_lh: 1.25,
     message_pad_x: 1.4,
     message_pad_y: 0.7,
     message_min_h: 4.5,
-    meta_gap: 0.4, // gap between meta rows (tight under labels)
-    meta_col_gap: 2, // .pamphlet-footer-meta-row { column-gap }
-    meta_row_h: 5.5, // label rows 1 & 3
-    meta_value_row_h: 1.5, // value rows 2 & 4 (smaller write-in band)
-    meta_size: 2.8, // meta p font-size
+    meta_gap: 0.4,
+    meta_col_gap: 2,
+    meta_row_h: 5.5,
+    meta_value_row_h: 1.5,
+    meta_size: 2.8,
+    meta_lh: 1.25,
     meta_pad_x: 1,
     meta_pad_y: 0.7,
-    cell_stroke: 0.15, // hairline cell border (editor only; PDF omits)
+    meta_value_pad_y: 0.2,
+    cell_stroke: 0.15,
 };
 
 export const DEFAULT_STYLE_INDEXES: StyleIndexes = [[0, 0], [0, 0], [0, 0]];

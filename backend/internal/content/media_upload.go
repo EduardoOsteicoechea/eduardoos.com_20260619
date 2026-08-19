@@ -12,7 +12,6 @@ import (
 	"time"
 	"unicode"
 
-	"eduardoos.nex/internal/aps"
 	"eduardoos.nex/internal/auth"
 	"eduardoos.nex/internal/httpx"
 
@@ -34,7 +33,7 @@ var safeAudioBaseName = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
 func (h *Handler) UploadMediaAudio(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	email := auth.UserEmailFromRequest(r)
-	if !aps.IsAdminEmail(email) {
+	if !auth.IsAdminEmail(email) {
 		httpx.WriteError(w, http.StatusForbidden, "admin only")
 		return
 	}

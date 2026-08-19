@@ -18,10 +18,7 @@ type ServiceInfo struct {
 var ServiceCatalog = []ServiceInfo{
 	{ID: "playlist", Label: "Music", Description: "Worship playlist builder and lyrics.", MonthlyUSD: 1},
 	{ID: "pamphlet", Label: "Pamphlet", Description: "Cloud pamphlet editor and print export.", MonthlyUSD: 1},
-	{ID: "debate", Label: "Debate App", Description: "Structured debate workspace.", MonthlyUSD: 3},
 	{ID: "homescool", Label: "Homescool", Description: "Homescool learning surface.", MonthlyUSD: 1},
-	{ID: "videos", Label: "Videos", Description: "Media gallery / videos library.", MonthlyUSD: 1},
-	{ID: "instrumentalist", Label: "Instrumentalist", Description: "Self-evaluate ideas with weighted belief trees and formal-logic analysis.", MonthlyUSD: 3},
 	{ID: "church-management", Label: "Church Management", Description: "Register and manage churches, activities, and reports.", MonthlyUSD: 1},
 }
 
