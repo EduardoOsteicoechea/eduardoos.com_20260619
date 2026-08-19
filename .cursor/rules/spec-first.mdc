@@ -1,0 +1,27 @@
+---
+description: Absolute — update/clarify spec first; ask until clear; only then code from the spec
+alwaysApply: true
+---
+
+# Spec-first development (absolute)
+
+This rule **overrides** jumping straight into code, “quick fixes,” or coding from chat alone.
+
+## Order (never reverse)
+
+1. **Spec first** — Before any production code, tests-as-implementation, or durable config change: create or update the relevant file under `specs/` (or extend an existing feature spec) so the intended behavior is **absolutely clear** (problem, goals, non-goals, acceptance, affected paths).
+2. **Ask until clear** — If anything is ambiguous, incomplete, or has material alternatives: **stop and ask** the user (short, concrete questions). Do **not** guess. Repeat until the spec is unambiguous.
+3. **Code from the spec** — Only after the spec is clear (and updated in the repo when the turn will mutate code): implement **exactly** what the spec says. If chat and spec disagree, **spec wins** — update the spec with the user first, then code.
+
+## Hard stops
+
+- Do **not** start coding, scaffolding, or large refactors while the spec is vague.
+- Do **not** treat a casual chat request as sufficient spec; write/update `specs/**` first.
+- Tiny typo-only fixes with zero behavior change may skip a new spec file, but still state the intent in one line if committing.
+- Plan mode / “plan only” turns: produce or refine the **spec** (and questions); do not implement until the user confirms.
+
+## Where specs live
+
+- Feature work: `specs/<nnn>-<slug>/spec.md` (and plan/tasks when useful).
+- Cross-cutting deploy/CI/agent gates: same tree (e.g. `specs/005-frontend-gha-dist/`).
+- After coding: acceptance criteria in the spec must still match what shipped; update the spec if reality changed with user agreement.

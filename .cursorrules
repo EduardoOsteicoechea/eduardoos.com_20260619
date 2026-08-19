@@ -60,25 +60,30 @@
 - Stage 1 (Build): Compile using `golang:1.23-alpine` via `docker/golang-service.Dockerfile` with `SERVICE` build arg.
 - Stage 2 (Runtime): Copy static binary into `alpine:3.20`.
 
-## 9. STRICT AGENT DEVELOPMENT WORKFLOW (Fully Autonomous TDD Pipeline)
-The AI MUST execute the following two-phase workflow with ZERO human intervention. Passing tests are the ONLY review required.
+## 9. STRICT AGENT DEVELOPMENT WORKFLOW (Spec-first, then TDD)
+
+**Absolute gate (see `.cursor/rules/spec-first.mdc`):** no coding until the relevant `specs/**` file is updated and unambiguous. Ask the user until clear. Then implement only from that spec.
+
+**PHASE 0: SPEC**
+1. Create or update `specs/<feature>/spec.md` so problem, goals, non-goals, acceptance, and affected paths are absolute.
+2. If anything is unclear or has material alternatives: **ask and wait** — do not guess; do not start Phase 1/2.
+3. Only when the spec is clear, proceed.
 
 **PHASE 1: THE MASTER PLAN**
-1. Analyze the request and break the entire implementation down into strictly atomic, logically decoupled steps.
-2. Output this plan as a markdown checklist.
-3. Proceed immediately to Phase 2. Do NOT stop for human approval.
+1. Break the **spec** into strictly atomic, logically decoupled steps (checklist).
+2. Proceed to Phase 2 once the checklist matches the spec (no silent scope expansion).
 
 **PHASE 2: ATOMIC EXECUTION LOOP**
 For EACH atomic step, execute this exact loop autonomously:
 1. Generate the Request Log: Define the expected telemetry payload, flight workflow, and correlation structure.
 2. Generate the Tests: Write the unit test, integration test, and assertions for internal/workflow logs.
-3. Write the Production Code: Implement the isolated handler, middleware, component, or CSS file.
+3. Write the Production Code: Implement the isolated handler, middleware, component, or CSS file — **as the spec requires**.
 4. Wire the Logs: Integrate structured logging and ensure `telemetry` hooks match expectations.
 5. The Autonomous Test Loop: Execute tests (`go test ./...` for Go, or the respective frontend test command). Check unit tests, integration tests, and log tests.
 6. Auto-Refactor Check: IF ANY TEST FAILS, autonomously refactor the code and re-run step 5. Repeat this loop endlessly until all tests pass.
-7. Update README.md: Document the architectural changes and test outcomes.
-8. Commit and Push: Execute `git add`, `git commit -m "feat/test: [description of atomic step]"`, and `git push`.
-9. Loop: Move immediately to the next atomic step and start at Phase 2, Step 1. Do NOT stop until the entire implementation is complete.
+7. Update README.md / spec acceptance notes: Document outcomes; if behavior diverged, update the spec with user agreement before claiming done.
+8. Commit and Push: Execute `git add`, `git commit -m "feat/test: [description of atomic step]"`, and `git push` (honor frontend pre-push compile gate when applicable).
+9. Loop: Move immediately to the next atomic step and start at Phase 2, Step 1. Do NOT stop until the entire **spec** is complete.
 
 ## 10. MANDATORY COMMIT & PUSH (Agentic completion)
 
