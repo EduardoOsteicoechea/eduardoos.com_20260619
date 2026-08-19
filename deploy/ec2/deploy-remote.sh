@@ -187,7 +187,7 @@ docker rm -f \
   eduardooscom_20260619-database-1 \
   2>/dev/null || true
 
-chmod +x deploy/ec2/deploy-remote-production.sh deploy/ec2/build-frontend.sh
+chmod +x deploy/ec2/deploy-remote-production.sh deploy/ec2/build-frontend.sh deploy/ec2/publish-frontend-dist.sh
 APP_DIR="${APP_DIR}" \
   DEPLOY_BACKEND="${DEPLOY_BACKEND}" \
   DEPLOY_FRONTEND="${DEPLOY_FRONTEND}" \

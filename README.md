@@ -16,7 +16,7 @@ Production tree at the repo root: Astro frontend, unified Go backend (`eduardoos
 frontend/                  Astro + React client (dist → nginx html)
 backend/                   Go module eduardoos.nex (bin/eduardoos-next)
 backend/revitapi/          APS / Revit Design Automation AppBundle
-deploy/ec2/                Remote deploy + frontend build scripts
+deploy/ec2/                Remote deploy + publish-frontend-dist (+ optional build-frontend recovery)
 deploy/aws/                IAM / DynamoDB bootstrap helpers
 nginx/                     Reverse proxy config + TLS certs
 .github/workflows/         Production deploy (selective scopes)
@@ -59,10 +59,12 @@ docker compose up -d
 Pushes to `master` deploy via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml):
 
 - Selective scopes: `backend/*`, `frontend/*`, `nginx/*` + compose, `deploy/*`
+- **Frontend:** Astro builds on the GitHub Actions runner; CI uploads `frontend-dist.tgz` and EC2 runs `deploy/ec2/publish-frontend-dist.sh` (rsync into `frontend/dist` — no `npm`/`astro` on the server)
 - Remote: `deploy/ec2/deploy-remote.sh` → `deploy-remote-production.sh`
 - Production `.env` at `APP_DIR/.env` (`ADDR=:3000`)
 - systemd: `WorkingDirectory=$APP_DIR`, `ExecStart=$APP_DIR/backend/bin/eduardoos-next`
 - Static: `./frontend/dist` → `/usr/share/nginx/html`
+- Manual recovery on EC2 only: `bash deploy/ec2/build-frontend.sh`
 
 Staging (`:8080` / `:3001`) was removed in the flatten cutover.
 

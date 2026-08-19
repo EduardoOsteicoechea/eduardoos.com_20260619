@@ -11,7 +11,7 @@ on:
         type: boolean
         default: true
       deploy_frontend:
-        description: Build Astro frontend
+        description: Build Astro on runner and upload dist
         type: boolean
         default: true
       deploy_nginx:
@@ -221,6 +221,39 @@ jobs:
           echo "SMTP_USER set; SMTP_PASS normalized length=${#SMTP_PASS_NORM} (spaces/quotes stripped for Gmail)"
           echo "NOTE: Updating GitHub secrets alone does not restart EC2 — this job uploads .env and restarts eduardoos.service."
 
+      - name: Setup Node.js (frontend build)
+        if: steps.scope.outputs.skip != '1' && steps.scope.outputs.frontend == '1'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build Astro frontend on runner
+        if: steps.scope.outputs.skip != '1' && steps.scope.outputs.frontend == '1'
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci
+          rm -rf dist-build
+          npx astro build --outDir dist-build
+          required_files=(
+            "index.html"
+            "admin/users/index.html"
+            "aps-admin/index.html"
+            "contact/index.html"
+            "church/workspace/index.html"
+            "favicon.svg"
+          )
+          for rel in "${required_files[@]}"; do
+            if [[ ! -f "dist-build/${rel}" ]]; then
+              echo "::error::Missing required build output: dist-build/${rel}"
+              exit 1
+            fi
+          done
+          tar -C dist-build -czf "${GITHUB_WORKSPACE}/frontend-dist.tgz" .
+          ls -lh "${GITHUB_WORKSPACE}/frontend-dist.tgz"
+
       - name: Prepare EC2 app directory
         if: steps.scope.outputs.skip != '1'
         env:
@@ -244,12 +277,26 @@ jobs:
             deploy/ec2/deploy-remote.sh \
             deploy/ec2/deploy-remote-production.sh \
             deploy/ec2/build-frontend.sh \
+            deploy/ec2/publish-frontend-dist.sh \
             deploy/ec2/issue-cert.sh \
             deploy/aws/create-observability-tables.sh \
             "${EC2_USER}@${EC2_HOST}:/tmp/"
           ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
-            "mkdir -p ~/eduardoos.com_20260619/deploy/ec2 && mv -f /tmp/deploy-remote.sh /tmp/deploy-remote-production.sh /tmp/build-frontend.sh /tmp/issue-cert.sh ~/eduardoos.com_20260619/deploy/ec2/ && mv -f /tmp/create-observability-tables.sh ~/eduardoos.com_20260619/deploy/aws/ && chmod +x ~/eduardoos.com_20260619/deploy/ec2/*.sh ~/eduardoos.com_20260619/deploy/aws/*.sh"
+            "mkdir -p ~/eduardoos.com_20260619/deploy/ec2 && mv -f /tmp/deploy-remote.sh /tmp/deploy-remote-production.sh /tmp/build-frontend.sh /tmp/publish-frontend-dist.sh /tmp/issue-cert.sh ~/eduardoos.com_20260619/deploy/ec2/ && mv -f /tmp/create-observability-tables.sh ~/eduardoos.com_20260619/deploy/aws/ && chmod +x ~/eduardoos.com_20260619/deploy/ec2/*.sh ~/eduardoos.com_20260619/deploy/aws/*.sh"
+
+      - name: Upload frontend dist tarball
+        if: steps.scope.outputs.skip != '1' && steps.scope.outputs.frontend == '1'
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          scp -i ~/.ssh/deploy_key $SSH_OPTS \
+            frontend-dist.tgz \
+            "${EC2_USER}@${EC2_HOST}:/tmp/frontend-dist.tgz"
+          ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS \
+            "${EC2_USER}@${EC2_HOST}" \
+            "ls -lh /tmp/frontend-dist.tgz"
 
       - name: Run remote deploy (selective)
         if: steps.scope.outputs.skip != '1'

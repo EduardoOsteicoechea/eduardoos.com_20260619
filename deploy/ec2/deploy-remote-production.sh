@@ -5,7 +5,7 @@
 #
 # Selective rebuild (CI sets these; default = build everything):
 #   DEPLOY_BACKEND=1|0   — go build + restart eduardoos.service
-#   DEPLOY_FRONTEND=1|0  — Astro build into frontend/dist
+#   DEPLOY_FRONTEND=1|0  — publish CI-built dist from /tmp/frontend-dist.tgz
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-$HOME/eduardoos.com_20260619}"
@@ -45,33 +45,6 @@ ensure_go() {
   fi
   if ! command -v go >/dev/null 2>&1; then
     echo "ERROR: Go is required to build the backend"
-    exit 1
-  fi
-}
-
-ensure_node() {
-  if command -v node >/dev/null 2>&1; then
-    local major
-    major="$(node -p "process.versions.node.split('.')[0]")"
-    if [[ "${major}" -ge 20 ]] 2>/dev/null; then
-      echo "==> Node $(node -v) OK"
-      return 0
-    fi
-    echo "==> Node $(node -v) is older than v20; installing Node 22"
-  else
-    echo "==> Node not found; installing Node 22"
-  fi
-  if command -v dnf >/dev/null 2>&1; then
-    curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
-    sudo dnf install -y nodejs
-  elif command -v yum >/dev/null 2>&1; then
-    curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
-    sudo yum install -y nodejs
-  elif command -v apt-get >/dev/null 2>&1; then
-    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-    sudo apt-get install -y nodejs
-  else
-    echo "ERROR: install Node.js 20+ manually, then re-run."
     exit 1
   fi
 }
@@ -179,13 +152,13 @@ else
 fi
 
 # --- Frontend ---
+# Astro build runs on GitHub Actions; EC2 only publishes /tmp/frontend-dist.tgz.
 if [[ "${DEPLOY_FRONTEND}" == "1" ]]; then
-  ensure_node
-  echo "==> Building frontend (production nginx html root)"
-  chmod +x "${APP_DIR}/deploy/ec2/build-frontend.sh"
-  bash "${APP_DIR}/deploy/ec2/build-frontend.sh"
+  echo "==> Publishing frontend dist from CI tarball (no Astro on EC2)"
+  chmod +x "${APP_DIR}/deploy/ec2/publish-frontend-dist.sh"
+  bash "${APP_DIR}/deploy/ec2/publish-frontend-dist.sh"
 else
-  echo "==> Skipping frontend Astro build (DEPLOY_FRONTEND=0)"
+  echo "==> Skipping frontend publish (DEPLOY_FRONTEND=0)"
   if [[ ! -f "${APP_DIR}/frontend/dist/index.html" ]]; then
     echo "ERROR: DEPLOY_FRONTEND=0 but ${APP_DIR}/frontend/dist/index.html is missing"
     exit 1
