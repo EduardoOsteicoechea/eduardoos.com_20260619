@@ -223,7 +223,7 @@ func TestDrawFooterStructuredChrome(t *testing.T) {
 		Value3:  "Caracas",
 		Label4:  "Actividades",
 		Value4:  "Domingo 10am",
-	}, 10, 47.5, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm)
+	}, 10, 58, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm)
 	out := s.String()
 	for _, want := range []string{"Creamos", "conocer", "WhatsApp", "Tel", "Direcci", "Actividades"} {
 		if !strings.Contains(out, want) && !strings.Contains(toWinAnsi(want), want) {

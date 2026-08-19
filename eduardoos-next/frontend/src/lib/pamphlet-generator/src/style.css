@@ -201,9 +201,9 @@
   --page-header-height: 23mm;
   /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
   --header-body-gutter: 5mm;
-  --page-footer-height: 37.5mm; /* 15mm × 2.5 */
-  /* Page 1 body: 215.9 − 10 − 23 − 5 − 4 − 37.5 − 10 = 126.4mm */
-  --page1-body-height: 126.4mm;
+  --page-footer-height: 48mm; /* fits Acción + Mensaje + 2×2 editable meta */
+  /* Page 1 body: 215.9 − 10 − 23 − 5 − 4 − 48 − 10 = 115.9mm */
+  --page1-body-height: 115.9mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
@@ -212,8 +212,8 @@
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
   /* Cols 1–2 under header: 195.9 − 23 − 5 = 167.9mm */
   --page1-right-col-height: 167.9mm;
-  /* Cols 7–8 above footer: 195.9 − 4 − 37.5 = 154.4mm */
-  --page1-left-col-height: 154.4mm;
+  /* Cols 7–8 above footer: 195.9 − 4 − 48 = 143.9mm */
+  --page1-left-col-height: 143.9mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
   --item-gap-height: 2.5mm;
   --b1: solid 1px rgb(231, 231, 231);
@@ -368,17 +368,25 @@
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
-    /* Match header→meta gap rhythm; PDF drawFooter uses the same stack. */
     gap: 0.6mm;
+    /* Keep chrome inside the band so trays don't paint over cols 7–8. */
     overflow: hidden;
     min-width: 0;
     min-height: 0;
     height: 100%;
     z-index: 5;
+    box-sizing: border-box;
+    padding: 1.2mm;
+    border: 0.45mm solid #222222;
+    border-radius: 3mm;
+    background: #ffffff;
 }
 
+/* While editing, allow the absolute tray to escape downward into the page margin
+   (not upward into columns 7–8). */
 .pamphlet-page-footer:has(.element_edit_tray) {
     overflow: visible;
+    z-index: 20;
 }
 
 .pamphlet-page-header > .pamphlet-header-title {
@@ -458,8 +466,7 @@
     border: 0;
 }
 
-/* Footer fixed chrome — wireframe: Acción + Mensaje full-width inputs,
-   then 2×2 cells each with editable label + value (input chrome always on).
+/* Footer fixed chrome — Acción + Mensaje, then 2×2 meta (editable label | value).
    Type sizes match PDF pamphletFooterHeadPt (9pt) / Body (7pt). */
 .pamphlet-footer-action,
 .pamphlet-footer-message {
@@ -467,9 +474,9 @@
     flex: 0 0 auto;
     box-sizing: border-box;
     border: 1px solid rgba(100, 100, 100, 0.55) !important;
-    padding: 0.6mm 1mm !important;
+    padding: 0.5mm 0.9mm !important;
     background: #fff;
-    min-height: 4.2mm;
+    min-height: 3.8mm;
 }
 
 .pamphlet-footer-action h1 {
@@ -493,13 +500,16 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto;
-    column-gap: 2.5mm;
-    row-gap: 1.2mm;
+    column-gap: 2mm;
+    row-gap: 1mm;
     width: 100%;
     min-width: 0;
-    flex: 0 0 auto;
+    /* Occupy remaining footer band so the 2×2 never collapses to 0. */
+    flex: 1 1 auto;
+    min-height: 16mm;
     overflow: hidden;
     color: #666666;
+    align-content: start;
 }
 
 .pamphlet-footer-meta-row {
@@ -508,10 +518,10 @@
 
 .pamphlet-footer-meta-field {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     flex-wrap: nowrap;
     align-items: stretch;
-    gap: 0.5mm;
+    gap: 0.6mm;
     min-width: 0;
     width: 100%;
     max-width: 100%;
@@ -519,24 +529,24 @@
 }
 
 .pamphlet-footer-meta-field > .pamphlet-item {
-    flex: 0 0 auto;
-    width: 100%;
+    flex: 1 1 0;
+    width: auto;
     min-width: 0;
     overflow: hidden;
     box-sizing: border-box;
     border: 1px solid rgba(100, 100, 100, 0.55) !important;
-    padding: 0.4mm 0.8mm !important;
+    padding: 0.35mm 0.7mm !important;
     background: #fff;
-    min-height: 3.6mm;
+    min-height: 4mm;
 }
 
 .pamphlet-footer-meta-field > .pamphlet-footer-label {
-    flex: 0 0 auto;
+    flex: 0 1 38%;
+    max-width: 42%;
 }
 
 .pamphlet-footer-meta-field > .pamphlet-footer-value {
-    flex: 1 1 auto;
-    min-height: 4mm;
+    flex: 1 1 58%;
 }
 
 .pamphlet-footer-meta-field > .pamphlet-item p {
@@ -553,6 +563,12 @@
 .pamphlet-footer-meta-field > .pamphlet-footer-label p {
     font-weight: 600;
     color: #444444;
+}
+
+/* Compact chrome edit tray so it stays mostly inside the footer / page margin. */
+.pamphlet-page-footer .edit_tray_text_area,
+.pamphlet-page-header .edit_tray_text_area {
+    height: 10mm;
 }
 
 .pamphlet-item {
@@ -1211,9 +1227,11 @@
   box-sizing: border-box;
 }
 
-/* Mobile: label row stays a short caption input above the value input. */
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-footer-label {
-  min-height: calc(28px * var(--mobile-inv-scale, 1));
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-footer-label,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-footer-value {
+  flex: 1 1 auto;
+  max-width: 100%;
+  width: 100%;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title {

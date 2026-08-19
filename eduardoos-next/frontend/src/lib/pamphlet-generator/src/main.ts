@@ -416,7 +416,7 @@ async function printDocument(): Promise<void> {
 const usLetterHeightInMillimeters = 215.9;
 const pageMarginMm = 10;
 const pageHeaderHeightMm = 23; // matches --page-header-height / PamphletHeaderHMm
-const pageFooterHeightMm = 37.5; // 15mm × 2.5
+const pageFooterHeightMm = 48; // matches --page-footer-height / PamphletFooterHMm
 const colGutterNarrowMm = 4;
 /** Gap between page header and cols 1–2 (matches --header-body-gutter). */
 const headerBodyGutterMm = 5;
@@ -427,7 +427,7 @@ const page1RightColHeightMm =
     columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 167.9
 /** Cols 7–8: above page footer → discount gutter above footer + footer */
 const page1LeftColHeightMm =
-    columnContentHeightMm - colGutterNarrowMm - pageFooterHeightMm; // 154.4
+    columnContentHeightMm - colGutterNarrowMm - pageFooterHeightMm; // 143.9
 
 function maxHeightForColumn(columnIndex: number): number {
     if (columnIndex === 1 || columnIndex === 2) return page1RightColHeightMm;
@@ -998,6 +998,41 @@ async function commitDocument(data: PamphletStructure, openEdit: boolean): Promi
     }
 }
 
+/**
+ * Persist header/footer chrome without reflowing body columns.
+ * Full renderDocument/reflow after chrome edits reshuffled / hid column 8 ink.
+ */
+async function commitChromeOnly(data: PamphletStructure): Promise<void> {
+    if (!hasEditableSession()) {
+        setError("No pamphlet file is open. Open or create a file first.");
+        return;
+    }
+
+    try {
+        let next = ensureDocumentId(data);
+        currentDoc = next;
+        currentHeader = { ...next.header };
+        renderPageChrome(main, next);
+        if (hasOpenFile()) {
+            await savePamphlet(next);
+            setStatus(`Saved: ${getOpenFileName() || "document"}`, "success");
+        } else if (cloudEpamId) {
+            next = await persistCloud(next);
+            currentDoc = next;
+            currentHeader = { ...next.header };
+            renderPageChrome(main, next);
+            setStatus(`Saved to cloud: ${getOpenFileName() || cloudEpamId}`, "success");
+        } else {
+            setStatus("Updated in browser — use Save to cloud to keep a copy.", "info");
+        }
+        clearError();
+        syncSheetScale();
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(`Save failed: ${message}`);
+    }
+}
+
 function pushUndoSnapshot(): void {
     if (currentDoc) {
         undoSnapshot = clonePamphlet(currentDoc);
@@ -1167,7 +1202,8 @@ async function handleTrayAction(detail: PamphletTrayAction): Promise<void> {
     const loc = syncContentIntoDoc(detail.container, base);
     if (!loc) return;
 
-    // Header / footer chrome: only close updates JSON (undo is local in the tray)
+    // Header / footer chrome: only close updates JSON (undo is local in the tray).
+    // Do NOT full-reflow body columns — that reshuffled / hid col 7–8 ink.
     if (loc.column === HEADER_COLUMN || loc.column === FOOTER_COLUMN) {
         if (detail.action !== "close") return;
         base.last_edited_element = loc;
@@ -1175,7 +1211,7 @@ async function handleTrayAction(detail: PamphletTrayAction): Promise<void> {
             currentHeader = { ...base.header };
         }
         pushUndoSnapshot();
-        await commitDocument(base, false);
+        await commitChromeOnly(base);
         return;
     }
 

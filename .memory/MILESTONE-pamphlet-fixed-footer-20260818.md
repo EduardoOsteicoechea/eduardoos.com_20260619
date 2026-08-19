@@ -38,7 +38,8 @@ Footer type now uses mm matching PDF pts:
 
 `drawFooter` paints the same stack as the sheet (heading → message → 2×2 gray meta).
 
-## Follow-ups (2026-08-18)
+## Follow-ups (2026-08-19)
 
-- Desktop: body columns use `overflow: hidden` so ink past the column box stays in the DOM but is not painted over the left margin.
-- Mobile header/footer inputs use `--column-content-width` (same as columns) + `--mobile-inv-scale` sizing — no more `92vw` overflow off-screen. Column layout untouched.
+- Footer band taller (48mm) with visible `3mm` border-radius frame.
+- Meta 2×2 uses side-by-side editable label|value so fields stay visible under Mensaje.
+- Closing header/footer edits uses `commitChromeOnly` (no body reflow) so column 8 ink is not reshuffled away.
