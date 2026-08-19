@@ -129,7 +129,7 @@ export type PamphletHeaderLayoutMm = {
     body_gutter: number;
     /** Vertical pad inside outer frame. */
     pad: number;
-    /** Lateral pad inside outer frame (pad + 2mm vs original 1.2). */
+    /** Lateral pad inside outer frame. */
     pad_x: number;
     radius: number;
     stroke: number;
@@ -138,6 +138,8 @@ export type PamphletHeaderLayoutMm = {
     inner_radius: number;
     title_size: number;
     title_lh: number;
+    /** Space under title text before the double divider. */
+    title_pad_bottom: number;
     /**
      * Clear space from title double-divider bottom → meta bar
      * (was 0.6; +2mm → 2.6). Header flex gap is 0; this is divider margin-bottom.
@@ -157,11 +159,11 @@ export type PamphletHeaderLayoutMm = {
 
 /** Exact mm from style.css `.pamphlet-page-header` — PDF must use these, not invent sizes. */
 export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
-    // pad + title + divider (0.75) + title_meta_gap 2.6 + meta + frame
-    height: 30,
+    // pad + title + title_pad_bottom + divider (0.75) + title_meta_gap 2.6 + meta + frame
+    height: 31,
     body_gutter: 1, // --header-body-gutter
     pad: 1.2,
-    pad_x: 3.2, // 1.2 + 2mm lateral
+    pad_x: 2.2, // −1mm vs prior 3.2
     radius: 1,
     stroke: 0.2,
     inner_inset: 0.45,
@@ -169,6 +171,7 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     inner_radius: 0.6,
     title_size: 6.75, // .pamphlet-header-title p
     title_lh: 1.1,
+    title_pad_bottom: 1, // under title text before divider
     title_meta_gap: 2.6, // divider → meta (+2mm from prior 0.6)
     divider_outer_stroke: 0.2,
     divider_gap: 0.45,

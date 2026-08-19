@@ -5,7 +5,7 @@ package pdf
 // Geometry matches the frontend sheet CSS exactly:
 //   page  279.4mm × 215.9mm (US Letter landscape)
 //   cols  57.85mm wide, gutters 4mm / 20mm (center), margins 10mm
-//   page1 left  cols 7–8 (163.9mm tall) + footer; right header + cols 1–2
+//   page1 left  cols 7–8 (161.9mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
 // Text uses embedded Roboto / Roboto-Bold (website font) with WinAnsiEncoding.
@@ -32,30 +32,30 @@ const (
 	PamphletPageHeightMm = 215.9
 	PamphletMarginMm     = 10.0
 	PamphletGutterNarrow = 4.0
-	// Gap only between cols 7–8 and the footer (half of PamphletGutterNarrow).
-	PamphletFooterBodyGutterMm = 2.0
+	// Gap only between cols 7–8 and the footer (--footer-body-gutter).
+	PamphletFooterBodyGutterMm = 4.0
 	// Center fold gutter (page 1 left↔right and page 2 left↔right).
 	PamphletGutterWide = 20.0
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
 	PamphletColWidthMm = 57.85
-	// Header band: title + title divider + title_meta_gap + meta + frame.
+	// Header band: title + title_pad_bottom + title divider + title_meta_gap + meta + frame.
 	// Overridden by header_layout.height from frontend when present.
-	PamphletHeaderHMm = 30.0
+	PamphletHeaderHMm = 31.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 1.0
 	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 30 − 1 − 2 − 30 − 10
-	PamphletPage1BodyMm = 132.9
+	// 215.9 − 10 − 31 − 1 − 4 − 30 − 10
+	PamphletPage1BodyMm = 129.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Clear space under title divider → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
 	PamphletHeaderTitleMetaGapMm = 2.6
 	// CSS .pamphlet-header-meta-bar { row-gap }.
 	PamphletHeaderMetaRowGapMm = 0.8
-	// Right-side cols 1–2: 195.9 − 30 − 1
-	PamphletPage1RightColMm = 164.9
-	// Left-side cols 7–8 above footer: 195.9 − 2 − 30 (default layout.height)
-	PamphletPage1LeftColMm = 163.9
+	// Right-side cols 1–2: 195.9 − 31 − 1
+	PamphletPage1RightColMm = 163.9
+	// Left-side cols 7–8 above footer: 195.9 − 4 − 30 (default layout.height)
+	PamphletPage1LeftColMm = 161.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band fits title + meta + rule
 	pamphletTitleLH     = 1.1
@@ -100,6 +100,7 @@ type PamphletHeaderLayout struct {
 	InnerRadius         float64 `json:"inner_radius"`
 	TitleSize           float64 `json:"title_size"`
 	TitleLH             float64 `json:"title_lh"`
+	TitlePadBottom      float64 `json:"title_pad_bottom"`
 	TitleMetaGap        float64 `json:"title_meta_gap"`
 	DividerOuterStroke  float64 `json:"divider_outer_stroke"`
 	DividerGap          float64 `json:"divider_gap"`
@@ -512,7 +513,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 	titleBoxBottom := innerTop - float64(nTitle)*titleLineHMm
 
 	// Double rule under title (same strokes as footer Acción→Mensaje divider).
-	cursorTop := titleBoxBottom
+	cursorTop := titleBoxBottom - layout.TitlePadBottom
 	dividerH := layout.DividerOuterStroke + layout.DividerGap + layout.DividerInnerStroke
 	if dividerH > 0 {
 		strokeHorizontalRuleMm(s, innerX, cursorTop, innerW, layout.DividerOuterStroke)
@@ -584,7 +585,7 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		Height:             PamphletHeaderHMm,
 		BodyGutter:         PamphletHeaderBodyGutterMm,
 		Pad:                1.2,
-		PadX:               3.2,
+		PadX:               2.2,
 		Radius:             1,
 		Stroke:             0.2,
 		InnerInset:         0.45,
@@ -592,6 +593,7 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		InnerRadius:        0.6,
 		TitleSize:          pamphletTitleSizeMm,
 		TitleLH:            pamphletTitleLH,
+		TitlePadBottom:     1,
 		TitleMetaGap:       PamphletHeaderTitleMetaGapMm,
 		DividerOuterStroke: 0.2,
 		DividerGap:         0.45,
@@ -625,6 +627,7 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 		InnerRadius:        pick(l.InnerRadius, d.InnerRadius),
 		TitleSize:          pick(l.TitleSize, d.TitleSize),
 		TitleLH:            pick(l.TitleLH, d.TitleLH),
+		TitlePadBottom:     pick(l.TitlePadBottom, d.TitlePadBottom),
 		TitleMetaGap:       pick(l.TitleMetaGap, d.TitleMetaGap),
 		DividerOuterStroke: pick(l.DividerOuterStroke, d.DividerOuterStroke),
 		DividerGap:         pick(l.DividerGap, d.DividerGap),

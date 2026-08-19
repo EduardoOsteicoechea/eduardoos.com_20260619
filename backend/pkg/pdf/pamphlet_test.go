@@ -193,8 +193,11 @@ func TestHeaderFrameFromLayout(t *testing.T) {
 	if strokeCount < 4 {
 		t.Fatalf("expected ≥4 strokes (frame+title divider) in header stream, got %d in %q", strokeCount, out)
 	}
-	if layout.Pad != 1.2 || layout.PadX != 3.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
+	if layout.Pad != 1.2 || layout.PadX != 2.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
 		t.Fatalf("header frame mm mismatch: %+v", layout)
+	}
+	if layout.TitlePadBottom != 1 {
+		t.Fatalf("header title_pad_bottom want 1, got %v", layout.TitlePadBottom)
 	}
 	if layout.DividerOuterStroke != 0.2 || layout.DividerGap != 0.45 || layout.DividerInnerStroke != 0.1 {
 		t.Fatalf("header title divider mm mismatch: %+v", layout)
