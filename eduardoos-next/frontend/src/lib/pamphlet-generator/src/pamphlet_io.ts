@@ -35,17 +35,17 @@ const HEADER_FIELD_CLASSES: Record<HeaderFieldKey, string> = {
     date: "pamphlet-header-date",
 };
 
-const FOOTER_FIELD_CLASSES: Record<FooterFieldKey, string> = {
-    action: "pamphlet-footer-action",
-    message: "pamphlet-footer-message",
-    label1: "pamphlet-footer-label pamphlet-footer-label-1",
-    value1: "pamphlet-footer-value pamphlet-footer-value-1",
-    label2: "pamphlet-footer-label pamphlet-footer-label-2",
-    value2: "pamphlet-footer-value pamphlet-footer-value-2",
-    label3: "pamphlet-footer-label pamphlet-footer-label-3",
-    value3: "pamphlet-footer-value pamphlet-footer-value-3",
-    label4: "pamphlet-footer-label pamphlet-footer-label-4",
-    value4: "pamphlet-footer-value pamphlet-footer-value-4",
+const FOOTER_FIELD_CLASSES: Record<FooterFieldKey, string[]> = {
+    action: ["pamphlet-footer-action"],
+    message: ["pamphlet-footer-message"],
+    label1: ["pamphlet-footer-label", "pamphlet-footer-label-1"],
+    value1: ["pamphlet-footer-value", "pamphlet-footer-value-1"],
+    label2: ["pamphlet-footer-label", "pamphlet-footer-label-2"],
+    value2: ["pamphlet-footer-value", "pamphlet-footer-value-2"],
+    label3: ["pamphlet-footer-label", "pamphlet-footer-label-3"],
+    value3: ["pamphlet-footer-value", "pamphlet-footer-value-3"],
+    label4: ["pamphlet-footer-label", "pamphlet-footer-label-4"],
+    value4: ["pamphlet-footer-value", "pamphlet-footer-value-4"],
 };
 
 /** Visible meta-bar fields under the title (subtitle stays in DOM but hidden). */
@@ -208,7 +208,7 @@ function createFooterFieldElement(
             trayMode: "header",
             footerField: field,
             itemType: tag === "h1" ? "heading_1" : "paragraph",
-            extraClasses: ["pamphlet-footer-item", FOOTER_FIELD_CLASSES[field]],
+            extraClasses: ["pamphlet-footer-item", ...FOOTER_FIELD_CLASSES[field]],
         },
     );
     return container;

@@ -238,7 +238,12 @@ export default function CreateElement(
 
     elContainer.className = "pamphlet-item";
     if (options.extraClasses?.length) {
-        elContainer.classList.add(...options.extraClasses);
+        // classList.add throws InvalidCharacterError if a token contains spaces
+        // (e.g. a mistaken "foo bar" string). Split so chrome never vanishes.
+        const tokens = options.extraClasses
+            .flatMap((c) => c.split(/\s+/))
+            .filter(Boolean);
+        if (tokens.length) elContainer.classList.add(...tokens);
     }
     elContainer.setAttribute("data-tray-mode", trayMode);
     if (options.headerField) {

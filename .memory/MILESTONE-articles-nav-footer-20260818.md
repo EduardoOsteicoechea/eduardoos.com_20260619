@@ -17,3 +17,9 @@
 - Labels default to WhatsApp / Teléfono / Dirección / Actividades but are editable inputs.
 - Acción + Mensaje are always-visible input chrome (wireframe).
 - PDF `normalizeFooter` / `drawFooter` migrate legacy whatsapp/phone/… and items[].
+
+## Fix 2026-08-18 — header/footer vanished
+- Cause: `classList.add("pamphlet-footer-label pamphlet-footer-label-1")` (space in token)
+  threw during `renderPageChrome` after old chrome was removed → neither header nor footer
+  re-appended on desktop or mobile.
+- Fix: footer field classes as string arrays + defensive split in `CreateElement`.
