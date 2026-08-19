@@ -469,11 +469,13 @@ var pamphletFooterDefaultLabels = [4]string{"WhatsApp", "Teléfono", "Dirección
 
 // CSS .pamphlet-page-footer frame (must match style.css).
 const (
-	pamphletFooterPadMm    = 1.2
-	pamphletFooterRadiusMm = 1.0
-	pamphletFooterStrokeMm = 0.2
-	pamphletFooterMetaGapMm = 0.8
+	pamphletFooterPadMm     = 1.4
+	pamphletFooterRadiusMm  = 1.0
+	pamphletFooterStrokeMm  = 0.2
+	pamphletFooterMetaGapMm = 1.0
 	pamphletFooterColGapMm  = 2.0
+	// Desktop meta cell min-height (~5.5mm) — keep PDF rows the same height.
+	pamphletFooterMetaRowMm = 5.5
 )
 
 // strokeRoundedRectMm strokes a rounded rectangle. x/top/width/height are mm;
@@ -657,6 +659,12 @@ func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm fl
 		half = innerW / 2
 	}
 	rightX := innerX + half + pamphletFooterColGapMm
+	// Inset text slightly inside each meta cell (matches CSS padding ~1mm).
+	const cellPadMm = 1.0
+	cellW := half - cellPadMm
+	if cellW < 6 {
+		cellW = half
+	}
 
 	// Always paint 4 meta rows so empty values still reserve sheet space.
 	rows := [4][2]string{
@@ -666,23 +674,26 @@ func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm fl
 		{f.Value3, f.Value4},
 	}
 	labelRows := map[int]bool{0: true, 2: true}
+	// Slightly larger meta type than body 7pt so cells read like the sheet (~2.8mm).
+	metaPt := pamphletFooterBodyPt * (2.8 / 2.469)
+	metaSizeMm := metaPt * 25.4 / 72.0
 
 	for i, pair := range rows {
 		if cursorTop <= floor {
 			break
 		}
-		metaY := cursorTop - cssBaselineOffsetMm(bodySizeMm, lh)
+		metaY := cursorTop - cssBaselineOffsetMm(metaSizeMm, lh)
 		font := "F1"
 		if labelRows[i] {
 			font = "F2"
 		}
 		if strings.TrimSpace(pair[0]) != "" {
-			writeGrayText(s, font, pamphletFooterBodyPt, innerX, metaY, half, pair[0])
+			writeGrayText(s, font, metaPt, innerX+cellPadMm*0.5, metaY, cellW, pair[0])
 		}
 		if strings.TrimSpace(pair[1]) != "" {
-			writeGrayText(s, font, pamphletFooterBodyPt, rightX, metaY, half, pair[1])
+			writeGrayText(s, font, metaPt, rightX+cellPadMm*0.5, metaY, cellW, pair[1])
 		}
-		cursorTop -= bodyLineH + pamphletFooterMetaGapMm
+		cursorTop -= pamphletFooterMetaRowMm + pamphletFooterMetaGapMm
 	}
 }
 

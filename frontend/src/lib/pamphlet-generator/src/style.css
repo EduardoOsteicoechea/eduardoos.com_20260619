@@ -317,6 +317,8 @@
 .pamphlet-app[data-view-mode="desktop"] main.pamphlet-sheet {
     transform: scale(var(--desktop-view-scale, 1));
     transform-origin: top center;
+    /* Clip column/footer ink so wrapped glyphs never paint into the activity-bar gutter. */
+    overflow: hidden;
 }
 
 .dumb-column {
@@ -468,15 +470,19 @@
 
 /* Footer fixed chrome — Acción + Mensaje, then 4×2 meta (label row, value row ×2).
    Type sizes match PDF pamphletFooterHeadPt (9pt) / Body (7pt). */
-.pamphlet-footer-action,
-.pamphlet-footer-message {
+.pamphlet-page-footer > .pamphlet-footer-action,
+.pamphlet-page-footer > .pamphlet-footer-message {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     flex: 0 0 auto;
     box-sizing: border-box;
     border: 1px solid rgba(100, 100, 100, 0.55) !important;
-    padding: 0.5mm 0.9mm !important;
+    padding: 0.7mm 1.4mm !important;
     background: #fff;
-    min-height: 3.8mm;
+    min-height: 4.5mm;
+    /* Beat .pamphlet-item { overflow: visible } so long Acción wraps inside the frame. */
+    overflow: hidden !important;
 }
 
 .pamphlet-footer-action h1 {
@@ -486,6 +492,11 @@
     line-height: 1.25;
     color: #000000;
     min-height: 1.25em;
+    max-width: 100%;
+    margin: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
 }
 
 .pamphlet-footer-message p {
@@ -494,17 +505,22 @@
     line-height: 1.25;
     color: #000000;
     min-height: 1.25em;
+    max-width: 100%;
+    margin: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
 }
 
 .pamphlet-footer-meta-bar {
     display: flex;
     flex-direction: column;
-    gap: 0.8mm;
+    gap: 1mm;
     width: 100%;
     min-width: 0;
     /* Occupy remaining footer band so the 4×2 never collapses to 0. */
     flex: 1 1 auto;
-    min-height: 18mm;
+    min-height: 26mm;
     overflow: hidden;
     color: #666666;
 }
@@ -516,30 +532,34 @@
     width: 100%;
     min-width: 0;
     flex: 1 1 0;
-    min-height: 3.6mm;
+    min-height: 5.5mm;
 }
 
 .pamphlet-footer-meta-row > .pamphlet-item {
     min-width: 0;
     width: 100%;
     max-width: 100%;
-    overflow: hidden;
+    overflow: hidden !important;
     box-sizing: border-box;
     border: 1px solid rgba(100, 100, 100, 0.55) !important;
-    padding: 0.35mm 0.7mm !important;
+    padding: 0.7mm 1mm !important;
     background: #fff;
-    min-height: 3.6mm;
+    min-height: 5.5mm;
+    display: flex;
+    align-items: center;
 }
 
 .pamphlet-footer-meta-row > .pamphlet-item p {
     font-family: Roboto, sans-serif;
-    font-size: 2.469mm;
+    font-size: 2.8mm;
     line-height: 1.25;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     color: #666666;
     min-height: 1.25em;
+    max-width: 100%;
+    margin: 0;
 }
 
 .pamphlet-footer-meta-row > .pamphlet-footer-label p {
