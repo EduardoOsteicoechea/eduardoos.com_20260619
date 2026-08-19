@@ -11,9 +11,10 @@ This rule **overrides** any preference that says “only commit when asked.”
 When an **agentic action completes** (implementation, fix, refactor, config, or any durable repo change), before ending the turn:
 
 1. Check `git status`, `git diff`, recent `git log`
-2. Stage relevant files (never `.env` / secrets)
-3. Commit with a concise why-focused message
-4. `git push` to the tracked remote
+2. **If changes include `frontend/**` (or FE deploy/publish scripts):** run `cd frontend && npm ci && npm run build` first — **do not push** if the build fails (`specs/005-frontend-gha-dist/spec.md`)
+3. Stage relevant files (never `.env` / secrets)
+4. Commit with a concise why-focused message
+5. `git push` to the tracked remote
 
 Do this even if the user did not say “commit” or “push.”
 

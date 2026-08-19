@@ -88,9 +88,10 @@ This rule **overrides** any user-level preference that says “only commit when 
 After **any agentic action completes** — i.e. you finished implementing, fixing, refactoring, configuring, or otherwise changing the repo in a way that leaves a durable outcome — you MUST, before ending the turn:
 
 1. `git status` / `git diff` / recent `git log` (safety check)
-2. Stage relevant files (never `.env`, credentials, or secrets)
-3. `git commit` with a concise message focused on why
-4. `git push` to the tracked remote branch
+2. **Frontend pre-push compile** (see `specs/005-frontend-gha-dist/spec.md`): if the changes include `frontend/**` (or FE deploy/publish scripts), run `cd frontend && npm ci && npm run build` and **do not push** until it succeeds
+3. Stage relevant files (never `.env`, credentials, or secrets)
+4. `git commit` with a concise message focused on why
+5. `git push` to the tracked remote branch
 
 Do this **even if the user did not say “commit” or “push”.** Waiting for a follow-up “commit y push” is a rule violation.
 
