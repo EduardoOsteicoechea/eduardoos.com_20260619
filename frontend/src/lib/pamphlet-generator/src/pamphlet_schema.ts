@@ -159,11 +159,11 @@ export type PamphletHeaderLayoutMm = {
 
 /** Exact mm from style.css `.pamphlet-page-header` — PDF must use these, not invent sizes. */
 export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
-    // pad + title + title_pad_bottom + divider (0.75) + title_meta_gap 0.6 + meta + frame
-    height: 27,
-    body_gutter: 5, // --header-body-gutter (+2mm vs prior 3)
+    // pad + title + title_pad_bottom + divider (0.75) + title_meta_gap 1.6 + meta + frame
+    height: 29,
+    body_gutter: 5, // --header-body-gutter
     pad: 1.2,
-    pad_x: 2.2, // −1mm vs prior 3.2
+    pad_x: 2.2,
     radius: 1,
     stroke: 0.2,
     inner_inset: 0.45,
@@ -172,7 +172,7 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     title_size: 6.75, // .pamphlet-header-title p
     title_lh: 1.1,
     title_pad_bottom: 1, // under title text before divider
-    title_meta_gap: 0.6, // divider → meta (−2mm vs prior 2.6)
+    title_meta_gap: 1.6, // divider → meta (+1mm vs prior 0.6)
     divider_outer_stroke: 0.2,
     divider_gap: 0.45,
     divider_inner_stroke: 0.1,

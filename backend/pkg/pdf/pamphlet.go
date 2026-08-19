@@ -40,20 +40,20 @@ const (
 	PamphletColWidthMm = 57.85
 	// Header band: title + title_pad_bottom + title divider + title_meta_gap + meta + frame.
 	// Overridden by header_layout.height from frontend when present.
-	PamphletHeaderHMm = 27.0
+	PamphletHeaderHMm = 29.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
 	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 27 − 5 − 6 − 30 − 10
-	PamphletPage1BodyMm = 127.9
+	// 215.9 − 10 − 29 − 5 − 6 − 30 − 10
+	PamphletPage1BodyMm = 125.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Clear space under title divider → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
-	PamphletHeaderTitleMetaGapMm = 0.6
+	PamphletHeaderTitleMetaGapMm = 1.6
 	// CSS .pamphlet-header-meta-bar { row-gap }.
 	PamphletHeaderMetaRowGapMm = 0.8
-	// Right-side cols 1–2: 195.9 − 27 − 5
-	PamphletPage1RightColMm = 163.9
+	// Right-side cols 1–2: 195.9 − 29 − 5
+	PamphletPage1RightColMm = 161.9
 	// Left-side cols 7–8 above footer: 195.9 − 6 − 30 (default layout.height)
 	PamphletPage1LeftColMm = 159.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).

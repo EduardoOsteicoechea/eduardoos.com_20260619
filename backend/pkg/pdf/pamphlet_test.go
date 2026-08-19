@@ -93,8 +93,8 @@ func TestToWinAnsiSpanish(t *testing.T) {
 
 func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	layout := defaultHeaderLayout()
-	if layout.TitleMetaGap < 0.5 || layout.TitleMetaGap > 0.8 {
-		t.Fatalf("header divider→meta CSS gap want ~0.6mm, got %v", layout.TitleMetaGap)
+	if layout.TitleMetaGap < 1.4 || layout.TitleMetaGap > 1.8 {
+		t.Fatalf("header divider→meta CSS gap want ~1.6mm, got %v", layout.TitleMetaGap)
 	}
 	if layout.MetaRowGap < 0.6 || layout.MetaRowGap > 1.0 {
 		t.Fatalf("header meta row-gap want ~0.8mm, got %v", layout.MetaRowGap)

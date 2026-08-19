@@ -203,7 +203,7 @@
   --header-title-size: 6.75mm;
   --header-title-lh: 1.1;
   /* Clear space divider → meta (title_meta_gap); flex gap on header is 0. */
-  --header-title-meta-gap: 0.6mm;
+  --header-title-meta-gap: 1.6mm;
   --header-title-pad-bottom: 1mm;
   --header-meta-size: 2.5mm;
   --header-meta-lh: 1.2;
@@ -221,20 +221,20 @@
   --header-divider-gap: 0.45mm;
   --header-divider-inner: 0.1mm;
   /* Title + title_pad_bottom + divider + title_meta_gap + meta + pad + frame. */
-  --page-header-height: 27mm;
+  --page-header-height: 29mm;
   /* Margin under header band before cols 1–2 (PDF uses the same). */
   --header-body-gutter: 5mm;
   --page-footer-height: 30mm; /* PAMPHLET_FOOTER_LAYOUT_MM.height — value rows hidden when empty */
-  /* Page 1 body: 215.9 − 10 − 27 − 5 − 6 − 30 − 10 = 127.9mm */
-  --page1-body-height: 127.9mm;
+  /* Page 1 body: 215.9 − 10 − 29 − 5 − 6 − 30 − 10 = 125.9mm */
+  --page1-body-height: 125.9mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
   --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
-  /* Cols 1–2 under header: 195.9 − 27 − 5 = 163.9mm */
-  --page1-right-col-height: 163.9mm;
+  /* Cols 1–2 under header: 195.9 − 29 − 5 = 161.9mm */
+  --page1-right-col-height: 161.9mm;
   /* Cols 7–8 above footer: 195.9 − 6 − 30 = 159.9mm */
   --page1-left-col-height: 159.9mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
