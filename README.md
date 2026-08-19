@@ -15,12 +15,12 @@ Production tree at the repo root: Astro frontend, unified Go backend (`eduardoos
 ```
 frontend/                  Astro + React client (dist → nginx html)
 backend/                   Go module eduardoos.nex (bin/eduardoos-next)
+backend/revitapi/          APS / Revit Design Automation AppBundle
 deploy/ec2/                Remote deploy + frontend build scripts
 deploy/aws/                IAM / DynamoDB bootstrap helpers
 nginx/                     Reverse proxy config + TLS certs
 .github/workflows/         Production deploy (selective scopes)
 specs/                     Feature specs
-revitapi/                  APS / Revit tooling
 ```
 
 ## Prerequisites
