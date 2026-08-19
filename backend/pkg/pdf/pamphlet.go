@@ -521,7 +521,7 @@ func defaultFooterLayout() PamphletFooterLayout {
 		MetaSize:    2.8,
 		MetaPadX:    1.0,
 		MetaPadY:    0.7,
-		CellStroke:  0.25,
+		CellStroke:  0.15,
 	}
 }
 

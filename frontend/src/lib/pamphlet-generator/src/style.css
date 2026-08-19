@@ -487,7 +487,7 @@
     min-width: 0;
     flex: 0 0 auto;
     box-sizing: border-box;
-    border: 1px solid rgba(100, 100, 100, 0.55) !important;
+    border: 0.15mm solid rgba(100, 100, 100, 0.45) !important;
     padding: 0.7mm 1.4mm !important;
     background: #fff;
     min-height: 4.5mm;
@@ -557,7 +557,7 @@
     max-width: 100%;
     overflow: hidden !important;
     box-sizing: border-box;
-    border: 1px solid rgba(100, 100, 100, 0.55) !important;
+    border: 0.15mm solid rgba(100, 100, 100, 0.45) !important;
     padding: 0.7mm 1mm !important;
     background: #fff;
     min-height: 5.5mm;

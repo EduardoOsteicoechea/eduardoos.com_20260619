@@ -165,7 +165,7 @@ export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
     meta_size: 2.8, // meta p font-size
     meta_pad_x: 1,
     meta_pad_y: 0.7,
-    cell_stroke: 0.25, // ~1px cell border
+    cell_stroke: 0.15, // hairline cell border (editor only; PDF omits)
 };
 
 export const DEFAULT_STYLE_INDEXES: StyleIndexes = [[0, 0], [0, 0], [0, 0]];
