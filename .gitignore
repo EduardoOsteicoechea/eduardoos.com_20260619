@@ -38,3 +38,7 @@ backend/revitapi/**/bin/
 backend/revitapi/**/obj/
 backend/revitapi/**/*.zip
 
+
+# Local CV / portfolio PDFs (not product code)
+EDUARDO_OSTEICOECHEA_DEVELOPER_ARCHITECT2025.pdf
+about_eduardo_*
