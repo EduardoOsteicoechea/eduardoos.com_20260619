@@ -100,7 +100,7 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | Register / Login / OTP / Reset | `/auth/*` |
 | Flight Logger / QA Tester | `/observability/*` |
 | Subscription | `/payments/subscription/montly/basic` |
-| Pamphlet editor | `/documents/pamphlet` (print POSTs `footer_layout` mm from CSS to PDF) |
+| Pamphlet editor | `/documents/pamphlet` (print POSTs `header_layout` + `footer_layout` mm from CSS to PDF) |
 | Articles | `/articulos`, `/articulos/ver?id=` |
 | Homescool | `/homescool` |
 | Contact | `/contact` |

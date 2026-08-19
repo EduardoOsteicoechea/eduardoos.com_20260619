@@ -106,12 +106,51 @@ export type PamphletStructure = {
     header: PamphletHeader;
     footer: PamphletFooter;
     /**
+     * Header type/spacing sizes in mm — source of truth for PDF parity.
+     * Sent on print; not required in saved .epam files.
+     */
+    header_layout?: PamphletHeaderLayoutMm;
+    /**
      * Footer chrome sizes in mm — source of truth for PDF parity.
      * Sent on print; not required in saved .epam files.
      */
     footer_layout?: PamphletFooterLayoutMm;
     last_edited_element: LastEditedElement;
 } & Record<ColumnKey, PamphletItem[]>;
+
+/**
+ * Exact CSS mm for `.pamphlet-page-header` — keep in sync with style.css.
+ * Print POSTs this so the PDF builder does not invent its own sizes.
+ */
+export type PamphletHeaderLayoutMm = {
+    /** Header band track height (--page-header-height). */
+    height: number;
+    /** Gap under the header before cols 1–2 (--header-body-gutter). */
+    body_gutter: number;
+    title_size: number;
+    title_lh: number;
+    /** Flex gap between title block and meta bar. */
+    title_meta_gap: number;
+    meta_size: number;
+    meta_lh: number;
+    /** Meta grid row-gap. */
+    meta_row_gap: number;
+    /** Meta grid column-gap. */
+    meta_col_gap: number;
+};
+
+/** Exact mm from style.css `.pamphlet-page-header` — PDF must use these, not invent sizes. */
+export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
+    height: 23, // --page-header-height
+    body_gutter: 5, // --header-body-gutter
+    title_size: 6.75, // .pamphlet-header-title p
+    title_lh: 1.1,
+    title_meta_gap: 0.6, // .pamphlet-page-header { gap }
+    meta_size: 2.5, // .pamphlet-header-meta-label / meta values
+    meta_lh: 1.2,
+    meta_row_gap: 0.8, // .pamphlet-header-meta-bar { row-gap }
+    meta_col_gap: 2.5, // .pamphlet-header-meta-bar { column-gap }
+};
 
 /**
  * Exact CSS mm for `.pamphlet-page-footer` — keep in sync with style.css.

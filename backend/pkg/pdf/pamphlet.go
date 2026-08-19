@@ -39,6 +39,7 @@ const (
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
 	PamphletColWidthMm = 57.85
 	// Header band fits 6.75mm 2-line title + 0.6mm gap + two 2.5mm meta rows (~22.3mm).
+	// Overridden by header_layout.height from frontend when present.
 	PamphletHeaderHMm = 23.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
@@ -55,12 +56,12 @@ const (
 	PamphletPage1RightColMm = 167.9
 	// Left-side cols 7–8 above footer: 195.9 − 2 − 33 (default layout.height)
 	PamphletPage1LeftColMm = 160.9
-	// Exact CSS type sizes on the sheet (source of truth for PDF).
+	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band is 23mm so both meta rows fit
 	pamphletTitleLH     = 1.1
-	pamphletMetaSizeMm  = 2.5  // .pamphlet-header-meta-label { font-size: 2.5mm; line-height: 1.2 }
+	pamphletMetaSizeMm  = 2.5 // .pamphlet-header-meta-label { font-size: 2.5mm; line-height: 1.2 }
 	pamphletMetaLH      = 1.2
-	pamphletBodySizeMm  = 3.0  // paragraph { font-size: 3mm; line-height: 1.25 }
+	pamphletBodySizeMm  = 3.0 // paragraph { font-size: 3mm; line-height: 1.25 }
 	pamphletBodyLH      = 1.25
 	pamphletHeadingSizeMm = 4.25 // h1 { font-size: 4.25mm; line-height: 1.2 }
 	pamphletHeadingLH     = 1.2
@@ -73,6 +74,7 @@ type PamphletDocument struct {
 	Type         string               `json:"type"`
 	Header       PamphletHeader       `json:"header"`
 	Footer       PamphletFooter       `json:"footer"`
+	HeaderLayout PamphletHeaderLayout `json:"header_layout,omitempty"`
 	FooterLayout PamphletFooterLayout `json:"footer_layout,omitempty"`
 	Column1      []PamphletItem       `json:"column_1"`
 	Column2      []PamphletItem       `json:"column_2"`
@@ -82,6 +84,20 @@ type PamphletDocument struct {
 	Column6      []PamphletItem       `json:"column_6"`
 	Column7      []PamphletItem       `json:"column_7"`
 	Column8      []PamphletItem       `json:"column_8"`
+}
+
+// PamphletHeaderLayout is the exact mm type/spacing from the frontend sheet CSS
+// (PAMPHLET_HEADER_LAYOUT_MM). Print POSTs these; PDF must not invent sizes.
+type PamphletHeaderLayout struct {
+	Height       float64 `json:"height"`
+	BodyGutter   float64 `json:"body_gutter"`
+	TitleSize    float64 `json:"title_size"`
+	TitleLH      float64 `json:"title_lh"`
+	TitleMetaGap float64 `json:"title_meta_gap"`
+	MetaSize     float64 `json:"meta_size"`
+	MetaLH       float64 `json:"meta_lh"`
+	MetaRowGap   float64 `json:"meta_row_gap"`
+	MetaColGap   float64 `json:"meta_col_gap"`
 }
 
 // PamphletFooterLayout is the exact mm chrome from the frontend sheet CSS
@@ -389,25 +405,29 @@ func colX(track int) float64 {
 
 func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string {
 	var s strings.Builder
-	layout := normalizeFooterLayout(doc.FooterLayout)
-	footerH := layout.Height
+	headerLayout := normalizeHeaderLayout(doc.HeaderLayout)
+	footerLayout := normalizeFooterLayout(doc.FooterLayout)
+	headerH := headerLayout.Height
+	bodyGutter := headerLayout.BodyGutter
+	footerH := footerLayout.Height
 	leftColH := PamphletPage2BodyMm - PamphletFooterBodyGutterMm - footerH
+	rightColH := PamphletPage2BodyMm - headerH - bodyGutter
 
 	headerX := colX(6)
 	headerTop := PamphletPageHeightMm - PamphletMarginMm
-	// Same vertical tracks as CSS grid: margin → 23mm header → gutter → cols.
-	_ = drawHeader(&s, doc.Header, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
+	// Same vertical tracks as CSS grid: margin → header → gutter → cols.
+	_ = drawHeader(&s, doc.Header, headerLayout, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow)
 
 	leftTop := PamphletPageHeightMm - PamphletMarginMm
 	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, leftColH, images)
 	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, leftColH, images)
 
-	rightTop := headerTop - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
-	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
-	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)
+	rightTop := headerTop - headerH - bodyGutter
+	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, rightColH, images)
+	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, rightColH, images)
 
 	footerTop := PamphletMarginMm + footerH
-	drawFooter(&s, normalizeFooter(doc.Footer), layout, colX(2), footerTop, PamphletColWidthMm*2+PamphletGutterNarrow)
+	drawFooter(&s, normalizeFooter(doc.Footer), footerLayout, colX(2), footerTop, PamphletColWidthMm*2+PamphletGutterNarrow)
 	return s.String()
 }
 
@@ -429,14 +449,20 @@ func cssBaselineOffsetMm(sizeMm, lineHeight float64) float64 {
 }
 
 // drawHeader paints title + 2×2 gray meta with the same box model as the sheet:
-//   title line-boxes (5mm × 1.1) → flex gap 0.6mm → meta line-boxes (2.5mm × 1.2)
-//   with row-gap 0.8mm, clipped to the 23mm header track.
-func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm float64) float64 {
+//
+//	title line-boxes → flex gap → meta line-boxes with row-gap, clipped to the header track.
+//
+// Type sizes and gaps come from header_layout (frontend CSS mm).
+func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayout, x, top, width float64) float64 {
+	layout = normalizeHeaderLayout(layout)
+	heightMm := layout.Height
 	floor := top - heightMm
-	titleSizePt := MmToPoints(pamphletTitleSizeMm)
-	titleLineHMm := pamphletTitleSizeMm * pamphletTitleLH
-	y := top - cssBaselineOffsetMm(pamphletTitleSizeMm, pamphletTitleLH)
-	used := writeWrapped(s, "F2", titleSizePt, pamphletTitleLH, x, y, width, h.Title, floor)
+	titleSizeMm := layout.TitleSize
+	titleLH := layout.TitleLH
+	titleSizePt := MmToPoints(titleSizeMm)
+	titleLineHMm := titleSizeMm * titleLH
+	y := top - cssBaselineOffsetMm(titleSizeMm, titleLH)
+	used := writeWrapped(s, "F2", titleSizePt, titleLH, x, y, width, h.Title, floor)
 	nTitle := 1
 	if used > 0 {
 		nTitle = int(used/titleLineHMm + 0.5)
@@ -446,15 +472,17 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 	} else if strings.TrimSpace(h.Title) == "" {
 		return floor
 	}
-	// Bottom of the title line-box stack (CSS flex item), then the 0.6mm gap.
+	// Bottom of the title line-box stack (CSS flex item), then the title→meta gap.
 	titleBoxBottom := top - float64(nTitle)*titleLineHMm
-	metaLineTop := titleBoxBottom - PamphletHeaderTitleMetaGapMm
+	metaLineTop := titleBoxBottom - layout.TitleMetaGap
 
-	metaSizePt := MmToPoints(pamphletMetaSizeMm)
-	metaLineHMm := pamphletMetaSizeMm * pamphletMetaLH
-	metaY := metaLineTop - cssBaselineOffsetMm(pamphletMetaSizeMm, pamphletMetaLH)
+	metaSizeMm := layout.MetaSize
+	metaLH := layout.MetaLH
+	metaSizePt := MmToPoints(metaSizeMm)
+	metaLineHMm := metaSizeMm * metaLH
+	metaY := metaLineTop - cssBaselineOffsetMm(metaSizeMm, metaLH)
 
-	const colGapMm = 2.5
+	colGapMm := layout.MetaColGap
 	half := (width - colGapMm) / 2
 	if half < 10 {
 		half = width / 2
@@ -475,8 +503,8 @@ func drawHeader(s *strings.Builder, h PamphletHeader, x, top, width, heightMm fl
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right1)
 		}
 		contentBottom = metaLineTop - metaLineHMm
-		metaLineTop -= metaLineHMm + PamphletHeaderMetaRowGapMm
-		metaY = metaLineTop - cssBaselineOffsetMm(pamphletMetaSizeMm, pamphletMetaLH)
+		metaLineTop -= metaLineHMm + layout.MetaRowGap
+		metaY = metaLineTop - cssBaselineOffsetMm(metaSizeMm, metaLH)
 	}
 	if (left2 != "" || right2 != "") && metaY > floor {
 		if left2 != "" {
@@ -502,6 +530,44 @@ func labeledMeta(label, value string) string {
 }
 
 var pamphletFooterDefaultLabels = [4]string{"WhatsApp", "Teléfono", "Dirección", "Actividades"}
+
+// defaultHeaderLayout mirrors frontend PAMPHLET_HEADER_LAYOUT_MM / style.css.
+func defaultHeaderLayout() PamphletHeaderLayout {
+	return PamphletHeaderLayout{
+		Height:       PamphletHeaderHMm,
+		BodyGutter:   PamphletHeaderBodyGutterMm,
+		TitleSize:    pamphletTitleSizeMm,
+		TitleLH:      pamphletTitleLH,
+		TitleMetaGap: PamphletHeaderTitleMetaGapMm,
+		MetaSize:     pamphletMetaSizeMm,
+		MetaLH:       pamphletMetaLH,
+		MetaRowGap:   PamphletHeaderMetaRowGapMm,
+		MetaColGap:   2.5,
+	}
+}
+
+// normalizeHeaderLayout fills zero fields from the frontend defaults so older
+// print clients without header_layout still render a coherent header band.
+func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
+	d := defaultHeaderLayout()
+	pick := func(v, def float64) float64 {
+		if v > 0 {
+			return v
+		}
+		return def
+	}
+	return PamphletHeaderLayout{
+		Height:       pick(l.Height, d.Height),
+		BodyGutter:   pick(l.BodyGutter, d.BodyGutter),
+		TitleSize:    pick(l.TitleSize, d.TitleSize),
+		TitleLH:      pick(l.TitleLH, d.TitleLH),
+		TitleMetaGap: pick(l.TitleMetaGap, d.TitleMetaGap),
+		MetaSize:     pick(l.MetaSize, d.MetaSize),
+		MetaLH:       pick(l.MetaLH, d.MetaLH),
+		MetaRowGap:   pick(l.MetaRowGap, d.MetaRowGap),
+		MetaColGap:   pick(l.MetaColGap, d.MetaColGap),
+	}
+}
 
 // defaultFooterLayout mirrors frontend PAMPHLET_FOOTER_LAYOUT_MM / style.css.
 func defaultFooterLayout() PamphletFooterLayout {

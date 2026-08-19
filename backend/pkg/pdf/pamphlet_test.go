@@ -3,6 +3,7 @@ package pdf
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -91,11 +92,12 @@ func TestToWinAnsiSpanish(t *testing.T) {
 }
 
 func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
-	if PamphletHeaderTitleMetaGapMm < 0.5 || PamphletHeaderTitleMetaGapMm > 1.0 {
-		t.Fatalf("header title→meta CSS gap want ~0.6mm, got %v", PamphletHeaderTitleMetaGapMm)
+	layout := defaultHeaderLayout()
+	if layout.TitleMetaGap < 0.5 || layout.TitleMetaGap > 1.0 {
+		t.Fatalf("header title→meta CSS gap want ~0.6mm, got %v", layout.TitleMetaGap)
 	}
-	if PamphletHeaderMetaRowGapMm < 0.6 || PamphletHeaderMetaRowGapMm > 1.0 {
-		t.Fatalf("header meta row-gap want ~0.8mm, got %v", PamphletHeaderMetaRowGapMm)
+	if layout.MetaRowGap < 0.6 || layout.MetaRowGap > 1.0 {
+		t.Fatalf("header meta row-gap want ~0.8mm, got %v", layout.MetaRowGap)
 	}
 	var s strings.Builder
 	bottom := drawHeader(&s, PamphletHeader{
@@ -104,7 +106,7 @@ func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 		Series:        "Serie X",
 		SeriesChapter: "1",
 		Date:          "2026-08-14",
-	}, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
+	}, layout, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow)
 	out := s.String()
 	if !strings.Contains(out, "Titulo corto") {
 		t.Fatalf("missing title in stream: %q", out)
@@ -136,7 +138,7 @@ func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	if gapMm < 2.5 {
 		t.Fatalf("title→meta baseline gap=%.2fmm too tight (overlap risk); ys=%v", gapMm, ys)
 	}
-	bandFloor := 200.0 - PamphletHeaderHMm
+	bandFloor := 200.0 - layout.Height
 	if bottom <= bandFloor+0.5 {
 		t.Fatalf("header content bottom=%.2f should be above band floor %.2f", bottom, bandFloor)
 	}
@@ -156,22 +158,34 @@ func TestLongTitleFillsHeaderBandLikeDesktop(t *testing.T) {
 	var s strings.Builder
 	top := 200.0
 	width := PamphletColWidthMm*2 + PamphletGutterNarrow
+	layout := defaultHeaderLayout()
 	bottom := drawHeader(&s, PamphletHeader{
 		Title:         "¿Cómo sabemos que interpretamos correctamente?",
 		Author:        "Eduardo Osteicoechea",
 		Series:        "Descubriendo el libro de Romanos",
 		SeriesChapter: "1",
 		Date:          "2026-08-10",
-	}, 100, top, width, PamphletHeaderHMm)
+	}, layout, 100, top, width)
 	used := top - bottom
-	if used < 21.0 || used > PamphletHeaderHMm {
-		t.Fatalf("header content height=%.2fmm must fill the 23mm band (title + both meta rows), got vs cap %v", used, PamphletHeaderHMm)
+	if used < 21.0 || used > layout.Height {
+		t.Fatalf("header content height=%.2fmm must fill the 23mm band (title + both meta rows), got vs cap %v", used, layout.Height)
 	}
 	out := s.String()
 	for _, needle := range []string{"Serie:", "Cap", "Autor:", "Fecha:"} {
 		if !strings.Contains(out, needle) {
 			t.Fatalf("header clipped meta %q in stream: %q", needle, out)
 		}
+	}
+}
+
+func TestHeaderLayoutFromFrontendDrivesTitleSize(t *testing.T) {
+	layout := defaultHeaderLayout()
+	layout.TitleSize = 8.0
+	var s strings.Builder
+	_ = drawHeader(&s, PamphletHeader{Title: "Titulo"}, layout, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow)
+	want := fmt.Sprintf("/F2 %.2f Tf", MmToPoints(8.0))
+	if !strings.Contains(s.String(), want) {
+		t.Fatalf("expected title Tf %q from header_layout.title_size=8mm, got %q", want, s.String())
 	}
 }
 

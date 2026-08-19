@@ -62,6 +62,7 @@ import {
     HEADER_COLUMN,
     HEADER_FIELD_KEYS,
     PAMPHLET_FOOTER_LAYOUT_MM,
+    PAMPHLET_HEADER_LAYOUT_MM,
     createParagraphItem,
     createEmptyPamphlet,
     type CreatePamphletMeta,
@@ -379,9 +380,10 @@ async function printDocument(): Promise<void> {
 
     setStatus("Generando PDF…", "info");
     try {
-        // Footer mm sizes come from the frontend sheet CSS — backend must not invent them.
+        // Header/footer mm sizes come from the frontend sheet CSS — backend must not invent them.
         const printPayload: PamphletStructure = {
             ...live,
+            header_layout: PAMPHLET_HEADER_LAYOUT_MM,
             footer_layout: PAMPHLET_FOOTER_LAYOUT_MM,
         };
         const res = await fetch(DOCUMENT_ROUTES.pamphletPdf, {
@@ -421,13 +423,13 @@ async function printDocument(): Promise<void> {
 
 const usLetterHeightInMillimeters = 215.9;
 const pageMarginMm = 10;
-const pageHeaderHeightMm = 23; // matches --page-header-height / PamphletHeaderHMm
+const pageHeaderHeightMm = PAMPHLET_HEADER_LAYOUT_MM.height;
 const pageFooterHeightMm = PAMPHLET_FOOTER_LAYOUT_MM.height;
 const colGutterNarrowMm = 4;
 /** Gap only between cols 7–8 and the footer (half of narrow gutter). */
 const footerBodyGutterMm = 2;
 /** Gap between page header and cols 1–2 (matches --header-body-gutter). */
-const headerBodyGutterMm = 5;
+const headerBodyGutterMm = PAMPHLET_HEADER_LAYOUT_MM.body_gutter;
 /** Page 2 band / full page-1 chrome band: letter − 2×margin */
 const columnContentHeightMm = usLetterHeightInMillimeters - pageMarginMm * 2;
 /** Cols 1–2: under page header → discount header + header→body gutter */

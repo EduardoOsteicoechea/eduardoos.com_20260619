@@ -199,6 +199,14 @@
   --footer-body-gutter: 2mm;
   /* Center fold gutter (page 1 left↔right / page 2 left↔right) */
   --col-gutter-wide: 20mm;
+  /* Header type sizes — keep in sync with PAMPHLET_HEADER_LAYOUT_MM (print → PDF). */
+  --header-title-size: 6.75mm;
+  --header-title-lh: 1.1;
+  --header-title-meta-gap: 0.6mm;
+  --header-meta-size: 2.5mm;
+  --header-meta-lh: 1.2;
+  --header-meta-row-gap: 0.8mm;
+  --header-meta-col-gap: 2.5mm;
   /* 6.75mm 2-line title + 0.6mm gap + two meta rows (~22.3mm). Same as PDF PamphletHeaderHMm. */
   --page-header-height: 23mm;
   /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
@@ -353,7 +361,8 @@
     max-width: 100%;
 }
 
-/* Page 1: left = cols 7–8 + footer; right = header + cols 1–2 */
+/* Page 1: left = cols 7–8 + footer; right = header + cols 1–2.
+   Gap / type sizes must stay in sync with PAMPHLET_HEADER_LAYOUT_MM. */
 .pamphlet-page-header {
     grid-column: 6 / 9;
     grid-row: 2;
@@ -361,8 +370,7 @@
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
-    /* Match PDF PamphletHeaderTitleMetaGapMm */
-    gap: 0.6mm;
+    gap: var(--header-title-meta-gap);
     /* Clip ink to the header band so meta never paints over cols 1–2. */
     overflow: hidden;
     min-width: 0;
@@ -418,7 +426,6 @@
 .pamphlet-page-header > .pamphlet-header-title {
     width: 100%;
     flex: 0 0 auto;
-    /* Keep title→meta tight on desktop; PDF uses PamphletHeaderTitleMetaGapMm (~1.2mm). */
     margin-bottom: 0;
 }
 
@@ -426,8 +433,8 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto;
-    column-gap: 2.5mm;
-    row-gap: 0.8mm;
+    column-gap: var(--header-meta-col-gap);
+    row-gap: var(--header-meta-row-gap);
     width: 100%;
     min-width: 0;
     flex: 0 0 auto;
@@ -455,8 +462,8 @@
 .pamphlet-header-meta-label {
     flex: 0 0 auto;
     font-family: Roboto, sans-serif;
-    font-size: 2.5mm;
-    line-height: 1.2;
+    font-size: var(--header-meta-size);
+    line-height: var(--header-meta-lh);
     color: #666666;
     opacity: 1;
     white-space: nowrap;
@@ -667,8 +674,8 @@
 
 .pamphlet-header-meta-bar .pamphlet-header-item p {
     font-family: Roboto, sans-serif;
-    font-size: 2.5mm;
-    line-height: 1.2;
+    font-size: var(--header-meta-size);
+    line-height: var(--header-meta-lh);
     opacity: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -735,13 +742,22 @@
   line-height: 1.25;
 }
 
-/* Must beat paragraph p rule (header title also has data-item-type=paragraph) */
-.pamphlet-page-header .pamphlet-header-title p {
+/* Must beat `.pamphlet-app .pamphlet-item[data-item-type="paragraph"] p` (title/meta are paragraphs).
+   Sizes = PAMPHLET_HEADER_LAYOUT_MM → PDF header_layout. */
+.pamphlet-app main.pamphlet-sheet .pamphlet-page-header .pamphlet-header-title p {
   font-family: Roboto, sans-serif;
-  font-size: 6.75mm;
+  font-size: var(--header-title-size);
   font-weight: 700;
-  line-height: 1.1;
+  line-height: var(--header-title-lh);
   color: inherit;
+}
+
+.pamphlet-app main.pamphlet-sheet .pamphlet-header-meta-bar .pamphlet-header-meta-label,
+.pamphlet-app main.pamphlet-sheet .pamphlet-header-meta-bar .pamphlet-header-item p {
+  font-family: Roboto, sans-serif;
+  font-size: var(--header-meta-size);
+  line-height: var(--header-meta-lh);
+  color: #666666;
 }
 
 /*
