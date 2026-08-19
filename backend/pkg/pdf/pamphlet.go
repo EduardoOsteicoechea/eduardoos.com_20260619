@@ -5,7 +5,7 @@ package pdf
 // Geometry matches the frontend sheet CSS exactly:
 //   page  279.4mm × 215.9mm (US Letter landscape)
 //   cols  57.85mm wide, gutters 4mm / 20mm (center), margins 10mm
-//   page1 left  cols 7–8 (161.9mm tall) + footer; right header + cols 1–2
+//   page1 left  cols 7–8 (159.9mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
 // Text uses embedded Roboto / Roboto-Bold (website font) with WinAnsiEncoding.
@@ -33,7 +33,7 @@ const (
 	PamphletMarginMm     = 10.0
 	PamphletGutterNarrow = 4.0
 	// Gap only between cols 7–8 and the footer (--footer-body-gutter).
-	PamphletFooterBodyGutterMm = 4.0
+	PamphletFooterBodyGutterMm = 6.0
 	// Center fold gutter (page 1 left↔right and page 2 left↔right).
 	PamphletGutterWide = 20.0
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
@@ -42,20 +42,20 @@ const (
 	// Overridden by header_layout.height from frontend when present.
 	PamphletHeaderHMm = 31.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
-	PamphletHeaderBodyGutterMm = 1.0
+	PamphletHeaderBodyGutterMm = 3.0
 	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 31 − 1 − 4 − 30 − 10
-	PamphletPage1BodyMm = 129.9
+	// 215.9 − 10 − 31 − 3 − 6 − 30 − 10
+	PamphletPage1BodyMm = 125.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Clear space under title divider → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
 	PamphletHeaderTitleMetaGapMm = 2.6
 	// CSS .pamphlet-header-meta-bar { row-gap }.
 	PamphletHeaderMetaRowGapMm = 0.8
-	// Right-side cols 1–2: 195.9 − 31 − 1
-	PamphletPage1RightColMm = 163.9
-	// Left-side cols 7–8 above footer: 195.9 − 4 − 30 (default layout.height)
-	PamphletPage1LeftColMm = 161.9
+	// Right-side cols 1–2: 195.9 − 31 − 3
+	PamphletPage1RightColMm = 161.9
+	// Left-side cols 7–8 above footer: 195.9 − 6 − 30 (default layout.height)
+	PamphletPage1LeftColMm = 159.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band fits title + meta + rule
 	pamphletTitleLH     = 1.1

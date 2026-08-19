@@ -229,11 +229,15 @@ func TestPamphletPage1BodyMatchesSheetBand(t *testing.T) {
 	})
 	s := string(data)
 	re := regexp.MustCompile(`([\d.]+)\s+([\d.]+)\s+Td`)
+	// Sheet: rightTop = pageH − margin − header − gutter; first baseline = CSS body strut.
+	wantTop := PamphletPageHeightMm - PamphletMarginMm - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
+	wantBody := MmToPoints(wantTop - cssBaselineOffsetMm(pamphletBodySizeMm, pamphletBodyLH))
 	var rightYs []float64
 	for _, m := range re.FindAllStringSubmatch(s, -1) {
 		x, _ := strconv.ParseFloat(m[1], 64)
 		y, _ := strconv.ParseFloat(m[2], 64)
-		if x > 400 && y > 480 {
+		// Keep right-half text above footer; floor tracks the lowered body band.
+		if x > 400 && y > wantBody-20 {
 			rightYs = append(rightYs, y)
 		}
 	}
@@ -242,9 +246,6 @@ func TestPamphletPage1BodyMatchesSheetBand(t *testing.T) {
 	}
 	sort.Float64s(rightYs)
 	bodyY := rightYs[0]
-	// Sheet: rightTop = pageH − margin − header − gutter; first baseline = CSS 3mm × 1.25 strut.
-	wantTop := PamphletPageHeightMm - PamphletMarginMm - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
-	wantBody := MmToPoints(wantTop - cssBaselineOffsetMm(pamphletBodySizeMm, pamphletBodyLH))
 	if bodyY < wantBody-2 || bodyY > wantBody+2 {
 		t.Fatalf("body baseline=%.2fpt want ~%.2fpt (sheet band); ys=%v", bodyY, wantBody, rightYs)
 	}

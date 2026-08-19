@@ -161,7 +161,7 @@ export type PamphletHeaderLayoutMm = {
 export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     // pad + title + title_pad_bottom + divider (0.75) + title_meta_gap 2.6 + meta + frame
     height: 31,
-    body_gutter: 1, // --header-body-gutter
+    body_gutter: 3, // --header-body-gutter (+2mm vs prior 1)
     pad: 1.2,
     pad_x: 2.2, // −1mm vs prior 3.2
     radius: 1,

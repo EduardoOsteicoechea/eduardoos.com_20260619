@@ -196,7 +196,7 @@
   --page-margin: 10mm;
   --col-gutter-narrow: 4mm;
   /* Gap only between cols 7–8 and the footer. */
-  --footer-body-gutter: 4mm;
+  --footer-body-gutter: 6mm;
   /* Center fold gutter (page 1 left↔right / page 2 left↔right) */
   --col-gutter-wide: 20mm;
   /* Header type sizes — keep in sync with PAMPHLET_HEADER_LAYOUT_MM (print → PDF). */
@@ -223,20 +223,20 @@
   /* Title + title_pad_bottom + divider + title_meta_gap + meta + pad + frame. */
   --page-header-height: 31mm;
   /* Margin under header band before cols 1–2 (PDF uses the same). */
-  --header-body-gutter: 1mm;
+  --header-body-gutter: 3mm;
   --page-footer-height: 30mm; /* PAMPHLET_FOOTER_LAYOUT_MM.height — value rows hidden when empty */
-  /* Page 1 body: 215.9 − 10 − 31 − 1 − 4 − 30 − 10 = 129.9mm */
-  --page1-body-height: 129.9mm;
+  /* Page 1 body: 215.9 − 10 − 31 − 3 − 6 − 30 − 10 = 125.9mm */
+  --page1-body-height: 125.9mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
   --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
-  /* Cols 1–2 under header: 195.9 − 31 − 1 = 163.9mm */
-  --page1-right-col-height: 163.9mm;
-  /* Cols 7–8 above footer: 195.9 − 4 − 30 = 161.9mm */
-  --page1-left-col-height: 161.9mm;
+  /* Cols 1–2 under header: 195.9 − 31 − 3 = 161.9mm */
+  --page1-right-col-height: 161.9mm;
+  /* Cols 7–8 above footer: 195.9 − 6 − 30 = 159.9mm */
+  --page1-left-col-height: 159.9mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
   --item-gap-height: 2.5mm;
   --b1: solid 1px rgb(231, 231, 231);

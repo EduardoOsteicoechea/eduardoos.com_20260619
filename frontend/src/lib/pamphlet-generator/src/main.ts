@@ -428,17 +428,17 @@ const pageHeaderHeightMm = PAMPHLET_HEADER_LAYOUT_MM.height;
 const pageFooterHeightMm = PAMPHLET_FOOTER_LAYOUT_MM.height;
 const colGutterNarrowMm = 4;
 /** Gap only between cols 7–8 and the footer (--footer-body-gutter). */
-const footerBodyGutterMm = 4;
+const footerBodyGutterMm = 6;
 /** Gap between page header and cols 1–2 (matches --header-body-gutter). */
 const headerBodyGutterMm = PAMPHLET_HEADER_LAYOUT_MM.body_gutter;
 /** Page 2 band / full page-1 chrome band: letter − 2×margin */
 const columnContentHeightMm = usLetterHeightInMillimeters - pageMarginMm * 2;
 /** Cols 1–2: under page header → discount header + header→body gutter */
 const page1RightColHeightMm =
-    columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 163.9
+    columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 161.9
 /** Cols 7–8: above page footer → discount footer↔body gutter + footer */
 const page1LeftColHeightMm =
-    columnContentHeightMm - footerBodyGutterMm - pageFooterHeightMm; // 161.9
+    columnContentHeightMm - footerBodyGutterMm - pageFooterHeightMm; // 159.9
 
 function maxHeightForColumn(columnIndex: number): number {
     if (columnIndex === 1 || columnIndex === 2) return page1RightColHeightMm;
