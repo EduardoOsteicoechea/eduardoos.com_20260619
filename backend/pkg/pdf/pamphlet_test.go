@@ -262,6 +262,25 @@ func TestDrawFooterStructuredChrome(t *testing.T) {
 	}
 }
 
+func TestFooterLayoutActionMessageGapAndInnerInset(t *testing.T) {
+	d := defaultFooterLayout()
+	if d.ActionMessageGap < 1.15 || d.ActionMessageGap > 1.25 {
+		t.Fatalf("action_message_gap want 1.2mm, got %v", d.ActionMessageGap)
+	}
+	if d.ChromeGap < 0.55 || d.ChromeGap > 0.65 {
+		t.Fatalf("chrome_gap want 0.6mm, got %v", d.ChromeGap)
+	}
+	// Clear gap between stroke faces = InnerInset; path inset adds half-strokes.
+	pathInset := d.Stroke/2 + d.InnerInset + d.InnerStroke/2
+	want := 0.2/2 + 0.45 + 0.1/2
+	if pathInset < want-0.001 || pathInset > want+0.001 {
+		t.Fatalf("inner path inset=%.3f want %.3f (CSS clear gap + centered strokes)", pathInset, want)
+	}
+	if d.Height < 33.5 || d.Height > 33.7 {
+		t.Fatalf("footer height want 33.6mm after action_message_gap, got %v", d.Height)
+	}
+}
+
 func TestDrawFooterShowsLabelsWhenValuesEmpty(t *testing.T) {
 	var s strings.Builder
 	drawFooter(&s, PamphletFooter{

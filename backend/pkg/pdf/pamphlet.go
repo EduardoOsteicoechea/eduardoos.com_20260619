@@ -5,7 +5,7 @@ package pdf
 // Geometry matches the frontend sheet CSS exactly:
 //   page  279.4mm × 215.9mm (US Letter landscape)
 //   cols  57.85mm wide, gutters 4mm / 20mm (center), margins 10mm
-//   page1 left  cols 7–8 (160.9mm tall) + footer; right header + cols 1–2
+//   page1 left  cols 7–8 (160.3mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
 // Text uses embedded Roboto / Roboto-Bold (website font) with WinAnsiEncoding.
@@ -43,9 +43,9 @@ const (
 	PamphletHeaderHMm = 23.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
-	PamphletFooterHMm          = 33.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 23 − 5 − 2 − 33 − 10
-	PamphletPage1BodyMm = 132.9
+	PamphletFooterHMm          = 33.6 // default; overridden by footer_layout.height from frontend
+	// 215.9 − 10 − 23 − 5 − 2 − 33.6 − 10
+	PamphletPage1BodyMm = 132.3
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// CSS .pamphlet-page-header { gap } between title block and meta bar.
@@ -54,8 +54,8 @@ const (
 	PamphletHeaderMetaRowGapMm = 0.8
 	// Right-side cols 1–2: 195.9 − 23 − 5
 	PamphletPage1RightColMm = 167.9
-	// Left-side cols 7–8 above footer: 195.9 − 2 − 33 (default layout.height)
-	PamphletPage1LeftColMm = 160.9
+	// Left-side cols 7–8 above footer: 195.9 − 2 − 33.6 (default layout.height)
+	PamphletPage1LeftColMm = 160.3
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band is 23mm so both meta rows fit
 	pamphletTitleLH     = 1.1
@@ -111,24 +111,26 @@ type PamphletFooterLayout struct {
 	InnerStroke float64 `json:"inner_stroke"`
 	InnerRadius float64 `json:"inner_radius"`
 	ChromeGap   float64 `json:"chrome_gap"`
-	ActionSize  float64 `json:"action_size"`
-	ActionLH    float64 `json:"action_lh"`
-	ActionPadX  float64 `json:"action_pad_x"`
-	ActionPadY  float64 `json:"action_pad_y"`
-	ActionMinH  float64 `json:"action_min_h"`
-	MessageSize float64 `json:"message_size"`
-	MessageLH   float64 `json:"message_lh"`
-	MessagePadX float64 `json:"message_pad_x"`
-	MessagePadY float64 `json:"message_pad_y"`
-	MessageMinH float64 `json:"message_min_h"`
-	MetaGap       float64 `json:"meta_gap"`
-	MetaColGap    float64 `json:"meta_col_gap"`
-	MetaRowH      float64 `json:"meta_row_h"`
-	MetaValueRowH float64 `json:"meta_value_row_h"`
-	MetaSize      float64 `json:"meta_size"`
-	MetaPadX      float64 `json:"meta_pad_x"`
-	MetaPadY      float64 `json:"meta_pad_y"`
-	CellStroke    float64 `json:"cell_stroke"`
+	// ActionMessageGap is Acción → Mensaje only (desktop: 2× chrome_gap).
+	ActionMessageGap float64 `json:"action_message_gap"`
+	ActionSize       float64 `json:"action_size"`
+	ActionLH         float64 `json:"action_lh"`
+	ActionPadX       float64 `json:"action_pad_x"`
+	ActionPadY       float64 `json:"action_pad_y"`
+	ActionMinH       float64 `json:"action_min_h"`
+	MessageSize      float64 `json:"message_size"`
+	MessageLH        float64 `json:"message_lh"`
+	MessagePadX      float64 `json:"message_pad_x"`
+	MessagePadY      float64 `json:"message_pad_y"`
+	MessageMinH      float64 `json:"message_min_h"`
+	MetaGap          float64 `json:"meta_gap"`
+	MetaColGap       float64 `json:"meta_col_gap"`
+	MetaRowH         float64 `json:"meta_row_h"`
+	MetaValueRowH    float64 `json:"meta_value_row_h"`
+	MetaSize         float64 `json:"meta_size"`
+	MetaPadX         float64 `json:"meta_pad_x"`
+	MetaPadY         float64 `json:"meta_pad_y"`
+	CellStroke       float64 `json:"cell_stroke"`
 }
 
 type PamphletHeader struct {
@@ -572,32 +574,33 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 // defaultFooterLayout mirrors frontend PAMPHLET_FOOTER_LAYOUT_MM / style.css.
 func defaultFooterLayout() PamphletFooterLayout {
 	return PamphletFooterLayout{
-		Height:        PamphletFooterHMm,
-		Pad:           1.2,
-		Radius:        1.0,
-		Stroke:        0.2,
-		InnerInset:    0.45,
-		InnerStroke:   0.1,
-		InnerRadius:   0.6,
-		ChromeGap:     0.6,
-		ActionSize:    3.175,
-		ActionLH:      1.25,
-		ActionPadX:    1.4,
-		ActionPadY:    0.7,
-		ActionMinH:    4.5,
-		MessageSize:   2.469,
-		MessageLH:     1.25,
-		MessagePadX:   1.4,
-		MessagePadY:   0.7,
-		MessageMinH:   4.5,
-		MetaGap:       0.4,
-		MetaColGap:    2.0,
-		MetaRowH:      5.5,
-		MetaValueRowH: 1.5,
-		MetaSize:      2.8,
-		MetaPadX:      1.0,
-		MetaPadY:      0.7,
-		CellStroke:    0.15,
+		Height:           PamphletFooterHMm,
+		Pad:              1.2,
+		Radius:           1.0,
+		Stroke:           0.2,
+		InnerInset:       0.45,
+		InnerStroke:      0.1,
+		InnerRadius:      0.6,
+		ChromeGap:        0.6,
+		ActionMessageGap: 1.2,
+		ActionSize:       3.175,
+		ActionLH:         1.25,
+		ActionPadX:       1.4,
+		ActionPadY:       0.7,
+		ActionMinH:       4.5,
+		MessageSize:      2.469,
+		MessageLH:        1.25,
+		MessagePadX:      1.4,
+		MessagePadY:      0.7,
+		MessageMinH:      4.5,
+		MetaGap:          0.4,
+		MetaColGap:       2.0,
+		MetaRowH:         5.5,
+		MetaValueRowH:    1.5,
+		MetaSize:         2.8,
+		MetaPadX:         1.0,
+		MetaPadY:         0.7,
+		CellStroke:       0.15,
 	}
 }
 
@@ -612,32 +615,33 @@ func normalizeFooterLayout(l PamphletFooterLayout) PamphletFooterLayout {
 		return def
 	}
 	return PamphletFooterLayout{
-		Height:        pick(l.Height, d.Height),
-		Pad:           pick(l.Pad, d.Pad),
-		Radius:        pick(l.Radius, d.Radius),
-		Stroke:        pick(l.Stroke, d.Stroke),
-		InnerInset:    pick(l.InnerInset, d.InnerInset),
-		InnerStroke:   pick(l.InnerStroke, d.InnerStroke),
-		InnerRadius:   pick(l.InnerRadius, d.InnerRadius),
-		ChromeGap:     pick(l.ChromeGap, d.ChromeGap),
-		ActionSize:    pick(l.ActionSize, d.ActionSize),
-		ActionLH:      pick(l.ActionLH, d.ActionLH),
-		ActionPadX:    pick(l.ActionPadX, d.ActionPadX),
-		ActionPadY:    pick(l.ActionPadY, d.ActionPadY),
-		ActionMinH:    pick(l.ActionMinH, d.ActionMinH),
-		MessageSize:   pick(l.MessageSize, d.MessageSize),
-		MessageLH:     pick(l.MessageLH, d.MessageLH),
-		MessagePadX:   pick(l.MessagePadX, d.MessagePadX),
-		MessagePadY:   pick(l.MessagePadY, d.MessagePadY),
-		MessageMinH:   pick(l.MessageMinH, d.MessageMinH),
-		MetaGap:       pick(l.MetaGap, d.MetaGap),
-		MetaColGap:    pick(l.MetaColGap, d.MetaColGap),
-		MetaRowH:      pick(l.MetaRowH, d.MetaRowH),
-		MetaValueRowH: pick(l.MetaValueRowH, d.MetaValueRowH),
-		MetaSize:      pick(l.MetaSize, d.MetaSize),
-		MetaPadX:      pick(l.MetaPadX, d.MetaPadX),
-		MetaPadY:      pick(l.MetaPadY, d.MetaPadY),
-		CellStroke:    pick(l.CellStroke, d.CellStroke),
+		Height:           pick(l.Height, d.Height),
+		Pad:              pick(l.Pad, d.Pad),
+		Radius:           pick(l.Radius, d.Radius),
+		Stroke:           pick(l.Stroke, d.Stroke),
+		InnerInset:       pick(l.InnerInset, d.InnerInset),
+		InnerStroke:      pick(l.InnerStroke, d.InnerStroke),
+		InnerRadius:      pick(l.InnerRadius, d.InnerRadius),
+		ChromeGap:        pick(l.ChromeGap, d.ChromeGap),
+		ActionMessageGap: pick(l.ActionMessageGap, d.ActionMessageGap),
+		ActionSize:       pick(l.ActionSize, d.ActionSize),
+		ActionLH:         pick(l.ActionLH, d.ActionLH),
+		ActionPadX:       pick(l.ActionPadX, d.ActionPadX),
+		ActionPadY:       pick(l.ActionPadY, d.ActionPadY),
+		ActionMinH:       pick(l.ActionMinH, d.ActionMinH),
+		MessageSize:      pick(l.MessageSize, d.MessageSize),
+		MessageLH:        pick(l.MessageLH, d.MessageLH),
+		MessagePadX:      pick(l.MessagePadX, d.MessagePadX),
+		MessagePadY:      pick(l.MessagePadY, d.MessagePadY),
+		MessageMinH:      pick(l.MessageMinH, d.MessageMinH),
+		MetaGap:          pick(l.MetaGap, d.MetaGap),
+		MetaColGap:       pick(l.MetaColGap, d.MetaColGap),
+		MetaRowH:         pick(l.MetaRowH, d.MetaRowH),
+		MetaValueRowH:    pick(l.MetaValueRowH, d.MetaValueRowH),
+		MetaSize:         pick(l.MetaSize, d.MetaSize),
+		MetaPadX:         pick(l.MetaPadX, d.MetaPadX),
+		MetaPadY:         pick(l.MetaPadY, d.MetaPadY),
+		CellStroke:       pick(l.CellStroke, d.CellStroke),
 	}
 }
 
@@ -791,12 +795,16 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	heightMm := layout.Height
 
 	strokeRoundedRectMm(s, x, top, width, heightMm, layout.Radius, layout.Stroke)
-	// Thinner second frame inset from the outer border (matches CSS ::after).
+	// Thinner second frame: CSS ::after inset is from the padding edge (inner face
+	// of the outer border). PDF strokes are centered on the path, so inset the
+	// inner path by stroke/2 + clear_inset + inner_stroke/2.
 	if layout.InnerInset > 0 && layout.InnerStroke > 0 {
-		ix := x + layout.InnerInset
-		it := top - layout.InnerInset
-		iw := width - 2*layout.InnerInset
-		ih := heightMm - 2*layout.InnerInset
+		clear := layout.InnerInset
+		pathInset := layout.Stroke/2 + clear + layout.InnerStroke/2
+		ix := x + pathInset
+		it := top - pathInset
+		iw := width - 2*pathInset
+		ih := heightMm - 2*pathInset
 		if iw > 0 && ih > 0 {
 			strokeRoundedRectMm(s, ix, it, iw, ih, layout.InnerRadius, layout.InnerStroke)
 		}
@@ -808,6 +816,11 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	innerW := width - 2*pad
 	floor := top - heightMm + pad
 	cursorTop := innerTop
+
+	actionToMessageGap := layout.ActionMessageGap
+	if actionToMessageGap <= 0 {
+		actionToMessageGap = layout.ChromeGap
+	}
 
 	// Acción — reserve the same box height as desktop; no cell border in print.
 	actionTextW := innerW - 2*layout.ActionPadX
@@ -830,7 +843,7 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 			writeWrapped(s, "F2", MmToPoints(layout.ActionSize), layout.ActionLH,
 				innerX+layout.ActionPadX, y, actionTextW, f.Action, textFloor)
 		}
-		cursorTop -= actionBoxH + layout.ChromeGap
+		cursorTop -= actionBoxH + actionToMessageGap
 	}
 
 	// Mensaje — same height contract as Acción; no cell border in print.

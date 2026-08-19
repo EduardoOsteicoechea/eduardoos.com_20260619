@@ -211,9 +211,9 @@
   --page-header-height: 23mm;
   /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
   --header-body-gutter: 5mm;
-  --page-footer-height: 33mm; /* label 5.5 + value 1.5 ×2 + tight gaps + chrome */
-  /* Page 1 body: 215.9 − 10 − 23 − 5 − 2 − 33 − 10 = 132.9mm */
-  --page1-body-height: 132.9mm;
+  --page-footer-height: 33.6mm; /* +0.6mm action→message gap; PAMPHLET_FOOTER_LAYOUT_MM.height */
+  /* Page 1 body: 215.9 − 10 − 23 − 5 − 2 − 33.6 − 10 = 132.3mm */
+  --page1-body-height: 132.3mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
@@ -222,8 +222,8 @@
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
   /* Cols 1–2 under header: 195.9 − 23 − 5 = 167.9mm */
   --page1-right-col-height: 167.9mm;
-  /* Cols 7–8 above footer: 195.9 − 2 − 33 = 160.9mm */
-  --page1-left-col-height: 160.9mm;
+  /* Cols 7–8 above footer: 195.9 − 2 − 33.6 = 160.3mm */
+  --page1-left-col-height: 160.3mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
   --item-gap-height: 2.5mm;
   --b1: solid 1px rgb(231, 231, 231);
@@ -391,7 +391,7 @@
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
-    gap: 0.6mm; /* chrome_gap */
+    gap: 0.6mm; /* chrome_gap — message → meta */
     /* Keep chrome inside the band so trays don't paint over cols 7–8. */
     overflow: hidden;
     min-width: 0;
@@ -405,7 +405,13 @@
     background: #ffffff;
 }
 
-/* Thinner second frame inset from the outer border (inner_inset / inner_stroke). */
+/* Acción → Mensaje = action_message_gap (1.2mm): extra 0.6 on top of flex gap. */
+.pamphlet-page-footer > .pamphlet-footer-action {
+    margin-bottom: 0.6mm;
+}
+
+/* Thinner second frame inset from the outer border (inner_inset / inner_stroke).
+   inset is from the padding edge (= clear gap inside the outer border face). */
 .pamphlet-page-footer::after {
     content: "";
     position: absolute;

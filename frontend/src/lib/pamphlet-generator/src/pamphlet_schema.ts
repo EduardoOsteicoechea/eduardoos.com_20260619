@@ -161,13 +161,15 @@ export type PamphletFooterLayoutMm = {
     pad: number;
     radius: number;
     stroke: number;
-    /** Inset from outer edge to the thinner inner frame (mm). */
+    /** Inset from outer border inner face to thinner inner frame (mm). CSS ::after inset. */
     inner_inset: number;
     /** Thinner inner frame stroke (mm). */
     inner_stroke: number;
     /** Inner frame corner radius (mm). */
     inner_radius: number;
     chrome_gap: number;
+    /** Flex gap between Acción (title) and Mensaje only — 2× chrome_gap. */
+    action_message_gap: number;
     action_size: number;
     action_lh: number;
     action_pad_x: number;
@@ -192,14 +194,16 @@ export type PamphletFooterLayoutMm = {
 
 /** Exact mm from style.css `.pamphlet-page-footer` — PDF must use these, not invent sizes. */
 export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
-    height: 33, // --page-footer-height (tighter value rows + meta gaps)
+    height: 33.6, // +0.6mm for action_message_gap vs prior 33
     pad: 1.2, // .pamphlet-page-footer { padding }
     radius: 1, // border-radius
     stroke: 0.2, // outer border width
-    inner_inset: 0.45, // gap from outer edge to inner frame
+    // CSS ::after inset from padding edge (= clear gap inside outer border face).
+    inner_inset: 0.45,
     inner_stroke: 0.1, // thinner inner frame
     inner_radius: 0.6,
-    chrome_gap: 0.6, // gap between action / message / meta
+    chrome_gap: 0.6, // message → meta (and default flex gap)
+    action_message_gap: 1.2, // Acción → Mensaje (double chrome_gap)
     action_size: 3.175, // h1 font-size
     action_lh: 1.25,
     action_pad_x: 1.4,
