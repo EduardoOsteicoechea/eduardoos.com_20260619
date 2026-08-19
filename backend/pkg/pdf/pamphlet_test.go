@@ -167,8 +167,9 @@ func TestLongTitleFillsHeaderBandLikeDesktop(t *testing.T) {
 		Date:          "2026-08-10",
 	}, layout, 100, top, width)
 	used := top - bottom
-	if used < 21.0 || used > layout.Height {
-		t.Fatalf("header content height=%.2fmm must fit the %.0fmm band (title + both meta rows), got vs cap %v", used, layout.Height, layout.Height)
+	// Content sits inside pad + rule clearance; band is 25mm but ink uses less.
+	if used < 15.0 || used > layout.Height {
+		t.Fatalf("header content height=%.2fmm must fit inside the %.0fmm band (title + both meta rows), got vs cap %v", used, layout.Height, layout.Height)
 	}
 	out := s.String()
 	for _, needle := range []string{"Serie:", "Cap", "Autor:", "Fecha:"} {
@@ -191,8 +192,11 @@ func TestHeaderBottomRuleFromLayout(t *testing.T) {
 	if strings.Count(out, " l S\n") < 2 {
 		t.Fatalf("expected ≥2 horizontal rule strokes in header stream, got %q", out)
 	}
-	if layout.RuleClearance != 2 || layout.RuleOuterStroke != 0.2 || layout.RuleGap != 0.45 || layout.RuleInnerStroke != 0.1 {
+	if layout.RuleClearance != 1 || layout.RuleOuterStroke != 0.2 || layout.RuleGap != 0.45 || layout.RuleInnerStroke != 0.1 {
 		t.Fatalf("header rule mm mismatch: %+v", layout)
+	}
+	if layout.Pad != 1.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
+		t.Fatalf("header frame mm mismatch: %+v", layout)
 	}
 }
 

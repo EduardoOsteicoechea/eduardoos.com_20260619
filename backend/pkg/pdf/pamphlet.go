@@ -40,20 +40,20 @@ const (
 	PamphletColWidthMm = 57.85
 	// Header band: title + meta + rule_clearance (2mm) + double rule.
 	// Overridden by header_layout.height from frontend when present.
-	PamphletHeaderHMm = 25.0
+	PamphletHeaderHMm = 27.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 1.0
 	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 25 − 1 − 2 − 30 − 10
-	PamphletPage1BodyMm = 137.9
+	// 215.9 − 10 − 27 − 1 − 2 − 30 − 10
+	PamphletPage1BodyMm = 135.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// CSS .pamphlet-page-header { gap } between title block and meta bar.
 	PamphletHeaderTitleMetaGapMm = 0.6
 	// CSS .pamphlet-header-meta-bar { row-gap }.
 	PamphletHeaderMetaRowGapMm = 0.8
-	// Right-side cols 1–2: 195.9 − 25 − 1
-	PamphletPage1RightColMm = 169.9
+	// Right-side cols 1–2: 195.9 − 27 − 1
+	PamphletPage1RightColMm = 167.9
 	// Left-side cols 7–8 above footer: 195.9 − 2 − 30 (default layout.height)
 	PamphletPage1LeftColMm = 163.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
@@ -89,19 +89,25 @@ type PamphletDocument struct {
 // PamphletHeaderLayout is the exact mm type/spacing from the frontend sheet CSS
 // (PAMPHLET_HEADER_LAYOUT_MM). Print POSTs these; PDF must not invent sizes.
 type PamphletHeaderLayout struct {
-	Height           float64 `json:"height"`
-	BodyGutter       float64 `json:"body_gutter"`
-	TitleSize        float64 `json:"title_size"`
-	TitleLH          float64 `json:"title_lh"`
-	TitleMetaGap     float64 `json:"title_meta_gap"`
-	MetaSize         float64 `json:"meta_size"`
-	MetaLH           float64 `json:"meta_lh"`
-	MetaRowGap       float64 `json:"meta_row_gap"`
-	MetaColGap       float64 `json:"meta_col_gap"`
-	RuleClearance    float64 `json:"rule_clearance"`
-	RuleOuterStroke  float64 `json:"rule_outer_stroke"`
-	RuleGap          float64 `json:"rule_gap"`
-	RuleInnerStroke  float64 `json:"rule_inner_stroke"`
+	Height          float64 `json:"height"`
+	BodyGutter      float64 `json:"body_gutter"`
+	Pad             float64 `json:"pad"`
+	Radius          float64 `json:"radius"`
+	Stroke          float64 `json:"stroke"`
+	InnerInset      float64 `json:"inner_inset"`
+	InnerStroke     float64 `json:"inner_stroke"`
+	InnerRadius     float64 `json:"inner_radius"`
+	TitleSize       float64 `json:"title_size"`
+	TitleLH         float64 `json:"title_lh"`
+	TitleMetaGap    float64 `json:"title_meta_gap"`
+	MetaSize        float64 `json:"meta_size"`
+	MetaLH          float64 `json:"meta_lh"`
+	MetaRowGap      float64 `json:"meta_row_gap"`
+	MetaColGap      float64 `json:"meta_col_gap"`
+	RuleClearance   float64 `json:"rule_clearance"`
+	RuleOuterStroke float64 `json:"rule_outer_stroke"`
+	RuleGap         float64 `json:"rule_gap"`
+	RuleInnerStroke float64 `json:"rule_inner_stroke"`
 }
 
 // PamphletFooterLayout is the exact mm chrome from the frontend sheet CSS
@@ -460,25 +466,43 @@ func cssBaselineOffsetMm(sizeMm, lineHeight float64) float64 {
 	return sizeMm*(lineHeight-1.0)/2.0 + sizeMm*0.80
 }
 
-// drawHeader paints title + 2×2 gray meta with the same box model as the sheet:
-//
-//	title line-boxes → flex gap → meta line-boxes with row-gap, clipped to the header track.
-//
-// Type sizes and gaps come from header_layout (frontend CSS mm).
+// drawHeader paints footer-style double frame, title + 2×2 gray meta, then a
+// bottom double rule. Type sizes and chrome come from header_layout (FE mm).
 func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayout, x, top, width float64) float64 {
 	layout = normalizeHeaderLayout(layout)
 	heightMm := layout.Height
+	floor := top - heightMm
+
+	// Outer + inner frame (same path math as drawFooter).
+	strokeRoundedRectMm(s, x, top, width, heightMm, layout.Radius, layout.Stroke)
+	if layout.InnerInset > 0 && layout.InnerStroke > 0 {
+		clear := layout.InnerInset
+		pathInset := layout.Stroke/2 + clear + layout.InnerStroke/2
+		ix := x + pathInset
+		it := top - pathInset
+		iw := width - 2*pathInset
+		ih := heightMm - 2*pathInset
+		if iw > 0 && ih > 0 {
+			strokeRoundedRectMm(s, ix, it, iw, ih, layout.InnerRadius, layout.InnerStroke)
+		}
+	}
+
+	pad := layout.Pad
+	innerX := x + pad
+	innerTop := top - pad
+	innerW := width - 2*pad
 	ruleH := layout.RuleOuterStroke + layout.RuleGap + layout.RuleInnerStroke
 	clearance := layout.RuleClearance
-	floor := top - heightMm
-	// Text must stay above clearance + bottom double rule (both inside the band).
-	textFloor := floor + ruleH + clearance
+	// Inner floor above pad; text stays above clearance + bottom rule.
+	innerFloor := floor + pad
+	textFloor := innerFloor + ruleH + clearance
+
 	titleSizeMm := layout.TitleSize
 	titleLH := layout.TitleLH
 	titleSizePt := MmToPoints(titleSizeMm)
 	titleLineHMm := titleSizeMm * titleLH
-	y := top - cssBaselineOffsetMm(titleSizeMm, titleLH)
-	used := writeWrapped(s, "F2", titleSizePt, titleLH, x, y, width, h.Title, textFloor)
+	y := innerTop - cssBaselineOffsetMm(titleSizeMm, titleLH)
+	used := writeWrapped(s, "F2", titleSizePt, titleLH, innerX, y, innerW, h.Title, textFloor)
 	nTitle := 1
 	if used > 0 {
 		nTitle = int(used/titleLineHMm + 0.5)
@@ -487,13 +511,12 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		}
 	} else if strings.TrimSpace(h.Title) == "" {
 		if ruleH > 0 {
-			strokeHorizontalRuleMm(s, x, floor+ruleH, width, layout.RuleOuterStroke)
-			strokeHorizontalRuleMm(s, x, floor+layout.RuleInnerStroke, width, layout.RuleInnerStroke)
+			strokeHorizontalRuleMm(s, innerX, innerFloor+ruleH, innerW, layout.RuleOuterStroke)
+			strokeHorizontalRuleMm(s, innerX, innerFloor+layout.RuleInnerStroke, innerW, layout.RuleInnerStroke)
 		}
 		return floor
 	}
-	// Bottom of the title line-box stack (CSS flex item), then the title→meta gap.
-	titleBoxBottom := top - float64(nTitle)*titleLineHMm
+	titleBoxBottom := innerTop - float64(nTitle)*titleLineHMm
 	metaLineTop := titleBoxBottom - layout.TitleMetaGap
 
 	metaSizeMm := layout.MetaSize
@@ -503,11 +526,11 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 	metaY := metaLineTop - cssBaselineOffsetMm(metaSizeMm, metaLH)
 
 	colGapMm := layout.MetaColGap
-	half := (width - colGapMm) / 2
+	half := (innerW - colGapMm) / 2
 	if half < 10 {
-		half = width / 2
+		half = innerW / 2
 	}
-	rightX := x + half + colGapMm
+	rightX := innerX + half + colGapMm
 
 	left1 := labeledMeta("Serie", h.Series)
 	right1 := labeledMeta("Capítulo", h.SeriesChapter)
@@ -517,7 +540,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 	contentBottom := titleBoxBottom
 	if (left1 != "" || right1 != "") && metaY > textFloor {
 		if left1 != "" {
-			writeGrayText(s, "F1", metaSizePt, x, metaY, half, left1)
+			writeGrayText(s, "F1", metaSizePt, innerX, metaY, half, left1)
 		}
 		if right1 != "" {
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right1)
@@ -528,7 +551,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 	}
 	if (left2 != "" || right2 != "") && metaY > textFloor {
 		if left2 != "" {
-			writeGrayText(s, "F1", metaSizePt, x, metaY, half, left2)
+			writeGrayText(s, "F1", metaSizePt, innerX, metaY, half, left2)
 		}
 		if right2 != "" {
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right2)
@@ -536,10 +559,9 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		contentBottom = metaLineTop - metaLineHMm
 	}
 
-	// Double rule at the bottom edge of the header band (no extra body_gutter).
 	if ruleH > 0 {
-		strokeHorizontalRuleMm(s, x, floor+ruleH, width, layout.RuleOuterStroke)
-		strokeHorizontalRuleMm(s, x, floor+layout.RuleInnerStroke, width, layout.RuleInnerStroke)
+		strokeHorizontalRuleMm(s, innerX, innerFloor+ruleH, innerW, layout.RuleOuterStroke)
+		strokeHorizontalRuleMm(s, innerX, innerFloor+layout.RuleInnerStroke, innerW, layout.RuleInnerStroke)
 	}
 
 	if contentBottom < floor {
@@ -563,6 +585,12 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 	return PamphletHeaderLayout{
 		Height:          PamphletHeaderHMm,
 		BodyGutter:      PamphletHeaderBodyGutterMm,
+		Pad:             1.2,
+		Radius:          1,
+		Stroke:          0.2,
+		InnerInset:      0.45,
+		InnerStroke:     0.1,
+		InnerRadius:     0.6,
 		TitleSize:       pamphletTitleSizeMm,
 		TitleLH:         pamphletTitleLH,
 		TitleMetaGap:    PamphletHeaderTitleMetaGapMm,
@@ -570,7 +598,7 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		MetaLH:          pamphletMetaLH,
 		MetaRowGap:      PamphletHeaderMetaRowGapMm,
 		MetaColGap:      2.5,
-		RuleClearance:   2,
+		RuleClearance:   1,
 		RuleOuterStroke: 0.2,
 		RuleGap:         0.45,
 		RuleInnerStroke: 0.1,
@@ -590,6 +618,12 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 	return PamphletHeaderLayout{
 		Height:          pick(l.Height, d.Height),
 		BodyGutter:      pick(l.BodyGutter, d.BodyGutter),
+		Pad:             pick(l.Pad, d.Pad),
+		Radius:          pick(l.Radius, d.Radius),
+		Stroke:          pick(l.Stroke, d.Stroke),
+		InnerInset:      pick(l.InnerInset, d.InnerInset),
+		InnerStroke:     pick(l.InnerStroke, d.InnerStroke),
+		InnerRadius:     pick(l.InnerRadius, d.InnerRadius),
 		TitleSize:       pick(l.TitleSize, d.TitleSize),
 		TitleLH:         pick(l.TitleLH, d.TitleLH),
 		TitleMetaGap:    pick(l.TitleMetaGap, d.TitleMetaGap),

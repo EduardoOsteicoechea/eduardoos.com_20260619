@@ -127,6 +127,13 @@ export type PamphletHeaderLayoutMm = {
     height: number;
     /** Gap under the header before cols 1–2 (--header-body-gutter). */
     body_gutter: number;
+    /** Outer frame (same language as footer chrome). */
+    pad: number;
+    radius: number;
+    stroke: number;
+    inner_inset: number;
+    inner_stroke: number;
+    inner_radius: number;
     title_size: number;
     title_lh: number;
     /** Flex gap between title block and meta bar. */
@@ -149,8 +156,14 @@ export type PamphletHeaderLayoutMm = {
 
 /** Exact mm from style.css `.pamphlet-page-header` — PDF must use these, not invent sizes. */
 export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
-    height: 25, // --page-header-height (was 23; +2 rule_clearance)
-    body_gutter: 1, // --header-body-gutter (was 5; cols 1–2 start 2mm higher)
+    height: 27, // pad + title + meta + rule_clearance + bottom rule + frame
+    body_gutter: 1, // --header-body-gutter
+    pad: 1.2,
+    radius: 1,
+    stroke: 0.2,
+    inner_inset: 0.45,
+    inner_stroke: 0.1,
+    inner_radius: 0.6,
     title_size: 6.75, // .pamphlet-header-title p
     title_lh: 1.1,
     title_meta_gap: 0.6, // .pamphlet-page-header { gap }
@@ -158,7 +171,7 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     meta_lh: 1.2,
     meta_row_gap: 0.8, // .pamphlet-header-meta-bar { row-gap }
     meta_col_gap: 2.5, // .pamphlet-header-meta-bar { column-gap }
-    rule_clearance: 2,
+    rule_clearance: 1, // bottom rule 1mm higher than prior 2mm clearance
     rule_outer_stroke: 0.2,
     rule_gap: 0.45,
     rule_inner_stroke: 0.1,

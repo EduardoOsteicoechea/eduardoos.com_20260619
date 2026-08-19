@@ -207,26 +207,32 @@
   --header-meta-lh: 1.2;
   --header-meta-row-gap: 0.8mm;
   --header-meta-col-gap: 2.5mm;
-  /* Header bottom double rule (PAMPHLET_HEADER_LAYOUT_MM.rule_*) — inside band. */
-  --header-rule-clearance: 2mm; /* space meta → rule */
+  /* Header chrome + bottom rule (PAMPHLET_HEADER_LAYOUT_MM) — match footer frame language. */
+  --header-pad: 1.2mm;
+  --header-stroke: 0.2mm;
+  --header-radius: 1mm;
+  --header-inner-inset: 0.45mm;
+  --header-inner-stroke: 0.1mm;
+  --header-inner-radius: 0.6mm;
+  --header-rule-clearance: 1mm; /* space meta → bottom rule */
   --header-rule-outer: 0.2mm;
   --header-rule-gap: 0.45mm;
   --header-rule-inner: 0.1mm;
-  /* Title + meta + rule_clearance + rule. Same as PDF PamphletHeaderHMm. */
-  --page-header-height: 25mm;
+  /* Title + meta + pad + rule_clearance + rule + frame. Same as PDF PamphletHeaderHMm. */
+  --page-header-height: 27mm;
   /* Margin under header band before cols 1–2 (PDF uses the same). */
   --header-body-gutter: 1mm;
   --page-footer-height: 30mm; /* PAMPHLET_FOOTER_LAYOUT_MM.height — value rows hidden when empty */
-  /* Page 1 body: 215.9 − 10 − 25 − 1 − 2 − 30 − 10 = 137.9mm */
-  --page1-body-height: 137.9mm;
+  /* Page 1 body: 215.9 − 10 − 27 − 1 − 2 − 30 − 10 = 135.9mm */
+  --page1-body-height: 135.9mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
   --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
-  /* Cols 1–2 under header: 195.9 − 25 − 1 = 169.9mm */
-  --page1-right-col-height: 169.9mm;
+  /* Cols 1–2 under header: 195.9 − 27 − 1 = 167.9mm */
+  --page1-right-col-height: 167.9mm;
   /* Cols 7–8 above footer: 195.9 − 2 − 30 = 163.9mm */
   --page1-left-col-height: 163.9mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
@@ -371,32 +377,47 @@
 .pamphlet-page-header {
     grid-column: 6 / 9;
     grid-row: 2;
-    position: relative; /* anchor bottom double rule */
+    position: relative; /* anchor inner frame + bottom rule */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
     gap: var(--header-title-meta-gap);
-    /* Clip ink to the header band so meta never paints over cols 1–2. */
     overflow: hidden;
     min-width: 0;
     min-height: 0;
+    height: 100%;
     z-index: 5;
-    /* Leave room inside the band for clearance + bottom rule. */
-    padding-bottom: calc(
-        var(--header-rule-clearance) + var(--header-rule-outer) + var(--header-rule-gap) +
-            var(--header-rule-inner)
-    );
     box-sizing: border-box;
+    background: #ffffff;
+    border: var(--header-stroke) solid #222222;
+    border-radius: var(--header-radius);
+    padding: var(--header-pad);
+    /* Extra bottom room for clearance + bottom double rule (inside the frame). */
+    padding-bottom: calc(
+        var(--header-pad) + var(--header-rule-clearance) + var(--header-rule-outer) +
+            var(--header-rule-gap) + var(--header-rule-inner)
+    );
 }
 
-/* Double horizontal rule at the bottom edge of the header band (footer-divider language). */
+/* Thinner second frame — same inset math as footer ::after. */
+.pamphlet-page-header::before {
+    content: "";
+    position: absolute;
+    inset: var(--header-inner-inset);
+    border: var(--header-inner-stroke) solid #222222;
+    border-radius: var(--header-inner-radius);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Double horizontal rule at the bottom edge inside the header frame. */
 .pamphlet-page-header::after {
     content: "";
     position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: var(--header-pad);
+    right: var(--header-pad);
+    bottom: var(--header-pad);
     box-sizing: border-box;
     border-top: var(--header-rule-outer) solid #222222;
     border-bottom: var(--header-rule-inner) solid #222222;
@@ -576,9 +597,9 @@
     white-space: normal;
 }
 
-/* Desktop only: slightly smaller Acción than PDF (spec 011). */
+/* Desktop only: Acción at 2.5mm (PDF keeps action_size 3.175mm). */
 .pamphlet-app[data-view-mode="desktop"] .pamphlet-footer-action h1 {
-    font-size: 2.8mm;
+    font-size: 2.5mm;
 }
 
 .pamphlet-footer-message p {
