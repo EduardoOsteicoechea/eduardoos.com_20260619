@@ -16,16 +16,10 @@
   font-weight: 700;
 }
 
-.articles__lead,
-.articles__crawl {
+.articles__lead {
   margin: 0 0 0.5rem;
   opacity: 0.85;
   line-height: 1.5;
-}
-
-.articles__crawl a,
-.articles__card-formats a {
-  color: var(--site-accent, #1976d2);
 }
 
 .articles__list {
@@ -63,13 +57,6 @@
   color: var(--site-meta-fg);
 }
 
-.articles__card-formats {
-  margin: 0.25rem 0 0;
-  padding: 0 0.25rem;
-  font-size: 0.85rem;
-  opacity: 0.85;
-}
-
 .articles__status,
 .articles__error {
   margin: 0 0 1rem;
@@ -77,4 +64,18 @@
 
 .articles__error {
   color: #c62828;
+}
+
+/* Crawl-only: in the DOM for bots, clipped so humans never see it.
+   Avoid display:none — some crawlers skip those nodes. */
+.articles-crawl-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

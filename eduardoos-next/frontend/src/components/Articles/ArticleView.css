@@ -11,16 +11,6 @@
   text-decoration: none;
 }
 
-.article-view__crawl {
-  margin: 0 0 1rem;
-  font-size: 0.9rem;
-  opacity: 0.85;
-}
-
-.article-view__crawl a {
-  color: var(--site-accent, #1976d2);
-}
-
 .article-view__sheet {
   width: min(100%, 500px);
   margin: 0 auto;
@@ -75,4 +65,17 @@
 
 .article-view__error {
   color: #c62828;
+}
+
+/* Crawl-only: clipped from viewport; still in DOM for bots. */
+.articles-crawl-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
