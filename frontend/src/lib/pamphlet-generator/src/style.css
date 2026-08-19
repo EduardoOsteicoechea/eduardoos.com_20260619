@@ -207,6 +207,10 @@
   --header-meta-lh: 1.2;
   --header-meta-row-gap: 0.8mm;
   --header-meta-col-gap: 2.5mm;
+  /* Header bottom double rule (PAMPHLET_HEADER_LAYOUT_MM.rule_*) — inside band, no extra gutter. */
+  --header-rule-outer: 0.2mm;
+  --header-rule-gap: 0.45mm;
+  --header-rule-inner: 0.1mm;
   /* 6.75mm 2-line title + 0.6mm gap + two meta rows (~22.3mm). Same as PDF PamphletHeaderHMm. */
   --page-header-height: 23mm;
   /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
@@ -366,6 +370,7 @@
 .pamphlet-page-header {
     grid-column: 6 / 9;
     grid-row: 2;
+    position: relative; /* anchor bottom double rule */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -376,6 +381,26 @@
     min-width: 0;
     min-height: 0;
     z-index: 5;
+    /* Leave room inside the band for the bottom rule (no extra body_gutter). */
+    padding-bottom: calc(
+        var(--header-rule-outer) + var(--header-rule-gap) + var(--header-rule-inner)
+    );
+    box-sizing: border-box;
+}
+
+/* Double horizontal rule at the bottom edge of the header band (footer-divider language). */
+.pamphlet-page-header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    border-top: var(--header-rule-outer) solid #222222;
+    border-bottom: var(--header-rule-inner) solid #222222;
+    padding-top: var(--header-rule-gap);
+    pointer-events: none;
+    z-index: 2;
 }
 
 .pamphlet-page-header:has(.element_edit_tray) {
@@ -513,13 +538,14 @@
 }
 
 /* Footer fixed chrome — Acción + Mensaje, then meta.
-   Resting view matches PDF (no cell borders); borders only while editing. */
+   Resting view matches PDF (no cell borders); borders only while editing.
+   Acción/Mensaje may shrink so meta rows keep their reserved mm (PDF floor). */
 .pamphlet-page-footer > .pamphlet-footer-action,
 .pamphlet-page-footer > .pamphlet-footer-message {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    flex: 0 0 auto;
+    flex: 0 1 auto; /* shrink before meta when the 30mm band is tight */
     box-sizing: border-box;
     border: none !important;
     padding: 0.7mm 1.4mm !important;
@@ -567,7 +593,7 @@
     gap: 0.4mm; /* meta_gap */
     width: 100%;
     min-width: 0;
-    flex: 0 0 auto;
+    flex: 0 0 auto; /* never shrink — same floor reservation as PDF meta rows */
     height: auto;
     min-height: 0;
     max-height: none;

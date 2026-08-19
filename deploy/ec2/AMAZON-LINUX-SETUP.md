@@ -1,3 +1,9 @@
+# EC2 Amazon Linux 2023 (ARM64) setup
+
+Operational runbook for provisioning and first deploy of Eduardo OS on Graviton/EC2.
+Companion scripts live in this folder (deploy-remote.sh, issue-cert.sh, …).
+
+---
 ssh -i "eduardoos20260619.pem" ec2-user@ec2-52-55-235-150.compute-1.amazonaws.com
 
 ================================================================================

@@ -178,6 +178,24 @@ func TestLongTitleFillsHeaderBandLikeDesktop(t *testing.T) {
 	}
 }
 
+func TestHeaderBottomRuleFromLayout(t *testing.T) {
+	var s strings.Builder
+	layout := defaultHeaderLayout()
+	_ = drawHeader(&s, PamphletHeader{
+		Title:  "Titulo",
+		Author: "Eduardo",
+		Series: "Romanos",
+	}, layout, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow)
+	out := s.String()
+	// strokeHorizontalRuleMm emits "m … l S" path ops — expect two rules.
+	if strings.Count(out, " l S\n") < 2 {
+		t.Fatalf("expected ≥2 horizontal rule strokes in header stream, got %q", out)
+	}
+	if layout.RuleOuterStroke != 0.2 || layout.RuleGap != 0.45 || layout.RuleInnerStroke != 0.1 {
+		t.Fatalf("header rule mm mismatch: %+v", layout)
+	}
+}
+
 func TestHeaderLayoutFromFrontendDrivesTitleSize(t *testing.T) {
 	layout := defaultHeaderLayout()
 	layout.TitleSize = 8.0

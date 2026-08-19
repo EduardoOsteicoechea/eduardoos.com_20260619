@@ -66,6 +66,7 @@ Pushes to `master` deploy via [`.github/workflows/deploy.yml`](.github/workflows
 - Static: `./frontend/dist` → `/usr/share/nginx/html`
 - Manual recovery on EC2 only: `bash deploy/ec2/build-frontend.sh`
 - Spec / agent gate: [`specs/005-frontend-gha-dist/spec.md`](specs/005-frontend-gha-dist/spec.md) — compile frontend locally before push when `frontend/**` changed
+- Full Amazon Linux bootstrap runbook: [`deploy/ec2/AMAZON-LINUX-SETUP.md`](deploy/ec2/AMAZON-LINUX-SETUP.md)
 
 Staging (`:8080` / `:3001`) was removed in the flatten cutover.
 

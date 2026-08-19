@@ -89,15 +89,18 @@ type PamphletDocument struct {
 // PamphletHeaderLayout is the exact mm type/spacing from the frontend sheet CSS
 // (PAMPHLET_HEADER_LAYOUT_MM). Print POSTs these; PDF must not invent sizes.
 type PamphletHeaderLayout struct {
-	Height       float64 `json:"height"`
-	BodyGutter   float64 `json:"body_gutter"`
-	TitleSize    float64 `json:"title_size"`
-	TitleLH      float64 `json:"title_lh"`
-	TitleMetaGap float64 `json:"title_meta_gap"`
-	MetaSize     float64 `json:"meta_size"`
-	MetaLH       float64 `json:"meta_lh"`
-	MetaRowGap   float64 `json:"meta_row_gap"`
-	MetaColGap   float64 `json:"meta_col_gap"`
+	Height           float64 `json:"height"`
+	BodyGutter       float64 `json:"body_gutter"`
+	TitleSize        float64 `json:"title_size"`
+	TitleLH          float64 `json:"title_lh"`
+	TitleMetaGap     float64 `json:"title_meta_gap"`
+	MetaSize         float64 `json:"meta_size"`
+	MetaLH           float64 `json:"meta_lh"`
+	MetaRowGap       float64 `json:"meta_row_gap"`
+	MetaColGap       float64 `json:"meta_col_gap"`
+	RuleOuterStroke  float64 `json:"rule_outer_stroke"`
+	RuleGap          float64 `json:"rule_gap"`
+	RuleInnerStroke  float64 `json:"rule_inner_stroke"`
 }
 
 // PamphletFooterLayout is the exact mm chrome from the frontend sheet CSS
@@ -464,13 +467,16 @@ func cssBaselineOffsetMm(sizeMm, lineHeight float64) float64 {
 func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayout, x, top, width float64) float64 {
 	layout = normalizeHeaderLayout(layout)
 	heightMm := layout.Height
+	ruleH := layout.RuleOuterStroke + layout.RuleGap + layout.RuleInnerStroke
 	floor := top - heightMm
+	// Text must stay above the bottom double rule (rule lives inside the band).
+	textFloor := floor + ruleH
 	titleSizeMm := layout.TitleSize
 	titleLH := layout.TitleLH
 	titleSizePt := MmToPoints(titleSizeMm)
 	titleLineHMm := titleSizeMm * titleLH
 	y := top - cssBaselineOffsetMm(titleSizeMm, titleLH)
-	used := writeWrapped(s, "F2", titleSizePt, titleLH, x, y, width, h.Title, floor)
+	used := writeWrapped(s, "F2", titleSizePt, titleLH, x, y, width, h.Title, textFloor)
 	nTitle := 1
 	if used > 0 {
 		nTitle = int(used/titleLineHMm + 0.5)
@@ -478,6 +484,10 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 			nTitle = 1
 		}
 	} else if strings.TrimSpace(h.Title) == "" {
+		if ruleH > 0 {
+			strokeHorizontalRuleMm(s, x, floor+ruleH, width, layout.RuleOuterStroke)
+			strokeHorizontalRuleMm(s, x, floor+layout.RuleInnerStroke, width, layout.RuleInnerStroke)
+		}
 		return floor
 	}
 	// Bottom of the title line-box stack (CSS flex item), then the title→meta gap.
@@ -503,7 +513,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 	right2 := labeledMeta("Fecha", h.Date)
 
 	contentBottom := titleBoxBottom
-	if (left1 != "" || right1 != "") && metaY > floor {
+	if (left1 != "" || right1 != "") && metaY > textFloor {
 		if left1 != "" {
 			writeGrayText(s, "F1", metaSizePt, x, metaY, half, left1)
 		}
@@ -514,7 +524,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		metaLineTop -= metaLineHMm + layout.MetaRowGap
 		metaY = metaLineTop - cssBaselineOffsetMm(metaSizeMm, metaLH)
 	}
-	if (left2 != "" || right2 != "") && metaY > floor {
+	if (left2 != "" || right2 != "") && metaY > textFloor {
 		if left2 != "" {
 			writeGrayText(s, "F1", metaSizePt, x, metaY, half, left2)
 		}
@@ -523,6 +533,13 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		}
 		contentBottom = metaLineTop - metaLineHMm
 	}
+
+	// Double rule at the bottom edge of the header band (no extra body_gutter).
+	if ruleH > 0 {
+		strokeHorizontalRuleMm(s, x, floor+ruleH, width, layout.RuleOuterStroke)
+		strokeHorizontalRuleMm(s, x, floor+layout.RuleInnerStroke, width, layout.RuleInnerStroke)
+	}
+
 	if contentBottom < floor {
 		return floor
 	}
@@ -542,15 +559,18 @@ var pamphletFooterDefaultLabels = [4]string{"WhatsApp", "Teléfono", "Dirección
 // defaultHeaderLayout mirrors frontend PAMPHLET_HEADER_LAYOUT_MM / style.css.
 func defaultHeaderLayout() PamphletHeaderLayout {
 	return PamphletHeaderLayout{
-		Height:       PamphletHeaderHMm,
-		BodyGutter:   PamphletHeaderBodyGutterMm,
-		TitleSize:    pamphletTitleSizeMm,
-		TitleLH:      pamphletTitleLH,
-		TitleMetaGap: PamphletHeaderTitleMetaGapMm,
-		MetaSize:     pamphletMetaSizeMm,
-		MetaLH:       pamphletMetaLH,
-		MetaRowGap:   PamphletHeaderMetaRowGapMm,
-		MetaColGap:   2.5,
+		Height:          PamphletHeaderHMm,
+		BodyGutter:      PamphletHeaderBodyGutterMm,
+		TitleSize:       pamphletTitleSizeMm,
+		TitleLH:         pamphletTitleLH,
+		TitleMetaGap:    PamphletHeaderTitleMetaGapMm,
+		MetaSize:        pamphletMetaSizeMm,
+		MetaLH:          pamphletMetaLH,
+		MetaRowGap:      PamphletHeaderMetaRowGapMm,
+		MetaColGap:      2.5,
+		RuleOuterStroke: 0.2,
+		RuleGap:         0.45,
+		RuleInnerStroke: 0.1,
 	}
 }
 
@@ -565,15 +585,18 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 		return def
 	}
 	return PamphletHeaderLayout{
-		Height:       pick(l.Height, d.Height),
-		BodyGutter:   pick(l.BodyGutter, d.BodyGutter),
-		TitleSize:    pick(l.TitleSize, d.TitleSize),
-		TitleLH:      pick(l.TitleLH, d.TitleLH),
-		TitleMetaGap: pick(l.TitleMetaGap, d.TitleMetaGap),
-		MetaSize:     pick(l.MetaSize, d.MetaSize),
-		MetaLH:       pick(l.MetaLH, d.MetaLH),
-		MetaRowGap:   pick(l.MetaRowGap, d.MetaRowGap),
-		MetaColGap:   pick(l.MetaColGap, d.MetaColGap),
+		Height:          pick(l.Height, d.Height),
+		BodyGutter:      pick(l.BodyGutter, d.BodyGutter),
+		TitleSize:       pick(l.TitleSize, d.TitleSize),
+		TitleLH:         pick(l.TitleLH, d.TitleLH),
+		TitleMetaGap:    pick(l.TitleMetaGap, d.TitleMetaGap),
+		MetaSize:        pick(l.MetaSize, d.MetaSize),
+		MetaLH:          pick(l.MetaLH, d.MetaLH),
+		MetaRowGap:      pick(l.MetaRowGap, d.MetaRowGap),
+		MetaColGap:      pick(l.MetaColGap, d.MetaColGap),
+		RuleOuterStroke: pick(l.RuleOuterStroke, d.RuleOuterStroke),
+		RuleGap:         pick(l.RuleGap, d.RuleGap),
+		RuleInnerStroke: pick(l.RuleInnerStroke, d.RuleInnerStroke),
 	}
 }
 
