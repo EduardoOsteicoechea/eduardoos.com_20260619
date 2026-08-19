@@ -213,12 +213,16 @@ func TestPamphletPage1BodyMatchesSheetBand(t *testing.T) {
 func TestDrawFooterStructuredChrome(t *testing.T) {
 	var s strings.Builder
 	drawFooter(&s, PamphletFooter{
-		Action:     "Creamos estos materiales",
-		Message:    "Si deseas conocer más de la Biblia",
-		Whatsapp:   "+58 412",
-		Phone:      "0212-555",
-		Address:    "Caracas",
-		Activities: "Domingo 10am",
+		Action:  "Creamos estos materiales",
+		Message: "Si deseas conocer más de la Biblia",
+		Label1:  "WhatsApp",
+		Value1:  "+58 412",
+		Label2:  "Teléfono",
+		Value2:  "0212-555",
+		Label3:  "Dirección",
+		Value3:  "Caracas",
+		Label4:  "Actividades",
+		Value4:  "Domingo 10am",
 	}, 10, 47.5, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletFooterHMm)
 	out := s.String()
 	for _, want := range []string{"Creamos", "conocer", "WhatsApp", "Tel", "Direcci", "Actividades"} {
@@ -246,8 +250,25 @@ func TestNormalizeFooterMigratesLegacyItems(t *testing.T) {
 			{Type: "paragraph", Content: "act"},
 		},
 	})
-	if got.Action != "Acción legacy" || got.Message != "Mensaje legacy" || got.Whatsapp != "wa" {
+	if got.Action != "Acción legacy" || got.Message != "Mensaje legacy" || got.Value1 != "wa" {
 		t.Fatalf("migrate failed: %+v", got)
+	}
+	if got.Label1 != "WhatsApp" || got.Label2 != "Teléfono" {
+		t.Fatalf("default labels missing: %+v", got)
+	}
+}
+
+func TestNormalizeFooterMigratesWhatsappKeys(t *testing.T) {
+	got := normalizeFooter(PamphletFooter{
+		Action:     "A",
+		Message:    "M",
+		Whatsapp:   "wa",
+		Phone:      "ph",
+		Address:    "ad",
+		Activities: "ac",
+	})
+	if got.Value1 != "wa" || got.Value2 != "ph" || got.Value3 != "ad" || got.Value4 != "ac" {
+		t.Fatalf("whatsapp-key migrate failed: %+v", got)
 	}
 }
 

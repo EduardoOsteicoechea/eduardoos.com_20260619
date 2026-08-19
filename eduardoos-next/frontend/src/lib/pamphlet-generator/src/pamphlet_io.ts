@@ -38,10 +38,14 @@ const HEADER_FIELD_CLASSES: Record<HeaderFieldKey, string> = {
 const FOOTER_FIELD_CLASSES: Record<FooterFieldKey, string> = {
     action: "pamphlet-footer-action",
     message: "pamphlet-footer-message",
-    whatsapp: "pamphlet-footer-whatsapp",
-    phone: "pamphlet-footer-phone",
-    address: "pamphlet-footer-address",
-    activities: "pamphlet-footer-activities",
+    label1: "pamphlet-footer-label pamphlet-footer-label-1",
+    value1: "pamphlet-footer-value pamphlet-footer-value-1",
+    label2: "pamphlet-footer-label pamphlet-footer-label-2",
+    value2: "pamphlet-footer-value pamphlet-footer-value-2",
+    label3: "pamphlet-footer-label pamphlet-footer-label-3",
+    value3: "pamphlet-footer-value pamphlet-footer-value-3",
+    label4: "pamphlet-footer-label pamphlet-footer-label-4",
+    value4: "pamphlet-footer-value pamphlet-footer-value-4",
 };
 
 /** Visible meta-bar fields under the title (subtitle stays in DOM but hidden). */
@@ -52,12 +56,12 @@ const HEADER_META_FIELDS: { field: HeaderFieldKey; label: string }[] = [
     { field: "date", label: "Fecha" },
 ];
 
-/** Footer 2×2 meta (same band width as cols 7–8). */
-const FOOTER_META_FIELDS: { field: FooterFieldKey; label: string }[] = [
-    { field: "whatsapp", label: "WhatsApp" },
-    { field: "phone", label: "Teléfono" },
-    { field: "address", label: "Dirección" },
-    { field: "activities", label: "Actividades" },
+/** Footer 2×2 meta slots (editable label + value each). */
+const FOOTER_META_SLOTS: { labelField: FooterFieldKey; valueField: FooterFieldKey }[] = [
+    { labelField: "label1", valueField: "value1" },
+    { labelField: "label2", valueField: "value2" },
+    { labelField: "label3", valueField: "value3" },
+    { labelField: "label4", valueField: "value4" },
 ];
 
 export function parseStyleIndexes(raw: string | null): StyleIndexes {
@@ -227,18 +231,17 @@ function createLabeledHeaderMetaField(
 }
 
 function createLabeledFooterMetaField(
-    field: FooterFieldKey,
-    label: string,
-    value: string,
+    labelField: FooterFieldKey,
+    valueField: FooterFieldKey,
+    labelText: string,
+    valueText: string,
 ): HTMLElement {
     const wrap = document.createElement("div");
     wrap.className = "pamphlet-footer-meta-field";
 
-    const labelEl = document.createElement("span");
-    labelEl.className = "pamphlet-footer-meta-label";
-    labelEl.textContent = `${label}:`;
-    wrap.appendChild(labelEl);
-    wrap.appendChild(createFooterFieldElement(field, value, "p"));
+    // Editable caption (defaults WhatsApp / Teléfono / …) — not a static span.
+    wrap.appendChild(createFooterFieldElement(labelField, labelText, "p"));
+    wrap.appendChild(createFooterFieldElement(valueField, valueText, "p"));
     return wrap;
 }
 
@@ -288,22 +291,24 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
     const footerEl = document.createElement("footer");
     footerEl.className = "pamphlet-page-footer pamphlet-footer-region";
 
-    // Fixed chrome: heading (Acción) + paragraph (Mensaje) + 2×2 meta (cols 7/8 width).
+    // Acción + Mensaje as full-width editable fields (input chrome in CSS).
     footerEl.appendChild(createFooterFieldElement("action", footer.action ?? "", "h1"));
     footerEl.appendChild(createFooterFieldElement("message", footer.message ?? "", "p"));
 
     const footerMeta = document.createElement("div");
     footerMeta.className = "pamphlet-footer-meta-bar";
-    const footerRows: { field: FooterFieldKey; label: string }[][] = [
-        FOOTER_META_FIELDS.slice(0, 2),
-        FOOTER_META_FIELDS.slice(2, 4),
-    ];
-    for (const rowFields of footerRows) {
+    const footerRows = [FOOTER_META_SLOTS.slice(0, 2), FOOTER_META_SLOTS.slice(2, 4)];
+    for (const rowSlots of footerRows) {
         const row = document.createElement("div");
         row.className = "pamphlet-footer-meta-row";
-        for (const { field, label } of rowFields) {
+        for (const { labelField, valueField } of rowSlots) {
             row.appendChild(
-                createLabeledFooterMetaField(field, label, footer[field] ?? ""),
+                createLabeledFooterMetaField(
+                    labelField,
+                    valueField,
+                    footer[labelField] ?? "",
+                    footer[valueField] ?? "",
+                ),
             );
         }
         footerMeta.appendChild(row);

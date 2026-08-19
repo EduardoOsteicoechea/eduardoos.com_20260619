@@ -1,28 +1,20 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { APP_ROUTES } from "../../config/routes";
+import ArticlesList from "../../components/Articles/ArticlesList";
 ---
 
-<BaseLayout title="Articles — Eduardo Osteicoechea">
-  <div class="page-shell">
-    <article class="product-page">
-      <p class="product-page__brand">Writing</p>
-      <h1 class="product-page__title">Articles</h1>
-      <p class="product-page__lead">
-        Long-form notes on architecture, BIM, and software. The production
-        article API will feed this list; until then, open pamphlets for editable
-        cloud documents or sign in to prepare your session.
+<BaseLayout
+  title="Articles — Eduardo Osteicoechea"
+  description="Public pamphlets as linear articles. Optimized for readers and AI crawlers (JSON, plain text, semantic HTML)."
+>
+  <div class="page-shell" data-page="articulos">
+    <ArticlesList client:load />
+    <noscript>
+      <p>
+        JavaScript is off. Use the machine-readable index:
+        <a href="/api/articles/index.html">/api/articles/index.html</a>
+        or <a href="/api/articles">/api/articles</a> (JSON).
       </p>
-      <div class="product-page__cta-row">
-        <a class="btn btn--primary" href={`${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.articles)}`}>
-          Sign in for articles
-        </a>
-        <a class="btn" href={APP_ROUTES.pamphlet}>Cloud pamphlets</a>
-        <a class="btn" href={APP_ROUTES.homescool}>Homescool</a>
-      </div>
-      <p class="product-page__note">
-        Endpoint target: <code>/api/articles</code> (parity with production EPAM readers).
-      </p>
-    </article>
+    </noscript>
   </div>
 </BaseLayout>

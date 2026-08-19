@@ -46,11 +46,10 @@ interface HeaderProps {
   pathname: string;
 }
 
-/** Home is the logo; omit a redundant "Home" row in the tray. */
+/** Home is the logo; omit a redundant "Home" row in the tray.
+ * OpenBIM / APS stay reachable by URL but are hidden from the main tray for now. */
 const PRIMARY_LINKS = [
   { href: APP_ROUTES.contact, label: "Contact" },
-  { href: APP_ROUTES.bim, label: "OpenBIM" },
-  { href: APP_ROUTES.apsAdmin, label: "APS" },
 ] as const;
 
 const SERVICES_LINKS = [

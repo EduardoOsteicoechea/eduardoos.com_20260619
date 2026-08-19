@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Allow: /articulos
+Allow: /articulos/
+Allow: /api/articles
+Allow: /llms.txt
+
+Sitemap: https://eduardoos.com/llms.txt

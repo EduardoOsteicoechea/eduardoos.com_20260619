@@ -1,0 +1,24 @@
+# Eduardo OS — Articles (pamphlets)
+
+> Public linear reading copies of cloud pamphlets for people and AI systems
+> (ChatGPT, Claude, Gemini, Perplexity, and similar crawlers).
+
+## Primary entry points
+
+- [Human UI](https://eduardoos.com/articulos): article list
+- [HTML index](https://eduardoos.com/api/articles/index.html): crawlable list with links
+- [JSON list](https://eduardoos.com/api/articles): `{ count, articles[], owner }`
+
+## Per article
+
+Replace `{id}` with an `epamId` from the list:
+
+- Human: https://eduardoos.com/articulos/ver?id={id}
+- Semantic HTML + JSON-LD: https://eduardoos.com/api/articles/{id}/html
+- Plain text: https://eduardoos.com/api/articles/{id}/text
+- JSON (blocks + plainText): https://eduardoos.com/api/articles/{id}
+
+## Notes
+
+- No authentication required for the public owner catalog (`PUBLIC_ARTICLES_USER_ID`, default `eduardooost@gmail.com`).
+- Prefer `/html` or `/text` over the React UI when extracting full article body.

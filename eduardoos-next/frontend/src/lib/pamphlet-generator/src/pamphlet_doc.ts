@@ -39,7 +39,7 @@ export function resolveLocation(data: PamphletStructure, loc: LastEditedElement)
     }
 
     if (loc.column === FOOTER_COLUMN) {
-        if (loc.index < 0 || loc.index > 5) return null;
+        if (loc.index < 0 || loc.index >= 10) return null;
         return { column: FOOTER_COLUMN, index: loc.index };
     }
 
@@ -70,7 +70,8 @@ export function previousLocation(data: PamphletStructure, loc: FlatRef): LastEdi
 
 export function nextLocation(data: PamphletStructure, loc: FlatRef): LastEditedElement | null {
     if (loc.column === FOOTER_COLUMN || loc.column === HEADER_COLUMN) {
-        if (loc.index < 5) return { column: loc.column, index: loc.index + 1 };
+        const max = loc.column === HEADER_COLUMN ? 5 : 9;
+        if (loc.index < max) return { column: loc.column, index: loc.index + 1 };
         return null;
     }
 

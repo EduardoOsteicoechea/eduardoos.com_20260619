@@ -93,14 +93,22 @@ type PamphletHeader struct {
 }
 
 type PamphletFooter struct {
-	Action     string `json:"action"`
-	Message    string `json:"message"`
-	Whatsapp   string `json:"whatsapp"`
-	Phone      string `json:"phone"`
-	Address    string `json:"address"`
-	Activities string `json:"activities"`
-	// Legacy free-form items (migrated when structured fields are empty).
-	Items []PamphletItem `json:"items,omitempty"`
+	Action  string `json:"action"`
+	Message string `json:"message"`
+	Label1  string `json:"label1"`
+	Value1  string `json:"value1"`
+	Label2  string `json:"label2"`
+	Value2  string `json:"value2"`
+	Label3  string `json:"label3"`
+	Value3  string `json:"value3"`
+	Label4  string `json:"label4"`
+	Value4  string `json:"value4"`
+	// Legacy keys (migrated into labelN/valueN when present).
+	Whatsapp   string         `json:"whatsapp,omitempty"`
+	Phone      string         `json:"phone,omitempty"`
+	Address    string         `json:"address,omitempty"`
+	Activities string         `json:"activities,omitempty"`
+	Items      []PamphletItem `json:"items,omitempty"`
 }
 
 type PamphletItem struct {
@@ -457,29 +465,55 @@ func labeledMeta(label, value string) string {
 	return label + ": " + value
 }
 
-// normalizeFooter upgrades legacy footer.items[] into fixed chrome fields.
+var pamphletFooterDefaultLabels = [4]string{"WhatsApp", "Teléfono", "Dirección", "Actividades"}
+
+// normalizeFooter upgrades legacy footer shapes into labelN/valueN chrome fields.
 func normalizeFooter(f PamphletFooter) PamphletFooter {
+	// Prior fixed chrome used whatsapp/phone/address/activities as values only.
+	if strings.TrimSpace(f.Value1) == "" && strings.TrimSpace(f.Whatsapp) != "" {
+		f.Value1 = f.Whatsapp
+	}
+	if strings.TrimSpace(f.Value2) == "" && strings.TrimSpace(f.Phone) != "" {
+		f.Value2 = f.Phone
+	}
+	if strings.TrimSpace(f.Value3) == "" && strings.TrimSpace(f.Address) != "" {
+		f.Value3 = f.Address
+	}
+	if strings.TrimSpace(f.Value4) == "" && strings.TrimSpace(f.Activities) != "" {
+		f.Value4 = f.Activities
+	}
+
 	hasStructured := strings.TrimSpace(f.Action) != "" ||
 		strings.TrimSpace(f.Message) != "" ||
-		strings.TrimSpace(f.Whatsapp) != "" ||
-		strings.TrimSpace(f.Phone) != "" ||
-		strings.TrimSpace(f.Address) != "" ||
-		strings.TrimSpace(f.Activities) != ""
-	if hasStructured || len(f.Items) == 0 {
-		return f
-	}
-	textAt := func(i int) string {
-		if i < 0 || i >= len(f.Items) {
-			return ""
+		strings.TrimSpace(f.Value1) != "" ||
+		strings.TrimSpace(f.Value2) != "" ||
+		strings.TrimSpace(f.Value3) != "" ||
+		strings.TrimSpace(f.Value4) != "" ||
+		strings.TrimSpace(f.Label1) != "" ||
+		strings.TrimSpace(f.Label2) != "" ||
+		strings.TrimSpace(f.Label3) != "" ||
+		strings.TrimSpace(f.Label4) != ""
+	if !hasStructured && len(f.Items) > 0 {
+		textAt := func(i int) string {
+			if i < 0 || i >= len(f.Items) {
+				return ""
+			}
+			return f.Items[i].Content
 		}
-		return f.Items[i].Content
+		f.Action = textAt(0)
+		f.Message = textAt(1)
+		f.Value1 = textAt(2)
+		f.Value2 = textAt(3)
+		f.Value3 = textAt(4)
+		f.Value4 = textAt(5)
 	}
-	f.Action = textAt(0)
-	f.Message = textAt(1)
-	f.Whatsapp = textAt(2)
-	f.Phone = textAt(3)
-	f.Address = textAt(4)
-	f.Activities = textAt(5)
+
+	labels := []*string{&f.Label1, &f.Label2, &f.Label3, &f.Label4}
+	for i, p := range labels {
+		if strings.TrimSpace(*p) == "" {
+			*p = pamphletFooterDefaultLabels[i]
+		}
+	}
 	return f
 }
 
@@ -509,11 +543,12 @@ func writeGrayText(s *strings.Builder, font string, sizePt float64, xMm, yMm, wi
 }
 
 // drawFooter paints fixed chrome matching the sheet: action heading, message,
-// then a 2×2 labeled meta grid (WhatsApp/Teléfono/Dirección/Actividades) at
-// the same half-widths as cols 7–8.
+// then a 2×2 meta grid with editable captions (labelN) and values at the same
+// half-widths as cols 7–8.
 func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm float64) {
 	floor := top - heightMm
 	cursorTop := top
+	f = normalizeFooter(f)
 
 	headSizeMm := pamphletFooterHeadPt * 25.4 / 72.0
 	bodySizeMm := pamphletFooterBodyPt * 25.4 / 72.0
@@ -559,10 +594,10 @@ func drawFooter(s *strings.Builder, f PamphletFooter, x, top, width, heightMm fl
 	rightX := x + half + colGapMm
 	metaY := cursorTop - cssBaselineOffsetMm(bodySizeMm, lh)
 
-	left1 := labeledMeta("WhatsApp", f.Whatsapp)
-	right1 := labeledMeta("Teléfono", f.Phone)
-	left2 := labeledMeta("Dirección", f.Address)
-	right2 := labeledMeta("Actividades", f.Activities)
+	left1 := labeledMeta(f.Label1, f.Value1)
+	right1 := labeledMeta(f.Label2, f.Value2)
+	left2 := labeledMeta(f.Label3, f.Value3)
+	right2 := labeledMeta(f.Label4, f.Value4)
 
 	if (left1 != "" || right1 != "") && metaY > floor {
 		if left1 != "" {

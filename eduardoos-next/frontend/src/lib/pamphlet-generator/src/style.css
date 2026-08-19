@@ -458,10 +458,18 @@
     border: 0;
 }
 
-/* Footer fixed chrome — sizes match PDF pamphletFooterHeadPt (9pt) / Body (7pt). */
-.pamphlet-footer-action {
+/* Footer fixed chrome — wireframe: Acción + Mensaje full-width inputs,
+   then 2×2 cells each with editable label + value (input chrome always on).
+   Type sizes match PDF pamphletFooterHeadPt (9pt) / Body (7pt). */
+.pamphlet-footer-action,
+.pamphlet-footer-message {
     width: 100%;
     flex: 0 0 auto;
+    box-sizing: border-box;
+    border: 1px solid rgba(100, 100, 100, 0.55) !important;
+    padding: 0.6mm 1mm !important;
+    background: #fff;
+    min-height: 4.2mm;
 }
 
 .pamphlet-footer-action h1 {
@@ -470,11 +478,7 @@
     font-weight: 600;
     line-height: 1.25;
     color: #000000;
-}
-
-.pamphlet-footer-message {
-    width: 100%;
-    flex: 0 0 auto;
+    min-height: 1.25em;
 }
 
 .pamphlet-footer-message p {
@@ -482,6 +486,7 @@
     font-size: 2.469mm; /* 7pt — matches pamphletFooterBodyPt */
     line-height: 1.25;
     color: #000000;
+    min-height: 1.25em;
 }
 
 .pamphlet-footer-meta-bar {
@@ -489,7 +494,7 @@
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto;
     column-gap: 2.5mm;
-    row-gap: 0.8mm;
+    row-gap: 1.2mm;
     width: 100%;
     min-width: 0;
     flex: 0 0 auto;
@@ -503,40 +508,35 @@
 
 .pamphlet-footer-meta-field {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: nowrap;
-    align-items: baseline;
-    gap: 0.6mm;
+    align-items: stretch;
+    gap: 0.5mm;
     min-width: 0;
     width: 100%;
     max-width: 100%;
     overflow: hidden;
 }
 
-.pamphlet-footer-meta-label {
-    flex: 0 0 auto;
-    font-family: Roboto, sans-serif;
-    font-size: 2.469mm;
-    line-height: 1.25;
-    color: #666666;
-    white-space: nowrap;
-}
-
 .pamphlet-footer-meta-field > .pamphlet-item {
-    flex: 1 1 auto;
-    width: auto;
+    flex: 0 0 auto;
+    width: 100%;
     min-width: 0;
     overflow: hidden;
-    border: none !important;
-    padding: 0 !important;
-    background: transparent;
+    box-sizing: border-box;
+    border: 1px solid rgba(100, 100, 100, 0.55) !important;
+    padding: 0.4mm 0.8mm !important;
+    background: #fff;
+    min-height: 3.6mm;
 }
 
-.pamphlet-footer-meta-field > .pamphlet-item:has(.element_edit_tray) {
-    min-width: 12mm;
-    border: 1px solid #666 !important;
-    padding: 0.4mm 0.9mm !important;
-    background: #fff;
+.pamphlet-footer-meta-field > .pamphlet-footer-label {
+    flex: 0 0 auto;
+}
+
+.pamphlet-footer-meta-field > .pamphlet-footer-value {
+    flex: 1 1 auto;
+    min-height: 4mm;
 }
 
 .pamphlet-footer-meta-field > .pamphlet-item p {
@@ -547,6 +547,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     color: #666666;
+    min-height: 1.25em;
+}
+
+.pamphlet-footer-meta-field > .pamphlet-footer-label p {
+    font-weight: 600;
+    color: #444444;
 }
 
 .pamphlet-item {
@@ -1181,8 +1187,7 @@
   box-sizing: border-box;
 }
 
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-label,
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-label {
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-label {
   font-size: calc(11px * var(--mobile-inv-scale, 1));
   line-height: 1.2;
   letter-spacing: 0.04em;
@@ -1204,6 +1209,11 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Mobile: label row stays a short caption input above the value input. */
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-field > .pamphlet-footer-label {
+  min-height: calc(28px * var(--mobile-inv-scale, 1));
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title {

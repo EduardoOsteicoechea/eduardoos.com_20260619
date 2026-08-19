@@ -1,0 +1,20 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ArticleView from "../../components/Articles/ArticleView";
+---
+
+<BaseLayout
+  title="Article — Eduardo Osteicoechea"
+  description="Public pamphlet article. Prefer /api/articles/{id}/html for crawlers."
+>
+  <div class="page-shell" data-page="articulo-ver">
+    <ArticleView client:load />
+    <noscript>
+      <p>
+        JavaScript is off. Open
+        <code>/api/articles/&lt;id&gt;/html</code>
+        for the crawlable HTML copy of this pamphlet.
+      </p>
+    </noscript>
+  </div>
+</BaseLayout>

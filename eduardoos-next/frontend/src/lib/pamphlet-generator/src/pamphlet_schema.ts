@@ -21,15 +21,20 @@ export interface PamphletHeader {
 
 /**
  * Fixed footer chrome (mirrors header): action heading, message paragraph,
- * then a 2×2 labeled meta grid (cols 7/8 width each).
+ * then a 2×2 meta grid. Each meta slot has an editable label + editable value
+ * so the author can replace “WhatsApp” / “Teléfono” / etc. with any caption.
  */
 export interface PamphletFooter {
     action: string;
     message: string;
-    whatsapp: string;
-    phone: string;
-    address: string;
-    activities: string;
+    label1: string;
+    value1: string;
+    label2: string;
+    value2: string;
+    label3: string;
+    value3: string;
+    label4: string;
+    value4: string;
 }
 
 /**
@@ -58,13 +63,25 @@ export type HeaderFieldKey = (typeof HEADER_FIELD_KEYS)[number];
 export const FOOTER_FIELD_KEYS = [
     "action",
     "message",
-    "whatsapp",
-    "phone",
-    "address",
-    "activities",
+    "label1",
+    "value1",
+    "label2",
+    "value2",
+    "label3",
+    "value3",
+    "label4",
+    "value4",
 ] as const;
 
 export type FooterFieldKey = (typeof FOOTER_FIELD_KEYS)[number];
+
+/** Default captions for the four meta slots (user can rewrite each label). */
+export const FOOTER_DEFAULT_LABELS = {
+    label1: "WhatsApp",
+    label2: "Teléfono",
+    label3: "Dirección",
+    label4: "Actividades",
+} as const;
 
 export const COLUMN_KEYS = [
     "column_1",
@@ -106,10 +123,14 @@ export function emptyFooter(): PamphletFooter {
     return {
         action: "",
         message: "",
-        whatsapp: "",
-        phone: "",
-        address: "",
-        activities: "",
+        label1: FOOTER_DEFAULT_LABELS.label1,
+        value1: "",
+        label2: FOOTER_DEFAULT_LABELS.label2,
+        value2: "",
+        label3: FOOTER_DEFAULT_LABELS.label3,
+        value3: "",
+        label4: FOOTER_DEFAULT_LABELS.label4,
+        value4: "",
     };
 }
 
@@ -170,10 +191,14 @@ const HEADER_KEYS = [
 const FOOTER_KEYS = [
     "action",
     "message",
-    "whatsapp",
-    "phone",
-    "address",
-    "activities",
+    "label1",
+    "value1",
+    "label2",
+    "value2",
+    "label3",
+    "value3",
+    "label4",
+    "value4",
 ] as const;
 const LAST_EDITED_KEYS = ["column", "index"] as const;
 const ITEM_KEYS = ["type", "content", "style_indexes", "height_mm"] as const;
@@ -187,22 +212,41 @@ function legacyFooterItemText(item: unknown): string {
 }
 
 /**
- * Upgrade legacy `{ items: PamphletItem[] }` footers into fixed chrome fields.
- * Mapping: [0]=action, [1]=message, [2]=whatsapp, [3]=phone, [4]=address, [5]=activities.
+ * Upgrade legacy footers into fixed chrome fields.
+ * Supports: items[], whatsapp/phone/… keys, and the current labelN/valueN shape.
  */
 export function normalizeFooter(raw: unknown): PamphletFooter {
     const base = emptyFooter();
     if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return base;
     const f = raw as Record<string, unknown>;
 
-    const hasStructured = FOOTER_KEYS.some(
-        (k) => typeof f[k] === "string" && String(f[k]).length > 0,
-    );
-    if (hasStructured || FOOTER_KEYS.every((k) => k in f)) {
+    const hasNewShape = FOOTER_KEYS.some(
+        (k) => typeof f[k] === "string" && (k.startsWith("label") || k.startsWith("value") || k === "action" || k === "message") && String(f[k]).length > 0,
+    ) || ("label1" in f && "value1" in f);
+
+    if (hasNewShape || FOOTER_KEYS.every((k) => k in f)) {
         for (const key of FOOTER_KEYS) {
             const v = f[key];
-            base[key] = typeof v === "string" ? v : "";
+            if (typeof v === "string") {
+                base[key] = v;
+            }
         }
+        // Keep default labels when an empty string was stored for a label slot.
+        if (!base.label1.trim()) base.label1 = FOOTER_DEFAULT_LABELS.label1;
+        if (!base.label2.trim()) base.label2 = FOOTER_DEFAULT_LABELS.label2;
+        if (!base.label3.trim()) base.label3 = FOOTER_DEFAULT_LABELS.label3;
+        if (!base.label4.trim()) base.label4 = FOOTER_DEFAULT_LABELS.label4;
+        return base;
+    }
+
+    // Prior fixed chrome (whatsapp/phone/address/activities as values only).
+    if ("whatsapp" in f || "phone" in f || "address" in f || "activities" in f) {
+        base.action = typeof f.action === "string" ? f.action : "";
+        base.message = typeof f.message === "string" ? f.message : "";
+        base.value1 = typeof f.whatsapp === "string" ? f.whatsapp : "";
+        base.value2 = typeof f.phone === "string" ? f.phone : "";
+        base.value3 = typeof f.address === "string" ? f.address : "";
+        base.value4 = typeof f.activities === "string" ? f.activities : "";
         return base;
     }
 
@@ -210,10 +254,10 @@ export function normalizeFooter(raw: unknown): PamphletFooter {
         const texts = f.items.map(legacyFooterItemText);
         base.action = texts[0] ?? "";
         base.message = texts[1] ?? "";
-        base.whatsapp = texts[2] ?? "";
-        base.phone = texts[3] ?? "";
-        base.address = texts[4] ?? "";
-        base.activities = texts[5] ?? "";
+        base.value1 = texts[2] ?? "";
+        base.value2 = texts[3] ?? "";
+        base.value3 = texts[4] ?? "";
+        base.value4 = texts[5] ?? "";
     }
     return base;
 }

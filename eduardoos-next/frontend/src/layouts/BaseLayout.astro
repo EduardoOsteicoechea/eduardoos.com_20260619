@@ -13,12 +13,14 @@ const AUTH_TOKEN_KEY = "eduardoos-next-auth-token";
 
 interface Props {
   title?: string;
+  description?: string;
   requireAuth?: boolean;
   pageHome?: boolean;
 }
 
 const {
   title = "Eduardo Osteicoechea",
+  description = "Eduardo Osteicoechea — AEC Technologist. Licensed Building Architect, BIM practitioner, and full-stack developer.",
   requireAuth = false,
   pageHome = false,
 } = Astro.props;
@@ -37,7 +39,7 @@ const pathname = Astro.url.pathname;
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta
       name="description"
-      content="Eduardo Osteicoechea — AEC Technologist. Licensed Building Architect, BIM practitioner, and full-stack developer."
+      content={description}
     />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />

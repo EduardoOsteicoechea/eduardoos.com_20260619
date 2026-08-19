@@ -94,6 +94,15 @@ export const EPAM_ROUTES = {
   item: (epamId: string) => `/api/epams/${encodeURIComponent(epamId)}`,
 } as const;
 
+/** Public pamphlet-as-article APIs (no JWT required; Bearer scopes to that user). */
+export const ARTICLE_ROUTES = {
+  list: "/api/articles",
+  indexHtml: "/api/articles/index.html",
+  item: (epamId: string) => `/api/articles/${encodeURIComponent(epamId)}`,
+  text: (epamId: string) => `/api/articles/${encodeURIComponent(epamId)}/text`,
+  html: (epamId: string) => `/api/articles/${encodeURIComponent(epamId)}/html`,
+} as const;
+
 /** Server PDF print for the pamphlet generator (Next may stub until documents service lands). */
 export const DOCUMENT_ROUTES = {
   pamphletPdf: "/api/documents/pamphlet/pdf",

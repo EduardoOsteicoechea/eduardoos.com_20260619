@@ -39,7 +39,7 @@ func TestPamphletPDFReturnsFullLandscapePDF(t *testing.T) {
 	body := `{
 		"type":"pamphlet_single_sheet",
 		"header":{"title":"¿Cómo sabemos que interpretamos correctamente?","author":"Eduardo","series":"Romanos","series_chapter":"1","date":"2026-08-14"},
-		"footer":{"action":"","message":"","whatsapp":"","phone":"","address":"","activities":""},
+		"footer":{"action":"","message":"","label1":"WhatsApp","value1":"","label2":"Teléfono","value2":"","label3":"Dirección","value3":"","label4":"Actividades","value4":""},
 		"column_1":[{"type":"paragraph","content":"Primera columna con acentos: niño y más."}],
 		"column_2":[],
 		"column_3":[{"type":"heading_1","content":"Capítulo"}],
