@@ -5,7 +5,7 @@ package pdf
 // Geometry matches the frontend sheet CSS exactly:
 //   page  279.4mm × 215.9mm (US Letter landscape)
 //   cols  57.85mm wide, gutters 4mm / 20mm (center), margins 10mm
-//   page1 left  cols 7–8 (158.9mm tall) + footer; right header + cols 1–2
+//   page1 left  cols 7–8 (160.9mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
 // Text uses embedded Roboto / Roboto-Bold (website font) with WinAnsiEncoding.
@@ -32,6 +32,8 @@ const (
 	PamphletPageHeightMm = 215.9
 	PamphletMarginMm     = 10.0
 	PamphletGutterNarrow = 4.0
+	// Gap only between cols 7–8 and the footer (half of PamphletGutterNarrow).
+	PamphletFooterBodyGutterMm = 2.0
 	// Center fold gutter (page 1 left↔right and page 2 left↔right).
 	PamphletGutterWide = 20.0
 	// (279.4 − 10 − 4 − 20 − 4 − 10) / 4 = 57.85mm
@@ -41,8 +43,8 @@ const (
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
 	PamphletFooterHMm          = 33.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 23 − 5 − 4 − 33 − 10
-	PamphletPage1BodyMm = 130.9
+	// 215.9 − 10 − 23 − 5 − 2 − 33 − 10
+	PamphletPage1BodyMm = 132.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// CSS .pamphlet-page-header { gap } between title block and meta bar.
@@ -51,8 +53,8 @@ const (
 	PamphletHeaderMetaRowGapMm = 0.8
 	// Right-side cols 1–2: 195.9 − 23 − 5
 	PamphletPage1RightColMm = 167.9
-	// Left-side cols 7–8 above footer: 195.9 − 4 − 33 (default layout.height)
-	PamphletPage1LeftColMm = 158.9
+	// Left-side cols 7–8 above footer: 195.9 − 2 − 33 (default layout.height)
+	PamphletPage1LeftColMm = 160.9
 	// Desktop .pamphlet-column-7/8 frame.
 	pamphletColFrameRadiusMm = 0.5
 	pamphletColFrameStrokeMm = 0.2
@@ -390,7 +392,7 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	var s strings.Builder
 	layout := normalizeFooterLayout(doc.FooterLayout)
 	footerH := layout.Height
-	leftColH := PamphletPage2BodyMm - PamphletGutterNarrow - footerH
+	leftColH := PamphletPage2BodyMm - PamphletFooterBodyGutterMm - footerH
 
 	headerX := colX(6)
 	headerTop := PamphletPageHeightMm - PamphletMarginMm

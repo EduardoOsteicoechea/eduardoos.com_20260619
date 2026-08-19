@@ -195,6 +195,8 @@
   --sheet-stack-height: 431.8mm; /* 215.9mm × 2 */
   --page-margin: 10mm;
   --col-gutter-narrow: 4mm;
+  /* Gap only between cols 7–8 and the footer (half of narrow gutter). */
+  --footer-body-gutter: 2mm;
   /* Center fold gutter (page 1 left↔right / page 2 left↔right) */
   --col-gutter-wide: 20mm;
   /* 6.75mm 2-line title + 0.6mm gap + two meta rows (~22.3mm). Same as PDF PamphletHeaderHMm. */
@@ -202,8 +204,8 @@
   /* Margin under header band before cols 1–2 (PDF uses the same 5mm). */
   --header-body-gutter: 5mm;
   --page-footer-height: 33mm; /* label 5.5 + value 1.5 ×2 + tight gaps + chrome */
-  /* Page 1 body: 215.9 − 10 − 23 − 5 − 4 − 33 − 10 = 130.9mm */
-  --page1-body-height: 130.9mm;
+  /* Page 1 body: 215.9 − 10 − 23 − 5 − 2 − 33 − 10 = 132.9mm */
+  --page1-body-height: 132.9mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
@@ -212,8 +214,8 @@
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
   /* Cols 1–2 under header: 195.9 − 23 − 5 = 167.9mm */
   --page1-right-col-height: 167.9mm;
-  /* Cols 7–8 above footer: 195.9 − 4 − 33 = 158.9mm */
-  --page1-left-col-height: 158.9mm;
+  /* Cols 7–8 above footer: 195.9 − 2 − 33 = 160.9mm */
+  --page1-left-col-height: 160.9mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
   --item-gap-height: 2.5mm;
   --b1: solid 1px rgb(231, 231, 231);
@@ -303,7 +305,7 @@
         var(--page-header-height)
         var(--header-body-gutter)
         var(--page1-body-height)
-        var(--col-gutter-narrow)
+        var(--footer-body-gutter)
         var(--page-footer-height)
         var(--page-margin)
         var(--page-margin)
@@ -1413,7 +1415,7 @@
         var(--page-header-height)
         var(--header-body-gutter)
         var(--page1-body-height)
-        var(--col-gutter-narrow)
+        var(--footer-body-gutter)
         var(--page-footer-height)
         var(--page-margin)
         var(--page-margin)

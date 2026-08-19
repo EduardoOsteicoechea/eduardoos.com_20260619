@@ -334,7 +334,7 @@ func TestPamphletPageGeometrySums(t *testing.T) {
 	}
 	// Page 1 vertical stack: margin + header + header-body gutter + body + footer gutter + footer + margin
 	vSum := PamphletMarginMm + PamphletHeaderHMm + PamphletHeaderBodyGutterMm +
-		PamphletPage1BodyMm + PamphletGutterNarrow + PamphletFooterHMm + PamphletMarginMm
+		PamphletPage1BodyMm + PamphletFooterBodyGutterMm + PamphletFooterHMm + PamphletMarginMm
 	if vSum < PamphletPageHeightMm-0.01 || vSum > PamphletPageHeightMm+0.01 {
 		t.Fatalf("page1 vertical sum=%.2f want %.2f", vSum, PamphletPageHeightMm)
 	}

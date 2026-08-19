@@ -424,6 +424,8 @@ const pageMarginMm = 10;
 const pageHeaderHeightMm = 23; // matches --page-header-height / PamphletHeaderHMm
 const pageFooterHeightMm = PAMPHLET_FOOTER_LAYOUT_MM.height;
 const colGutterNarrowMm = 4;
+/** Gap only between cols 7–8 and the footer (half of narrow gutter). */
+const footerBodyGutterMm = 2;
 /** Gap between page header and cols 1–2 (matches --header-body-gutter). */
 const headerBodyGutterMm = 5;
 /** Page 2 band / full page-1 chrome band: letter − 2×margin */
@@ -431,9 +433,9 @@ const columnContentHeightMm = usLetterHeightInMillimeters - pageMarginMm * 2;
 /** Cols 1–2: under page header → discount header + header→body gutter */
 const page1RightColHeightMm =
     columnContentHeightMm - pageHeaderHeightMm - headerBodyGutterMm; // 167.9
-/** Cols 7–8: above page footer → discount gutter above footer + footer */
+/** Cols 7–8: above page footer → discount footer↔body gutter + footer */
 const page1LeftColHeightMm =
-    columnContentHeightMm - colGutterNarrowMm - pageFooterHeightMm; // 158.9 when footer=33
+    columnContentHeightMm - footerBodyGutterMm - pageFooterHeightMm; // 160.9 when footer=33
 
 function maxHeightForColumn(columnIndex: number): number {
     if (columnIndex === 1 || columnIndex === 2) return page1RightColHeightMm;
@@ -803,13 +805,6 @@ function reflowAndReport(container: HTMLElement) {
             preview,
         };
         report.itemTrace.push(entry);
-
-        if (columnIndex === 1 || wouldOverflow) {
-            console.log(`[reflow] col ${columnIndex} item#${globalIndex}`, {
-                ...entry,
-                sumCheck: `${filledBeforeMm.toFixed(2)} + ${blockMm.toFixed(2)} = ${(filledBeforeMm + blockMm).toFixed(2)} vs max ${wouldOverflow ? currentMaxMm : appliedMaxMm}`,
-            });
-        }
     });
 
     // Clear sandbox so live sheet is the only owner of content nodes.
@@ -846,53 +841,25 @@ function reflowAndReport(container: HTMLElement) {
         renderPageChrome(container, currentDoc);
     }
 
-    console.log("--- Auto-Reflow Layout Report ---");
-    console.log(report);
+    // Single diagnostic: column payloads after layout (no reflow noise).
+    const columnPayload = serializePamphlet(
+        container,
+        currentDoc?.last_edited_element ?? { column: 1, index: 0 },
+        currentDoc,
+    );
+    console.log("[pamphlet] column data", {
+        column_1: columnPayload.column_1,
+        column_2: columnPayload.column_2,
+        column_3: columnPayload.column_3,
+        column_4: columnPayload.column_4,
+        column_5: columnPayload.column_5,
+        column_6: columnPayload.column_6,
+        column_7: columnPayload.column_7,
+        column_8: columnPayload.column_8,
+    });
 
-    // After chrome/grid resolve, compare accumulated fill vs real column box (esp. col 1)
+    // After chrome/grid resolve, refresh scroll gap after reflow.
     requestAnimationFrame(() => {
-        const cols = Array.from(
-            container.querySelectorAll<HTMLElement>(
-                ":scope > .dumb-column[class*='pamphlet-column-']",
-            ),
-        );
-
-        console.log("[reflow] per-column max heights", {
-            cols1_2: page1RightColHeightMm,
-            cols3_6: columnContentHeightMm,
-            cols7_8: page1LeftColHeightMm,
-        });
-
-        for (const col of cols) {
-            const match = /pamphlet-column-(\d+)/.exec(col.className);
-            const index = match ? Number(match[1]) : -1;
-            const layoutPx = col.offsetHeight;
-            const layoutMm = convertPixelsToMillimeters(layoutPx);
-            const visualPx = col.getBoundingClientRect().height;
-            const visualMm = convertPixelsToMillimeters(visualPx);
-            const summary = report.columns.find((c) => c.columnIndex === index);
-            const reflowMaxMm = maxHeightForColumn(index);
-            const filled = summary?.filledHeightMm ?? 0;
-            const row = {
-                columnIndex: index,
-                layoutHeightPx: Number(layoutPx.toFixed(2)),
-                layoutHeightMm: Number(layoutMm.toFixed(2)),
-                visualHeightPx: Number(visualPx.toFixed(2)),
-                visualHeightMm: Number(visualMm.toFixed(2)),
-                filledHeightMm: filled,
-                itemCount: summary?.itemCount ?? 0,
-                reflowMaxMm,
-                overflowVsLayoutMm: Number((filled - layoutMm).toFixed(2)),
-                overflowVsReflowMaxMm: Number((filled - reflowMaxMm).toFixed(2)),
-            };
-            if (index === 1) {
-                console.warn("[reflow] column 1 height check", row);
-            } else {
-                console.log("[reflow] column height check", row);
-            }
-        }
-
-        // Transform does not change layout box; refresh scroll gap after reflow.
         syncSheetScale();
     });
 }
