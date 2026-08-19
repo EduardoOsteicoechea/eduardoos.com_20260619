@@ -55,10 +55,6 @@ const (
 	PamphletPage1RightColMm = 167.9
 	// Left-side cols 7–8 above footer: 195.9 − 2 − 33 (default layout.height)
 	PamphletPage1LeftColMm = 160.9
-	// Desktop .pamphlet-column-7/8 frame.
-	pamphletColFrameRadiusMm = 0.5
-	pamphletColFrameStrokeMm = 0.2
-	pamphletColFramePadMm    = 0.6
 	// Exact CSS type sizes on the sheet (source of truth for PDF).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band is 23mm so both meta rows fit
 	pamphletTitleLH     = 1.1
@@ -400,13 +396,8 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	_ = drawHeader(&s, doc.Header, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow, PamphletHeaderHMm)
 
 	leftTop := PamphletPageHeightMm - PamphletMarginMm
-	// Match desktop borders on columns 7–8.
-	strokeRoundedRectMm(&s, colX(2), leftTop, PamphletColWidthMm, leftColH, pamphletColFrameRadiusMm, pamphletColFrameStrokeMm)
-	strokeRoundedRectMm(&s, colX(4), leftTop, PamphletColWidthMm, leftColH, pamphletColFrameRadiusMm, pamphletColFrameStrokeMm)
-	innerW := PamphletColWidthMm - 2*pamphletColFramePadMm
-	innerH := leftColH - 2*pamphletColFramePadMm
-	drawColumn(&s, doc.Column7, colX(2)+pamphletColFramePadMm, leftTop-pamphletColFramePadMm, innerW, innerH, images)
-	drawColumn(&s, doc.Column8, colX(4)+pamphletColFramePadMm, leftTop-pamphletColFramePadMm, innerW, innerH, images)
+	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, leftColH, images)
+	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, leftColH, images)
 
 	rightTop := headerTop - PamphletHeaderHMm - PamphletHeaderBodyGutterMm
 	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, PamphletPage1RightColMm, images)

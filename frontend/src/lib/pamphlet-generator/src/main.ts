@@ -526,7 +526,21 @@ async function tryAutoloadCloudPamphlet(): Promise<void> {
     }
 }
 
-function convertPixelsToMillimeters(px: number): number {
+/** Content column width in mm — same as CSS --column-content-width / PamphletColWidthMm. */
+const COLUMN_CONTENT_WIDTH_MM = 57.85;
+/** Vertical gap between items (CSS --item-gap-height). */
+const ITEM_GAP_HEIGHT_MM = 2.5;
+
+/**
+ * Convert layout px → mm using the measure column’s real CSS mm width.
+ * Hard-coding 96dpi drifts on some displays and leaves empty space at column bottoms.
+ */
+function convertPixelsToMillimeters(px: number, columnEl?: HTMLElement | null): number {
+    const col = columnEl ?? ensureMeasureRoot().column;
+    const widthPx = col.offsetWidth;
+    if (widthPx > 0) {
+        return px * (COLUMN_CONTENT_WIDTH_MM / widthPx);
+    }
     return px * (25.4 / 96);
 }
 
@@ -579,8 +593,8 @@ function measureBlockInSandbox(
     void column.offsetWidth;
     const itemPx = item.offsetHeight;
     const spacerPx = spacer ? spacer.offsetHeight : 0;
-    const itemMm = convertPixelsToMillimeters(itemPx);
-    const spacerMm = convertPixelsToMillimeters(spacerPx);
+    const itemMm = convertPixelsToMillimeters(itemPx, column);
+    const spacerMm = convertPixelsToMillimeters(spacerPx, column);
     return {
         itemPx,
         spacerPx,
@@ -663,8 +677,9 @@ function placeColumnAddButton(
 
     while (colIdx <= 8) {
         const max = maxHeightForColumn(colIdx);
-        // Only place + if a new item AND the button both fit
-        if (filled + newItemMm + buttonMm <= max) {
+        // Strip trailing item-gap from filled (last item has no spacer under it).
+        const filledContent = filled > 0 ? Math.max(0, filled - ITEM_GAP_HEIGHT_MM) : 0;
+        if (filledContent + newItemMm + buttonMm <= max) {
             const col = container.querySelector<HTMLElement>(`:scope > .pamphlet-column-${colIdx}`);
             if (col) {
                 col.querySelector(":scope > .pamphlet-add-item-button")?.remove();
@@ -757,9 +772,15 @@ function reflowAndReport(container: HTMLElement) {
         const { itemPx, spacerPx, itemMm, spacerMm, blockMm } = measured;
         const filledBeforeMm = currentColumnFilledMm;
         const currentMaxMm = maxHeightForColumn(columnIndex);
-        // Overflow uses item height only: the last item in a column has no trailing spacer.
+        // Filled so far includes a trailing item-gap after the previous item; that gap is
+        // removed when the column ends. Fit the next item against content height only, or
+        // cols 1–6 leave ~2.5mm+ empty at the bottom and look under-packed.
+        const filledWithoutTrailingGap =
+            currentColumnItemsCount > 0
+                ? Math.max(0, currentColumnFilledMm - ITEM_GAP_HEIGHT_MM)
+                : 0;
         const wouldOverflow =
-            currentColumnItemsCount > 0 && currentColumnFilledMm + itemMm > currentMaxMm;
+            currentColumnItemsCount > 0 && filledWithoutTrailingGap + itemMm > currentMaxMm;
         const preview = (item.textContent ?? "").trim().slice(0, 48);
 
         if (wouldOverflow) {

@@ -695,15 +695,6 @@
 */
 .pamphlet-column-7 { grid-column: 2; grid-row: 2 / 5; }
 .pamphlet-column-8 { grid-column: 4; grid-row: 2 / 5; }
-
-/* Page-1 left body columns — fine frame matching footer chrome. */
-.pamphlet-app[data-view-mode="desktop"] .pamphlet-column-7,
-.pamphlet-app[data-view-mode="desktop"] .pamphlet-column-8 {
-    box-sizing: border-box;
-    border: 0.2mm solid #222222;
-    border-radius: 0.5mm;
-    padding: 0.6mm;
-}
 .pamphlet-column-1 { grid-column: 6; grid-row: 4 / 7; }
 .pamphlet-column-2 { grid-column: 8; grid-row: 4 / 7; }
 
