@@ -2,11 +2,25 @@
 
 **Production cutover (2026-08-16):** parent `deploy.yml` serves Next on HTTPS `:443` / API `:3000` via `deploy-remote-production.sh`.
 
-This folder still owns **staging** (`:8080` / `:3001`) as a secondary stack.
+**Staging (`:8080` / `:3001`)** is **manual only** (`workflow_dispatch` on `deploy-next-staging.yml`). It no longer runs on every push to `master`.
+
+## Selective production deploy (2026-08-19)
+
+`deploy.yml` inspects the push diff and sets:
+
+| Flag | When set |
+|------|----------|
+| `DEPLOY_BACKEND=1` | `eduardoos-next/backend/**` or deploy infra |
+| `DEPLOY_FRONTEND=1` | `eduardoos-next/frontend/**` or deploy infra |
+| `DEPLOY_NGINX=1` | `nginx/**`, compose files, or deploy infra |
+
+- Docs / `.memory` / unrelated paths → **skip** remote deploy.
+- Manual **Run workflow** lets you choose backend / frontend / nginx checkboxes (default all on).
+- Frontend-only skips Go build + docker prune; nginx reload picks up new `dist`.
 
 ## Staging URL
 
-After a successful staging deploy:
+After a successful **manual** staging deploy:
 
 ```text
 http://<EC2_IP>:8080/
@@ -23,7 +37,7 @@ CI smoke treats **on-box** `127.0.0.1:8080` as the required check. Public `http:
 
 | Script | Role |
 |--------|------|
-| `deploy-remote-production.sh` | Production cutover: Next on `:3000`, builds Next frontend for nginx HTML root |
+| `deploy-remote-production.sh` | Production: Next on `:3000`; respects `DEPLOY_BACKEND` / `DEPLOY_FRONTEND` |
 | `deploy-remote-staging.sh` | Secondary stack only (`:3001` + `:8080`); does not replace production unit |
 
 ## How nginx staging is wired
@@ -44,16 +58,21 @@ Compose publishes `8080:8080` and mounts:
 
 ## CI workflow
 
-`.github/workflows/deploy-next-staging.yml`
+### Production — `.github/workflows/deploy.yml`
 
-- Triggers: `workflow_dispatch` + push to `master` when `eduardoos-next/**` or this workflow changes
+- Triggers: push to `master` + `workflow_dispatch`
+- Selective scopes from git diff (see table above)
+- Concurrency: `deploy-ec2`
+
+### Staging — `.github/workflows/deploy-next-staging.yml`
+
+- Triggers: **`workflow_dispatch` only** (no auto push)
 - Concurrency: `deploy-next-staging` (independent of production `deploy-ec2`)
 - Builds Next `.env` (ADDR `:3001`, DynamoDB/S3 backends, `DEV_RETURN_OTP=0`)
   - Secrets are **double-quoted** for systemd `EnvironmentFile` safety (`#`, spaces, `$`)
   - `SMTP_PASS` spaces are stripped (Gmail app passwords are 16 chars; UI spaces break SMTP auth)
 - SCP `.env` + `deploy-remote-staging.sh`, then runs remote deploy
 - Smoke: on-box `:8080` required; public `:8080` warns if SG blocks
-  - SSH uses `-n -T`, short `ServerAlive*`, and `timeout 45` around the on-box probe so the step exits immediately after success (no hung half-closed SSH)
 
 ### Auth email / GitHub secrets
 

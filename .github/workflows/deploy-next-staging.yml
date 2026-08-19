@@ -1,12 +1,9 @@
 name: Deploy Eduardo OS Next (staging)
 
-# Secondary stack only — never uses concurrency group deploy-ec2.
+# Manual only — production auto-deploy is deploy.yml (selective scopes).
+# Run this from Actions → "Deploy Eduardo OS Next (staging)" → Run workflow
+# when you explicitly want the :8080 / :3001 secondary stack refreshed.
 on:
-  push:
-    branches: [master]
-    paths:
-      - "eduardoos-next/**"
-      - ".github/workflows/deploy-next-staging.yml"
   workflow_dispatch:
 
 jobs:
@@ -14,7 +11,6 @@ jobs:
     name: Deploy Next staging to EC2
     runs-on: ubuntu-latest
     timeout-minutes: 50
-    if: github.ref == 'refs/heads/master'
     concurrency:
       group: deploy-next-staging
       cancel-in-progress: true

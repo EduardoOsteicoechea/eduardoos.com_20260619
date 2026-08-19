@@ -2,13 +2,31 @@
 # Runs on the EC2 host during CI/CD deploy (or manually over SSH).
 # After cutover: production HTTPS serves Eduardo OS Next on :3000 + next frontend dist.
 # Staging (:8080 / :3001) is left alone unless a separate staging workflow runs.
+#
+# Selective scopes (CI detects from git diff; defaults = full deploy):
+#   DEPLOY_BACKEND=1|0
+#   DEPLOY_FRONTEND=1|0
+#   DEPLOY_NGINX=1|0     — render nginx conf, compose up, certbot
+#   DEPLOY_DISK_CLEAN=1|0 — docker system prune (slow; default 1 only on full/nginx)
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-$HOME/eduardoos.com_20260619}"
 REPO_URL="${REPO_URL:-https://github.com/EduardoOsteicoechea/eduardoos.com_20260619.git}"
 BRANCH="${BRANCH:-master}"
+DEPLOY_BACKEND="${DEPLOY_BACKEND:-1}"
+DEPLOY_FRONTEND="${DEPLOY_FRONTEND:-1}"
+DEPLOY_NGINX="${DEPLOY_NGINX:-1}"
+# Heavy prune only when building backend or touching nginx by default.
+if [[ -z "${DEPLOY_DISK_CLEAN:-}" ]]; then
+  if [[ "${DEPLOY_BACKEND}" == "1" || "${DEPLOY_NGINX}" == "1" ]]; then
+    DEPLOY_DISK_CLEAN=1
+  else
+    DEPLOY_DISK_CLEAN=0
+  fi
+fi
 
-echo "==> Deploying Eduardo OS (Next production) to ${APP_DIR} (${BRANCH}) [next API :3000 + nginx/certbot]"
+echo "==> Deploying Eduardo OS (Next production) to ${APP_DIR} (${BRANCH})"
+echo "    scopes: backend=${DEPLOY_BACKEND} frontend=${DEPLOY_FRONTEND} nginx=${DEPLOY_NGINX} disk_clean=${DEPLOY_DISK_CLEAN}"
 
 if [ ! -d "${APP_DIR}/.git" ]; then
   echo "==> Cloning repository"
@@ -62,9 +80,6 @@ if [ "${sync_ok}" -ne 1 ]; then
   exit 1
 fi
 
-echo "==> Rendering nginx config for DOMAIN=${DOMAIN}"
-sed "s/localhost/${DOMAIN}/g" nginx/default.conf > nginx/default.prod.conf
-
 CERT_DIR="nginx/certs/live/${DOMAIN}"
 
 has_letsencrypt_cert() {
@@ -95,8 +110,6 @@ ensure_cert_bootstrap() {
     echo "WARNING: Could not write bootstrap cert (certbot may own nginx/certs) — continuing deploy"
   fi
 }
-
-ensure_cert_bootstrap
 
 reclaim_ec2_disk() {
   echo "==> Disk usage before cleanup"
@@ -152,11 +165,14 @@ issue_letsencrypt_cert() {
   return 1
 }
 
-echo "==> Building host assets (Next backend :3000, then Next frontend)"
 export COMPOSE_PARALLEL_LIMIT=1
 export DOCKER_BUILDKIT=1
 
-reclaim_ec2_disk
+if [[ "${DEPLOY_DISK_CLEAN}" == "1" ]]; then
+  reclaim_ec2_disk
+else
+  echo "==> Skipping docker disk prune (DEPLOY_DISK_CLEAN=0)"
+fi
 
 # Drop stale microservices containers that still hold disk + confuse ops.
 docker rm -f \
@@ -173,24 +189,47 @@ docker rm -f \
   2>/dev/null || true
 
 chmod +x eduardoos-next/deploy/deploy-remote-production.sh
-APP_DIR="${APP_DIR}" bash eduardoos-next/deploy/deploy-remote-production.sh
+APP_DIR="${APP_DIR}" \
+  DEPLOY_BACKEND="${DEPLOY_BACKEND}" \
+  DEPLOY_FRONTEND="${DEPLOY_FRONTEND}" \
+  bash eduardoos-next/deploy/deploy-remote-production.sh
 
-# DynamoDB / S3 markers (idempotent) — safe for Next + legacy table names.
-echo "==> Ensuring DynamoDB observability tables exist"
-bash deploy/aws/create-observability-tables.sh || echo "WARNING: could not create observability tables (check IAM)"
+# DynamoDB / S3 markers — only on backend deploys (schema-related).
+if [[ "${DEPLOY_BACKEND}" == "1" ]]; then
+  echo "==> Ensuring DynamoDB observability tables exist"
+  bash deploy/aws/create-observability-tables.sh || echo "WARNING: could not create observability tables (check IAM)"
 
-echo "==> Ensuring DynamoDB edebats table exists"
-bash deploy/aws/create-edebats-table.sh || echo "WARNING: could not create eduardoos_edebats (check IAM)"
+  echo "==> Ensuring DynamoDB edebats table exists"
+  bash deploy/aws/create-edebats-table.sh || echo "WARNING: could not create eduardoos_edebats (check IAM)"
 
-echo "==> Ensuring DynamoDB ifcbim table and S3 ifcbim/ prefix exist"
-bash deploy/aws/create-ifcbim-table.sh || echo "WARNING: could not create eduardoos_ifcbim (check IAM)"
-bash deploy/aws/create-ifcbim-prefix.sh || echo "WARNING: could not create s3 ifcbim/ prefix (check IAM)"
+  echo "==> Ensuring DynamoDB ifcbim table and S3 ifcbim/ prefix exist"
+  bash deploy/aws/create-ifcbim-table.sh || echo "WARNING: could not create eduardoos_ifcbim (check IAM)"
+  bash deploy/aws/create-ifcbim-prefix.sh || echo "WARNING: could not create s3 ifcbim/ prefix (check IAM)"
+else
+  echo "==> Skipping DynamoDB/S3 bootstrap (DEPLOY_BACKEND=0)"
+fi
 
-docker builder prune -af || true
+if [[ "${DEPLOY_NGINX}" == "1" ]]; then
+  echo "==> Rendering nginx config for DOMAIN=${DOMAIN}"
+  sed "s/localhost/${DOMAIN}/g" nginx/default.conf > nginx/default.prod.conf
+  ensure_cert_bootstrap
 
-"${COMPOSE[@]}" up -d
+  if [[ "${DEPLOY_DISK_CLEAN}" == "1" ]]; then
+    docker builder prune -af || true
+  fi
 
-issue_letsencrypt_cert || true
+  "${COMPOSE[@]}" up -d
+  issue_letsencrypt_cert || true
+else
+  echo "==> Skipping nginx re-render / compose recreate (DEPLOY_NGINX=0)"
+  # Frontend-only: reload nginx so it picks up new files on the mounted dist volume.
+  if [[ "${DEPLOY_FRONTEND}" == "1" ]]; then
+    echo "==> Reloading nginx to pick up updated frontend dist"
+    "${COMPOSE[@]}" exec nginx nginx -s reload 2>/dev/null \
+      || "${COMPOSE[@]}" restart nginx 2>/dev/null \
+      || echo "WARNING: could not reload nginx"
+  fi
+fi
 
 echo "==> Deploy complete (Eduardo OS Next on production)"
-"${COMPOSE[@]}" ps
+"${COMPOSE[@]}" ps || true

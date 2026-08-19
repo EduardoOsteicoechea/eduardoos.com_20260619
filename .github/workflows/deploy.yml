@@ -1,10 +1,24 @@
 name: CI/CD — Deploy to EC2
 
-# One push to master → one deploy job on EC2 (Eduardo OS Next production + nginx).
+# One push to master → one production deploy on EC2 (selective by changed paths).
+# Staging is NOT auto-triggered here — use workflow "Deploy Eduardo OS Next (staging)" manually.
 on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      deploy_backend:
+        description: Build/restart Next Go backend
+        type: boolean
+        default: true
+      deploy_frontend:
+        description: Build Next Astro frontend
+        type: boolean
+        default: true
+      deploy_nginx:
+        description: Re-render nginx + compose/certbot
+        type: boolean
+        default: true
 
 jobs:
   deploy:
@@ -17,8 +31,73 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect deploy scopes
+        id: scope
+        run: |
+          set -euo pipefail
+          backend=0
+          frontend=0
+          nginx=0
+          skip=0
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            [ "${{ inputs.deploy_backend }}" = "true" ] && backend=1
+            [ "${{ inputs.deploy_frontend }}" = "true" ] && frontend=1
+            [ "${{ inputs.deploy_nginx }}" = "true" ] && nginx=1
+            echo "Manual dispatch scopes: backend=${backend} frontend=${frontend} nginx=${nginx}"
+          else
+            BEFORE="${{ github.event.before }}"
+            AFTER="${{ github.sha }}"
+            if [ -z "${BEFORE}" ] || [ "${BEFORE}" = "0000000000000000000000000000000000000000" ]; then
+              echo "No usable before SHA — full deploy"
+              backend=1; frontend=1; nginx=1
+            else
+              mapfile -t files < <(git diff --name-only "${BEFORE}" "${AFTER}" || true)
+              echo "Changed files (${#files[@]}):"
+              printf '  %s\n' "${files[@]}" || true
+
+              if [ "${#files[@]}" -eq 0 ]; then
+                echo "Empty diff — full deploy for safety"
+                backend=1; frontend=1; nginx=1
+              else
+                relevant=0
+                for f in "${files[@]}"; do
+                  case "${f}" in
+                    eduardoos-next/backend/*)
+                      backend=1; relevant=1 ;;
+                    eduardoos-next/frontend/*)
+                      frontend=1; relevant=1 ;;
+                    nginx/*|docker-compose.yml|docker-compose.ec2.yml)
+                      nginx=1; relevant=1 ;;
+                    deploy/*|eduardoos-next/deploy/*|.github/workflows/deploy.yml)
+                      # Infra / deploy scripts: rebuild everything that production serves.
+                      backend=1; frontend=1; nginx=1; relevant=1 ;;
+                    eduardoos-next/*)
+                      # Other next paths (specs, etc.) — no production rebuild.
+                      ;;
+                    *)
+                      ;;
+                  esac
+                done
+                if [ "${relevant}" -eq 0 ]; then
+                  echo "No production-scoped paths changed — skipping remote deploy"
+                  skip=1
+                fi
+              fi
+            fi
+          fi
+
+          echo "backend=${backend}" >> "$GITHUB_OUTPUT"
+          echo "frontend=${frontend}" >> "$GITHUB_OUTPUT"
+          echo "nginx=${nginx}" >> "$GITHUB_OUTPUT"
+          echo "skip=${skip}" >> "$GITHUB_OUTPUT"
+          echo "Resolved scopes: backend=${backend} frontend=${frontend} nginx=${nginx} skip=${skip}"
 
       - name: Validate required secrets
+        if: steps.scope.outputs.skip != '1'
         run: |
           missing=0
           for name in EC2_HOST EC2_USER EC2_SSH_PRIVATE_KEY JWT_SECRET INTERNAL_SERVICE_SECRET SMTP_USER SMTP_PASS DOMAIN CERTBOT_EMAIL; do
@@ -44,6 +123,7 @@ jobs:
           CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
 
       - name: Configure SSH
+        if: steps.scope.outputs.skip != '1'
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
@@ -55,6 +135,7 @@ jobs:
           echo "SSH_OPTS=-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=5 -o ServerAliveCountMax=4" >> "$GITHUB_ENV"
 
       - name: Build production .env (Eduardo OS Next)
+        if: steps.scope.outputs.skip != '1'
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           INTERNAL_SERVICE_SECRET: ${{ secrets.INTERNAL_SERVICE_SECRET }}
@@ -71,8 +152,6 @@ jobs:
           APS_ACTIVITY_ID: ${{ secrets.APS_ACTIVITY_ID }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
-          # systemd EnvironmentFile-safe quoting (same as staging). Strip spaces from
-          # SMTP_PASS so Gmail app passwords with UI spaces still authenticate.
           quote_env() {
             local val="${1-}"
             val="${val//\\/\\\\}"
@@ -147,6 +226,7 @@ jobs:
           echo "NOTE: Updating GitHub secrets alone does not restart EC2 — this job uploads .env and restarts eduardoos.service."
 
       - name: Prepare EC2 app directory
+        if: steps.scope.outputs.skip != '1'
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -156,12 +236,11 @@ jobs:
             "mkdir -p ~/eduardoos.com_20260619/eduardoos-next/deploy"
 
       - name: Upload .env and deploy scripts
+        if: steps.scope.outputs.skip != '1'
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          # Production env lives at APP_DIR/.env only. Do not overwrite
-          # eduardoos-next/.env (staging ADDR=:3001) or staging binds :3000 and dies.
           scp -i ~/.ssh/deploy_key $SSH_OPTS \
             .env.production \
             "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/.env"
@@ -175,17 +254,22 @@ jobs:
             eduardoos-next/deploy/deploy-remote-production.sh \
             "${EC2_USER}@${EC2_HOST}:~/eduardoos.com_20260619/eduardoos-next/deploy/deploy-remote-production.sh"
 
-      - name: Run remote deploy
+      - name: Run remote deploy (selective)
+        if: steps.scope.outputs.skip != '1'
         timeout-minutes: 40
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
+          DEPLOY_BACKEND: ${{ steps.scope.outputs.backend }}
+          DEPLOY_FRONTEND: ${{ steps.scope.outputs.frontend }}
+          DEPLOY_NGINX: ${{ steps.scope.outputs.nginx }}
         run: |
           ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS \
             "${EC2_USER}@${EC2_HOST}" \
-            "echo '==> Waiting for /tmp/eduardoos-ec2-deploy.lock (max 15m)...'; flock -w 900 /tmp/eduardoos-ec2-deploy.lock bash -lc 'cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x deploy/ec2/*.sh deploy/aws/*.sh eduardoos-next/deploy/*.sh 2>/dev/null || true && APP_DIR=~/eduardoos.com_20260619 bash deploy/ec2/deploy-remote.sh'"
+            "echo '==> Waiting for /tmp/eduardoos-ec2-deploy.lock (max 15m)...'; flock -w 900 /tmp/eduardoos-ec2-deploy.lock bash -lc 'cd ~/eduardoos.com_20260619 && git fetch origin master && git reset --hard origin/master && chmod +x deploy/ec2/*.sh deploy/aws/*.sh eduardoos-next/deploy/*.sh 2>/dev/null || true && APP_DIR=~/eduardoos.com_20260619 DEPLOY_BACKEND=${DEPLOY_BACKEND} DEPLOY_FRONTEND=${DEPLOY_FRONTEND} DEPLOY_NGINX=${DEPLOY_NGINX} bash deploy/ec2/deploy-remote.sh'"
 
       - name: Smoke check
+        if: steps.scope.outputs.skip != '1'
         env:
           DOMAIN: ${{ secrets.DOMAIN }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
@@ -198,7 +282,6 @@ jobs:
           echo "On-box smoke: ${onbox}"
           echo "${onbox}" | grep -q 'api=200' || { echo "::error::Next production backend :3000 unhealthy"; exit 1; }
 
-          # Confirm systemd loaded SMTP without printing secret values (length + flags only).
           smtp_smoke=$(ssh -n -T -i ~/.ssh/deploy_key $SSH_OPTS "${EC2_USER}@${EC2_HOST}" \
             'set -e
              ENV=~/eduardoos.com_20260619/.env
@@ -230,3 +313,7 @@ jobs:
           if [ "${health}" != "200" ]; then
             echo "::warning::HTTPS /health smoke did not return 200"
           fi
+
+      - name: Skipped (no production-scoped changes)
+        if: steps.scope.outputs.skip == '1'
+        run: echo "No backend/frontend/nginx/deploy paths changed — remote deploy skipped."
