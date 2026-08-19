@@ -144,19 +144,11 @@ export type PamphletHeaderLayoutMm = {
     meta_row_gap: number;
     /** Meta grid column-gap. */
     meta_col_gap: number;
-    /**
-     * Double horizontal rule at the bottom edge of the header band
-     * (same language as footer divider). Lives inside `height` — no extra body_gutter.
-     */
-    rule_clearance: number; // mm above the double rule (meta → rule)
-    rule_outer_stroke: number;
-    rule_gap: number;
-    rule_inner_stroke: number;
 };
 
 /** Exact mm from style.css `.pamphlet-page-header` — PDF must use these, not invent sizes. */
 export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
-    height: 27, // pad + title + meta + rule_clearance + bottom rule + frame
+    height: 27, // pad + title + meta + frame
     body_gutter: 1, // --header-body-gutter
     pad: 1.2,
     radius: 1,
@@ -171,10 +163,6 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     meta_lh: 1.2,
     meta_row_gap: 0.8, // .pamphlet-header-meta-bar { row-gap }
     meta_col_gap: 2.5, // .pamphlet-header-meta-bar { column-gap }
-    rule_clearance: 1, // bottom rule 1mm higher than prior 2mm clearance
-    rule_outer_stroke: 0.2,
-    rule_gap: 0.45,
-    rule_inner_stroke: 0.1,
 };
 
 /**

@@ -207,17 +207,13 @@
   --header-meta-lh: 1.2;
   --header-meta-row-gap: 0.8mm;
   --header-meta-col-gap: 2.5mm;
-  /* Header chrome + bottom rule (PAMPHLET_HEADER_LAYOUT_MM) — match footer frame language. */
+  /* Header chrome (PAMPHLET_HEADER_LAYOUT_MM) — footer-style double frame only. */
   --header-pad: 1.2mm;
   --header-stroke: 0.2mm;
   --header-radius: 1mm;
   --header-inner-inset: 0.45mm;
   --header-inner-stroke: 0.1mm;
   --header-inner-radius: 0.6mm;
-  --header-rule-clearance: 1mm; /* space meta → bottom rule */
-  --header-rule-outer: 0.2mm;
-  --header-rule-gap: 0.45mm;
-  --header-rule-inner: 0.1mm;
   /* Title + meta + pad + rule_clearance + rule + frame. Same as PDF PamphletHeaderHMm. */
   --page-header-height: 27mm;
   /* Margin under header band before cols 1–2 (PDF uses the same). */
@@ -377,7 +373,7 @@
 .pamphlet-page-header {
     grid-column: 6 / 9;
     grid-row: 2;
-    position: relative; /* anchor inner frame + bottom rule */
+    position: relative; /* anchor inner frame */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -393,11 +389,6 @@
     border: var(--header-stroke) solid #222222;
     border-radius: var(--header-radius);
     padding: var(--header-pad);
-    /* Extra bottom room for clearance + bottom double rule (inside the frame). */
-    padding-bottom: calc(
-        var(--header-pad) + var(--header-rule-clearance) + var(--header-rule-outer) +
-            var(--header-rule-gap) + var(--header-rule-inner)
-    );
 }
 
 /* Thinner second frame — same inset math as footer ::after. */
@@ -409,21 +400,6 @@
     border-radius: var(--header-inner-radius);
     pointer-events: none;
     z-index: 1;
-}
-
-/* Double horizontal rule at the bottom edge inside the header frame. */
-.pamphlet-page-header::after {
-    content: "";
-    position: absolute;
-    left: var(--header-pad);
-    right: var(--header-pad);
-    bottom: var(--header-pad);
-    box-sizing: border-box;
-    border-top: var(--header-rule-outer) solid #222222;
-    border-bottom: var(--header-rule-inner) solid #222222;
-    padding-top: var(--header-rule-gap);
-    pointer-events: none;
-    z-index: 2;
 }
 
 .pamphlet-page-header:has(.element_edit_tray) {
@@ -585,7 +561,8 @@
 
 .pamphlet-footer-action h1 {
     font-family: Roboto, sans-serif;
-    font-size: 3.175mm; /* 9pt — PDF print uses PAMPHLET_FOOTER_LAYOUT_MM.action_size */
+    /* Base equals PDF action_size; desktop override below must beat sheet-wide h1. */
+    font-size: 3.175mm;
     font-weight: 600;
     line-height: 1.25;
     color: #000000;
@@ -597,9 +574,15 @@
     white-space: normal;
 }
 
-/* Desktop only: Acción at 2.5mm (PDF keeps action_size 3.175mm). */
-.pamphlet-app[data-view-mode="desktop"] .pamphlet-footer-action h1 {
+/*
+  Desktop Acción size — MUST beat later `.pamphlet-app main.pamphlet-sheet h1 { 4.25mm }`
+  which was winning over weaker selectors and keeping the title huge on screen.
+  PDF print ignores this CSS and uses PAMPHLET_FOOTER_LAYOUT_MM.action_size (3.175).
+*/
+.pamphlet-app[data-view-mode="desktop"] main.pamphlet-sheet .pamphlet-page-footer .pamphlet-footer-action h1 {
     font-size: 2.5mm;
+    font-weight: 600;
+    line-height: 1.25;
 }
 
 .pamphlet-footer-message p {
@@ -844,8 +827,7 @@
   Use inherit so desktop (#000 sheet) and mobile dark (column color) both work.
 */
 .pamphlet-app main.pamphlet-sheet .pamphlet-item[data-item-type="heading_1"] h1,
-.pamphlet-app main.pamphlet-sheet .dumb-column h1,
-.pamphlet-app main.pamphlet-sheet h1 {
+.pamphlet-app main.pamphlet-sheet .dumb-column h1 {
   max-width: 100%;
   overflow-wrap: break-word;
   word-break: break-word;

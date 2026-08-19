@@ -89,25 +89,21 @@ type PamphletDocument struct {
 // PamphletHeaderLayout is the exact mm type/spacing from the frontend sheet CSS
 // (PAMPHLET_HEADER_LAYOUT_MM). Print POSTs these; PDF must not invent sizes.
 type PamphletHeaderLayout struct {
-	Height          float64 `json:"height"`
-	BodyGutter      float64 `json:"body_gutter"`
-	Pad             float64 `json:"pad"`
-	Radius          float64 `json:"radius"`
-	Stroke          float64 `json:"stroke"`
-	InnerInset      float64 `json:"inner_inset"`
-	InnerStroke     float64 `json:"inner_stroke"`
-	InnerRadius     float64 `json:"inner_radius"`
-	TitleSize       float64 `json:"title_size"`
-	TitleLH         float64 `json:"title_lh"`
-	TitleMetaGap    float64 `json:"title_meta_gap"`
-	MetaSize        float64 `json:"meta_size"`
-	MetaLH          float64 `json:"meta_lh"`
-	MetaRowGap      float64 `json:"meta_row_gap"`
-	MetaColGap      float64 `json:"meta_col_gap"`
-	RuleClearance   float64 `json:"rule_clearance"`
-	RuleOuterStroke float64 `json:"rule_outer_stroke"`
-	RuleGap         float64 `json:"rule_gap"`
-	RuleInnerStroke float64 `json:"rule_inner_stroke"`
+	Height       float64 `json:"height"`
+	BodyGutter   float64 `json:"body_gutter"`
+	Pad          float64 `json:"pad"`
+	Radius       float64 `json:"radius"`
+	Stroke       float64 `json:"stroke"`
+	InnerInset   float64 `json:"inner_inset"`
+	InnerStroke  float64 `json:"inner_stroke"`
+	InnerRadius  float64 `json:"inner_radius"`
+	TitleSize    float64 `json:"title_size"`
+	TitleLH      float64 `json:"title_lh"`
+	TitleMetaGap float64 `json:"title_meta_gap"`
+	MetaSize     float64 `json:"meta_size"`
+	MetaLH       float64 `json:"meta_lh"`
+	MetaRowGap   float64 `json:"meta_row_gap"`
+	MetaColGap   float64 `json:"meta_col_gap"`
 }
 
 // PamphletFooterLayout is the exact mm chrome from the frontend sheet CSS
@@ -466,8 +462,8 @@ func cssBaselineOffsetMm(sizeMm, lineHeight float64) float64 {
 	return sizeMm*(lineHeight-1.0)/2.0 + sizeMm*0.80
 }
 
-// drawHeader paints footer-style double frame, title + 2×2 gray meta, then a
-// bottom double rule. Type sizes and chrome come from header_layout (FE mm).
+// drawHeader paints footer-style double frame, then title + 2x2 gray meta.
+// Type sizes and chrome come from header_layout (FE mm).
 func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayout, x, top, width float64) float64 {
 	layout = normalizeHeaderLayout(layout)
 	heightMm := layout.Height
@@ -491,11 +487,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 	innerX := x + pad
 	innerTop := top - pad
 	innerW := width - 2*pad
-	ruleH := layout.RuleOuterStroke + layout.RuleGap + layout.RuleInnerStroke
-	clearance := layout.RuleClearance
-	// Inner floor above pad; text stays above clearance + bottom rule.
-	innerFloor := floor + pad
-	textFloor := innerFloor + ruleH + clearance
+	textFloor := floor + pad
 
 	titleSizeMm := layout.TitleSize
 	titleLH := layout.TitleLH
@@ -510,10 +502,6 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 			nTitle = 1
 		}
 	} else if strings.TrimSpace(h.Title) == "" {
-		if ruleH > 0 {
-			strokeHorizontalRuleMm(s, innerX, innerFloor+ruleH, innerW, layout.RuleOuterStroke)
-			strokeHorizontalRuleMm(s, innerX, innerFloor+layout.RuleInnerStroke, innerW, layout.RuleInnerStroke)
-		}
 		return floor
 	}
 	titleBoxBottom := innerTop - float64(nTitle)*titleLineHMm
@@ -559,11 +547,6 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		contentBottom = metaLineTop - metaLineHMm
 	}
 
-	if ruleH > 0 {
-		strokeHorizontalRuleMm(s, innerX, innerFloor+ruleH, innerW, layout.RuleOuterStroke)
-		strokeHorizontalRuleMm(s, innerX, innerFloor+layout.RuleInnerStroke, innerW, layout.RuleInnerStroke)
-	}
-
 	if contentBottom < floor {
 		return floor
 	}
@@ -596,12 +579,8 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		TitleMetaGap:    PamphletHeaderTitleMetaGapMm,
 		MetaSize:        pamphletMetaSizeMm,
 		MetaLH:          pamphletMetaLH,
-		MetaRowGap:      PamphletHeaderMetaRowGapMm,
-		MetaColGap:      2.5,
-		RuleClearance:   1,
-		RuleOuterStroke: 0.2,
-		RuleGap:         0.45,
-		RuleInnerStroke: 0.1,
+		MetaRowGap:   PamphletHeaderMetaRowGapMm,
+		MetaColGap:   2.5,
 	}
 }
 
@@ -629,12 +608,8 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 		TitleMetaGap:    pick(l.TitleMetaGap, d.TitleMetaGap),
 		MetaSize:        pick(l.MetaSize, d.MetaSize),
 		MetaLH:          pick(l.MetaLH, d.MetaLH),
-		MetaRowGap:      pick(l.MetaRowGap, d.MetaRowGap),
-		MetaColGap:      pick(l.MetaColGap, d.MetaColGap),
-		RuleClearance:   pick(l.RuleClearance, d.RuleClearance),
-		RuleOuterStroke: pick(l.RuleOuterStroke, d.RuleOuterStroke),
-		RuleGap:         pick(l.RuleGap, d.RuleGap),
-		RuleInnerStroke: pick(l.RuleInnerStroke, d.RuleInnerStroke),
+		MetaRowGap:   pick(l.MetaRowGap, d.MetaRowGap),
+		MetaColGap:   pick(l.MetaColGap, d.MetaColGap),
 	}
 }
 

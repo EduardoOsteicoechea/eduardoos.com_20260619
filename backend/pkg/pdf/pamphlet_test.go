@@ -179,7 +179,7 @@ func TestLongTitleFillsHeaderBandLikeDesktop(t *testing.T) {
 	}
 }
 
-func TestHeaderBottomRuleFromLayout(t *testing.T) {
+func TestHeaderFrameFromLayout(t *testing.T) {
 	var s strings.Builder
 	layout := defaultHeaderLayout()
 	_ = drawHeader(&s, PamphletHeader{
@@ -188,12 +188,9 @@ func TestHeaderBottomRuleFromLayout(t *testing.T) {
 		Series: "Romanos",
 	}, layout, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow)
 	out := s.String()
-	// strokeHorizontalRuleMm emits "m … l S" path ops — expect two rules.
-	if strings.Count(out, " l S\n") < 2 {
-		t.Fatalf("expected ≥2 horizontal rule strokes in header stream, got %q", out)
-	}
-	if layout.RuleClearance != 1 || layout.RuleOuterStroke != 0.2 || layout.RuleGap != 0.45 || layout.RuleInnerStroke != 0.1 {
-		t.Fatalf("header rule mm mismatch: %+v", layout)
+	// Outer + inner rounded frames → at least two stroke path blocks.
+	if strings.Count(out, "\nS\n") < 2 {
+		t.Fatalf("expected ≥2 frame strokes in header stream, got %q", out)
 	}
 	if layout.Pad != 1.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
 		t.Fatalf("header frame mm mismatch: %+v", layout)
