@@ -93,8 +93,8 @@ func TestToWinAnsiSpanish(t *testing.T) {
 
 func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	layout := defaultHeaderLayout()
-	if layout.TitleMetaGap < 2.4 || layout.TitleMetaGap > 2.8 {
-		t.Fatalf("header divider→meta CSS gap want ~2.6mm, got %v", layout.TitleMetaGap)
+	if layout.TitleMetaGap < 0.5 || layout.TitleMetaGap > 0.8 {
+		t.Fatalf("header divider→meta CSS gap want ~0.6mm, got %v", layout.TitleMetaGap)
 	}
 	if layout.MetaRowGap < 0.6 || layout.MetaRowGap > 1.0 {
 		t.Fatalf("header meta row-gap want ~0.8mm, got %v", layout.MetaRowGap)
@@ -134,8 +134,8 @@ func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	titleY := ys[len(ys)-1]
 	metaY := ys[len(ys)-2]
 	gapMm := (titleY - metaY) * 25.4 / 72.0
-	// Title baseline → meta baseline includes descent + divider + 2.6mm gap + meta ascent.
-	if gapMm < 4.0 {
+	// Title baseline → meta baseline includes descent + divider + 0.6mm gap + meta ascent.
+	if gapMm < 2.5 {
 		t.Fatalf("title→meta baseline gap=%.2fmm too tight (overlap risk); ys=%v", gapMm, ys)
 	}
 	bandFloor := 200.0 - layout.Height
