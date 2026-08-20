@@ -286,44 +286,74 @@ export default function ScribEditor() {
     await persist(next);
   }
 
+  const modeRef = useRef(mode);
+  const scaleRef = useRef(scale);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
+
+  /** Native non-passive wheel/touch so preventDefault is allowed (React listeners are passive). */
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+
+    const onWheelNative = (e: WheelEvent) => {
+      if (modeRef.current !== "zoom") return;
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      setScale((s) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, s * delta)));
+    };
+
+    const onTouchStartNative = (e: TouchEvent) => {
+      if (modeRef.current !== "zoom" || e.touches.length !== 2) return;
+      const [a, b] = [e.touches[0], e.touches[1]];
+      const dist0 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      pinchRef.current = { dist: dist0, scale: scaleRef.current };
+    };
+
+    const onTouchMoveNative = (e: TouchEvent) => {
+      if (modeRef.current !== "zoom" || !pinchRef.current || e.touches.length !== 2) {
+        return;
+      }
+      e.preventDefault();
+      const [a, b] = [e.touches[0], e.touches[1]];
+      const dist1 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      const ratio = dist1 / Math.max(1, pinchRef.current.dist);
+      setScale(
+        Math.min(
+          ZOOM_MAX,
+          Math.max(ZOOM_MIN, pinchRef.current.scale * ratio),
+        ),
+      );
+    };
+
+    const onTouchEndNative = () => {
+      pinchRef.current = null;
+    };
+
+    el.addEventListener("wheel", onWheelNative, { passive: false });
+    el.addEventListener("touchstart", onTouchStartNative, { passive: true });
+    el.addEventListener("touchmove", onTouchMoveNative, { passive: false });
+    el.addEventListener("touchend", onTouchEndNative);
+    el.addEventListener("touchcancel", onTouchEndNative);
+    return () => {
+      el.removeEventListener("wheel", onWheelNative);
+      el.removeEventListener("touchstart", onTouchStartNative);
+      el.removeEventListener("touchmove", onTouchMoveNative);
+      el.removeEventListener("touchend", onTouchEndNative);
+      el.removeEventListener("touchcancel", onTouchEndNative);
+    };
+  }, [sheet?.id]);
+
   function onPointerUp() {
     if (mode === "zoom") {
       panDragRef.current = null;
       return;
     }
     void finishStroke();
-  }
-
-  function onWheel(e: React.WheelEvent) {
-    if (mode !== "zoom") return;
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setScale((s) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, s * delta)));
-  }
-
-  function onTouchStart(e: React.TouchEvent) {
-    if (mode !== "zoom" || e.touches.length !== 2) return;
-    const [a, b] = [e.touches[0], e.touches[1]];
-    const dist0 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    pinchRef.current = { dist: dist0, scale };
-  }
-
-  function onTouchMove(e: React.TouchEvent) {
-    if (mode !== "zoom" || !pinchRef.current || e.touches.length !== 2) return;
-    e.preventDefault();
-    const [a, b] = [e.touches[0], e.touches[1]];
-    const dist1 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    const ratio = dist1 / Math.max(1, pinchRef.current.dist);
-    setScale(
-      Math.min(
-        ZOOM_MAX,
-        Math.max(ZOOM_MIN, pinchRef.current.scale * ratio),
-      ),
-    );
-  }
-
-  function onTouchEnd() {
-    pinchRef.current = null;
   }
 
   async function onUndo() {
@@ -402,10 +432,6 @@ export default function ScribEditor() {
         <div
           ref={viewportRef}
           className={`scrib-viewport${mode === "zoom" ? " scrib-viewport--zoom" : ""}`}
-          onWheel={onWheel}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
         >
           <div
             className="scrib-stage"
