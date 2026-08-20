@@ -12,6 +12,7 @@ export type ScribToolMode = "draw" | "zoom" | "erase";
 
 type ScribHeaderMenuProps = {
   mode: ScribToolMode;
+  penOnly: boolean;
   strokeWidthMm: number;
   canUndo: boolean;
   saving: boolean;
@@ -20,6 +21,7 @@ type ScribHeaderMenuProps = {
   onStrokePlus: () => void;
   onStrokeMinus: () => void;
   onToggleErase: () => void;
+  onTogglePenOnly: () => void;
   onOpenLayers: () => void;
   onUndo: () => void;
 };
@@ -68,6 +70,17 @@ function IconLayers() {
   return (
     <svg className="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="0 0 24 24" aria-hidden>
       <path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zm0 9L2 6v2l10 5 10-5V6l-10 5zm0 4L2 10v2l10 5 10-5v-2l-10 5z" />
+    </svg>
+  );
+}
+
+function IconPen() {
+  return (
+    <svg className="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.41l-2.34-2.34a1.003 1.003 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+      />
     </svg>
   );
 }
@@ -160,6 +173,16 @@ export default function ScribHeaderMenu(props: ScribHeaderMenuProps) {
             onClick={props.onToggleErase}
           >
             <IconErase />
+          </button>
+          <button
+            type="button"
+            className={`header-dynamic-menu__btn${props.penOnly ? " header-dynamic-menu__btn--active is-active" : ""}`}
+            title="Solo lápiz (ignora dedo/mano)"
+            aria-label="Modo solo lápiz stylus"
+            aria-pressed={props.penOnly}
+            onClick={props.onTogglePenOnly}
+          >
+            <IconPen />
           </button>
           <button
             type="button"

@@ -100,6 +100,7 @@ export default function ScribEditor() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<ScribToolMode>("draw");
+  const [penOnly, setPenOnly] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [scale, setScale] = useState(1);
@@ -109,6 +110,7 @@ export default function ScribEditor() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const drawingRef = useRef(false);
+  const activePointerIdRef = useRef<number | null>(null);
   const pointsRef = useRef<{ x: number; y: number }[]>([]);
   const [draftPath, setDraftPath] = useState("");
   const panDragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
@@ -206,6 +208,12 @@ export default function ScribEditor() {
     return { x, y };
   }
 
+  function acceptsDrawPointer(e: React.PointerEvent): boolean {
+    // Pen-only: stylus/apple pencil; ignore finger, palm, and mouse.
+    if (penOnly) return e.pointerType === "pen";
+    return true;
+  }
+
   function onPointerDown(e: React.PointerEvent) {
     if (!sheet) return;
     if (mode === "zoom") {
@@ -218,9 +226,11 @@ export default function ScribEditor() {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       return;
     }
+    if (!acceptsDrawPointer(e)) return;
     const pt = mmFromClient(e.clientX, e.clientY);
     if (!pt) return;
     drawingRef.current = true;
+    activePointerIdRef.current = e.pointerId;
     pointsRef.current = [pt];
     setDraftPath("");
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -237,6 +247,13 @@ export default function ScribEditor() {
       return;
     }
     if (!drawingRef.current) return;
+    if (
+      activePointerIdRef.current !== null &&
+      e.pointerId !== activePointerIdRef.current
+    ) {
+      return;
+    }
+    if (penOnly && e.pointerType !== "pen") return;
     const pt = mmFromClient(e.clientX, e.clientY);
     if (!pt) return;
     pointsRef.current.push(pt);
@@ -348,11 +365,18 @@ export default function ScribEditor() {
     };
   }, [sheet?.id]);
 
-  function onPointerUp() {
+  function onPointerUp(e: React.PointerEvent) {
     if (mode === "zoom") {
       panDragRef.current = null;
       return;
     }
+    if (
+      activePointerIdRef.current !== null &&
+      e.pointerId !== activePointerIdRef.current
+    ) {
+      return;
+    }
+    activePointerIdRef.current = null;
     void finishStroke();
   }
 
@@ -383,6 +407,7 @@ export default function ScribEditor() {
     <ServiceGate serviceId="scrib" serviceLabel="Scrib" requireSubscription>
       <ScribHeaderMenu
         mode={mode}
+        penOnly={penOnly}
         strokeWidthMm={sheet?.strokeWidthMm ?? 0.35}
         canUndo={undoStack.length > 0}
         saving={saving}
@@ -421,6 +446,7 @@ export default function ScribEditor() {
         onToggleErase={() =>
           setMode((m) => (m === "erase" ? "draw" : "erase"))
         }
+        onTogglePenOnly={() => setPenOnly((v) => !v)}
         onOpenLayers={() => setLayersOpen(true)}
         onUndo={() => void onUndo()}
       />
@@ -431,7 +457,7 @@ export default function ScribEditor() {
       {sheet ? (
         <div
           ref={viewportRef}
-          className={`scrib-viewport${mode === "zoom" ? " scrib-viewport--zoom" : ""}`}
+          className={`scrib-viewport${mode === "zoom" ? " scrib-viewport--zoom" : ""}${penOnly ? " scrib-viewport--pen-only" : ""}`}
         >
           <div
             className="scrib-stage"

@@ -52,6 +52,7 @@ Dynamic header host (`#header-dynamic-menu-host`):
 5. **Eraser** — toggle; erases only on active layer (remove/hit nearby path segments or paint eraser via compositing — prefer deleting path hits under brush; MVP: draw white/transparent eraser paths with `destination-out` on a temp canvas then bake, OR remove paths whose bbox intersects eraser stroke — **MVP: freehand eraser that removes path points within radius of active layer paths**)
 6. **Layers modal** — per layer: opacity slider (0–1), radio to set **sole** active layer
 7. **Undo** — revert last stroke/erase action on active layer (in-memory stack + persist after undo)
+8. **Pen only** (stylus / palm rejection) — toggle in the dynamic header. When **on**, draw and erase accept only `pointerType === "pen"` (Apple Pencil, S Pen, etc.); finger / palm / mouse are ignored so the hand can rest on phone/tablet without marking. Zoom mode still allows finger pan/pinch. Default **off** (finger and mouse draw as today).
 
 Default mode = **draw** on active layer. Stroke color: **`#141820`** (site ink) all layers for MVP.
 

@@ -207,6 +207,11 @@ body:has(.scrib-viewport) {
   cursor: grabbing;
 }
 
+.scrib-viewport--pen-only .scrib-page {
+  /* Palm / finger contact should not scroll or start OS gestures while drawing with pen. */
+  touch-action: none;
+}
+
 .scrib-stage {
   transform-origin: center center;
   will-change: transform;
