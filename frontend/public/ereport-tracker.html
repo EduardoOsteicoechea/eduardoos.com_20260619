@@ -315,26 +315,43 @@ body.theme-dark .section-block { background: transparent; }
 .group-head h3:hover { outline-color: rgba(141,226,214,.55); }
 .section-title-input,
 .group-title-input {
+  box-sizing: border-box;
   width: min(100%, 36rem);
+  min-width: 8rem;
   margin: 0;
-  padding: 0.1rem 0.35rem;
-  border: 1px solid rgba(255,255,255,.55);
+  padding: 0.15rem 0.4rem;
+  border: 1px solid transparent;
   border-radius: 4px;
-  background: rgba(0,0,0,.22);
+  background: transparent;
   color: inherit;
   font: inherit;
   font-weight: 750;
   letter-spacing: -0.02em;
   line-height: 1.15;
+  cursor: text;
 }
-.section-title-input { font-size: 1.35rem; color: var(--brand-surface); }
+.section-title-input {
+  font-size: 1.35rem;
+  color: var(--brand-surface);
+}
+.section-title-input:hover,
+.section-title-input:focus {
+  border-color: rgba(255,255,255,.55);
+  background: rgba(0,0,0,.22);
+  outline: none;
+}
 .group-title-input {
-  border-color: rgba(141,226,214,.65);
   font-size: 1rem;
   font-weight: 700;
   color: var(--brand-primary);
 }
 body.theme-dark .group-title-input { color: var(--brand-secondary); }
+.group-title-input:hover,
+.group-title-input:focus {
+  border-color: rgba(141,226,214,.65);
+  background: rgba(0,0,0,.18);
+  outline: none;
+}
 .section-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .section-actions .hint { color: rgba(252,252,252,.75); font-size: 0.8rem; }
 .section-actions button.danger {
@@ -735,33 +752,6 @@ function collectFromDom() {
   });
 }
 
-function beginInlineTitleEdit(heading, inputClass, onCommit) {
-  if (!(heading instanceof HTMLElement)) return;
-  if (heading.dataset.editing === "1") return;
-  const previous = heading.textContent || "";
-  const input = document.createElement("input");
-  input.type = "text";
-  input.className = inputClass;
-  input.value = previous;
-  input.setAttribute("aria-label", "Editar título");
-  heading.dataset.editing = "1";
-  heading.replaceWith(input);
-  input.focus();
-  input.select();
-  let done = false;
-  const finish = (commit) => {
-    if (done) return;
-    done = true;
-    const next = commit ? ((input.value || "").trim() || previous) : previous;
-    onCommit(next);
-  };
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); finish(true); }
-    if (e.key === "Escape") { e.preventDefault(); finish(false); }
-  });
-  input.addEventListener("blur", () => finish(true));
-}
-
 function setStatus(sid, gid, iid, status) {
   collectFromDom();
   const item = state.sections.find(s => s.id === sid).groups.find(g => g.id === gid).items.find(i => i.id === iid);
@@ -1044,7 +1034,14 @@ function render() {
   root.innerHTML = state.sections.map(sec => `
     <section class="section-block" id="sec-${sec.id}" data-section="${sec.id}">
       <div class="section-title">
-        <h2 class="section-heading" title="Clic para editar">${escapeHtml(sec.title)}</h2>
+        <input
+          type="text"
+          class="section-title-input"
+          data-role="section-title"
+          value="${escapeAttr(sec.title)}"
+          aria-label="Título de sección"
+          title="Editar título de sección"
+        />
         <div class="section-actions">
           <span class="hint">${sec.kind === "funcionalidades" ? "Por funcionalidad" : "Por subartículo"}</span>
           <button type="button" class="danger" data-act="clear-section" title="Vaciar sección">
@@ -1056,7 +1053,14 @@ function render() {
       ${sec.groups.map(grp => `
         <div class="group-block subcontainer" id="grp-${grp.id}" data-group="${grp.id}">
           <div class="group-head">
-            <h3 class="group-heading" title="Clic para editar">${escapeHtml(grp.title)}</h3>
+            <input
+              type="text"
+              class="group-title-input"
+              data-role="group-title"
+              value="${escapeAttr(grp.title)}"
+              aria-label="Título de subsección"
+              title="Editar título de subsección"
+            />
             <div class="group-actions">
               <button type="button" class="ghost" data-act="add-item" title="Agregar fila"><span class="btn-ico">＋</span></button>
               <button type="button" class="danger" data-act="clear-group" title="Vaciar grupo"><span class="btn-ico">🗑</span></button>
@@ -1069,33 +1073,47 @@ function render() {
     </section>
   `).join("");
 
-  root.querySelectorAll("h2.section-heading").forEach(h2 => {
-    h2.onclick = () => {
-      const sid = h2.closest(".section-block")?.dataset.section;
-      beginInlineTitleEdit(h2, "section-title-input", (next) => {
-        collectFromDom();
-        const sec = state.sections.find(s => s.id === sid);
-        if (sec) sec.title = next;
-        render();
+  root.querySelectorAll('input[data-role="section-title"]').forEach(inp => {
+    const sid = inp.closest(".section-block")?.dataset.section;
+    const commit = () => {
+      const sec = state.sections.find(s => s.id === sid);
+      if (!sec) return;
+      const next = (inp.value || "").trim() || sec.title;
+      inp.value = next;
+      if (sec.title !== next) {
+        sec.title = next;
+        renderNavRail();
         updateStatus();
-      });
+      }
     };
+    inp.addEventListener("change", commit);
+    inp.addEventListener("blur", commit);
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+    });
   });
-  root.querySelectorAll("h3.group-heading").forEach(h3 => {
-    h3.onclick = () => {
-      const secEl = h3.closest(".section-block");
-      const block = h3.closest(".group-block");
-      const sid = secEl?.dataset.section;
-      const gid = block?.dataset.group;
-      beginInlineTitleEdit(h3, "group-title-input", (next) => {
-        collectFromDom();
-        const sec = state.sections.find(s => s.id === sid);
-        const grp = sec && sec.groups.find(g => g.id === gid);
-        if (grp) grp.title = next;
-        render();
+  root.querySelectorAll('input[data-role="group-title"]').forEach(inp => {
+    const secEl = inp.closest(".section-block");
+    const block = inp.closest(".group-block");
+    const sid = secEl?.dataset.section;
+    const gid = block?.dataset.group;
+    const commit = () => {
+      const sec = state.sections.find(s => s.id === sid);
+      const grp = sec && sec.groups.find(g => g.id === gid);
+      if (!grp) return;
+      const next = (inp.value || "").trim() || grp.title;
+      inp.value = next;
+      if (grp.title !== next) {
+        grp.title = next;
+        renderNavRail();
         updateStatus();
-      });
+      }
     };
+    inp.addEventListener("change", commit);
+    inp.addEventListener("blur", commit);
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+    });
   });
 
   root.querySelectorAll(".item-card").forEach(card => {

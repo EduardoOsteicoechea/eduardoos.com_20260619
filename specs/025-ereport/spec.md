@@ -58,7 +58,7 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
   - **Guardar en nube** — modal with confirm + status; runs collect → `PUT` cloud.
   - **Compartir** — modal to add/remove registered emails (owners only; hidden if `!canShare`).
 - Body: portable Issue Tracker embedded via host-bridged static HTML at **`/ereport-tracker.html`** (alias `/ereport/tracker.html`).
-- **Inline title edit (tracker):** clicking the **sección máxima** heading (`h2`, e.g. “1. Product / platform”) or a **subsección/grupo** heading (`h3`, e.g. “General”) replaces that text **in place** with an input styled as the heading; Enter or blur commits; Escape cancels. Titles persist in `.ereport` payload via `collectFromDom`.
+- **Inline title edit (tracker):** sección máxima and subsección/grupo titles are **always `<input>` fields** styled as headings (click/focus to edit). Enter or blur commits into state; values persist in `.ereport` via `collectFromDom`.
 - Save in tracker: downloads (kit behavior) **and** posts state to host → `PUT` cloud.
 - Cloud save also from header modal and when tracker `saveAll` completes (bridge).
 - Owner: full edit + share. Shared user: **view + edit body** (not delete report / not manage shares). Non-owner non-shared: 403.
