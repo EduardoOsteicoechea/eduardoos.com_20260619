@@ -65,6 +65,7 @@ const pathname = Astro.url.pathname;
       rel="stylesheet"
     />
     <title>{title}</title>
+    <slot name="head" />
     {
       requireAuth && (
         <>

@@ -1,0 +1,167 @@
+---
+/**
+ * Scrollable professional dossier under the home hero.
+ * Facts from eduardoProfile.ts (PROFILE_CONTEXT.md §2). AEO-structured.
+ */
+import {
+  PROFILE_EMAIL,
+  PROFILE_GITHUB,
+  PROFILE_LINKEDIN,
+  PROFILE_SITE,
+  PROFILE_WHATSAPP,
+  PROFILE_WHATSAPP_DISPLAY,
+  PROFILE_YOUTUBE,
+  profileEducation,
+  profileExperience,
+  profileExpertiseAnswer,
+  profileFaq,
+  profileFocusAnswer,
+  profileSkills,
+  profileStack,
+  profileWhoAnswer,
+} from "../../lib/eduardoProfile";
+import "./HomeProfile.css";
+---
+
+<section class="home-profile" aria-label="Professional profile">
+  <div class="home-profile__inner">
+    <header class="home-profile__intro">
+      <p class="home-profile__eyebrow">Professional profile</p>
+      <p class="home-profile__deck">
+        Structured facts about Eduardo Osteicoechea for visitors, search, and
+        answer engines — drawn from his public professional corpus.
+      </p>
+    </header>
+
+    <section class="home-profile__block" id="who">
+      <h2>Who is Eduardo Osteicoechea?</h2>
+      <p class="home-profile__answer">{profileWhoAnswer}</p>
+    </section>
+
+    <section class="home-profile__block" id="expertise">
+      <h2>What does he specialize in?</h2>
+      <p class="home-profile__answer">{profileExpertiseAnswer}</p>
+    </section>
+
+    <section class="home-profile__block" id="education">
+      <h2>What is his education and training?</h2>
+      <p class="home-profile__answer">
+        Eduardo’s formal path combines architecture, BIM specialization, theology
+        study, and deliberate full-stack self-training — so he can design buildings
+        and ship the software that supports them.
+      </p>
+      <ul class="home-profile__list">
+        {profileEducation.map((item) => <li>{item}</li>)}
+      </ul>
+    </section>
+
+    <section class="home-profile__block" id="experience">
+      <h2>What is his professional experience?</h2>
+      <p class="home-profile__answer">
+        His timeline moves from architectural production through missionary
+        leadership and US BIM consulting into AI-powered BIM product engineering
+        at Avant Leap, with freelance full-stack delivery in between.
+      </p>
+      <ol class="home-profile__timeline">
+        {
+          profileExperience.map((job) => (
+            <li>
+              <h3>
+                <span class="home-profile__org">{job.org}</span>
+                <span class="home-profile__role">{job.role}</span>
+              </h3>
+              <p class="home-profile__period">{job.period}</p>
+              <p>{job.summary}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <section class="home-profile__block" id="skills">
+      <h2>What skills and stack does he use?</h2>
+      <p class="home-profile__answer">
+        Public strengths emphasize cross-disciplinary adaptability, Revit family
+        and add-in work, AI-in-BIM workflows, cloud deployment, and full-stack
+        desktop and web delivery with clear client communication.
+      </p>
+      <ul class="home-profile__chips" aria-label="Skills">
+        {profileSkills.map((s) => <li>{s}</li>)}
+      </ul>
+      <p class="home-profile__stack">
+        <strong>Technical stack (representative):</strong>
+        {profileStack}
+      </p>
+    </section>
+
+    <section class="home-profile__block" id="focus">
+      <h2>What is Eduardo working on now?</h2>
+      <p class="home-profile__answer">{profileFocusAnswer}</p>
+    </section>
+
+    <section class="home-profile__block" id="contact-profile">
+      <h2>How can I contact Eduardo Osteicoechea?</h2>
+      <p class="home-profile__answer">
+        Use his public channels — email, WhatsApp, or LinkedIn. These are the
+        same canonical contacts used across Eduardo OS.
+      </p>
+      <ul class="home-profile__contacts">
+        <li>
+          <span class="home-profile__contact-label">LinkedIn</span>
+          <a href={PROFILE_LINKEDIN} rel="noopener noreferrer" target="_blank"
+            >linkedin.com/in/eduardoosteicoechea</a
+          >
+        </li>
+        <li>
+          <span class="home-profile__contact-label">Email</span>
+          <a href={`mailto:${PROFILE_EMAIL}`}>{PROFILE_EMAIL}</a>
+        </li>
+        <li>
+          <span class="home-profile__contact-label">WhatsApp</span>
+          <a href={PROFILE_WHATSAPP} rel="noopener noreferrer" target="_blank"
+            >{PROFILE_WHATSAPP_DISPLAY}</a
+          >
+        </li>
+        <li>
+          <span class="home-profile__contact-label">GitHub</span>
+          <a href={PROFILE_GITHUB} rel="noopener noreferrer" target="_blank"
+            >github.com/EduardoOsteicoechea</a
+          >
+        </li>
+        <li>
+          <span class="home-profile__contact-label">YouTube</span>
+          <a href={PROFILE_YOUTUBE} rel="noopener noreferrer" target="_blank"
+            >youtube.com/@EduardoOsteicoechea</a
+          >
+        </li>
+        <li>
+          <span class="home-profile__contact-label">Site</span>
+          <a href={PROFILE_SITE}>{PROFILE_SITE.replace("https://", "")}</a>
+        </li>
+      </ul>
+      <p class="home-profile__cta-row">
+        <a
+          class="btn btn--primary"
+          href={PROFILE_LINKEDIN}
+          rel="noopener noreferrer"
+          target="_blank">View LinkedIn profile</a
+        >
+        <a class="btn" href="/contact">Contact via Eduardo OS</a>
+      </p>
+    </section>
+
+    <section class="home-profile__block" id="faq">
+      <h2>Frequently asked questions</h2>
+      <dl class="home-profile__faq">
+        {
+          profileFaq.map((item) => (
+            <>
+              <dt>{item.question}</dt>
+              <dd>{item.answer}</dd>
+            </>
+          ))
+        }
+      </dl>
+    </section>
+  </div>
+</section>

@@ -142,7 +142,7 @@
   border-radius: 0;
 }
 
-/* Portrait behind copy — flush left toward the header rail, cover crop. */
+/* Portrait behind copy — fixed while the dossier scrolls (home only). */
 .home-hero__photo {
   position: absolute;
   inset: 0;
@@ -151,6 +151,32 @@
   padding: 0;
   line-height: 0;
   pointer-events: none;
+}
+
+html.page-home .home-hero__photo {
+  position: fixed;
+  /* Mobile / narrow: full main column under the top bar. */
+  top: var(--header_offset, var(--header_height, 0px));
+  left: var(--header_width, 0px);
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+  inset: auto;
+  z-index: 0;
+}
+
+html.page-home .home-hero__stage,
+html.page-home .home-hero__primary,
+html.page-home .home-hero__copy,
+html.page-home .home-hero__chat {
+  position: relative;
+  z-index: 1;
+}
+
+html.page-home .home-hero__primary {
+  /* Keep first-viewport height; photo is fixed and no longer fills this box. */
+  background: transparent;
 }
 
 .home-hero__photo img {
@@ -279,6 +305,16 @@
 
 /* Wide desktop: copy + agent panel; portrait column stays left-flush to the rail. */
 @media (min-width: 960px) {
+  html.page-home .home-hero__photo {
+    /* Match grid: 1.25fr of (1.25 + 0.85) under the left rail. */
+    top: 0;
+    left: var(--header_width, 60px);
+    right: auto;
+    bottom: 0;
+    width: calc((100vw - var(--header_width, 60px)) * 1.25 / 2.1);
+    height: 100dvh;
+  }
+
   .home-hero__stage {
     grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.85fr);
     align-items: stretch;

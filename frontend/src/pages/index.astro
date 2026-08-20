@@ -1,11 +1,27 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ContactAgent from "../components/Contact/ContactAgent";
+import HomeProfile from "../components/Home/HomeProfile.astro";
 import { APP_ROUTES, CONTACT_API_ROUTES } from "../config/routes";
 import { HOME_AGENT_WELCOME } from "../lib/agentVoice";
+import {
+  PROFILE_LINKEDIN,
+  buildHomeProfileJsonLd,
+  profileWhoAnswer,
+} from "../lib/eduardoProfile";
+
+const pageUrl = "https://eduardoos.com/";
+const jsonLd = buildHomeProfileJsonLd(pageUrl);
 ---
 
-<BaseLayout title="Eduardo Osteicoechea — AEC Technologist" pageHome={true}>
+<BaseLayout
+  title="Eduardo Osteicoechea — AEC Technologist"
+  description={profileWhoAnswer}
+  pageHome={true}
+>
+  <link slot="head" rel="canonical" href={pageUrl} />
+  <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
   <div class="page-shell home-hero">
     <div class="home-hero__stage">
       <div class="home-hero__primary">
@@ -29,6 +45,12 @@ import { HOME_AGENT_WELCOME } from "../lib/agentVoice";
           </p>
           <div class="home-hero__links">
             <a class="btn btn--primary" href={APP_ROUTES.contact}>Contact</a>
+            <a
+              class="btn"
+              href={PROFILE_LINKEDIN}
+              rel="noopener noreferrer"
+              target="_blank">LinkedIn</a
+            >
           </div>
         </div>
       </div>
@@ -45,5 +67,7 @@ import { HOME_AGENT_WELCOME } from "../lib/agentVoice";
         />
       </aside>
     </div>
+
+    <HomeProfile />
   </div>
 </BaseLayout>

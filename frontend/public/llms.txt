@@ -1,24 +1,22 @@
-# Eduardo OS — Articles (pamphlets)
+# Eduardo Osteicoechea / Eduardo OS
 
-> Public linear reading copies of cloud pamphlets for people and AI systems
-> (ChatGPT, Claude, Gemini, Perplexity, and similar crawlers).
+> Licensed building architect, BIM specialist, and full-stack desktop–web–cloud developer focused on AI-powered BIM for AEC. Canonical site: https://eduardoos.com/
 
-## Primary entry points
+## Profile
 
-- [Human UI](https://eduardoos.com/articulos): article list
-- [HTML index](https://eduardoos.com/api/articles/index.html): crawlable list with links
-- [JSON list](https://eduardoos.com/api/articles): `{ count, articles[], owner }`
+- Full structured profile (SSR): https://eduardoos.com/#who
+- Experience: https://eduardoos.com/#experience
+- Contact: https://eduardoos.com/#contact-profile
+- FAQ: https://eduardoos.com/#faq
 
-## Per article
+## Public contact
 
-Replace `{id}` with an `epamId` from the list:
+- Email: eduardooost@gmail.com
+- WhatsApp: https://wa.me/584147281033
+- LinkedIn: https://www.linkedin.com/in/eduardoosteicoechea
+- GitHub: https://github.com/EduardoOsteicoechea
+- YouTube: https://youtube.com/@EduardoOsteicoechea
 
-- Human: https://eduardoos.com/articulos/ver?id={id}
-- Semantic HTML + JSON-LD: https://eduardoos.com/api/articles/{id}/html
-- Plain text: https://eduardoos.com/api/articles/{id}/text
-- JSON (blocks + plainText): https://eduardoos.com/api/articles/{id}
+## Source of truth for agents
 
-## Notes
-
-- No authentication required for the public owner catalog (`PUBLIC_ARTICLES_USER_ID`, default `eduardooost@gmail.com`).
-- Prefer `/html` or `/text` over the React UI when extracting full article body.
+Human corpus (repo): backend/internal/contact/PROFILE_CONTEXT.md
