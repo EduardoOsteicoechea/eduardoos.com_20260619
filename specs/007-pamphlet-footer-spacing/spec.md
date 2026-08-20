@@ -57,11 +57,7 @@ Ready to implement (clarified 2026-08-19).
 - [x] CSS + `PAMPHLET_FOOTER_LAYOUT_MM` + PDF `drawFooter` / `normalizeFooterLayout` agree.
 - [x] `go test ./pkg/pdf/` green; frontend `npm run build` green before push.
 
-## Revision 2026-08-19 — Dirección/Actividades +0.5mm pad top
+## Revision 2026-08-20 — Dirección/Actividades pad top = 1mm
 
-### Goals
-1. Last meta labels row only: **+0.5mm** padding top → `meta_label2_pad_top` **1.2** (was `meta_pad_y` 0.7).
-2. **Do not** change footer band height (`height` stays **29.8**). Row height stays `meta_label2_row_h` **6.5**; extra top pad comes from inside the cell (bottom pad **1.2**, was 1.7).
+- [x] `meta_label2_pad_top` **1** (was 1.2). Row height **6.5** and footer height **29.8** unchanged.
 
-### Acceptance
-- [x] CSS + layout mm + PDF agree; footer height unchanged at 29.8; tests + FE build green.

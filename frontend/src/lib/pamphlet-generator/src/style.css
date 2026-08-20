@@ -254,6 +254,13 @@
   --desktop-view-scale: 1;
   /* Screen-only: CSS mm under-reads on phone/tablet; boost visual size without changing layout math. */
   --mm-visual-boost: 1;
+  /*
+   * Screen ink follows site theme (desktop dark mode).
+   * @media print overrides these to paper white / black ink (PDF stays server-side B&W).
+   */
+  --pamphlet-paper-bg: var(--site-body-bg);
+  --pamphlet-ink: var(--site-body-fg);
+  --pamphlet-rule: var(--site-body-fg);
 }
 
 .pamphlet-app,
@@ -342,8 +349,10 @@
         var(--column-content-height)
         var(--page-margin);
     padding: 0;
-    border: var(--b1);
+    border: 1px solid color-mix(in srgb, var(--pamphlet-ink) 14%, transparent);
     margin: 10px auto 10px auto;
+    background: var(--pamphlet-paper-bg);
+    color: var(--pamphlet-ink);
 }
 
 /* Desktop: scale the letter sheet to the viewport width (PDF-viewer fit-to-width).
@@ -364,6 +373,8 @@
     display: flex;
     flex-direction: column;
     overflow: visible;
+    background: transparent;
+    color: inherit;
     /*border: solid 1px blue;*/
 }
 
@@ -401,10 +412,11 @@
     height: 100%;
     z-index: 5;
     box-sizing: border-box;
-    background: #ffffff;
-    border: var(--header-stroke) solid #222222;
+    background: var(--pamphlet-paper-bg);
+    border: var(--header-stroke) solid var(--pamphlet-rule);
     border-radius: var(--header-radius);
     padding: var(--header-pad-top) var(--header-pad-x) var(--header-pad-bottom);
+    color: var(--pamphlet-ink);
 }
 
 /* Thinner second frame — same inset math as footer ::after. */
@@ -412,7 +424,7 @@
     content: "";
     position: absolute;
     inset: var(--header-inner-inset);
-    border: var(--header-inner-stroke) solid #222222;
+    border: var(--header-inner-stroke) solid var(--pamphlet-rule);
     border-radius: var(--header-inner-radius);
     pointer-events: none;
     z-index: 1;
@@ -427,8 +439,8 @@
     flex: 0 0 auto;
     width: 100%;
     box-sizing: border-box;
-    border-top: var(--header-divider-outer) solid #222222;
-    border-bottom: var(--header-divider-inner) solid #222222;
+    border-top: var(--header-divider-outer) solid var(--pamphlet-rule);
+    border-bottom: var(--header-divider-inner) solid var(--pamphlet-rule);
     padding-top: var(--header-divider-gap);
     margin: 0;
     pointer-events: none;
@@ -451,8 +463,8 @@
 }
 
 .pamphlet-page-header > .pamphlet-header-subtitle:has(.element_edit_tray) {
-    border: 0.15mm solid rgba(100, 100, 100, 0.45) !important;
-    background: #fff;
+    border: 0.15mm solid color-mix(in srgb, var(--pamphlet-ink) 45%, transparent) !important;
+    background: var(--pamphlet-paper-bg);
 }
 
 .pamphlet-header-subtitle p {
@@ -460,7 +472,7 @@
     font-size: var(--header-subtitle-size);
     font-weight: 400;
     line-height: var(--header-subtitle-lh);
-    color: #000000;
+    color: var(--pamphlet-ink);
     min-height: 1.25em;
     max-width: 100%;
     margin: 0;
@@ -487,9 +499,10 @@
     z-index: 5;
     box-sizing: border-box;
     padding: 1.2mm 1.2mm 0; /* pad_top / pad_x / pad_bottom */
-    border: 0.2mm solid #222222; /* stroke */
+    border: 0.2mm solid var(--pamphlet-rule); /* stroke */
     border-radius: 1mm; /* radius */
-    background: #ffffff;
+    background: var(--pamphlet-paper-bg);
+    color: var(--pamphlet-ink);
 }
 
 /* Double horizontal rule between Acción and Mensaje (same language as footer frame). */
@@ -497,8 +510,8 @@
     flex: 0 0 auto;
     width: 100%;
     box-sizing: border-box;
-    border-top: 0.2mm solid #222222; /* divider_outer_stroke */
-    border-bottom: 0.1mm solid #222222; /* divider_inner_stroke */
+    border-top: 0.2mm solid var(--pamphlet-rule); /* divider_outer_stroke */
+    border-bottom: 0.1mm solid var(--pamphlet-rule); /* divider_inner_stroke */
     padding-top: 0.45mm; /* divider_gap between the two strokes */
     margin: 0;
     pointer-events: none;
@@ -510,7 +523,7 @@
     content: "";
     position: absolute;
     inset: 0.45mm;
-    border: 0.1mm solid #222222;
+    border: 0.1mm solid var(--pamphlet-rule);
     border-radius: 0.6mm;
     pointer-events: none;
     z-index: 1;
@@ -542,11 +555,11 @@
     min-width: 0;
     flex: 0 0 auto;
     overflow: hidden;
-    color: #666666; /* GRIS — matches PDF meta */
+    color: var(--pamphlet-ink);
     box-sizing: border-box;
     padding-top: var(--header-meta-pad-top);
-    /* Top single gray rule under subtitle — same overlay language as footer meta. */
-    background-image: linear-gradient(#666666, #666666);
+    /* Top single rule under subtitle — same overlay language as footer meta. */
+    background-image: linear-gradient(var(--pamphlet-rule), var(--pamphlet-rule));
     background-size: 100% 0.2mm;
     background-position: top 0 left 0;
     background-repeat: no-repeat;
@@ -563,7 +576,7 @@
     bottom: 0;
     left: 50%;
     width: 0;
-    border-left: 0.2mm solid #666666;
+    border-left: 0.2mm solid var(--pamphlet-rule);
     transform: translateX(-50%);
     pointer-events: none;
     z-index: 1;
@@ -576,7 +589,7 @@
     right: 0;
     top: 50%;
     height: 0;
-    border-top: 0.2mm solid #666666;
+    border-top: 0.2mm solid var(--pamphlet-rule);
     transform: translateY(-50%);
     pointer-events: none;
     z-index: 1;
@@ -604,7 +617,7 @@
     font-family: Roboto, sans-serif;
     font-size: var(--header-meta-size);
     line-height: var(--header-meta-lh);
-    color: #666666;
+    color: var(--pamphlet-ink);
     opacity: 1;
     white-space: nowrap;
 }
@@ -622,9 +635,9 @@
 /* Input chrome only while that meta field is being edited — not in pamphlet view. */
 .pamphlet-header-meta-field > .pamphlet-item:has(.element_edit_tray) {
     min-width: 12mm;
-    border: 1px solid #666 !important;
+    border: 1px solid var(--pamphlet-rule) !important;
     padding: 0.4mm 0.9mm !important;
-    background: #fff;
+    background: var(--pamphlet-paper-bg);
 }
 
 .pamphlet-header-field-hidden {
@@ -671,8 +684,8 @@
 
 .pamphlet-page-footer > .pamphlet-footer-action:has(.element_edit_tray),
 .pamphlet-page-footer > .pamphlet-footer-message:has(.element_edit_tray) {
-    border: 0.15mm solid rgba(100, 100, 100, 0.45) !important;
-    background: #fff;
+    border: 0.15mm solid color-mix(in srgb, var(--pamphlet-ink) 45%, transparent) !important;
+    background: var(--pamphlet-paper-bg);
 }
 
 .pamphlet-footer-action h1 {
@@ -681,7 +694,7 @@
     font-size: 3.175mm;
     font-weight: 600;
     line-height: 1.25;
-    color: #000000;
+    color: var(--pamphlet-ink);
     min-height: 1.25em;
     max-width: 100%;
     margin: 0;
@@ -705,7 +718,7 @@
     font-family: Roboto, sans-serif;
     font-size: 2.469mm; /* 7pt — matches pamphletFooterBodyPt */
     line-height: 1.25;
-    color: #000000;
+    color: var(--pamphlet-ink);
     min-height: 1.25em;
     max-width: 100%;
     margin: 0;
@@ -726,10 +739,10 @@
     min-height: 0;
     max-height: none;
     overflow: hidden;
-    color: #666666;
+    color: var(--pamphlet-ink);
     box-sizing: border-box;
-    /* Top single gray rule — overlay, no height growth. */
-    background-image: linear-gradient(#666666, #666666);
+    /* Top single rule — overlay, no height growth. */
+    background-image: linear-gradient(var(--pamphlet-rule), var(--pamphlet-rule));
     background-size: 100% 0.2mm;
     background-position: top 0 left 0;
     background-repeat: no-repeat;
@@ -745,7 +758,7 @@
     bottom: 0;
     left: 50%;
     width: 0;
-    border-left: 0.2mm solid #666666;
+    border-left: 0.2mm solid var(--pamphlet-rule);
     transform: translateX(-50%);
     pointer-events: none;
     z-index: 1;
@@ -758,7 +771,7 @@
     right: 0;
     top: 50%;
     height: 0;
-    border-top: 0.2mm solid #666666;
+    border-top: 0.2mm solid var(--pamphlet-rule);
     transform: translateY(-50%);
     pointer-events: none;
     z-index: 1;
@@ -788,7 +801,7 @@
     padding: 0.7mm 1mm 0 !important;
 }
 
-/* Dirección / Actividades — +1mm bottom vs meta_row_h; +0.5mm top inside same 6.5mm row. */
+/* Dirección / Actividades — +1mm bottom vs meta_row_h; pad top 1mm inside same 6.5mm row. */
 .pamphlet-footer-meta-row[data-meta-kind="labels"]:not(:first-child) {
     flex: 0 0 6.5mm;
     height: 6.5mm;
@@ -797,7 +810,7 @@
 }
 
 .pamphlet-footer-meta-row[data-meta-kind="labels"]:not(:first-child) > .pamphlet-item {
-    padding: 1.2mm 1mm 1.2mm !important;
+    padding: 1mm 1mm 1.2mm !important;
     align-items: flex-start;
 }
 
@@ -829,8 +842,8 @@
 }
 
 .pamphlet-footer-meta-row > .pamphlet-item:has(.element_edit_tray) {
-    border: 0.15mm solid rgba(100, 100, 100, 0.45) !important;
-    background: #fff;
+    border: 0.15mm solid color-mix(in srgb, var(--pamphlet-ink) 45%, transparent) !important;
+    background: var(--pamphlet-paper-bg);
 }
 
 .pamphlet-footer-meta-row[data-meta-kind="values"] > .pamphlet-item {
@@ -844,7 +857,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #666666;
+    color: var(--pamphlet-ink);
     min-height: 1.25em;
     max-width: 100%;
     margin: 0;
@@ -852,7 +865,7 @@
 
 .pamphlet-footer-meta-row > .pamphlet-footer-label p {
     font-weight: 600;
-    color: #444444;
+    color: var(--pamphlet-ink);
 }
 
 /* Compact chrome edit tray so it stays mostly inside the footer / page margin. */
@@ -918,7 +931,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #666666;
+    color: var(--pamphlet-ink);
 }
 
 .pamphlet-image-frame {
@@ -926,7 +939,7 @@
     overflow: hidden;
     position: relative;
     display: block;
-    background: #f3f3f3;
+    background: color-mix(in srgb, var(--pamphlet-ink) 6%, var(--pamphlet-paper-bg));
     flex: 0 0 auto;
 }
 
@@ -995,7 +1008,7 @@
   font-size: var(--header-subtitle-size);
   font-weight: 400;
   line-height: var(--header-subtitle-lh);
-  color: #000000;
+  color: var(--pamphlet-ink);
 }
 
 .pamphlet-app main.pamphlet-sheet .pamphlet-header-meta-bar .pamphlet-header-meta-label,
@@ -1003,13 +1016,12 @@
   font-family: Roboto, sans-serif;
   font-size: var(--header-meta-size);
   line-height: var(--header-meta-lh);
-  color: #666666;
+  color: var(--pamphlet-ink);
 }
 
 /*
   Headings must beat global headings.css (`h1 { color: var(--site-body-fg) }`).
-  That token is light in dark theme — on a white desktop sheet headings vanished.
-  Use inherit so desktop (#000 sheet) and mobile dark (column color) both work.
+  Inherit pamphlet ink so light/dark sheet contrast stays correct.
 */
 .pamphlet-app main.pamphlet-sheet .pamphlet-item[data-item-type="heading_1"] h1,
 .pamphlet-app main.pamphlet-sheet .dumb-column h1 {
@@ -1169,10 +1181,10 @@
   font-size: 12px;
   font-family: Arial, sans-serif;
   padding: 5px;
-  border: 1px solid #ccc;
+  border: 1px solid color-mix(in srgb, var(--pamphlet-ink) 35%, transparent);
   border-radius: 0;
-  background: #fff;
-  color: #000;
+  background: var(--pamphlet-paper-bg);
+  color: var(--pamphlet-ink);
   overflow: auto;
   white-space: pre-wrap;
   line-height: 1.5;
@@ -1406,9 +1418,9 @@
   grid-column: auto !important;
   grid-row: auto !important;
   flex: 0 0 auto;
-  border: 1px solid rgba(128, 128, 128, 0.45);
-  background: #ffffff;
-  color: #000000;
+  border: 1px solid color-mix(in srgb, var(--pamphlet-ink) 35%, transparent);
+  background: var(--pamphlet-paper-bg);
+  color: var(--pamphlet-ink);
   box-sizing: border-box;
 }
 
@@ -1429,16 +1441,9 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
-  .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
-  .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
-    background: transparent;
-    color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.35);
-  }
-
+  /* Tokens already follow html[data-theme]; keep image frame readable if OS dark without theme. */
   .pamphlet-app[data-view-mode="mobile"] .pamphlet-image-frame {
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--pamphlet-ink) 8%, var(--pamphlet-paper-bg));
   }
 }
 
@@ -1499,10 +1504,10 @@
   align-items: stretch;
   gap: calc(3px * var(--mobile-inv-scale, 1));
   overflow: visible;
-  border: 1px solid rgba(128, 128, 128, 0.45);
+  border: 1px solid color-mix(in srgb, var(--pamphlet-ink) 35%, transparent);
   border-radius: 3px;
   padding: calc(5px * var(--mobile-inv-scale, 1)) calc(6px * var(--mobile-inv-scale, 1));
-  background: #fff;
+  background: var(--pamphlet-paper-bg);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -1513,7 +1518,7 @@
   line-height: 1.2;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #666;
+  color: var(--pamphlet-ink);
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field > .pamphlet-item,
@@ -1522,10 +1527,10 @@
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-subtitle,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message {
-  border: 1px solid rgba(128, 128, 128, 0.45) !important;
+  border: 1px solid color-mix(in srgb, var(--pamphlet-ink) 35%, transparent) !important;
   border-radius: 3px;
   padding: calc(6px * var(--mobile-inv-scale, 1)) calc(7px * var(--mobile-inv-scale, 1)) !important;
-  background: #fff;
+  background: var(--pamphlet-paper-bg);
   min-height: calc(36px * var(--mobile-inv-scale, 1));
   overflow: visible;
   width: 100%;
@@ -1553,7 +1558,7 @@
   line-height: 1.2;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #666;
+  color: var(--pamphlet-ink);
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-subtitle::before {
@@ -1562,7 +1567,7 @@
   line-height: 1.2;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #666;
+  color: var(--pamphlet-ink);
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action,
@@ -1578,7 +1583,7 @@
   line-height: 1.2;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #666;
+  color: var(--pamphlet-ink);
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message::before {
@@ -1587,7 +1592,7 @@
   line-height: 1.2;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #666;
+  color: var(--pamphlet-ink);
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title p,
@@ -1603,7 +1608,7 @@
   overflow: visible !important;
   overflow-wrap: anywhere !important;
   word-break: break-word !important;
-  color: #000 !important;
+  color: var(--pamphlet-ink) !important;
 }
 
 /* Mobile header fields: Título, Serie, Capítulo, Autor (hide Fecha). */
@@ -1655,6 +1660,12 @@
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-column-8 { order: 10; }
 
 @media print {
+  .pamphlet-app {
+    --pamphlet-paper-bg: #ffffff;
+    --pamphlet-ink: #000000;
+    --pamphlet-rule: #222222;
+  }
+
   .header-dynamic-menu-host,
   .header-dynamic-menu,
   .pamphlet-header-menu,
@@ -1675,7 +1686,8 @@
     width: var(--letter-landscape-width) !important;
     height: var(--sheet-stack-height) !important;
     transform: none !important;
-    background: #ffffff !important;
+    background: var(--pamphlet-paper-bg) !important;
+    color: var(--pamphlet-ink) !important;
     grid-template-columns:
         var(--page-margin)
         var(--column-content-width)

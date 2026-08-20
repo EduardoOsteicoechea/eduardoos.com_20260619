@@ -133,8 +133,8 @@ func TestFooterMessagePadBottomReduced(t *testing.T) {
 	if d.MetaLabel2RowH != 6.5 {
 		t.Fatalf("meta_label2_row_h want 6.5 (Dirección/Actividades +1mm bottom), got %v", d.MetaLabel2RowH)
 	}
-	if d.MetaLabel2PadTop != 1.2 {
-		t.Fatalf("meta_label2_pad_top want 1.2 (+0.5 inside row), got %v", d.MetaLabel2PadTop)
+	if d.MetaLabel2PadTop != 1.0 {
+		t.Fatalf("meta_label2_pad_top want 1.0, got %v", d.MetaLabel2PadTop)
 	}
 	if d.PadTop != 1.2 || d.PadBottom != 0 {
 		t.Fatalf("footer pad want top 1.2 bottom 0, got top=%v bottom=%v", d.PadTop, d.PadBottom)
