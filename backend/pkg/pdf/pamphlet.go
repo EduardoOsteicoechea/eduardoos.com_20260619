@@ -40,20 +40,20 @@ const (
 	PamphletColWidthMm = 57.85
 	// Header band: title + title_pad_bottom + title divider + title_meta_gap + meta + frame.
 	// Overridden by header_layout.height from frontend when present.
-	PamphletHeaderHMm = 33.0
+	PamphletHeaderHMm = 35.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
 	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 33 − 5 − 6 − 30 − 10
-	PamphletPage1BodyMm = 121.9
+	// 215.9 − 10 − 35 − 5 − 6 − 30 − 10
+	PamphletPage1BodyMm = 119.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Clear space under subtitle → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
 	PamphletHeaderTitleMetaGapMm = 0.6
 	// CSS .pamphlet-header-meta-bar { row-gap }.
 	PamphletHeaderMetaRowGapMm = 1.8
-	// Right-side cols 1–2: 195.9 − 33 − 5
-	PamphletPage1RightColMm = 157.9
+	// Right-side cols 1–2: 195.9 − 35 − 5
+	PamphletPage1RightColMm = 155.9
 	// Left-side cols 7–8 above footer: 195.9 − 6 − 30 (default layout.height)
 	PamphletPage1LeftColMm = 159.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
@@ -110,6 +110,7 @@ type PamphletHeaderLayout struct {
 	SubtitleSize        float64 `json:"subtitle_size"`
 	SubtitleLH          float64 `json:"subtitle_lh"`
 	SubtitlePadX        float64 `json:"subtitle_pad_x"`
+	SubtitlePadTop      float64 `json:"subtitle_pad_top"`
 	SubtitlePadY        float64 `json:"subtitle_pad_y"`
 	SubtitleMinH        float64 `json:"subtitle_min_h"`
 	MetaSize            float64 `json:"meta_size"`
@@ -556,12 +557,17 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 	if subLH <= 0 {
 		subLH = 1.25
 	}
+	subPadTop := layout.SubtitlePadTop
+	if subPadTop <= 0 {
+		subPadTop = layout.SubtitlePadY
+	}
+	subPadBottom := layout.SubtitlePadY
 	subTextW := innerW - 2*layout.SubtitlePadX
 	if subTextW < 4 {
 		subTextW = innerW
 	}
 	subTextH := measureWrappedHeightMm(h.Subtitle, subSize, subLH, subTextW)
-	subBoxH := layout.SubtitlePadY*2 + subTextH
+	subBoxH := subPadTop + subPadBottom + subTextH
 	if subBoxH < layout.SubtitleMinH {
 		subBoxH = layout.SubtitleMinH
 	}
@@ -570,9 +576,9 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 	}
 	if subBoxH > 0 {
 		if strings.TrimSpace(h.Subtitle) != "" {
-			textTop := cursorTop - layout.SubtitlePadY
+			textTop := cursorTop - subPadTop
 			sy := textTop - cssBaselineOffsetMm(subSize, subLH)
-			subFloor := cursorTop - subBoxH + layout.SubtitlePadY
+			subFloor := cursorTop - subBoxH + subPadBottom
 			writeWrapped(s, "F1", MmToPoints(subSize), subLH,
 				innerX+layout.SubtitlePadX, sy, subTextW, h.Subtitle, subFloor)
 		}
@@ -660,7 +666,7 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		BodyGutter:         PamphletHeaderBodyGutterMm,
 		Pad:                1.2,
 		PadTop:             2.2,
-		PadBottom:          0,
+		PadBottom:          1.0,
 		PadX:               2.2,
 		Radius:             1,
 		Stroke:             0.2,
@@ -677,6 +683,7 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		SubtitleSize:       2.469,
 		SubtitleLH:         1.25,
 		SubtitlePadX:       0,
+		SubtitlePadTop:     1.5,
 		SubtitlePadY:       0.5,
 		SubtitleMinH:       4.0,
 		MetaSize:           pamphletMetaSizeMm,
@@ -733,6 +740,7 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 		SubtitleSize:       pick(l.SubtitleSize, d.SubtitleSize),
 		SubtitleLH:         pick(l.SubtitleLH, d.SubtitleLH),
 		SubtitlePadX:       pick(l.SubtitlePadX, d.SubtitlePadX),
+		SubtitlePadTop:     pick(l.SubtitlePadTop, d.SubtitlePadTop),
 		SubtitlePadY:       pick(l.SubtitlePadY, d.SubtitlePadY),
 		SubtitleMinH:       pick(l.SubtitleMinH, d.SubtitleMinH),
 		MetaSize:           pick(l.MetaSize, d.MetaSize),

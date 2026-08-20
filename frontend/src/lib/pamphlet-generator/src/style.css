@@ -208,6 +208,7 @@
   --header-subtitle-size: 2.469mm;
   --header-subtitle-lh: 1.25;
   --header-subtitle-pad-x: 0mm;
+  --header-subtitle-pad-top: 1.5mm; /* +1mm vs prior 0.5 */
   --header-subtitle-pad-y: 0.5mm;
   --header-subtitle-min-h: 4.0mm;
   --header-meta-size: 2.5mm;
@@ -218,7 +219,7 @@
   /* Header chrome (PAMPHLET_HEADER_LAYOUT_MM) — footer-style double frame + title divider. */
   --header-pad: 1.2mm; /* legacy */
   --header-pad-top: 2.2mm; /* +1mm vs prior 1.2 */
-  --header-pad-bottom: 0mm; /* −3mm bottom space vs prior 1.2 (+ height cut) */
+  --header-pad-bottom: 1.0mm; /* +1mm vs prior 0 */
   --header-pad-x: 2.2mm; /* −1mm vs prior 3.2 */
   --header-stroke: 0.2mm;
   --header-radius: 1mm;
@@ -229,20 +230,20 @@
   --header-divider-gap: 0.45mm;
   --header-divider-inner: 0.1mm;
   /* Title + divider + subtitle + title_meta_gap + meta + pad + frame. */
-  --page-header-height: 33mm;
+  --page-header-height: 35mm;
   /* Margin under header band before cols 1–2 (PDF uses the same). */
   --header-body-gutter: 5mm;
   --page-footer-height: 30mm; /* PAMPHLET_FOOTER_LAYOUT_MM.height — value rows hidden when empty */
-  /* Page 1 body: 215.9 − 10 − 33 − 5 − 6 − 30 − 10 = 121.9mm */
-  --page1-body-height: 121.9mm;
+  /* Page 1 body: 215.9 − 10 − 35 − 5 − 6 − 30 − 10 = 119.9mm */
+  --page1-body-height: 119.9mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
   --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
-  /* Cols 1–2 under header: 195.9 − 33 − 5 = 157.9mm */
-  --page1-right-col-height: 157.9mm;
+  /* Cols 1–2 under header: 195.9 − 35 − 5 = 155.9mm */
+  --page1-right-col-height: 155.9mm;
   /* Cols 7–8 above footer: 195.9 − 6 − 30 = 159.9mm */
   --page1-left-col-height: 159.9mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
@@ -441,7 +442,7 @@
     flex: 0 0 auto;
     box-sizing: border-box;
     border: none !important;
-    padding: var(--header-subtitle-pad-y) var(--header-subtitle-pad-x) !important;
+    padding: var(--header-subtitle-pad-top) var(--header-subtitle-pad-x) var(--header-subtitle-pad-y) !important;
     padding-left: 0 !important; /* flush with title left edge */
     margin: 0 0 var(--header-title-meta-gap);
     background: transparent;

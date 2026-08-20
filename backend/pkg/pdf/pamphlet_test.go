@@ -114,8 +114,8 @@ func TestDrawHeaderSubtitleInStream(t *testing.T) {
 	if !strings.Contains(out, wantTf) {
 		t.Fatalf("expected subtitle Tf %q, got %q", wantTf, out)
 	}
-	if layout.Height != PamphletHeaderHMm || PamphletHeaderHMm != 33 {
-		t.Fatalf("header band want 33mm, layout.Height=%v const=%v", layout.Height, PamphletHeaderHMm)
+	if layout.Height != PamphletHeaderHMm || PamphletHeaderHMm != 35 {
+		t.Fatalf("header band want 35mm, layout.Height=%v const=%v", layout.Height, PamphletHeaderHMm)
 	}
 }
 
@@ -224,14 +224,17 @@ func TestHeaderFrameFromLayout(t *testing.T) {
 	if !strings.Contains(out, "0.4 0.4 0.4 RG") {
 		t.Fatalf("expected gray meta cross stroke color, got %q", out)
 	}
-	if layout.PadTop != 2.2 || layout.PadBottom != 0 || layout.PadX != 2.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
+	if layout.PadTop != 2.2 || layout.PadBottom != 1.0 || layout.PadX != 2.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
 		t.Fatalf("header frame mm mismatch: %+v", layout)
 	}
 	if layout.MetaPadTop != 1.0 {
 		t.Fatalf("header meta_pad_top want 1, got %v", layout.MetaPadTop)
 	}
-	if layout.Height != 33 {
-		t.Fatalf("header height want 33, got %v", layout.Height)
+	if layout.SubtitlePadTop != 1.5 {
+		t.Fatalf("header subtitle_pad_top want 1.5, got %v", layout.SubtitlePadTop)
+	}
+	if layout.Height != 35 {
+		t.Fatalf("header height want 35, got %v", layout.Height)
 	}
 	if layout.TitlePadBottom != 1 {
 		t.Fatalf("header title_pad_bottom want 1, got %v", layout.TitlePadBottom)
