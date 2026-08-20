@@ -42,6 +42,12 @@ export const SUBSCRIPTION_SERVICES: SubscriptionService[] = [
     description: "Register and manage churches, activities, and reports.",
     monthlyUsd: 1,
   },
+  {
+    id: "scrib",
+    label: "Scrib",
+    description: "Layered US Letter manuscript sheets with cloud books.",
+    monthlyUsd: 1,
+  },
 ];
 
 export type PaymentIntentResponse = {

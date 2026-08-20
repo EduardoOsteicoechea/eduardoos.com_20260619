@@ -59,6 +59,12 @@ export function serviceIdForPath(pathname: string): string | null {
   ) {
     return "homescool";
   }
+  if (
+    path === normalizePath(APP_ROUTES.scrib) ||
+    path.startsWith(`${normalizePath(APP_ROUTES.scrib)}/`)
+  ) {
+    return "scrib";
+  }
   if (path === normalizePath(APP_ROUTES.churchRegister)) {
     return "church-management";
   }

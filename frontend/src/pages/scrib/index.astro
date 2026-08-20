@@ -1,0 +1,10 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ScribDashboard from "../../components/Scrib/ScribDashboard";
+---
+
+<BaseLayout title="Scrib — Eduardo Osteicoechea" requireAuth={true}>
+  <div class="page-shell">
+    <ScribDashboard client:load />
+  </div>
+</BaseLayout>

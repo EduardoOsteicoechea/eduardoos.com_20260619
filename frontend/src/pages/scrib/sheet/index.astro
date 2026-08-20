@@ -1,0 +1,12 @@
+---
+/**
+ * Static shell for pretty /scrib/{user}/{book}/{sheet} (nginx try_files).
+ * Client parses pathname and loads the sheet editor.
+ */
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import ScribEditor from "../../../components/Scrib/ScribEditor";
+---
+
+<BaseLayout title="Scrib sheet — Eduardo Osteicoechea" requireAuth={true}>
+  <ScribEditor client:only="react" />
+</BaseLayout>

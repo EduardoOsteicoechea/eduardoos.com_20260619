@@ -32,6 +32,11 @@ export const APP_ROUTES = {
   churchDetail: (denomId: string, churchId: string) =>
     `/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}`,
   churchWorkspace: "/church/workspace",
+  /** Scrib layered manuscript books (subscription). */
+  scrib: "/scrib",
+  scribSheet: (userSafe: string, bookId: string, sheetId: string) =>
+    `/scrib/${encodeURIComponent(userSafe)}/${encodeURIComponent(bookId)}/${encodeURIComponent(sheetId)}`,
+  scribSheetWorkspace: "/scrib/sheet",
   adminUsers: "/admin/users",
 } as const;
 
@@ -158,6 +163,17 @@ export const CHURCH_ROUTES = {
     name: string,
   ) =>
     `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/network-activities/${encodeURIComponent(activityId)}/occurrences/${encodeURIComponent(occurrenceId)}/images/${encodeURIComponent(name)}`,
+} as const;
+
+/** Scrib books + layered US Letter sheets (JWT + scrib entitlement). */
+export const SCRIB_ROUTES = {
+  library: "/api/scrib/library",
+  books: "/api/scrib/books",
+  book: (bookId: string) => `/api/scrib/books/${encodeURIComponent(bookId)}`,
+  sheets: (bookId: string) =>
+    `/api/scrib/books/${encodeURIComponent(bookId)}/sheets`,
+  sheet: (bookId: string, sheetId: string) =>
+    `/api/scrib/books/${encodeURIComponent(bookId)}/sheets/${encodeURIComponent(sheetId)}`,
 } as const;
 
 export const PLAYLIST_ROUTES = {
