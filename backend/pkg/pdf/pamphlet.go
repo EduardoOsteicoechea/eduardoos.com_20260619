@@ -40,20 +40,20 @@ const (
 	PamphletColWidthMm = 57.85
 	// Header band: title + title_pad_bottom + title divider + title_meta_gap + meta + frame.
 	// Overridden by header_layout.height from frontend when present.
-	PamphletHeaderHMm = 29.0
+	PamphletHeaderHMm = 30.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
 	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 29 − 5 − 6 − 30 − 10
-	PamphletPage1BodyMm = 125.9
+	// 215.9 − 10 − 30 − 5 − 6 − 30 − 10
+	PamphletPage1BodyMm = 124.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Clear space under title divider → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
 	PamphletHeaderTitleMetaGapMm = 1.6
 	// CSS .pamphlet-header-meta-bar { row-gap }.
-	PamphletHeaderMetaRowGapMm = 0.8
-	// Right-side cols 1–2: 195.9 − 29 − 5
-	PamphletPage1RightColMm = 161.9
+	PamphletHeaderMetaRowGapMm = 1.8
+	// Right-side cols 1–2: 195.9 − 30 − 5
+	PamphletPage1RightColMm = 160.9
 	// Left-side cols 7–8 above footer: 195.9 − 6 − 30 (default layout.height)
 	PamphletPage1LeftColMm = 159.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
@@ -1036,25 +1036,20 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	}
 }
 
-// strokeGrayMetaCrossMm paints double gray dividers: optional top rule, mid horizontal, center vertical.
+// strokeGrayMetaCrossMm paints single gray hairlines: optional top, mid horizontal, center vertical.
 // Matches CSS meta ::before/::after overlays — does not affect layout math.
 func strokeGrayMetaCrossMm(s *strings.Builder, x, top, width, height float64, includeTop bool) {
 	if width <= 0 || height <= 0 {
 		return
 	}
-	const outer = 0.2
-	const gap = 0.45
-	const inner = 0.1
+	const stroke = 0.2
 	if includeTop {
-		strokeHorizontalRuleGrayMm(s, x, top, width, outer)
-		strokeHorizontalRuleGrayMm(s, x, top-outer-gap, width, inner)
+		strokeHorizontalRuleGrayMm(s, x, top, width, stroke)
 	}
-	midTop := top - height/2 + (outer+gap+inner)/2
-	strokeHorizontalRuleGrayMm(s, x, midTop, width, outer)
-	strokeHorizontalRuleGrayMm(s, x, midTop-outer-gap, width, inner)
+	midY := top - height/2
+	strokeHorizontalRuleGrayMm(s, x, midY, width, stroke)
 	cx := x + width/2
-	strokeVerticalRuleGrayMm(s, cx-outer/2, top, height, outer)
-	strokeVerticalRuleGrayMm(s, cx-outer/2+outer+gap, top, height, inner)
+	strokeVerticalRuleGrayMm(s, cx, top, height, stroke)
 }
 
 func strokeHorizontalRuleGrayMm(s *strings.Builder, x, top, width, strokeMm float64) {

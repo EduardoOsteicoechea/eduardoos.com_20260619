@@ -96,8 +96,8 @@ func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	if layout.TitleMetaGap < 1.4 || layout.TitleMetaGap > 1.8 {
 		t.Fatalf("header divider→meta CSS gap want ~1.6mm, got %v", layout.TitleMetaGap)
 	}
-	if layout.MetaRowGap < 0.6 || layout.MetaRowGap > 1.0 {
-		t.Fatalf("header meta row-gap want ~0.8mm, got %v", layout.MetaRowGap)
+	if layout.MetaRowGap < 1.6 || layout.MetaRowGap > 2.0 {
+		t.Fatalf("header meta row-gap want ~1.8mm, got %v", layout.MetaRowGap)
 	}
 	var s strings.Builder
 	bottom := drawHeader(&s, PamphletHeader{
@@ -188,10 +188,10 @@ func TestHeaderFrameFromLayout(t *testing.T) {
 		Series: "Romanos",
 	}, layout, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow)
 	out := s.String()
-	// Outer + inner black frames + title divider + gray meta cross (4 strokes).
+	// Outer + inner black frames + title divider + gray meta cross (2 strokes).
 	strokeCount := strings.Count(out, "S\n")
-	if strokeCount < 8 {
-		t.Fatalf("expected ≥8 strokes (frame+title divider+meta cross) in header stream, got %d in %q", strokeCount, out)
+	if strokeCount < 6 {
+		t.Fatalf("expected ≥6 strokes (frame+title divider+meta cross) in header stream, got %d in %q", strokeCount, out)
 	}
 	if !strings.Contains(out, "0.4 0.4 0.4 RG") {
 		t.Fatalf("expected gray meta cross stroke color, got %q", out)

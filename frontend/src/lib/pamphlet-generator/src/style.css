@@ -207,7 +207,7 @@
   --header-title-pad-bottom: 1mm;
   --header-meta-size: 2.5mm;
   --header-meta-lh: 1.2;
-  --header-meta-row-gap: 0.8mm;
+  --header-meta-row-gap: 1.8mm;
   --header-meta-col-gap: 2.5mm;
   /* Header chrome (PAMPHLET_HEADER_LAYOUT_MM) — footer-style double frame + title divider. */
   --header-pad: 1.2mm;
@@ -221,20 +221,20 @@
   --header-divider-gap: 0.45mm;
   --header-divider-inner: 0.1mm;
   /* Title + title_pad_bottom + divider + title_meta_gap + meta + pad + frame. */
-  --page-header-height: 29mm;
+  --page-header-height: 30mm;
   /* Margin under header band before cols 1–2 (PDF uses the same). */
   --header-body-gutter: 5mm;
   --page-footer-height: 30mm; /* PAMPHLET_FOOTER_LAYOUT_MM.height — value rows hidden when empty */
-  /* Page 1 body: 215.9 − 10 − 29 − 5 − 6 − 30 − 10 = 125.9mm */
-  --page1-body-height: 125.9mm;
+  /* Page 1 body: 215.9 − 10 − 30 − 5 − 6 − 30 − 10 = 124.9mm */
+  --page1-body-height: 124.9mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
   --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
-  /* Cols 1–2 under header: 195.9 − 29 − 5 = 161.9mm */
-  --page1-right-col-height: 161.9mm;
+  /* Cols 1–2 under header: 195.9 − 30 − 5 = 160.9mm */
+  --page1-right-col-height: 160.9mm;
   /* Cols 7–8 above footer: 195.9 − 6 − 30 = 159.9mm */
   --page1-left-col-height: 159.9mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
@@ -503,19 +503,18 @@
 }
 
 /*
-  Double gray cross only (no outer frame) — vertical at column gap, horizontal at row gap.
-  Overlay — does not grow the header band height.
+  Single gray cross only (no outer frame) — vertical at column gap, horizontal at row gap.
+  Overlay — does not invent extra band chrome beyond row-gap.
 */
 .pamphlet-header-meta-bar::before {
     content: "";
     position: absolute;
     top: 0;
     bottom: 0;
-    left: calc(50% - 0.375mm);
-    width: 0.75mm; /* 0.2 + 0.45 + 0.1 */
-    box-sizing: border-box;
+    left: 50%;
+    width: 0;
     border-left: 0.2mm solid #666666;
-    border-right: 0.1mm solid #666666;
+    transform: translateX(-50%);
     pointer-events: none;
     z-index: 1;
 }
@@ -525,11 +524,10 @@
     position: absolute;
     left: 0;
     right: 0;
-    top: calc(50% - 0.375mm);
-    height: 0.75mm;
-    box-sizing: border-box;
+    top: 50%;
+    height: 0;
     border-top: 0.2mm solid #666666;
-    border-bottom: 0.1mm solid #666666;
+    transform: translateY(-50%);
     pointer-events: none;
     z-index: 1;
 }
@@ -667,28 +665,25 @@
     overflow: hidden;
     color: #666666;
     box-sizing: border-box;
-    /* Top double gray rule (orange sketch) — overlay via backgrounds, no height growth. */
-    background-image:
-        linear-gradient(#666666, #666666),
-        linear-gradient(#666666, #666666);
-    background-size: 100% 0.2mm, 100% 0.1mm;
-    background-position: top 0 left 0, top 0.65mm left 0;
+    /* Top single gray rule — overlay, no height growth. */
+    background-image: linear-gradient(#666666, #666666);
+    background-size: 100% 0.2mm;
+    background-position: top 0 left 0;
     background-repeat: no-repeat;
 }
 
 /*
-  Footer meta: vertical + mid-horizontal double gray cross (no outer frame).
+  Footer meta: vertical + mid-horizontal single gray cross (no outer frame).
 */
 .pamphlet-footer-meta-bar::before {
     content: "";
     position: absolute;
     top: 0;
     bottom: 0;
-    left: calc(50% - 0.375mm);
-    width: 0.75mm;
-    box-sizing: border-box;
+    left: 50%;
+    width: 0;
     border-left: 0.2mm solid #666666;
-    border-right: 0.1mm solid #666666;
+    transform: translateX(-50%);
     pointer-events: none;
     z-index: 1;
 }
@@ -698,11 +693,10 @@
     position: absolute;
     left: 0;
     right: 0;
-    top: calc(50% - 0.375mm);
-    height: 0.75mm;
-    box-sizing: border-box;
+    top: 50%;
+    height: 0;
     border-top: 0.2mm solid #666666;
-    border-bottom: 0.1mm solid #666666;
+    transform: translateY(-50%);
     pointer-events: none;
     z-index: 1;
 }
