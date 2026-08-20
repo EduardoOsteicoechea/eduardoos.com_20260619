@@ -48,6 +48,12 @@ export const SUBSCRIPTION_SERVICES: SubscriptionService[] = [
     description: "Layered US Letter manuscript sheets with cloud books.",
     monthlyUsd: 1,
   },
+  {
+    id: "ereport",
+    label: "eReport",
+    description: "Issue tracker reports (.ereport) with cloud storage and sharing.",
+    monthlyUsd: 1,
+  },
 ];
 
 export type PaymentIntentResponse = {

@@ -57,6 +57,7 @@ const SERVICES_LINKS = [
   { href: APP_ROUTES.mediaPlaylist, label: "Music" },
   { href: APP_ROUTES.pamphlet, label: "Pamphlet" },
   { href: APP_ROUTES.scrib, label: "Scrib" },
+  { href: APP_ROUTES.ereport, label: "eReport" },
   { href: APP_ROUTES.articles, label: "Articles" },
 ] as const;
 

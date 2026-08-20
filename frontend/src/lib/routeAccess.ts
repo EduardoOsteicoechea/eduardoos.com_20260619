@@ -65,6 +65,12 @@ export function serviceIdForPath(pathname: string): string | null {
   ) {
     return "scrib";
   }
+  if (
+    path === normalizePath(APP_ROUTES.ereport) ||
+    path.startsWith(`${normalizePath(APP_ROUTES.ereport)}/`)
+  ) {
+    return "ereport";
+  }
   if (path === normalizePath(APP_ROUTES.churchRegister)) {
     return "church-management";
   }

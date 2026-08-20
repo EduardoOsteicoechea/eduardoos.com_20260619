@@ -1,0 +1,10 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import EreportHub from "../../components/Ereport/EreportHub";
+---
+
+<BaseLayout title="eReport — Eduardo Osteicoechea" requireAuth={true}>
+  <div class="page-shell">
+    <EreportHub client:load />
+  </div>
+</BaseLayout>

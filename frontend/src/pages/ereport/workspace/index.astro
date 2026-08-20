@@ -1,0 +1,9 @@
+---
+/** Pretty /ereport/{user}/{reportId} shell */
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import EreportEditor from "../../../components/Ereport/EreportEditor";
+---
+
+<BaseLayout title="eReport editor — Eduardo Osteicoechea" requireAuth={true}>
+  <EreportEditor client:only="react" />
+</BaseLayout>

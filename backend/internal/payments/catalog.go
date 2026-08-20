@@ -21,6 +21,7 @@ var ServiceCatalog = []ServiceInfo{
 	{ID: "homescool", Label: "Homescool", Description: "Homescool learning surface.", MonthlyUSD: 1},
 	{ID: "church-management", Label: "Church Management", Description: "Register and manage churches, activities, and reports.", MonthlyUSD: 1},
 	{ID: "scrib", Label: "Scrib", Description: "Layered US Letter manuscript sheets with cloud books.", MonthlyUSD: 1},
+	{ID: "ereport", Label: "eReport", Description: "Issue tracker reports (.ereport) with cloud storage and sharing.", MonthlyUSD: 1},
 }
 
 var serviceByID map[string]ServiceInfo

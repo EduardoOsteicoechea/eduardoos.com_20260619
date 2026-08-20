@@ -16,6 +16,7 @@ import (
 	"eduardoos.nex/internal/homescool"
 	"eduardoos.nex/internal/httpx"
 	"eduardoos.nex/internal/payments"
+	"eduardoos.nex/internal/ereport"
 	"eduardoos.nex/internal/scrib"
 
 	"github.com/go-chi/chi/v5"
@@ -77,6 +78,9 @@ func main() {
 	scribHandler := scrib.NewHandler(jwtSecret, userStore)
 	scribHandler.Objects = scrib.OpenObjectSpace(ctx)
 	scribHandler.Entitlements = paymentsHandler.Store
+	ereportHandler := ereport.NewHandler(jwtSecret, userStore)
+	ereportHandler.Objects = ereport.OpenObjectSpace(ctx)
+	ereportHandler.Entitlements = paymentsHandler.Store
 	contactHandler := contact.NewHandler(authHandler)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
 	adminHandler.UseAuth(authHandler) // SMTP + store for bulk-register OTP mail
@@ -99,14 +103,16 @@ func main() {
 	homescoolHandler.Routes(r)
 	churchHandler.Routes(r)
 	scribHandler.Routes(r)
+	ereportHandler.Routes(r)
 	adminHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
-	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s church=%s church-groups=%s church-leaders=%s church-objects=%s scrib=%s epams=%s",
+	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s church=%s church-groups=%s church-leaders=%s church-objects=%s scrib=%s ereport=%s epams=%s",
 		userStore.BackendName(), homescoolHandler.Links.BackendName(), homescoolHandler.Tasks.BackendName(),
 		churchHandler.Catalog.BackendName(),
 		churchHandler.Groups.BackendName(), churchHandler.Leaders.BackendName(), churchHandler.Objects.BackendName(),
 		scribHandler.Objects.BackendName(),
+		ereportHandler.Objects.BackendName(),
 		epamStore.BackendName())
 	// pass_set / pass_norm_len use normalizeSMTPPass (Unicode spaces + quotes stripped).
 	// Never log the secret itself — only lengths for operator checks (Gmail app pw = 16).

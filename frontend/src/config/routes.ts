@@ -37,6 +37,14 @@ export const APP_ROUTES = {
   scribSheet: (userSafe: string, bookId: string, sheetId: string) =>
     `/scrib/${encodeURIComponent(userSafe)}/${encodeURIComponent(bookId)}/${encodeURIComponent(sheetId)}`,
   scribSheetWorkspace: "/scrib/sheet",
+  /** eReport Issue Tracker (subscription). */
+  ereport: "/ereport",
+  ereportUser: (userSafe: string) =>
+    `/ereport/${encodeURIComponent(userSafe)}`,
+  ereportReport: (userSafe: string, reportId: string) =>
+    `/ereport/${encodeURIComponent(userSafe)}/${encodeURIComponent(reportId)}`,
+  ereportHub: "/ereport/hub",
+  ereportWorkspace: "/ereport/workspace",
   adminUsers: "/admin/users",
 } as const;
 
@@ -174,6 +182,17 @@ export const SCRIB_ROUTES = {
     `/api/scrib/books/${encodeURIComponent(bookId)}/sheets`,
   sheet: (bookId: string, sheetId: string) =>
     `/api/scrib/books/${encodeURIComponent(bookId)}/sheets/${encodeURIComponent(sheetId)}`,
+} as const;
+
+/** eReport Issue Tracker cloud library (JWT + ereport entitlement for create). */
+export const EREPORT_ROUTES = {
+  library: "/api/ereport/library",
+  reports: "/api/ereport/reports",
+  import: "/api/ereport/reports/import",
+  report: (ownerSafe: string, reportId: string) =>
+    `/api/ereport/reports/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(reportId)}`,
+  shares: (ownerSafe: string, reportId: string) =>
+    `/api/ereport/reports/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(reportId)}/shares`,
 } as const;
 
 export const PLAYLIST_ROUTES = {
