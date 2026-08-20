@@ -247,6 +247,18 @@ export default function ChurchDetailPage() {
                       </li>
                     ))}
                   </ul>
+                  <h2>Actividades de la red</h2>
+                  <p className="church-panel__block">
+                    Registra aquí las actividades de la red. Cada iglesia las
+                    completa en su pestaña Actividades.
+                  </p>
+                  <ChurchNetworkActivities
+                    surface="network"
+                    denomId={detail.church.denominationId}
+                    churchId={detail.church.churchId}
+                    viewerRole={detail.viewerRole}
+                    churchName={detail.church.name}
+                  />
                 </>
               ) : null}
             </div>

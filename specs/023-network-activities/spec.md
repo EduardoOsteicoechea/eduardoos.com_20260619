@@ -17,10 +17,14 @@ Church workspace has local Actividades display and a read-only Red tab. Needed: 
 | 3 | Participantes: **multi-select, no cap** + **bulk select by church** |
 | 4 | **Multiple occurrences** per church per activity (same day allowed — e.g. sectors); key by `occurrenceId`, not date alone |
 | 5 | Member pool: **union of all members** of all local churches in the denom, **labeled by church** in dropdowns |
-| 6 | **New top-level workspace tab** (e.g. `Red actividades` / `Actividades de red`) — not nested inside Red |
+| 6 | **Create network activity only on workspace tab Red.** Tab **Actividades de red** = rollup read-only (no create). Church **Actividades** = fill occurrence forms only for already-registered network activities. |
 | 7 | Occurrence form: **any `church-member` or `church-admin`** of that church |
 | 8 | Photos: **no max count**; client compress large images to **≤ 1 MB**; allow **jpeg / png / webp** |
 | 9 | Deletes: **soft-delete** (`deletedAt`) so data is retained; UI hides soft-deleted by default |
+
+## Revision 2026-08-20 — Create only on Red
+
+- [x] UI: create form lives under **Red** only; **Actividades de red** has no create; **Actividades** (iglesia) only occurrence forms.
 
 ## Goals
 
@@ -44,11 +48,16 @@ Form fields:
 
 One save = one **occurrence** (`occurrenceId`) for that church + network activity. Many per day allowed.
 
-### C. New tab — network rollup (read-only)
+### C. Actividades de red — rollup (read-only)
 
-- Card per network activity.
-- Open → section per local church → card per occurrence: first-image thumb + stats (fecha, lugar, reportero, #participantes, #interesados, #imágenes).
-- Click → full detail **read-only**. Edit only via church form (B).
+- Card per network activity (no create here).
+- Open → section per local church → card per occurrence: first-image thumb + stats.
+- Click → full detail **read-only**. Edit only via church Actividades form (B).
+
+### D. Red tab — create definitions
+
+- Platform admin / church-admin: form **nombre + descripción** to register a network activity.
+- Also shows activity cards → same rollup as (C) for convenience.
 
 ## Non-goals
 

@@ -2,8 +2,9 @@
  * Spec 023 — Network activities UI for church workspace.
  *
  * Two surfaces share this module:
- * - `activities`: local church cards → occurrences → create/edit form
- * - `network-activities`: create definition (admin) → rollup → read-only detail
+ * - `activities`: local church cards → occurrences → create/edit form (no network-activity create)
+ * - `network-activities`: rollup read-only (no create)
+ * - `network`: Red tab — create network activity (admin) + rollup entry
  *
  * JWT-protected images are fetched with Authorization Bearer and shown via
  * blob object URLs (revoked on unmount / key change).
@@ -43,8 +44,12 @@ export type ChurchNetworkActivitiesProps = {
   churchId: string;
   viewerRole: string;
   churchName: string;
-  /** `activities` = local church tab; `network-activities` = network rollup tab */
-  surface: "activities" | "network-activities";
+  /**
+   * `activities` = occurrence forms only;
+   * `network-activities` = rollup read-only;
+   * `network` = Red tab create + rollup.
+   */
+  surface: "activities" | "network-activities" | "network";
 };
 
 type ContactDraft = {
@@ -806,10 +811,12 @@ function NetworkRollupSurface(props: {
   denomId: string;
   churchId: string;
   viewerRole: string;
+  /** Only true on Red tab — never on Actividades de red or church Actividades. */
+  allowCreate: boolean;
 }) {
-  const { denomId, churchId, viewerRole } = props;
+  const { denomId, churchId, viewerRole, allowCreate } = props;
   const groupId = denomId;
-  const canCreate = canCreateNetworkActivity(viewerRole);
+  const canCreate = allowCreate && canCreateNetworkActivity(viewerRole);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -1176,6 +1183,17 @@ export default function ChurchNetworkActivities(props: ChurchNetworkActivitiesPr
         denomId={props.denomId}
         churchId={props.churchId}
         viewerRole={props.viewerRole}
+        allowCreate={false}
+      />
+    );
+  }
+  if (props.surface === "network") {
+    return (
+      <NetworkRollupSurface
+        denomId={props.denomId}
+        churchId={props.churchId}
+        viewerRole={props.viewerRole}
+        allowCreate
       />
     );
   }
