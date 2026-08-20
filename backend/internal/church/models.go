@@ -146,6 +146,75 @@ type ActivityReport struct {
 	CreatedAt   string   `json:"createdAt"`
 }
 
+// NetworkActivity is a network-scoped activity definition (fan-out to all churches in the denom).
+type NetworkActivity struct {
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Description    string `json:"description,omitempty"`
+	DenominationID string `json:"denominationId"`
+	CreatedBy      string `json:"createdBy,omitempty"`
+	CreatedAt      string `json:"createdAt"`
+	UpdatedAt      string `json:"updatedAt"`
+	DeletedAt      string `json:"deletedAt,omitempty"` // soft-delete
+}
+
+// NetworkContact is one “persona a contactar” row on an occurrence.
+type NetworkContact struct {
+	Name     string `json:"name"`
+	Address  string `json:"address,omitempty"`
+	Phone    string `json:"phone,omitempty"`
+	Interest string `json:"interest,omitempty"`
+}
+
+// NetworkOccurrence is one church report for a network activity (many per day allowed).
+type NetworkOccurrence struct {
+	ID                    string           `json:"id"`
+	ActivityID            string           `json:"activityId"`
+	ChurchID              string           `json:"churchId"`
+	DenominationID        string           `json:"denominationId"`
+	Date                  string           `json:"date"` // YYYY-MM-DD
+	Place                 string           `json:"place,omitempty"`
+	ReporterMemberKey     string           `json:"reporterMemberKey"` // email
+	ParticipantMemberKeys []string         `json:"participantMemberKeys,omitempty"`
+	Description           string           `json:"description,omitempty"`
+	Contacts              []NetworkContact `json:"contacts,omitempty"`
+	ImageNames            []string         `json:"imageNames,omitempty"`
+	CreatedBy             string           `json:"createdBy,omitempty"`
+	CreatedAt             string           `json:"createdAt"`
+	UpdatedBy             string           `json:"updatedBy,omitempty"`
+	UpdatedAt             string           `json:"updatedAt"`
+	DeletedAt             string           `json:"deletedAt,omitempty"`
+}
+
+// NetworkMemberPoolEntry is one selectable member labeled by church.
+type NetworkMemberPoolEntry struct {
+	Email      string `json:"email"`
+	Name       string `json:"name"`
+	ChurchID   string `json:"churchId"`
+	ChurchName string `json:"churchName"`
+	Role       string `json:"role,omitempty"`
+}
+
+// NetworkOccurrenceStats is rollup card summary for one occurrence.
+type NetworkOccurrenceStats struct {
+	OccurrenceID       string `json:"occurrenceId"`
+	Date               string `json:"date"`
+	Place              string `json:"place,omitempty"`
+	ReporterMemberKey  string `json:"reporterMemberKey,omitempty"`
+	ReporterName       string `json:"reporterName,omitempty"`
+	ParticipantCount   int    `json:"participantCount"`
+	ContactCount       int    `json:"contactCount"`
+	ImageCount         int    `json:"imageCount"`
+	FirstImageName     string `json:"firstImageName,omitempty"`
+}
+
+// NetworkChurchRollup is one church section in the network activity rollup.
+type NetworkChurchRollup struct {
+	ChurchID   string                   `json:"churchId"`
+	ChurchName string                   `json:"churchName"`
+	Occurrences []NetworkOccurrenceStats `json:"occurrences"`
+}
+
 // Membership links a user to a church with a role.
 type Membership struct {
 	Email          string `json:"email"`

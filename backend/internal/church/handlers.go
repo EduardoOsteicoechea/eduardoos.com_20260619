@@ -69,6 +69,14 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Post("/api/church/groups", h.CreateGroup)
 		pr.Put("/api/church/groups/{groupID}", h.UpdateGroup)
 		pr.Delete("/api/church/groups/{groupID}", h.DeleteGroup)
+
+		// Network activities (fan-out definitions + rollup) under groups catalog.
+		pr.Get("/api/church/groups/{groupID}/network-activities", h.ListNetworkActivities)
+		pr.Post("/api/church/groups/{groupID}/network-activities", h.CreateNetworkActivity)
+		pr.Put("/api/church/groups/{groupID}/network-activities/{activityID}", h.UpdateNetworkActivity)
+		pr.Delete("/api/church/groups/{groupID}/network-activities/{activityID}", h.SoftDeleteNetworkActivity)
+		pr.Get("/api/church/groups/{groupID}/network-activities/{activityID}/rollup", h.NetworkActivityRollup)
+
 		pr.Get("/api/church/leader-roles", h.ListLeaderRoles)
 
 		// Leaders catalog — list for any JWT; mutate register-gate / platform admin.
@@ -83,6 +91,17 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Post("/api/church/{denomID}/{churchID}/activities", h.CreateActivity)
 		pr.Post("/api/church/{denomID}/{churchID}/activities/{activityID}/report", h.PostReport)
 		pr.Get("/api/church/{denomID}/{churchID}/activities/{activityID}/images/{name}", h.GetImage)
+
+		// Per-church network activity occurrences (spec 023).
+		pr.Get("/api/church/{denomID}/{churchID}/network-member-pool", h.NetworkMemberPool)
+		pr.Get("/api/church/{denomID}/{churchID}/network-activities", h.ListChurchNetworkActivities)
+		pr.Get("/api/church/{denomID}/{churchID}/network-activities/{activityID}/occurrences", h.ListNetworkOccurrences)
+		pr.Post("/api/church/{denomID}/{churchID}/network-activities/{activityID}/occurrences", h.CreateNetworkOccurrence)
+		pr.Get("/api/church/{denomID}/{churchID}/network-activities/{activityID}/occurrences/{occurrenceID}", h.GetNetworkOccurrence)
+		pr.Put("/api/church/{denomID}/{churchID}/network-activities/{activityID}/occurrences/{occurrenceID}", h.UpdateNetworkOccurrence)
+		pr.Delete("/api/church/{denomID}/{churchID}/network-activities/{activityID}/occurrences/{occurrenceID}", h.SoftDeleteNetworkOccurrence)
+		pr.Post("/api/church/{denomID}/{churchID}/network-activities/{activityID}/occurrences/{occurrenceID}/images", h.PostNetworkOccurrenceImage)
+		pr.Get("/api/church/{denomID}/{churchID}/network-activities/{activityID}/occurrences/{occurrenceID}/images/{name}", h.GetNetworkOccurrenceImage)
 	})
 }
 

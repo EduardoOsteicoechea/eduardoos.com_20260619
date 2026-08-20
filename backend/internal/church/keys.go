@@ -232,3 +232,32 @@ func LeadersPrefix() string {
 func LeaderMetaKey(leaderID string) string {
 	return LeadersPrefix() + "/" + strings.Trim(leaderID, "/") + "/leader.json"
 }
+
+// NetworkActivityMetaKey is church/groups/{groupId}/network-activities/{id}/activity.json.
+func NetworkActivityMetaKey(groupID, activityID string) string {
+	return GroupsPrefix() + "/" + strings.Trim(groupID, "/") +
+		"/network-activities/" + strings.Trim(activityID, "/") + "/activity.json"
+}
+
+// NetworkActivityPrefix lists under church/groups/{groupId}/network-activities/.
+func NetworkActivityPrefix(groupID string) string {
+	return GroupsPrefix() + "/" + strings.Trim(groupID, "/") + "/network-activities"
+}
+
+// NetworkOccurrencePrefix is …/network-activities/{activityId}/occurrences under a church.
+func NetworkOccurrencePrefix(denomID, churchID, activityID string) string {
+	return ChurchPrefix(denomID, churchID) +
+		"/network-activities/" + strings.Trim(activityID, "/") + "/occurrences"
+}
+
+// NetworkOccurrenceMetaKey is occurrence.json under an occurrence id.
+func NetworkOccurrenceMetaKey(denomID, churchID, activityID, occurrenceID string) string {
+	return NetworkOccurrencePrefix(denomID, churchID, activityID) +
+		"/" + strings.Trim(occurrenceID, "/") + "/occurrence.json"
+}
+
+// NetworkOccurrenceImageKey is images/{filename} under an occurrence.
+func NetworkOccurrenceImageKey(denomID, churchID, activityID, occurrenceID, filename string) string {
+	return NetworkOccurrencePrefix(denomID, churchID, activityID) +
+		"/" + strings.Trim(occurrenceID, "/") + "/images/" + path.Base(strings.TrimSpace(filename))
+}
