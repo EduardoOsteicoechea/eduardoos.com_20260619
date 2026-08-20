@@ -168,7 +168,11 @@ html.page-home .home-hero__photo {
 
 html.page-home .home-hero__stage,
 html.page-home .home-hero__primary,
-html.page-home .home-hero__copy,
+html.page-home .home-hero__copy {
+  position: relative;
+  z-index: 1;
+}
+
 html.page-home .home-hero__chat {
   position: relative;
   z-index: 1;
@@ -339,6 +343,39 @@ html.page-home .home-hero__primary {
     background: color-mix(in srgb, var(--site-surface) 92%, transparent);
     box-shadow: var(--site-shadow);
     backdrop-filter: blur(10px);
+  }
+
+  /*
+   * Home only: pin the AI panel in its first-viewport slot while the
+   * profile dossier scrolls. Reserve the right grid track via padding so
+   * the hero composition stays the same after the aside leaves the flow.
+   */
+  html.page-home .home-hero__stage {
+    grid-template-columns: minmax(0, 1fr);
+    padding-right: calc((100vw - var(--header_width, 60px)) * 0.85 / 2.1);
+  }
+
+  html.page-home .home-hero__chat {
+    position: fixed;
+    z-index: 5;
+    top: 1.25rem;
+    right: var(--page-inline-pad, 15px);
+    bottom: 1.25rem;
+    left: calc(
+      var(--header_width, 60px) + (100vw - var(--header_width, 60px)) * 1.25 / 2.1 +
+        1.5rem
+    );
+    width: auto;
+    margin: 0;
+    max-height: none;
+    box-sizing: border-box;
+  }
+
+  html.page-home .home-hero__chat .contact-agent {
+    max-width: none;
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
   }
 }
 
