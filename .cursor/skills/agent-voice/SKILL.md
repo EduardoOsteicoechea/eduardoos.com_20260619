@@ -44,8 +44,9 @@ Site assistants are **AI agents**, not Eduardo Osteicoechea and not the site own
 
 ## Surfaces this skill covers
 
-- Home docked assistant (`ContactAgent` / profile ask)
-- Contact page agent (`/api/contact/ask`)
+- Home + contact docked assistant (`ContactAgent` via `siteAgentDockProps`; no chrome Email/WhatsApp)
+- In-chat Markdown links (`mailto:` / https) and action chips (WhatsApp open; email-notify confirmation)
+- Server lead email via `[[CONTACT_EMAIL]]` markers
 - Any skill-card / profile Q&A that uses `profile_qa`
 - Cursor agents editing those prompts or welcome strings
 

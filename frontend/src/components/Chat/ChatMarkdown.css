@@ -62,8 +62,10 @@
 }
 
 .chat-md a {
-  color: inherit;
+  color: var(--site-accent);
   text-decoration: underline;
+  text-underline-offset: 0.12em;
+  font-weight: 600;
 }
 
 .chat-md code {

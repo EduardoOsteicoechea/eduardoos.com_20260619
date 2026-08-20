@@ -30,16 +30,66 @@ const CONTACT_START_AGENT_EVENT = "eduardoos:contact-start-agent";
 
 const DEFAULT_WELCOME = DEFAULT_AGENT_WELCOME;
 
-type ChatMsg = { role: "user" | "assistant"; text: string };
+type ChatAction = {
+  type?: string;
+  url?: string;
+  href?: string;
+  whatsappUrl?: string;
+};
 
-/** Assistant bubbles render safe Markdown; user stays plain text. */
-function ChatBubble({ role, text }: ChatMsg) {
+type ChatMsg = {
+  role: "user" | "assistant";
+  text: string;
+  actions?: ChatAction[];
+};
+
+/** Assistant bubbles render safe Markdown; optional handoff chips below. */
+function ChatBubble({ role, text, actions }: ChatMsg) {
+  const chips =
+    role === "assistant" && actions?.length
+      ? actions.flatMap((action, i) => {
+          if (action.type === "whatsapp") {
+            const url =
+              action.whatsappUrl ??
+              action.url ??
+              action.href ??
+              CONTACT_WHATSAPP_URL;
+            return [
+              <a
+                key={`wa-${i}`}
+                className="btn btn--primary contact-agent__action-btn"
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open WhatsApp
+              </a>,
+            ];
+          }
+          if (action.type === "email_notify") {
+            return [
+              <p key={`em-${i}`} className="contact-agent__action-note">
+                Details forwarded to Eduardo by email.
+              </p>,
+            ];
+          }
+          return [];
+        })
+      : [];
+
   if (role === "assistant") {
     return (
-      <ChatMarkdown
-        className="contact-agent__msg contact-agent__msg--assistant"
-        text={text}
-      />
+      <div className="contact-agent__msg-block">
+        <ChatMarkdown
+          className="contact-agent__msg contact-agent__msg--assistant"
+          text={text}
+        />
+        {chips.length > 0 ? (
+          <div className="contact-agent__msg-actions" aria-label="Chat actions">
+            {chips}
+          </div>
+        ) : null}
+      </div>
     );
   }
   return <div className="contact-agent__msg contact-agent__msg--user">{text}</div>;
@@ -47,12 +97,7 @@ function ChatBubble({ role, text }: ChatMsg) {
 
 type AskResponse = {
   answer?: string;
-  actions?: Array<{
-    type?: string;
-    url?: string;
-    href?: string;
-    whatsappUrl?: string;
-  }>;
+  actions?: ChatAction[];
 };
 
 export type ContactAgentHandle = {
@@ -61,16 +106,6 @@ export type ContactAgentHandle = {
 
 function humanTokenFor(scopeId: string, heldMs: number): string {
   return `h1:${scopeId}:${Math.floor(heldMs)}`;
-}
-
-function applyContactActions(actions: AskResponse["actions"]) {
-  if (!actions?.length) return;
-  for (const action of actions) {
-    if (action.type !== "whatsapp") continue;
-    const url =
-      action.whatsappUrl ?? action.url ?? action.href ?? CONTACT_WHATSAPP_URL;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
 }
 
 type ContactAgentProps = {
@@ -92,7 +127,7 @@ const ContactAgent = forwardRef<ContactAgentHandle, ContactAgentProps>(
       blurb = "Confirm you are not a bot, then chat with Eduardo’s AI agent (not Eduardo). Leave an email or phone number and the agent will notify him, or ask to continue on WhatsApp.",
       askPath = CONTACT_API_ROUTES.ask,
       skillLabel = "Contact",
-      showDirectLinks = true,
+      showDirectLinks = false,
       alwaysShowChat = false,
       welcomeMessage = DEFAULT_WELCOME,
     },
@@ -206,8 +241,11 @@ const ContactAgent = forwardRef<ContactAgentHandle, ContactAgentProps>(
         });
         if (result.error) throw new Error(formatApiError(result.error));
         const answer = result.data?.answer || "(no reply)";
-        applyContactActions(result.data?.actions);
-        setChat((prev) => [...prev, { role: "assistant", text: answer }]);
+        const actions = result.data?.actions ?? [];
+        setChat((prev) => [
+          ...prev,
+          { role: "assistant", text: answer, actions },
+        ]);
       } catch (err) {
         setChat((prev) => [
           ...prev,
@@ -221,8 +259,8 @@ const ContactAgent = forwardRef<ContactAgentHandle, ContactAgentProps>(
       }
     }
 
-    // Docked site agent keeps title + Email/WhatsApp after unlock; gate-only
-    // flows hide the chrome once the tray opens.
+    // Docked site agent keeps title after unlock; gate-only flows hide chrome
+    // once the tray opens. Direct Email/WhatsApp live on /contact channels + in-chat links.
     const showChrome = showGate || alwaysShowChat;
 
     return (
@@ -301,7 +339,12 @@ const ContactAgent = forwardRef<ContactAgentHandle, ContactAgentProps>(
                 </p>
               ) : null}
               {chat.map((m, i) => (
-                <ChatBubble key={`${m.role}-${i}`} role={m.role} text={m.text} />
+                <ChatBubble
+                  key={`${m.role}-${i}`}
+                  role={m.role}
+                  text={m.text}
+                  actions={m.actions}
+                />
               ))}
               {asking ? (
                 <p className="contact-agent__hint" aria-live="polite">

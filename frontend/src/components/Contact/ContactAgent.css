@@ -8,31 +8,17 @@
   color: var(--site-body-fg);
 }
 
-.contact-page__agent .contact-agent {
-  max-width: none;
-}
-
-/* Contact tray: fill the right column / agent shell top-to-bottom. */
-.contact-page__agent .contact-agent--tray {
-  flex: 1 1 auto;
+/* Contact + home share the same docked agent chrome (ContactAgent--docked). */
+.contact-page__agent .contact-agent--docked {
+  gap: 0.7rem;
   height: 100%;
   min-height: 0;
-  gap: 0;
 }
 
-.contact-page__agent .contact-agent--tray .contact-agent__chat {
+.contact-page__agent .contact-agent--docked .contact-agent__chat {
   flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
-.contact-page__agent .contact-agent--tray .contact-agent__thread {
-  max-height: none;
-  flex: 1 1 auto;
-  min-height: 0;
+  height: auto;
 }
 
 .contact-agent--tray {
@@ -166,6 +152,38 @@
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.contact-agent__msg-block {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-width: 95%;
+}
+
+.contact-agent__msg-block .contact-agent__msg {
+  max-width: 100%;
+}
+
+.contact-agent__msg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.55rem;
+}
+
+.contact-agent__action-btn {
+  text-decoration: none;
+  font-size: var(--font-sm);
+  padding: 0.35rem 0.75rem;
+}
+
+.contact-agent__action-note {
+  margin: 0;
+  font-size: var(--font-xs, 0.75rem);
+  font-family: var(--font-utility, Roboto, sans-serif);
+  color: var(--site-meta-fg);
 }
 
 .contact-agent__msg--user {

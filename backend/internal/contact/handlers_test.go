@@ -63,6 +63,8 @@ func TestProfileQASystemPromptRejectsImpersonation(t *testing.T) {
 		"this individual",
 		"eduardooost@gmail.com",
 		"https://wa.me/584147281033",
+		"mailto:eduardooost@gmail.com",
+		"Open WhatsApp button",
 	}
 	for _, s := range mustContain {
 		if !strings.Contains(ProfileQASystemPrompt, s) {

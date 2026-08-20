@@ -32,8 +32,13 @@ function inlineMarkdown(escaped: string): string {
   s = s.replace(/(^|[^\w])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
   s = s.replace(/(^|[^\w])_([^_\n]+)_(?!_)/g, "$1<em>$2</em>");
   s = s.replace(
-    /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+    /\[([^\]]+)\]\((https?:\/\/[^)\s]+|mailto:[^)\s]+)\)/g,
+    (_full, label: string, href: string) => {
+      if (href.startsWith("mailto:")) {
+        return `<a href="${href}">${label}</a>`;
+      }
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+    },
   );
   return s;
 }

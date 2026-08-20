@@ -13,29 +13,28 @@ export const AGENT_ROLE_LABEL = "Eduardo’s AI agent";
 export const DEFAULT_AGENT_WELCOME =
   "Hello — I am Eduardo’s AI agent (not Eduardo). Confirm you are not a bot above, then ask about his architecture and software work, skills, or how to reach him.";
 
-/**
- * Canonical dock welcome (home + contact). Mentions Email/WhatsApp buttons
- * and chat handoff without impersonating Eduardo.
- */
+/** Home dock welcome — work / skills focus. */
 export const HOME_AGENT_WELCOME =
-  "Hello — I am Eduardo’s AI agent (not Eduardo). Confirm you are not a bot above, then ask about his work, skills, or how to get in touch. Use Email or WhatsApp above, or leave your details in chat and I will notify him.";
+  "Hello — I am Eduardo’s AI agent (not Eduardo). Confirm you are not a bot above, then ask about his work, skills, or how to get in touch.";
 
-/** Alias — same string; site dock is one product. */
-export const SITE_AGENT_WELCOME = HOME_AGENT_WELCOME;
+/** Contact dock welcome — reach / handoff focus (only chrome difference vs home). */
+export const CONTACT_AGENT_WELCOME =
+  "Hello — I am Eduardo’s AI agent (not Eduardo). Confirm you are not a bot above, then ask how to reach Eduardo, leave your email or phone, or request WhatsApp — I can notify him and share links in this chat.";
 
 export type SiteAgentSurface = "home" | "contact";
 
 /**
  * Shared dock preset for `/` and `/contact`.
- * Only scopeId / skillLabel differ for gate tokens and telemetry.
+ * Identical chrome; welcome + scope/skill differ by surface.
  */
 export function siteAgentDockProps(surface: SiteAgentSurface) {
   return {
     alwaysShowChat: true as const,
-    showDirectLinks: true as const,
+    showDirectLinks: false as const,
     title: "AI agent",
     askPath: CONTACT_API_ROUTES.profileAsk,
-    welcomeMessage: SITE_AGENT_WELCOME,
+    welcomeMessage:
+      surface === "home" ? HOME_AGENT_WELCOME : CONTACT_AGENT_WELCOME,
     scopeId: surface,
     skillLabel: surface === "home" ? "Home" : "Contact",
   };

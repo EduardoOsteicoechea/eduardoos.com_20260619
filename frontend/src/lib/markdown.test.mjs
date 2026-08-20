@@ -24,8 +24,13 @@ function inlineMarkdown(escaped) {
   s = s.replace(/(^|[^\w])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
   s = s.replace(/(^|[^\w])_([^_\n]+)_(?!_)/g, "$1<em>$2</em>");
   s = s.replace(
-    /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+    /\[([^\]]+)\]\((https?:\/\/[^)\s]+|mailto:[^)\s]+)\)/g,
+    (_full, label, href) => {
+      if (href.startsWith("mailto:")) {
+        return `<a href="${href}">${label}</a>`;
+      }
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+    },
   );
   return s;
 }
@@ -157,5 +162,11 @@ describe("markdownToSafeHtml", () => {
       out,
       /<a href="https:\/\/eduardoos.com\/path" target="_blank" rel="noopener noreferrer">site<\/a>/,
     );
+  });
+
+  it("allows mailto links via markdown syntax", () => {
+    const out = markdownToSafeHtml("[Email](mailto:eduardooost@gmail.com)");
+    assert.match(out, /<a href="mailto:eduardooost@gmail.com">Email<\/a>/);
+    assert.doesNotMatch(out, /target="_blank"/);
   });
 });

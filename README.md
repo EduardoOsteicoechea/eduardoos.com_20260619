@@ -106,7 +106,7 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | Homescool | `/homescool` |
 | Church | `/church` |
 | Music | `/media/musica` |
-| Contact | `/contact` (same docked AI agent as home + Email/WhatsApp) |
+| Contact | `/contact` (same docked AI agent as home; Email/WhatsApp via ContactChannels + in-chat links) |
 
 ## Development Tests
 
