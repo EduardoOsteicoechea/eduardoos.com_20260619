@@ -58,10 +58,10 @@ Production uses **two inline policies** on role **`eduardoos-ec2-s3-role`**:
 
 | Policy file | Covers |
 |-------------|--------|
-| [`ec2-iam-s3-policy.json`](./ec2-iam-s3-policy.json) | `ListBucket` (`media/`, `ifcbim/`, `homeschool/`, `greek/`) + object access on those prefixes |
+| [`ec2-iam-s3-policy.json`](./ec2-iam-s3-policy.json) | `ListBucket` (`media/`, `ifcbim/`, `homeschool/`, `greek/`, `church/`, `scrib/`, `ereport/`) + object access on those prefixes |
 | [`ec2-iam-dynamodb-policy.json`](./ec2-iam-dynamodb-policy.json) | All Eduardo OS DynamoDB tables |
 
-App objects live under **`media/`** (gallery, avatars, audio), **`ifcbim/`** (IFC models), **`homeschool/`** (Homescool spaces), and **`greek/`** (Greek letter books):
+App objects live under **`media/`** (gallery, avatars, audio), **`ifcbim/`** (IFC models), **`homeschool/`** (Homescool spaces), **`greek/`**, **`church/`**, **`scrib/`**, and **`ereport/`**:
 
 | Path | Feature |
 |------|---------|
@@ -71,6 +71,9 @@ App objects live under **`media/`** (gallery, avatars, audio), **`ifcbim/`** (IF
 | `ifcbim/{user}/{modelId}.ifc` | Signed-in BIM models |
 | `homeschool/{teacher}/{student}/…` | Homescool learning objects |
 | `greek/{user}/{group}/chapters/…/letters/{i}.svg` | Greek letter-by-letter books |
+| `church/…` | Church registry objects |
+| `scrib/{user}/…` | Scrib books/sheets |
+| `ereport/{user}/…` | eReport Issue Tracker `.ereport` files |
 
 Your S3 policy shape is correct. Add **`media/`** alongside **`media/*`** in the `s3:prefix` condition (see `ec2-iam-s3-policy.json`) so `ListObjects` with prefix `media/` is allowed.
 
@@ -82,6 +85,7 @@ Optional combined policy: [`ec2-iam-policy.json`](./ec2-iam-policy.json) (broade
 |-------|-------|-----|
 | `s3:ListBucket` | App listed the whole bucket (`prefix=""`) | Fixed in code — lists `media/` only. Redeploy latest. |
 | `s3:PutObject` on `profiles/...` | Old build stored outside `media/` | Redeploy — now uses `media/profiles/`. |
+| `s3:PutObject` on `ereport/...` → API `could not save meta` | Inline S3 policy missing `ereport/*` (and `scrib/*`) | Update [`ec2-iam-s3-policy.json`](./ec2-iam-s3-policy.json) on role `eduardoos-ec2-s3-role`, wait ~1 min, retry. |
 
 After updating IAM or deploying code, wait ~1 minute for instance credentials to refresh.
 

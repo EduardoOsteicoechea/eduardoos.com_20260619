@@ -18,7 +18,11 @@
             "greek/",
             "greek/*",
             "church/",
-            "church/*"
+            "church/*",
+            "scrib/",
+            "scrib/*",
+            "ereport/",
+            "ereport/*"
           ]
         }
       }
@@ -52,6 +56,18 @@
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
       "Resource": "arn:aws:s3:::eduardoos20260607/church/*"
+    },
+    {
+      "Sid": "S3ScribObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::eduardoos20260607/scrib/*"
+    },
+    {
+      "Sid": "S3EreportObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::eduardoos20260607/ereport/*"
     },
     {
       "Sid": "S3ListApsBucket",

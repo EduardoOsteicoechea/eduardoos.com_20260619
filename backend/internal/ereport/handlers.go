@@ -87,6 +87,18 @@ func (h *Handler) isAdminUser(r *http.Request, email string) bool {
 
 func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
 
+// s3WriteErrorMessage keeps the API short but flags IAM AccessDenied clearly.
+func s3WriteErrorMessage(err error, fallback string) string {
+	if err == nil {
+		return fallback
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "accessdenied") || strings.Contains(msg, "not authorized") || strings.Contains(msg, "forbidden") {
+		return fallback + " (S3 AccessDenied on ereport/ — attach IAM PutObject for eduardoos20260607/ereport/* on eduardoos-ec2-s3-role)"
+	}
+	return fallback
+}
+
 func (h *Handler) loadLibrary(r *http.Request, email, cid string) (Library, error) {
 	var lib Library
 	ok, err := h.Objects.GetJSON(r.Context(), LibraryKey(email), &lib, cid)
@@ -193,11 +205,13 @@ func (h *Handler) CreateReport(w http.ResponseWriter, r *http.Request) {
 	}
 	payload := EmptyPayload()
 	if err := h.Objects.PutJSON(r.Context(), MetaKey(email, id), meta, cid); err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, "could not save meta")
+		log.Printf("[correlation=%s] ereport.create meta_error key=%s err=%v", cid, MetaKey(email, id), err)
+		httpx.WriteError(w, http.StatusBadGateway, s3WriteErrorMessage(err, "could not save meta"))
 		return
 	}
 	if err := h.Objects.PutJSON(r.Context(), ReportKey(email, id), payload, cid); err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, "could not save report")
+		log.Printf("[correlation=%s] ereport.create report_error key=%s err=%v", cid, ReportKey(email, id), err)
+		httpx.WriteError(w, http.StatusBadGateway, s3WriteErrorMessage(err, "could not save report"))
 		return
 	}
 	lib, _ := h.loadLibrary(r, email, cid)
@@ -247,11 +261,13 @@ func (h *Handler) ImportReport(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:    now,
 	}
 	if err := h.Objects.PutJSON(r.Context(), MetaKey(email, id), meta, cid); err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, "could not save meta")
+		log.Printf("[correlation=%s] ereport.import meta_error key=%s err=%v", cid, MetaKey(email, id), err)
+		httpx.WriteError(w, http.StatusBadGateway, s3WriteErrorMessage(err, "could not save meta"))
 		return
 	}
 	if err := h.Objects.PutJSON(r.Context(), ReportKey(email, id), body.Payload, cid); err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, "could not save report")
+		log.Printf("[correlation=%s] ereport.import report_error key=%s err=%v", cid, ReportKey(email, id), err)
+		httpx.WriteError(w, http.StatusBadGateway, s3WriteErrorMessage(err, "could not save report"))
 		return
 	}
 	lib, _ := h.loadLibrary(r, email, cid)

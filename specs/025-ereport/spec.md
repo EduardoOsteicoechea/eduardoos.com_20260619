@@ -62,7 +62,7 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
 | DELETE | `/api/ereport/reports/{ownerSafe}/{reportId}` | owner/admin |
 | PUT | `/api/ereport/reports/{ownerSafe}/{reportId}/shares` | owner; `{ emails: string[] }` — must be registered users |
 
-IAM already allows Get/Put/Delete on `arn:aws:s3:::eduardoos20260607/ereport/*`.
+IAM already allows Get/Put/Delete on `arn:aws:s3:::eduardoos20260607/ereport/*` **and** ListBucket prefixes `ereport/` / `ereport/*` via `deploy/aws/ec2-iam-s3-policy.json` (also `scrib/`). If create returns HTTP 502 `could not save meta`, the EC2 role is missing that statement — update the inline/managed S3 policy on `eduardoos-ec2-s3-role` and wait ~1 minute for credentials to refresh.
 
 ## Non-goals
 - Real-time multi-cursor collaboration.
