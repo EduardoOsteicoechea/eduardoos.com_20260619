@@ -18,11 +18,13 @@ Port `portable-issue-tracker` into Eduardo OS as **eReport**: subscribed users s
 ### 1. Routes
 | Path | UI |
 |------|-----|
-| `/ereport` | Redirect / gate → `/ereport/{userSafe}` |
-| `/ereport/{userSafe}` | Hub: list owned + shared-with-me; create; upload `.ereport`; open cards |
-| `/ereport/{userSafe}/{reportId}` | Editor: **tema** input + share controls + portable Issue Tracker |
+| `/ereport` | Redirect / gate → hub for current user |
+| `/ereport/hub?user=` | Hub static shell (works without nginx rewrite) |
+| `/ereport/{userSafe}` | Pretty hub URL (nginx → hub shell) |
+| `/ereport/workspace?user=&report=` | Editor static shell (create/open navigates here first) |
+| `/ereport/{userSafe}/{reportId}` | Pretty editor URL (nginx rewrite + client `replaceState`) |
 
-Pretty paths use nginx rewrite to static shells (same pattern as Scrib). `userSafe` = email `@` → `_at_`.
+**Bugfix (2026-08-20):** Opening the pretty editor path before nginx rewrite is live served `/index.html` (home). Links and post-create navigation use `/ereport/workspace?…` first; nginx rewrite uses `rewrite … last` (not try_files→home).
 
 ### 2. S3 (`eduardoos20260607`, prefix `ereport/`)
 ```

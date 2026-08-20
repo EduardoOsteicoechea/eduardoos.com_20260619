@@ -9,6 +9,7 @@ import {
   putEreportShares,
   resolveEreportEditorFromLocation,
   saveEreport,
+  ereportPrettyPath,
   type EreportMeta,
   type EreportPayload,
 } from "../../lib/ereport";
@@ -35,7 +36,7 @@ export default function EreportEditor() {
     const resolved = resolveEreportEditorFromLocation();
     setIds(resolved);
     if (resolved) {
-      const pretty = APP_ROUTES.ereportReport(resolved.ownerSafe, resolved.reportId);
+      const pretty = ereportPrettyPath(resolved.ownerSafe, resolved.reportId);
       if (window.location.pathname.replace(/\/+$/, "") !== pretty) {
         window.history.replaceState(null, "", pretty);
       }

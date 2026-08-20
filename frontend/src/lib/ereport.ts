@@ -208,7 +208,21 @@ export async function putEreportShares(
 }
 
 export function ereportHref(userSafe: string, reportId?: string): string {
-  if (reportId) return APP_ROUTES.ereportReport(userSafe, reportId);
+  if (reportId) {
+    const q = new URLSearchParams({ user: userSafe, report: reportId });
+    return `${APP_ROUTES.ereportWorkspace}?${q.toString()}`;
+  }
+  const q = new URLSearchParams({ user: userSafe });
+  return `${APP_ROUTES.ereportHub}?${q.toString()}`;
+}
+
+/** Pretty editor path for the address bar after the workspace shell loads. */
+export function ereportPrettyPath(userSafe: string, reportId: string): string {
+  return APP_ROUTES.ereportReport(userSafe, reportId);
+}
+
+/** Pretty hub path /ereport/{userSafe}. */
+export function ereportHubPrettyPath(userSafe: string): string {
   return APP_ROUTES.ereportUser(userSafe);
 }
 

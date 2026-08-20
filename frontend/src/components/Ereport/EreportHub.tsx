@@ -10,9 +10,9 @@ import {
   createEreport,
   deleteEreport,
   ereportHref,
+  ereportHubPrettyPath,
   fetchEreportLibrary,
   importEreport,
-  resolveEreportHubFromLocation,
   type ReportCard,
   type SharedItem,
 } from "../../lib/ereport";
@@ -54,12 +54,8 @@ export default function EreportHub() {
   }, [reload]);
 
   useEffect(() => {
-    const fromPath = resolveEreportHubFromLocation();
-    if (fromPath && userSafe && fromPath !== userSafe) {
-      // Path user segment should match session; keep session library.
-    }
     if (userSafe && typeof window !== "undefined") {
-      const pretty = APP_ROUTES.ereportUser(userSafe);
+      const pretty = ereportHubPrettyPath(userSafe);
       if (window.location.pathname.replace(/\/+$/, "") !== pretty) {
         window.history.replaceState(null, "", pretty);
       }
