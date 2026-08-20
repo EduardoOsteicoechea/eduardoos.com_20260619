@@ -216,7 +216,11 @@ export type PamphletFooterLayoutMm = {
     height: number;
     /** Band width: 2 cols + narrow gutter (same as header). */
     width: number;
+    /** Horizontal + legacy symmetric pad; prefer pad_top / pad_bottom for vertical. */
     pad: number;
+    pad_top: number;
+    /** Outer frame bottom pad (0 = flush to inner floor). */
+    pad_bottom: number;
     radius: number;
     stroke: number;
     /** Clear gap inside outer border face → inner frame (CSS ::after inset). */
@@ -251,6 +255,8 @@ export type PamphletFooterLayoutMm = {
     meta_row_h: number;
     /** WhatsApp/Teléfono label row height (first labels row); −1mm vs meta_row_h. */
     meta_label1_row_h: number;
+    /** Dirección/Actividades label row height (second labels row); +1mm bottom vs meta_row_h. */
+    meta_label2_row_h: number;
     meta_value_row_h: number;
     meta_size: number;
     meta_lh: number;
@@ -263,10 +269,12 @@ export type PamphletFooterLayoutMm = {
 
 /** Exact mm from style.css `.pamphlet-page-footer` — PDF must use these, not invent sizes. */
 export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
-    // 2×label 5.5 + 1×meta_gap 0.4 (value rows hidden when empty) + chrome + divider + pads
-    height: 30,
+    // Net: prior 30 − pad_bottom 1.2 + label2 +1 → 29.8 (other chrome unchanged)
+    height: 29.8,
     width: 119.7, // 57.85×2 + 4
-    pad: 1.2,
+    pad: 1.2, // horizontal + legacy
+    pad_top: 1.2,
+    pad_bottom: 0,
     radius: 1,
     stroke: 0.2,
     inner_inset: 0.45,
@@ -292,6 +300,7 @@ export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
     meta_col_gap: 2,
     meta_row_h: 5.5,
     meta_label1_row_h: 4.5, // WhatsApp/Teléfono only (−1mm bottom)
+    meta_label2_row_h: 6.5, // Dirección/Actividades (+1mm bottom pad)
     meta_value_row_h: 1.5,
     meta_size: 2.8,
     meta_lh: 1.25,

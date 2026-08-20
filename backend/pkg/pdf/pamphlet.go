@@ -5,7 +5,7 @@ package pdf
 // Geometry matches the frontend sheet CSS exactly:
 //   page  279.4mm × 215.9mm (US Letter landscape)
 //   cols  57.85mm wide, gutters 4mm / 20mm (center), margins 10mm
-//   page1 left  cols 7–8 (159.9mm tall) + footer; right header + cols 1–2
+//   page1 left  cols 7–8 (160.1mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
 // Text uses embedded Roboto / Roboto-Bold (website font) with WinAnsiEncoding.
@@ -43,9 +43,9 @@ const (
 	PamphletHeaderHMm = 34.5
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
-	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 34.5 − 5 − 6 − 30 − 10
-	PamphletPage1BodyMm = 120.4
+	PamphletFooterHMm          = 29.8 // default; overridden by footer_layout.height from frontend
+	// 215.9 − 10 − 34.5 − 5 − 6 − 29.8 − 10
+	PamphletPage1BodyMm = 120.6
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Clear space under subtitle → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
@@ -54,8 +54,8 @@ const (
 	PamphletHeaderMetaRowGapMm = 1.8
 	// Right-side cols 1–2: 195.9 − 34.5 − 5
 	PamphletPage1RightColMm = 156.4
-	// Left-side cols 7–8 above footer: 195.9 − 6 − 30 (default layout.height)
-	PamphletPage1LeftColMm = 159.9
+	// Left-side cols 7–8 above footer: 195.9 − 6 − 29.8 (default layout.height)
+	PamphletPage1LeftColMm = 160.1
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band fits title + meta + rule
 	pamphletTitleLH     = 1.1
@@ -126,6 +126,8 @@ type PamphletFooterLayout struct {
 	Height               float64 `json:"height"`
 	Width                float64 `json:"width"`
 	Pad                  float64 `json:"pad"`
+	PadTop               float64 `json:"pad_top"`
+	PadBottom            float64 `json:"pad_bottom"`
 	Radius               float64 `json:"radius"`
 	Stroke               float64 `json:"stroke"`
 	InnerInset           float64 `json:"inner_inset"`
@@ -151,6 +153,7 @@ type PamphletFooterLayout struct {
 	MetaColGap           float64 `json:"meta_col_gap"`
 	MetaRowH             float64 `json:"meta_row_h"`
 	MetaLabel1RowH       float64 `json:"meta_label1_row_h"`
+	MetaLabel2RowH       float64 `json:"meta_label2_row_h"`
 	MetaValueRowH        float64 `json:"meta_value_row_h"`
 	MetaSize             float64 `json:"meta_size"`
 	MetaLH               float64 `json:"meta_lh"`
@@ -760,6 +763,8 @@ func defaultFooterLayout() PamphletFooterLayout {
 		Height:             PamphletFooterHMm,
 		Width:              PamphletColWidthMm*2 + PamphletGutterNarrow,
 		Pad:                1.2,
+		PadTop:             1.2,
+		PadBottom:          0,
 		Radius:             1.0,
 		Stroke:             0.2,
 		InnerInset:         0.45,
@@ -785,6 +790,7 @@ func defaultFooterLayout() PamphletFooterLayout {
 		MetaColGap:         2.0,
 		MetaRowH:           5.5,
 		MetaLabel1RowH:     4.5,
+		MetaLabel2RowH:     6.5,
 		MetaValueRowH:      1.5,
 		MetaSize:           2.8,
 		MetaLH:             1.25,
@@ -809,6 +815,29 @@ func normalizeFooterLayout(l PamphletFooterLayout) PamphletFooterLayout {
 		Height:             pick(l.Height, d.Height),
 		Width:              pick(l.Width, d.Width),
 		Pad:                pick(l.Pad, d.Pad),
+		PadTop: func() float64 {
+			if l.PadTop > 0 {
+				return l.PadTop
+			}
+			if l.PadBottom == 0 && l.PadTop == 0 && l.Pad > 0 {
+				// Legacy symmetric pad only.
+				return l.Pad
+			}
+			return d.PadTop
+		}(),
+		PadBottom: func() float64 {
+			// FE posts pad_top > 0 with pad_bottom: 0 (flush bottom).
+			if l.PadTop > 0 {
+				return l.PadBottom
+			}
+			if l.PadBottom > 0 {
+				return l.PadBottom
+			}
+			if l.Pad > 0 {
+				return l.Pad
+			}
+			return d.PadBottom
+		}(),
 		Radius:             pick(l.Radius, d.Radius),
 		Stroke:             pick(l.Stroke, d.Stroke),
 		InnerInset:         pick(l.InnerInset, d.InnerInset),
@@ -852,6 +881,7 @@ func normalizeFooterLayout(l PamphletFooterLayout) PamphletFooterLayout {
 		MetaColGap:         pick(l.MetaColGap, d.MetaColGap),
 		MetaRowH:           pick(l.MetaRowH, d.MetaRowH),
 		MetaLabel1RowH:     pick(l.MetaLabel1RowH, d.MetaLabel1RowH),
+		MetaLabel2RowH:     pick(l.MetaLabel2RowH, d.MetaLabel2RowH),
 		MetaValueRowH:      pick(l.MetaValueRowH, d.MetaValueRowH),
 		MetaSize:           pick(l.MetaSize, d.MetaSize),
 		MetaLH:             pick(l.MetaLH, d.MetaLH),
@@ -1031,11 +1061,20 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 		}
 	}
 
-	pad := layout.Pad
-	innerX := x + pad
-	innerTop := top - pad
-	innerW := width - 2*pad
-	floor := top - heightMm + pad
+	padX := layout.Pad
+	if padX <= 0 {
+		padX = 1.2
+	}
+	padTop := layout.PadTop
+	padBottom := layout.PadBottom
+	if padTop <= 0 && padBottom <= 0 {
+		padTop = padX
+		padBottom = padX
+	}
+	innerX := x + padX
+	innerTop := top - padTop
+	innerW := width - 2*padX
+	floor := top - heightMm + padBottom
 	cursorTop := innerTop
 
 	dividerH := layout.DividerOuterStroke + layout.DividerGap + layout.DividerInnerStroke
@@ -1153,6 +1192,9 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 		} else if labelRowsDrawn == 0 && layout.MetaLabel1RowH > 0 {
 			// WhatsApp/Teléfono — 1mm less bottom than other label rows.
 			rowH = layout.MetaLabel1RowH
+		} else if labelRowsDrawn == 1 && layout.MetaLabel2RowH > 0 {
+			// Dirección/Actividades — +1mm bottom pad vs meta_row_h.
+			rowH = layout.MetaLabel2RowH
 		}
 		if cursorTop-rowH < floor-0.01 {
 			break

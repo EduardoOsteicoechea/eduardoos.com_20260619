@@ -45,3 +45,14 @@ Ready to implement (clarified 2026-08-19).
 ## Revision 2026-08-19 — Mensaje bottom pad −1mm
 
 - [x] First lower-footer row (Mensaje): `message_pad_bottom` **0** (was 0.7); top stays 0.7. CSS + PDF.
+
+## Revision 2026-08-19 — Outer pad bottom 0 + Dirección/Actividades +1mm
+
+### Goals
+1. Footer outer `pad_bottom` **0** (was symmetric `pad` 1.2); keep `pad_top` / horizontal pad **1.2**.
+2. Last meta labels row (Dirección / Actividades): **+1mm** bottom padding → `meta_label2_row_h` **6.5** (was `meta_row_h` 5.5).
+3. Absorb net delta in band height only — do not change chrome_gap, divider, Acción/Mensaje, or WhatsApp row: `height` **29.8** (= 30 − 1.2 + 1). Page1 left col / body track the new height.
+
+### Acceptance
+- [x] CSS + `PAMPHLET_FOOTER_LAYOUT_MM` + PDF `drawFooter` / `normalizeFooterLayout` agree.
+- [x] `go test ./pkg/pdf/` green; frontend `npm run build` green before push.

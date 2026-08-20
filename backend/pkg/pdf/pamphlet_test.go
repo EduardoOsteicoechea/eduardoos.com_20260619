@@ -130,14 +130,28 @@ func TestFooterMessagePadBottomReduced(t *testing.T) {
 	if d.MetaLabel1RowH != 4.5 {
 		t.Fatalf("meta_label1_row_h want 4.5 (WhatsApp/Teléfono −1mm), got %v", d.MetaLabel1RowH)
 	}
+	if d.MetaLabel2RowH != 6.5 {
+		t.Fatalf("meta_label2_row_h want 6.5 (Dirección/Actividades +1mm), got %v", d.MetaLabel2RowH)
+	}
+	if d.PadTop != 1.2 || d.PadBottom != 0 {
+		t.Fatalf("footer pad want top 1.2 bottom 0, got top=%v bottom=%v", d.PadTop, d.PadBottom)
+	}
+	if d.Height != 29.8 {
+		t.Fatalf("footer height want 29.8 (absorb pad/label2), got %v", d.Height)
+	}
 	got := normalizeFooterLayout(PamphletFooterLayout{
-		Height:           30,
+		Height:           29.8,
+		PadTop:           1.2,
+		PadBottom:        0,
 		MessagePadTop:    0.7,
 		MessagePadBottom: 0,
 		MessagePadY:      0.7,
 	})
 	if got.MessagePadBottom != 0 || got.MessagePadTop != 0.7 {
 		t.Fatalf("normalize message pads: top=%v bottom=%v", got.MessagePadTop, got.MessagePadBottom)
+	}
+	if got.PadBottom != 0 || got.PadTop != 1.2 {
+		t.Fatalf("normalize outer pads: top=%v bottom=%v", got.PadTop, got.PadBottom)
 	}
 }
 
