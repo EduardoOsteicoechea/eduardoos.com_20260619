@@ -24,10 +24,11 @@ Ready to implement (2026-08-20).
 - Changing mobile layout structure (may share the same screen ink tokens so `data-theme` works).
 - Growing any footer/header band heights.
 
-## Acceptance
+## Revision 2026-08-20 — PamphletLayout sheet override
 
-- [x] Desktop dark theme: hoja/columns/inputs match `--site-body-bg`; text and chrome borders match `--site-body-fg`.
-- [x] Light theme still readable (same tokens).
-- [x] `@media print` forces paper white / black ink.
-- [x] Label2 pad top 1mm; heights unchanged; CSS + `PAMPHLET_FOOTER_LAYOUT_MM` + PDF pad agree.
-- [x] `go test ./pkg/pdf/` + `npm run build` green before push.
+Desktop sheet was still white because `PamphletLayout.css` forced
+`body.page-pamphlet .pamphlet-app main.pamphlet-sheet { background:#fff; color:#000 }`
+(higher specificity than generator `style.css`). Header/footer looked themed; columns/body did not.
+
+- [x] Layout sheet uses `--pamphlet-paper-bg` / `--pamphlet-ink` (fallback `--site-body-*`).
+- [x] Desktop columns/body text explicitly inherit pamphlet ink.

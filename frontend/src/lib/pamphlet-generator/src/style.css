@@ -981,6 +981,7 @@
   overflow: hidden;
   font-size: 3mm;
   line-height: 1.25;
+  color: var(--pamphlet-ink, var(--site-body-fg));
 }
 
 /* Bold in a paragraph stays body size (3mm) — never heading scale (4.25mm). */

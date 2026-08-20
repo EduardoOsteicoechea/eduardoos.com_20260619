@@ -2,9 +2,9 @@
 
 ## Change
 - Screen pamphlet ink tokens: `--pamphlet-paper-bg` / `--pamphlet-ink` / `--pamphlet-rule` → site body bg/fg.
-- Print overrides tokens to white/black; PDF unchanged (server B&W).
-- Dirección/Actividades `meta_label2_pad_top: 1` (heights 6.5 / 29.8 unchanged).
+- **Fix:** `PamphletLayout.css` had forced `#fff/#000` on `main.pamphlet-sheet` (beat generator CSS); now uses pamphlet tokens so columns/body match dark mode.
+- Print overrides tokens to white/black; PDF unchanged.
+- Dirección/Actividades `meta_label2_pad_top: 1`.
 
 ## Spec
 - `specs/022-pamphlet-desktop-dark/spec.md`
-- `specs/007-pamphlet-footer-spacing/spec.md` (pad top note)

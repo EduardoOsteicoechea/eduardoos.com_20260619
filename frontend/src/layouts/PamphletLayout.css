@@ -220,20 +220,28 @@ body.page-pamphlet #modal-confirm {
   color: var(--site-accent-fg);
 }
 
-/* Sheet paper (desktop). Mobile stack uses transparent canvas so page theme shows. */
+/* Sheet paper follows site theme on screen; print / PDF stay white via token overrides. */
 body.page-pamphlet .pamphlet-app main.pamphlet-sheet {
   margin-left: auto !important;
   margin-right: auto !important;
   margin-top: 1rem;
   margin-bottom: 1rem;
-  background: #ffffff;
-  color: #000000;
+  background: var(--pamphlet-paper-bg, var(--site-body-bg));
+  color: var(--pamphlet-ink, var(--site-body-fg));
   flex-shrink: 0;
+}
+
+/* Desktop columns + body ink (layout override must not leave inherited #000). */
+body.page-pamphlet .pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"],
+body.page-pamphlet .pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item,
+body.page-pamphlet .pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item p,
+body.page-pamphlet .pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item h1 {
+  color: var(--pamphlet-ink, var(--site-body-fg));
 }
 
 body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet {
   background: transparent !important;
-  color: var(--site-body-fg);
+  color: var(--pamphlet-ink, var(--site-body-fg));
   /* Center the mm-width column stack in the viewport */
   margin-left: auto !important;
   margin-right: auto !important;
@@ -256,12 +264,12 @@ body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] main.pamphlet-sheet {
   }
 }
 
-/* Mobile stack: light = paper white; dark = no fill, theme text */
+/* Mobile stack: screen theme tokens (print stays paper white). */
 body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
 body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
 body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
-  background: #ffffff;
-  color: #000000;
+  background: var(--pamphlet-paper-bg, var(--site-body-bg));
+  color: var(--pamphlet-ink, var(--site-body-fg));
   border: 1px solid color-mix(in srgb, var(--site-body-fg) 28%, transparent);
 }
 
@@ -270,7 +278,7 @@ body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="p
   body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
   body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
     background: transparent;
-    color: var(--site-body-fg);
+    color: var(--pamphlet-ink, var(--site-body-fg));
     border-color: color-mix(in srgb, var(--site-body-fg) 35%, transparent);
   }
 
@@ -286,15 +294,15 @@ html[data-theme="dark"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"
 html[data-theme="dark"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
 html[data-theme="dark"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
   background: transparent;
-  color: var(--site-body-fg);
+  color: var(--pamphlet-ink, var(--site-body-fg));
   border-color: color-mix(in srgb, var(--site-body-fg) 35%, transparent);
 }
 
 html[data-theme="light"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
 html[data-theme="light"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer,
 html[data-theme="light"] body.page-pamphlet .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
-  background: #ffffff;
-  color: #000000;
+  background: var(--pamphlet-paper-bg, var(--site-body-bg));
+  color: var(--pamphlet-ink, var(--site-body-fg));
 }
 
 @media print {
