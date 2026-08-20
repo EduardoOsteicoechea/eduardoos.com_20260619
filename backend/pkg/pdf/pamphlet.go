@@ -150,6 +150,7 @@ type PamphletFooterLayout struct {
 	MetaGap              float64 `json:"meta_gap"`
 	MetaColGap           float64 `json:"meta_col_gap"`
 	MetaRowH             float64 `json:"meta_row_h"`
+	MetaLabel1RowH       float64 `json:"meta_label1_row_h"`
 	MetaValueRowH        float64 `json:"meta_value_row_h"`
 	MetaSize             float64 `json:"meta_size"`
 	MetaLH               float64 `json:"meta_lh"`
@@ -668,7 +669,7 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		BodyGutter:         PamphletHeaderBodyGutterMm,
 		Pad:                1.2,
 		PadTop:             2.2,
-		PadBottom:          1.0,
+		PadBottom:          0.5,
 		PadX:               2.2,
 		Radius:             1,
 		Stroke:             0.2,
@@ -685,14 +686,14 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		SubtitleSize:       2.469,
 		SubtitleLH:         1.25,
 		SubtitlePadX:       0,
-		SubtitlePadTop:     1.5,
+		SubtitlePadTop:     2.0,
 		SubtitlePadY:       0.5,
 		SubtitleMinH:       4.0,
 		MetaSize:           pamphletMetaSizeMm,
 		MetaLH:             pamphletMetaLH,
 		MetaRowGap:         PamphletHeaderMetaRowGapMm,
 		MetaColGap:         2.5,
-		MetaPadTop:         1.0,
+		MetaPadTop:         0.5,
 	}
 }
 
@@ -783,6 +784,7 @@ func defaultFooterLayout() PamphletFooterLayout {
 		MetaGap:            0.4,
 		MetaColGap:         2.0,
 		MetaRowH:           5.5,
+		MetaLabel1RowH:     4.5,
 		MetaValueRowH:      1.5,
 		MetaSize:           2.8,
 		MetaLH:             1.25,
@@ -849,6 +851,7 @@ func normalizeFooterLayout(l PamphletFooterLayout) PamphletFooterLayout {
 		MetaGap:            pick(l.MetaGap, d.MetaGap),
 		MetaColGap:         pick(l.MetaColGap, d.MetaColGap),
 		MetaRowH:           pick(l.MetaRowH, d.MetaRowH),
+		MetaLabel1RowH:     pick(l.MetaLabel1RowH, d.MetaLabel1RowH),
 		MetaValueRowH:      pick(l.MetaValueRowH, d.MetaValueRowH),
 		MetaSize:           pick(l.MetaSize, d.MetaSize),
 		MetaLH:             pick(l.MetaLH, d.MetaLH),
@@ -1133,6 +1136,7 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	}
 
 	drawn := 0
+	labelRowsDrawn := 0
 	metaSectionTop := cursorTop
 	metaSectionBottom := cursorTop
 	for _, row := range allRows {
@@ -1146,6 +1150,9 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 		if !row.isLabel {
 			rowH = layout.MetaValueRowH
 			padY = layout.MetaValuePadY
+		} else if labelRowsDrawn == 0 && layout.MetaLabel1RowH > 0 {
+			// WhatsApp/Teléfono — 1mm less bottom than other label rows.
+			rowH = layout.MetaLabel1RowH
 		}
 		if cursorTop-rowH < floor-0.01 {
 			break
@@ -1168,6 +1175,9 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 		cursorTop -= rowH
 		metaSectionBottom = cursorTop
 		drawn++
+		if row.isLabel {
+			labelRowsDrawn++
+		}
 	}
 	if drawn > 0 && metaSectionTop > metaSectionBottom {
 		// Top double rule + cross (matches footer orange sketch).

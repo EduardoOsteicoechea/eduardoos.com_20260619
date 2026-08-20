@@ -208,18 +208,18 @@
   --header-subtitle-size: 2.469mm;
   --header-subtitle-lh: 1.25;
   --header-subtitle-pad-x: 0mm;
-  --header-subtitle-pad-top: 1.5mm; /* +1mm vs prior 0.5 */
+  --header-subtitle-pad-top: 2.0mm; /* +0.5mm vs prior 1.5 */
   --header-subtitle-pad-y: 0.5mm;
   --header-subtitle-min-h: 4.0mm;
   --header-meta-size: 2.5mm;
   --header-meta-lh: 1.2;
   --header-meta-row-gap: 1.8mm;
   --header-meta-col-gap: 2.5mm;
-  --header-meta-pad-top: 1.0mm;
+  --header-meta-pad-top: 0.5mm; /* Serie/Capítulo */
   /* Header chrome (PAMPHLET_HEADER_LAYOUT_MM) — footer-style double frame + title divider. */
   --header-pad: 1.2mm; /* legacy */
   --header-pad-top: 2.2mm; /* +1mm vs prior 1.2 */
-  --header-pad-bottom: 1.0mm; /* +1mm vs prior 0 */
+  --header-pad-bottom: 0.5mm; /* −0.5mm vs prior 1.0 */
   --header-pad-x: 2.2mm; /* −1mm vs prior 3.2 */
   --header-stroke: 0.2mm;
   --header-radius: 1mm;
@@ -774,6 +774,18 @@
     height: 5.5mm;
     min-height: 5.5mm;
     max-height: 5.5mm;
+}
+
+/* WhatsApp / Teléfono only — 1mm less bottom than other label rows. */
+.pamphlet-footer-meta-row[data-meta-kind="labels"]:first-child {
+    flex: 0 0 4.5mm;
+    height: 4.5mm;
+    min-height: 4.5mm;
+    max-height: 4.5mm;
+}
+
+.pamphlet-footer-meta-row[data-meta-kind="labels"]:first-child > .pamphlet-item {
+    padding: 0.7mm 1mm 0 !important;
 }
 
 /* Value rows — compact; hidden when both cells empty (data-empty=1). */

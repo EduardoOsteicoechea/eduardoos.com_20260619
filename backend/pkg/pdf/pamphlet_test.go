@@ -127,11 +127,14 @@ func TestFooterMessagePadBottomReduced(t *testing.T) {
 	if d.MessagePadBottom != 0 {
 		t.Fatalf("message_pad_bottom want 0 (−1mm vs prior 0.7), got %v", d.MessagePadBottom)
 	}
+	if d.MetaLabel1RowH != 4.5 {
+		t.Fatalf("meta_label1_row_h want 4.5 (WhatsApp/Teléfono −1mm), got %v", d.MetaLabel1RowH)
+	}
 	got := normalizeFooterLayout(PamphletFooterLayout{
-		Height:         30,
-		MessagePadTop:  0.7,
+		Height:           30,
+		MessagePadTop:    0.7,
 		MessagePadBottom: 0,
-		MessagePadY:    0.7,
+		MessagePadY:      0.7,
 	})
 	if got.MessagePadBottom != 0 || got.MessagePadTop != 0.7 {
 		t.Fatalf("normalize message pads: top=%v bottom=%v", got.MessagePadTop, got.MessagePadBottom)
@@ -243,14 +246,14 @@ func TestHeaderFrameFromLayout(t *testing.T) {
 	if !strings.Contains(out, "0.4 0.4 0.4 RG") {
 		t.Fatalf("expected gray meta cross stroke color, got %q", out)
 	}
-	if layout.PadTop != 2.2 || layout.PadBottom != 1.0 || layout.PadX != 2.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
+	if layout.PadTop != 2.2 || layout.PadBottom != 0.5 || layout.PadX != 2.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
 		t.Fatalf("header frame mm mismatch: %+v", layout)
 	}
-	if layout.MetaPadTop != 1.0 {
-		t.Fatalf("header meta_pad_top want 1, got %v", layout.MetaPadTop)
+	if layout.MetaPadTop != 0.5 {
+		t.Fatalf("header meta_pad_top want 0.5, got %v", layout.MetaPadTop)
 	}
-	if layout.SubtitlePadTop != 1.5 {
-		t.Fatalf("header subtitle_pad_top want 1.5, got %v", layout.SubtitlePadTop)
+	if layout.SubtitlePadTop != 2.0 {
+		t.Fatalf("header subtitle_pad_top want 2.0, got %v", layout.SubtitlePadTop)
 	}
 	if layout.Height != 35 {
 		t.Fatalf("header height want 35, got %v", layout.Height)

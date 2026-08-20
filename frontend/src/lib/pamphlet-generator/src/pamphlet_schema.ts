@@ -179,7 +179,7 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     body_gutter: 5, // --header-body-gutter
     pad: 1.2, // legacy fallback
     pad_top: 2.2, // was 1.2 + 1mm
-    pad_bottom: 1.0, // +1mm vs prior 0
+    pad_bottom: 0.5, // −0.5mm vs prior 1.0
     pad_x: 2.2,
     radius: 1,
     stroke: 0.2,
@@ -196,14 +196,14 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     subtitle_size: 2.469, // matches footer message (~7pt)
     subtitle_lh: 1.25,
     subtitle_pad_x: 0, // flush left with title
-    subtitle_pad_top: 1.5, // was 0.5 + 1mm
+    subtitle_pad_top: 2.0, // +0.5mm vs prior 1.5
     subtitle_pad_y: 0.5,
     subtitle_min_h: 4.0,
     meta_size: 2.5, // .pamphlet-header-meta-label / meta values
     meta_lh: 1.2,
     meta_row_gap: 1.8, // .pamphlet-header-meta-bar { row-gap }
     meta_col_gap: 2.5, // .pamphlet-header-meta-bar { column-gap }
-    meta_pad_top: 1.0, // under meta top gray rule
+    meta_pad_top: 0.5, // Serie/Capítulo row — 0.5mm under top gray rule
 };
 
 /**
@@ -249,6 +249,8 @@ export type PamphletFooterLayoutMm = {
     meta_gap: number;
     meta_col_gap: number;
     meta_row_h: number;
+    /** WhatsApp/Teléfono label row height (first labels row); −1mm vs meta_row_h. */
+    meta_label1_row_h: number;
     meta_value_row_h: number;
     meta_size: number;
     meta_lh: number;
@@ -289,6 +291,7 @@ export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
     meta_gap: 0.4,
     meta_col_gap: 2,
     meta_row_h: 5.5,
+    meta_label1_row_h: 4.5, // WhatsApp/Teléfono only (−1mm bottom)
     meta_value_row_h: 1.5,
     meta_size: 2.8,
     meta_lh: 1.25,
