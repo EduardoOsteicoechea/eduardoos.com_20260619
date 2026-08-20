@@ -28,6 +28,8 @@ Port `portable-issue-tracker` into Eduardo OS as **eReport**: subscribed users s
 
 **Bugfix (2026-08-20 #2):** iframe `/ereport/tracker.html` matched the one-segment hub rewrite → `/ereport/hub/index.html` then re-matched the two-segment editor rewrite in a loop → nginx **500**. Fix: exact `location = /ereport/tracker.html` + lookaheads that exclude `hub/` and `workspace/` prefixes (not only exact `hub` end).
 
+**Bugfix (2026-08-20 #3):** Tracker iframe moved to **`/ereport-tracker.html`** (outside `/ereport/…` pretty-URL rewrites) so a stale nginx config cannot 500 the iframe even before nginx redeploy.
+
 ### 2. S3 (`eduardoos20260607`, prefix `ereport/`)
 ```
 ereport/{ownerSafe}/library.json

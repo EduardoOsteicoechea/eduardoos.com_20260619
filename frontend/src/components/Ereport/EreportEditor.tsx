@@ -15,7 +15,7 @@ import {
 } from "../../lib/ereport";
 import "./Ereport.css";
 
-const TRACKER_SRC = "/ereport/tracker.html";
+const TRACKER_SRC = "/ereport-tracker.html";
 
 export default function EreportEditor() {
   const [ids, setIds] = useState<{ ownerSafe: string; reportId: string } | null>(
