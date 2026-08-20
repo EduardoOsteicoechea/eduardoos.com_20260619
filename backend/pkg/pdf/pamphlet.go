@@ -567,9 +567,9 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		drewMeta = true
 	}
 
-	// Double gray frame around meta section (overlay — band height unchanged).
+	// Double gray cross on meta (vertical + mid horizontal) — no outer frame.
 	if drewMeta && metaSectionTop > contentBottom {
-		strokeGrayMetaDoubleFrameMm(s, innerX, metaSectionTop, innerW, metaSectionTop-contentBottom)
+		strokeGrayMetaCrossMm(s, innerX, metaSectionTop, innerW, metaSectionTop-contentBottom, false)
 	}
 
 	if contentBottom < floor {
@@ -1031,77 +1031,56 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 		drawn++
 	}
 	if drawn > 0 && metaSectionTop > metaSectionBottom {
-		strokeGrayMetaDoubleFrameMm(s, innerX, metaSectionTop, innerW, metaSectionTop-metaSectionBottom)
+		// Top double rule + cross (matches footer orange sketch).
+		strokeGrayMetaCrossMm(s, innerX, metaSectionTop, innerW, metaSectionTop-metaSectionBottom, true)
 	}
 }
 
-// strokeGrayMetaDoubleFrameMm paints the CSS double gray meta frame (outer + inset inner).
-// Color matches writeGrayText (#666 ≈ 0.4 DeviceGray). Does not affect layout math.
-func strokeGrayMetaDoubleFrameMm(s *strings.Builder, x, top, width, height float64) {
+// strokeGrayMetaCrossMm paints double gray dividers: optional top rule, mid horizontal, center vertical.
+// Matches CSS meta ::before/::after overlays — does not affect layout math.
+func strokeGrayMetaCrossMm(s *strings.Builder, x, top, width, height float64, includeTop bool) {
 	if width <= 0 || height <= 0 {
 		return
 	}
-	const outerStroke = 0.2
-	const innerStroke = 0.1
-	const inset = 0.45
-	const outerRadius = 0.5
-	const innerRadius = 0.35
-	strokeRoundedRectGrayMm(s, x, top, width, height, outerRadius, outerStroke)
-	pathInset := outerStroke/2 + inset + innerStroke/2
-	ix := x + pathInset
-	it := top - pathInset
-	iw := width - 2*pathInset
-	ih := height - 2*pathInset
-	if iw > 0 && ih > 0 {
-		strokeRoundedRectGrayMm(s, ix, it, iw, ih, innerRadius, innerStroke)
+	const outer = 0.2
+	const gap = 0.45
+	const inner = 0.1
+	if includeTop {
+		strokeHorizontalRuleGrayMm(s, x, top, width, outer)
+		strokeHorizontalRuleGrayMm(s, x, top-outer-gap, width, inner)
 	}
+	midTop := top - height/2 + (outer+gap+inner)/2
+	strokeHorizontalRuleGrayMm(s, x, midTop, width, outer)
+	strokeHorizontalRuleGrayMm(s, x, midTop-outer-gap, width, inner)
+	cx := x + width/2
+	strokeVerticalRuleGrayMm(s, cx-outer/2, top, height, outer)
+	strokeVerticalRuleGrayMm(s, cx-outer/2+outer+gap, top, height, inner)
 }
 
-// strokeRoundedRectGrayMm is strokeRoundedRectMm with DeviceGray 0.4 stroke (#666).
-func strokeRoundedRectGrayMm(s *strings.Builder, x, top, width, height, radius, strokeMm float64) {
-	if width <= 0 || height <= 0 {
+func strokeHorizontalRuleGrayMm(s *strings.Builder, x, top, width, strokeMm float64) {
+	if width <= 0 || strokeMm <= 0 {
 		return
 	}
-	r := radius
-	if r < 0 {
-		r = 0
-	}
-	maxR := width / 2
-	if height/2 < maxR {
-		maxR = height / 2
-	}
-	if r > maxR {
-		r = maxR
-	}
-
-	bx := MmToPoints(x)
-	by := MmToPoints(top - height)
-	bw := MmToPoints(width)
-	bh := MmToPoints(height)
-	rp := MmToPoints(r)
-	const k = 0.5522847498
-	rk := rp * k
-
-	left, right := bx, bx+bw
-	bottom, topPt := by, by+bh
-
+	y := MmToPoints(top)
 	s.WriteString("q\n")
 	s.WriteString("0.4 0.4 0.4 RG\n")
 	s.WriteString(fmt.Sprintf("%.3f w\n", MmToPoints(strokeMm)))
-	s.WriteString(fmt.Sprintf("%.2f %.2f m\n", left+rp, bottom))
-	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", right-rp, bottom))
-	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
-		right-rp+rk, bottom, right, bottom+rp-rk, right, bottom+rp))
-	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", right, topPt-rp))
-	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
-		right, topPt-rp+rk, right-rp+rk, topPt, right-rp, topPt))
-	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", left+rp, topPt))
-	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
-		left+rp-rk, topPt, left, topPt-rp+rk, left, topPt-rp))
-	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", left, bottom+rp))
-	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
-		left, bottom+rp-rk, left+rp-rk, bottom, left+rp, bottom))
-	s.WriteString("S\nQ\n")
+	s.WriteString(fmt.Sprintf("%.2f %.2f m %.2f %.2f l S\n",
+		MmToPoints(x), y, MmToPoints(x+width), y))
+	s.WriteString("Q\n")
+}
+
+func strokeVerticalRuleGrayMm(s *strings.Builder, x, top, height, strokeMm float64) {
+	if height <= 0 || strokeMm <= 0 {
+		return
+	}
+	xp := MmToPoints(x)
+	s.WriteString("q\n")
+	s.WriteString("0.4 0.4 0.4 RG\n")
+	s.WriteString(fmt.Sprintf("%.3f w\n", MmToPoints(strokeMm)))
+	s.WriteString(fmt.Sprintf("%.2f %.2f m %.2f %.2f l S\n",
+		xp, MmToPoints(top), xp, MmToPoints(top-height)))
+	s.WriteString("Q\n")
 }
 
 // strokeHorizontalRuleMm draws a hairline across the footer (divider outer/inner).

@@ -188,13 +188,13 @@ func TestHeaderFrameFromLayout(t *testing.T) {
 		Series: "Romanos",
 	}, layout, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow)
 	out := s.String()
-	// Outer + inner black frames + title divider + gray meta double frame.
+	// Outer + inner black frames + title divider + gray meta cross (4 strokes).
 	strokeCount := strings.Count(out, "S\n")
-	if strokeCount < 6 {
-		t.Fatalf("expected ≥6 strokes (frame+title divider+meta frame) in header stream, got %d in %q", strokeCount, out)
+	if strokeCount < 8 {
+		t.Fatalf("expected ≥8 strokes (frame+title divider+meta cross) in header stream, got %d in %q", strokeCount, out)
 	}
 	if !strings.Contains(out, "0.4 0.4 0.4 RG") {
-		t.Fatalf("expected gray meta frame stroke color, got %q", out)
+		t.Fatalf("expected gray meta cross stroke color, got %q", out)
 	}
 	if layout.Pad != 1.2 || layout.PadX != 2.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
 		t.Fatalf("header frame mm mismatch: %+v", layout)
@@ -280,7 +280,7 @@ func TestDrawFooterStructuredChrome(t *testing.T) {
 		t.Fatalf("footer must not stroke input cell borders in PDF: %q", out)
 	}
 	if !strings.Contains(out, "0.4 0.4 0.4 RG") {
-		t.Fatalf("footer missing gray meta double-frame stroke: %q", out)
+		t.Fatalf("footer missing gray meta cross stroke: %q", out)
 	}
 	for _, want := range []string{"Creamos", "conocer", "WhatsApp", "Tel", "Direcci", "Actividades", "+58", "Caracas"} {
 		if !strings.Contains(out, want) && !strings.Contains(toWinAnsi(want), want) {
