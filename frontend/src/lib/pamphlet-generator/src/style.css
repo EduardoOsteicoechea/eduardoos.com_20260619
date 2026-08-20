@@ -233,9 +233,9 @@
   --page-header-height: 34.5mm;
   /* Margin under header band before cols 1–2 (PDF uses the same). */
   --header-body-gutter: 5mm;
-  --page-footer-height: 30.3mm; /* PAMPHLET_FOOTER_LAYOUT_MM.height — value rows hidden when empty */
-  /* Page 1 body: 215.9 − 10 − 34.5 − 5 − 6 − 30.3 − 10 = 120.1mm */
-  --page1-body-height: 120.1mm;
+  --page-footer-height: 29.8mm; /* PAMPHLET_FOOTER_LAYOUT_MM.height — value rows hidden when empty */
+  /* Page 1 body: 215.9 − 10 − 34.5 − 5 − 6 − 29.8 − 10 = 120.6mm */
+  --page1-body-height: 120.6mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
@@ -244,8 +244,8 @@
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
   /* Cols 1–2 under header: 195.9 − 34.5 − 5 = 156.4mm */
   --page1-right-col-height: 156.4mm;
-  /* Cols 7–8 above footer: 195.9 − 6 − 30.3 = 159.6mm */
-  --page1-left-col-height: 159.6mm;
+  /* Cols 7–8 above footer: 195.9 − 6 − 29.8 = 160.1mm */
+  --page1-left-col-height: 160.1mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
   --item-gap-height: 2.5mm;
   --b1: solid 1px rgb(231, 231, 231);
@@ -788,16 +788,16 @@
     padding: 0.7mm 1mm 0 !important;
 }
 
-/* Dirección / Actividades — +1mm bottom, +0.5mm top vs meta_row_h. */
+/* Dirección / Actividades — +1mm bottom vs meta_row_h; +0.5mm top inside same 6.5mm row. */
 .pamphlet-footer-meta-row[data-meta-kind="labels"]:not(:first-child) {
-    flex: 0 0 7mm;
-    height: 7mm;
-    min-height: 7mm;
-    max-height: 7mm;
+    flex: 0 0 6.5mm;
+    height: 6.5mm;
+    min-height: 6.5mm;
+    max-height: 6.5mm;
 }
 
 .pamphlet-footer-meta-row[data-meta-kind="labels"]:not(:first-child) > .pamphlet-item {
-    padding: 1.2mm 1mm 1.7mm !important;
+    padding: 1.2mm 1mm 1.2mm !important;
     align-items: flex-start;
 }
 

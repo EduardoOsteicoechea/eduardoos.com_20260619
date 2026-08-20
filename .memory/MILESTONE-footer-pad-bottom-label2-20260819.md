@@ -2,8 +2,8 @@
 
 ## Change
 - Outer footer `pad_bottom: 0` (keep `pad_top` / horizontal `1.2`).
-- Second labels row (Dirección/Actividades): `meta_label2_row_h: 7.0` (+1mm bottom, +0.5mm top); `meta_label2_pad_top: 1.2`.
-- Band height **30.3**; page1 left col **159.6**, body **120.1**.
+- Second labels row: `meta_label2_row_h: 6.5` (+1mm bottom vs meta_row_h); `meta_label2_pad_top: 1.2` (+0.5 inside the cell — **no** footer height growth).
+- Band height **29.8**; page1 left col **160.1**, body **120.6**.
 
 ## Paths
 - `specs/007-pamphlet-footer-spacing/spec.md`

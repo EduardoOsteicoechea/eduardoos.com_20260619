@@ -60,8 +60,8 @@ Ready to implement (clarified 2026-08-19).
 ## Revision 2026-08-19 — Dirección/Actividades +0.5mm pad top
 
 ### Goals
-1. Last meta labels row only: **+0.5mm** padding top → `meta_label2_pad_top` **1.2** (was `meta_pad_y` 0.7); `meta_label2_row_h` **7.0** (was 6.5).
-2. Absorb in band height only: `height` **30.3** (= 29.8 + 0.5). Page1 left col **159.6**, body **120.1**.
+1. Last meta labels row only: **+0.5mm** padding top → `meta_label2_pad_top` **1.2** (was `meta_pad_y` 0.7).
+2. **Do not** change footer band height (`height` stays **29.8**). Row height stays `meta_label2_row_h` **6.5**; extra top pad comes from inside the cell (bottom pad **1.2**, was 1.7).
 
 ### Acceptance
-- [x] CSS + layout mm + PDF agree; tests + FE build green.
+- [x] CSS + layout mm + PDF agree; footer height unchanged at 29.8; tests + FE build green.

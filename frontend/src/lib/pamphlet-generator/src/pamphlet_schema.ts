@@ -255,9 +255,9 @@ export type PamphletFooterLayoutMm = {
     meta_row_h: number;
     /** WhatsApp/Teléfono label row height (first labels row); −1mm vs meta_row_h. */
     meta_label1_row_h: number;
-    /** Dirección/Actividades label row height (second labels row); +1mm bottom vs meta_row_h, +0.5mm top. */
+    /** Dirección/Actividades label row height (second labels row); +1mm bottom vs meta_row_h. */
     meta_label2_row_h: number;
-    /** Dirección/Actividades label cell top pad (meta_pad_y + 0.5). */
+    /** Dirección/Actividades label cell top pad (meta_pad_y + 0.5); row height unchanged. */
     meta_label2_pad_top: number;
     meta_value_row_h: number;
     meta_size: number;
@@ -271,8 +271,8 @@ export type PamphletFooterLayoutMm = {
 
 /** Exact mm from style.css `.pamphlet-page-footer` — PDF must use these, not invent sizes. */
 export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
-    // Net: 29.8 + label2 pad_top 0.5 → 30.3
-    height: 30.3,
+    // Net: prior 30 − pad_bottom 1.2 + label2 +1 → 29.8 (other chrome unchanged)
+    height: 29.8,
     width: 119.7, // 57.85×2 + 4
     pad: 1.2, // horizontal + legacy
     pad_top: 1.2,
@@ -302,8 +302,8 @@ export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
     meta_col_gap: 2,
     meta_row_h: 5.5,
     meta_label1_row_h: 4.5, // WhatsApp/Teléfono only (−1mm bottom)
-    meta_label2_row_h: 7.0, // Dirección/Actividades (+1mm bottom, +0.5mm top)
-    meta_label2_pad_top: 1.2, // meta_pad_y 0.7 + 0.5
+    meta_label2_row_h: 6.5, // Dirección/Actividades (+1mm bottom pad); height fixed
+    meta_label2_pad_top: 1.2, // meta_pad_y 0.7 + 0.5 (inside row; no band growth)
     meta_value_row_h: 1.5,
     meta_size: 2.8,
     meta_lh: 1.25,

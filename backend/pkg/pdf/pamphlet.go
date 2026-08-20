@@ -5,7 +5,7 @@ package pdf
 // Geometry matches the frontend sheet CSS exactly:
 //   page  279.4mm × 215.9mm (US Letter landscape)
 //   cols  57.85mm wide, gutters 4mm / 20mm (center), margins 10mm
-//   page1 left  cols 7–8 (159.6mm tall) + footer; right header + cols 1–2
+//   page1 left  cols 7–8 (160.1mm tall) + footer; right header + cols 1–2
 //   page2       cols 3–6 full body height
 //
 // Text uses embedded Roboto / Roboto-Bold (website font) with WinAnsiEncoding.
@@ -43,9 +43,9 @@ const (
 	PamphletHeaderHMm = 34.5
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
-	PamphletFooterHMm          = 30.3 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 34.5 − 5 − 6 − 30.3 − 10
-	PamphletPage1BodyMm = 120.1
+	PamphletFooterHMm          = 29.8 // default; overridden by footer_layout.height from frontend
+	// 215.9 − 10 − 34.5 − 5 − 6 − 29.8 − 10
+	PamphletPage1BodyMm = 120.6
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Clear space under subtitle → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
@@ -54,8 +54,8 @@ const (
 	PamphletHeaderMetaRowGapMm = 1.8
 	// Right-side cols 1–2: 195.9 − 34.5 − 5
 	PamphletPage1RightColMm = 156.4
-	// Left-side cols 7–8 above footer: 195.9 − 6 − 30.3 (default layout.height)
-	PamphletPage1LeftColMm = 159.6
+	// Left-side cols 7–8 above footer: 195.9 − 6 − 29.8 (default layout.height)
+	PamphletPage1LeftColMm = 160.1
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
 	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band fits title + meta + rule
 	pamphletTitleLH     = 1.1
@@ -791,7 +791,7 @@ func defaultFooterLayout() PamphletFooterLayout {
 		MetaColGap:         2.0,
 		MetaRowH:           5.5,
 		MetaLabel1RowH:     4.5,
-		MetaLabel2RowH:     7.0,
+		MetaLabel2RowH:     6.5,
 		MetaLabel2PadTop:   1.2,
 		MetaValueRowH:      1.5,
 		MetaSize:           2.8,
@@ -1196,7 +1196,7 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 			// WhatsApp/Teléfono — 1mm less bottom than other label rows.
 			rowH = layout.MetaLabel1RowH
 		} else if labelRowsDrawn == 1 && layout.MetaLabel2RowH > 0 {
-			// Dirección/Actividades — +1mm bottom, +0.5mm top vs meta_row_h.
+			// Dirección/Actividades — same row height; +0.5mm top pad inside the cell.
 			rowH = layout.MetaLabel2RowH
 			if layout.MetaLabel2PadTop > 0 {
 				padY = layout.MetaLabel2PadTop
