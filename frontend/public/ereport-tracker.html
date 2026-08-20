@@ -197,24 +197,26 @@ body.sidebar-collapsed .sidebar {
 .nav-dot {
   width: 0.7rem; height: 0.7rem; padding: 0;
   border-radius: 0;
-  background: var(--brand-secondary);
+  background: #868e96;
   border: 0.0625rem solid rgba(252,252,252,.85);
   cursor: pointer; flex: 0 0 auto;
-  transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
+  transition: background .15s ease, transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
+.nav-dot.is-status-none { background: #868e96; border-color: rgba(252,252,252,.75); }
+.nav-dot.is-status-aprobado { background: #2f9e44; border-color: #b2f2bb; }
+.nav-dot.is-status-reprobado { background: #c92a2a; border-color: #ffc9c9; }
 .nav-dot:hover, .nav-dot:focus-visible {
-  background: var(--brand-accent); outline: none; transform: scale(1.12);
+  outline: none; transform: scale(1.12);
+  filter: brightness(1.12);
 }
 .nav-dot.is-active-group {
-  background: #e6c200;
-  border-color: #fff;
+  box-shadow: 0 0 0 0.1rem rgba(230, 194, 0, 0.55);
 }
 .nav-dot.is-active {
-  background: var(--brand-accent);
-  border-color: #fff;
   transform: scale(1.35);
-  box-shadow: 0 0 0 0.12rem rgba(255,204,0,.65);
+  box-shadow: 0 0 0 0.12rem rgba(255,204,0,.75);
   z-index: 1;
+  filter: none;
 }
 .nav-sec.is-active .nav-sec-label {
   color: var(--brand-accent);
@@ -947,6 +949,12 @@ function hideNavTip() {
   if (tip) tip.classList.remove("show");
 }
 
+function navDotStatusClass(status) {
+  if (status === "aprobado") return "is-status-aprobado";
+  if (status === "reprobado") return "is-status-reprobado";
+  return "is-status-none";
+}
+
 function renderNavRail() {
   const rail = document.getElementById("nav-rail");
   if (!rail) return;
@@ -956,12 +964,13 @@ function renderNavRail() {
       <div class="nav-dots">
       ${(sec.groups || []).flatMap(grp =>
         (grp.items || []).map(item => `
-          <button type="button" class="nav-dot"
+          <button type="button" class="nav-dot ${navDotStatusClass(item.status)}"
             data-target="item-${item.id}"
             data-group="${escapeAttr(grp.id)}"
             data-sub="${escapeAttr(grp.title)}"
             data-name="${escapeAttr(itemNavName(item))}"
-            aria-label="${escapeAttr(grp.title + " · " + itemNavName(item))}"></button>
+            data-status="${escapeAttr(item.status || "")}"
+            aria-label="${escapeAttr(grp.title + " · " + itemNavName(item) + " · " + (item.status === "aprobado" ? "aprobado" : item.status === "reprobado" ? "reprobado" : "sin estado"))}"></button>
         `)
       ).join("")}
       </div>
