@@ -201,8 +201,22 @@ export async function deleteScribSheet(
   return { ok: true };
 }
 
-/** Pretty editor URL /scrib/{user}/{book}/{sheet}. */
+/** Stable editor entry — static `/scrib/sheet` + query (works without nginx rewrite). */
 export function scribSheetHref(
+  userSafe: string,
+  bookId: string,
+  sheetId: string,
+): string {
+  const q = new URLSearchParams({
+    user: userSafe,
+    book: bookId,
+    sheet: sheetId,
+  });
+  return `${APP_ROUTES.scribSheetWorkspace}?${q.toString()}`;
+}
+
+/** Pretty path for the address bar after the shell has loaded. */
+export function scribSheetPrettyPath(
   userSafe: string,
   bookId: string,
   sheetId: string,

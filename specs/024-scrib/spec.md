@@ -19,9 +19,11 @@ Need a subscribed app **Scrib**: books of ruled US Letter sheets with layered SV
 | Path | UI |
 |------|-----|
 | `/scrib` | Dashboard: books (containers) → sheet cards + “Nueva hoja” |
-| `/scrib/{userSafe}/{bookId}/{sheetId}` | Editor (pretty URL; static shell + client path parse, same idea as church workspace) |
+| `/scrib/sheet?user=&book=&sheet=` | Editor shell (static; always loads without nginx rewrite) |
+| `/scrib/{userSafe}/{bookId}/{sheetId}` | Pretty editor URL — nginx rewrites to `/scrib/sheet/index.html`; client `replaceState` after open |
 
-`userSafe` = email with `@` → `_at_` (same as epams). Caller may only open **own** prefix unless platform admin.
+**Bugfix (2026-08-20):** Navigating straight to the pretty path without an nginx rewrite (or when `try_files` fell through to `/index.html`) showed the home page. Links open the static shell first; nginx rewrite uses `rewrite … last` (homescool pattern), not a fallback to home.
+
 
 ### 4. Sheet geometry
 - **Portrait US Letter:** width **215.9 mm**, height **279.4 mm**.

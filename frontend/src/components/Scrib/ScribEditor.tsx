@@ -20,6 +20,7 @@ import {
   type ScribLayerId,
   type ScribSheet,
   type StrokePath,
+  scribSheetPrettyPath,
 } from "../../lib/scrib";
 import "./Scrib.css";
 
@@ -119,7 +120,18 @@ export default function ScribEditor() {
   }, [sheet]);
 
   useEffect(() => {
-    setIds(resolveScribSheetFromLocation());
+    const resolved = resolveScribSheetFromLocation();
+    setIds(resolved);
+    if (resolved) {
+      const pretty = scribSheetPrettyPath(
+        resolved.userSafe,
+        resolved.bookId,
+        resolved.sheetId,
+      );
+      if (window.location.pathname !== pretty) {
+        window.history.replaceState(null, "", pretty);
+      }
+    }
   }, []);
 
   useEffect(() => {
