@@ -114,15 +114,15 @@ func TestDrawHeaderSubtitleInStream(t *testing.T) {
 	if !strings.Contains(out, wantTf) {
 		t.Fatalf("expected subtitle Tf %q, got %q", wantTf, out)
 	}
-	if layout.Height != PamphletHeaderHMm || PamphletHeaderHMm != 35 {
-		t.Fatalf("header band want 35mm, layout.Height=%v const=%v", layout.Height, PamphletHeaderHMm)
+	if layout.Height != PamphletHeaderHMm || PamphletHeaderHMm != 33 {
+		t.Fatalf("header band want 33mm, layout.Height=%v const=%v", layout.Height, PamphletHeaderHMm)
 	}
 }
 
 func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	layout := defaultHeaderLayout()
-	if layout.TitleMetaGap < 1.4 || layout.TitleMetaGap > 1.8 {
-		t.Fatalf("header subtitle→meta CSS gap want ~1.6mm, got %v", layout.TitleMetaGap)
+	if layout.TitleMetaGap < 0.4 || layout.TitleMetaGap > 0.8 {
+		t.Fatalf("header subtitle→meta CSS gap want ~0.6mm, got %v", layout.TitleMetaGap)
 	}
 	if layout.MetaRowGap < 1.6 || layout.MetaRowGap > 2.0 {
 		t.Fatalf("header meta row-gap want ~1.8mm, got %v", layout.MetaRowGap)
@@ -224,8 +224,14 @@ func TestHeaderFrameFromLayout(t *testing.T) {
 	if !strings.Contains(out, "0.4 0.4 0.4 RG") {
 		t.Fatalf("expected gray meta cross stroke color, got %q", out)
 	}
-	if layout.Pad != 1.2 || layout.PadX != 2.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
+	if layout.PadTop != 2.2 || layout.PadBottom != 0 || layout.PadX != 2.2 || layout.Stroke != 0.2 || layout.InnerInset != 0.45 {
 		t.Fatalf("header frame mm mismatch: %+v", layout)
+	}
+	if layout.MetaPadTop != 1.0 {
+		t.Fatalf("header meta_pad_top want 1, got %v", layout.MetaPadTop)
+	}
+	if layout.Height != 33 {
+		t.Fatalf("header height want 33, got %v", layout.Height)
 	}
 	if layout.TitlePadBottom != 1 {
 		t.Fatalf("header title_pad_bottom want 1, got %v", layout.TitlePadBottom)

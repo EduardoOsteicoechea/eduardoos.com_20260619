@@ -127,8 +127,12 @@ export type PamphletHeaderLayoutMm = {
     height: number;
     /** Gap under the header before cols 1–2 (--header-body-gutter). */
     body_gutter: number;
-    /** Vertical pad inside outer frame. */
+    /** Vertical pad inside outer frame (legacy; prefer pad_top / pad_bottom). */
     pad: number;
+    /** Top pad inside outer frame. */
+    pad_top: number;
+    /** Bottom pad inside outer frame. */
+    pad_bottom: number;
     /** Lateral pad inside outer frame. */
     pad_x: number;
     radius: number;
@@ -161,14 +165,18 @@ export type PamphletHeaderLayoutMm = {
     meta_row_gap: number;
     /** Meta grid column-gap. */
     meta_col_gap: number;
+    /** Padding under the meta top gray rule before first row. */
+    meta_pad_top: number;
 };
 
 /** Exact mm from style.css `.pamphlet-page-header` — PDF must use these, not invent sizes. */
 export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     // pad + title + title_pad_bottom + divider + subtitle_min_h + title_meta_gap + meta + frame
-    height: 35,
+    height: 33,
     body_gutter: 5, // --header-body-gutter
-    pad: 1.2,
+    pad: 1.2, // legacy fallback
+    pad_top: 2.2, // was 1.2 + 1mm
+    pad_bottom: 0, // was 1.2; −3mm bottom space via pad→0 + height −1.8
     pad_x: 2.2,
     radius: 1,
     stroke: 0.2,
@@ -178,7 +186,7 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     title_size: 6.75, // .pamphlet-header-title p
     title_lh: 1.1,
     title_pad_bottom: 1, // under title text before divider
-    title_meta_gap: 1.6, // subtitle → meta
+    title_meta_gap: 0.6, // subtitle → meta (−1mm)
     divider_outer_stroke: 0.2,
     divider_gap: 0.45,
     divider_inner_stroke: 0.1,
@@ -191,6 +199,7 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     meta_lh: 1.2,
     meta_row_gap: 1.8, // .pamphlet-header-meta-bar { row-gap }
     meta_col_gap: 2.5, // .pamphlet-header-meta-bar { column-gap }
+    meta_pad_top: 1.0, // under meta top gray rule
 };
 
 /**

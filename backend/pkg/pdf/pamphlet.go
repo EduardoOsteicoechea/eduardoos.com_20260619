@@ -40,20 +40,20 @@ const (
 	PamphletColWidthMm = 57.85
 	// Header band: title + title_pad_bottom + title divider + title_meta_gap + meta + frame.
 	// Overridden by header_layout.height from frontend when present.
-	PamphletHeaderHMm = 35.0
+	PamphletHeaderHMm = 33.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
 	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 35 − 5 − 6 − 30 − 10
-	PamphletPage1BodyMm = 119.9
+	// 215.9 − 10 − 33 − 5 − 6 − 30 − 10
+	PamphletPage1BodyMm = 121.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Clear space under subtitle → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
-	PamphletHeaderTitleMetaGapMm = 1.6
+	PamphletHeaderTitleMetaGapMm = 0.6
 	// CSS .pamphlet-header-meta-bar { row-gap }.
 	PamphletHeaderMetaRowGapMm = 1.8
-	// Right-side cols 1–2: 195.9 − 35 − 5
-	PamphletPage1RightColMm = 155.9
+	// Right-side cols 1–2: 195.9 − 33 − 5
+	PamphletPage1RightColMm = 157.9
 	// Left-side cols 7–8 above footer: 195.9 − 6 − 30 (default layout.height)
 	PamphletPage1LeftColMm = 159.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
@@ -92,6 +92,8 @@ type PamphletHeaderLayout struct {
 	Height              float64 `json:"height"`
 	BodyGutter          float64 `json:"body_gutter"`
 	Pad                 float64 `json:"pad"`
+	PadTop              float64 `json:"pad_top"`
+	PadBottom           float64 `json:"pad_bottom"`
 	PadX                float64 `json:"pad_x"`
 	Radius              float64 `json:"radius"`
 	Stroke              float64 `json:"stroke"`
@@ -114,6 +116,7 @@ type PamphletHeaderLayout struct {
 	MetaLH              float64 `json:"meta_lh"`
 	MetaRowGap          float64 `json:"meta_row_gap"`
 	MetaColGap          float64 `json:"meta_col_gap"`
+	MetaPadTop          float64 `json:"meta_pad_top"`
 }
 
 // PamphletFooterLayout is the exact mm chrome from the frontend sheet CSS
@@ -493,12 +496,29 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		}
 	}
 
-	padY := layout.Pad
+	padTop := layout.PadTop
+	padBottom := layout.PadBottom
+	if padTop <= 0 && padBottom <= 0 {
+		// Legacy symmetric pad from older print clients.
+		if layout.Pad > 0 {
+			padTop = layout.Pad
+			padBottom = layout.Pad
+		} else {
+			padTop = 2.2
+			padBottom = 0
+		}
+	} else if padTop <= 0 {
+		if layout.Pad > 0 {
+			padTop = layout.Pad
+		} else {
+			padTop = 2.2
+		}
+	}
 	padX := layout.PadX
 	innerX := x + padX
-	innerTop := top - padY
+	innerTop := top - padTop
 	innerW := width - 2*padX
-	textFloor := floor + padY
+	textFloor := floor + padBottom
 
 	titleSizeMm := layout.TitleSize
 	titleLH := layout.TitleLH
@@ -566,7 +586,13 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 	metaLH := layout.MetaLH
 	metaSizePt := MmToPoints(metaSizeMm)
 	metaLineHMm := metaSizeMm * metaLH
-	metaY := metaLineTop - cssBaselineOffsetMm(metaSizeMm, metaLH)
+	metaPadTop := layout.MetaPadTop
+	if metaPadTop < 0 {
+		metaPadTop = 0
+	}
+	// First meta row sits below the top gray rule by meta_pad_top.
+	metaCursor := metaLineTop - metaPadTop
+	metaY := metaCursor - cssBaselineOffsetMm(metaSizeMm, metaLH)
 
 	colGapMm := layout.MetaColGap
 	half := (innerW - colGapMm) / 2
@@ -589,10 +615,10 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		if right1 != "" {
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right1)
 		}
-		contentBottom = metaLineTop - metaLineHMm
+		contentBottom = metaCursor - metaLineHMm
 		drewMeta = true
-		metaLineTop -= metaLineHMm + layout.MetaRowGap
-		metaY = metaLineTop - cssBaselineOffsetMm(metaSizeMm, metaLH)
+		metaCursor -= metaLineHMm + layout.MetaRowGap
+		metaY = metaCursor - cssBaselineOffsetMm(metaSizeMm, metaLH)
 	}
 	if (left2 != "" || right2 != "") && metaY > textFloor {
 		if left2 != "" {
@@ -601,7 +627,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		if right2 != "" {
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right2)
 		}
-		contentBottom = metaLineTop - metaLineHMm
+		contentBottom = metaCursor - metaLineHMm
 		drewMeta = true
 	}
 
@@ -633,6 +659,8 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		Height:             PamphletHeaderHMm,
 		BodyGutter:         PamphletHeaderBodyGutterMm,
 		Pad:                1.2,
+		PadTop:             2.2,
+		PadBottom:          0,
 		PadX:               2.2,
 		Radius:             1,
 		Stroke:             0.2,
@@ -655,6 +683,7 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		MetaLH:             pamphletMetaLH,
 		MetaRowGap:         PamphletHeaderMetaRowGapMm,
 		MetaColGap:         2.5,
+		MetaPadTop:         1.0,
 	}
 }
 
@@ -668,10 +697,26 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 		}
 		return def
 	}
+	padTop := pick(l.PadTop, 0)
+	padBottom := l.PadBottom
+	if padTop <= 0 && padBottom <= 0 {
+		sym := pick(l.Pad, d.Pad)
+		padTop = pick(d.PadTop, sym)
+		padBottom = d.PadBottom
+		if l.Pad > 0 && l.PadTop <= 0 {
+			// Truly legacy: only `pad` sent — keep symmetric.
+			padTop = l.Pad
+			padBottom = l.Pad
+		}
+	} else if padTop <= 0 {
+		padTop = pick(l.Pad, d.PadTop)
+	}
 	return PamphletHeaderLayout{
 		Height:             pick(l.Height, d.Height),
 		BodyGutter:         pick(l.BodyGutter, d.BodyGutter),
 		Pad:                pick(l.Pad, d.Pad),
+		PadTop:             padTop,
+		PadBottom:          padBottom,
 		PadX:               pick(l.PadX, d.PadX),
 		Radius:             pick(l.Radius, d.Radius),
 		Stroke:             pick(l.Stroke, d.Stroke),
@@ -694,6 +739,7 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 		MetaLH:             pick(l.MetaLH, d.MetaLH),
 		MetaRowGap:         pick(l.MetaRowGap, d.MetaRowGap),
 		MetaColGap:         pick(l.MetaColGap, d.MetaColGap),
+		MetaPadTop:         pick(l.MetaPadTop, d.MetaPadTop),
 	}
 }
 

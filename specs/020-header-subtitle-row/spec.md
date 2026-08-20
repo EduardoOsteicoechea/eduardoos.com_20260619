@@ -22,7 +22,8 @@ Header jumps from title+divider straight to the 2×2 meta bar. Users need a shor
 - [x] Subtitle visible + editable + saved in `.epam`.
 - [x] Desktop band 35mm; cols 1–2 height updated; PDF matches; tests + FE build green.
 
-## Revision 2026-08-19 (subtitle flush + meta top rule)
+## Revision 2026-08-19b (header pad / meta nudge)
 
-- [x] Subtitle `padding-left` / `subtitle_pad_x` = **0** (flush with title left edge).
-- [x] Gray hairline on top of the 2×2 meta bar (same language as footer meta top rule); PDF `includeTop` on header meta cross.
+- [x] Outer `pad_top` +1mm (1.2 → **2.2**); `pad_bottom` −3mm visual (→ **0**, band height **35 → 33**).
+- [x] Meta block −1mm (`title_meta_gap` 1.6 → **0.6**).
+- [x] Meta bar `meta_pad_top` **+1mm** under the top gray rule.
