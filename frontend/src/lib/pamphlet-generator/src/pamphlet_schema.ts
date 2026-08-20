@@ -240,6 +240,10 @@ export type PamphletFooterLayoutMm = {
     message_size: number;
     message_lh: number;
     message_pad_x: number;
+    /** Top pad inside Mensaje (legacy message_pad_y if unset). */
+    message_pad_top: number;
+    /** Bottom pad inside Mensaje (row 1 of lower footer). */
+    message_pad_bottom: number;
     message_pad_y: number;
     message_min_h: number;
     meta_gap: number;
@@ -278,7 +282,9 @@ export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
     message_size: 2.469,
     message_lh: 1.25,
     message_pad_x: 1.4,
-    message_pad_y: 0.7,
+    message_pad_top: 0.7,
+    message_pad_bottom: 0, // −1mm vs prior symmetric 0.7 (clamped)
+    message_pad_y: 0.7, // legacy fallback
     message_min_h: 4.5,
     meta_gap: 0.4,
     meta_col_gap: 2,

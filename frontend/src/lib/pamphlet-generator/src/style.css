@@ -642,8 +642,7 @@
 /* Footer fixed chrome — Acción + Mensaje, then meta.
    Resting view matches PDF (no cell borders); borders only while editing.
    Acción/Mensaje may shrink so meta rows keep their reserved mm (PDF floor). */
-.pamphlet-page-footer > .pamphlet-footer-action,
-.pamphlet-page-footer > .pamphlet-footer-message {
+.pamphlet-page-footer > .pamphlet-footer-action {
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -651,6 +650,20 @@
     box-sizing: border-box;
     border: none !important;
     padding: 0.7mm 1.4mm !important;
+    background: transparent;
+    min-height: 4.5mm;
+    overflow: hidden !important;
+}
+
+/* Mensaje = first row under the Acción divider; bottom pad −1mm vs Acción. */
+.pamphlet-page-footer > .pamphlet-footer-message {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 0 1 auto;
+    box-sizing: border-box;
+    border: none !important;
+    padding: 0.7mm 1.4mm 0 !important;
     background: transparent;
     min-height: 4.5mm;
     overflow: hidden !important;

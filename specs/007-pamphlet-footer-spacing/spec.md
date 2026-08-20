@@ -41,3 +41,7 @@ Ready to implement (clarified 2026-08-19).
 - [x] Acción → Mensaje gap is 1.2mm on desktop and PDF via `action_message_gap`.
 - [x] Print still POSTs `footer_layout`; no invented sizes in PDF.
 - [x] Frontend `npm run build` green before push (spec 005).
+
+## Revision 2026-08-19 — Mensaje bottom pad −1mm
+
+- [x] First lower-footer row (Mensaje): `message_pad_bottom` **0** (was 0.7); top stays 0.7. CSS + PDF.

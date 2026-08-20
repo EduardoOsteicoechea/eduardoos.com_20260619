@@ -143,6 +143,8 @@ type PamphletFooterLayout struct {
 	MessageSize          float64 `json:"message_size"`
 	MessageLH            float64 `json:"message_lh"`
 	MessagePadX          float64 `json:"message_pad_x"`
+	MessagePadTop        float64 `json:"message_pad_top"`
+	MessagePadBottom     float64 `json:"message_pad_bottom"`
 	MessagePadY          float64 `json:"message_pad_y"`
 	MessageMinH          float64 `json:"message_min_h"`
 	MetaGap              float64 `json:"meta_gap"`
@@ -774,6 +776,8 @@ func defaultFooterLayout() PamphletFooterLayout {
 		MessageSize:        2.469,
 		MessageLH:          1.25,
 		MessagePadX:        1.4,
+		MessagePadTop:      0.7,
+		MessagePadBottom:   0,
 		MessagePadY:        0.7,
 		MessageMinH:        4.5,
 		MetaGap:            0.4,
@@ -817,11 +821,31 @@ func normalizeFooterLayout(l PamphletFooterLayout) PamphletFooterLayout {
 		ActionPadX:         pick(l.ActionPadX, d.ActionPadX),
 		ActionPadY:         pick(l.ActionPadY, d.ActionPadY),
 		ActionMinH:         pick(l.ActionMinH, d.ActionMinH),
-		MessageSize:        pick(l.MessageSize, d.MessageSize),
-		MessageLH:          pick(l.MessageLH, d.MessageLH),
-		MessagePadX:        pick(l.MessagePadX, d.MessagePadX),
-		MessagePadY:        pick(l.MessagePadY, d.MessagePadY),
-		MessageMinH:        pick(l.MessageMinH, d.MessageMinH),
+		MessageSize: pick(l.MessageSize, d.MessageSize),
+		MessageLH:   pick(l.MessageLH, d.MessageLH),
+		MessagePadX: pick(l.MessagePadX, d.MessagePadX),
+		MessagePadTop: func() float64 {
+			if l.MessagePadTop > 0 {
+				return l.MessagePadTop
+			}
+			// Legacy symmetric pad, or FE sent pad_bottom:0 with pad_top via defaults path.
+			if l.MessagePadBottom == 0 && l.MessagePadTop == 0 {
+				return pick(l.MessagePadY, d.MessagePadTop)
+			}
+			return d.MessagePadTop
+		}(),
+		MessagePadBottom: func() float64 {
+			// FE posts message_pad_top > 0 with message_pad_bottom: 0 (−1mm).
+			if l.MessagePadTop > 0 {
+				return l.MessagePadBottom
+			}
+			if l.MessagePadBottom > 0 {
+				return l.MessagePadBottom
+			}
+			return pick(l.MessagePadY, d.MessagePadBottom)
+		}(),
+		MessagePadY: pick(l.MessagePadY, d.MessagePadY),
+		MessageMinH: pick(l.MessageMinH, d.MessageMinH),
 		MetaGap:            pick(l.MetaGap, d.MetaGap),
 		MetaColGap:         pick(l.MetaColGap, d.MetaColGap),
 		MetaRowH:           pick(l.MetaRowH, d.MetaRowH),
@@ -1046,12 +1070,24 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	}
 
 	// Mensaje
+	msgPadTop := layout.MessagePadTop
+	msgPadBottom := layout.MessagePadBottom
+	if msgPadTop <= 0 && msgPadBottom <= 0 && layout.MessagePadY > 0 {
+		msgPadTop = layout.MessagePadY
+		msgPadBottom = layout.MessagePadY
+	} else if msgPadTop <= 0 {
+		msgPadTop = layout.MessagePadY
+		if msgPadTop <= 0 {
+			msgPadTop = 0.7
+		}
+	}
+	// msgPadBottom may be 0 when FE sends message_pad_bottom: 0 (−1mm vs prior 0.7).
 	msgTextW := innerW - 2*layout.MessagePadX
 	if msgTextW < 4 {
 		msgTextW = innerW
 	}
 	msgTextH := measureWrappedHeightMm(f.Message, layout.MessageSize, layout.MessageLH, msgTextW)
-	msgBoxH := layout.MessagePadY*2 + msgTextH
+	msgBoxH := msgPadTop + msgPadBottom + msgTextH
 	if msgBoxH < layout.MessageMinH {
 		msgBoxH = layout.MessageMinH
 	}
@@ -1060,9 +1096,9 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	}
 	if msgBoxH > 0 {
 		if strings.TrimSpace(f.Message) != "" {
-			textTop := cursorTop - layout.MessagePadY
+			textTop := cursorTop - msgPadTop
 			y := textTop - cssBaselineOffsetMm(layout.MessageSize, layout.MessageLH)
-			textFloor := cursorTop - msgBoxH + layout.MessagePadY
+			textFloor := cursorTop - msgBoxH + msgPadBottom
 			writeWrapped(s, "F1", MmToPoints(layout.MessageSize), layout.MessageLH,
 				innerX+layout.MessagePadX, y, msgTextW, f.Message, textFloor)
 		}

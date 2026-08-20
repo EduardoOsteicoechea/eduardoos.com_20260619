@@ -119,6 +119,25 @@ func TestDrawHeaderSubtitleInStream(t *testing.T) {
 	}
 }
 
+func TestFooterMessagePadBottomReduced(t *testing.T) {
+	d := defaultFooterLayout()
+	if d.MessagePadTop != 0.7 {
+		t.Fatalf("message_pad_top want 0.7, got %v", d.MessagePadTop)
+	}
+	if d.MessagePadBottom != 0 {
+		t.Fatalf("message_pad_bottom want 0 (−1mm vs prior 0.7), got %v", d.MessagePadBottom)
+	}
+	got := normalizeFooterLayout(PamphletFooterLayout{
+		Height:         30,
+		MessagePadTop:  0.7,
+		MessagePadBottom: 0,
+		MessagePadY:    0.7,
+	})
+	if got.MessagePadBottom != 0 || got.MessagePadTop != 0.7 {
+		t.Fatalf("normalize message pads: top=%v bottom=%v", got.MessagePadTop, got.MessagePadBottom)
+	}
+}
+
 func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	layout := defaultHeaderLayout()
 	if layout.TitleMetaGap < 0.4 || layout.TitleMetaGap > 0.8 {
