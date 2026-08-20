@@ -221,6 +221,10 @@ const ContactAgent = forwardRef<ContactAgentHandle, ContactAgentProps>(
       }
     }
 
+    // Docked site agent keeps title + Email/WhatsApp after unlock; gate-only
+    // flows hide the chrome once the tray opens.
+    const showChrome = showGate || alwaysShowChat;
+
     return (
       <section
         ref={sectionRef}
@@ -229,7 +233,7 @@ const ContactAgent = forwardRef<ContactAgentHandle, ContactAgentProps>(
         }`}
         aria-label={chatUnlocked ? "Chat tray" : title}
       >
-        {showGate ? (
+        {showChrome ? (
           <>
             <header className="contact-agent__head">
               <h2 className="contact-agent__title">{title}</h2>
@@ -252,37 +256,39 @@ const ContactAgent = forwardRef<ContactAgentHandle, ContactAgentProps>(
               </div>
             ) : null}
 
-            <div className="contact-agent__gate" aria-label="Human verification">
-              <label className="contact-agent__check">
-                <input
-                  ref={checkboxRef}
-                  type="checkbox"
-                  checked={checked}
-                  onChange={(e) => {
-                    const on = e.target.checked;
-                    setChecked(on);
-                    if (!on) {
-                      setHeldMs(0);
-                      setChatUnlocked(false);
-                      pendingFocusAfterUnlock.current = false;
-                    }
-                  }}
-                />
-                <span>{gateLabel}</span>
-              </label>
-              <div
-                className="contact-agent__progress"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(progress * 100)}
-              >
+            {showGate ? (
+              <div className="contact-agent__gate" aria-label="Human verification">
+                <label className="contact-agent__check">
+                  <input
+                    ref={checkboxRef}
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setChecked(on);
+                      if (!on) {
+                        setHeldMs(0);
+                        setChatUnlocked(false);
+                        pendingFocusAfterUnlock.current = false;
+                      }
+                    }}
+                  />
+                  <span>{gateLabel}</span>
+                </label>
                 <div
-                  className="contact-agent__progress-fill"
-                  style={{ width: `${progress * 100}%` }}
-                />
+                  className="contact-agent__progress"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(progress * 100)}
+                >
+                  <div
+                    className="contact-agent__progress-fill"
+                    style={{ width: `${progress * 100}%` }}
+                  />
+                </div>
               </div>
-            </div>
+            ) : null}
           </>
         ) : null}
 

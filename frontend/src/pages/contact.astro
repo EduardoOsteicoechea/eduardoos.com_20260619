@@ -2,9 +2,11 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ContactAgent from "../components/Contact/ContactAgent";
 import ContactChannels from "../components/Contact/ContactChannels";
+import { siteAgentDockProps } from "../lib/agentVoice";
 
 const CONTACT_OWNER_EMAIL = "eduardooost@gmail.com";
 const CONTACT_WHATSAPP_URL = "https://wa.me/584147281033";
+const siteAgent = siteAgentDockProps("contact");
 ---
 
 <BaseLayout title="Contact — Eduardo Osteicoechea">
@@ -23,13 +25,7 @@ const CONTACT_WHATSAPP_URL = "https://wa.me/584147281033";
       />
     </section>
     <div class="contact-page__agent">
-      <ContactAgent
-        client:load
-        showDirectLinks={false}
-        title="Talk through the agent"
-        blurb="Confirm you are not a bot, then chat with Eduardo’s AI agent (not Eduardo). Leave an email or phone number and the agent will notify him."
-        skillLabel="Contact"
-      />
+      <ContactAgent client:load {...siteAgent} />
     </div>
   </div>
 </BaseLayout>

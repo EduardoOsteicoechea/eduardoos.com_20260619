@@ -2,8 +2,8 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ContactAgent from "../components/Contact/ContactAgent";
 import HomeProfile from "../components/Home/HomeProfile.astro";
-import { APP_ROUTES, CONTACT_API_ROUTES } from "../config/routes";
-import { HOME_AGENT_WELCOME } from "../lib/agentVoice";
+import { APP_ROUTES } from "../config/routes";
+import { siteAgentDockProps } from "../lib/agentVoice";
 import {
   PROFILE_LINKEDIN,
   buildHomeProfileJsonLd,
@@ -12,6 +12,7 @@ import {
 
 const pageUrl = "https://eduardoos.com/";
 const jsonLd = buildHomeProfileJsonLd(pageUrl);
+const siteAgent = siteAgentDockProps("home");
 ---
 
 <BaseLayout
@@ -55,16 +56,7 @@ const jsonLd = buildHomeProfileJsonLd(pageUrl);
         </div>
       </div>
       <aside class="home-hero__chat" aria-label="AI agent">
-        <ContactAgent
-          client:load
-          alwaysShowChat={true}
-          showDirectLinks={false}
-          scopeId="home"
-          title="AI agent"
-          askPath={CONTACT_API_ROUTES.profileAsk}
-          skillLabel="Home"
-          welcomeMessage={HOME_AGENT_WELCOME}
-        />
+        <ContactAgent client:load {...siteAgent} />
       </aside>
     </div>
 

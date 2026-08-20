@@ -47,6 +47,15 @@
   min-height: 0;
 }
 
+.contact-agent--docked .contact-agent__links {
+  flex-shrink: 0;
+}
+
+.contact-agent--docked .contact-agent__link-btn {
+  font-size: var(--font-sm);
+  padding: 0.35rem 0.7rem;
+}
+
 .contact-agent--docked .contact-agent__chat {
   border: 1px solid var(--site-border);
   background: var(--site-surface-muted, color-mix(in srgb, var(--site-body-bg) 94%, transparent));

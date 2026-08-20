@@ -87,8 +87,8 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | GET | `/api/payments/status/:id` | Public | Poll payment intent status |
 | POST | `/api/payments/webhook/paypal` | Public | PayPal IPN webhook |
 | GET | `/api/media/skills/:skillId` | Public | Skill portfolio media |
-| POST | `/api/profile/ask` | Public + humanToken | Home skill chat |
-| POST | `/api/contact/ask` | Public + humanToken | Contact-page chat |
+| POST | `/api/profile/ask` | Public + humanToken | Site AI dock (home + contact) |
+| POST | `/api/contact/ask` | Public + humanToken | Legacy contact ask (still routed) |
 | GET | `/api/articles` | Public | Pamphlet articles index |
 | GET | `/api/media/audio` | Public | Worship audio library |
 | GET | `/health` | Public | Backend health |
@@ -106,7 +106,7 @@ IAM policy template: [`deploy/aws/ec2-iam-policy.json`](deploy/aws/ec2-iam-polic
 | Homescool | `/homescool` |
 | Church | `/church` |
 | Music | `/media/musica` |
-| Contact | `/contact` |
+| Contact | `/contact` (same docked AI agent as home + Email/WhatsApp) |
 
 ## Development Tests
 
