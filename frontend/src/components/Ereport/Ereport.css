@@ -127,43 +127,79 @@
   min-height: calc(100dvh - var(--header_height, 60px));
 }
 
-.ereport-editor__chrome {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.65rem 0.85rem;
-  border-bottom: var(--border_001);
-  background: var(--site-body-bg);
-}
-
-.ereport-editor__tema {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-family: Raleway, sans-serif;
-  flex: 1 1 12rem;
-}
-
-.ereport-editor__tema input {
+.ereport-editor__frame {
   flex: 1;
+  width: 100%;
+  min-height: calc(100dvh - var(--header_height, 60px));
+  border: 0;
+  background: #d8e0e4;
+}
+
+.ereport-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(12, 18, 22, 0.55);
+}
+
+.ereport-modal__panel {
+  box-sizing: border-box;
+  width: min(100%, 26rem);
+  max-height: min(88dvh, 36rem);
+  overflow: auto;
+  padding: 1.1rem 1.15rem 1rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.28);
+}
+
+.ereport-modal__panel h2 {
+  margin: 0 0 0.55rem;
+  font-family: Montserrat, sans-serif;
+  font-size: 1.2rem;
+  font-weight: 650;
+}
+
+.ereport-modal__lead {
+  margin: 0 0 0.9rem;
+  font-family: Raleway, sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  opacity: 0.9;
+}
+
+.ereport-modal__field {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  font-family: Raleway, sans-serif;
+}
+
+.ereport-modal__field input {
   min-height: var(--control_min_height, 2.5rem);
-  padding: 0.35rem 0.55rem;
+  padding: 0.4rem 0.65rem;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
   background: var(--site-body-bg);
   color: var(--site-body-fg);
 }
 
-.ereport-share {
-  padding: 0.65rem 0.85rem;
-  border-bottom: var(--border_001);
-  font-family: Raleway, sans-serif;
+.ereport-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.85rem;
 }
 
 .ereport-share__list {
   list-style: none;
-  margin: 0.5rem 0 0;
+  margin: 0.75rem 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
@@ -178,12 +214,11 @@
   border-radius: var(--border_radius_001);
   padding: 0.25rem 0.45rem;
   font-size: 0.85rem;
+  font-family: Raleway, sans-serif;
 }
 
-.ereport-editor__frame {
-  flex: 1;
-  width: 100%;
-  min-height: 70dvh;
-  border: 0;
-  background: #d8e0e4;
+.ereport-share__form {
+  display: grid;
+  gap: 0.35rem;
+  font-family: Raleway, sans-serif;
 }

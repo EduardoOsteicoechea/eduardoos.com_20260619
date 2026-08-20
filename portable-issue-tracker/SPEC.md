@@ -107,8 +107,8 @@ Reproduce **exactly** this behavior in any host that embeds the static page:
 Legacy keys `queja` / `imagesQueja` may be accepted on load and normalized to `incidencia` / `imagesIncidencia`.
 
 ### Issue card UI
-- Per section: title bar + clear-section; body with gap **1.4rem** between groups.
-- Per group: header (title + add / clear group); transparent group chrome.
+- Per section: title bar (click heading → inline input to rename) + clear-section; body with gap **1.4rem** between groups.
+- Per group: header (click title → inline input to rename; add / clear group); transparent group chrome.
 - Per item (issue card):
   - Name input + delete item (no “Nombre” / “Estado” labels).
   - Paired panel: **Incidencia** | **Solución** (bordered pair with vertical divider).

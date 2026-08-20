@@ -51,10 +51,16 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
 - Click card → editor.
 
 ### 4. Editor
-- Host chrome: **Tema** text input (saved with meta); **Compartir** (add/remove registered emails); cloud save status.
-- Body: portable Issue Tracker (parity with `portable-issue-tracker` SPEC) embedded via host-bridged static HTML under `/ereport/tracker.html`.
+- **No host chrome above the iframe.** Hub / Tema / Guardar en nube / Compartir live in the site **Header dynamic slot** (`#header-dynamic-menu-host`), same pattern as Scrib/Homescool/Pamphlet.
+- Each of those four actions **opens a modal** over the page so the Issue Tracker’s own topbar stays flush under the site header:
+  - **Hub** — modal with CTA to leave to the owner hub.
+  - **Tema** — modal with tema text field (blur/save writes meta).
+  - **Guardar en nube** — modal with confirm + status; runs collect → `PUT` cloud.
+  - **Compartir** — modal to add/remove registered emails (owners only; hidden if `!canShare`).
+- Body: portable Issue Tracker embedded via host-bridged static HTML at **`/ereport-tracker.html`** (alias `/ereport/tracker.html`).
+- **Inline title edit (tracker):** clicking the **sección máxima** heading (`h2`, e.g. “1. Product / platform”) or a **subsección/grupo** heading (`h3`, e.g. “General”) replaces that text **in place** with an input styled as the heading; Enter or blur commits; Escape cancels. Titles persist in `.ereport` payload via `collectFromDom`.
 - Save in tracker: downloads (kit behavior) **and** posts state to host → `PUT` cloud.
-- Autosave cloud on host “Guardar en nube” and when tracker `saveAll` completes (bridge).
+- Cloud save also from header modal and when tracker `saveAll` completes (bridge).
 - Owner: full edit + share. Shared user: **view + edit body** (not delete report / not manage shares). Non-owner non-shared: 403.
 
 ### 5. API (JWT)
@@ -81,10 +87,13 @@ IAM already allows Get/Put/Delete on `arn:aws:s3:::eduardoos20260607/ereport/*` 
 - [x] Editor tema + tracker + cloud save under `ereport/`
 - [x] Share with registered users; they see report in “Compartidos”
 - [x] nginx pretty URLs; tests; FE build; commit + push
+- [x] Section + group headings inline-editable in tracker
+- [x] Hub / Tema / Guardar / Compartir in Header dynamic slot via modals (no chrome above iframe)
 
 ## Affected paths
 - `specs/025-ereport/spec.md`
 - `backend/internal/ereport/**`, `payments/catalog.go`, `cmd/server/main.go`
 - `frontend/.../ereport/**`, `lib/ereport.ts`, Header, payments, routes, nginx
-- `frontend/public/ereport/tracker.html` (+ host bridge)
+- `frontend/public/ereport-tracker.html`, `frontend/public/ereport/tracker.html` (+ host bridge)
+- `frontend/src/components/Ereport/EreportHeaderMenu.tsx` (+ modals)
 - `portable-issue-tracker/` remains the kit source of truth for tracker behavior

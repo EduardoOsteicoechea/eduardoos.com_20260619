@@ -1,5 +1,5 @@
 /**
- * eReport editor — tema + share + portable Issue Tracker iframe.
+ * eReport editor — Issue Tracker iframe; host tools live in Header dynamic slot.
  */
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
@@ -13,6 +13,7 @@ import {
   type EreportMeta,
   type EreportPayload,
 } from "../../lib/ereport";
+import EreportHeaderMenu, { type EreportModalKind } from "./EreportHeaderMenu";
 import "./Ereport.css";
 
 const TRACKER_SRC = "/ereport-tracker.html";
@@ -28,7 +29,9 @@ export default function EreportEditor() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [busyShare, setBusyShare] = useState(false);
   const [trackerReady, setTrackerReady] = useState(false);
+  const [modal, setModal] = useState<EreportModalKind>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const payloadRef = useRef<EreportPayload | null>(null);
 
@@ -121,18 +124,19 @@ export default function EreportEditor() {
   async function onSaveTema() {
     if (!ids || !meta) return;
     setSaving(true);
+    setError("");
     const res = await saveEreport(ids.ownerSafe, ids.reportId, { tema });
     setSaving(false);
     if (res.error) setError(res.error);
-    else if (res.meta) setMeta(res.meta);
+    else if (res.meta) {
+      setMeta(res.meta);
+      setModal(null);
+    }
   }
 
   async function onSaveCloud() {
     if (!ids) return;
-    postToTracker({ type: "collect" });
-    // collect replies via message — also request explicit save after short wait
-    await new Promise((r) => setTimeout(r, 50));
-    // Ask tracker to emit state then we save:
+    setError("");
     const handler = async (ev: MessageEvent) => {
       if (ev.data?.source !== "ereport-tracker" || ev.data?.type !== "state") return;
       window.removeEventListener("message", handler);
@@ -143,7 +147,10 @@ export default function EreportEditor() {
       });
       setSaving(false);
       if (res.error) setError(res.error);
-      else if (res.meta) setMeta(res.meta);
+      else if (res.meta) {
+        setMeta(res.meta);
+        setModal(null);
+      }
     };
     window.addEventListener("message", handler);
     postToTracker({ type: "collect" });
@@ -154,11 +161,9 @@ export default function EreportEditor() {
     if (!ids || !meta || !canShare) return;
     const email = shareInput.trim();
     if (!email) return;
-    const emails = [
-      ...meta.sharedWith.map((s) => s.email),
-      email,
-    ];
+    const emails = [...meta.sharedWith.map((s) => s.email), email];
     setBusyShare(true);
+    setError("");
     const res = await putEreportShares(ids.ownerSafe, ids.reportId, emails);
     setBusyShare(false);
     if (res.error) setError(res.error);
@@ -168,12 +173,11 @@ export default function EreportEditor() {
     }
   }
 
-  const [busyShare, setBusyShare] = useState(false);
-
   async function onRemoveShare(email: string) {
     if (!ids || !meta || !canShare) return;
     const emails = meta.sharedWith.filter((s) => s.email !== email).map((s) => s.email);
     setBusyShare(true);
+    setError("");
     const res = await putEreportShares(ids.ownerSafe, ids.reportId, emails);
     setBusyShare(false);
     if (res.error) setError(res.error);
@@ -195,63 +199,26 @@ export default function EreportEditor() {
 
   return (
     <div className="ereport-editor">
-      <header className="ereport-editor__chrome">
-        <a className="btn" href={meta ? APP_ROUTES.ereportUser(meta.ownerSafe) : APP_ROUTES.ereport}>
-          Hub
-        </a>
-        <label className="ereport-editor__tema">
-          Tema
-          <input
-            value={tema}
-            onChange={(e) => setTema(e.target.value)}
-            onBlur={() => void onSaveTema()}
-            maxLength={200}
-          />
-        </label>
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={saving}
-          onClick={() => void onSaveCloud()}
-        >
-          {saving ? "Guardando…" : "Guardar en nube"}
-        </button>
-        {error ? <span className="ereport-hub__error">{error}</span> : null}
-      </header>
-
-      {canShare && meta ? (
-        <section className="ereport-share" aria-label="Compartir">
-          <form className="ereport-share__form" onSubmit={(e) => void onAddShare(e)}>
-            <label htmlFor="ereport-share-email">Compartir con usuario registrado</label>
-            <div className="ereport-hub__row">
-              <input
-                id="ereport-share-email"
-                type="email"
-                value={shareInput}
-                onChange={(e) => setShareInput(e.target.value)}
-                placeholder="email@ejemplo.com"
-              />
-              <button className="btn" type="submit" disabled={busyShare}>
-                Añadir
-              </button>
-            </div>
-          </form>
-          <ul className="ereport-share__list">
-            {(meta.sharedWith ?? []).map((s) => (
-              <li key={s.email}>
-                {s.email}
-                <button
-                  type="button"
-                  className="ereport-card__del"
-                  onClick={() => void onRemoveShare(s.email)}
-                  disabled={busyShare}
-                >
-                  Quitar
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {ids ? (
+        <EreportHeaderMenu
+          ownerSafe={ids.ownerSafe}
+          tema={tema}
+          onTemaChange={setTema}
+          onSaveTema={onSaveTema}
+          onSaveCloud={onSaveCloud}
+          saving={saving}
+          canShare={canShare}
+          meta={meta}
+          shareInput={shareInput}
+          onShareInputChange={setShareInput}
+          onAddShare={onAddShare}
+          onRemoveShare={onRemoveShare}
+          busyShare={busyShare}
+          error={error}
+          modal={modal}
+          onOpenModal={setModal}
+          onCloseModal={() => setModal(null)}
+        />
       ) : null}
 
       <iframe

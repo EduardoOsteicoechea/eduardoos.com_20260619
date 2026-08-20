@@ -305,7 +305,36 @@ body.theme-dark .section-block { background: transparent; }
 .section-block > .section-title h2 {
   margin: 0; font-size: 1.35rem; font-weight: 750; letter-spacing: -0.02em;
   color: var(--brand-surface); line-height: 1.15;
+  cursor: text;
 }
+.section-block > .section-title h2:hover,
+.group-head h3:hover {
+  outline: 1px dashed rgba(255,255,255,.45);
+  outline-offset: 2px;
+}
+.group-head h3:hover { outline-color: rgba(141,226,214,.55); }
+.section-title-input,
+.group-title-input {
+  width: min(100%, 36rem);
+  margin: 0;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 4px;
+  background: rgba(0,0,0,.22);
+  color: inherit;
+  font: inherit;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.section-title-input { font-size: 1.35rem; color: var(--brand-surface); }
+.group-title-input {
+  border-color: rgba(141,226,214,.65);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--brand-primary);
+}
+body.theme-dark .group-title-input { color: var(--brand-secondary); }
 .section-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .section-actions .hint { color: rgba(252,252,252,.75); font-size: 0.8rem; }
 .section-actions button.danger {
@@ -337,7 +366,7 @@ body.theme-dark .subcontainer { background: transparent; }
   border-bottom: 0.1875rem solid var(--brand-primary);
 }
 body.theme-dark .group-head { background: rgba(141,226,214,.18); }
-.group-head h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--brand-primary); }
+.group-head h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--brand-primary); cursor: text; }
 body.theme-dark .group-head h3 { color: var(--brand-secondary); }
 .group-actions { display: flex; gap: 0.35rem; }
 .group-actions button { width: 1.9rem; height: 1.9rem; padding: 0; }
@@ -676,6 +705,20 @@ function bindMeta() {
 function collectFromDom() {
   state.reportDate = document.getElementById("report-date").value || "";
   state.reportNumber = document.getElementById("report-number").value || "";
+  document.querySelectorAll(".section-title-input").forEach(inp => {
+    const sid = inp.closest(".section-block")?.dataset.section;
+    const sec = state.sections.find(s => s.id === sid);
+    if (sec) sec.title = (inp.value || "").trim() || sec.title;
+  });
+  document.querySelectorAll(".group-title-input").forEach(inp => {
+    const block = inp.closest(".group-block");
+    const secEl = inp.closest(".section-block");
+    const sid = secEl?.dataset.section;
+    const gid = block?.dataset.group;
+    const sec = state.sections.find(s => s.id === sid);
+    const grp = sec && sec.groups.find(g => g.id === gid);
+    if (grp) grp.title = (inp.value || "").trim() || grp.title;
+  });
   document.querySelectorAll(".item-card").forEach(card => {
     const sid = card.dataset.section;
     const gid = card.dataset.group;
@@ -690,6 +733,33 @@ function collectFromDom() {
     item.solucion = card.querySelector(".ta-sol").value;
     item.fechaSolucion = card.querySelector(".fecha-solucion")?.value || "";
   });
+}
+
+function beginInlineTitleEdit(heading, inputClass, onCommit) {
+  if (!(heading instanceof HTMLElement)) return;
+  if (heading.dataset.editing === "1") return;
+  const previous = heading.textContent || "";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = inputClass;
+  input.value = previous;
+  input.setAttribute("aria-label", "Editar título");
+  heading.dataset.editing = "1";
+  heading.replaceWith(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const finish = (commit) => {
+    if (done) return;
+    done = true;
+    const next = commit ? ((input.value || "").trim() || previous) : previous;
+    onCommit(next);
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    if (e.key === "Escape") { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener("blur", () => finish(true));
 }
 
 function setStatus(sid, gid, iid, status) {
@@ -974,7 +1044,7 @@ function render() {
   root.innerHTML = state.sections.map(sec => `
     <section class="section-block" id="sec-${sec.id}" data-section="${sec.id}">
       <div class="section-title">
-        <h2>${escapeHtml(sec.title)}</h2>
+        <h2 class="section-heading" title="Clic para editar">${escapeHtml(sec.title)}</h2>
         <div class="section-actions">
           <span class="hint">${sec.kind === "funcionalidades" ? "Por funcionalidad" : "Por subartículo"}</span>
           <button type="button" class="danger" data-act="clear-section" title="Vaciar sección">
@@ -986,7 +1056,7 @@ function render() {
       ${sec.groups.map(grp => `
         <div class="group-block subcontainer" id="grp-${grp.id}" data-group="${grp.id}">
           <div class="group-head">
-            <h3>${escapeHtml(grp.title)}</h3>
+            <h3 class="group-heading" title="Clic para editar">${escapeHtml(grp.title)}</h3>
             <div class="group-actions">
               <button type="button" class="ghost" data-act="add-item" title="Agregar fila"><span class="btn-ico">＋</span></button>
               <button type="button" class="danger" data-act="clear-group" title="Vaciar grupo"><span class="btn-ico">🗑</span></button>
@@ -998,6 +1068,35 @@ function render() {
       </div>
     </section>
   `).join("");
+
+  root.querySelectorAll("h2.section-heading").forEach(h2 => {
+    h2.onclick = () => {
+      const sid = h2.closest(".section-block")?.dataset.section;
+      beginInlineTitleEdit(h2, "section-title-input", (next) => {
+        collectFromDom();
+        const sec = state.sections.find(s => s.id === sid);
+        if (sec) sec.title = next;
+        render();
+        updateStatus();
+      });
+    };
+  });
+  root.querySelectorAll("h3.group-heading").forEach(h3 => {
+    h3.onclick = () => {
+      const secEl = h3.closest(".section-block");
+      const block = h3.closest(".group-block");
+      const sid = secEl?.dataset.section;
+      const gid = block?.dataset.group;
+      beginInlineTitleEdit(h3, "group-title-input", (next) => {
+        collectFromDom();
+        const sec = state.sections.find(s => s.id === sid);
+        const grp = sec && sec.groups.find(g => g.id === gid);
+        if (grp) grp.title = next;
+        render();
+        updateStatus();
+      });
+    };
+  });
 
   root.querySelectorAll(".item-card").forEach(card => {
     const sid = card.dataset.section, gid = card.dataset.group, iid = card.dataset.item;
