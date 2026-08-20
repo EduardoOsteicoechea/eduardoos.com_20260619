@@ -15,9 +15,16 @@ import {
   type ChurchDetail,
 } from "../../lib/church";
 import { ChurchGateShell, useChurchAuthGate } from "./ChurchGate";
+import ChurchNetworkActivities from "./ChurchNetworkActivities";
 import "./Church.css";
 
-type Tab = "info" | "beliefs" | "members" | "activities" | "network";
+type Tab =
+  | "info"
+  | "beliefs"
+  | "members"
+  | "activities"
+  | "network-activities"
+  | "network";
 
 export default function ChurchDetailPage() {
   const gate = useChurchAuthGate();
@@ -76,6 +83,7 @@ export default function ChurchDetailPage() {
                   ["beliefs", "Creencias"],
                   ["members", "Miembros"],
                   ["activities", "Actividades"],
+                  ["network-activities", "Actividades de red"],
                   ["network", "Red"],
                 ] as const
               ).map(([id, label]) => (
@@ -204,22 +212,23 @@ export default function ChurchDetailPage() {
               ) : null}
 
               {tab === "activities" ? (
-                <ul className="church-list">
-                  {detail.activities.length === 0 ? (
-                    <li className="church-empty">No activities visible.</li>
-                  ) : null}
-                  {detail.activities.map((a) => (
-                    <li key={a.id} className="church-list__item">
-                      <h3>{a.title}</h3>
-                      <p className="church-card__meta">
-                        {[a.sector, a.startDate, a.endDate].filter(Boolean).join(" · ")}
-                      </p>
-                      {a.description ? (
-                        <p className="church-panel__block">{a.description}</p>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
+                <ChurchNetworkActivities
+                  surface="activities"
+                  denomId={detail.church.denominationId}
+                  churchId={detail.church.churchId}
+                  viewerRole={detail.viewerRole}
+                  churchName={detail.church.name}
+                />
+              ) : null}
+
+              {tab === "network-activities" ? (
+                <ChurchNetworkActivities
+                  surface="network-activities"
+                  denomId={detail.church.denominationId}
+                  churchId={detail.church.churchId}
+                  viewerRole={detail.viewerRole}
+                  churchName={detail.church.name}
+                />
               ) : null}
 
               {tab === "network" ? (

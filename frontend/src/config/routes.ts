@@ -124,6 +124,40 @@ export const CHURCH_ROUTES = {
     `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/activities/${encodeURIComponent(activityId)}/report`,
   image: (denomId: string, churchId: string, activityId: string, name: string) =>
     `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/activities/${encodeURIComponent(activityId)}/images/${encodeURIComponent(name)}`,
+  networkActivities: (groupId: string) =>
+    `/api/church/groups/${encodeURIComponent(groupId)}/network-activities`,
+  networkActivity: (groupId: string, activityId: string) =>
+    `/api/church/groups/${encodeURIComponent(groupId)}/network-activities/${encodeURIComponent(activityId)}`,
+  networkActivityRollup: (groupId: string, activityId: string) =>
+    `/api/church/groups/${encodeURIComponent(groupId)}/network-activities/${encodeURIComponent(activityId)}/rollup`,
+  churchNetworkActivities: (denomId: string, churchId: string) =>
+    `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/network-activities`,
+  networkMemberPool: (denomId: string, churchId: string) =>
+    `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/network-member-pool`,
+  networkOccurrences: (denomId: string, churchId: string, activityId: string) =>
+    `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/network-activities/${encodeURIComponent(activityId)}/occurrences`,
+  networkOccurrence: (
+    denomId: string,
+    churchId: string,
+    activityId: string,
+    occurrenceId: string,
+  ) =>
+    `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/network-activities/${encodeURIComponent(activityId)}/occurrences/${encodeURIComponent(occurrenceId)}`,
+  networkOccurrenceImages: (
+    denomId: string,
+    churchId: string,
+    activityId: string,
+    occurrenceId: string,
+  ) =>
+    `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/network-activities/${encodeURIComponent(activityId)}/occurrences/${encodeURIComponent(occurrenceId)}/images`,
+  networkOccurrenceImage: (
+    denomId: string,
+    churchId: string,
+    activityId: string,
+    occurrenceId: string,
+    name: string,
+  ) =>
+    `/api/church/${encodeURIComponent(denomId)}/${encodeURIComponent(churchId)}/network-activities/${encodeURIComponent(activityId)}/occurrences/${encodeURIComponent(occurrenceId)}/images/${encodeURIComponent(name)}`,
 } as const;
 
 export const PLAYLIST_ROUTES = {

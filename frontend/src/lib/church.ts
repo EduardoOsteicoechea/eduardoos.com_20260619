@@ -492,6 +492,270 @@ export function churchImageUrl(
   return CHURCH_ROUTES.image(denomId, churchId, activityId, name);
 }
 
+/* —— Spec 023 network activities —— */
+
+export type NetworkActivity = {
+  id: string;
+  name: string;
+  description?: string;
+  denominationId: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+};
+
+export type NetworkContact = {
+  name: string;
+  address?: string;
+  phone?: string;
+  interest?: string;
+};
+
+export type NetworkOccurrence = {
+  id: string;
+  activityId: string;
+  churchId: string;
+  denominationId: string;
+  date: string;
+  place?: string;
+  reporterMemberKey: string;
+  participantMemberKeys?: string[];
+  description?: string;
+  contacts?: NetworkContact[];
+  imageNames?: string[];
+  createdBy?: string;
+  createdAt: string;
+  updatedBy?: string;
+  updatedAt: string;
+  deletedAt?: string;
+};
+
+export type NetworkMemberPoolEntry = {
+  email: string;
+  name: string;
+  churchId: string;
+  churchName: string;
+  role?: string;
+};
+
+export type NetworkOccurrenceStats = {
+  occurrenceId: string;
+  date: string;
+  place?: string;
+  reporterMemberKey?: string;
+  reporterName?: string;
+  participantCount: number;
+  contactCount: number;
+  imageCount: number;
+  firstImageName?: string;
+};
+
+export type NetworkChurchRollup = {
+  churchId: string;
+  churchName: string;
+  occurrences: NetworkOccurrenceStats[];
+};
+
+export async function listNetworkActivities(
+  groupId: string,
+): Promise<{ activities: NetworkActivity[] }> {
+  return churchRequest(CHURCH_ROUTES.networkActivities(groupId));
+}
+
+export async function createNetworkActivity(
+  groupId: string,
+  body: { name: string; description?: string },
+): Promise<{ activity: NetworkActivity }> {
+  return churchRequest(CHURCH_ROUTES.networkActivities(groupId), {
+    method: "POST",
+    body,
+  });
+}
+
+export async function softDeleteNetworkActivity(
+  groupId: string,
+  activityId: string,
+): Promise<{ activity: NetworkActivity }> {
+  return churchRequest(CHURCH_ROUTES.networkActivity(groupId, activityId), {
+    method: "DELETE",
+  });
+}
+
+export async function fetchNetworkActivityRollup(
+  groupId: string,
+  activityId: string,
+): Promise<{ activity: NetworkActivity; churches: NetworkChurchRollup[] }> {
+  return churchRequest(CHURCH_ROUTES.networkActivityRollup(groupId, activityId));
+}
+
+export async function listChurchNetworkActivities(
+  denomId: string,
+  churchId: string,
+): Promise<{ activities: NetworkActivity[] }> {
+  return churchRequest(CHURCH_ROUTES.churchNetworkActivities(denomId, churchId));
+}
+
+export async function fetchNetworkMemberPool(
+  denomId: string,
+  churchId: string,
+): Promise<{ members: NetworkMemberPoolEntry[] }> {
+  return churchRequest(CHURCH_ROUTES.networkMemberPool(denomId, churchId));
+}
+
+export async function listNetworkOccurrences(
+  denomId: string,
+  churchId: string,
+  activityId: string,
+): Promise<{ occurrences: NetworkOccurrence[] }> {
+  return churchRequest(
+    CHURCH_ROUTES.networkOccurrences(denomId, churchId, activityId),
+  );
+}
+
+export async function createNetworkOccurrence(
+  denomId: string,
+  churchId: string,
+  activityId: string,
+  body: Partial<NetworkOccurrence> & { date: string },
+): Promise<{ occurrence: NetworkOccurrence }> {
+  return churchRequest(
+    CHURCH_ROUTES.networkOccurrences(denomId, churchId, activityId),
+    { method: "POST", body },
+  );
+}
+
+export async function updateNetworkOccurrence(
+  denomId: string,
+  churchId: string,
+  activityId: string,
+  occurrenceId: string,
+  body: Partial<NetworkOccurrence> & { date: string },
+): Promise<{ occurrence: NetworkOccurrence }> {
+  return churchRequest(
+    CHURCH_ROUTES.networkOccurrence(denomId, churchId, activityId, occurrenceId),
+    { method: "PUT", body },
+  );
+}
+
+export async function fetchNetworkOccurrence(
+  denomId: string,
+  churchId: string,
+  activityId: string,
+  occurrenceId: string,
+): Promise<{ occurrence: NetworkOccurrence }> {
+  return churchRequest(
+    CHURCH_ROUTES.networkOccurrence(denomId, churchId, activityId, occurrenceId),
+  );
+}
+
+export async function softDeleteNetworkOccurrence(
+  denomId: string,
+  churchId: string,
+  activityId: string,
+  occurrenceId: string,
+): Promise<{ occurrence: NetworkOccurrence }> {
+  return churchRequest(
+    CHURCH_ROUTES.networkOccurrence(denomId, churchId, activityId, occurrenceId),
+    { method: "DELETE" },
+  );
+}
+
+/** Compress image File to JPEG ≤ maxBytes (default 1 MiB). */
+export async function compressImageToMaxBytes(
+  file: File,
+  maxBytes = 1 << 20,
+): Promise<File> {
+  if (file.size <= maxBytes && /^image\/(jpeg|png|webp)$/i.test(file.type)) {
+    return file;
+  }
+  const bitmap = await createImageBitmap(file);
+  let quality = 0.85;
+  let width = bitmap.width;
+  let height = bitmap.height;
+  const scaleDown = () => {
+    width = Math.max(1, Math.floor(width * 0.85));
+    height = Math.max(1, Math.floor(height * 0.85));
+  };
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) break;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", quality),
+    );
+    if (blob && blob.size <= maxBytes) {
+      return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), {
+        type: "image/jpeg",
+      });
+    }
+    if (quality > 0.45) quality -= 0.1;
+    else scaleDown();
+  }
+  return file;
+}
+
+export async function uploadNetworkOccurrenceImage(
+  denomId: string,
+  churchId: string,
+  activityId: string,
+  occurrenceId: string,
+  file: File,
+): Promise<{ filename: string; occurrence: NetworkOccurrence }> {
+  const token = getAuthToken();
+  const correlationId = createCorrelationId();
+  const path = CHURCH_ROUTES.networkOccurrenceImages(
+    denomId,
+    churchId,
+    activityId,
+    occurrenceId,
+  );
+  const compressed = await compressImageToMaxBytes(file);
+  const form = new FormData();
+  form.append("image", compressed);
+  const headers: Record<string, string> = {
+    "X-Correlation-ID": correlationId,
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(path, { method: "POST", headers, body: form });
+  const raw = await res.text();
+  let data: { filename?: string; occurrence?: NetworkOccurrence; error?: string } =
+    {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = {};
+  }
+  if (!res.ok) {
+    const msg = data.error || raw || `HTTP ${res.status}`;
+    openApiErrorModal(String(msg), {
+      title: "Church photo upload error",
+      summary: `POST ${path} correlation_id=${correlationId}`,
+    });
+    throw new Error(String(msg));
+  }
+  return data as { filename: string; occurrence: NetworkOccurrence };
+}
+
+export function networkOccurrenceImageUrl(
+  denomId: string,
+  churchId: string,
+  activityId: string,
+  occurrenceId: string,
+  name: string,
+): string {
+  return CHURCH_ROUTES.networkOccurrenceImage(
+    denomId,
+    churchId,
+    activityId,
+    occurrenceId,
+    name,
+  );
+}
+
 export function roleLabel(role: string): string {
   switch (role) {
     case "church-admin":
