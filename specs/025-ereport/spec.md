@@ -6,7 +6,9 @@
 
 ## Problem
 
-Port `portable-issue-tracker` into Eduardo OS as **eReport**: subscribed users store `.ereport` JSON under S3 `ereport/`, list/open by user, set a **tema**, load from disk or cloud, and share a report with other registered users so they can view it.
+Port the Issue Tracker into Eduardo OS as **eReport**: subscribed users store `.ereport` JSON under S3 `ereport/`, list/open by user, set a **tema**, load from disk or cloud, and share a report with other registered users so they can view it.
+
+**Canonical tracker UI:** `frontend/public/ereport-tracker.html` (alias `frontend/public/ereport/tracker.html`). The former standalone kit folder was removed after port.
 
 ## Goals
 
@@ -39,7 +41,7 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
 ```
 
 `meta.json`: `{ id, tema, reportNumber, reportDate, ownerEmail, ownerSafe, sharedWith: [{ email, userSafe }], updatedAt, createdAt }`  
-`report.ereport`: portable Issue Tracker JSON (`reportDate`, `reportNumber`, `appTitle`, `sections…`) per kit SPEC.  
+`report.ereport`: Issue Tracker JSON (`reportDate`, `reportNumber`, `appTitle`, `sections…`) as produced/consumed by `ereport-tracker.html`.  
 `library.json`: `{ reports: [{ id, tema, reportNumber, updatedAt }] }`  
 `shared-index.json`: `{ items: [{ ownerSafe, reportId, tema, updatedAt }] }`
 
@@ -57,9 +59,9 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
   - **Tema** — modal with tema text field (blur/save writes meta).
   - **Guardar en nube** — modal with confirm + status; runs collect → `PUT` cloud.
   - **Compartir** — modal to add/remove registered emails (owners only; hidden if `!canShare`).
-- Body: portable Issue Tracker embedded via host-bridged static HTML at **`/ereport-tracker.html`** (alias `/ereport/tracker.html`).
+- Body: Issue Tracker embedded via host-bridged static HTML at **`/ereport-tracker.html`** (alias `/ereport/tracker.html`).
 - **Inline title edit (tracker):** sección máxima and subsección/grupo titles are **always `<input>` fields** styled as headings (click/focus to edit). Enter or blur commits into state; values persist in `.ereport` via `collectFromDom`.
-- Save in tracker: downloads (kit behavior) **and** posts state to host → `PUT` cloud.
+- Save in tracker: downloads **and** posts state to host → `PUT` cloud.
 - Cloud save also from header modal and when tracker `saveAll` completes (bridge).
 - Owner: full edit + share. Shared user: **view + edit body** (not delete report / not manage shares). Non-owner non-shared: 403.
 
@@ -78,7 +80,7 @@ IAM already allows Get/Put/Delete on `arn:aws:s3:::eduardoos20260607/ereport/*` 
 
 ## Non-goals
 - Real-time multi-cursor collaboration.
-- Moving images out of base64 into separate S3 objects (MVP keeps kit format).
+- Moving images out of base64 into separate S3 objects (MVP keeps embedded base64 in `.ereport`).
 - Public unauthenticated links.
 
 ## Acceptance
@@ -96,4 +98,3 @@ IAM already allows Get/Put/Delete on `arn:aws:s3:::eduardoos20260607/ereport/*` 
 - `frontend/.../ereport/**`, `lib/ereport.ts`, Header, payments, routes, nginx
 - `frontend/public/ereport-tracker.html`, `frontend/public/ereport/tracker.html` (+ host bridge)
 - `frontend/src/components/Ereport/EreportHeaderMenu.tsx` (+ modals)
-- `portable-issue-tracker/` remains the kit source of truth for tracker behavior
