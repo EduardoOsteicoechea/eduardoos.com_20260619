@@ -488,6 +488,7 @@
 }
 
 .pamphlet-header-meta-bar {
+    position: relative; /* anchor double gray meta frame */
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto;
@@ -498,6 +499,33 @@
     flex: 0 0 auto;
     overflow: hidden;
     color: #666666; /* GRIS — matches PDF meta */
+    box-sizing: border-box;
+}
+
+/*
+  Double gray margin around the header meta section (Serie/Capítulo/Autor/Fecha).
+  Absolute overlay — does not grow the header band height.
+*/
+.pamphlet-header-meta-bar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 0.2mm solid #666666;
+    border-radius: 0.5mm;
+    pointer-events: none;
+    z-index: 1;
+    box-sizing: border-box;
+}
+
+.pamphlet-header-meta-bar::after {
+    content: "";
+    position: absolute;
+    inset: 0.45mm;
+    border: 0.1mm solid #666666;
+    border-radius: 0.35mm;
+    pointer-events: none;
+    z-index: 1;
+    box-sizing: border-box;
 }
 
 /* Rows kept for DOM grouping; each is a 2-col subgrid aligned to the bar. */
@@ -620,6 +648,7 @@
 }
 
 .pamphlet-footer-meta-bar {
+    position: relative; /* anchor double gray meta frame */
     display: flex;
     flex-direction: column;
     gap: 0.4mm; /* meta_gap */
@@ -631,6 +660,33 @@
     max-height: none;
     overflow: hidden;
     color: #666666;
+    box-sizing: border-box;
+}
+
+/*
+  Double gray margin around the footer meta section (WhatsApp/Teléfono/…).
+  Absolute overlay — does not grow the footer band height.
+*/
+.pamphlet-footer-meta-bar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 0.2mm solid #666666;
+    border-radius: 0.5mm;
+    pointer-events: none;
+    z-index: 1;
+    box-sizing: border-box;
+}
+
+.pamphlet-footer-meta-bar::after {
+    content: "";
+    position: absolute;
+    inset: 0.45mm;
+    border: 0.1mm solid #666666;
+    border-radius: 0.35mm;
+    pointer-events: none;
+    z-index: 1;
+    box-sizing: border-box;
 }
 
 .pamphlet-footer-meta-row {

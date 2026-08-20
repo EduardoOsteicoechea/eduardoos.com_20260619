@@ -522,6 +522,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		cursorTop -= layout.DividerInnerStroke
 	}
 	metaLineTop := cursorTop - layout.TitleMetaGap
+	metaSectionTop := metaLineTop
 
 	metaSizeMm := layout.MetaSize
 	metaLH := layout.MetaLH
@@ -542,6 +543,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 	right2 := labeledMeta("Fecha", h.Date)
 
 	contentBottom := titleBoxBottom
+	drewMeta := false
 	if (left1 != "" || right1 != "") && metaY > textFloor {
 		if left1 != "" {
 			writeGrayText(s, "F1", metaSizePt, innerX, metaY, half, left1)
@@ -550,6 +552,7 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right1)
 		}
 		contentBottom = metaLineTop - metaLineHMm
+		drewMeta = true
 		metaLineTop -= metaLineHMm + layout.MetaRowGap
 		metaY = metaLineTop - cssBaselineOffsetMm(metaSizeMm, metaLH)
 	}
@@ -561,6 +564,12 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 			writeGrayText(s, "F1", metaSizePt, rightX, metaY, half, right2)
 		}
 		contentBottom = metaLineTop - metaLineHMm
+		drewMeta = true
+	}
+
+	// Double gray frame around meta section (overlay — band height unchanged).
+	if drewMeta && metaSectionTop > contentBottom {
+		strokeGrayMetaDoubleFrameMm(s, innerX, metaSectionTop, innerW, metaSectionTop-contentBottom)
 	}
 
 	if contentBottom < floor {
@@ -985,6 +994,8 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	}
 
 	drawn := 0
+	metaSectionTop := cursorTop
+	metaSectionBottom := cursorTop
 	for _, row := range allRows {
 		if !row.isLabel {
 			if strings.TrimSpace(row.left) == "" && strings.TrimSpace(row.right) == "" {
@@ -1016,8 +1027,81 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 			writeGrayText(s, font, metaPt, rightX+layout.MetaPadX*0.5, metaY, cellW, row.right)
 		}
 		cursorTop -= rowH
+		metaSectionBottom = cursorTop
 		drawn++
 	}
+	if drawn > 0 && metaSectionTop > metaSectionBottom {
+		strokeGrayMetaDoubleFrameMm(s, innerX, metaSectionTop, innerW, metaSectionTop-metaSectionBottom)
+	}
+}
+
+// strokeGrayMetaDoubleFrameMm paints the CSS double gray meta frame (outer + inset inner).
+// Color matches writeGrayText (#666 ≈ 0.4 DeviceGray). Does not affect layout math.
+func strokeGrayMetaDoubleFrameMm(s *strings.Builder, x, top, width, height float64) {
+	if width <= 0 || height <= 0 {
+		return
+	}
+	const outerStroke = 0.2
+	const innerStroke = 0.1
+	const inset = 0.45
+	const outerRadius = 0.5
+	const innerRadius = 0.35
+	strokeRoundedRectGrayMm(s, x, top, width, height, outerRadius, outerStroke)
+	pathInset := outerStroke/2 + inset + innerStroke/2
+	ix := x + pathInset
+	it := top - pathInset
+	iw := width - 2*pathInset
+	ih := height - 2*pathInset
+	if iw > 0 && ih > 0 {
+		strokeRoundedRectGrayMm(s, ix, it, iw, ih, innerRadius, innerStroke)
+	}
+}
+
+// strokeRoundedRectGrayMm is strokeRoundedRectMm with DeviceGray 0.4 stroke (#666).
+func strokeRoundedRectGrayMm(s *strings.Builder, x, top, width, height, radius, strokeMm float64) {
+	if width <= 0 || height <= 0 {
+		return
+	}
+	r := radius
+	if r < 0 {
+		r = 0
+	}
+	maxR := width / 2
+	if height/2 < maxR {
+		maxR = height / 2
+	}
+	if r > maxR {
+		r = maxR
+	}
+
+	bx := MmToPoints(x)
+	by := MmToPoints(top - height)
+	bw := MmToPoints(width)
+	bh := MmToPoints(height)
+	rp := MmToPoints(r)
+	const k = 0.5522847498
+	rk := rp * k
+
+	left, right := bx, bx+bw
+	bottom, topPt := by, by+bh
+
+	s.WriteString("q\n")
+	s.WriteString("0.4 0.4 0.4 RG\n")
+	s.WriteString(fmt.Sprintf("%.3f w\n", MmToPoints(strokeMm)))
+	s.WriteString(fmt.Sprintf("%.2f %.2f m\n", left+rp, bottom))
+	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", right-rp, bottom))
+	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
+		right-rp+rk, bottom, right, bottom+rp-rk, right, bottom+rp))
+	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", right, topPt-rp))
+	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
+		right, topPt-rp+rk, right-rp+rk, topPt, right-rp, topPt))
+	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", left+rp, topPt))
+	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
+		left+rp-rk, topPt, left, topPt-rp+rk, left, topPt-rp))
+	s.WriteString(fmt.Sprintf("%.2f %.2f l\n", left, bottom+rp))
+	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
+		left, bottom+rp-rk, left+rp-rk, bottom, left+rp, bottom))
+	s.WriteString("S\nQ\n")
 }
 
 // strokeHorizontalRuleMm draws a hairline across the footer (divider outer/inner).
