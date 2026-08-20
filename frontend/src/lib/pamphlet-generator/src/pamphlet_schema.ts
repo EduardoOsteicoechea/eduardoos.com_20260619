@@ -175,7 +175,7 @@ export type PamphletHeaderLayoutMm = {
 /** Exact mm from style.css `.pamphlet-page-header` — PDF must use these, not invent sizes. */
 export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     // pad + title + title_pad_bottom + divider + subtitle_min_h + title_meta_gap + meta + frame
-    height: 35,
+    height: 34.5,
     body_gutter: 5, // --header-body-gutter
     pad: 1.2, // legacy fallback
     pad_top: 2.2, // was 1.2 + 1mm
@@ -196,7 +196,7 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     subtitle_size: 2.469, // matches footer message (~7pt)
     subtitle_lh: 1.25,
     subtitle_pad_x: 0, // flush left with title
-    subtitle_pad_top: 2.0, // +0.5mm vs prior 1.5
+    subtitle_pad_top: 1.5, // −0.5mm vs prior 2.0
     subtitle_pad_y: 0.5,
     subtitle_min_h: 4.0,
     meta_size: 2.5, // .pamphlet-header-meta-label / meta values

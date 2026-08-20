@@ -40,20 +40,20 @@ const (
 	PamphletColWidthMm = 57.85
 	// Header band: title + title_pad_bottom + title divider + title_meta_gap + meta + frame.
 	// Overridden by header_layout.height from frontend when present.
-	PamphletHeaderHMm = 35.0
+	PamphletHeaderHMm = 34.5
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
 	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 35 − 5 − 6 − 30 − 10
-	PamphletPage1BodyMm = 119.9
+	// 215.9 − 10 − 34.5 − 5 − 6 − 30 − 10
+	PamphletPage1BodyMm = 120.4
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
 	// Clear space under subtitle → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
 	PamphletHeaderTitleMetaGapMm = 0.6
 	// CSS .pamphlet-header-meta-bar { row-gap }.
 	PamphletHeaderMetaRowGapMm = 1.8
-	// Right-side cols 1–2: 195.9 − 35 − 5
-	PamphletPage1RightColMm = 155.9
+	// Right-side cols 1–2: 195.9 − 34.5 − 5
+	PamphletPage1RightColMm = 156.4
 	// Left-side cols 7–8 above footer: 195.9 − 6 − 30 (default layout.height)
 	PamphletPage1LeftColMm = 159.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
@@ -686,7 +686,7 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		SubtitleSize:       2.469,
 		SubtitleLH:         1.25,
 		SubtitlePadX:       0,
-		SubtitlePadTop:     2.0,
+		SubtitlePadTop:     1.5,
 		SubtitlePadY:       0.5,
 		SubtitleMinH:       4.0,
 		MetaSize:           pamphletMetaSizeMm,

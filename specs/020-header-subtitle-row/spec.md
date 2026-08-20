@@ -22,7 +22,6 @@ Header jumps from title+divider straight to the 2×2 meta bar. Users need a shor
 - [x] Subtitle visible + editable + saved in `.epam`.
 - [x] Desktop band 35mm; cols 1–2 height updated; PDF matches; tests + FE build green.
 
-## Revision 2026-08-19d (header/footer half-mm tweaks)
+## Revision 2026-08-19e (header −0.5mm band + subtitle top)
 
-- [x] Header Serie/Capítulo `meta_pad_top` **0.5mm**; outer `pad_bottom` **0.5mm**; subtitle `subtitle_pad_top` **2.0mm**.
-- [x] Footer WhatsApp/Teléfono row only: `meta_label1_row_h` **4.5mm** (−1mm).
+- [x] Outer header height **34.5mm** (−0.5); `subtitle_pad_top` **1.5mm** (−0.5). Other header chrome unchanged.
