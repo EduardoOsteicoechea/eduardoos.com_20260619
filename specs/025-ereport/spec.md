@@ -26,6 +26,8 @@ Port `portable-issue-tracker` into Eduardo OS as **eReport**: subscribed users s
 
 **Bugfix (2026-08-20):** Opening the pretty editor path before nginx rewrite is live served `/index.html` (home). Links and post-create navigation use `/ereport/workspace?…` first; nginx rewrite uses `rewrite … last` (not try_files→home).
 
+**Bugfix (2026-08-20 #2):** iframe `/ereport/tracker.html` matched the one-segment hub rewrite → `/ereport/hub/index.html` then re-matched the two-segment editor rewrite in a loop → nginx **500**. Fix: exact `location = /ereport/tracker.html` + lookaheads that exclude `hub/` and `workspace/` prefixes (not only exact `hub` end).
+
 ### 2. S3 (`eduardoos20260607`, prefix `ereport/`)
 ```
 ereport/{ownerSafe}/library.json
