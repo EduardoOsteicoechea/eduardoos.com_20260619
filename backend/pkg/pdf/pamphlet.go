@@ -40,20 +40,20 @@ const (
 	PamphletColWidthMm = 57.85
 	// Header band: title + title_pad_bottom + title divider + title_meta_gap + meta + frame.
 	// Overridden by header_layout.height from frontend when present.
-	PamphletHeaderHMm = 30.0
+	PamphletHeaderHMm = 35.0
 	// Gap under the header band before cols 1–2 — CSS --header-body-gutter.
 	PamphletHeaderBodyGutterMm = 5.0
 	PamphletFooterHMm          = 30.0 // default; overridden by footer_layout.height from frontend
-	// 215.9 − 10 − 30 − 5 − 6 − 30 − 10
-	PamphletPage1BodyMm = 124.9
+	// 215.9 − 10 − 35 − 5 − 6 − 30 − 10
+	PamphletPage1BodyMm = 119.9
 	PamphletPage2BodyMm = 195.9
 	PamphletItemGapMm   = 2.5
-	// Clear space under title divider → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
+	// Clear space under subtitle → meta (PAMPHLET_HEADER_LAYOUT_MM.title_meta_gap).
 	PamphletHeaderTitleMetaGapMm = 1.6
 	// CSS .pamphlet-header-meta-bar { row-gap }.
 	PamphletHeaderMetaRowGapMm = 1.8
-	// Right-side cols 1–2: 195.9 − 30 − 5
-	PamphletPage1RightColMm = 160.9
+	// Right-side cols 1–2: 195.9 − 35 − 5
+	PamphletPage1RightColMm = 155.9
 	// Left-side cols 7–8 above footer: 195.9 − 6 − 30 (default layout.height)
 	PamphletPage1LeftColMm = 159.9
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
@@ -105,6 +105,11 @@ type PamphletHeaderLayout struct {
 	DividerOuterStroke  float64 `json:"divider_outer_stroke"`
 	DividerGap          float64 `json:"divider_gap"`
 	DividerInnerStroke  float64 `json:"divider_inner_stroke"`
+	SubtitleSize        float64 `json:"subtitle_size"`
+	SubtitleLH          float64 `json:"subtitle_lh"`
+	SubtitlePadX        float64 `json:"subtitle_pad_x"`
+	SubtitlePadY        float64 `json:"subtitle_pad_y"`
+	SubtitleMinH        float64 `json:"subtitle_min_h"`
 	MetaSize            float64 `json:"meta_size"`
 	MetaLH              float64 `json:"meta_lh"`
 	MetaRowGap          float64 `json:"meta_row_gap"`
@@ -468,7 +473,7 @@ func cssBaselineOffsetMm(sizeMm, lineHeight float64) float64 {
 }
 
 // drawHeader paints footer-style double frame, title, title double-divider,
-// then 2x2 gray meta. Type sizes and chrome come from header_layout (FE mm).
+// subtitle, then 2x2 gray meta. Type sizes and chrome come from header_layout (FE mm).
 func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayout, x, top, width float64) float64 {
 	layout = normalizeHeaderLayout(layout)
 	heightMm := layout.Height
@@ -521,6 +526,39 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 		strokeHorizontalRuleMm(s, innerX, cursorTop, innerW, layout.DividerInnerStroke)
 		cursorTop -= layout.DividerInnerStroke
 	}
+
+	// Subtitle / key metadata (footer Mensaje analogue).
+	subSize := layout.SubtitleSize
+	subLH := layout.SubtitleLH
+	if subSize <= 0 {
+		subSize = 2.469
+	}
+	if subLH <= 0 {
+		subLH = 1.25
+	}
+	subTextW := innerW - 2*layout.SubtitlePadX
+	if subTextW < 4 {
+		subTextW = innerW
+	}
+	subTextH := measureWrappedHeightMm(h.Subtitle, subSize, subLH, subTextW)
+	subBoxH := layout.SubtitlePadY*2 + subTextH
+	if subBoxH < layout.SubtitleMinH {
+		subBoxH = layout.SubtitleMinH
+	}
+	if cursorTop-subBoxH < textFloor {
+		subBoxH = cursorTop - textFloor
+	}
+	if subBoxH > 0 {
+		if strings.TrimSpace(h.Subtitle) != "" {
+			textTop := cursorTop - layout.SubtitlePadY
+			sy := textTop - cssBaselineOffsetMm(subSize, subLH)
+			subFloor := cursorTop - subBoxH + layout.SubtitlePadY
+			writeWrapped(s, "F1", MmToPoints(subSize), subLH,
+				innerX+layout.SubtitlePadX, sy, subTextW, h.Subtitle, subFloor)
+		}
+		cursorTop -= subBoxH
+	}
+
 	metaLineTop := cursorTop - layout.TitleMetaGap
 	metaSectionTop := metaLineTop
 
@@ -607,6 +645,11 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		DividerOuterStroke: 0.2,
 		DividerGap:         0.45,
 		DividerInnerStroke: 0.1,
+		SubtitleSize:       2.469,
+		SubtitleLH:         1.25,
+		SubtitlePadX:       1.0,
+		SubtitlePadY:       0.5,
+		SubtitleMinH:       4.0,
 		MetaSize:           pamphletMetaSizeMm,
 		MetaLH:             pamphletMetaLH,
 		MetaRowGap:         PamphletHeaderMetaRowGapMm,
@@ -641,6 +684,11 @@ func normalizeHeaderLayout(l PamphletHeaderLayout) PamphletHeaderLayout {
 		DividerOuterStroke: pick(l.DividerOuterStroke, d.DividerOuterStroke),
 		DividerGap:         pick(l.DividerGap, d.DividerGap),
 		DividerInnerStroke: pick(l.DividerInnerStroke, d.DividerInnerStroke),
+		SubtitleSize:       pick(l.SubtitleSize, d.SubtitleSize),
+		SubtitleLH:         pick(l.SubtitleLH, d.SubtitleLH),
+		SubtitlePadX:       pick(l.SubtitlePadX, d.SubtitlePadX),
+		SubtitlePadY:       pick(l.SubtitlePadY, d.SubtitlePadY),
+		SubtitleMinH:       pick(l.SubtitleMinH, d.SubtitleMinH),
 		MetaSize:           pick(l.MetaSize, d.MetaSize),
 		MetaLH:             pick(l.MetaLH, d.MetaLH),
 		MetaRowGap:         pick(l.MetaRowGap, d.MetaRowGap),

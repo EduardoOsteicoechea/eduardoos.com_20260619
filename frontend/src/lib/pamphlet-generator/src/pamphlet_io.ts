@@ -48,7 +48,7 @@ const FOOTER_FIELD_CLASSES: Record<FooterFieldKey, string[]> = {
     value4: ["pamphlet-footer-value", "pamphlet-footer-value-4"],
 };
 
-/** Visible meta-bar fields under the title (subtitle stays in DOM but hidden). */
+/** Visible meta-bar fields under the subtitle (title + subtitle are full-width above). */
 const HEADER_META_FIELDS: { field: HeaderFieldKey; label: string }[] = [
     { field: "series", label: "Serie" },
     { field: "series_chapter", label: "Capítulo" },
@@ -259,6 +259,9 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
     headerDivider.setAttribute("aria-hidden", "true");
     headerEl.appendChild(headerDivider);
 
+    // Subtitle / key metadata (footer Mensaje analogue) — persisted as header.subtitle.
+    headerEl.appendChild(createHeaderFieldElement("subtitle", data.header.subtitle ?? ""));
+
     const metaBar = document.createElement("div");
     metaBar.className = "pamphlet-header-meta-bar";
 
@@ -278,11 +281,6 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
         metaBar.appendChild(row);
     }
     headerEl.appendChild(metaBar);
-
-    // Keep subtitle in DOM for persistence / last_edited indexes, but hide it
-    const subtitle = createHeaderFieldElement("subtitle", data.header.subtitle ?? "");
-    subtitle.classList.add("pamphlet-header-field-hidden");
-    headerEl.appendChild(subtitle);
 
     const footer = data.footer;
     const footerEl = document.createElement("footer");

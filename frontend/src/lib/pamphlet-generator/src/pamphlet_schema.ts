@@ -141,14 +141,20 @@ export type PamphletHeaderLayoutMm = {
     /** Space under title text before the double divider. */
     title_pad_bottom: number;
     /**
-     * Clear space from title double-divider bottom → meta bar
-     * (was 0.6; +2mm → 2.6). Header flex gap is 0; this is divider margin-bottom.
+     * Clear space from subtitle block bottom → meta bar
+     * (divider margin is 0; this gap sits under the subtitle).
      */
     title_meta_gap: number;
     /** Double rule under title — same language as footer Acción→Mensaje divider. */
     divider_outer_stroke: number;
     divider_gap: number;
     divider_inner_stroke: number;
+    /** Subtitle / key metadata row under the title divider (footer Mensaje analogue). */
+    subtitle_size: number;
+    subtitle_lh: number;
+    subtitle_pad_x: number;
+    subtitle_pad_y: number;
+    subtitle_min_h: number;
     meta_size: number;
     meta_lh: number;
     /** Meta grid row-gap. */
@@ -159,8 +165,8 @@ export type PamphletHeaderLayoutMm = {
 
 /** Exact mm from style.css `.pamphlet-page-header` — PDF must use these, not invent sizes. */
 export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
-    // pad + title + title_pad_bottom + divider (0.75) + title_meta_gap 1.6 + meta + frame
-    height: 30,
+    // pad + title + title_pad_bottom + divider + subtitle_min_h + title_meta_gap + meta + frame
+    height: 35,
     body_gutter: 5, // --header-body-gutter
     pad: 1.2,
     pad_x: 2.2,
@@ -172,13 +178,18 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     title_size: 6.75, // .pamphlet-header-title p
     title_lh: 1.1,
     title_pad_bottom: 1, // under title text before divider
-    title_meta_gap: 1.6, // divider → meta (+1mm vs prior 0.6)
+    title_meta_gap: 1.6, // subtitle → meta
     divider_outer_stroke: 0.2,
     divider_gap: 0.45,
     divider_inner_stroke: 0.1,
+    subtitle_size: 2.469, // matches footer message (~7pt)
+    subtitle_lh: 1.25,
+    subtitle_pad_x: 1.0,
+    subtitle_pad_y: 0.5,
+    subtitle_min_h: 4.0,
     meta_size: 2.5, // .pamphlet-header-meta-label / meta values
     meta_lh: 1.2,
-    meta_row_gap: 1.8, // .pamphlet-header-meta-bar { row-gap } (+1mm vs prior 0.8)
+    meta_row_gap: 1.8, // .pamphlet-header-meta-bar { row-gap }
     meta_col_gap: 2.5, // .pamphlet-header-meta-bar { column-gap }
 };
 

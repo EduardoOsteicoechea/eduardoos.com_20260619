@@ -202,9 +202,14 @@
   /* Header type sizes — keep in sync with PAMPHLET_HEADER_LAYOUT_MM (print → PDF). */
   --header-title-size: 6.75mm;
   --header-title-lh: 1.1;
-  /* Clear space divider → meta (title_meta_gap); flex gap on header is 0. */
+  /* Clear space subtitle → meta (title_meta_gap); flex gap on header is 0. */
   --header-title-meta-gap: 1.6mm;
   --header-title-pad-bottom: 1mm;
+  --header-subtitle-size: 2.469mm;
+  --header-subtitle-lh: 1.25;
+  --header-subtitle-pad-x: 1.0mm;
+  --header-subtitle-pad-y: 0.5mm;
+  --header-subtitle-min-h: 4.0mm;
   --header-meta-size: 2.5mm;
   --header-meta-lh: 1.2;
   --header-meta-row-gap: 1.8mm;
@@ -220,21 +225,21 @@
   --header-divider-outer: 0.2mm;
   --header-divider-gap: 0.45mm;
   --header-divider-inner: 0.1mm;
-  /* Title + title_pad_bottom + divider + title_meta_gap + meta + pad + frame. */
-  --page-header-height: 30mm;
+  /* Title + divider + subtitle + title_meta_gap + meta + pad + frame. */
+  --page-header-height: 35mm;
   /* Margin under header band before cols 1–2 (PDF uses the same). */
   --header-body-gutter: 5mm;
   --page-footer-height: 30mm; /* PAMPHLET_FOOTER_LAYOUT_MM.height — value rows hidden when empty */
-  /* Page 1 body: 215.9 − 10 − 30 − 5 − 6 − 30 − 10 = 124.9mm */
-  --page1-body-height: 124.9mm;
+  /* Page 1 body: 215.9 − 10 − 35 − 5 − 6 − 30 − 10 = 119.9mm */
+  --page1-body-height: 119.9mm;
   /* Page 2 content band: 215.9 − 10 − 10 = 195.9mm */
   --column-content-height: 195.9mm;
   /* Content column width: (279.4 − 10−4−20−4−10) / 4 = 57.85mm */
   --column-content-width: 57.85mm;
   /* Header/footer band: two content cols + narrow gutter */
   --header-footer-width: calc(var(--column-content-width) * 2 + var(--col-gutter-narrow));
-  /* Cols 1–2 under header: 195.9 − 30 − 5 = 160.9mm */
-  --page1-right-col-height: 160.9mm;
+  /* Cols 1–2 under header: 195.9 − 35 − 5 = 155.9mm */
+  --page1-right-col-height: 155.9mm;
   /* Cols 7–8 above footer: 195.9 − 6 − 30 = 159.9mm */
   --page1-left-col-height: 159.9mm;
   /* Gap between items (not after the last in a column); counted in reflow height */
@@ -421,8 +426,42 @@
     border-top: var(--header-divider-outer) solid #222222;
     border-bottom: var(--header-divider-inner) solid #222222;
     padding-top: var(--header-divider-gap);
-    margin: 0 0 var(--header-title-meta-gap);
+    margin: 0;
     pointer-events: none;
+}
+
+/* Subtitle / key metadata — footer Mensaje analogue under the title divider. */
+.pamphlet-page-header > .pamphlet-header-subtitle {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    border: none !important;
+    padding: var(--header-subtitle-pad-y) var(--header-subtitle-pad-x) !important;
+    margin: 0 0 var(--header-title-meta-gap);
+    background: transparent;
+    min-height: var(--header-subtitle-min-h);
+    overflow: hidden !important;
+}
+
+.pamphlet-page-header > .pamphlet-header-subtitle:has(.element_edit_tray) {
+    border: 0.15mm solid rgba(100, 100, 100, 0.45) !important;
+    background: #fff;
+}
+
+.pamphlet-header-subtitle p {
+    font-family: Roboto, sans-serif;
+    font-size: var(--header-subtitle-size);
+    font-weight: 400;
+    line-height: var(--header-subtitle-lh);
+    color: #000000;
+    min-height: 1.25em;
+    max-width: 100%;
+    margin: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
 }
 
 /* Footer frame mm must stay in sync with PAMPHLET_FOOTER_LAYOUT_MM (print → PDF). */
@@ -900,6 +939,14 @@
   font-weight: 700;
   line-height: var(--header-title-lh);
   color: inherit;
+}
+
+.pamphlet-app main.pamphlet-sheet .pamphlet-page-header .pamphlet-header-subtitle p {
+  font-family: Roboto, sans-serif;
+  font-size: var(--header-subtitle-size);
+  font-weight: 400;
+  line-height: var(--header-subtitle-lh);
+  color: #000000;
 }
 
 .pamphlet-app main.pamphlet-sheet .pamphlet-header-meta-bar .pamphlet-header-meta-label,
@@ -1423,6 +1470,7 @@
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field > .pamphlet-item,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row > .pamphlet-item,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-subtitle,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message {
   border: 1px solid rgba(128, 128, 128, 0.45) !important;
@@ -1443,7 +1491,8 @@
   width: 100%;
 }
 
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title {
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-subtitle {
   display: flex;
   flex-direction: column;
   gap: calc(3px * var(--mobile-inv-scale, 1));
@@ -1451,6 +1500,15 @@
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title::before {
   content: "Título";
+  font-size: calc(11px * var(--mobile-inv-scale, 1));
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-subtitle::before {
+  content: "Subtítulo";
   font-size: calc(11px * var(--mobile-inv-scale, 1));
   line-height: 1.2;
   letter-spacing: 0.04em;
@@ -1484,6 +1542,7 @@
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title p,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-subtitle p,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field > .pamphlet-item p,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-action h1,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-message p,

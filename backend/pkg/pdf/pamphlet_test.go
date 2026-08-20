@@ -91,10 +91,35 @@ func TestToWinAnsiSpanish(t *testing.T) {
 	}
 }
 
+func TestDrawHeaderSubtitleInStream(t *testing.T) {
+	layout := defaultHeaderLayout()
+	if layout.SubtitleSize < 2.4 || layout.SubtitleMinH < 3.5 {
+		t.Fatalf("subtitle layout mm mismatch: %+v", layout)
+	}
+	var s strings.Builder
+	_ = drawHeader(&s, PamphletHeader{
+		Title:    "Titulo",
+		Subtitle: "Metadata clave del documento",
+		Author:   "Eduardo",
+		Series:   "Serie",
+	}, layout, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow)
+	out := s.String()
+	if !strings.Contains(out, "Metadata clave") {
+		t.Fatalf("expected subtitle in header stream, got %q", out)
+	}
+	wantTf := fmt.Sprintf("/F1 %.2f Tf", MmToPoints(layout.SubtitleSize))
+	if !strings.Contains(out, wantTf) {
+		t.Fatalf("expected subtitle Tf %q, got %q", wantTf, out)
+	}
+	if layout.Height != PamphletHeaderHMm || PamphletHeaderHMm != 35 {
+		t.Fatalf("header band want 35mm, layout.Height=%v const=%v", layout.Height, PamphletHeaderHMm)
+	}
+}
+
 func TestDrawHeaderTitleMetaGapMm(t *testing.T) {
 	layout := defaultHeaderLayout()
 	if layout.TitleMetaGap < 1.4 || layout.TitleMetaGap > 1.8 {
-		t.Fatalf("header divider→meta CSS gap want ~1.6mm, got %v", layout.TitleMetaGap)
+		t.Fatalf("header subtitle→meta CSS gap want ~1.6mm, got %v", layout.TitleMetaGap)
 	}
 	if layout.MetaRowGap < 1.6 || layout.MetaRowGap > 2.0 {
 		t.Fatalf("header meta row-gap want ~1.8mm, got %v", layout.MetaRowGap)
