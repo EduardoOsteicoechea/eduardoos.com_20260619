@@ -170,6 +170,11 @@ html.page-home .home-hero__stage,
 html.page-home .home-hero__primary,
 html.page-home .home-hero__copy {
   position: relative;
+}
+
+/* Do not put z-index on the stage — it would trap position:fixed chat below .home-profile. */
+html.page-home .home-hero__primary,
+html.page-home .home-hero__copy {
   z-index: 1;
 }
 
@@ -357,7 +362,8 @@ html.page-home .home-hero__primary {
 
   html.page-home .home-hero__chat {
     position: fixed;
-    z-index: 5;
+    /* Above .home-profile (2) and page content; below header rail (160). */
+    z-index: 50;
     top: 1.25rem;
     right: var(--page-inline-pad, 15px);
     bottom: 1.25rem;
