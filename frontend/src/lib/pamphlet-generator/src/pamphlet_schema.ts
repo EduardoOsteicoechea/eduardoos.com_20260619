@@ -184,7 +184,7 @@ export const PAMPHLET_HEADER_LAYOUT_MM: PamphletHeaderLayoutMm = {
     divider_inner_stroke: 0.1,
     subtitle_size: 2.469, // matches footer message (~7pt)
     subtitle_lh: 1.25,
-    subtitle_pad_x: 1.0,
+    subtitle_pad_x: 0, // flush left with title
     subtitle_pad_y: 0.5,
     subtitle_min_h: 4.0,
     meta_size: 2.5, // .pamphlet-header-meta-label / meta values

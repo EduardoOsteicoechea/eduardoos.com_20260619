@@ -207,7 +207,7 @@
   --header-title-pad-bottom: 1mm;
   --header-subtitle-size: 2.469mm;
   --header-subtitle-lh: 1.25;
-  --header-subtitle-pad-x: 1.0mm;
+  --header-subtitle-pad-x: 0mm;
   --header-subtitle-pad-y: 0.5mm;
   --header-subtitle-min-h: 4.0mm;
   --header-meta-size: 2.5mm;
@@ -439,6 +439,7 @@
     box-sizing: border-box;
     border: none !important;
     padding: var(--header-subtitle-pad-y) var(--header-subtitle-pad-x) !important;
+    padding-left: 0 !important; /* flush with title left edge */
     margin: 0 0 var(--header-title-meta-gap);
     background: transparent;
     min-height: var(--header-subtitle-min-h);
@@ -539,6 +540,11 @@
     overflow: hidden;
     color: #666666; /* GRIS — matches PDF meta */
     box-sizing: border-box;
+    /* Top single gray rule under subtitle — same overlay language as footer meta. */
+    background-image: linear-gradient(#666666, #666666);
+    background-size: 100% 0.2mm;
+    background-position: top 0 left 0;
+    background-repeat: no-repeat;
 }
 
 /*

@@ -96,6 +96,9 @@ func TestDrawHeaderSubtitleInStream(t *testing.T) {
 	if layout.SubtitleSize < 2.4 || layout.SubtitleMinH < 3.5 {
 		t.Fatalf("subtitle layout mm mismatch: %+v", layout)
 	}
+	if layout.SubtitlePadX != 0 {
+		t.Fatalf("subtitle_pad_x want 0 (flush left), got %v", layout.SubtitlePadX)
+	}
 	var s strings.Builder
 	_ = drawHeader(&s, PamphletHeader{
 		Title:    "Titulo",
@@ -213,10 +216,10 @@ func TestHeaderFrameFromLayout(t *testing.T) {
 		Series: "Romanos",
 	}, layout, 100, 200, PamphletColWidthMm*2+PamphletGutterNarrow)
 	out := s.String()
-	// Outer + inner black frames + title divider + gray meta cross (2 strokes).
+	// Outer + inner black frames + title divider + gray meta top + mid + vertical.
 	strokeCount := strings.Count(out, "S\n")
-	if strokeCount < 6 {
-		t.Fatalf("expected ≥6 strokes (frame+title divider+meta cross) in header stream, got %d in %q", strokeCount, out)
+	if strokeCount < 7 {
+		t.Fatalf("expected ≥7 strokes (frame+title divider+meta top/cross) in header stream, got %d in %q", strokeCount, out)
 	}
 	if !strings.Contains(out, "0.4 0.4 0.4 RG") {
 		t.Fatalf("expected gray meta cross stroke color, got %q", out)

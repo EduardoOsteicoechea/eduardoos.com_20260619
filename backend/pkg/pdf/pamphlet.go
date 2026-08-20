@@ -607,7 +607,8 @@ func drawHeader(s *strings.Builder, h PamphletHeader, layout PamphletHeaderLayou
 
 	// Double gray cross on meta (vertical + mid horizontal) — no outer frame.
 	if drewMeta && metaSectionTop > contentBottom {
-		strokeGrayMetaCrossMm(s, innerX, metaSectionTop, innerW, metaSectionTop-contentBottom, false)
+		// Top gray hairline + mid H/V cross (parity with footer meta / CSS).
+		strokeGrayMetaCrossMm(s, innerX, metaSectionTop, innerW, metaSectionTop-contentBottom, true)
 	}
 
 	if contentBottom < floor {
@@ -647,7 +648,7 @@ func defaultHeaderLayout() PamphletHeaderLayout {
 		DividerInnerStroke: 0.1,
 		SubtitleSize:       2.469,
 		SubtitleLH:         1.25,
-		SubtitlePadX:       1.0,
+		SubtitlePadX:       0,
 		SubtitlePadY:       0.5,
 		SubtitleMinH:       4.0,
 		MetaSize:           pamphletMetaSizeMm,
