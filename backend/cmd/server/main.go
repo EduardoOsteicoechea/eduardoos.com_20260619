@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"eduardoos.nex/internal/admin"
+	"eduardoos.nex/internal/agentsandbox"
 	"eduardoos.nex/internal/auth"
 	"eduardoos.nex/internal/church"
 	"eduardoos.nex/internal/contact"
@@ -86,6 +87,7 @@ func main() {
 	adminHandler.UseAuth(authHandler) // SMTP + store for bulk-register OTP mail
 	adminHandler.ChurchAuth = churchHandler.Authorizations
 	adminHandler.Mail = authHandler
+	agentSandboxHandler := agentsandbox.NewHandler(ctx, jwtSecret, userStore)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -105,6 +107,7 @@ func main() {
 	scribHandler.Routes(r)
 	ereportHandler.Routes(r)
 	adminHandler.Routes(r)
+	agentSandboxHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
 	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s church=%s church-groups=%s church-leaders=%s church-objects=%s scrib=%s ereport=%s epams=%s",

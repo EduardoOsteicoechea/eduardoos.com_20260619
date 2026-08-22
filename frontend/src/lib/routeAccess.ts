@@ -18,7 +18,9 @@ export function isAdminOnlyPagePath(pathname: string): boolean {
   const path = normalizePath(pathname);
   return (
     path === normalizePath(APP_ROUTES.adminUsers) ||
-    path.startsWith(`${normalizePath(APP_ROUTES.adminUsers)}/`)
+    path.startsWith(`${normalizePath(APP_ROUTES.adminUsers)}/`) ||
+    path === normalizePath(APP_ROUTES.agentSandbox) ||
+    path.startsWith(`${normalizePath(APP_ROUTES.agentSandbox)}/`)
   );
 }
 

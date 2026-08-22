@@ -46,6 +46,7 @@ export const APP_ROUTES = {
   ereportHub: "/ereport/hub",
   ereportWorkspace: "/ereport/workspace",
   adminUsers: "/admin/users",
+  agentSandbox: "/admin/agent-sandbox",
 } as const;
 
 export const AUTH_API_ROUTES = {

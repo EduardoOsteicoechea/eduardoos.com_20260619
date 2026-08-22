@@ -540,13 +540,22 @@ export function Header({ pathname }: HeaderProps) {
         ))}
         <ServicesMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
         {isAdmin ? (
-          <a
-            className={navClass(APP_ROUTES.adminUsers)}
-            href={APP_ROUTES.adminUsers}
-            onClick={closeMenu}
-          >
-            Admin users
-          </a>
+          <>
+            <a
+              className={navClass(APP_ROUTES.adminUsers)}
+              href={APP_ROUTES.adminUsers}
+              onClick={closeMenu}
+            >
+              Admin users
+            </a>
+            <a
+              className={navClass(APP_ROUTES.agentSandbox)}
+              href={APP_ROUTES.agentSandbox}
+              onClick={closeMenu}
+            >
+              Agent Sandbox
+            </a>
+          </>
         ) : null}
         {showAuth ? (
           <AuthControls

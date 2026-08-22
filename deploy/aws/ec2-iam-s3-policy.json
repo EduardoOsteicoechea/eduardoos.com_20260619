@@ -22,7 +22,9 @@
             "scrib/",
             "scrib/*",
             "ereport/",
-            "ereport/*"
+            "ereport/*",
+            "agentsandbox/",
+            "agentsandbox/*"
           ]
         }
       }
@@ -68,6 +70,12 @@
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
       "Resource": "arn:aws:s3:::eduardoos20260607/ereport/*"
+    },
+    {
+      "Sid": "S3AgentSandboxObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::eduardoos20260607/agentsandbox/*"
     },
     {
       "Sid": "S3ListApsBucket",
