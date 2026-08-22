@@ -304,6 +304,10 @@ func (h *Handler) GetSite(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, code, err.Error())
 		return
 	}
+	site, repaired := h.recoverSiteFilesFromChats(r.Context(), email, site)
+	if repaired {
+		_ = h.saveSite(r.Context(), email, site)
+	}
 	noStore(w)
 	httpx.WriteJSON(w, http.StatusOK, site)
 }
@@ -356,6 +360,11 @@ func (h *Handler) ListSiteFiles(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpx.WriteError(w, http.StatusNotFound, err.Error())
 		return
+	}
+	email := auth.UserEmailFromRequest(r)
+	site, repaired := h.recoverSiteFilesFromChats(r.Context(), email, site)
+	if repaired {
+		_ = h.saveSite(r.Context(), email, site)
 	}
 	noStore(w)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"siteId": site.ID, "files": fileRows(site.Files)})
@@ -433,6 +442,90 @@ func (h *Handler) DownloadSiteFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
+}
+
+func siteHasNonEmptyFiles(site Site) bool {
+	for _, f := range site.Files {
+		if strings.TrimSpace(f.Text) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// recoverSiteFilesFromChats fills empty site files from assistant messages that
+// embedded ARTIFACTS JSON or a raw JSON object with files[].
+func (h *Handler) recoverSiteFilesFromChats(ctx context.Context, email string, site Site) (Site, bool) {
+	if siteHasNonEmptyFiles(site) {
+		return site, false
+	}
+	changed := false
+	for _, chatID := range site.ChatIDs {
+		chat, err := h.loadChat(ctx, email, chatID)
+		if err != nil {
+			continue
+		}
+		for _, m := range chat.Messages {
+			if m.Role != "assistant" {
+				continue
+			}
+			if applyArtifactsToSite(&site, m.Text) {
+				changed = true
+			}
+		}
+	}
+	return site, changed
+}
+
+func applyArtifactsToSite(site *Site, raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return false
+	}
+	changed := false
+	_, art := splitArtifacts(raw)
+	candidates := []string{art}
+	if strings.HasPrefix(raw, "{") {
+		candidates = append(candidates, raw)
+	}
+	for _, blob := range candidates {
+		blob = strings.TrimSpace(blob)
+		if blob == "" {
+			continue
+		}
+		var p proposal
+		if err := json.Unmarshal([]byte(blob), &p); err != nil {
+			continue
+		}
+		if p.Spec != "" && site.Spec == "" {
+			site.Spec = p.Spec
+			changed = true
+		}
+		if len(p.Tabs) > 0 && len(site.Tabs) == 0 {
+			site.Tabs = p.Tabs
+			changed = true
+		}
+		for _, pf := range p.Files {
+			f := pf.toFile()
+			if f.Name == "" || strings.TrimSpace(f.Text) == "" {
+				continue
+			}
+			existingLen := -1
+			for _, ex := range site.Files {
+				if ex.Name == f.Name {
+					existingLen = len(ex.Text)
+					break
+				}
+			}
+			if existingLen >= len(f.Text) {
+				continue
+			}
+			if err := upsertSiteFile(site, f); err == nil {
+				changed = true
+			}
+		}
+	}
+	return changed
 }
 
 func (h *Handler) chatSummariesForSite(ctx context.Context, email string, site Site) ([]ChatSummary, error) {

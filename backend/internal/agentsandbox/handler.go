@@ -677,10 +677,36 @@ type askRequest struct {
 }
 
 type proposal struct {
-	Reply string `json:"reply"`
-	Spec  string `json:"spec"`
-	Files []File `json:"files"`
-	Tabs  []Tab  `json:"tabs"`
+	Reply string         `json:"reply"`
+	Spec  string         `json:"spec"`
+	Files []proposalFile `json:"files"`
+	Tabs  []Tab          `json:"tabs"`
+}
+
+// proposalFile accepts common model aliases for file body.
+type proposalFile struct {
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Text     string `json:"text"`
+	Content  string `json:"content"`
+	Body     string `json:"body"`
+	Encoding string `json:"encoding"`
+}
+
+func (p proposalFile) toFile() File {
+	text := p.Text
+	if strings.TrimSpace(text) == "" {
+		text = p.Content
+	}
+	if strings.TrimSpace(text) == "" {
+		text = p.Body
+	}
+	return File{
+		Name:     strings.TrimSpace(p.Name),
+		Type:     p.Type,
+		Text:     text,
+		Encoding: p.Encoding,
+	}
 }
 
 const (
@@ -842,7 +868,8 @@ No shell, network, credentials, or server code. One minimal global CSS using rem
 	if p.Spec != "" {
 		site.Spec = p.Spec
 	}
-	for _, f := range p.Files {
+	for _, pf := range p.Files {
+		f := pf.toFile()
 		if err := upsertSiteFile(&site, f); err != nil {
 			logf("error", "Artifact file rejected by validator.", map[string]any{"name": f.Name, "error": err.Error()})
 			writeSSE("error", map[string]string{"error": "agent artifact rejected: " + err.Error()})

@@ -329,15 +329,16 @@
 
 .agent-sandbox__console {
   position: fixed;
-  top: 0;
+  top: var(--header_offset, var(--header_height, 0px));
   right: 0;
+  bottom: 0;
   z-index: 90;
   box-sizing: border-box;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  width: min(100vw, 22rem);
-  height: 100dvh;
-  max-height: 100dvh;
+  width: min(100vw - var(--header_width, 0px), 22rem);
+  height: auto;
+  max-height: none;
   overflow: hidden;
   border-left: var(--border_001);
   background: var(--site-body-bg);
@@ -440,17 +441,23 @@
 
 .agent-sandbox__editor-overlay {
   position: fixed;
-  inset: 0;
+  /* Stay in the content plane: below mobile top bar / beside desktop left rail */
+  top: var(--header_offset, var(--header_height, 0px));
+  right: 0;
+  bottom: 0;
+  left: var(--header_width, 0px);
   z-index: 95;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  height: 100dvh;
-  max-height: 100dvh;
+  width: auto;
+  height: auto;
+  max-height: none;
   padding: 0;
   margin: 0;
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   border: 0;
+  box-sizing: border-box;
 }
 
 .agent-sandbox__editor-toolbar {

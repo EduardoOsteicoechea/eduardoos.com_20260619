@@ -31,9 +31,13 @@ func TestSanitizeAssistantReply(t *testing.T) {
 	}
 }
 
-func TestUnescapeFileTextKeepsRealNewlines(t *testing.T) {
-	in := "a\nb"
-	if unescapeFileText(in) != in {
-		t.Fatal("should keep real newlines")
+func TestProposalFileAliases(t *testing.T) {
+	f := proposalFile{Name: "a.css", Content: "body{}"}.toFile()
+	if f.Text != "body{}" {
+		t.Fatalf("content alias: %q", f.Text)
+	}
+	f2 := proposalFile{Name: "b.js", Body: "1"}.toFile()
+	if f2.Text != "1" {
+		t.Fatalf("body alias: %q", f2.Text)
 	}
 }

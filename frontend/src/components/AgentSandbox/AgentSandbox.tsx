@@ -828,6 +828,7 @@ export default function AgentSandbox() {
         </div>
         <div className="agent-sandbox__frame-wrap">
           <iframe
+            key={`${site.id}-${selected}-${site.updated}-${previewFile?.text?.length ?? 0}`}
             className="agent-sandbox__frame"
             title="Vista generada"
             sandbox="allow-scripts"

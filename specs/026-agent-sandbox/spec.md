@@ -40,7 +40,7 @@ Platform administrators need a private workspace where an AI senior web develope
   - **reasoning_effort:** `low` | `high` | `max` (UI label “medium” maps to `high`)
 - Ask body may include `model`, `thinking`, `reasoningEffort`; backend applies them to DeepSeek.
 - Visible assistant `reply` must be Markdown only (never raw artifacts JSON). Client also normalizes legacy messages that stored JSON/`\\n` escapes.
-- Ask writes messages to chat and artifacts to site.
+- Ask writes messages to chat and artifacts to site. Accepts file body as `text`/`content`/`body`. `GET site` recovers empty stubs from chat assistant JSON/ARTIFACTS when needed.
 
 ### UI (locked)
 
@@ -49,7 +49,7 @@ Platform administrators need a private workspace where an AI senior web develope
 1. Toggle sidebar  
 2. Sites  
 3. Chat history (active site)  
-4. Files editor — **fullscreen** over the sandbox viewport (no outer padding); toolbar icons only: **Save**, **Download** (enabled when a file is selected), **Close**  
+4. Files editor — **fullscreen within the content chrome** (starts at the global header rail / top bar, never under it); toolbar icons: Save, Download, Close  
 5. **Agent settings** — pick model + thinking mode + effort  
 6. Agent console  
 
