@@ -68,20 +68,22 @@ type Tab struct {
 	File  string `json:"file"`
 }
 
-// Chat is one conversation + generated site, persisted as JSON on S3.
+// Chat is one conversation under a site (messages only; files live on the site).
 type Chat struct {
 	ID       string    `json:"id"`
+	SiteID   string    `json:"siteId"`
 	Title    string    `json:"title"`
-	Spec     string    `json:"spec"`
+	Spec     string    `json:"spec,omitempty"`     // legacy
 	Messages []Message `json:"messages"`
-	Files    []File    `json:"files"`
-	Tabs     []Tab     `json:"tabs"`
+	Files    []File    `json:"files,omitempty"` // legacy
+	Tabs     []Tab     `json:"tabs,omitempty"`  // legacy
 	Updated  string    `json:"updated"`
 }
 
 // ChatSummary is a lightweight row for the history list.
 type ChatSummary struct {
 	ID      string `json:"id"`
+	SiteID  string `json:"siteId,omitempty"`
 	Title   string `json:"title"`
 	Updated string `json:"updated"`
 }
@@ -121,6 +123,12 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Group(func(pr chi.Router) {
 		pr.Use(h.auth.RequireJWT)
 		pr.Use(h.requireAdmin)
+		pr.Get("/api/admin/agent-sandbox/sites", h.ListSites)
+		pr.Post("/api/admin/agent-sandbox/sites", h.CreateSite)
+		pr.Get("/api/admin/agent-sandbox/sites/{id}", h.GetSite)
+		pr.Patch("/api/admin/agent-sandbox/sites/{id}", h.PatchSite)
+		pr.Get("/api/admin/agent-sandbox/sites/{id}/files", h.ListSiteFiles)
+		pr.Put("/api/admin/agent-sandbox/sites/{id}/files", h.PutSiteFile)
 		pr.Get("/api/admin/agent-sandbox/chats", h.ListChats)
 		pr.Post("/api/admin/agent-sandbox/chats", h.CreateChat)
 		pr.Get("/api/admin/agent-sandbox/chats/{id}", h.GetChat)
@@ -243,15 +251,13 @@ func (h *Handler) saveIndex(ctx context.Context, email string, idx ChatIndex) er
 	return h.putJSON(ctx, h.indexKey(email), idx)
 }
 
-func emptyChat(id string) Chat {
+func emptyChat(id, siteID string) Chat {
 	now := time.Now().UTC().Format(time.RFC3339)
 	return Chat{
 		ID:       id,
+		SiteID:   siteID,
 		Title:    "Nueva conversación",
-		Spec:     "",
 		Messages: []Message{},
-		Files:    []File{},
-		Tabs:     []Tab{},
 		Updated:  now,
 	}
 }
@@ -271,36 +277,38 @@ func (h *Handler) loadChat(ctx context.Context, email, id string) (Chat, error) 
 	if chat.Messages == nil {
 		chat.Messages = []Message{}
 	}
-	if chat.Files == nil {
-		chat.Files = []File{}
-	}
-	if chat.Tabs == nil {
-		chat.Tabs = []Tab{}
-	}
 	return chat, nil
 }
 
 func (h *Handler) saveChat(ctx context.Context, email string, chat Chat) error {
 	chat.Updated = time.Now().UTC().Format(time.RFC3339)
+	// Durable artifacts live on the site; strip legacy fields when rewriting.
+	chat.Files = nil
+	chat.Tabs = nil
+	chat.Spec = ""
 	if err := h.putJSON(ctx, h.chatKey(email, chat.ID), chat); err != nil {
 		return err
 	}
-	idx, err := h.loadIndex(ctx, email)
+	if chat.SiteID == "" {
+		return nil
+	}
+	site, err := h.loadSite(ctx, email, chat.SiteID)
 	if err != nil {
 		return err
 	}
 	found := false
-	for i := range idx.Chats {
-		if idx.Chats[i].ID == chat.ID {
-			idx.Chats[i] = ChatSummary{ID: chat.ID, Title: chat.Title, Updated: chat.Updated}
+	for _, id := range site.ChatIDs {
+		if id == chat.ID {
 			found = true
 			break
 		}
 	}
 	if !found {
-		idx.Chats = append(idx.Chats, ChatSummary{ID: chat.ID, Title: chat.Title, Updated: chat.Updated})
+		site.ChatIDs = append(site.ChatIDs, chat.ID)
+		return h.saveSite(ctx, email, site)
 	}
-	return h.saveIndex(ctx, email, idx)
+	// Touch site updated so sites list sorts by activity.
+	return h.saveSite(ctx, email, site)
 }
 
 func noStore(w http.ResponseWriter) {
@@ -308,29 +316,59 @@ func noStore(w http.ResponseWriter) {
 	w.Header().Set("Pragma", "no-cache")
 }
 
-// ListChats returns conversation summaries.
+// ListChats returns conversation summaries for a site (?siteId= required after migrate).
 func (h *Handler) ListChats(w http.ResponseWriter, r *http.Request) {
 	if err := h.ensureS3(); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	idx, err := h.loadIndex(r.Context(), auth.UserEmailFromRequest(r))
+	email := auth.UserEmailFromRequest(r)
+	if _, err := h.ensureSites(r.Context(), email); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	siteID := strings.TrimSpace(r.URL.Query().Get("siteId"))
+	if siteID == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "siteId required")
+		return
+	}
+	site, err := h.loadSite(r.Context(), email, siteID)
+	if err != nil {
+		httpx.WriteError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	chats, err := h.chatSummariesForSite(r.Context(), email, site)
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
 		return
 	}
 	noStore(w)
-	httpx.WriteJSON(w, http.StatusOK, idx)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"chats": chats, "siteId": siteID})
 }
 
-// CreateChat starts an empty conversation JSON on S3.
+type createChatRequest struct {
+	SiteID string `json:"siteId"`
+}
+
+// CreateChat starts an empty conversation under a site.
 func (h *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
 	if err := h.ensureS3(); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
 		return
 	}
+	var req createChatRequest
+	_ = json.NewDecoder(io.LimitReader(r.Body, 8<<10)).Decode(&req)
+	siteID := strings.TrimSpace(req.SiteID)
+	if siteID == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "siteId required")
+		return
+	}
 	email := auth.UserEmailFromRequest(r)
-	chat := emptyChat(uuid.NewString())
+	if _, err := h.loadSite(r.Context(), email, siteID); err != nil {
+		httpx.WriteError(w, http.StatusNotFound, "site not found")
+		return
+	}
+	chat := emptyChat(uuid.NewString(), siteID)
 	if err := h.saveChat(r.Context(), email, chat); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
 		return
@@ -358,7 +396,7 @@ func (h *Handler) GetChat(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, chat)
 }
 
-// DeleteChat removes a conversation JSON and its index row.
+// DeleteChat removes a conversation and drops it from the site chatIds.
 func (h *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 	if err := h.ensureS3(); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
@@ -370,28 +408,28 @@ func (h *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid chat id")
 		return
 	}
+	chat, _ := h.loadChat(r.Context(), email, id)
 	if err := h.deleteKey(r.Context(), h.chatKey(email, id)); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	idx, err := h.loadIndex(r.Context(), email)
-	if err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, err.Error())
-		return
-	}
-	next := make([]ChatSummary, 0, len(idx.Chats))
-	for _, row := range idx.Chats {
-		if row.ID != id {
-			next = append(next, row)
+	var chats []ChatSummary
+	if chat.SiteID != "" {
+		site, err := h.loadSite(r.Context(), email, chat.SiteID)
+		if err == nil {
+			next := make([]string, 0, len(site.ChatIDs))
+			for _, cid := range site.ChatIDs {
+				if cid != id {
+					next = append(next, cid)
+				}
+			}
+			site.ChatIDs = next
+			_ = h.saveSite(r.Context(), email, site)
+			chats, _ = h.chatSummariesForSite(r.Context(), email, site)
 		}
 	}
-	idx.Chats = next
-	if err := h.saveIndex(r.Context(), email, idx); err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, err.Error())
-		return
-	}
 	noStore(w)
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "id": id, "chats": idx.Chats})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "id": id, "chats": chats})
 }
 
 // DeepSeekBalance proxies GET /user/balance for the console footer.
@@ -482,25 +520,11 @@ func validateFile(f File) error {
 	return nil
 }
 
-func upsertFile(chat *Chat, f File) error {
-	if err := validateFile(f); err != nil {
-		return err
-	}
-	f.Type = allowedExtensions[strings.ToLower(path.Ext(f.Name))]
-	for i := range chat.Files {
-		if chat.Files[i].Name == f.Name {
-			chat.Files[i] = f
-			return nil
-		}
-	}
-	if len(chat.Files) >= maxFiles {
-		return fmt.Errorf("workspace file limit reached")
-	}
-	chat.Files = append(chat.Files, f)
-	return nil
+func upsertFile(site *Site, f File) error {
+	return upsertSiteFile(site, f)
 }
 
-// PutFile stores an admin-dropped artifact into the chat JSON.
+// PutFile stores an admin-dropped artifact into the chat's site.
 func (h *Handler) PutFile(w http.ResponseWriter, r *http.Request) {
 	if err := h.ensureS3(); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
@@ -517,39 +541,50 @@ func (h *Handler) PutFile(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, err.Error())
 		return
 	}
-	if err := upsertFile(&chat, f); err != nil {
+	if chat.SiteID == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "chat has no site")
+		return
+	}
+	site, err := h.loadSite(r.Context(), email, chat.SiteID)
+	if err != nil {
+		httpx.WriteError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if err := upsertSiteFile(&site, f); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := h.saveChat(r.Context(), email, chat); err != nil {
+	if err := h.saveSite(r.Context(), email, site); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, chat)
+	noStore(w)
+	httpx.WriteJSON(w, http.StatusOK, site)
 }
 
-// ListFiles returns the website file structure for a chat.
+// ListFiles returns the website file structure for a chat's site.
 func (h *Handler) ListFiles(w http.ResponseWriter, r *http.Request) {
 	if err := h.ensureS3(); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	chat, err := h.loadChat(r.Context(), auth.UserEmailFromRequest(r), chi.URLParam(r, "id"))
+	email := auth.UserEmailFromRequest(r)
+	chat, err := h.loadChat(r.Context(), email, chi.URLParam(r, "id"))
 	if err != nil {
 		httpx.WriteError(w, http.StatusNotFound, err.Error())
 		return
 	}
-	type row struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
-		Bytes int   `json:"bytes"`
+	if chat.SiteID == "" {
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"chatId": chat.ID, "files": []any{}})
+		return
 	}
-	out := make([]row, 0, len(chat.Files))
-	for _, f := range chat.Files {
-		out = append(out, row{Name: f.Name, Type: f.Type, Bytes: len(f.Text)})
+	site, err := h.loadSite(r.Context(), email, chat.SiteID)
+	if err != nil {
+		httpx.WriteError(w, http.StatusNotFound, err.Error())
+		return
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"chatId": chat.ID, "files": out})
+	noStore(w)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"chatId": chat.ID, "siteId": site.ID, "files": fileRows(site.Files)})
 }
 
 type askRequest struct {
@@ -588,6 +623,15 @@ func (h *Handler) Ask(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, err.Error())
 		return
 	}
+	if chat.SiteID == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "chat has no site")
+		return
+	}
+	site, err := h.loadSite(r.Context(), email, chat.SiteID)
+	if err != nil {
+		httpx.WriteError(w, http.StatusNotFound, err.Error())
+		return
+	}
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -618,12 +662,12 @@ func (h *Handler) Ask(w http.ResponseWriter, r *http.Request) {
 		writeSSE("log", payload)
 	}
 
-	logf("info", "Ask started: loaded chat from S3 and opened SSE stream.", map[string]any{
-		"chatId": chatID, "messageChars": len(req.Message), "existingFiles": len(chat.Files),
+	logf("info", "Ask started: loaded chat + site from S3 and opened SSE stream.", map[string]any{
+		"chatId": chatID, "siteId": site.ID, "messageChars": len(req.Message), "existingFiles": len(site.Files),
 	})
 	logf("info", "Building DeepSeek system/user prompts.", map[string]any{
 		"model":     httpx.Env("DEEPSEEK_MODEL_REASONING", "deepseek-reasoner"),
-		"specChars": len(chat.Spec), "allowlist": req.Allowlist,
+		"specChars": len(site.Spec), "allowlist": req.Allowlist,
 	})
 
 	system := `You are an AI senior web developer and web crawler architect.
@@ -635,7 +679,7 @@ After the Markdown, on its own lines, append exactly:
 <<<END>>>
 
 Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, network, credentials, or server code; one minimal global CSS using rem.`
-	user := fmt.Sprintf("Workspace spec:\n%s\nRequest:\n%s\nAllowed docs hosts: %s", chat.Spec, req.Message, strings.Join(req.Allowlist, ", "))
+	user := fmt.Sprintf("Workspace spec:\n%s\nRequest:\n%s\nAllowed docs hosts: %s", site.Spec, req.Message, strings.Join(req.Allowlist, ", "))
 
 	var full strings.Builder
 	var visible strings.Builder
@@ -706,18 +750,18 @@ Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, ne
 		logf("warn", "No <<<ARTIFACTS>>> block in model output; reply-only update.", nil)
 	}
 	if p.Spec != "" {
-		chat.Spec = p.Spec
+		site.Spec = p.Spec
 	}
 	for _, f := range p.Files {
-		if err := upsertFile(&chat, f); err != nil {
+		if err := upsertSiteFile(&site, f); err != nil {
 			logf("error", "Artifact file rejected by validator.", map[string]any{"name": f.Name, "error": err.Error()})
 			writeSSE("error", map[string]string{"error": "agent artifact rejected: " + err.Error()})
 			return
 		}
-		logf("info", "Accepted artifact file into chat workspace.", map[string]any{"name": f.Name, "bytes": len(f.Text)})
+		logf("info", "Accepted artifact file into site workspace.", map[string]any{"name": f.Name, "bytes": len(f.Text)})
 	}
 	if len(p.Tabs) > 0 {
-		chat.Tabs = p.Tabs
+		site.Tabs = p.Tabs
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	chat.Messages = append(chat.Messages,
@@ -731,16 +775,21 @@ Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, ne
 		}
 		chat.Title = title
 	}
-	logf("info", "Persisting updated chat JSON to S3.", map[string]any{
-		"files": len(chat.Files), "messages": len(chat.Messages), "title": chat.Title,
+	logf("info", "Persisting site artifacts + chat messages to S3.", map[string]any{
+		"files": len(site.Files), "messages": len(chat.Messages), "title": chat.Title,
 	})
-	if err := h.saveChat(r.Context(), email, chat); err != nil {
-		logf("error", "S3 save failed after successful model reply.", map[string]any{"error": err.Error()})
+	if err := h.saveSite(r.Context(), email, site); err != nil {
+		logf("error", "S3 site save failed after successful model reply.", map[string]any{"error": err.Error()})
 		writeSSE("error", map[string]string{"error": err.Error()})
 		return
 	}
-	logf("info", "Ask complete. Emitting done with saved chat.", nil)
-	writeSSE("done", chat)
+	if err := h.saveChat(r.Context(), email, chat); err != nil {
+		logf("error", "S3 chat save failed after successful model reply.", map[string]any{"error": err.Error()})
+		writeSSE("error", map[string]string{"error": err.Error()})
+		return
+	}
+	logf("info", "Ask complete. Emitting done with saved chat + site.", nil)
+	writeSSE("done", map[string]any{"chat": chat, "site": site})
 }
 
 func splitArtifacts(raw string) (markdown, artifactsJSON string) {

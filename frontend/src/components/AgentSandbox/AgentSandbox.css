@@ -412,6 +412,92 @@
   min-width: 0;
 }
 
+.agent-sandbox__site-name-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.agent-sandbox__site-name {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--control_min_height, 2.5rem);
+  padding: 0.4rem 0.55rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font: 0.9rem Raleway, sans-serif;
+}
+
+.agent-sandbox__modal-panel--editor {
+  width: min(100%, 52rem);
+  max-height: min(92dvh, 40rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.agent-sandbox__editor {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);
+  gap: 0.55rem;
+  min-height: 0;
+  max-height: min(70dvh, 28rem);
+}
+
+.agent-sandbox__editor-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  min-height: 0;
+}
+
+.agent-sandbox__editor-tree li {
+  margin: 0;
+  border-bottom: var(--border_001);
+}
+
+.agent-sandbox__editor-tree button {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.4rem 0.45rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: 0.75rem Roboto, sans-serif;
+  text-align: left;
+}
+
+.agent-sandbox__editor-tree button.is-active {
+  background: color-mix(in srgb, var(--site-accent) 18%, transparent);
+}
+
+.agent-sandbox__editor-tree span {
+  opacity: 0.55;
+  font-size: 0.65rem;
+}
+
+.agent-sandbox__editor-text {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 14rem;
+  resize: none;
+  padding: 0.55rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font: 0.78rem/1.4 Roboto Mono, Consolas, monospace;
+}
+
 @media (max-width: 48rem) {
   .agent-sandbox {
     grid-template-columns: 1fr;

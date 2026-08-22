@@ -1,6 +1,6 @@
 /**
  * Agent Sandbox tools — portal into #header-dynamic-menu-host.
- * Sidebar toggle, chat history, file structure, and live agent console.
+ * Sidebar, Sites, chat history, files editor, agent console.
  */
 
 import { useLayoutEffect, useState, type ReactNode } from "react";
@@ -10,8 +10,10 @@ import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 
 type AgentSandboxHeaderMenuProps = {
   sidebarOpen: boolean;
+  sitesOpen: boolean;
   consoleOpen: boolean;
   onToggleSidebar: () => void;
+  onOpenSites: () => void;
   onOpenHistory: () => void;
   onOpenFiles: () => void;
   onToggleConsole: () => void;
@@ -23,6 +25,17 @@ function IconSidebar() {
       <path
         fill="currentColor"
         d="M3.5 4h5v16h-5V4zm7 1.25h10v1.6H10.5v-1.6zm0 4.15h10v1.6H10.5v-1.6zm0 4.15h10v1.6H10.5v-1.6zm0 4.15h7v1.6h-7v-1.6z"
+      />
+    </svg>
+  );
+}
+
+function IconSites() {
+  return (
+    <svg className="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M12 2L2 7l10 5 10-5-10-5zm0 9.2L4.5 7.6 12 3.9l7.5 3.7L12 11.2zM4 10.3v5.2L12 20l8-4.5v-5.2l-8 4-8-4z"
       />
     </svg>
   );
@@ -101,6 +114,16 @@ export default function AgentSandboxHeaderMenu(props: AgentSandboxHeaderMenuProp
           </button>
           <button
             type="button"
+            className={`header-dynamic-menu__btn${props.sitesOpen ? " header-dynamic-menu__btn--active is-active" : ""}`}
+            title="Sites"
+            aria-label="Sites"
+            aria-pressed={props.sitesOpen}
+            onClick={props.onOpenSites}
+          >
+            <IconSites />
+          </button>
+          <button
+            type="button"
             className="header-dynamic-menu__btn"
             title="Historial de chat"
             aria-label="Historial de chat"
@@ -111,8 +134,8 @@ export default function AgentSandboxHeaderMenu(props: AgentSandboxHeaderMenuProp
           <button
             type="button"
             className="header-dynamic-menu__btn"
-            title="Estructura de archivos"
-            aria-label="Estructura de archivos"
+            title="Editor de archivos"
+            aria-label="Editor de archivos"
             onClick={props.onOpenFiles}
           >
             <IconFiles />

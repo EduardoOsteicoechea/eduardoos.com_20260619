@@ -2,7 +2,7 @@
 
 ## Status
 
-Ready to implement (2026-08-22). UX revision locked from annotated screenshots.
+Sites + file editor revision (2026-08-22).
 
 ## Problem
 
@@ -20,104 +20,84 @@ Platform administrators need a private workspace where an AI senior web develope
 
 - No new container, Docker socket, local workspace, shell, or durable EC2 disk.
 - All durable state under S3 prefix `agentsandbox/{adminSafe}/`.
-- Conversations are individual JSON objects:
+- **Sites** own the website; **chats** are conversations grouped under a site:
   ```
-  agentsandbox/{adminSafe}/chats/index.json
+  agentsandbox/{adminSafe}/sites/index.json
+  agentsandbox/{adminSafe}/sites/{siteId}.json
   agentsandbox/{adminSafe}/chats/{chatId}.json
   ```
-- Each chat JSON holds: `id`, `title`, `spec`, `messages[]`, `files[]` (html/css/js/json/txt/svg only), `tabs[]`, `updated`.
-- Reject traversal, double extensions, unsupported types, files > 512 KiB, > 40 files, unsafe SVG.
+- Site JSON: `id`, `name`, `spec`, `files[]`, `tabs[]`, `chatIds[]`, `updated`.
+- Chat JSON: `id`, `siteId`, `title`, `messages[]`, `updated` (legacy `files`/`tabs`/`spec` ignored after migrate).
+- Files: `.html/.css/.js/.json/.txt/.svg` only; flat names; reject traversal, double extensions, > 512 KiB, > 40 files, unsafe SVG.
+- **Migration:** if sites index is missing and legacy `chats/index.json` exists, create site `Default`, attach all chats, move files/spec/tabs from the richest chat into the site.
 
 ### Agent and crawler
 
 - `DEEPSEEK_API_KEY` + `DEEPSEEK_MODEL_REASONING` (reasoning mode enabled).
 - Role: senior web developer and web crawler architect. Returns JSON: `reply`, `spec`, `files`, `tabs`.
 - Model has no S3/FS/shell/network/credentials; backend validates proposals before write.
+- Ask writes **messages** to the chat and **artifacts** (spec/files/tabs) to the **site**.
 - Crawl: explicit HTTPS allowlist per request; SSRF blocks; no cookies; redirect host lock; 1 MiB cap.
 
 ### UI (locked)
 
 Layout: **left collapsible chat sidebar** + **right full-height generated website preview**.
 
-**Header dynamic slot** (`#header-dynamic-menu-host`) — four icon buttons:
+**Header dynamic slot** (`#header-dynamic-menu-host`):
 
 1. **Toggle sidebar** — show/hide the left chat panel.
-2. **Chat history** — modal listing prior conversations from S3 JSON; open another chat or delete one; create new chat.
-3. **File structure** — modal listing the website files of the active chat (names from S3-backed chat JSON).
-4. **Agent console** — vertical panel (sidebar-like modal, height ≤ window) that streams verbose process logs and errors in real time (`log` / `error` SSE events). Footer left shows **DeepSeek balance remaining** (from `GET /user/balance` via backend proxy), refreshed when the console opens and after each ask completes; footer right keeps **Limpiar**.
+2. **Sites** — panel to list sites; **one name input** creates a site when submitted empty-selection / Enter, and **renames** the active site when edited; selecting a site reloads that site’s chat history and preview.
+3. **Chat history** — conversations of the **active site** only; open/delete/create chat within that site.
+4. **Files editor** — wide panel: left flat file list (tree), right simple text editor; Save upserts the file on the site in S3 and refreshes preview.
+5. **Agent console** — vertical panel (height ≤ window) streaming `log`/`error` SSE; footer left DeepSeek balance; footer right Limpiar.
 
-**Viewport lock:**
+**Viewport lock:** document never scrolls; only chat tray and iframe interior scroll.
 
-- The Agent Sandbox route never scrolls the document. Only the chat tray and the **iframe interior** of the generated website may scroll. Outer preview frame/border stays fully visible in the viewport.
+**Sidebar** (when open): 80/20 chat/composer; Markdown 12px; timestamps 0.5×; optimistic send + SSE stream.
 
-**Sidebar** (when open):
-
-- Height split **80% / 20%** vertical; **padding-bottom** so the drop/send row is not flush with the viewport edge.
-- **Top 80%:** chat message tray (scrollable).
-- Chat body text: **12px**; each bubble shows a small timestamp above the body at **0.5×** that size.
-- Messages render as **safe Markdown** (reuse `ChatMarkdown`).
-- On send: the user message (and an empty assistant bubble) appear **immediately**; the assistant reply **streams** (SSE), not as a single late block.
-- **Bottom 20%:** composer:
-  - Top of composer (~80% of the 20% band): multiline text input.
-  - Bottom row: left **70%** drag/drop file zone; right **Send** button.
-
-**Main pane** (remaining width, full height under site header):
-
-- HTML view tabs for agent-generated pages.
-- Sandboxed iframe preview (`font-size: 0.75rem` / 12px baseline intent for generated pages).
-- No chat/composer in the main pane.
+**Main pane:** HTML tabs + sandboxed iframe from **active site** files.
 
 ### Agent reply shape (streaming)
 
-- Visible stream is Markdown for the admin.
-- After Markdown, the model appends a machine block:
-  ```
-  <<<ARTIFACTS>>>
-  {"spec":"...","files":[...],"tabs":[...]}
-  <<<END>>>
-  ```
-- `POST …/ask` responds with **SSE** (`text/event-stream`): `log` (verbose process), `token` (Markdown deltas), then `done` with the saved chat (or `error`). Nginx must disable buffering and allow long read timeouts for this path.
+- Markdown then `<<<ARTIFACTS>>>…<<<END>>>` JSON.
+- `POST …/ask` SSE: `log`, `token`, `done` (chat + site snapshot) or `error`. Nginx unbuffered, long timeouts.
 
 ## API
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/admin/agent-sandbox/chats` | List chat summaries from `chats/index.json` |
-| `POST` | `/api/admin/agent-sandbox/chats` | Create empty chat JSON |
-| `GET` | `/api/admin/agent-sandbox/chats/{id}` | Load one chat |
-| `DELETE` | `/api/admin/agent-sandbox/chats/{id}` | Delete chat JSON + index row; client must refresh list and, if the open chat was deleted, switch to another (or create) without stale cache |
-| `GET` | `/api/admin/agent-sandbox/deepseek/balance` | Proxy to DeepSeek `GET /user/balance`; returns currency + total remaining for the console footer |
-| `POST` | `/api/admin/agent-sandbox/chats/{id}/ask` | SSE: Markdown token stream + final saved chat |
-| `POST` | `/api/admin/agent-sandbox/chats/{id}/files` | Upload/validate drop file into chat |
-| `GET` | `/api/admin/agent-sandbox/chats/{id}/files` | File structure for the website in that chat |
-| `POST` | `/api/admin/agent-sandbox/crawl` | Allowlisted documentation crawl |
+| `GET` | `/api/admin/agent-sandbox/sites` | List sites (runs migration if needed) |
+| `POST` | `/api/admin/agent-sandbox/sites` | Create site `{name}` (+ empty starter chat) |
+| `GET` | `/api/admin/agent-sandbox/sites/{id}` | Load one site |
+| `PATCH` | `/api/admin/agent-sandbox/sites/{id}` | Rename `{name}` |
+| `GET` | `/api/admin/agent-sandbox/sites/{id}/files` | File rows for editor |
+| `PUT` | `/api/admin/agent-sandbox/sites/{id}/files` | Upsert one file `{name,text}` into site |
+| `GET` | `/api/admin/agent-sandbox/chats?siteId=` | Chat summaries for site |
+| `POST` | `/api/admin/agent-sandbox/chats` | Create chat `{siteId}` |
+| `GET` | `/api/admin/agent-sandbox/chats/{id}` | Load chat |
+| `DELETE` | `/api/admin/agent-sandbox/chats/{id}` | Delete chat; update site `chatIds` |
+| `POST` | `/api/admin/agent-sandbox/chats/{id}/ask` | SSE ask → site artifacts + chat messages |
+| `GET` | `/api/admin/agent-sandbox/deepseek/balance` | DeepSeek balance proxy |
+| `POST` | `/api/admin/agent-sandbox/crawl` | Allowlisted crawl |
+
+Legacy `GET/POST …/chats/{id}/files` remain as aliases that operate on the chat’s site when `siteId` is set.
 
 ## Non-goals
 
-- Executing generated JS on EC2.
-- Writing outside `agentsandbox/{adminSafe}/`.
-- Recursive crawl, cookies, public share, multi-admin collab.
+- Nested folders, executing generated JS on EC2, writing outside `agentsandbox/{adminSafe}/`, recursive crawl, public share.
 
 ## Acceptance
 
-- [x] Admin-only route + menu link.
-- [x] Dynamic header: sidebar toggle, chat history, file structure.
-- [x] Sidebar 80% chat / 20% composer (textarea + 70% drop + Send); main pane = generated preview only.
-- [x] Chats persist/switch/delete via S3 JSON under `agentsandbox/`.
-- [x] File structure modal lists active chat artifacts.
-- [x] Sidebar has bottom padding; optimistic send; Markdown @ 12px; timestamp 0.5×; SSE streaming.
-- [x] Go tests + frontend build pass.
-- [x] Viewport-locked layout (no document scroll; iframe scrolls inside).
-- [x] Dynamic header console streams verbose agent logs/errors.
-- [x] Nginx SSE buffering off + long timeouts for `…/ask`.
-- [x] Console footer shows DeepSeek remaining balance (left).
-- [x] Deleting a chat from history updates the list and active preview immediately (no stale cache).
+- [x] Prior Agent Sandbox baseline (admin route, SSE, console, viewport lock, balance).
+- [x] Sites header panel: list, create/rename via same name input, select updates chats + preview.
+- [x] Files editor: tree + textarea + Save to S3 on active site.
+- [x] Chats scoped to active site; ask persists artifacts on site.
+- [x] Legacy chats migrate into Default site.
+- [x] Go tests + frontend build; commit/push.
 
 ## Affected paths
 
 - `specs/026-agent-sandbox/spec.md`
-- `backend/internal/agentsandbox/**`, `backend/cmd/server/main.go`
-- `frontend/src/pages/admin/agent-sandbox.astro`
+- `backend/internal/agentsandbox/**`
 - `frontend/src/components/AgentSandbox/**`
-- `frontend/src/config/routes.ts`, `frontend/src/lib/routeAccess.ts`, `Header.tsx`
-- `nginx/default.conf` (SSE location for agent-sandbox ask)
+- `nginx/default.conf` (ask SSE already present)
