@@ -27,7 +27,7 @@ Need a subscribed app **Scrib**: books of ruled US Letter sheets with layered SV
 
 ### 4. Sheet geometry
 - **Portrait US Letter:** width **215.9 mm**, height **279.4 mm**.
-- Background: `/documento_generado_columnas.jpg` — `object-fit: fill` (or equivalent) so the image **exactly** covers the sheet box (no letterboxing).
+- Background: `/documento_generado_columnas_v2.jpg` — `object-fit: fill` (or equivalent) so the image **exactly** covers the sheet box (no letterboxing).
 - Sheet centered in the viewport; editor chrome outside the transform; **no page scroll** in draw mode (overflow hidden on editor root).
 
 ### 5–7. Layers (SVG, z-index ascending)
@@ -48,7 +48,7 @@ Dynamic header host (`#header-dynamic-menu-host`):
 1. **Dashboard** — navigate `/scrib`
 2. **Zoom mode** — the default editor mode; bordered view; wheel / pinch zoom; pointer drag pans. Its control selects zoom without implicitly enabling drawing.
 3. **Draw mode** — replaces the former Pen only toggle. Drawing is possible only while this control is selected, and accepts only `pointerType === "pen"` (stylus / Apple Pencil / S Pen). Finger, palm, and mouse never create strokes.
-4. **Fullscreen** — enters native browser fullscreen for the editor viewport. While fullscreen is active, a visible close button is fixed at the upper-right of the viewport and exits fullscreen. Exiting with the browser Escape control also restores the regular editor.
+4. **Fullscreen** — enters native browser fullscreen for the editor viewport. While fullscreen is active, a red icon-only close button with an X is fixed at the upper-right of the viewport and exits fullscreen. Exiting with the browser Escape control also restores the regular editor.
 5. **Stroke +** — increase stroke width (mm); show current size
 6. **Stroke −** — decrease stroke width
 7. **Eraser** — toggle; erases only on active layer and accepts only `pointerType === "pen"`; finger, palm, and mouse never erase. Prefer deleting path hits under brush; MVP: freehand eraser that removes path points within radius of active layer paths.
@@ -58,7 +58,7 @@ Dynamic header host (`#header-dynamic-menu-host`):
 Default mode = **zoom** on active layer. Stroke color: **`#141820`** (site ink) all layers for MVP.
 
 ### 10a. Theme and reliable autosave
-- In the dark site theme, invert the fixed ruled background image while keeping the drawing SVG paths readable.
+- In the dark site theme, invert the fixed ruled background image and all drawing-layer SVGs.
 - Every local sheet mutation updates the editor's authoritative in-memory snapshot synchronously.
 - Autosaves remain triggered after pointer/touch up, undo, and closing the Layers modal, but requests are serialized. A request response must never replace a newer local snapshot or overwrite a later queued write.
 - Rapid consecutive strokes and slow/out-of-order network responses must preserve every completed stroke locally and in the final stored `sheet.json`.
@@ -111,6 +111,7 @@ Gateway mounts `internal/scrib` like church/homescool.
 - [x] Dynamic header offers fullscreen; its fixed upper-right exit control and Escape both restore the normal viewport
 - [x] Dark mode inverts the ruled background image
 - [x] Slow or rapid autosaves preserve all completed strokes and never apply stale server responses over newer local changes
+- [x] Fullscreen exit is a red icon-only X control; dark mode inverts the background and SVG layers; Scrib uses the v2 column background
 
 ## Affected paths
 - `specs/024-scrib/spec.md`

@@ -565,8 +565,12 @@ export default function ScribEditor() {
               type="button"
               className="scrib-fullscreen-close"
               onClick={() => void exitFullscreen()}
+              aria-label="Cerrar pantalla completa"
+              title="Cerrar pantalla completa"
             >
-              Cerrar pantalla completa
+              <svg viewBox="0 0 24 24" aria-hidden>
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
             </button>
           ) : null}
         </div>
