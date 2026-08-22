@@ -2,7 +2,7 @@
 
 ## Status
 
-Ready to implement (2026-08-22).
+Ready to implement (2026-08-22). UX revision locked from annotated screenshots.
 
 ## Problem
 
@@ -13,63 +13,85 @@ Platform administrators need a private workspace where an AI senior web develope
 ### Access and route
 
 - UI route: `/admin/agent-sandbox`.
-- It is linked in the global menu only for `isPlatformAdmin()`.
-- Both the frontend route and every API endpoint require a platform admin; backend authorization is authoritative (`auth.IsAdmin`, supporting the bootstrap email and JWT/stored `admin` role).
+- Linked in the global menu only for `isPlatformAdmin()`.
+- Frontend route and every API endpoint require platform admin (`auth.IsAdmin`).
 
 ### Persistence and isolation
 
-- No new container, Docker socket access, local workspace, shell execution, or durable EC2 memory.
-- All durable state lives only under S3 bucket prefix `agentsandbox/{adminSafe}/`.
-- The handler uses request-scoped in-memory values only; source code has no `os.WriteFile`, process execution, or arbitrary path access.
-- A workspace manifest contains chat messages, tabs, and allowed file metadata. Files may only be `.html`, `.css`, `.js`, `.json`, `.txt`, or `.svg`.
-- Reject traversal, path separators, double extensions, unsupported MIME/extension pairs, files over 512 KiB, more than 40 files, and SVG with executable content (`script`, event attributes, `foreignObject`).
+- No new container, Docker socket, local workspace, shell, or durable EC2 disk.
+- All durable state under S3 prefix `agentsandbox/{adminSafe}/`.
+- Conversations are individual JSON objects:
+  ```
+  agentsandbox/{adminSafe}/chats/index.json
+  agentsandbox/{adminSafe}/chats/{chatId}.json
+  ```
+- Each chat JSON holds: `id`, `title`, `spec`, `messages[]`, `files[]` (html/css/js/json/txt/svg only), `tabs[]`, `updated`.
+- Reject traversal, double extensions, unsupported types, files > 512 KiB, > 40 files, unsafe SVG.
 
 ### Agent and crawler
 
-- Use `DEEPSEEK_API_KEY`; select `DEEPSEEK_MODEL_REASONING` with a safe default. Requests ask DeepSeek for reasoning mode.
-- The system prompt establishes the role **senior web developer and web crawler architect** and requires a JSON result: response text, updated internal spec, files, and tabs.
-- The model never receives direct S3, filesystem, shell, network, token, or credential capabilities. The backend validates its returned artifact proposal before writing S3.
-- Crawling accepts an explicit HTTPS URL allowlist supplied by the admin for that request. It permits only allowlisted hosts, applies DNS/IP SSRF blocking, does not send cookies, blocks redirects outside the allowlist, limits response to 1 MiB, depth 1, and uses timeouts.
-- Normalized crawl output is JSON stored under `agentsandbox/{adminSafe}/crawl/`.
+- `DEEPSEEK_API_KEY` + `DEEPSEEK_MODEL_REASONING` (reasoning mode enabled).
+- Role: senior web developer and web crawler architect. Returns JSON: `reply`, `spec`, `files`, `tabs`.
+- Model has no S3/FS/shell/network/credentials; backend validates proposals before write.
+- Crawl: explicit HTTPS allowlist per request; SSRF blocks; no cookies; redirect host lock; 1 MiB cap.
 
-### UI
+### UI (locked)
 
-- The page has a collapsible left sidebar whose toggle is mounted in `#header-dynamic-menu-host`.
-- Main workspace is vertical: chat takes 80%; composer takes 20%.
-- Composer: textarea takes 80% of the top row; beneath it a 70%-width drag/drop file area is on the left and Send is on the right.
-- Preview uses `0.75rem` / 12px baseline, HTML tabs, and a sandboxed iframe. Generated pages cannot access the parent site DOM, auth token, or top-level navigation.
-- Each component owns its CSS. Generated pages receive one minimal global stylesheet and use `rem` sizing.
+Layout: **left collapsible chat sidebar** + **right full-height generated website preview**.
+
+**Header dynamic slot** (`#header-dynamic-menu-host`) — three icon buttons (same pattern as Scrib/Homescool):
+
+1. **Toggle sidebar** — show/hide the left chat panel.
+2. **Chat history** — modal listing prior conversations from S3 JSON; open another chat or delete one; create new chat.
+3. **File structure** — modal listing the website files of the active chat (names from S3-backed chat JSON).
+
+**Sidebar** (when open):
+
+- Height split **80% / 20%** vertical.
+- **Top 80%:** chat message tray (scrollable).
+- **Bottom 20%:** composer:
+  - Top of composer (~80% of the 20% band): multiline text input.
+  - Bottom row: left **70%** drag/drop file zone; right **Send** button.
+
+**Main pane** (remaining width, full height under site header):
+
+- HTML view tabs for agent-generated pages.
+- Sandboxed iframe preview (`font-size: 0.75rem` / 12px baseline intent for generated pages).
+- No chat/composer in the main pane.
 
 ## API
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/admin/agent-sandbox/workspace` | Load manifest, files, messages, and crawl records |
-| `POST` | `/api/admin/agent-sandbox/ask` | Reasoning chat; validates and writes model artifacts |
-| `POST` | `/api/admin/agent-sandbox/files` | Validate and persist admin drag/drop file |
-| `POST` | `/api/admin/agent-sandbox/crawl` | Crawl explicit allowlisted HTTPS documentation URL |
+| `GET` | `/api/admin/agent-sandbox/chats` | List chat summaries from `chats/index.json` |
+| `POST` | `/api/admin/agent-sandbox/chats` | Create empty chat JSON |
+| `GET` | `/api/admin/agent-sandbox/chats/{id}` | Load one chat |
+| `DELETE` | `/api/admin/agent-sandbox/chats/{id}` | Delete chat JSON + index row |
+| `POST` | `/api/admin/agent-sandbox/chats/{id}/ask` | Reasoning turn on that chat |
+| `POST` | `/api/admin/agent-sandbox/chats/{id}/files` | Upload/validate drop file into chat |
+| `GET` | `/api/admin/agent-sandbox/chats/{id}/files` | File structure for the website in that chat |
+| `POST` | `/api/admin/agent-sandbox/crawl` | Allowlisted documentation crawl |
 
 ## Non-goals
 
 - Executing generated JS on EC2.
-- Writing to the repository, local disk, or arbitrary S3 prefixes.
-- Following arbitrary links, recursive crawling, browser automation, authentication/cookie forwarding, or public sharing.
-- Multi-admin collaboration.
+- Writing outside `agentsandbox/{adminSafe}/`.
+- Recursive crawl, cookies, public share, multi-admin collab.
 
 ## Acceptance
 
-- [ ] Route and global-menu item are invisible/denied for non-admins.
-- [ ] Workspace persists after reload solely from `agentsandbox/` S3 objects.
-- [ ] Backend rejects invalid artifact paths/types/SVG payloads and non-admin calls.
-- [ ] Agent can save valid static artifacts and tabs from structured DeepSeek output.
-- [ ] Crawler refuses private/network-local and non-allowlisted URLs and stores allowed normalized output.
-- [ ] Sidebar, 80/20 chat composer, drag/drop control, send control, HTML tabs, and sandboxed preview render responsively.
-- [ ] Go tests and frontend build pass.
+- [x] Admin-only route + menu link.
+- [x] Dynamic header: sidebar toggle, chat history, file structure.
+- [x] Sidebar 80% chat / 20% composer (textarea + 70% drop + Send); main pane = generated preview only.
+- [x] Chats persist/switch/delete via S3 JSON under `agentsandbox/`.
+- [x] File structure modal lists active chat artifacts.
+- [x] Go tests + frontend build pass.
 
 ## Affected paths
 
+- `specs/026-agent-sandbox/spec.md`
 - `backend/internal/agentsandbox/**`, `backend/cmd/server/main.go`
 - `frontend/src/pages/admin/agent-sandbox.astro`
-- `frontend/src/components/AgentSandbox/**`, `frontend/src/lib/agentSandbox.ts`
-- `frontend/src/config/routes.ts`, `frontend/src/lib/routeAccess.ts`, `frontend/src/components/Header/Header.tsx`
-- `deploy/aws/ec2-iam-s3-policy.json`, `.env.example`
+- `frontend/src/components/AgentSandbox/**`
+- `frontend/src/config/routes.ts`, `frontend/src/lib/routeAccess.ts`, `Header.tsx`
+- `deploy/aws/ec2-iam-s3-policy.json`
