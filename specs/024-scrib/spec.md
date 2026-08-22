@@ -48,7 +48,7 @@ Dynamic header host (`#header-dynamic-menu-host`):
 1. **Dashboard** — navigate `/scrib`
 2. **Zoom mode** — the default editor mode; bordered view; wheel / pinch zoom; pointer drag pans. Its control selects zoom without implicitly enabling drawing.
 3. **Draw mode** — replaces the former Pen only toggle. Drawing is possible only while this control is selected, and accepts only `pointerType === "pen"` (stylus / Apple Pencil / S Pen). Finger, palm, and mouse never create strokes.
-4. **Fullscreen** — enters native browser fullscreen for the editor viewport. While fullscreen is active, a red icon-only close button with an X is fixed at the upper-right of the viewport and exits fullscreen. Exiting with the browser Escape control also restores the regular editor.
+4. **Fullscreen** — enters native browser fullscreen for the Scrib document without resetting its zoom or pan transform. The existing header tools remain usable for Zoom, Draw, Eraser, Layers, Undo, and stroke size. While fullscreen is active, a red icon-only close button with an X and an adjacent icon-only sidebar visibility toggle are fixed at the upper-right. The sidebar is visible initially; hiding it expands the viewport. Exiting with the browser Escape control also restores the regular editor and visible sidebar.
 5. **Stroke +** — increase stroke width (mm); show current size
 6. **Stroke −** — decrease stroke width
 7. **Eraser** — toggle; erases only on active layer and accepts only `pointerType === "pen"`; finger, palm, and mouse never erase. Prefer deleting path hits under brush; MVP: freehand eraser that removes path points within radius of active layer paths.
@@ -112,6 +112,7 @@ Gateway mounts `internal/scrib` like church/homescool.
 - [x] Dark mode inverts the ruled background image
 - [x] Slow or rapid autosaves preserve all completed strokes and never apply stale server responses over newer local changes
 - [x] Fullscreen exit is a red icon-only X control; dark mode inverts the background and SVG layers; Scrib uses the v2 column background
+- [x] Fullscreen preserves zoom/pan, retains all Scrib tools, and can toggle the visible header sidebar
 
 ## Affected paths
 - `specs/024-scrib/spec.md`

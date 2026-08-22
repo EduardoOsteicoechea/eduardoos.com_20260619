@@ -104,6 +104,7 @@ export default function ScribEditor() {
   const [layersOpen, setLayersOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
@@ -192,8 +193,9 @@ export default function ScribEditor() {
       setPan({ x: 0, y: 0 });
     };
     fit();
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+    // The user controls scale and pan after the initial fit. In particular,
+    // fullscreen changes dispatch resize events; never use those to reset zoom.
+    return undefined;
   }, [sheet?.id]);
 
   /**
@@ -332,7 +334,12 @@ export default function ScribEditor() {
 
   useEffect(() => {
     const onFullscreenChange = () => {
-      setIsFullscreen(document.fullscreenElement === viewportRef.current);
+      const active = document.fullscreenElement === document.documentElement;
+      setIsFullscreen(active);
+      if (!active) {
+        document.documentElement.classList.remove("scrib-fullscreen--header-hidden");
+        setIsHeaderVisible(true);
+      }
     };
     document.addEventListener("fullscreenchange", onFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
@@ -422,22 +429,34 @@ export default function ScribEditor() {
   }
 
   async function enterFullscreen() {
-    const viewport = viewportRef.current;
-    if (!viewport || !document.fullscreenEnabled) return;
+    if (!document.fullscreenEnabled) return;
     try {
-      await viewport.requestFullscreen();
+      setIsHeaderVisible(true);
+      document.documentElement.classList.remove("scrib-fullscreen--header-hidden");
+      await document.documentElement.requestFullscreen();
     } catch {
       setError("No se pudo abrir la pantalla completa.");
     }
   }
 
   async function exitFullscreen() {
-    if (document.fullscreenElement !== viewportRef.current) return;
+    if (!document.fullscreenElement) return;
     try {
       await document.exitFullscreen();
     } catch {
       setError("No se pudo cerrar la pantalla completa.");
     }
+  }
+
+  function toggleFullscreenHeader() {
+    setIsHeaderVisible((visible) => {
+      const nextVisible = !visible;
+      document.documentElement.classList.toggle(
+        "scrib-fullscreen--header-hidden",
+        !nextVisible,
+      );
+      return nextVisible;
+    });
   }
 
   if (!ids && error) {
@@ -561,17 +580,30 @@ export default function ScribEditor() {
             </div>
           </div>
           {isFullscreen ? (
-            <button
-              type="button"
-              className="scrib-fullscreen-close"
-              onClick={() => void exitFullscreen()}
-              aria-label="Cerrar pantalla completa"
-              title="Cerrar pantalla completa"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden>
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
-            </button>
+            <div className="scrib-fullscreen-controls">
+              <button
+                type="button"
+                className="scrib-fullscreen-toggle-header"
+                onClick={toggleFullscreenHeader}
+                aria-label={isHeaderVisible ? "Ocultar barra lateral" : "Mostrar barra lateral"}
+                title={isHeaderVisible ? "Ocultar barra lateral" : "Mostrar barra lateral"}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden>
+                  <path d="M4 4h16v16H4zM9 4v16M13 8l3 4-3 4" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="scrib-fullscreen-close"
+                onClick={() => void exitFullscreen()}
+                aria-label="Cerrar pantalla completa"
+                title="Cerrar pantalla completa"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden>
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
           ) : null}
         </div>
       ) : null}
