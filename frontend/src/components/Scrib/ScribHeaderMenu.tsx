@@ -12,16 +12,17 @@ export type ScribToolMode = "draw" | "zoom" | "erase";
 
 type ScribHeaderMenuProps = {
   mode: ScribToolMode;
-  penOnly: boolean;
   strokeWidthMm: number;
   canUndo: boolean;
   saving: boolean;
+  isFullscreen: boolean;
   onDashboard: () => void;
-  onToggleZoom: () => void;
+  onSelectZoom: () => void;
+  onSelectDraw: () => void;
   onStrokePlus: () => void;
   onStrokeMinus: () => void;
-  onToggleErase: () => void;
-  onTogglePenOnly: () => void;
+  onSelectErase: () => void;
+  onEnterFullscreen: () => void;
   onOpenLayers: () => void;
   onUndo: () => void;
 };
@@ -85,6 +86,14 @@ function IconPen() {
   );
 }
 
+function IconFullscreen() {
+  return (
+    <svg className="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="0 0 24 24" aria-hidden>
+      <path fill="currentColor" d="M4 4h6V2H2v8h2V4zm10-2v2h6v6h2V2h-8zm6 12v6h-6v2h8v-8h-2zM4 14H2v8h8v-2H4v-6z" />
+    </svg>
+  );
+}
+
 function IconUndo() {
   return (
     <svg className="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="0 0 24 24" aria-hidden>
@@ -136,12 +145,22 @@ export default function ScribHeaderMenu(props: ScribHeaderMenuProps) {
           <button
             type="button"
             className={`header-dynamic-menu__btn${props.mode === "zoom" ? " header-dynamic-menu__btn--active is-active" : ""}`}
-            title="Zoom mode"
+            title="Modo zoom"
             aria-label="Modo zoom"
             aria-pressed={props.mode === "zoom"}
-            onClick={props.onToggleZoom}
+            onClick={props.onSelectZoom}
           >
             <IconZoom />
+          </button>
+          <button
+            type="button"
+            className={`header-dynamic-menu__btn${props.mode === "draw" ? " header-dynamic-menu__btn--active is-active" : ""}`}
+            title="Modo dibujar con lápiz"
+            aria-label="Modo dibujar con lápiz"
+            aria-pressed={props.mode === "draw"}
+            onClick={props.onSelectDraw}
+          >
+            <IconPen />
           </button>
           <button
             type="button"
@@ -170,19 +189,20 @@ export default function ScribHeaderMenu(props: ScribHeaderMenuProps) {
             title="Borrador"
             aria-label="Modo borrador"
             aria-pressed={props.mode === "erase"}
-            onClick={props.onToggleErase}
+            onClick={props.onSelectErase}
           >
             <IconErase />
           </button>
           <button
             type="button"
-            className={`header-dynamic-menu__btn${props.penOnly ? " header-dynamic-menu__btn--active is-active" : ""}`}
-            title="Solo lápiz (ignora dedo/mano)"
-            aria-label="Modo solo lápiz stylus"
-            aria-pressed={props.penOnly}
-            onClick={props.onTogglePenOnly}
+            className="header-dynamic-menu__btn"
+            title="Pantalla completa"
+            aria-label="Abrir Scrib en pantalla completa"
+            aria-pressed={props.isFullscreen}
+            disabled={props.isFullscreen}
+            onClick={props.onEnterFullscreen}
           >
-            <IconPen />
+            <IconFullscreen />
           </button>
           <button
             type="button"

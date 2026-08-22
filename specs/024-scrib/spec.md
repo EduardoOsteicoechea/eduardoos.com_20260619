@@ -46,15 +46,22 @@ Each layer = one SVG with `viewBox="0 0 215.9 279.4"` (mm units) sized exactly t
 Dynamic header host (`#header-dynamic-menu-host`):
 
 1. **Dashboard** — navigate `/scrib`
-2. **Zoom mode** — bordered view; wheel / pinch zoom; pointer drag pans; exit returns to draw
-3. **Stroke +** — increase stroke width (mm); show current size
-4. **Stroke −** — decrease stroke width
-5. **Eraser** — toggle; erases only on active layer (remove/hit nearby path segments or paint eraser via compositing — prefer deleting path hits under brush; MVP: draw white/transparent eraser paths with `destination-out` on a temp canvas then bake, OR remove paths whose bbox intersects eraser stroke — **MVP: freehand eraser that removes path points within radius of active layer paths**)
-6. **Layers modal** — per layer: opacity slider (0–1), radio to set **sole** active layer
-7. **Undo** — revert last stroke/erase action on active layer (in-memory stack + persist after undo)
-8. **Pen only** (stylus / palm rejection) — toggle in the dynamic header. When **on**, draw and erase accept only `pointerType === "pen"` (Apple Pencil, S Pen, etc.); finger / palm / mouse are ignored so the hand can rest on phone/tablet without marking. Zoom mode still allows finger pan/pinch. Default **off** (finger and mouse draw as today).
+2. **Zoom mode** — the default editor mode; bordered view; wheel / pinch zoom; pointer drag pans. Its control selects zoom without implicitly enabling drawing.
+3. **Draw mode** — replaces the former Pen only toggle. Drawing is possible only while this control is selected, and accepts only `pointerType === "pen"` (stylus / Apple Pencil / S Pen). Finger, palm, and mouse never create strokes.
+4. **Fullscreen** — enters native browser fullscreen for the editor viewport. While fullscreen is active, a visible close button is fixed at the upper-right of the viewport and exits fullscreen. Exiting with the browser Escape control also restores the regular editor.
+5. **Stroke +** — increase stroke width (mm); show current size
+6. **Stroke −** — decrease stroke width
+7. **Eraser** — toggle; erases only on active layer and accepts only `pointerType === "pen"`; finger, palm, and mouse never erase. Prefer deleting path hits under brush; MVP: freehand eraser that removes path points within radius of active layer paths.
+8. **Layers modal** — per layer: opacity slider (0–1), radio to set **sole** active layer. Clicking the backdrop outside its panel closes it and persists its current values.
+9. **Undo** — revert last stroke/erase action on active layer (in-memory stack + persist after undo)
 
-Default mode = **draw** on active layer. Stroke color: **`#141820`** (site ink) all layers for MVP.
+Default mode = **zoom** on active layer. Stroke color: **`#141820`** (site ink) all layers for MVP.
+
+### 10a. Theme and reliable autosave
+- In the dark site theme, invert the fixed ruled background image while keeping the drawing SVG paths readable.
+- Every local sheet mutation updates the editor's authoritative in-memory snapshot synchronously.
+- Autosaves remain triggered after pointer/touch up, undo, and closing the Layers modal, but requests are serialized. A request response must never replace a newer local snapshot or overwrite a later queued write.
+- Rapid consecutive strokes and slow/out-of-order network responses must preserve every completed stroke locally and in the final stored `sheet.json`.
 
 ### 11. S3 layout (`eduardoos20260607`, prefix `scrib/`)
 ```
@@ -99,6 +106,11 @@ Gateway mounts `internal/scrib` like church/homescool.
 - [x] Six SVG layers; one active; opacity; draw/erase/undo; zoom/pan mode
 - [x] Header tools as listed; autosave on pointer up
 - [x] S3 under `scrib/`; tests for keys/handlers; FE build; commit + push
+- [x] Zoom is the default; Draw and Eraser require a stylus and no other tool creates or removes paths
+- [x] Layers modal closes when its backdrop is clicked
+- [x] Dynamic header offers fullscreen; its fixed upper-right exit control and Escape both restore the normal viewport
+- [x] Dark mode inverts the ruled background image
+- [x] Slow or rapid autosaves preserve all completed strokes and never apply stale server responses over newer local changes
 
 ## Affected paths
 - `specs/024-scrib/spec.md`

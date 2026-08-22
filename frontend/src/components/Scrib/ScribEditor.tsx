@@ -1,6 +1,7 @@
 /**
  * Scrib sheet editor — portrait US Letter (215.9×279.4 mm) with ruled background
- * and six SVG layers. Draw / erase / zoom-pan; autosave on pointer-up.
+ * and six SVG layers. Zoom is the safe default; stylus-only drawing and erasing
+ * update one authoritative snapshot and save serially after each completed action.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -99,10 +100,10 @@ export default function ScribEditor() {
   const [sheet, setSheet] = useState<ScribSheet | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<ScribToolMode>("draw");
-  const [penOnly, setPenOnly] = useState(false);
+  const [mode, setMode] = useState<ScribToolMode>("zoom");
   const [layersOpen, setLayersOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
@@ -116,10 +117,18 @@ export default function ScribEditor() {
   const panDragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const pinchRef = useRef<{ dist: number; scale: number } | null>(null);
   const sheetSnapshotRef = useRef<ScribSheet | null>(null);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const queuedSaveCountRef = useRef(0);
 
-  useEffect(() => {
-    sheetSnapshotRef.current = sheet;
-  }, [sheet]);
+  /**
+   * React state is asynchronous, but strokes may finish back-to-back. Keep this
+   * reference current before scheduling React's render so the next stroke always
+   * starts from the sheet that already includes the prior completed stroke.
+   */
+  const commitSheet = useCallback((next: ScribSheet) => {
+    sheetSnapshotRef.current = next;
+    setSheet(next);
+  }, []);
 
   useEffect(() => {
     const resolved = resolveScribSheetFromLocation();
@@ -158,7 +167,7 @@ export default function ScribEditor() {
         setLoading(false);
         return;
       }
-      setSheet(ensureLayers(res.sheet));
+      commitSheet(ensureLayers(res.sheet));
       setError("");
       setLoading(false);
     })();
@@ -187,15 +196,25 @@ export default function ScribEditor() {
     return () => window.removeEventListener("resize", fit);
   }, [sheet?.id]);
 
-  const persist = useCallback(async (next: ScribSheet) => {
+  /**
+   * Sheet writes replace the complete S3 JSON object. Chain them so a slow first
+   * response cannot finish after a newer write and erase later strokes. Server
+   * responses are intentionally not copied into React state: the local snapshot
+   * can already contain actions queued after the response's request body.
+   */
+  const persist = useCallback((next: ScribSheet) => {
+    queuedSaveCountRef.current += 1;
     setSaving(true);
-    const res = await saveScribSheet(next);
-    setSaving(false);
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-    if (res.sheet) setSheet(ensureLayers(res.sheet));
+    saveQueueRef.current = saveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const res = await saveScribSheet(next);
+        if (res.error) setError(res.error);
+      })
+      .finally(() => {
+        queuedSaveCountRef.current -= 1;
+        setSaving(queuedSaveCountRef.current > 0);
+      });
   }, []);
 
   function mmFromClient(clientX: number, clientY: number): { x: number; y: number } | null {
@@ -208,10 +227,9 @@ export default function ScribEditor() {
     return { x, y };
   }
 
-  function acceptsDrawPointer(e: React.PointerEvent): boolean {
-    // Pen-only: stylus/apple pencil; ignore finger, palm, and mouse.
-    if (penOnly) return e.pointerType === "pen";
-    return true;
+  function acceptsStylus(e: React.PointerEvent): boolean {
+    // Drawing and erasing are deliberately stylus-only for palm rejection.
+    return e.pointerType === "pen";
   }
 
   function onPointerDown(e: React.PointerEvent) {
@@ -226,7 +244,7 @@ export default function ScribEditor() {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       return;
     }
-    if (!acceptsDrawPointer(e)) return;
+    if (!acceptsStylus(e)) return;
     const pt = mmFromClient(e.clientX, e.clientY);
     if (!pt) return;
     drawingRef.current = true;
@@ -253,7 +271,7 @@ export default function ScribEditor() {
     ) {
       return;
     }
-    if (penOnly && e.pointerType !== "pen") return;
+    if (e.pointerType !== "pen") return;
     const pt = mmFromClient(e.clientX, e.clientY);
     if (!pt) return;
     pointsRef.current.push(pt);
@@ -299,8 +317,8 @@ export default function ScribEditor() {
       { layerId: activeId, pathsBefore },
     ]);
     const next: ScribSheet = { ...current, layers };
-    setSheet(next);
-    await persist(next);
+    commitSheet(next);
+    persist(next);
   }
 
   const modeRef = useRef(mode);
@@ -311,6 +329,14 @@ export default function ScribEditor() {
   useEffect(() => {
     scaleRef.current = scale;
   }, [scale]);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === viewportRef.current);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
 
   /** Native non-passive wheel/touch so preventDefault is allowed (React listeners are passive). */
   useEffect(() => {
@@ -391,8 +417,27 @@ export default function ScribEditor() {
         l.id === entry.layerId ? { ...l, paths: clonePaths(entry.pathsBefore) } : l,
       ),
     };
-    setSheet(next);
-    await persist(next);
+    commitSheet(next);
+    persist(next);
+  }
+
+  async function enterFullscreen() {
+    const viewport = viewportRef.current;
+    if (!viewport || !document.fullscreenEnabled) return;
+    try {
+      await viewport.requestFullscreen();
+    } catch {
+      setError("No se pudo abrir la pantalla completa.");
+    }
+  }
+
+  async function exitFullscreen() {
+    if (document.fullscreenElement !== viewportRef.current) return;
+    try {
+      await document.exitFullscreen();
+    } catch {
+      setError("No se pudo cerrar la pantalla completa.");
+    }
   }
 
   if (!ids && error) {
@@ -407,46 +452,39 @@ export default function ScribEditor() {
     <ServiceGate serviceId="scrib" serviceLabel="Scrib" requireSubscription>
       <ScribHeaderMenu
         mode={mode}
-        penOnly={penOnly}
         strokeWidthMm={sheet?.strokeWidthMm ?? 0.35}
         canUndo={undoStack.length > 0}
         saving={saving}
+        isFullscreen={isFullscreen}
         onDashboard={() => {
           window.location.href = APP_ROUTES.scrib;
         }}
-        onToggleZoom={() =>
-          setMode((m) => (m === "zoom" ? "draw" : "zoom"))
-        }
-        onStrokePlus={() =>
-          setSheet((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  strokeWidthMm: Math.min(
-                    STROKE_MAX,
-                    +(prev.strokeWidthMm + STROKE_STEP).toFixed(2),
-                  ),
-                }
-              : prev,
-          )
-        }
-        onStrokeMinus={() =>
-          setSheet((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  strokeWidthMm: Math.max(
-                    STROKE_MIN,
-                    +(prev.strokeWidthMm - STROKE_STEP).toFixed(2),
-                  ),
-                }
-              : prev,
-          )
-        }
-        onToggleErase={() =>
-          setMode((m) => (m === "erase" ? "draw" : "erase"))
-        }
-        onTogglePenOnly={() => setPenOnly((v) => !v)}
+        onSelectZoom={() => setMode("zoom")}
+        onSelectDraw={() => setMode("draw")}
+        onStrokePlus={() => {
+          const current = sheetSnapshotRef.current;
+          if (!current) return;
+          commitSheet({
+            ...current,
+            strokeWidthMm: Math.min(
+              STROKE_MAX,
+              +(current.strokeWidthMm + STROKE_STEP).toFixed(2),
+            ),
+          });
+        }}
+        onStrokeMinus={() => {
+          const current = sheetSnapshotRef.current;
+          if (!current) return;
+          commitSheet({
+            ...current,
+            strokeWidthMm: Math.max(
+              STROKE_MIN,
+              +(current.strokeWidthMm - STROKE_STEP).toFixed(2),
+            ),
+          });
+        }}
+        onSelectErase={() => setMode("erase")}
+        onEnterFullscreen={() => void enterFullscreen()}
         onOpenLayers={() => setLayersOpen(true)}
         onUndo={() => void onUndo()}
       />
@@ -457,7 +495,7 @@ export default function ScribEditor() {
       {sheet ? (
         <div
           ref={viewportRef}
-          className={`scrib-viewport${mode === "zoom" ? " scrib-viewport--zoom" : ""}${penOnly ? " scrib-viewport--pen-only" : ""}`}
+          className={`scrib-viewport${mode === "zoom" ? " scrib-viewport--zoom" : ""}`}
         >
           <div
             className="scrib-stage"
@@ -522,6 +560,15 @@ export default function ScribEditor() {
               ))}
             </div>
           </div>
+          {isFullscreen ? (
+            <button
+              type="button"
+              className="scrib-fullscreen-close"
+              onClick={() => void exitFullscreen()}
+            >
+              Cerrar pantalla completa
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -531,6 +578,12 @@ export default function ScribEditor() {
           role="dialog"
           aria-modal="true"
           aria-label="Capas"
+          onPointerDown={(event) => {
+            if (event.target !== event.currentTarget) return;
+            setLayersOpen(false);
+            const latest = sheetSnapshotRef.current;
+            if (latest) persist(latest);
+          }}
         >
           <div className="scrib-layers-modal__panel">
             <header className="scrib-layers-modal__head">
@@ -541,7 +594,7 @@ export default function ScribEditor() {
                 onClick={() => {
                   setLayersOpen(false);
                   const latest = sheetSnapshotRef.current;
-                  if (latest) void persist(latest);
+                  if (latest) persist(latest);
                 }}
               >
                 Cerrar
@@ -559,9 +612,10 @@ export default function ScribEditor() {
                         name="scrib-active-layer"
                         checked={sheet.activeLayerId === layer.id}
                         onChange={() =>
-                          setSheet((prev) =>
-                            prev ? { ...prev, activeLayerId: layer.id } : prev,
-                          )
+                          {
+                            const current = sheetSnapshotRef.current;
+                            if (current) commitSheet({ ...current, activeLayerId: layer.id });
+                          }
                         }
                       />
                       <span>{label}</span>
@@ -576,14 +630,13 @@ export default function ScribEditor() {
                         value={layer.opacity}
                         onChange={(e) => {
                           const opacity = Number(e.target.value);
-                          setSheet((prev) => {
-                            if (!prev) return prev;
-                            return {
-                              ...prev,
-                              layers: prev.layers.map((l) =>
-                                l.id === layer.id ? { ...l, opacity } : l,
-                              ),
-                            };
+                          const current = sheetSnapshotRef.current;
+                          if (!current) return;
+                          commitSheet({
+                            ...current,
+                            layers: current.layers.map((l) =>
+                              l.id === layer.id ? { ...l, opacity } : l,
+                            ),
                           });
                         }}
                       />

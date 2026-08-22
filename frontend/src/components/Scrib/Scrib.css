@@ -207,11 +207,6 @@ body:has(.scrib-viewport) {
   cursor: grabbing;
 }
 
-.scrib-viewport--pen-only .scrib-page {
-  /* Palm / finger contact should not scroll or start OS gestures while drawing with pen. */
-  touch-action: none;
-}
-
 .scrib-stage {
   transform-origin: center center;
   will-change: transform;
@@ -236,10 +231,47 @@ body:has(.scrib-viewport) {
   z-index: 0;
 }
 
+html[data-theme="dark"] .scrib-page,
+html.dark .scrib-page {
+  background: var(--site-body-bg);
+}
+
+html[data-theme="dark"] .scrib-page__bg,
+html.dark .scrib-page__bg {
+  /* Preserve the authored column image while adapting its paper and rules to dark mode. */
+  filter: invert(1) hue-rotate(180deg);
+}
+
 .scrib-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+.scrib-viewport:fullscreen,
+.scrib-viewport:-webkit-full-screen {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--site-body-bg);
+}
+
+.scrib-fullscreen-close {
+  position: fixed;
+  z-index: 2;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  min-height: var(--control_min_height, 2.5rem);
+  padding: 0.45rem 0.7rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font-family: Montserrat, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .scrib-stroke-widget {
