@@ -3,7 +3,7 @@
  * Header: sidebar, sites, history, file editor, console.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import { isPlatformAdmin } from "../../lib/auth";
 import ChatMarkdown from "../Chat/ChatMarkdown";
 import AgentSandboxHeaderMenu from "./AgentSandboxHeaderMenu";
@@ -60,7 +60,37 @@ const SIDEBAR_KEY = "eduardoos-agent-sandbox-sidebar";
 const SITE_KEY = "eduardoos-agent-sandbox-site";
 const PREFS_KEY = "eduardoos-agent-sandbox-prefs";
 
-const BINARY_EXT = /\.(pdf|docx|xlsx)$/i;
+const BINARY_EXT = /\.(pdf|docx|xlsx|png|jpe?g|webp|gif)$/i;
+const IMAGE_EXT = /\.(png|jpe?g|webp|gif)$/i;
+const IMAGE_MIME = /^image\/(png|jpe?g|webp|gif)$/i;
+
+function extFromMime(mime: string): string {
+  const m = mime.toLowerCase();
+  if (m === "image/jpeg") return ".jpg";
+  if (m === "image/png") return ".png";
+  if (m === "image/webp") return ".webp";
+  if (m === "image/gif") return ".gif";
+  return ".png";
+}
+
+function safeFileName(name: string, fallbackExt: string): string {
+  const base = name.replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^\.+/, "");
+  if (/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$/.test(base) && (base.match(/\./g) ?? []).length === 1) {
+    return base;
+  }
+  return `paste-${Date.now()}${fallbackExt}`;
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
 
 function authHeaders(): HeadersInit {
   return {
@@ -164,6 +194,9 @@ export default function AgentSandbox() {
   const [balance, setBalance] = useState<DeepSeekBalance | null>(null);
   const [balanceError, setBalanceError] = useState("");
   const [askProgress, setAskProgress] = useState<{ percent: number; phase: string } | null>(null);
+  const [composerImages, setComposerImages] = useState<
+    { id: string; name: string; previewUrl: string }[]
+  >([]);
   const [editorFiles, setEditorFiles] = useState<EditorFile[]>([]);
   const [editorName, setEditorName] = useState("");
   const [editorText, setEditorText] = useState("");
@@ -693,24 +726,106 @@ export default function AgentSandbox() {
     }
   }
 
-  async function drop(files: FileList | null) {
-    if (!site.id) return;
-    const file = files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    setBusy(true);
+  async function uploadSiteFile(name: string, text: string, encoding?: string): Promise<Site | null> {
+    if (!site.id) return null;
     const res = await fetch(`${API}/sites/${encodeURIComponent(site.id)}/files`, {
       method: "PUT",
       cache: "no-store",
       headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ name: file.name, text }),
+      body: JSON.stringify({ name, text, encoding: encoding || undefined }),
     });
-    setBusy(false);
     if (!res.ok) {
-      setError("Archivo rechazado.");
+      let detail = `HTTP ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body?.error) detail = body.error;
+      } catch {
+        /* ignore */
+      }
+      setError(`Archivo rechazado: ${detail}`);
+      pushLog("error", "Upload rejected", `${name} — ${detail}`);
+      return null;
+    }
+    const next = (await res.json()) as Site;
+    applySite(next);
+    setError("");
+    return next;
+  }
+
+  async function addImageFile(file: File) {
+    if (!site.id) {
+      setError("Elegí un site antes de adjuntar imágenes.");
       return;
     }
-    applySite((await res.json()) as Site);
+    const mime = file.type || "image/png";
+    if (!IMAGE_MIME.test(mime) && !IMAGE_EXT.test(file.name)) {
+      setError("Solo imágenes PNG, JPG, WEBP o GIF.");
+      return;
+    }
+    const ext = IMAGE_EXT.test(file.name) ? "" : extFromMime(mime);
+    const name = safeFileName(file.name || `paste${ext}`, ext || extFromMime(mime));
+    const previewUrl = URL.createObjectURL(file);
+    const id = `${name}-${Date.now()}`;
+    setComposerImages((prev) => [...prev, { id, name, previewUrl }]);
+    setBusy(true);
+    try {
+      const b64 = await fileToBase64(file);
+      const ok = await uploadSiteFile(name, b64, "base64");
+      if (!ok) {
+        setComposerImages((prev) => prev.filter((img) => img.id !== id));
+        URL.revokeObjectURL(previewUrl);
+      } else {
+        pushLog("info", "Imagen subida al site.", name);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function drop(files: FileList | null) {
+    if (!site.id) return;
+    const file = files?.[0];
+    if (!file) return;
+    if (IMAGE_MIME.test(file.type) || IMAGE_EXT.test(file.name)) {
+      await addImageFile(file);
+      return;
+    }
+    setBusy(true);
+    try {
+      if (BINARY_EXT.test(file.name)) {
+        const b64 = await fileToBase64(file);
+        await uploadSiteFile(file.name, b64, "base64");
+      } else {
+        const text = await file.text();
+        await uploadSiteFile(file.name, text);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function onComposerPaste(e: ClipboardEvent<HTMLTextAreaElement>) {
+    const items = e.clipboardData?.items;
+    if (!items?.length) return;
+    let handled = false;
+    for (const item of Array.from(items)) {
+      if (item.kind === "file" && item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          handled = true;
+          void addImageFile(file);
+        }
+      }
+    }
+    if (handled) e.preventDefault();
+  }
+
+  function removeComposerImage(id: string) {
+    setComposerImages((prev) => {
+      const hit = prev.find((img) => img.id === id);
+      if (hit) URL.revokeObjectURL(hit.previewUrl);
+      return prev.filter((img) => img.id !== id);
+    });
   }
 
   const previewFile =
@@ -782,7 +897,8 @@ export default function AgentSandbox() {
               className="agent-sandbox__input"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Instrucción para el agente…"
+              onPaste={onComposerPaste}
+              placeholder="Instrucción para el agente… (Ctrl+V para pegar imagen)"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -791,6 +907,24 @@ export default function AgentSandbox() {
               }}
               disabled={busy || !chat.id}
             />
+            {composerImages.length > 0 ? (
+              <ul className="agent-sandbox__images-bar" aria-label="Imágenes adjuntas">
+                {composerImages.map((img) => (
+                  <li key={img.id} className="agent-sandbox__images-bar-item">
+                    <img src={img.previewUrl} alt={img.name} />
+                    <span title={img.name}>{img.name}</span>
+                    <button
+                      type="button"
+                      className="agent-sandbox__images-bar-remove"
+                      aria-label={`Quitar ${img.name}`}
+                      onClick={() => removeComposerImage(img.id)}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <div className="agent-sandbox__composer-row">
               <label
                 className="agent-sandbox__drop"
@@ -803,7 +937,7 @@ export default function AgentSandbox() {
                 Arrastrá un archivo
                 <input
                   type="file"
-                  accept=".html,.css,.js,.json,.txt,.svg"
+                  accept=".html,.css,.js,.json,.txt,.svg,.md,.py,.pdf,.docx,.xlsx,.png,.jpg,.jpeg,.webp,.gif,image/*"
                   onChange={(e) => void drop(e.target.files)}
                 />
               </label>

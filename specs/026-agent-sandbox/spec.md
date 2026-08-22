@@ -28,7 +28,7 @@ Platform administrators need a private workspace where an AI senior web develope
   ```
 - Site JSON: `id`, `name`, `spec`, `files[]`, `tabs[]`, `chatIds[]`, `updated`.
 - Chat JSON: `id`, `siteId`, `title`, `messages[]`, `updated`.
-- Files (flat names): text `.html/.css/.js/.json/.txt/.svg/.md/.py`; binary (base64 in `text`, `encoding:"base64"`) `.pdf/.docx/.xlsx`. Max 2 MiB decoded, ≤ 40 files; reject traversal, double extensions, unsafe SVG.
+- Files (flat names): text `.html/.css/.js/.json/.txt/.svg/.md/.py`; binary (base64 in `text`, `encoding:"base64"`) `.pdf/.docx/.xlsx` and images `.png/.jpg/.jpeg/.webp/.gif`. Max 2 MiB decoded, ≤ 40 files; reject traversal, double extensions, unsafe SVG.
 - **No Python execution on EC2** (Alpine runtime has no interpreter). Agent may emit `.py` scripts as downloadable artifacts and should also emit the resulting documents as base64 file entries when producing `.pdf`/`.docx`/`.xlsx`/`.txt`.
 - **Migration:** legacy chats → site `Default` (unchanged).
 
@@ -59,6 +59,8 @@ Platform administrators need a private workspace where an AI senior web develope
 
 **Chat:** assistant bubbles via `ChatMarkdown`; normalize JSON-shaped / escaped legacy replies on display.
 
+**Composer:** textarea accepts **Ctrl+V / paste of clipboard images** → thumbnail strip (“barra de imágenes”) under the composer. Drag/drop or file picker of images also lands in that strip. Images upload to the active site as base64 binaries (same as docs). Non-image drops still upsert site files; client must send binaries as base64 + `encoding:"base64"` (never `file.text()` on PNG).
+
 **Viewport lock:** unchanged.
 
 ## API
@@ -86,6 +88,7 @@ Platform administrators need a private workspace where an AI senior web develope
 - [x] Go tests + frontend build; commit/push.
 - [x] Console progress bar during ask (phase-estimated; no hung idle during reasoning).
 - [x] ARTIFACTS marker never leaked into chat tokens.
+- [x] Composer: paste/drop PNG (and jpg/webp/gif) → images bar + base64 site upload (no “Archivo rechazado” for valid images).
 
 ## Affected paths
 

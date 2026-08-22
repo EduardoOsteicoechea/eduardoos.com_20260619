@@ -8,6 +8,18 @@ func TestValidateFileAllowsHtml(t *testing.T) {
 	}
 }
 
+func TestValidateFileAllowsPngBase64(t *testing.T) {
+	// Minimal 1x1 PNG.
+	const pngB64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+	if err := validateFile(File{Name: "shot.png", Text: pngB64, Encoding: "base64"}); err != nil {
+		t.Fatalf("expected png ok, got %v", err)
+	}
+	f := normalizeFileForStore(File{Name: "shot.png", Text: pngB64})
+	if f.Encoding != "base64" || f.Type != "image/png" {
+		t.Fatalf("normalize png: %+v", f)
+	}
+}
+
 func TestValidateFileRejectsTraversalAndDoubleExt(t *testing.T) {
 	if err := validateFile(File{Name: "../x.html", Text: "a"}); err == nil {
 		t.Fatal("expected reject traversal")

@@ -52,9 +52,15 @@ var allowedExtensions = map[string]string{
 	".pdf":  "application/pdf",
 	".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	".png":  "image/png",
+	".jpg":  "image/jpeg",
+	".jpeg": "image/jpeg",
+	".webp": "image/webp",
+	".gif":  "image/gif",
 }
 var binaryExtensions = map[string]bool{
 	".pdf": true, ".docx": true, ".xlsx": true,
+	".png": true, ".jpg": true, ".jpeg": true, ".webp": true, ".gif": true,
 }
 
 // Message is one chat turn.
@@ -791,8 +797,8 @@ After the Markdown, on its own lines, append exactly:
 {"spec":"...","files":[{"name":"index.html","text":"..."}],"tabs":[{"id":"home","label":"Home","file":"index.html"}]}
 <<<END>>>
 
-Rules: flat file names only; allowed text: .html,.css,.js,.json,.txt,.svg,.md,.py; binary docs .pdf,.docx,.xlsx must use base64 in text with "encoding":"base64".
-You may emit .py scripts that generate documents; also emit the finished .pdf/.docx/.xlsx/.txt as separate files (base64 for binaries).
+Rules: flat file names only; allowed text: .html,.css,.js,.json,.txt,.svg,.md,.py; binary .pdf,.docx,.xlsx and images .png,.jpg,.jpeg,.webp,.gif must use base64 in text with "encoding":"base64".
+You may emit .py scripts that generate documents; also emit the finished .pdf/.docx/.xlsx/.txt/.png as separate files (base64 for binaries).
 No shell, network, credentials, or server code. One minimal global CSS using rem. Real newlines inside text fields (JSON will escape them).`
 	user := fmt.Sprintf("Workspace spec:\n%s\nRequest:\n%s\nAllowed docs hosts: %s", site.Spec, req.Message, strings.Join(req.Allowlist, ", "))
 
