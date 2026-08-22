@@ -69,6 +69,21 @@ body > main {
   box-sizing: border-box;
 }
 
+/* Agent Sandbox: never scroll the document; only inner trays / iframe scroll. */
+html.page-agent-sandbox,
+html.page-agent-sandbox body {
+  height: 100%;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+html.page-agent-sandbox body > main {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /**
  * Home atmosphere — gallery-atelier wash (not neon drafting grid).
  * Soft vignette + whispered horizontal hairlines at wide spacing.

@@ -3,6 +3,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import AgentSandbox from "../../components/AgentSandbox/AgentSandbox";
 ---
 
-<BaseLayout title="Agent Sandbox | Eduardo OS" requireAuth={true}>
+<BaseLayout title="Agent Sandbox | Eduardo OS" requireAuth={true} pageAgentSandbox={true}>
   <AgentSandbox client:only="react" />
 </BaseLayout>

@@ -16,6 +16,8 @@ interface Props {
   description?: string;
   requireAuth?: boolean;
   pageHome?: boolean;
+  /** Lock document scroll (Agent Sandbox: only iframe/chat trays scroll). */
+  pageAgentSandbox?: boolean;
 }
 
 const {
@@ -23,6 +25,7 @@ const {
   description = "Eduardo Osteicoechea — AEC Technologist. Licensed Building Architect, BIM practitioner, and full-stack developer.",
   requireAuth = false,
   pageHome = false,
+  pageAgentSandbox = false,
 } = Astro.props;
 
 const pathname = Astro.url.pathname;
@@ -31,7 +34,7 @@ const pathname = Astro.url.pathname;
 <!doctype html>
 <html
   lang="en"
-  class:list={{ "page-home": pageHome }}
+  class:list={{ "page-home": pageHome, "page-agent-sandbox": pageAgentSandbox }}
   data-auth-check={requireAuth ? "pending" : undefined}
 >
   <head>

@@ -491,6 +491,7 @@ const (
 )
 
 // Ask streams a DeepSeek reasoning reply as SSE, then persists the chat.
+// Verbose `log` events explain each stage for the Agent Console UI.
 func (h *Handler) Ask(w http.ResponseWriter, r *http.Request) {
 	if err := h.ensureS3(); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
@@ -502,7 +503,8 @@ func (h *Handler) Ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := auth.UserEmailFromRequest(r)
-	chat, err := h.loadChat(r.Context(), email, chi.URLParam(r, "id"))
+	chatID := chi.URLParam(r, "id")
+	chat, err := h.loadChat(r.Context(), email, chatID)
 	if err != nil {
 		httpx.WriteError(w, http.StatusNotFound, err.Error())
 		return
@@ -525,6 +527,25 @@ func (h *Handler) Ask(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, raw)
 		flusher.Flush()
 	}
+	logf := func(level, msg string, extra map[string]any) {
+		payload := map[string]any{
+			"at":      time.Now().UTC().Format(time.RFC3339Nano),
+			"level":   level,
+			"message": msg,
+		}
+		for k, v := range extra {
+			payload[k] = v
+		}
+		writeSSE("log", payload)
+	}
+
+	logf("info", "Ask started: loaded chat from S3 and opened SSE stream.", map[string]any{
+		"chatId": chatID, "messageChars": len(req.Message), "existingFiles": len(chat.Files),
+	})
+	logf("info", "Building DeepSeek system/user prompts.", map[string]any{
+		"model":     httpx.Env("DEEPSEEK_MODEL_REASONING", "deepseek-reasoner"),
+		"specChars": len(chat.Spec), "allowlist": req.Allowlist,
+	})
 
 	system := `You are an AI senior web developer and web crawler architect.
 Write the admin-facing answer first as Markdown (headings, lists, code fences OK).
@@ -540,6 +561,10 @@ Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, ne
 	var full strings.Builder
 	var visible strings.Builder
 	artifactsStarted := false
+	tokenCount := 0
+	firstTokenLogged := false
+	logf("info", "Calling DeepSeek reasoning stream (this can take several minutes).", nil)
+
 	err = deepSeekReasoningStream(r.Context(), system, user, func(delta string) {
 		full.WriteString(delta)
 		if artifactsStarted {
@@ -553,16 +578,31 @@ Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, ne
 			if extra != "" {
 				visible.WriteString(extra)
 				writeSSE("token", map[string]string{"text": extra})
+				tokenCount++
 			}
+			logf("info", "Detected <<<ARTIFACTS>>> marker — Markdown stream ends; collecting file JSON.", map[string]any{
+				"visibleChars": len(visible.String()),
+			})
 			return
 		}
 		visible.WriteString(delta)
 		writeSSE("token", map[string]string{"text": delta})
+		tokenCount++
+		if !firstTokenLogged {
+			firstTokenLogged = true
+			logf("info", "First Markdown token received from DeepSeek.", map[string]any{"chars": len(delta)})
+		}
+	}, func(stage, msg string) {
+		logf("info", msg, map[string]any{"stage": stage})
 	})
 	if err != nil {
+		logf("error", "DeepSeek stream failed.", map[string]any{"error": err.Error(), "tokensEmitted": tokenCount})
 		writeSSE("error", map[string]string{"error": err.Error()})
 		return
 	}
+	logf("info", "DeepSeek stream finished. Parsing Markdown + artifacts JSON.", map[string]any{
+		"fullChars": full.Len(), "visibleChars": visible.Len(), "tokensEmitted": tokenCount,
+	})
 
 	md, art := splitArtifacts(full.String())
 	if strings.TrimSpace(md) == "" {
@@ -571,19 +611,31 @@ Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, ne
 	var p proposal
 	p.Reply = strings.TrimSpace(md)
 	if art != "" {
-		_ = json.Unmarshal([]byte(art), &p)
+		if err := json.Unmarshal([]byte(art), &p); err != nil {
+			logf("warn", "Artifacts JSON did not parse; keeping Markdown reply only.", map[string]any{
+				"error": err.Error(), "artifactsChars": len(art),
+			})
+		} else {
+			logf("info", "Artifacts JSON parsed.", map[string]any{
+				"files": len(p.Files), "tabs": len(p.Tabs), "specChars": len(p.Spec),
+			})
+		}
 		if strings.TrimSpace(p.Reply) == "" {
 			p.Reply = strings.TrimSpace(md)
 		}
+	} else {
+		logf("warn", "No <<<ARTIFACTS>>> block in model output; reply-only update.", nil)
 	}
 	if p.Spec != "" {
 		chat.Spec = p.Spec
 	}
 	for _, f := range p.Files {
 		if err := upsertFile(&chat, f); err != nil {
+			logf("error", "Artifact file rejected by validator.", map[string]any{"name": f.Name, "error": err.Error()})
 			writeSSE("error", map[string]string{"error": "agent artifact rejected: " + err.Error()})
 			return
 		}
+		logf("info", "Accepted artifact file into chat workspace.", map[string]any{"name": f.Name, "bytes": len(f.Text)})
 	}
 	if len(p.Tabs) > 0 {
 		chat.Tabs = p.Tabs
@@ -600,10 +652,15 @@ Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, ne
 		}
 		chat.Title = title
 	}
+	logf("info", "Persisting updated chat JSON to S3.", map[string]any{
+		"files": len(chat.Files), "messages": len(chat.Messages), "title": chat.Title,
+	})
 	if err := h.saveChat(r.Context(), email, chat); err != nil {
+		logf("error", "S3 save failed after successful model reply.", map[string]any{"error": err.Error()})
 		writeSSE("error", map[string]string{"error": err.Error()})
 		return
 	}
+	logf("info", "Ask complete. Emitting done with saved chat.", nil)
 	writeSSE("done", chat)
 }
 
@@ -629,13 +686,18 @@ func splitArtifacts(raw string) (markdown, artifactsJSON string) {
 	return markdown, artifactsJSON
 }
 
-func deepSeekReasoningStream(ctx context.Context, system, user string, onDelta func(string)) error {
+func deepSeekReasoningStream(ctx context.Context, system, user string, onDelta func(string), onLog func(stage, msg string)) error {
+	if onLog == nil {
+		onLog = func(string, string) {}
+	}
 	key := strings.TrimSpace(httpx.Env("DEEPSEEK_API_KEY", ""))
 	if key == "" {
 		return fmt.Errorf("DEEPSEEK_API_KEY is not configured")
 	}
+	model := httpx.Env("DEEPSEEK_MODEL_REASONING", "deepseek-reasoner")
+	base := strings.TrimRight(httpx.Env("DEEPSEEK_BASE_URL", "https://api.deepseek.com"), "/")
 	body, err := json.Marshal(map[string]any{
-		"model": httpx.Env("DEEPSEEK_MODEL_REASONING", "deepseek-reasoner"),
+		"model": model,
 		"messages": []map[string]string{
 			{"role": "system", "content": system},
 			{"role": "user", "content": user},
@@ -646,29 +708,36 @@ func deepSeekReasoningStream(ctx context.Context, system, user string, onDelta f
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		strings.TrimRight(httpx.Env("DEEPSEEK_BASE_URL", "https://api.deepseek.com"), "/")+"/chat/completions",
-		bytes.NewReader(body),
-	)
+	onLog("deepseek.request", fmt.Sprintf("POST %s/chat/completions model=%s bodyBytes=%d", base, model, len(body)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+key)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
-	res, err := (&http.Client{Timeout: 120 * time.Second}).Do(req)
+	// Reasoning streams often exceed 2 minutes; nginx ask location allows 600s.
+	res, err := (&http.Client{Timeout: 10 * time.Minute}).Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("DeepSeek request failed: %w", err)
 	}
 	defer res.Body.Close()
+	onLog("deepseek.response", fmt.Sprintf("HTTP %d — reading SSE body", res.StatusCode))
 	if res.StatusCode >= 300 {
 		raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 		return fmt.Errorf("DeepSeek status %d: %s", res.StatusCode, strings.TrimSpace(string(raw)))
 	}
 	scanner := bufio.NewScanner(res.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	chunks := 0
+	reasoningChunks := 0
+	lastHeartbeat := time.Now()
 	for scanner.Scan() {
 		line := scanner.Text()
+		if time.Since(lastHeartbeat) > 15*time.Second {
+			onLog("deepseek.heartbeat", fmt.Sprintf("Still reading DeepSeek SSE… chunks=%d reasoning=%d", chunks, reasoningChunks))
+			lastHeartbeat = time.Now()
+		}
 		if !strings.HasPrefix(line, "data:") {
 			continue
 		}
@@ -690,17 +759,28 @@ func deepSeekReasoningStream(ctx context.Context, system, user string, onDelta f
 		if len(chunk.Choices) == 0 {
 			continue
 		}
+		if rc := chunk.Choices[0].Delta.ReasoningContent; rc != "" {
+			reasoningChunks++
+			if reasoningChunks == 1 {
+				onLog("deepseek.reasoning", "Model entered reasoning phase (thinking tokens; not shown in chat).")
+			}
+		}
 		delta := chunk.Choices[0].Delta.Content
 		if delta != "" {
+			chunks++
 			onDelta(delta)
 		}
 	}
-	return scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("DeepSeek SSE read error: %w", err)
+	}
+	onLog("deepseek.done", fmt.Sprintf("SSE complete contentChunks=%d reasoningChunks=%d", chunks, reasoningChunks))
+	return nil
 }
 
 func deepSeekReasoning(ctx context.Context, system, user string) (string, error) {
 	var b strings.Builder
-	err := deepSeekReasoningStream(ctx, system, user, func(delta string) { b.WriteString(delta) })
+	err := deepSeekReasoningStream(ctx, system, user, func(delta string) { b.WriteString(delta) }, nil)
 	return b.String(), err
 }
 

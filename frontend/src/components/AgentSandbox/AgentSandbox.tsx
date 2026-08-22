@@ -1,6 +1,6 @@
 /**
- * Agent Sandbox — left chat sidebar (80/20) + full-height generated preview.
- * Ask uses SSE so the assistant reply streams into the tray.
+ * Agent Sandbox — left chat sidebar + full-height generated preview.
+ * Ask uses SSE (token + verbose log + done/error). Console streams logs live.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -23,6 +23,13 @@ type Chat = {
 };
 type ChatSummary = { id: string; title: string; updated: string };
 type FileRow = { name: string; type: string; bytes: number };
+type ConsoleEntry = {
+  id: string;
+  at: string;
+  level: "info" | "warn" | "error";
+  message: string;
+  detail?: string;
+};
 
 const API = "/api/admin/agent-sandbox";
 const SIDEBAR_KEY = "eduardoos-agent-sandbox-sidebar";
@@ -56,6 +63,14 @@ function formatMsgTime(iso?: string): string {
   });
 }
 
+function networkErrorMessage(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  if (/failed to fetch|networkerror|load failed|network error/i.test(raw)) {
+    return "Error de red / stream cortado (proxy o timeout). Revisá la consola del agente y que nginx tenga SSE sin buffering en …/ask.";
+  }
+  return raw || "Error de red";
+}
+
 export default function AgentSandbox() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chat, setChat] = useState<Chat>(emptyChat());
@@ -66,9 +81,31 @@ export default function AgentSandbox() {
   const [error, setError] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [consoleLogs, setConsoleLogs] = useState<ConsoleEntry[]>([]);
   const [fileRows, setFileRows] = useState<FileRow[]>([]);
   const trayRef = useRef<HTMLDivElement>(null);
+  const consoleRef = useRef<HTMLDivElement>(null);
   const streamTextRef = useRef("");
+  const logSeq = useRef(0);
+
+  function pushLog(
+    level: ConsoleEntry["level"],
+    message: string,
+    detail?: string,
+    at?: string,
+  ) {
+    logSeq.current += 1;
+    const entry: ConsoleEntry = {
+      id: `${Date.now()}-${logSeq.current}`,
+      at: at ?? new Date().toISOString(),
+      level,
+      message,
+      detail,
+    };
+    setConsoleLogs((prev) => [...prev.slice(-400), entry]);
+    if (level === "error") setConsoleOpen(true);
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem(SIDEBAR_KEY);
@@ -86,16 +123,26 @@ export default function AgentSandbox() {
     el.scrollTop = el.scrollHeight;
   }, [chat.messages]);
 
+  useEffect(() => {
+    const el = consoleRef.current;
+    if (!el || !consoleOpen) return;
+    el.scrollTop = el.scrollHeight;
+  }, [consoleLogs, consoleOpen]);
+
   async function boot() {
     setError("");
+    pushLog("info", "Boot: cargando historial de chats desde S3…");
     const listRes = await fetch(`${API}/chats`, { headers: authHeaders() });
     if (!listRes.ok) {
-      setError("No se pudo cargar el historial.");
+      const msg = "No se pudo cargar el historial.";
+      setError(msg);
+      pushLog("error", msg, `HTTP ${listRes.status}`);
       return;
     }
     const list = (await listRes.json()) as { chats?: ChatSummary[] };
     const chats = list.chats ?? [];
     setSummaries(chats);
+    pushLog("info", `Boot: ${chats.length} chat(s) en el índice S3.`);
     if (chats.length === 0) {
       await createChat();
       return;
@@ -113,18 +160,22 @@ export default function AgentSandbox() {
   async function createChat() {
     setBusy(true);
     setError("");
+    pushLog("info", "Creando nueva conversación en S3…");
     const res = await fetch(`${API}/chats`, {
       method: "POST",
       headers: authHeaders(),
     });
     setBusy(false);
     if (!res.ok) {
-      setError("No se pudo crear la conversación.");
+      const msg = "No se pudo crear la conversación.";
+      setError(msg);
+      pushLog("error", msg, `HTTP ${res.status}`);
       return;
     }
     const next = (await res.json()) as Chat;
     setChat(next);
     setSelected(next.tabs?.[0]?.file ?? "");
+    pushLog("info", "Conversación creada.", `id=${next.id}`);
     await refreshSummaries();
     setHistoryOpen(false);
   }
@@ -132,12 +183,15 @@ export default function AgentSandbox() {
   async function openChat(id: string) {
     setBusy(true);
     setError("");
+    pushLog("info", "Abriendo chat…", `id=${id}`);
     const res = await fetch(`${API}/chats/${encodeURIComponent(id)}`, {
       headers: authHeaders(),
     });
     setBusy(false);
     if (!res.ok) {
-      setError("No se pudo abrir la conversación.");
+      const msg = "No se pudo abrir la conversación.";
+      setError(msg);
+      pushLog("error", msg, `HTTP ${res.status}`);
       return;
     }
     const next = (await res.json()) as Chat;
@@ -147,6 +201,7 @@ export default function AgentSandbox() {
         next.files.find((f) => f.name.endsWith(".html"))?.name ??
         "",
     );
+    pushLog("info", "Chat cargado.", `files=${next.files?.length ?? 0} messages=${next.messages?.length ?? 0}`);
     setHistoryOpen(false);
   }
 
@@ -159,9 +214,12 @@ export default function AgentSandbox() {
     });
     setBusy(false);
     if (!res.ok) {
-      setError("No se pudo borrar la conversación.");
+      const msg = "No se pudo borrar la conversación.";
+      setError(msg);
+      pushLog("error", msg);
       return;
     }
+    pushLog("info", "Chat borrado de S3.", `id=${id}`);
     if (chat.id === id) {
       setChat(emptyChat());
       setSelected("");
@@ -184,6 +242,8 @@ export default function AgentSandbox() {
     setError("");
     setBusy(true);
     streamTextRef.current = "";
+    setConsoleOpen(true);
+    pushLog("info", "Cliente: POST /ask (SSE). Esperando log/token/done…", `chatId=${chat.id} chars=${text.length}`);
     setChat((prev) => ({
       ...prev,
       messages: [
@@ -205,12 +265,15 @@ export default function AgentSandbox() {
           const body = await res.json();
           if (body?.error) errMsg = String(body.error);
         } catch {
-          /* ignore */
+          errMsg = `Ask falló HTTP ${res.status}`;
         }
         setError(errMsg);
+        pushLog("error", errMsg, `status=${res.status}`);
         setBusy(false);
         return;
       }
+
+      pushLog("info", "SSE abierto. Leyendo eventos…", `content-type=${res.headers.get("content-type") ?? "?"}`);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -235,7 +298,24 @@ export default function AgentSandbox() {
           try {
             payload = JSON.parse(data) as Record<string, unknown>;
           } catch {
+            pushLog("warn", "SSE data no-JSON ignorado.", data.slice(0, 120));
             continue;
+          }
+          if (eventName === "log") {
+            const levelRaw = String(payload.level ?? "info");
+            const level: ConsoleEntry["level"] =
+              levelRaw === "error" || levelRaw === "warn" ? levelRaw : "info";
+            const extra = { ...payload };
+            delete extra.at;
+            delete extra.level;
+            delete extra.message;
+            const detailKeys = Object.keys(extra);
+            pushLog(
+              level,
+              String(payload.message ?? "log"),
+              detailKeys.length ? JSON.stringify(extra) : undefined,
+              typeof payload.at === "string" ? payload.at : undefined,
+            );
           }
           if (eventName === "token" && typeof payload.text === "string") {
             streamTextRef.current += payload.text;
@@ -250,7 +330,9 @@ export default function AgentSandbox() {
             });
           }
           if (eventName === "error") {
-            setError(String(payload.error ?? "Error de stream"));
+            const errMsg = String(payload.error ?? "Error de stream");
+            setError(errMsg);
+            pushLog("error", errMsg);
           }
           if (eventName === "done") {
             const next = payload as unknown as Chat;
@@ -260,13 +342,21 @@ export default function AgentSandbox() {
                 next.files?.find((f) => f.name.endsWith(".html"))?.name ??
                 selected,
             );
+            pushLog(
+              "info",
+              "done: chat persistido; preview actualizado.",
+              `files=${next.files?.length ?? 0}`,
+            );
             await refreshSummaries();
           }
           eventName = "message";
         }
       }
+      pushLog("info", "SSE cerrado (fin de stream).");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error de red");
+      const msg = networkErrorMessage(e);
+      setError(msg);
+      pushLog("error", msg, e instanceof Error ? e.stack : undefined);
     } finally {
       setBusy(false);
     }
@@ -278,6 +368,7 @@ export default function AgentSandbox() {
     if (!file) return;
     const text = await file.text();
     setBusy(true);
+    pushLog("info", "Subiendo archivo al workspace…", file.name);
     const res = await fetch(`${API}/chats/${encodeURIComponent(chat.id)}/files`, {
       method: "POST",
       headers: { ...authHeaders(), "Content-Type": "application/json" },
@@ -285,10 +376,13 @@ export default function AgentSandbox() {
     });
     setBusy(false);
     if (!res.ok) {
-      setError("Archivo rechazado. Solo HTML, CSS, JS, JSON, TXT o SVG.");
+      const msg = "Archivo rechazado. Solo HTML, CSS, JS, JSON, TXT o SVG.";
+      setError(msg);
+      pushLog("error", msg);
       return;
     }
     setChat(await res.json());
+    pushLog("info", "Archivo aceptado.", file.name);
   }
 
   async function openFilesModal() {
@@ -298,7 +392,9 @@ export default function AgentSandbox() {
       headers: authHeaders(),
     });
     if (!res.ok) {
-      setError("No se pudo leer la estructura de archivos.");
+      const msg = "No se pudo leer la estructura de archivos.";
+      setError(msg);
+      pushLog("error", msg);
       return;
     }
     const body = (await res.json()) as { files?: FileRow[] };
@@ -320,12 +416,14 @@ export default function AgentSandbox() {
     <section className={`agent-sandbox${sidebarOpen ? "" : " agent-sandbox--collapsed"}`}>
       <AgentSandboxHeaderMenu
         sidebarOpen={sidebarOpen}
+        consoleOpen={consoleOpen}
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
         onOpenHistory={() => {
           void refreshSummaries();
           setHistoryOpen(true);
         }}
         onOpenFiles={() => void openFilesModal()}
+        onToggleConsole={() => setConsoleOpen((v) => !v)}
       />
 
       {sidebarOpen ? (
@@ -423,12 +521,14 @@ export default function AgentSandbox() {
             </button>
           ))}
         </div>
-        <iframe
-          className="agent-sandbox__frame"
-          title="Vista generada"
-          sandbox="allow-scripts"
-          srcDoc={preview}
-        />
+        <div className="agent-sandbox__frame-wrap">
+          <iframe
+            className="agent-sandbox__frame"
+            title="Vista generada"
+            sandbox="allow-scripts"
+            srcDoc={preview}
+          />
+        </div>
       </main>
 
       {historyOpen ? (
@@ -506,6 +606,48 @@ export default function AgentSandbox() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {consoleOpen ? (
+        <>
+          <button
+            type="button"
+            className="agent-sandbox__console-scrim"
+            aria-label="Cerrar consola"
+            onClick={() => setConsoleOpen(false)}
+          />
+          <aside className="agent-sandbox__console" role="dialog" aria-modal="true" aria-label="Consola del agente">
+            <header className="agent-sandbox__console-head">
+              <h2>Consola</h2>
+              <button type="button" className="btn" onClick={() => setConsoleOpen(false)}>
+                Cerrar
+              </button>
+            </header>
+            <div className="agent-sandbox__console-stream" ref={consoleRef}>
+              {consoleLogs.length === 0 ? (
+                <p className="agent-sandbox__hint">Sin eventos aún. Al enviar, el proceso se registra aquí en tiempo real.</p>
+              ) : (
+                consoleLogs.map((line) => (
+                  <p
+                    key={line.id}
+                    className={`agent-sandbox__console-line agent-sandbox__console-line--${line.level}`}
+                  >
+                    <span className="agent-sandbox__console-meta">
+                      {formatMsgTime(line.at)} · {line.level}
+                    </span>
+                    {line.message}
+                    {line.detail ? `\n${line.detail}` : ""}
+                  </p>
+                ))
+              )}
+            </div>
+            <footer className="agent-sandbox__console-foot">
+              <button type="button" className="btn" onClick={() => setConsoleLogs([])}>
+                Limpiar
+              </button>
+            </footer>
+          </aside>
+        </>
       ) : null}
     </section>
   );

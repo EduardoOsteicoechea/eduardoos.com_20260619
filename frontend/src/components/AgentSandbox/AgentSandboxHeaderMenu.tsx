@@ -1,6 +1,6 @@
 /**
  * Agent Sandbox tools — portal into #header-dynamic-menu-host.
- * Sidebar toggle, chat history, and website file structure.
+ * Sidebar toggle, chat history, file structure, and live agent console.
  */
 
 import { useLayoutEffect, useState, type ReactNode } from "react";
@@ -10,9 +10,11 @@ import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 
 type AgentSandboxHeaderMenuProps = {
   sidebarOpen: boolean;
+  consoleOpen: boolean;
   onToggleSidebar: () => void;
   onOpenHistory: () => void;
   onOpenFiles: () => void;
+  onToggleConsole: () => void;
 };
 
 function IconSidebar() {
@@ -43,6 +45,17 @@ function IconFiles() {
       <path
         fill="currentColor"
         d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2zm0 2l2 2h8v10H4V6h6z"
+      />
+    </svg>
+  );
+}
+
+function IconConsole() {
+  return (
+    <svg className="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm0 2v12h16V6H4zm2.5 2.5l1.4 1.4L6.5 11.3l1.1 1.1 2.5-2.5L6.5 6.9l-1.1 1.1 1.1 1.5zm5.5 5.5h5v1.5h-5V14z"
       />
     </svg>
   );
@@ -103,6 +116,16 @@ export default function AgentSandboxHeaderMenu(props: AgentSandboxHeaderMenuProp
             onClick={props.onOpenFiles}
           >
             <IconFiles />
+          </button>
+          <button
+            type="button"
+            className={`header-dynamic-menu__btn${props.consoleOpen ? " header-dynamic-menu__btn--active is-active" : ""}`}
+            title="Consola del agente"
+            aria-label="Consola del agente"
+            aria-pressed={props.consoleOpen}
+            onClick={props.onToggleConsole}
+          >
+            <IconConsole />
           </button>
         </div>
       </div>

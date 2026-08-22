@@ -39,11 +39,16 @@ Platform administrators need a private workspace where an AI senior web develope
 
 Layout: **left collapsible chat sidebar** + **right full-height generated website preview**.
 
-**Header dynamic slot** (`#header-dynamic-menu-host`) — three icon buttons (same pattern as Scrib/Homescool):
+**Header dynamic slot** (`#header-dynamic-menu-host`) — four icon buttons:
 
 1. **Toggle sidebar** — show/hide the left chat panel.
 2. **Chat history** — modal listing prior conversations from S3 JSON; open another chat or delete one; create new chat.
 3. **File structure** — modal listing the website files of the active chat (names from S3-backed chat JSON).
+4. **Agent console** — vertical panel (sidebar-like modal, height ≤ window) that streams verbose process logs and errors in real time (`log` / `error` SSE events).
+
+**Viewport lock:**
+
+- The Agent Sandbox route never scrolls the document. Only the chat tray and the **iframe interior** of the generated website may scroll. Outer preview frame/border stays fully visible in the viewport.
 
 **Sidebar** (when open):
 
@@ -71,7 +76,7 @@ Layout: **left collapsible chat sidebar** + **right full-height generated websit
   {"spec":"...","files":[...],"tabs":[...]}
   <<<END>>>
   ```
-- `POST …/ask` responds with **SSE** (`text/event-stream`): `token` events for Markdown deltas, then `done` with the saved chat (or `error`).
+- `POST …/ask` responds with **SSE** (`text/event-stream`): `log` (verbose process), `token` (Markdown deltas), then `done` with the saved chat (or `error`). Nginx must disable buffering and allow long read timeouts for this path.
 
 ## API
 
@@ -101,6 +106,9 @@ Layout: **left collapsible chat sidebar** + **right full-height generated websit
 - [x] File structure modal lists active chat artifacts.
 - [x] Sidebar has bottom padding; optimistic send; Markdown @ 12px; timestamp 0.5×; SSE streaming.
 - [x] Go tests + frontend build pass.
+- [x] Viewport-locked layout (no document scroll; iframe scrolls inside).
+- [x] Dynamic header console streams verbose agent logs/errors.
+- [x] Nginx SSE buffering off + long timeouts for `…/ask`.
 
 ## Affected paths
 
@@ -109,4 +117,4 @@ Layout: **left collapsible chat sidebar** + **right full-height generated websit
 - `frontend/src/pages/admin/agent-sandbox.astro`
 - `frontend/src/components/AgentSandbox/**`
 - `frontend/src/config/routes.ts`, `frontend/src/lib/routeAccess.ts`, `Header.tsx`
-- `deploy/aws/ec2-iam-s3-policy.json`
+- `nginx/default.conf` (SSE location for agent-sandbox ask)
