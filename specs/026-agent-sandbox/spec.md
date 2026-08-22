@@ -49,7 +49,7 @@ Platform administrators need a private workspace where an AI senior web develope
 1. Toggle sidebar  
 2. Sites  
 3. Chat history (active site)  
-4. Files editor — **fullscreen within the content chrome** (starts at the global header rail / top bar, never under it); toolbar icons: Save, Download, Close  
+4. Files editor — **fullscreen within the content chrome** (starts at the global header rail / top bar, never under it; **body fills to the bottom of the viewport**); toolbar icons: Save, Download, Close  
 5. **Agent settings** — pick model + thinking mode + effort  
 6. Agent console — streams `log`/`progress`/`error`; footer: balance, **phase progress bar** (SSE has no Content-Length; percent is estimated from reasoning→content→artifacts→done), Limpiar. Long reasoning must show moving progress (not look hung).
 

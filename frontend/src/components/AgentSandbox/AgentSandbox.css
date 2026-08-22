@@ -546,14 +546,17 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: auto;
-  height: auto;
+  min-height: 0;
   max-height: none;
+  /* Explicit fill so short content cannot leave a dead band under the editor */
+  height: calc(100dvh - var(--header_offset, var(--header_height, 0px)));
   padding: 0;
   margin: 0;
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   border: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .agent-sandbox__editor-toolbar {
@@ -604,27 +607,6 @@
   height: 1.15rem;
 }
 
-.agent-sandbox__editor--fill {
-  min-height: 0;
-  height: 100%;
-  max-height: none;
-  gap: 0;
-  border: 0;
-}
-
-.agent-sandbox__editor--fill .agent-sandbox__editor-tree {
-  border-radius: 0;
-  border: 0;
-  border-right: var(--border_001);
-}
-
-.agent-sandbox__editor--fill .agent-sandbox__editor-text {
-  border-radius: 0;
-  border: 0;
-  min-height: 0;
-  height: 100%;
-}
-
 .agent-sandbox__editor-binary {
   margin: 0;
   padding: 1rem;
@@ -655,6 +637,31 @@
   gap: 0.55rem;
   min-height: 0;
   max-height: min(70dvh, 28rem);
+}
+
+/* Must follow .agent-sandbox__editor so max-height:none wins the cascade */
+.agent-sandbox__editor.agent-sandbox__editor--fill {
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  gap: 0;
+  border: 0;
+  align-self: stretch;
+}
+
+.agent-sandbox__editor.agent-sandbox__editor--fill .agent-sandbox__editor-tree {
+  border-radius: 0;
+  border: 0;
+  border-right: var(--border_001);
+  height: 100%;
+  min-height: 0;
+}
+
+.agent-sandbox__editor.agent-sandbox__editor--fill .agent-sandbox__editor-text {
+  border-radius: 0;
+  border: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 .agent-sandbox__editor-tree {
