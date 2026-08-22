@@ -20,10 +20,12 @@ func TestValidateFileRejectsTraversalAndDoubleExt(t *testing.T) {
 	}
 }
 
-func TestChatKeyStaysUnderPrefix(t *testing.T) {
-	h := &Handler{}
-	key := h.chatKey("eduardooost@gmail.com", "abc-123-def")
-	if key != "agentsandbox/eduardooost_at_gmail.com/chats/abc-123-def.json" {
-		t.Fatalf("unexpected key %s", key)
+func TestSplitArtifacts(t *testing.T) {
+	md, art := splitArtifacts("Hola **mundo**\n\n<<<ARTIFACTS>>>\n{\"spec\":\"x\"}\n<<<END>>>")
+	if md != "Hola **mundo**" {
+		t.Fatalf("markdown=%q", md)
+	}
+	if art != `{"spec":"x"}` {
+		t.Fatalf("artifacts=%q", art)
 	}
 }

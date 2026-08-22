@@ -4,6 +4,7 @@
 package agentsandbox
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -484,7 +485,12 @@ type proposal struct {
 	Tabs  []Tab  `json:"tabs"`
 }
 
-// Ask runs a DeepSeek reasoning turn and merges validated artifacts.
+const (
+	artifactsStart = "<<<ARTIFACTS>>>"
+	artifactsEnd   = "<<<END>>>"
+)
+
+// Ask streams a DeepSeek reasoning reply as SSE, then persists the chat.
 func (h *Handler) Ask(w http.ResponseWriter, r *http.Request) {
 	if err := h.ensureS3(); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
@@ -501,33 +507,81 @@ func (h *Handler) Ask(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, err.Error())
 		return
 	}
-	system := `You are an AI senior web developer and web crawler architect. Return ONLY JSON with keys reply, spec, files, tabs. First refine the workspace spec, then propose static artifacts. You may only propose .html,.css,.js,.json,.txt,.svg files with flat names. Never propose shell commands, filesystem access, network requests, credentials, or server code. Use one minimal global CSS with rem sizes.`
-	user := fmt.Sprintf("Workspace spec:\n%s\nRequest:\n%s\nAllowed docs hosts: %s", chat.Spec, req.Message, strings.Join(req.Allowlist, ", "))
-	reply, err := deepSeekReasoning(r.Context(), system, user)
-	if err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		httpx.WriteError(w, http.StatusInternalServerError, "streaming unsupported")
 		return
 	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush()
+
+	writeSSE := func(event string, payload any) {
+		raw, _ := json.Marshal(payload)
+		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, raw)
+		flusher.Flush()
+	}
+
+	system := `You are an AI senior web developer and web crawler architect.
+Write the admin-facing answer first as Markdown (headings, lists, code fences OK).
+After the Markdown, on its own lines, append exactly:
+
+<<<ARTIFACTS>>>
+{"spec":"...","files":[{"name":"index.html","text":"..."}],"tabs":[{"id":"home","label":"Home","file":"index.html"}]}
+<<<END>>>
+
+Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, network, credentials, or server code; one minimal global CSS using rem.`
+	user := fmt.Sprintf("Workspace spec:\n%s\nRequest:\n%s\nAllowed docs hosts: %s", chat.Spec, req.Message, strings.Join(req.Allowlist, ", "))
+
+	var full strings.Builder
+	var visible strings.Builder
+	artifactsStarted := false
+	err = deepSeekReasoningStream(r.Context(), system, user, func(delta string) {
+		full.WriteString(delta)
+		if artifactsStarted {
+			return
+		}
+		combined := visible.String() + delta
+		if idx := strings.Index(combined, artifactsStart); idx >= 0 {
+			artifactsStarted = true
+			piece := combined[:idx]
+			extra := piece[len(visible.String()):]
+			if extra != "" {
+				visible.WriteString(extra)
+				writeSSE("token", map[string]string{"text": extra})
+			}
+			return
+		}
+		visible.WriteString(delta)
+		writeSSE("token", map[string]string{"text": delta})
+	})
+	if err != nil {
+		writeSSE("error", map[string]string{"error": err.Error()})
+		return
+	}
+
+	md, art := splitArtifacts(full.String())
+	if strings.TrimSpace(md) == "" {
+		md = visible.String()
+	}
 	var p proposal
-	raw := strings.TrimSpace(reply)
-	if strings.HasPrefix(raw, "```") {
-		raw = strings.TrimPrefix(raw, "```json")
-		raw = strings.TrimPrefix(raw, "```")
-		raw = strings.TrimSuffix(raw, "```")
-		raw = strings.TrimSpace(raw)
-	}
-	if err := json.Unmarshal([]byte(raw), &p); err != nil {
-		p.Reply = reply
-	}
-	if p.Reply == "" {
-		p.Reply = reply
+	p.Reply = strings.TrimSpace(md)
+	if art != "" {
+		_ = json.Unmarshal([]byte(art), &p)
+		if strings.TrimSpace(p.Reply) == "" {
+			p.Reply = strings.TrimSpace(md)
+		}
 	}
 	if p.Spec != "" {
 		chat.Spec = p.Spec
 	}
 	for _, f := range p.Files {
 		if err := upsertFile(&chat, f); err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "agent artifact rejected: "+err.Error())
+			writeSSE("error", map[string]string{"error": "agent artifact rejected: " + err.Error()})
 			return
 		}
 	}
@@ -547,16 +601,38 @@ func (h *Handler) Ask(w http.ResponseWriter, r *http.Request) {
 		chat.Title = title
 	}
 	if err := h.saveChat(r.Context(), email, chat); err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		writeSSE("error", map[string]string{"error": err.Error()})
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, chat)
+	writeSSE("done", chat)
 }
 
-func deepSeekReasoning(ctx context.Context, system, user string) (string, error) {
+func splitArtifacts(raw string) (markdown, artifactsJSON string) {
+	raw = strings.TrimSpace(raw)
+	start := strings.Index(raw, artifactsStart)
+	if start < 0 {
+		return raw, ""
+	}
+	markdown = strings.TrimSpace(raw[:start])
+	rest := raw[start+len(artifactsStart):]
+	end := strings.Index(rest, artifactsEnd)
+	if end >= 0 {
+		rest = rest[:end]
+	}
+	artifactsJSON = strings.TrimSpace(rest)
+	if strings.HasPrefix(artifactsJSON, "```") {
+		artifactsJSON = strings.TrimPrefix(artifactsJSON, "```json")
+		artifactsJSON = strings.TrimPrefix(artifactsJSON, "```")
+		artifactsJSON = strings.TrimSuffix(artifactsJSON, "```")
+		artifactsJSON = strings.TrimSpace(artifactsJSON)
+	}
+	return markdown, artifactsJSON
+}
+
+func deepSeekReasoningStream(ctx context.Context, system, user string, onDelta func(string)) error {
 	key := strings.TrimSpace(httpx.Env("DEEPSEEK_API_KEY", ""))
 	if key == "" {
-		return "", fmt.Errorf("DEEPSEEK_API_KEY is not configured")
+		return fmt.Errorf("DEEPSEEK_API_KEY is not configured")
 	}
 	body, err := json.Marshal(map[string]any{
 		"model": httpx.Env("DEEPSEEK_MODEL_REASONING", "deepseek-reasoner"),
@@ -564,41 +640,68 @@ func deepSeekReasoning(ctx context.Context, system, user string) (string, error)
 			{"role": "system", "content": system},
 			{"role": "user", "content": user},
 		},
-		"stream":   false,
+		"stream":   true,
 		"thinking": map[string]string{"type": "enabled"},
 	})
 	if err != nil {
-		return "", err
+		return err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		strings.TrimRight(httpx.Env("DEEPSEEK_BASE_URL", "https://api.deepseek.com"), "/")+"/chat/completions",
 		bytes.NewReader(body),
 	)
 	if err != nil {
-		return "", err
+		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+key)
 	req.Header.Set("Content-Type", "application/json")
-	res, err := (&http.Client{Timeout: 55 * time.Second}).Do(req)
+	req.Header.Set("Accept", "text/event-stream")
+	res, err := (&http.Client{Timeout: 120 * time.Second}).Do(req)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer res.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(res.Body, 2<<20))
 	if res.StatusCode >= 300 {
-		return "", fmt.Errorf("DeepSeek status %d", res.StatusCode)
+		raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+		return fmt.Errorf("DeepSeek status %d: %s", res.StatusCode, strings.TrimSpace(string(raw)))
 	}
-	var parsed struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
+	scanner := bufio.NewScanner(res.Body)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		payload := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if payload == "" || payload == "[DONE]" {
+			continue
+		}
+		var chunk struct {
+			Choices []struct {
+				Delta struct {
+					Content          string `json:"content"`
+					ReasoningContent string `json:"reasoning_content"`
+				} `json:"delta"`
+			} `json:"choices"`
+		}
+		if err := json.Unmarshal([]byte(payload), &chunk); err != nil {
+			continue
+		}
+		if len(chunk.Choices) == 0 {
+			continue
+		}
+		delta := chunk.Choices[0].Delta.Content
+		if delta != "" {
+			onDelta(delta)
+		}
 	}
-	if err := json.Unmarshal(raw, &parsed); err != nil || len(parsed.Choices) == 0 {
-		return "", fmt.Errorf("invalid DeepSeek response")
-	}
-	return parsed.Choices[0].Message.Content, nil
+	return scanner.Err()
+}
+
+func deepSeekReasoning(ctx context.Context, system, user string) (string, error) {
+	var b strings.Builder
+	err := deepSeekReasoningStream(ctx, system, user, func(delta string) { b.WriteString(delta) })
+	return b.String(), err
 }
 
 type crawlRequest struct {

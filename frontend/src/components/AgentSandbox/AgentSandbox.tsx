@@ -1,10 +1,11 @@
 /**
  * Agent Sandbox — left chat sidebar (80/20) + full-height generated preview.
- * Tools live in the site Header dynamic slot.
+ * Ask uses SSE so the assistant reply streams into the tray.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { isPlatformAdmin } from "../../lib/auth";
+import ChatMarkdown from "../Chat/ChatMarkdown";
 import AgentSandboxHeaderMenu from "./AgentSandboxHeaderMenu";
 import "./AgentSandbox.css";
 
@@ -44,6 +45,17 @@ function emptyChat(): Chat {
   };
 }
 
+function formatMsgTime(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 export default function AgentSandbox() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chat, setChat] = useState<Chat>(emptyChat());
@@ -56,6 +68,7 @@ export default function AgentSandbox() {
   const [filesOpen, setFilesOpen] = useState(false);
   const [fileRows, setFileRows] = useState<FileRow[]>([]);
   const trayRef = useRef<HTMLDivElement>(null);
+  const streamTextRef = useRef("");
 
   useEffect(() => {
     const saved = localStorage.getItem(SIDEBAR_KEY);
@@ -71,7 +84,7 @@ export default function AgentSandbox() {
     const el = trayRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [chat.messages.length]);
+  }, [chat.messages]);
 
   async function boot() {
     setError("");
@@ -129,7 +142,11 @@ export default function AgentSandbox() {
     }
     const next = (await res.json()) as Chat;
     setChat(next);
-    setSelected(next.tabs?.[0]?.file ?? next.files.find((f) => f.name.endsWith(".html"))?.name ?? "");
+    setSelected(
+      next.tabs?.[0]?.file ??
+        next.files.find((f) => f.name.endsWith(".html"))?.name ??
+        "",
+    );
     setHistoryOpen(false);
   }
 
@@ -150,34 +167,109 @@ export default function AgentSandbox() {
       setSelected("");
     }
     await refreshSummaries();
-    const nextList = summaries.filter((s) => s.id !== id);
+    const listRes = await fetch(`${API}/chats`, { headers: authHeaders() });
+    const list = listRes.ok
+      ? ((await listRes.json()) as { chats?: ChatSummary[] })
+      : { chats: [] };
+    const nextList = list.chats ?? [];
     if (nextList.length > 0) await openChat(nextList[0].id);
     else await createChat();
   }
 
   async function send() {
-    if (!chat.id || !message.trim()) return;
-    setBusy(true);
-    setError("");
-    const res = await fetch(`${API}/chats/${encodeURIComponent(chat.id)}/ask`, {
-      method: "POST",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
-    });
-    const next = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setError(next.error ?? "No se pudo procesar el mensaje.");
-      return;
-    }
-    setChat(next as Chat);
+    if (!chat.id || !message.trim() || busy) return;
+    const text = message.trim();
+    const now = new Date().toISOString();
     setMessage("");
-    const html =
-      (next as Chat).tabs?.[0]?.file ??
-      (next as Chat).files?.find((f) => f.name.endsWith(".html"))?.name ??
-      selected;
-    setSelected(html);
-    await refreshSummaries();
+    setError("");
+    setBusy(true);
+    streamTextRef.current = "";
+    setChat((prev) => ({
+      ...prev,
+      messages: [
+        ...prev.messages,
+        { role: "user", text, at: now },
+        { role: "assistant", text: "", at: now },
+      ],
+    }));
+
+    try {
+      const res = await fetch(`${API}/chats/${encodeURIComponent(chat.id)}/ask`, {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      if (!res.ok || !res.body) {
+        let errMsg = "No se pudo procesar el mensaje.";
+        try {
+          const body = await res.json();
+          if (body?.error) errMsg = String(body.error);
+        } catch {
+          /* ignore */
+        }
+        setError(errMsg);
+        setBusy(false);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let eventName = "message";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n");
+        buffer = parts.pop() ?? "";
+        for (const line of parts) {
+          if (line.startsWith("event:")) {
+            eventName = line.slice(6).trim();
+            continue;
+          }
+          if (!line.startsWith("data:")) continue;
+          const data = line.slice(5).trim();
+          if (!data) continue;
+          let payload: Record<string, unknown>;
+          try {
+            payload = JSON.parse(data) as Record<string, unknown>;
+          } catch {
+            continue;
+          }
+          if (eventName === "token" && typeof payload.text === "string") {
+            streamTextRef.current += payload.text;
+            const snap = streamTextRef.current;
+            setChat((prev) => {
+              const msgs = [...prev.messages];
+              const last = msgs[msgs.length - 1];
+              if (last?.role === "assistant") {
+                msgs[msgs.length - 1] = { ...last, text: snap };
+              }
+              return { ...prev, messages: msgs };
+            });
+          }
+          if (eventName === "error") {
+            setError(String(payload.error ?? "Error de stream"));
+          }
+          if (eventName === "done") {
+            const next = payload as unknown as Chat;
+            setChat(next);
+            setSelected(
+              next.tabs?.[0]?.file ??
+                next.files?.find((f) => f.name.endsWith(".html"))?.name ??
+                selected,
+            );
+            await refreshSummaries();
+          }
+          eventName = "message";
+        }
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error de red");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function drop(files: FileList | null) {
@@ -245,12 +337,25 @@ export default function AgentSandbox() {
               </p>
             ) : (
               chat.messages.map((m, i) => (
-                <p
+                <article
                   key={`${m.at ?? i}-${i}`}
                   className={`agent-sandbox__bubble agent-sandbox__bubble--${m.role}`}
                 >
-                  {m.text}
-                </p>
+                  {m.at ? (
+                    <time className="agent-sandbox__msg-time" dateTime={m.at}>
+                      {formatMsgTime(m.at)}
+                    </time>
+                  ) : null}
+                  {m.role === "assistant" ? (
+                    m.text ? (
+                      <ChatMarkdown text={m.text} />
+                    ) : (
+                      <p className="agent-sandbox__streaming">…</p>
+                    )
+                  ) : (
+                    <ChatMarkdown text={m.text} />
+                  )}
+                </article>
               ))
             )}
           </div>
@@ -300,11 +405,12 @@ export default function AgentSandbox() {
 
       <main className="agent-sandbox__preview-pane">
         <div className="agent-sandbox__tabs" role="tablist" aria-label="Vistas HTML">
-          {(chat.tabs?.length ? chat.tabs : chat.files.filter((f) => f.name.endsWith(".html")).map((f) => ({
-            id: f.name,
-            label: f.name,
-            file: f.name,
-          }))).map((tab) => (
+          {(chat.tabs?.length
+            ? chat.tabs
+            : chat.files
+                .filter((f) => f.name.endsWith(".html"))
+                .map((f) => ({ id: f.name, label: f.name, file: f.name }))
+          ).map((tab) => (
             <button
               key={tab.id}
               type="button"

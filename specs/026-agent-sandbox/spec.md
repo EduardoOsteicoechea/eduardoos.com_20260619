@@ -47,8 +47,11 @@ Layout: **left collapsible chat sidebar** + **right full-height generated websit
 
 **Sidebar** (when open):
 
-- Height split **80% / 20%** vertical.
+- Height split **80% / 20%** vertical; **padding-bottom** so the drop/send row is not flush with the viewport edge.
 - **Top 80%:** chat message tray (scrollable).
+- Chat body text: **12px**; each bubble shows a small timestamp above the body at **0.5×** that size.
+- Messages render as **safe Markdown** (reuse `ChatMarkdown`).
+- On send: the user message (and an empty assistant bubble) appear **immediately**; the assistant reply **streams** (SSE), not as a single late block.
 - **Bottom 20%:** composer:
   - Top of composer (~80% of the 20% band): multiline text input.
   - Bottom row: left **70%** drag/drop file zone; right **Send** button.
@@ -59,6 +62,17 @@ Layout: **left collapsible chat sidebar** + **right full-height generated websit
 - Sandboxed iframe preview (`font-size: 0.75rem` / 12px baseline intent for generated pages).
 - No chat/composer in the main pane.
 
+### Agent reply shape (streaming)
+
+- Visible stream is Markdown for the admin.
+- After Markdown, the model appends a machine block:
+  ```
+  <<<ARTIFACTS>>>
+  {"spec":"...","files":[...],"tabs":[...]}
+  <<<END>>>
+  ```
+- `POST …/ask` responds with **SSE** (`text/event-stream`): `token` events for Markdown deltas, then `done` with the saved chat (or `error`).
+
 ## API
 
 | Method | Path | Purpose |
@@ -67,7 +81,7 @@ Layout: **left collapsible chat sidebar** + **right full-height generated websit
 | `POST` | `/api/admin/agent-sandbox/chats` | Create empty chat JSON |
 | `GET` | `/api/admin/agent-sandbox/chats/{id}` | Load one chat |
 | `DELETE` | `/api/admin/agent-sandbox/chats/{id}` | Delete chat JSON + index row |
-| `POST` | `/api/admin/agent-sandbox/chats/{id}/ask` | Reasoning turn on that chat |
+| `POST` | `/api/admin/agent-sandbox/chats/{id}/ask` | SSE: Markdown token stream + final saved chat |
 | `POST` | `/api/admin/agent-sandbox/chats/{id}/files` | Upload/validate drop file into chat |
 | `GET` | `/api/admin/agent-sandbox/chats/{id}/files` | File structure for the website in that chat |
 | `POST` | `/api/admin/agent-sandbox/crawl` | Allowlisted documentation crawl |
@@ -85,6 +99,7 @@ Layout: **left collapsible chat sidebar** + **right full-height generated websit
 - [x] Sidebar 80% chat / 20% composer (textarea + 70% drop + Send); main pane = generated preview only.
 - [x] Chats persist/switch/delete via S3 JSON under `agentsandbox/`.
 - [x] File structure modal lists active chat artifacts.
+- [x] Sidebar has bottom padding; optimistic send; Markdown @ 12px; timestamp 0.5×; SSE streaming.
 - [x] Go tests + frontend build pass.
 
 ## Affected paths
