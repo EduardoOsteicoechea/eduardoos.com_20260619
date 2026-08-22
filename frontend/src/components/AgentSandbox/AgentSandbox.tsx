@@ -40,6 +40,14 @@ function authHeaders(): HeadersInit {
   };
 }
 
+const fetchOpts: RequestInit = { cache: "no-store" };
+
+type DeepSeekBalance = {
+  currency: string;
+  total_balance: string;
+  is_available?: boolean;
+};
+
 function emptyChat(): Chat {
   return {
     id: "",
@@ -83,11 +91,18 @@ export default function AgentSandbox() {
   const [filesOpen, setFilesOpen] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [consoleLogs, setConsoleLogs] = useState<ConsoleEntry[]>([]);
+  const [balance, setBalance] = useState<DeepSeekBalance | null>(null);
+  const [balanceError, setBalanceError] = useState("");
   const [fileRows, setFileRows] = useState<FileRow[]>([]);
   const trayRef = useRef<HTMLDivElement>(null);
   const consoleRef = useRef<HTMLDivElement>(null);
   const streamTextRef = useRef("");
   const logSeq = useRef(0);
+  const chatIdRef = useRef("");
+
+  useEffect(() => {
+    chatIdRef.current = chat.id;
+  }, [chat.id]);
 
   function pushLog(
     level: ConsoleEntry["level"],
@@ -105,6 +120,31 @@ export default function AgentSandbox() {
     };
     setConsoleLogs((prev) => [...prev.slice(-400), entry]);
     if (level === "error") setConsoleOpen(true);
+  }
+
+  async function refreshBalance() {
+    try {
+      const res = await fetch(`${API}/deepseek/balance`, {
+        ...fetchOpts,
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        let msg = `Balance HTTP ${res.status}`;
+        try {
+          const body = await res.json();
+          if (body?.error) msg = String(body.error);
+        } catch {
+          /* ignore */
+        }
+        setBalanceError(msg);
+        return;
+      }
+      const body = (await res.json()) as DeepSeekBalance;
+      setBalance(body);
+      setBalanceError("");
+    } catch (e) {
+      setBalanceError(e instanceof Error ? e.message : "Balance unavailable");
+    }
   }
 
   useEffect(() => {
@@ -129,10 +169,15 @@ export default function AgentSandbox() {
     el.scrollTop = el.scrollHeight;
   }, [consoleLogs, consoleOpen]);
 
+  useEffect(() => {
+    if (!consoleOpen) return;
+    void refreshBalance();
+  }, [consoleOpen]);
+
   async function boot() {
     setError("");
     pushLog("info", "Boot: cargando historial de chats desde S3…");
-    const listRes = await fetch(`${API}/chats`, { headers: authHeaders() });
+    const listRes = await fetch(`${API}/chats`, { ...fetchOpts, headers: authHeaders() });
     if (!listRes.ok) {
       const msg = "No se pudo cargar el historial.";
       setError(msg);
@@ -151,7 +196,7 @@ export default function AgentSandbox() {
   }
 
   async function refreshSummaries() {
-    const listRes = await fetch(`${API}/chats`, { headers: authHeaders() });
+    const listRes = await fetch(`${API}/chats`, { ...fetchOpts, headers: authHeaders() });
     if (!listRes.ok) return;
     const list = (await listRes.json()) as { chats?: ChatSummary[] };
     setSummaries(list.chats ?? []);
@@ -163,6 +208,7 @@ export default function AgentSandbox() {
     pushLog("info", "Creando nueva conversación en S3…");
     const res = await fetch(`${API}/chats`, {
       method: "POST",
+      ...fetchOpts,
       headers: authHeaders(),
     });
     setBusy(false);
@@ -185,6 +231,7 @@ export default function AgentSandbox() {
     setError("");
     pushLog("info", "Abriendo chat…", `id=${id}`);
     const res = await fetch(`${API}/chats/${encodeURIComponent(id)}`, {
+      ...fetchOpts,
       headers: authHeaders(),
     });
     setBusy(false);
@@ -207,31 +254,44 @@ export default function AgentSandbox() {
 
   async function deleteChat(id: string) {
     if (!confirm("¿Borrar esta conversación del S3?")) return;
+    const wasActive = chatIdRef.current === id;
     setBusy(true);
-    const res = await fetch(`${API}/chats/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-      headers: authHeaders(),
-    });
-    setBusy(false);
-    if (!res.ok) {
-      const msg = "No se pudo borrar la conversación.";
-      setError(msg);
-      pushLog("error", msg);
-      return;
-    }
-    pushLog("info", "Chat borrado de S3.", `id=${id}`);
-    if (chat.id === id) {
+    setError("");
+    // Optimistic: remove from history list immediately so the modal updates.
+    setSummaries((prev) => prev.filter((s) => s.id !== id));
+    if (wasActive) {
       setChat(emptyChat());
       setSelected("");
     }
-    await refreshSummaries();
-    const listRes = await fetch(`${API}/chats`, { headers: authHeaders() });
-    const list = listRes.ok
-      ? ((await listRes.json()) as { chats?: ChatSummary[] })
-      : { chats: [] };
-    const nextList = list.chats ?? [];
-    if (nextList.length > 0) await openChat(nextList[0].id);
-    else await createChat();
+    const res = await fetch(`${API}/chats/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      ...fetchOpts,
+      headers: authHeaders(),
+    });
+    if (!res.ok) {
+      setBusy(false);
+      const msg = "No se pudo borrar la conversación.";
+      setError(msg);
+      pushLog("error", msg);
+      await refreshSummaries();
+      if (wasActive) await boot();
+      return;
+    }
+    let nextList: ChatSummary[] = [];
+    try {
+      const body = (await res.json()) as { chats?: ChatSummary[] };
+      nextList = body.chats ?? [];
+      setSummaries(nextList);
+    } catch {
+      await refreshSummaries();
+      nextList = [];
+    }
+    pushLog("info", "Chat borrado de S3.", `id=${id}`);
+    setBusy(false);
+    if (wasActive) {
+      if (nextList.length > 0) await openChat(nextList[0].id);
+      else await createChat();
+    }
   }
 
   async function send() {
@@ -256,6 +316,7 @@ export default function AgentSandbox() {
     try {
       const res = await fetch(`${API}/chats/${encodeURIComponent(chat.id)}/ask`, {
         method: "POST",
+        cache: "no-store",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
       });
@@ -348,6 +409,7 @@ export default function AgentSandbox() {
               `files=${next.files?.length ?? 0}`,
             );
             await refreshSummaries();
+            void refreshBalance();
           }
           eventName = "message";
         }
@@ -371,6 +433,7 @@ export default function AgentSandbox() {
     pushLog("info", "Subiendo archivo al workspace…", file.name);
     const res = await fetch(`${API}/chats/${encodeURIComponent(chat.id)}/files`, {
       method: "POST",
+      cache: "no-store",
       headers: { ...authHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ name: file.name, text }),
     });
@@ -389,6 +452,7 @@ export default function AgentSandbox() {
     if (!chat.id) return;
     setFilesOpen(true);
     const res = await fetch(`${API}/chats/${encodeURIComponent(chat.id)}/files`, {
+      ...fetchOpts,
       headers: authHeaders(),
     });
     if (!res.ok) {
@@ -642,6 +706,13 @@ export default function AgentSandbox() {
               )}
             </div>
             <footer className="agent-sandbox__console-foot">
+              <p className="agent-sandbox__console-balance" title="Saldo DeepSeek">
+                {balanceError
+                  ? "Saldo: —"
+                  : balance
+                    ? `${balance.total_balance}$ restante`
+                    : "Saldo: …"}
+              </p>
               <button type="button" className="btn" onClick={() => setConsoleLogs([])}>
                 Limpiar
               </button>

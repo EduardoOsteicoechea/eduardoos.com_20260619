@@ -44,7 +44,7 @@ Layout: **left collapsible chat sidebar** + **right full-height generated websit
 1. **Toggle sidebar** — show/hide the left chat panel.
 2. **Chat history** — modal listing prior conversations from S3 JSON; open another chat or delete one; create new chat.
 3. **File structure** — modal listing the website files of the active chat (names from S3-backed chat JSON).
-4. **Agent console** — vertical panel (sidebar-like modal, height ≤ window) that streams verbose process logs and errors in real time (`log` / `error` SSE events).
+4. **Agent console** — vertical panel (sidebar-like modal, height ≤ window) that streams verbose process logs and errors in real time (`log` / `error` SSE events). Footer left shows **DeepSeek balance remaining** (from `GET /user/balance` via backend proxy), refreshed when the console opens and after each ask completes; footer right keeps **Limpiar**.
 
 **Viewport lock:**
 
@@ -85,7 +85,8 @@ Layout: **left collapsible chat sidebar** + **right full-height generated websit
 | `GET` | `/api/admin/agent-sandbox/chats` | List chat summaries from `chats/index.json` |
 | `POST` | `/api/admin/agent-sandbox/chats` | Create empty chat JSON |
 | `GET` | `/api/admin/agent-sandbox/chats/{id}` | Load one chat |
-| `DELETE` | `/api/admin/agent-sandbox/chats/{id}` | Delete chat JSON + index row |
+| `DELETE` | `/api/admin/agent-sandbox/chats/{id}` | Delete chat JSON + index row; client must refresh list and, if the open chat was deleted, switch to another (or create) without stale cache |
+| `GET` | `/api/admin/agent-sandbox/deepseek/balance` | Proxy to DeepSeek `GET /user/balance`; returns currency + total remaining for the console footer |
 | `POST` | `/api/admin/agent-sandbox/chats/{id}/ask` | SSE: Markdown token stream + final saved chat |
 | `POST` | `/api/admin/agent-sandbox/chats/{id}/files` | Upload/validate drop file into chat |
 | `GET` | `/api/admin/agent-sandbox/chats/{id}/files` | File structure for the website in that chat |
@@ -109,6 +110,8 @@ Layout: **left collapsible chat sidebar** + **right full-height generated websit
 - [x] Viewport-locked layout (no document scroll; iframe scrolls inside).
 - [x] Dynamic header console streams verbose agent logs/errors.
 - [x] Nginx SSE buffering off + long timeouts for `…/ask`.
+- [x] Console footer shows DeepSeek remaining balance (left).
+- [x] Deleting a chat from history updates the list and active preview immediately (no stale cache).
 
 ## Affected paths
 

@@ -125,6 +125,7 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Post("/api/admin/agent-sandbox/chats", h.CreateChat)
 		pr.Get("/api/admin/agent-sandbox/chats/{id}", h.GetChat)
 		pr.Delete("/api/admin/agent-sandbox/chats/{id}", h.DeleteChat)
+		pr.Get("/api/admin/agent-sandbox/deepseek/balance", h.DeepSeekBalance)
 		pr.Post("/api/admin/agent-sandbox/chats/{id}/ask", h.Ask)
 		pr.Post("/api/admin/agent-sandbox/chats/{id}/files", h.PutFile)
 		pr.Get("/api/admin/agent-sandbox/chats/{id}/files", h.ListFiles)
@@ -302,6 +303,11 @@ func (h *Handler) saveChat(ctx context.Context, email string, chat Chat) error {
 	return h.saveIndex(ctx, email, idx)
 }
 
+func noStore(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+}
+
 // ListChats returns conversation summaries.
 func (h *Handler) ListChats(w http.ResponseWriter, r *http.Request) {
 	if err := h.ensureS3(); err != nil {
@@ -313,6 +319,7 @@ func (h *Handler) ListChats(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
 		return
 	}
+	noStore(w)
 	httpx.WriteJSON(w, http.StatusOK, idx)
 }
 
@@ -328,6 +335,7 @@ func (h *Handler) CreateChat(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
 		return
 	}
+	noStore(w)
 	httpx.WriteJSON(w, http.StatusCreated, chat)
 }
 
@@ -346,6 +354,7 @@ func (h *Handler) GetChat(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, code, err.Error())
 		return
 	}
+	noStore(w)
 	httpx.WriteJSON(w, http.StatusOK, chat)
 }
 
@@ -381,7 +390,77 @@ func (h *Handler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "id": id})
+	noStore(w)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "id": id, "chats": idx.Chats})
+}
+
+// DeepSeekBalance proxies GET /user/balance for the console footer.
+func (h *Handler) DeepSeekBalance(w http.ResponseWriter, r *http.Request) {
+	key := strings.TrimSpace(httpx.Env("DEEPSEEK_API_KEY", ""))
+	if key == "" {
+		httpx.WriteError(w, http.StatusBadGateway, "DEEPSEEK_API_KEY is not configured")
+		return
+	}
+	base := strings.TrimRight(httpx.Env("DEEPSEEK_BASE_URL", "https://api.deepseek.com"), "/")
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, base+"/user/balance", nil)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+key)
+	res, err := (&http.Client{Timeout: 15 * time.Second}).Do(req)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "DeepSeek balance request failed: "+err.Error())
+		return
+	}
+	defer res.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	if res.StatusCode >= 300 {
+		httpx.WriteError(w, http.StatusBadGateway, fmt.Sprintf("DeepSeek balance status %d: %s", res.StatusCode, strings.TrimSpace(string(raw))))
+		return
+	}
+	var body struct {
+		IsAvailable  bool `json:"is_available"`
+		BalanceInfos []struct {
+			Currency        string `json:"currency"`
+			TotalBalance    string `json:"total_balance"`
+			GrantedBalance  string `json:"granted_balance"`
+			ToppedUpBalance string `json:"topped_up_balance"`
+		} `json:"balance_infos"`
+	}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "invalid DeepSeek balance JSON")
+		return
+	}
+	currency := "USD"
+	total := "0"
+	granted := "0"
+	topped := "0"
+	if len(body.BalanceInfos) > 0 {
+		info := body.BalanceInfos[0]
+		for _, row := range body.BalanceInfos {
+			if strings.EqualFold(row.Currency, "USD") {
+				info = row
+				break
+			}
+		}
+		if info.Currency != "" {
+			currency = info.Currency
+		}
+		if info.TotalBalance != "" {
+			total = info.TotalBalance
+		}
+		granted = info.GrantedBalance
+		topped = info.ToppedUpBalance
+	}
+	noStore(w)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"is_available":      body.IsAvailable,
+		"currency":          currency,
+		"total_balance":     total,
+		"granted_balance":   granted,
+		"topped_up_balance": topped,
+	})
 }
 
 func validateFile(f File) error {
