@@ -163,6 +163,7 @@ export default function AgentSandbox() {
   const [consoleLogs, setConsoleLogs] = useState<ConsoleEntry[]>([]);
   const [balance, setBalance] = useState<DeepSeekBalance | null>(null);
   const [balanceError, setBalanceError] = useState("");
+  const [askProgress, setAskProgress] = useState<{ percent: number; phase: string } | null>(null);
   const [editorFiles, setEditorFiles] = useState<EditorFile[]>([]);
   const [editorName, setEditorName] = useState("");
   const [editorText, setEditorText] = useState("");
@@ -564,6 +565,7 @@ export default function AgentSandbox() {
     setError("");
     setBusy(true);
     streamTextRef.current = "";
+    setAskProgress({ percent: 1, phase: "request" });
     setConsoleOpen(true);
     pushLog("info", "Cliente: POST /ask (SSE)…", `chatId=${chat.id}`);
     setChat((prev) => ({
@@ -597,6 +599,7 @@ export default function AgentSandbox() {
         }
         setError(errMsg);
         pushLog("error", errMsg);
+        setAskProgress(null);
         setBusy(false);
         return;
       }
@@ -641,6 +644,15 @@ export default function AgentSandbox() {
               typeof payload.at === "string" ? payload.at : undefined,
             );
           }
+          if (eventName === "progress") {
+            const pct = Number(payload.percent);
+            if (Number.isFinite(pct)) {
+              setAskProgress({
+                percent: Math.max(0, Math.min(100, Math.round(pct))),
+                phase: String(payload.phase ?? ""),
+              });
+            }
+          }
           if (eventName === "token" && typeof payload.text === "string") {
             streamTextRef.current += payload.text;
             const snap = streamTextRef.current;
@@ -657,6 +669,7 @@ export default function AgentSandbox() {
             const errMsg = String(payload.error ?? "Error de stream");
             setError(errMsg);
             pushLog("error", errMsg);
+            setAskProgress(null);
           }
           if (eventName === "done") {
             const doneBody = payload as { chat?: Chat; site?: Site };
@@ -664,6 +677,7 @@ export default function AgentSandbox() {
             if (doneBody.site) applySite(doneBody.site);
             await refreshSummaries();
             void refreshBalance();
+            setAskProgress({ percent: 100, phase: "done" });
             pushLog("info", "done: chat + site persistidos.");
           }
           eventName = "message";
@@ -675,6 +689,7 @@ export default function AgentSandbox() {
       pushLog("error", msg);
     } finally {
       setBusy(false);
+      window.setTimeout(() => setAskProgress(null), 1200);
     }
   }
 
@@ -1130,13 +1145,39 @@ export default function AgentSandbox() {
               )}
             </div>
             <footer className="agent-sandbox__console-foot">
-              <p className="agent-sandbox__console-balance" title="Saldo DeepSeek">
-                {balanceError
-                  ? "Saldo: —"
-                  : balance
-                    ? `${balance.total_balance}$ restante`
-                    : "Saldo: …"}
-              </p>
+              <div className="agent-sandbox__console-foot-main">
+                <p className="agent-sandbox__console-balance" title="Saldo DeepSeek">
+                  {balanceError
+                    ? "Saldo: —"
+                    : balance
+                      ? `${balance.total_balance}$ restante`
+                      : "Saldo: …"}
+                </p>
+                {askProgress ? (
+                  <div
+                    className="agent-sandbox__console-progress"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={askProgress.percent}
+                    aria-label={`Progreso del agente: ${askProgress.phase || "stream"}`}
+                    title={
+                      askProgress.phase === "reasoning"
+                        ? "Pensando (sin tamaño total conocido)"
+                        : askProgress.phase || "Progreso estimado"
+                    }
+                  >
+                    <div
+                      className="agent-sandbox__console-progress-fill"
+                      style={{ width: `${askProgress.percent}%` }}
+                    />
+                    <span className="agent-sandbox__console-progress-label">
+                      {askProgress.percent}%
+                      {askProgress.phase ? ` · ${askProgress.phase}` : ""}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
               <button type="button" className="btn" onClick={() => setConsoleLogs([])}>
                 Limpiar
               </button>

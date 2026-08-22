@@ -398,12 +398,20 @@
 
 .agent-sandbox__console-foot {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 0.4rem;
+  gap: 0.5rem;
   padding: 0.5rem 0.65rem;
   border-top: var(--border_001);
   flex-shrink: 0;
+}
+
+.agent-sandbox__console-foot-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .agent-sandbox__console-balance {
@@ -411,6 +419,38 @@
   font: 0.72rem/1.3 Roboto Mono, Consolas, monospace;
   opacity: 0.85;
   min-width: 0;
+}
+
+.agent-sandbox__console-progress {
+  position: relative;
+  height: 1.05rem;
+  border-radius: 2px;
+  border: 1px solid color-mix(in srgb, var(--site-body-fg) 28%, transparent);
+  background: color-mix(in srgb, var(--site-body-fg) 8%, transparent);
+  overflow: hidden;
+}
+
+.agent-sandbox__console-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--site-accent, #6a8) 72%, transparent);
+  transition: width 0.25s ease-out;
+}
+
+.agent-sandbox__console-progress-label {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 0.35rem;
+  font: 0.65rem/1 Roboto Mono, Consolas, monospace;
+  letter-spacing: 0.02em;
+  color: var(--site-body-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .agent-sandbox__site-name-row {

@@ -41,3 +41,29 @@ func TestProposalFileAliases(t *testing.T) {
 		t.Fatalf("body alias: %q", f2.Text)
 	}
 }
+
+func TestHoldArtifactsPrefix(t *testing.T) {
+	safe, hold := holdArtifactsPrefix("hello<<<ARTIF")
+	if safe != "hello" || hold != "<<<ARTIF" {
+		t.Fatalf("partial marker: safe=%q hold=%q", safe, hold)
+	}
+	safe, hold = holdArtifactsPrefix("plain text")
+	if safe != "plain text" || hold != "" {
+		t.Fatalf("no hold: safe=%q hold=%q", safe, hold)
+	}
+}
+
+func TestEstimateAskProgress(t *testing.T) {
+	if p := estimateAskProgress("reasoning", 0, 0); p < 5 || p > 10 {
+		t.Fatalf("early reasoning: %d", p)
+	}
+	if p := estimateAskProgress("reasoning", 20000, 0); p < 50 || p > 55 {
+		t.Fatalf("late reasoning: %d", p)
+	}
+	if p := estimateAskProgress("content", 0, 1000); p < 56 || p > 88 {
+		t.Fatalf("content: %d", p)
+	}
+	if estimateAskProgress("done", 0, 0) != 100 {
+		t.Fatal("done must be 100")
+	}
+}

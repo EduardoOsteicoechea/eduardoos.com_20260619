@@ -51,7 +51,9 @@ Platform administrators need a private workspace where an AI senior web develope
 3. Chat history (active site)  
 4. Files editor — **fullscreen within the content chrome** (starts at the global header rail / top bar, never under it); toolbar icons: Save, Download, Close  
 5. **Agent settings** — pick model + thinking mode + effort  
-6. Agent console  
+6. Agent console — streams `log`/`progress`/`error`; footer: balance, **phase progress bar** (SSE has no Content-Length; percent is estimated from reasoning→content→artifacts→done), Limpiar. Long reasoning must show moving progress (not look hung).
+
+**Streaming:** hold back `<<<ARTIFACTS>>>` prefixes across token chunks so the marker never appears in chat; `progress` SSE events for the console bar.
 
 **Files editor:** left tree, right textarea for text files (real newlines rendered, not literal `\n`); binary files show a short note + Download. Content loaded from site JSON (in-memory + API), never blank when bytes > 0.
 
@@ -82,6 +84,8 @@ Platform administrators need a private workspace where an AI senior web develope
 - [x] Agent settings: flash/pro + thinking + effort.
 - [x] Download text/binary agent files; `.py` allowed; binaries via base64.
 - [x] Go tests + frontend build; commit/push.
+- [x] Console progress bar during ask (phase-estimated; no hung idle during reasoning).
+- [x] ARTIFACTS marker never leaked into chat tokens.
 
 ## Affected paths
 

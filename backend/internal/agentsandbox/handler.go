@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -797,40 +798,78 @@ No shell, network, credentials, or server code. One minimal global CSS using rem
 
 	var full strings.Builder
 	var visible strings.Builder
+	var hold string
 	artifactsStarted := false
 	tokenCount := 0
 	firstTokenLogged := false
-	logf("info", "Calling DeepSeek reasoning stream (this can take several minutes).", nil)
+	reasoningChars := 0
+	lastProgressPct := -1
+	emitProgress := func(phase string) {
+		pct := estimateAskProgress(phase, reasoningChars, visible.Len())
+		if pct == lastProgressPct && phase != "done" && phase != "artifacts" && phase != "saving" {
+			return
+		}
+		lastProgressPct = pct
+		writeSSE("progress", map[string]any{
+			"percent":         pct,
+			"phase":           phase,
+			"reasoningChars":  reasoningChars,
+			"contentChars":    visible.Len(),
+			"knownTotalBytes": false,
+		})
+	}
+	emitProgress("request")
+	logf("info", "Calling DeepSeek reasoning stream (this can take several minutes). Progress is phase-estimated — DeepSeek SSE has no Content-Length.", nil)
 
 	err = deepSeekReasoningStream(r.Context(), resolveAskModel(req), resolveThinking(req), resolveEffort(req), system, user, func(delta string) {
 		full.WriteString(delta)
 		if artifactsStarted {
 			return
 		}
-		combined := visible.String() + delta
+		combined := hold + delta
+		hold = ""
 		if idx := strings.Index(combined, artifactsStart); idx >= 0 {
 			artifactsStarted = true
 			piece := combined[:idx]
-			extra := piece[len(visible.String()):]
-			if extra != "" {
-				visible.WriteString(extra)
-				writeSSE("token", map[string]string{"text": extra})
+			if piece != "" {
+				visible.WriteString(piece)
+				writeSSE("token", map[string]string{"text": piece})
 				tokenCount++
+				if !firstTokenLogged {
+					firstTokenLogged = true
+					logf("info", "First Markdown token received from DeepSeek.", map[string]any{"chars": len(piece)})
+				}
 			}
 			logf("info", "Detected <<<ARTIFACTS>>> marker — Markdown stream ends; collecting file JSON.", map[string]any{
-				"visibleChars": len(visible.String()),
+				"visibleChars": visible.Len(),
 			})
+			emitProgress("artifacts")
 			return
 		}
-		visible.WriteString(delta)
-		writeSSE("token", map[string]string{"text": delta})
+		safe, nextHold := holdArtifactsPrefix(combined)
+		hold = nextHold
+		if safe == "" {
+			return
+		}
+		visible.WriteString(safe)
+		writeSSE("token", map[string]string{"text": safe})
 		tokenCount++
 		if !firstTokenLogged {
 			firstTokenLogged = true
-			logf("info", "First Markdown token received from DeepSeek.", map[string]any{"chars": len(delta)})
+			logf("info", "First Markdown token received from DeepSeek.", map[string]any{"chars": len(safe)})
 		}
+		emitProgress("content")
+	}, func(rc string) {
+		reasoningChars += len(rc)
+		emitProgress("reasoning")
 	}, func(stage, msg string) {
 		logf("info", msg, map[string]any{"stage": stage})
+		switch stage {
+		case "deepseek.response":
+			emitProgress("connected")
+		case "deepseek.reasoning", "deepseek.heartbeat":
+			emitProgress("reasoning")
+		}
 	})
 	if err != nil {
 		logf("error", "DeepSeek stream failed.", map[string]any{"error": err.Error(), "tokensEmitted": tokenCount})
@@ -838,8 +877,9 @@ No shell, network, credentials, or server code. One minimal global CSS using rem
 		return
 	}
 	logf("info", "DeepSeek stream finished. Parsing Markdown + artifacts JSON.", map[string]any{
-		"fullChars": full.Len(), "visibleChars": visible.Len(), "tokensEmitted": tokenCount,
+		"fullChars": full.Len(), "visibleChars": visible.Len(), "tokensEmitted": tokenCount, "reasoningChars": reasoningChars,
 	})
+	emitProgress("saving")
 
 	md, art := splitArtifacts(full.String())
 	if strings.TrimSpace(md) == "" {
@@ -906,6 +946,7 @@ No shell, network, credentials, or server code. One minimal global CSS using rem
 		return
 	}
 	logf("info", "Ask complete. Emitting done with saved chat + site.", nil)
+	emitProgress("done")
 	writeSSE("done", map[string]any{"chat": chat, "site": site})
 }
 
@@ -969,9 +1010,62 @@ func resolveEffort(req askRequest) string {
 	}
 }
 
-func deepSeekReasoningStream(ctx context.Context, model, thinking, effort, system, user string, onDelta func(string), onLog func(stage, msg string)) error {
+// holdArtifactsPrefix keeps a suffix that might be the start of <<<ARTIFACTS>>>
+// so the marker is never streamed into the visible chat tray mid-chunk.
+func holdArtifactsPrefix(s string) (safe, hold string) {
+	max := len(artifactsStart) - 1
+	if max > len(s) {
+		max = len(s)
+	}
+	for n := max; n >= 1; n-- {
+		if strings.HasSuffix(s, artifactsStart[:n]) {
+			return s[:len(s)-n], s[len(s)-n:]
+		}
+	}
+	return s, ""
+}
+
+func estimateAskProgress(phase string, reasoningChars, contentChars int) int {
+	switch phase {
+	case "request", "connected":
+		return 2
+	case "reasoning":
+		// Asymptotic toward 55% while thinking (no known total size).
+		x := float64(reasoningChars)
+		pct := 5 + int(50.0*(1.0-math.Exp(-x/6000.0)))
+		if pct > 55 {
+			pct = 55
+		}
+		return pct
+	case "content":
+		pct := 55 + int(float64(contentChars)/80.0)
+		if pct > 88 {
+			pct = 88
+		}
+		if pct < 56 {
+			pct = 56
+		}
+		return pct
+	case "artifacts":
+		return 92
+	case "saving":
+		return 96
+	case "done":
+		return 100
+	default:
+		return 1
+	}
+}
+
+// deepSeekReasoningStream reads DeepSeek chat.completions SSE.
+// onDelta receives visible content tokens; onReasoning receives thinking deltas
+// (not shown in chat) so the UI can keep a progress bar moving during long waits.
+func deepSeekReasoningStream(ctx context.Context, model, thinking, effort, system, user string, onDelta func(string), onReasoning func(string), onLog func(stage, msg string)) error {
 	if onLog == nil {
 		onLog = func(string, string) {}
+	}
+	if onReasoning == nil {
+		onReasoning = func(string) {}
 	}
 	key := strings.TrimSpace(httpx.Env("DEEPSEEK_API_KEY", ""))
 	if key == "" {
@@ -1025,11 +1119,13 @@ func deepSeekReasoningStream(ctx context.Context, model, thinking, effort, syste
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	chunks := 0
 	reasoningChunks := 0
+	reasoningChars := 0
 	lastHeartbeat := time.Now()
 	for scanner.Scan() {
 		line := scanner.Text()
-		if time.Since(lastHeartbeat) > 15*time.Second {
-			onLog("deepseek.heartbeat", fmt.Sprintf("Still reading DeepSeek SSE… chunks=%d reasoning=%d", chunks, reasoningChunks))
+		// Heartbeats every 5s so the console never looks hung during long thinking.
+		if time.Since(lastHeartbeat) > 5*time.Second {
+			onLog("deepseek.heartbeat", fmt.Sprintf("Still reading DeepSeek SSE… chunks=%d reasoning=%d reasoningChars=%d", chunks, reasoningChunks, reasoningChars))
 			lastHeartbeat = time.Now()
 		}
 		if !strings.HasPrefix(line, "data:") {
@@ -1055,9 +1151,11 @@ func deepSeekReasoningStream(ctx context.Context, model, thinking, effort, syste
 		}
 		if rc := chunk.Choices[0].Delta.ReasoningContent; rc != "" {
 			reasoningChunks++
+			reasoningChars += len(rc)
 			if reasoningChunks == 1 {
 				onLog("deepseek.reasoning", "Model entered reasoning phase (thinking tokens; not shown in chat).")
 			}
+			onReasoning(rc)
 		}
 		delta := chunk.Choices[0].Delta.Content
 		if delta != "" {
@@ -1068,13 +1166,13 @@ func deepSeekReasoningStream(ctx context.Context, model, thinking, effort, syste
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("DeepSeek SSE read error: %w", err)
 	}
-	onLog("deepseek.done", fmt.Sprintf("SSE complete contentChunks=%d reasoningChunks=%d", chunks, reasoningChunks))
+	onLog("deepseek.done", fmt.Sprintf("SSE complete contentChunks=%d reasoningChunks=%d reasoningChars=%d", chunks, reasoningChunks, reasoningChars))
 	return nil
 }
 
 func deepSeekReasoning(ctx context.Context, system, user string) (string, error) {
 	var b strings.Builder
-	err := deepSeekReasoningStream(ctx, "deepseek-v4-pro", "enabled", "high", system, user, func(delta string) { b.WriteString(delta) }, nil)
+	err := deepSeekReasoningStream(ctx, "deepseek-v4-pro", "enabled", "high", system, user, func(delta string) { b.WriteString(delta) }, nil, nil)
 	return b.String(), err
 }
 
