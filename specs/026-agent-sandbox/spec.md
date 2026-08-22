@@ -2,7 +2,7 @@
 
 ## Status
 
-Sites + file editor revision (2026-08-22).
+Editor UX + agent prefs + downloadable docs (2026-08-22).
 
 ## Problem
 
@@ -27,72 +27,60 @@ Platform administrators need a private workspace where an AI senior web develope
   agentsandbox/{adminSafe}/chats/{chatId}.json
   ```
 - Site JSON: `id`, `name`, `spec`, `files[]`, `tabs[]`, `chatIds[]`, `updated`.
-- Chat JSON: `id`, `siteId`, `title`, `messages[]`, `updated` (legacy `files`/`tabs`/`spec` ignored after migrate).
-- Files: `.html/.css/.js/.json/.txt/.svg` only; flat names; reject traversal, double extensions, > 512 KiB, > 40 files, unsafe SVG.
-- **Migration:** if sites index is missing and legacy `chats/index.json` exists, create site `Default`, attach all chats, move files/spec/tabs from the richest chat into the site.
+- Chat JSON: `id`, `siteId`, `title`, `messages[]`, `updated`.
+- Files (flat names): text `.html/.css/.js/.json/.txt/.svg/.md/.py`; binary (base64 in `text`, `encoding:"base64"`) `.pdf/.docx/.xlsx`. Max 2 MiB decoded, ≤ 40 files; reject traversal, double extensions, unsafe SVG.
+- **No Python execution on EC2** (Alpine runtime has no interpreter). Agent may emit `.py` scripts as downloadable artifacts and should also emit the resulting documents as base64 file entries when producing `.pdf`/`.docx`/`.xlsx`/`.txt`.
+- **Migration:** legacy chats → site `Default` (unchanged).
 
 ### Agent and crawler
 
-- `DEEPSEEK_API_KEY` + `DEEPSEEK_MODEL_REASONING` (reasoning mode enabled).
-- Role: senior web developer and web crawler architect. Returns JSON: `reply`, `spec`, `files`, `tabs`.
-- Model has no S3/FS/shell/network/credentials; backend validates proposals before write.
-- Ask writes **messages** to the chat and **artifacts** (spec/files/tabs) to the **site**.
-- Crawl: explicit HTTPS allowlist per request; SSRF blocks; no cookies; redirect host lock; 1 MiB cap.
+- `DEEPSEEK_API_KEY`; per-ask model prefs from client (persisted in `localStorage`):
+  - **model:** `deepseek-v4-flash` | `deepseek-v4-pro`
+  - **thinking:** `enabled` | `disabled` (flash / non-reasoning = disabled)
+  - **reasoning_effort:** `low` | `high` | `max` (UI label “medium” maps to `high`)
+- Ask body may include `model`, `thinking`, `reasoningEffort`; backend applies them to DeepSeek.
+- Visible assistant `reply` must be Markdown only (never raw artifacts JSON). Client also normalizes legacy messages that stored JSON/`\\n` escapes.
+- Ask writes messages to chat and artifacts to site.
 
 ### UI (locked)
 
-Layout: **left collapsible chat sidebar** + **right full-height generated website preview**.
+**Header dynamic slot:**
 
-**Header dynamic slot** (`#header-dynamic-menu-host`):
+1. Toggle sidebar  
+2. Sites  
+3. Chat history (active site)  
+4. Files editor — **fullscreen** over the sandbox viewport (no outer padding); toolbar icons only: **Save**, **Download** (enabled when a file is selected), **Close**  
+5. **Agent settings** — pick model + thinking mode + effort  
+6. Agent console  
 
-1. **Toggle sidebar** — show/hide the left chat panel.
-2. **Sites** — panel to list sites; **one name input** creates a site when submitted empty-selection / Enter, and **renames** the active site when edited; selecting a site reloads that site’s chat history and preview.
-3. **Chat history** — conversations of the **active site** only; open/delete/create chat within that site.
-4. **Files editor** — wide panel: left flat file list (tree), right simple text editor; Save upserts the file on the site in S3 and refreshes preview.
-5. **Agent console** — vertical panel (height ≤ window) streaming `log`/`error` SSE; footer left DeepSeek balance; footer right Limpiar.
+**Files editor:** left tree, right textarea for text files (real newlines rendered, not literal `\n`); binary files show a short note + Download. Content loaded from site JSON (in-memory + API), never blank when bytes > 0.
 
-**Viewport lock:** document never scrolls; only chat tray and iframe interior scroll.
+**Chat:** assistant bubbles via `ChatMarkdown`; normalize JSON-shaped / escaped legacy replies on display.
 
-**Sidebar** (when open): 80/20 chat/composer; Markdown 12px; timestamps 0.5×; optimistic send + SSE stream.
-
-**Main pane:** HTML tabs + sandboxed iframe from **active site** files.
-
-### Agent reply shape (streaming)
-
-- Markdown then `<<<ARTIFACTS>>>…<<<END>>>` JSON.
-- `POST …/ask` SSE: `log`, `token`, `done` (chat + site snapshot) or `error`. Nginx unbuffered, long timeouts.
+**Viewport lock:** unchanged.
 
 ## API
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/admin/agent-sandbox/sites` | List sites (runs migration if needed) |
-| `POST` | `/api/admin/agent-sandbox/sites` | Create site `{name}` (+ empty starter chat) |
-| `GET` | `/api/admin/agent-sandbox/sites/{id}` | Load one site |
-| `PATCH` | `/api/admin/agent-sandbox/sites/{id}` | Rename `{name}` |
-| `GET` | `/api/admin/agent-sandbox/sites/{id}/files` | File rows for editor |
-| `PUT` | `/api/admin/agent-sandbox/sites/{id}/files` | Upsert one file `{name,text}` into site |
-| `GET` | `/api/admin/agent-sandbox/chats?siteId=` | Chat summaries for site |
-| `POST` | `/api/admin/agent-sandbox/chats` | Create chat `{siteId}` |
-| `GET` | `/api/admin/agent-sandbox/chats/{id}` | Load chat |
-| `DELETE` | `/api/admin/agent-sandbox/chats/{id}` | Delete chat; update site `chatIds` |
-| `POST` | `/api/admin/agent-sandbox/chats/{id}/ask` | SSE ask → site artifacts + chat messages |
-| `GET` | `/api/admin/agent-sandbox/deepseek/balance` | DeepSeek balance proxy |
-| `POST` | `/api/admin/agent-sandbox/crawl` | Allowlisted crawl |
-
-Legacy `GET/POST …/chats/{id}/files` remain as aliases that operate on the chat’s site when `siteId` is set.
+| `GET/POST/PATCH` | `/sites…` | unchanged |
+| `GET/PUT` | `/sites/{id}/files` | list (includes `text`+`encoding`) / upsert |
+| `GET` | `/sites/{id}/files/{name}/download` | attachment download (decode base64 when needed) |
+| `POST` | `/chats/{id}/ask` | body may include model prefs |
 
 ## Non-goals
 
-- Nested folders, executing generated JS on EC2, writing outside `agentsandbox/{adminSafe}/`, recursive crawl, public share.
+- Executing agent Python/JS on EC2.
+- Nested folders, recursive crawl, public share.
 
 ## Acceptance
 
-- [x] Prior Agent Sandbox baseline (admin route, SSE, console, viewport lock, balance).
-- [x] Sites header panel: list, create/rename via same name input, select updates chats + preview.
-- [x] Files editor: tree + textarea + Save to S3 on active site.
-- [x] Chats scoped to active site; ask persists artifacts on site.
-- [x] Legacy chats migrate into Default site.
+- [x] Sites + site-scoped chats + baseline sandbox.
+- [x] Fullscreen files editor; icon Save / Download / Close; minimal chrome.
+- [x] File contents visible; newlines as real breaks (escapes preserved as characters when stored).
+- [x] Legacy Default chat replies render as Markdown.
+- [x] Agent settings: flash/pro + thinking + effort.
+- [x] Download text/binary agent files; `.py` allowed; binaries via base64.
 - [x] Go tests + frontend build; commit/push.
 
 ## Affected paths
@@ -100,4 +88,3 @@ Legacy `GET/POST …/chats/{id}/files` remain as aliases that operate on the cha
 - `specs/026-agent-sandbox/spec.md`
 - `backend/internal/agentsandbox/**`
 - `frontend/src/components/AgentSandbox/**`
-- `nginx/default.conf` (ask SSE already present)

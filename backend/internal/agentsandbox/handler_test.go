@@ -20,12 +20,20 @@ func TestValidateFileRejectsTraversalAndDoubleExt(t *testing.T) {
 	}
 }
 
-func TestSplitArtifacts(t *testing.T) {
-	md, art := splitArtifacts("Hola **mundo**\n\n<<<ARTIFACTS>>>\n{\"spec\":\"x\"}\n<<<END>>>")
-	if md != "Hola **mundo**" {
-		t.Fatalf("markdown=%q", md)
+func TestSanitizeAssistantReply(t *testing.T) {
+	got := sanitizeAssistantReply(`{"reply":"Hola **mundo**","files":[]}`)
+	if got != "Hola **mundo**" {
+		t.Fatalf("got %q", got)
 	}
-	if art != `{"spec":"x"}` {
-		t.Fatalf("artifacts=%q", art)
+	esc := sanitizeAssistantReply(`line1\nline2`)
+	if esc != "line1\nline2" {
+		t.Fatalf("unescape got %q", esc)
+	}
+}
+
+func TestUnescapeFileTextKeepsRealNewlines(t *testing.T) {
+	in := "a\nb"
+	if unescapeFileText(in) != in {
+		t.Fatal("should keep real newlines")
 	}
 }

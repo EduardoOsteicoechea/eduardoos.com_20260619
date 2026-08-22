@@ -10,7 +10,7 @@ import AgentSandboxHeaderMenu from "./AgentSandboxHeaderMenu";
 import "./AgentSandbox.css";
 
 type ChatMessage = { role: string; text: string; at?: string };
-type SiteFile = { name: string; type: string; text: string };
+type SiteFile = { name: string; type: string; text: string; encoding?: string };
 type Tab = { id: string; label: string; file: string };
 type Chat = {
   id: string;
@@ -30,7 +30,18 @@ type Site = {
 };
 type SiteSummary = { id: string; name: string; updated: string };
 type ChatSummary = { id: string; title: string; updated: string; siteId?: string };
-type EditorFile = { name: string; type: string; bytes: number; text?: string };
+type EditorFile = {
+  name: string;
+  type: string;
+  bytes: number;
+  text?: string;
+  encoding?: string;
+};
+type AgentPrefs = {
+  model: "deepseek-v4-flash" | "deepseek-v4-pro";
+  thinking: "enabled" | "disabled";
+  reasoningEffort: "low" | "high" | "max";
+};
 type ConsoleEntry = {
   id: string;
   at: string;
@@ -47,6 +58,9 @@ type DeepSeekBalance = {
 const API = "/api/admin/agent-sandbox";
 const SIDEBAR_KEY = "eduardoos-agent-sandbox-sidebar";
 const SITE_KEY = "eduardoos-agent-sandbox-site";
+const PREFS_KEY = "eduardoos-agent-sandbox-prefs";
+
+const BINARY_EXT = /\.(pdf|docx|xlsx)$/i;
 
 function authHeaders(): HeadersInit {
   return {
@@ -55,6 +69,52 @@ function authHeaders(): HeadersInit {
 }
 
 const fetchOpts: RequestInit = { cache: "no-store" };
+
+function loadPrefs(): AgentPrefs {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as AgentPrefs;
+      if (p.model && p.thinking && p.reasoningEffort) return p;
+    }
+  } catch {
+    /* ignore */
+  }
+  return {
+    model: "deepseek-v4-pro",
+    thinking: "enabled",
+    reasoningEffort: "high",
+  };
+}
+
+/** Show real newlines; keep content when stored with JSON-style escapes. */
+function decodeFileText(raw: string): string {
+  if (!raw) return "";
+  if (raw.includes("\n") || raw.includes("\r")) return raw;
+  if (!raw.includes("\\n") && !raw.includes("\\r") && !raw.includes("\\t")) return raw;
+  return raw
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\n")
+    .replace(/\\t/g, "\t");
+}
+
+/** Legacy assistant bubbles sometimes stored JSON or escaped newlines. */
+function displayAssistantText(text: string): string {
+  const t = text.trim();
+  if (!t) return text;
+  if (t.startsWith("{")) {
+    try {
+      const obj = JSON.parse(t) as { reply?: string };
+      if (typeof obj.reply === "string" && obj.reply.trim()) {
+        return decodeFileText(obj.reply);
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  return decodeFileText(text);
+}
 
 function emptyChat(): Chat {
   return { id: "", siteId: "", title: "", messages: [], updated: "" };
@@ -97,6 +157,8 @@ export default function AgentSandbox() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sitesOpen, setSitesOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [agentPrefs, setAgentPrefs] = useState<AgentPrefs>(() => loadPrefs());
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [consoleLogs, setConsoleLogs] = useState<ConsoleEntry[]>([]);
   const [balance, setBalance] = useState<DeepSeekBalance | null>(null);
@@ -169,6 +231,10 @@ export default function AgentSandbox() {
   useEffect(() => {
     if (site.id) localStorage.setItem(SITE_KEY, site.id);
   }, [site.id]);
+
+  useEffect(() => {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(agentPrefs));
+  }, [agentPrefs]);
 
   useEffect(() => {
     const el = trayRef.current;
@@ -362,7 +428,11 @@ export default function AgentSandbox() {
       setError("No se pudo abrir la conversación.");
       return;
     }
-    setChat((await res.json()) as Chat);
+    const next = (await res.json()) as Chat;
+    next.messages = (next.messages ?? []).map((m) =>
+      m.role === "assistant" ? { ...m, text: displayAssistantText(m.text) } : m,
+    );
+    setChat(next);
     if (closeHistory) setHistoryOpen(false);
   }
 
@@ -396,19 +466,34 @@ export default function AgentSandbox() {
   async function openFilesEditor() {
     if (!site.id) return;
     setFilesOpen(true);
+    const fromSite: EditorFile[] = (site.files ?? []).map((f) => ({
+      name: f.name,
+      type: f.type,
+      bytes: f.text?.length ?? 0,
+      text: f.text,
+      encoding: (f as SiteFile & { encoding?: string }).encoding,
+    }));
+    if (fromSite.length > 0) {
+      setEditorFiles(fromSite);
+      selectEditorFile(fromSite[0]);
+    }
     const res = await fetch(`${API}/sites/${encodeURIComponent(site.id)}/files`, {
       ...fetchOpts,
       headers: authHeaders(),
     });
     if (!res.ok) {
-      setError("No se pudo leer los archivos del site.");
+      if (fromSite.length === 0) setError("No se pudo leer los archivos del site.");
       return;
     }
     const body = (await res.json()) as { files?: EditorFile[] };
-    const files = body.files ?? [];
+    const files = (body.files ?? []).map((f) => ({
+      ...f,
+      text: typeof f.text === "string" ? decodeFileText(f.text) : f.text,
+    }));
     setEditorFiles(files);
     if (files.length > 0) {
-      selectEditorFile(files[0]);
+      const pick = files.find((f) => f.name === editorName) ?? files[0];
+      selectEditorFile(pick);
     } else {
       setEditorName("");
       setEditorText("");
@@ -418,8 +503,28 @@ export default function AgentSandbox() {
 
   function selectEditorFile(f: EditorFile) {
     setEditorName(f.name);
-    setEditorText(f.text ?? "");
+    if (f.encoding === "base64" || BINARY_EXT.test(f.name)) {
+      setEditorText("");
+    } else {
+      setEditorText(decodeFileText(f.text ?? ""));
+    }
     setEditorDirty(false);
+  }
+
+  async function downloadEditorFile() {
+    if (!site.id || !editorName) return;
+    const url = `${API}/sites/${encodeURIComponent(site.id)}/files/${encodeURIComponent(editorName)}/download`;
+    const res = await fetch(url, { ...fetchOpts, headers: authHeaders() });
+    if (!res.ok) {
+      setError("No se pudo descargar el archivo.");
+      return;
+    }
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = editorName;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   async function saveEditorFile() {
@@ -475,7 +580,12 @@ export default function AgentSandbox() {
         method: "POST",
         cache: "no-store",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({
+          message: text,
+          model: agentPrefs.model,
+          thinking: agentPrefs.thinking,
+          reasoningEffort: agentPrefs.reasoningEffort,
+        }),
       });
       if (!res.ok || !res.body) {
         let errMsg = "No se pudo procesar el mensaje.";
@@ -605,6 +715,7 @@ export default function AgentSandbox() {
         sidebarOpen={sidebarOpen}
         sitesOpen={sitesOpen}
         consoleOpen={consoleOpen}
+        settingsOpen={settingsOpen}
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
         onOpenSites={() => {
           void refreshSites();
@@ -616,6 +727,7 @@ export default function AgentSandbox() {
           setHistoryOpen(true);
         }}
         onOpenFiles={() => void openFilesEditor()}
+        onOpenSettings={() => setSettingsOpen(true)}
         onToggleConsole={() => setConsoleOpen((v) => !v)}
       />
 
@@ -639,7 +751,7 @@ export default function AgentSandbox() {
                   ) : null}
                   {m.role === "assistant" ? (
                     m.text ? (
-                      <ChatMarkdown text={m.text} />
+                      <ChatMarkdown text={displayAssistantText(m.text)} />
                     ) : (
                       <p className="agent-sandbox__streaming">…</p>
                     )
@@ -829,49 +941,77 @@ export default function AgentSandbox() {
       ) : null}
 
       {filesOpen ? (
-        <div
-          className="agent-sandbox__modal"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setFilesOpen(false);
-          }}
-        >
-          <div
-            className="agent-sandbox__modal-panel agent-sandbox__modal-panel--editor"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Editor de archivos"
-          >
-            <header className="agent-sandbox__modal-head">
-              <h2>Archivos — {site.name || "site"}</h2>
+        <div className="agent-sandbox__editor-overlay" role="dialog" aria-modal="true" aria-label="Editor de archivos">
+          <header className="agent-sandbox__editor-toolbar">
+            <span className="agent-sandbox__editor-title">{site.name || "site"}</span>
+            <div className="agent-sandbox__editor-icons">
               <button
                 type="button"
-                className="btn btn--primary"
-                disabled={busy || !editorName || !editorDirty}
+                className="agent-sandbox__icon-btn"
+                title="Guardar"
+                aria-label="Guardar"
+                disabled={busy || !editorName || !editorDirty || BINARY_EXT.test(editorName)}
                 onClick={() => void saveEditorFile()}
               >
-                Guardar
+                <svg viewBox="0 0 24 24" aria-hidden>
+                  <path
+                    fill="currentColor"
+                    d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4zm-5 16a3 3 0 110-6 3 3 0 010 6zm3-10H5V5h10v4z"
+                  />
+                </svg>
               </button>
-            </header>
-            <div className="agent-sandbox__editor">
-              <ul className="agent-sandbox__editor-tree">
-                {editorFiles.length === 0 ? (
-                  <li className="agent-sandbox__hint">Sin archivos aún.</li>
-                ) : (
-                  editorFiles.map((f) => (
-                    <li key={f.name}>
-                      <button
-                        type="button"
-                        className={editorName === f.name ? "is-active" : ""}
-                        onClick={() => selectEditorFile(f)}
-                      >
-                        <code>{f.name}</code>
-                        <span>{f.bytes} B</span>
-                      </button>
-                    </li>
-                  ))
-                )}
-              </ul>
+              <button
+                type="button"
+                className="agent-sandbox__icon-btn"
+                title="Descargar"
+                aria-label="Descargar"
+                disabled={!editorName}
+                onClick={() => void downloadEditorFile()}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden>
+                  <path fill="currentColor" d="M5 20h14v-2H5v2zM11 4v8.17L8.41 9.59 7 11l5 5 5-5-1.41-1.41L13 12.17V4h-2z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="agent-sandbox__icon-btn"
+                title="Cerrar"
+                aria-label="Cerrar"
+                onClick={() => setFilesOpen(false)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden>
+                  <path
+                    fill="currentColor"
+                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </header>
+          <div className="agent-sandbox__editor agent-sandbox__editor--fill">
+            <ul className="agent-sandbox__editor-tree">
+              {editorFiles.length === 0 ? (
+                <li className="agent-sandbox__hint">Sin archivos aún.</li>
+              ) : (
+                editorFiles.map((f) => (
+                  <li key={f.name}>
+                    <button
+                      type="button"
+                      className={editorName === f.name ? "is-active" : ""}
+                      onClick={() => selectEditorFile(f)}
+                    >
+                      <code>{f.name}</code>
+                      <span>{f.bytes} B</span>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+            {editorName && (BINARY_EXT.test(editorName) || editorFiles.find((f) => f.name === editorName)?.encoding === "base64") ? (
+              <p className="agent-sandbox__editor-binary">
+                Archivo binario. Usá <strong>Descargar</strong> para obtenerlo desde S3.
+              </p>
+            ) : (
               <textarea
                 className="agent-sandbox__editor-text"
                 value={editorText}
@@ -883,10 +1023,72 @@ export default function AgentSandbox() {
                 spellCheck={false}
                 aria-label="Contenido del archivo"
               />
-            </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {settingsOpen ? (
+        <div
+          className="agent-sandbox__modal"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSettingsOpen(false);
+          }}
+        >
+          <div className="agent-sandbox__modal-panel" role="dialog" aria-modal="true" aria-label="Agente">
+            <header className="agent-sandbox__modal-head">
+              <h2>Configurar agente</h2>
+            </header>
+            <label className="agent-sandbox__settings-field">
+              Modelo
+              <select
+                value={agentPrefs.model}
+                onChange={(e) =>
+                  setAgentPrefs((p) => ({
+                    ...p,
+                    model: e.target.value as AgentPrefs["model"],
+                  }))
+                }
+              >
+                <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+                <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+              </select>
+            </label>
+            <label className="agent-sandbox__settings-field">
+              Modo
+              <select
+                value={agentPrefs.thinking}
+                onChange={(e) =>
+                  setAgentPrefs((p) => ({
+                    ...p,
+                    thinking: e.target.value as AgentPrefs["thinking"],
+                  }))
+                }
+              >
+                <option value="disabled">Flash (sin reasoning)</option>
+                <option value="enabled">Reasoning</option>
+              </select>
+            </label>
+            <label className="agent-sandbox__settings-field">
+              Effort (si reasoning)
+              <select
+                value={agentPrefs.reasoningEffort}
+                onChange={(e) =>
+                  setAgentPrefs((p) => ({
+                    ...p,
+                    reasoningEffort: e.target.value as AgentPrefs["reasoningEffort"],
+                  }))
+                }
+              >
+                <option value="low">low</option>
+                <option value="high">medium / high</option>
+                <option value="max">max</option>
+              </select>
+            </label>
             <div className="agent-sandbox__modal-actions">
-              <button type="button" className="btn" onClick={() => setFilesOpen(false)}>
-                Cerrar
+              <button type="button" className="btn btn--primary" onClick={() => setSettingsOpen(false)}>
+                Listo
               </button>
             </div>
           </div>

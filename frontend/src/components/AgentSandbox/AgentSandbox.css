@@ -438,6 +438,114 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
+.agent-sandbox__editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  margin: 0;
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  border: 0;
+}
+
+.agent-sandbox__editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: var(--border_001);
+  flex-shrink: 0;
+}
+
+.agent-sandbox__editor-title {
+  font: 650 0.85rem Montserrat, sans-serif;
+  opacity: 0.85;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-sandbox__editor-icons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.agent-sandbox__icon-btn {
+  box-sizing: border-box;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.agent-sandbox__icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.agent-sandbox__icon-btn svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.agent-sandbox__editor--fill {
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  gap: 0;
+  border: 0;
+}
+
+.agent-sandbox__editor--fill .agent-sandbox__editor-tree {
+  border-radius: 0;
+  border: 0;
+  border-right: var(--border_001);
+}
+
+.agent-sandbox__editor--fill .agent-sandbox__editor-text {
+  border-radius: 0;
+  border: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.agent-sandbox__editor-binary {
+  margin: 0;
+  padding: 1rem;
+  font: 0.85rem Raleway, sans-serif;
+  opacity: 0.85;
+}
+
+.agent-sandbox__settings-field {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  font: 0.85rem Raleway, sans-serif;
+}
+
+.agent-sandbox__settings-field select {
+  min-height: var(--control_min_height, 2.5rem);
+  padding: 0.35rem 0.5rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font: inherit;
+}
+
 .agent-sandbox__editor {
   display: grid;
   grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr);

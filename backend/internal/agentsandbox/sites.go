@@ -135,7 +135,7 @@ func upsertSiteFile(site *Site, f File) error {
 	if err := validateFile(f); err != nil {
 		return err
 	}
-	f.Type = allowedExtensions[strings.ToLower(path.Ext(f.Name))]
+	f = normalizeFileForStore(f)
 	for i := range site.Files {
 		if site.Files[i].Name == f.Name {
 			site.Files[i] = f
@@ -152,11 +152,18 @@ func upsertSiteFile(site *Site, f File) error {
 func fileRows(files []File) []map[string]any {
 	out := make([]map[string]any, 0, len(files))
 	for _, f := range files {
+		bytesLen := len(f.Text)
+		if f.Encoding == "base64" {
+			if raw, err := decodeBase64(f.Text); err == nil {
+				bytesLen = len(raw)
+			}
+		}
 		out = append(out, map[string]any{
-			"name":  f.Name,
-			"type":  f.Type,
-			"bytes": len(f.Text),
-			"text":  f.Text,
+			"name":     f.Name,
+			"type":     f.Type,
+			"bytes":    bytesLen,
+			"text":     f.Text,
+			"encoding": f.Encoding,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -361,7 +368,7 @@ func (h *Handler) PutSiteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var f File
-	if err := json.NewDecoder(io.LimitReader(r.Body, maxFileBytes+2048)).Decode(&f); err != nil {
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxFileBytes*2+4096)).Decode(&f); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid file")
 		return
 	}
@@ -381,6 +388,51 @@ func (h *Handler) PutSiteFile(w http.ResponseWriter, r *http.Request) {
 	}
 	noStore(w)
 	httpx.WriteJSON(w, http.StatusOK, site)
+}
+
+// DownloadSiteFile streams a site file as an attachment (decodes base64 binaries).
+func (h *Handler) DownloadSiteFile(w http.ResponseWriter, r *http.Request) {
+	if err := h.ensureS3(); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	name := strings.TrimSpace(chi.URLParam(r, "name"))
+	site, err := h.loadSite(r.Context(), auth.UserEmailFromRequest(r), chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.WriteError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	var found *File
+	for i := range site.Files {
+		if site.Files[i].Name == name {
+			found = &site.Files[i]
+			break
+		}
+	}
+	if found == nil {
+		httpx.WriteError(w, http.StatusNotFound, "file not found")
+		return
+	}
+	ctype := found.Type
+	if ctype == "" {
+		ctype = allowedExtensions[strings.ToLower(path.Ext(found.Name))]
+	}
+	var body []byte
+	if found.Encoding == "base64" || binaryExtensions[strings.ToLower(path.Ext(found.Name))] {
+		raw, err := decodeBase64(found.Text)
+		if err != nil {
+			httpx.WriteError(w, http.StatusBadGateway, "corrupt binary file")
+			return
+		}
+		body = raw
+	} else {
+		body = []byte(found.Text)
+	}
+	w.Header().Set("Content-Type", ctype)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(found.Name, `"`, "")))
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
 }
 
 func (h *Handler) chatSummariesForSite(ctx context.Context, email string, site Site) ([]ChatSummary, error) {

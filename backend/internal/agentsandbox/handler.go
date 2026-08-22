@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -31,7 +32,7 @@ import (
 
 const (
 	rootPrefix   = "agentsandbox"
-	maxFileBytes = 512 << 10
+	maxFileBytes = 2 << 20
 	maxChatBytes = 4 << 20
 	maxFiles     = 40
 )
@@ -45,6 +46,14 @@ var allowedExtensions = map[string]string{
 	".json": "application/json",
 	".txt":  "text/plain",
 	".svg":  "image/svg+xml",
+	".md":   "text/markdown",
+	".py":   "text/x-python",
+	".pdf":  "application/pdf",
+	".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+var binaryExtensions = map[string]bool{
+	".pdf": true, ".docx": true, ".xlsx": true,
 }
 
 // Message is one chat turn.
@@ -54,11 +63,12 @@ type Message struct {
 	At   string `json:"at"`
 }
 
-// File is a static website artifact.
+// File is a static website or document artifact.
 type File struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Text     string `json:"text"`
+	Encoding string `json:"encoding,omitempty"` // "base64" for binary docs
 }
 
 // Tab is a preview tab pointing at an HTML file.
@@ -129,6 +139,7 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Patch("/api/admin/agent-sandbox/sites/{id}", h.PatchSite)
 		pr.Get("/api/admin/agent-sandbox/sites/{id}/files", h.ListSiteFiles)
 		pr.Put("/api/admin/agent-sandbox/sites/{id}/files", h.PutSiteFile)
+		pr.Get("/api/admin/agent-sandbox/sites/{id}/files/{name}/download", h.DownloadSiteFile)
 		pr.Get("/api/admin/agent-sandbox/chats", h.ListChats)
 		pr.Post("/api/admin/agent-sandbox/chats", h.CreateChat)
 		pr.Get("/api/admin/agent-sandbox/chats/{id}", h.GetChat)
@@ -507,8 +518,19 @@ func validateFile(f File) error {
 	if !validName.MatchString(f.Name) || strings.Count(f.Name, ".") != 1 || allowedExtensions[ext] == "" {
 		return fmt.Errorf("unsupported file name or type")
 	}
-	if len(f.Text) > maxFileBytes {
-		return fmt.Errorf("file exceeds 512 KiB")
+	payload := f.Text
+	if binaryExtensions[ext] || strings.EqualFold(f.Encoding, "base64") {
+		raw, err := decodeMaybeBase64(f.Text)
+		if err != nil {
+			return fmt.Errorf("invalid base64 binary file")
+		}
+		if len(raw) > maxFileBytes {
+			return fmt.Errorf("file exceeds 2 MiB")
+		}
+		return nil
+	}
+	if len(payload) > maxFileBytes {
+		return fmt.Errorf("file exceeds 2 MiB")
 	}
 	if ext == ".svg" {
 		lower := strings.ToLower(f.Text)
@@ -518,6 +540,65 @@ func validateFile(f File) error {
 		}
 	}
 	return nil
+}
+
+func decodeBase64(s string) ([]byte, error) {
+	s = strings.TrimSpace(s)
+	s = strings.ReplaceAll(s, "\n", "")
+	s = strings.ReplaceAll(s, "\r", "")
+	return base64.StdEncoding.DecodeString(s)
+}
+
+func decodeMaybeBase64(s string) ([]byte, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, fmt.Errorf("empty")
+	}
+	return decodeBase64(s)
+}
+
+func normalizeFileForStore(f File) File {
+	ext := strings.ToLower(path.Ext(f.Name))
+	f.Type = allowedExtensions[ext]
+	if binaryExtensions[ext] {
+		f.Encoding = "base64"
+		// Ensure payload is valid base64 (agent may have sent raw — reject in validate).
+	} else {
+		f.Encoding = ""
+		f.Text = unescapeFileText(f.Text)
+	}
+	return f
+}
+
+// unescapeFileText turns accidental JSON-style escapes into real newlines for text files.
+func unescapeFileText(s string) string {
+	if s == "" {
+		return s
+	}
+	if strings.Contains(s, "\n") || strings.Contains(s, "\r") {
+		return s
+	}
+	if !strings.Contains(s, `\n`) && !strings.Contains(s, `\r`) && !strings.Contains(s, `\t`) {
+		return s
+	}
+	replacer := strings.NewReplacer(`\r\n`, "\n", `\n`, "\n", `\r`, "\n", `\t`, "\t")
+	return replacer.Replace(s)
+}
+
+func sanitizeAssistantReply(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return raw
+	}
+	if strings.HasPrefix(raw, "{") {
+		var obj map[string]any
+		if err := json.Unmarshal([]byte(raw), &obj); err == nil {
+			if reply, ok := obj["reply"].(string); ok && strings.TrimSpace(reply) != "" {
+				return strings.TrimSpace(reply)
+			}
+		}
+	}
+	return unescapeFileText(raw)
 }
 
 func upsertFile(site *Site, f File) error {
@@ -588,8 +669,11 @@ func (h *Handler) ListFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 type askRequest struct {
-	Message   string   `json:"message"`
-	Allowlist []string `json:"allowlist"`
+	Message         string   `json:"message"`
+	Allowlist       []string `json:"allowlist"`
+	Model           string   `json:"model"`
+	Thinking        string   `json:"thinking"`
+	ReasoningEffort string   `json:"reasoningEffort"`
 }
 
 type proposal struct {
@@ -666,19 +750,23 @@ func (h *Handler) Ask(w http.ResponseWriter, r *http.Request) {
 		"chatId": chatID, "siteId": site.ID, "messageChars": len(req.Message), "existingFiles": len(site.Files),
 	})
 	logf("info", "Building DeepSeek system/user prompts.", map[string]any{
-		"model":     httpx.Env("DEEPSEEK_MODEL_REASONING", "deepseek-reasoner"),
+		"model":     resolveAskModel(req),
+		"thinking":  resolveThinking(req),
+		"effort":    resolveEffort(req),
 		"specChars": len(site.Spec), "allowlist": req.Allowlist,
 	})
 
 	system := `You are an AI senior web developer and web crawler architect.
-Write the admin-facing answer first as Markdown (headings, lists, code fences OK).
+Write the admin-facing answer first as Markdown only (headings, lists, code fences OK). Never put JSON in the Markdown reply.
 After the Markdown, on its own lines, append exactly:
 
 <<<ARTIFACTS>>>
 {"spec":"...","files":[{"name":"index.html","text":"..."}],"tabs":[{"id":"home","label":"Home","file":"index.html"}]}
 <<<END>>>
 
-Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, network, credentials, or server code; one minimal global CSS using rem.`
+Rules: flat file names only; allowed text: .html,.css,.js,.json,.txt,.svg,.md,.py; binary docs .pdf,.docx,.xlsx must use base64 in text with "encoding":"base64".
+You may emit .py scripts that generate documents; also emit the finished .pdf/.docx/.xlsx/.txt as separate files (base64 for binaries).
+No shell, network, credentials, or server code. One minimal global CSS using rem. Real newlines inside text fields (JSON will escape them).`
 	user := fmt.Sprintf("Workspace spec:\n%s\nRequest:\n%s\nAllowed docs hosts: %s", site.Spec, req.Message, strings.Join(req.Allowlist, ", "))
 
 	var full strings.Builder
@@ -688,7 +776,7 @@ Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, ne
 	firstTokenLogged := false
 	logf("info", "Calling DeepSeek reasoning stream (this can take several minutes).", nil)
 
-	err = deepSeekReasoningStream(r.Context(), system, user, func(delta string) {
+	err = deepSeekReasoningStream(r.Context(), resolveAskModel(req), resolveThinking(req), resolveEffort(req), system, user, func(delta string) {
 		full.WriteString(delta)
 		if artifactsStarted {
 			return
@@ -732,7 +820,7 @@ Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, ne
 		md = visible.String()
 	}
 	var p proposal
-	p.Reply = strings.TrimSpace(md)
+	p.Reply = sanitizeAssistantReply(md)
 	if art != "" {
 		if err := json.Unmarshal([]byte(art), &p); err != nil {
 			logf("warn", "Artifacts JSON did not parse; keeping Markdown reply only.", map[string]any{
@@ -744,7 +832,9 @@ Rules: only propose .html,.css,.js,.json,.txt,.svg with flat names; no shell, ne
 			})
 		}
 		if strings.TrimSpace(p.Reply) == "" {
-			p.Reply = strings.TrimSpace(md)
+			p.Reply = sanitizeAssistantReply(md)
+		} else {
+			p.Reply = sanitizeAssistantReply(p.Reply)
 		}
 	} else {
 		logf("warn", "No <<<ARTIFACTS>>> block in model output; reply-only update.", nil)
@@ -814,7 +904,45 @@ func splitArtifacts(raw string) (markdown, artifactsJSON string) {
 	return markdown, artifactsJSON
 }
 
-func deepSeekReasoningStream(ctx context.Context, system, user string, onDelta func(string), onLog func(stage, msg string)) error {
+func resolveAskModel(req askRequest) string {
+	m := strings.TrimSpace(strings.ToLower(req.Model))
+	switch m {
+	case "deepseek-v4-flash", "deepseek-v4-pro":
+		return m
+	case "flash":
+		return "deepseek-v4-flash"
+	case "pro", "medium", "reasoner", "reasoning":
+		return "deepseek-v4-pro"
+	default:
+		return httpx.Env("DEEPSEEK_MODEL_REASONING", "deepseek-v4-pro")
+	}
+}
+
+func resolveThinking(req askRequest) string {
+	t := strings.TrimSpace(strings.ToLower(req.Thinking))
+	switch t {
+	case "disabled", "off", "false", "flash":
+		return "disabled"
+	case "enabled", "on", "true", "reasoning":
+		return "enabled"
+	default:
+		return "enabled"
+	}
+}
+
+func resolveEffort(req askRequest) string {
+	e := strings.TrimSpace(strings.ToLower(req.ReasoningEffort))
+	switch e {
+	case "low", "high", "max":
+		return e
+	case "medium":
+		return "high"
+	default:
+		return "high"
+	}
+}
+
+func deepSeekReasoningStream(ctx context.Context, model, thinking, effort, system, user string, onDelta func(string), onLog func(stage, msg string)) error {
 	if onLog == nil {
 		onLog = func(string, string) {}
 	}
@@ -822,21 +950,33 @@ func deepSeekReasoningStream(ctx context.Context, system, user string, onDelta f
 	if key == "" {
 		return fmt.Errorf("DEEPSEEK_API_KEY is not configured")
 	}
-	model := httpx.Env("DEEPSEEK_MODEL_REASONING", "deepseek-reasoner")
+	if model == "" {
+		model = "deepseek-v4-pro"
+	}
+	if thinking != "disabled" {
+		thinking = "enabled"
+	}
+	if effort == "" {
+		effort = "high"
+	}
 	base := strings.TrimRight(httpx.Env("DEEPSEEK_BASE_URL", "https://api.deepseek.com"), "/")
-	body, err := json.Marshal(map[string]any{
+	payload := map[string]any{
 		"model": model,
 		"messages": []map[string]string{
 			{"role": "system", "content": system},
 			{"role": "user", "content": user},
 		},
 		"stream":   true,
-		"thinking": map[string]string{"type": "enabled"},
-	})
+		"thinking": map[string]string{"type": thinking},
+	}
+	if thinking == "enabled" {
+		payload["reasoning_effort"] = effort
+	}
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-	onLog("deepseek.request", fmt.Sprintf("POST %s/chat/completions model=%s bodyBytes=%d", base, model, len(body)))
+	onLog("deepseek.request", fmt.Sprintf("POST %s/chat/completions model=%s thinking=%s effort=%s bodyBytes=%d", base, model, thinking, effort, len(body)))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return err
@@ -844,7 +984,6 @@ func deepSeekReasoningStream(ctx context.Context, system, user string, onDelta f
 	req.Header.Set("Authorization", "Bearer "+key)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
-	// Reasoning streams often exceed 2 minutes; nginx ask location allows 600s.
 	res, err := (&http.Client{Timeout: 10 * time.Minute}).Do(req)
 	if err != nil {
 		return fmt.Errorf("DeepSeek request failed: %w", err)
@@ -869,8 +1008,8 @@ func deepSeekReasoningStream(ctx context.Context, system, user string, onDelta f
 		if !strings.HasPrefix(line, "data:") {
 			continue
 		}
-		payload := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
-		if payload == "" || payload == "[DONE]" {
+		payloadLine := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if payloadLine == "" || payloadLine == "[DONE]" {
 			continue
 		}
 		var chunk struct {
@@ -881,7 +1020,7 @@ func deepSeekReasoningStream(ctx context.Context, system, user string, onDelta f
 				} `json:"delta"`
 			} `json:"choices"`
 		}
-		if err := json.Unmarshal([]byte(payload), &chunk); err != nil {
+		if err := json.Unmarshal([]byte(payloadLine), &chunk); err != nil {
 			continue
 		}
 		if len(chunk.Choices) == 0 {
@@ -908,7 +1047,7 @@ func deepSeekReasoningStream(ctx context.Context, system, user string, onDelta f
 
 func deepSeekReasoning(ctx context.Context, system, user string) (string, error) {
 	var b strings.Builder
-	err := deepSeekReasoningStream(ctx, system, user, func(delta string) { b.WriteString(delta) }, nil)
+	err := deepSeekReasoningStream(ctx, "deepseek-v4-pro", "enabled", "high", system, user, func(delta string) { b.WriteString(delta) }, nil)
 	return b.String(), err
 }
 

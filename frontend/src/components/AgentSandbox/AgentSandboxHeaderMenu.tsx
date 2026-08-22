@@ -12,10 +12,12 @@ type AgentSandboxHeaderMenuProps = {
   sidebarOpen: boolean;
   sitesOpen: boolean;
   consoleOpen: boolean;
+  settingsOpen: boolean;
   onToggleSidebar: () => void;
   onOpenSites: () => void;
   onOpenHistory: () => void;
   onOpenFiles: () => void;
+  onOpenSettings: () => void;
   onToggleConsole: () => void;
 };
 
@@ -69,6 +71,17 @@ function IconConsole() {
       <path
         fill="currentColor"
         d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm0 2v12h16V6H4zm2.5 2.5l1.4 1.4L6.5 11.3l1.1 1.1 2.5-2.5L6.5 6.9l-1.1 1.1 1.1 1.5zm5.5 5.5h5v1.5h-5V14z"
+      />
+    </svg>
+  );
+}
+
+function IconSettings() {
+  return (
+    <svg className="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M19.14 12.94a7.43 7.43 0 000-1.88l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.6-.22l-2.39.96a7.2 7.2 0 00-1.62-.94l-.36-2.54a.5.5 0 00-.5-.42h-3.84a.5.5 0 00-.5.42l-.36 2.54c-.57.23-1.11.54-1.62.94l-2.39-.96a.5.5 0 00-.6.22L2.71 8.84a.5.5 0 00.12.64l2.03 1.58c-.05.31-.08.63-.08.94s.03.63.08.94L2.83 14.5a.5.5 0 00-.12.64l1.92 3.32c.13.22.39.32.6.22l2.39-.96c.5.4 1.05.71 1.62.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.57-.23 1.11-.54 1.62-.94l2.39.96c.22.1.47 0 .6-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1112 8a3.5 3.5 0 010 7.5z"
       />
     </svg>
   );
@@ -139,6 +152,16 @@ export default function AgentSandboxHeaderMenu(props: AgentSandboxHeaderMenuProp
             onClick={props.onOpenFiles}
           >
             <IconFiles />
+          </button>
+          <button
+            type="button"
+            className={`header-dynamic-menu__btn${props.settingsOpen ? " header-dynamic-menu__btn--active is-active" : ""}`}
+            title="Configurar agente"
+            aria-label="Configurar agente"
+            aria-pressed={props.settingsOpen}
+            onClick={props.onOpenSettings}
+          >
+            <IconSettings />
           </button>
           <button
             type="button"
