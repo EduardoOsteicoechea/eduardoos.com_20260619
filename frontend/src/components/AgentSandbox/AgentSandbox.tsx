@@ -41,6 +41,10 @@ type AgentPrefs = {
   model: "deepseek-v4-flash" | "deepseek-v4-pro";
   thinking: "enabled" | "disabled";
   reasoningEffort: "low" | "high" | "max";
+  crawlAllowlist: string;
+  crawlStartUrl: string;
+  crawlMaxPages: number;
+  crawlMaxDepth: number;
 };
 type ConsoleEntry = {
   id: string;
@@ -101,20 +105,45 @@ function authHeaders(): HeadersInit {
 const fetchOpts: RequestInit = { cache: "no-store" };
 
 function loadPrefs(): AgentPrefs {
+  const defaults: AgentPrefs = {
+    model: "deepseek-v4-pro",
+    thinking: "enabled",
+    reasoningEffort: "high",
+    crawlAllowlist: "",
+    crawlStartUrl: "",
+    crawlMaxPages: 30,
+    crawlMaxDepth: 2,
+  };
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (raw) {
-      const p = JSON.parse(raw) as AgentPrefs;
-      if (p.model && p.thinking && p.reasoningEffort) return p;
+      const p = JSON.parse(raw) as Partial<AgentPrefs>;
+      if (p.model && p.thinking && p.reasoningEffort) {
+        return {
+          ...defaults,
+          ...p,
+          crawlMaxPages: Number(p.crawlMaxPages) > 0 ? Math.min(100, Number(p.crawlMaxPages)) : 30,
+          crawlMaxDepth: Number(p.crawlMaxDepth) > 0 ? Math.min(4, Number(p.crawlMaxDepth)) : 2,
+          crawlAllowlist: typeof p.crawlAllowlist === "string" ? p.crawlAllowlist : "",
+          crawlStartUrl: typeof p.crawlStartUrl === "string" ? p.crawlStartUrl : "",
+        };
+      }
     }
   } catch {
     /* ignore */
   }
-  return {
-    model: "deepseek-v4-pro",
-    thinking: "enabled",
-    reasoningEffort: "high",
-  };
+  return defaults;
+}
+
+function savePrefs(p: AgentPrefs) {
+  localStorage.setItem(PREFS_KEY, JSON.stringify(p));
+}
+
+function parseAllowlist(raw: string): string[] {
+  return raw
+    .split(/[,;\s]+/)
+    .map((h) => h.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, ""))
+    .filter(Boolean);
 }
 
 /** Show real newlines; keep content when stored with JSON-style escapes. */
@@ -620,6 +649,17 @@ export default function AgentSandbox() {
           model: agentPrefs.model,
           thinking: agentPrefs.thinking,
           reasoningEffort: agentPrefs.reasoningEffort,
+          allowlist: parseAllowlist(agentPrefs.crawlAllowlist),
+          ...(agentPrefs.crawlStartUrl.trim()
+            ? {
+                crawl: {
+                  startUrl: agentPrefs.crawlStartUrl.trim(),
+                  allowlist: parseAllowlist(agentPrefs.crawlAllowlist),
+                  maxPages: agentPrefs.crawlMaxPages,
+                  maxDepth: agentPrefs.crawlMaxDepth,
+                },
+              }
+            : {}),
         }),
       });
       if (!res.ok || !res.body) {
@@ -1236,8 +1276,67 @@ export default function AgentSandbox() {
                 <option value="max">max</option>
               </select>
             </label>
+            <label className="agent-sandbox__settings-field">
+              Crawl allowlist (hosts, separados por coma)
+              <input
+                className="agent-sandbox__site-name"
+                type="text"
+                value={agentPrefs.crawlAllowlist}
+                onChange={(e) => setAgentPrefs((p) => ({ ...p, crawlAllowlist: e.target.value }))}
+                placeholder="ifc43-docs.standards.buildingsmart.org, standards.buildingsmart.org"
+              />
+            </label>
+            <label className="agent-sandbox__settings-field">
+              Crawl start URL (HTTPS; vacío = sin crawl en Ask)
+              <input
+                className="agent-sandbox__site-name"
+                type="url"
+                value={agentPrefs.crawlStartUrl}
+                onChange={(e) => setAgentPrefs((p) => ({ ...p, crawlStartUrl: e.target.value }))}
+                placeholder="https://ifc43-docs.standards.buildingsmart.org/…"
+              />
+            </label>
+            <label className="agent-sandbox__settings-field">
+              Crawl max pages (cap 100)
+              <input
+                className="agent-sandbox__site-name"
+                type="number"
+                min={1}
+                max={100}
+                value={agentPrefs.crawlMaxPages}
+                onChange={(e) =>
+                  setAgentPrefs((p) => ({
+                    ...p,
+                    crawlMaxPages: Math.max(1, Math.min(100, Number(e.target.value) || 30)),
+                  }))
+                }
+              />
+            </label>
+            <label className="agent-sandbox__settings-field">
+              Crawl max depth (default 2, cap 4)
+              <input
+                className="agent-sandbox__site-name"
+                type="number"
+                min={0}
+                max={4}
+                value={agentPrefs.crawlMaxDepth}
+                onChange={(e) =>
+                  setAgentPrefs((p) => ({
+                    ...p,
+                    crawlMaxDepth: Math.max(0, Math.min(4, Number(e.target.value) || 2)),
+                  }))
+                }
+              />
+            </label>
             <div className="agent-sandbox__modal-actions">
-              <button type="button" className="btn btn--primary" onClick={() => setSettingsOpen(false)}>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => {
+                  savePrefs(agentPrefs);
+                  setSettingsOpen(false);
+                }}
+              >
                 Listo
               </button>
             </div>

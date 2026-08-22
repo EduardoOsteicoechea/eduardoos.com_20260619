@@ -156,6 +156,7 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Post("/api/admin/agent-sandbox/chats/{id}/files", h.PutFile)
 		pr.Get("/api/admin/agent-sandbox/chats/{id}/files", h.ListFiles)
 		pr.Post("/api/admin/agent-sandbox/crawl", h.Crawl)
+		pr.Post("/api/admin/agent-sandbox/crawl/job", h.CrawlJob)
 	})
 }
 
@@ -676,11 +677,12 @@ func (h *Handler) ListFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 type askRequest struct {
-	Message         string   `json:"message"`
-	Allowlist       []string `json:"allowlist"`
-	Model           string   `json:"model"`
-	Thinking        string   `json:"thinking"`
-	ReasoningEffort string   `json:"reasoningEffort"`
+	Message         string           `json:"message"`
+	Allowlist       []string         `json:"allowlist"`
+	Model           string           `json:"model"`
+	Thinking        string           `json:"thinking"`
+	ReasoningEffort string           `json:"reasoningEffort"`
+	Crawl           *CrawlJobRequest `json:"crawl"`
 }
 
 type proposal struct {
@@ -798,9 +800,38 @@ After the Markdown, on its own lines, append exactly:
 <<<END>>>
 
 Rules: flat file names only; allowed text: .html,.css,.js,.json,.txt,.svg,.md,.py; binary .pdf,.docx,.xlsx and images .png,.jpg,.jpeg,.webp,.gif must use base64 in text with "encoding":"base64".
-You may emit .py scripts that generate documents; also emit the finished .pdf/.docx/.xlsx/.txt/.png as separate files (base64 for binaries).
-No shell, network, credentials, or server code. One minimal global CSS using rem. Real newlines inside text fields (JSON will escape them).`
+You may emit .py scripts as downloadable helpers only — they are NEVER executed on the server. Prefer embedding crawl data as static .json/.html/.js.
+When the user message includes a CRAWL_RESULT JSON block, treat it as authoritative documentation fetched by the Eduardo OS Go crawler. Build the static site FROM that data (inline JSON or data.js). Do NOT invent fake browser crawls, progress bars that fetch relative files, or live network calls from the preview iframe (srcDoc cannot fetch data.json).
+No shell, credentials, or server code. One minimal global CSS using rem. Real newlines inside text fields (JSON will escape them).`
+
 	user := fmt.Sprintf("Workspace spec:\n%s\nRequest:\n%s\nAllowed docs hosts: %s", site.Spec, req.Message, strings.Join(req.Allowlist, ", "))
+
+	// Optional server crawl before the model: inject CRAWL_RESULT for the agent to assemble the site.
+	crawlReq, crawlMergeErr := mergeCrawlRequest(req)
+	if crawlMergeErr != nil {
+		logf("error", "Crawl config invalid.", map[string]any{"error": crawlMergeErr.Error()})
+		writeSSE("error", map[string]string{"error": crawlMergeErr.Error()})
+		return
+	}
+	if crawlReq != nil {
+		writeSSE("progress", map[string]any{"percent": 3, "phase": "crawl", "knownTotalBytes": false})
+		logf("info", "Running Go crawl job before DeepSeek.", map[string]any{
+			"startUrl": crawlReq.StartURL, "allowlist": crawlReq.Allowlist,
+			"maxPages": crawlReq.MaxPages, "maxDepth": crawlReq.MaxDepth,
+		})
+		job, crawlErr := runCrawlJob(r.Context(), *crawlReq)
+		if crawlErr != nil {
+			logf("error", "Crawl job failed.", map[string]any{"error": crawlErr.Error()})
+			writeSSE("error", map[string]string{"error": "crawl job: " + crawlErr.Error()})
+			return
+		}
+		rawJob, _ := json.Marshal(job)
+		logf("info", "Crawl job finished; injecting CRAWL_RESULT into model prompt.", map[string]any{
+			"pageCount": job.PageCount, "truncated": job.Truncated, "errors": len(job.Errors),
+		})
+		writeSSE("progress", map[string]any{"percent": 8, "phase": "crawl", "knownTotalBytes": false})
+		user += "\n\nCRAWL_RESULT (server Go crawler JSON — build the site from this; do not simulate network):\n" + string(rawJob)
+	}
 
 	var full strings.Builder
 	var visible strings.Builder
@@ -1035,6 +1066,8 @@ func estimateAskProgress(phase string, reasoningChars, contentChars int) int {
 	switch phase {
 	case "request", "connected":
 		return 2
+	case "crawl":
+		return 8
 	case "reasoning":
 		// Asymptotic toward 55% while thinking (no known total size).
 		x := float64(reasoningChars)
@@ -1200,6 +1233,41 @@ func (h *Handler) Crawl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]string{"url": req.URL, "text": text})
+}
+
+// CrawlJob runs a bounded recursive crawl and returns JSON for the agent to assemble a site.
+func (h *Handler) CrawlJob(w http.ResponseWriter, r *http.Request) {
+	var req CrawlJobRequest
+	if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&req); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid crawl job")
+		return
+	}
+	job, err := runCrawlJob(r.Context(), req)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	noStore(w)
+	httpx.WriteJSON(w, http.StatusOK, job)
+}
+
+// mergeCrawlRequest builds a crawl job from ask.crawl and/or top-level allowlist.
+// Returns (nil, nil) when no crawl requested.
+func mergeCrawlRequest(req askRequest) (*CrawlJobRequest, error) {
+	if req.Crawl == nil {
+		return nil, nil
+	}
+	c := *req.Crawl
+	if strings.TrimSpace(c.StartURL) == "" {
+		return nil, nil
+	}
+	if len(c.Allowlist) == 0 {
+		c.Allowlist = req.Allowlist
+	}
+	if len(normalizeAllowlist(c.Allowlist)) == 0 {
+		return nil, fmt.Errorf("crawl requires a non-empty allowlist of hosts")
+	}
+	return &c, nil
 }
 
 func crawl(ctx context.Context, raw string, allowlist []string) (string, error) {

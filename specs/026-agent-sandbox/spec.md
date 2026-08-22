@@ -2,11 +2,11 @@
 
 ## Status
 
-Editor UX + agent prefs + downloadable docs (2026-08-22).
+Go crawl job for agent (2026-08-22).
 
 ## Problem
 
-Platform administrators need a private workspace where an AI senior web developer and web crawler architect can turn chat instructions into a specification, static website artifacts, and documentation-derived JSON without touching the Eduardo OS repository or EC2 filesystem.
+Platform administrators need a private workspace where an AI senior web developer and web crawler architect can turn chat instructions into a specification, static website artifacts, and documentation-derived JSON without touching the Eduardo OS repository or EC2 filesystem. Fake in-browser “crawls” fail in `srcDoc` preview; the agent needs **server-executed** documentation fetch.
 
 ## Goals
 
@@ -20,75 +20,56 @@ Platform administrators need a private workspace where an AI senior web develope
 
 - No new container, Docker socket, local workspace, shell, or durable EC2 disk.
 - All durable state under S3 prefix `agentsandbox/{adminSafe}/`.
-- **Sites** own the website; **chats** are conversations grouped under a site:
-  ```
-  agentsandbox/{adminSafe}/sites/index.json
-  agentsandbox/{adminSafe}/sites/{siteId}.json
-  agentsandbox/{adminSafe}/chats/{chatId}.json
-  ```
-- Site JSON: `id`, `name`, `spec`, `files[]`, `tabs[]`, `chatIds[]`, `updated`.
-- Chat JSON: `id`, `siteId`, `title`, `messages[]`, `updated`.
-- Files (flat names): text `.html/.css/.js/.json/.txt/.svg/.md/.py`; binary (base64 in `text`, `encoding:"base64"`) `.pdf/.docx/.xlsx` and images `.png/.jpg/.jpeg/.webp/.gif`. Max 2 MiB decoded, ≤ 40 files; reject traversal, double extensions, unsafe SVG.
-- **No Python execution on EC2** (Alpine runtime has no interpreter). Agent may emit `.py` scripts as downloadable artifacts and should also emit the resulting documents as base64 file entries when producing `.pdf`/`.docx`/`.xlsx`/`.txt`.
-- **Migration:** legacy chats → site `Default` (unchanged).
+- **Sites** own the website; **chats** are conversations grouped under a site.
+- Files (flat names): text `.html/.css/.js/.json/.txt/.svg/.md/.py`; binary (base64) `.pdf/.docx/.xlsx` and images `.png/.jpg/.jpeg/.webp/.gif`. Max 2 MiB decoded, ≤ 40 files.
+- **No Python / agent JS execution on EC2.** `.py` remains downloadable only.
 
-### Agent and crawler
+### Dedicated Go crawl job (locked)
 
-- `DEEPSEEK_API_KEY`; per-ask model prefs from client (persisted in `localStorage`):
-  - **model:** `deepseek-v4-flash` | `deepseek-v4-pro`
-  - **thinking:** `enabled` | `disabled` (flash / non-reasoning = disabled)
-  - **reasoning_effort:** `low` | `high` | `max` (UI label “medium” maps to `high`)
-- Ask body may include `model`, `thinking`, `reasoningEffort`; backend applies them to DeepSeek.
-- Visible assistant `reply` must be Markdown only (never raw artifacts JSON). Client also normalizes legacy messages that stored JSON/`\\n` escapes.
-- Ask writes messages to chat and artifacts to site. Accepts file body as `text`/`content`/`body`. `GET site` recovers empty stubs from chat assistant JSON/ARTIFACTS when needed.
+- **Not** Python on EC2. Backend runs a bounded HTTPS crawler in Go.
+- Admin supplies **allowlist hosts per request** (no built-in default hosts).
+- Limits: `maxPages` default 30, **hard cap 100**; `maxDepth` **default 2**, **hard cap 4**; **job timeout ~60s**.
+- SSRF: HTTPS only; host must match allowlist; block private/loopback/link-local IPs; same-host redirects only; body size capped per page.
+- **Output:** JSON only (`pages[]` with `url`, `title`, `text`, optional errors). **Does not** write site files — the agent builds the site from that JSON.
+- Endpoints:
+  - `POST /api/admin/agent-sandbox/crawl/job` — run job, return JSON.
+  - `POST /api/admin/agent-sandbox/chats/{id}/ask` — optional `crawl: { startUrl, allowlist, maxPages, maxDepth }`; if `startUrl` + non-empty `allowlist`, backend runs the job **before** DeepSeek, injects `CRAWL_RESULT` JSON into the model user prompt, logs crawl stages on the console SSE. Agent must use that data (no fake browser progress / `fetch('data.json')` sims).
+- Legacy `POST …/crawl` (single URL) remains.
+
+### Agent prefs / Ask
+
+- Model prefs unchanged (`deepseek-v4-flash|pro`, thinking, effort).
+- System prompt: use `CRAWL_RESULT` when present; never claim live network from the preview iframe.
 
 ### UI (locked)
 
-**Header dynamic slot:**
-
-1. Toggle sidebar  
-2. Sites  
-3. Chat history (active site)  
-4. Files editor — **fullscreen within the content chrome** (starts at the global header rail / top bar, never under it; **body fills to the bottom of the viewport**); toolbar icons: Save, Download, Close  
-5. **Agent settings** — pick model + thinking mode + effort  
-6. Agent console — streams `log`/`progress`/`error`; footer: balance, **phase progress bar** (SSE has no Content-Length; percent is estimated from reasoning→content→artifacts→done), Limpiar. Long reasoning must show moving progress (not look hung).
-
-**Streaming:** hold back `<<<ARTIFACTS>>>` prefixes across token chunks so the marker never appears in chat; `progress` SSE events for the console bar.
-
-**Files editor:** left tree, right textarea for text files (real newlines rendered, not literal `\n`); binary files show a short note + Download. Content loaded from site JSON (in-memory + API), never blank when bytes > 0.
-
-**Chat:** assistant bubbles via `ChatMarkdown`; normalize JSON-shaped / escaped legacy replies on display.
-
-**Composer:** textarea accepts **Ctrl+V / paste of clipboard images** → thumbnail strip (“barra de imágenes”) under the composer. Drag/drop or file picker of images also lands in that strip. Images upload to the active site as base64 binaries (same as docs). Non-image drops still upsert site files; client must send binaries as base64 + `encoding:"base64"` (never `file.text()` on PNG).
-
-**Viewport lock:** unchanged.
+- Header tools unchanged (sidebar, sites, history, files editor to viewport bottom, agent settings, console).
+- **Agent settings** also store crawl fields (localStorage): allowlist (comma hosts), start URL, maxPages, maxDepth — sent on Ask when start URL is set.
+- Composer image paste / progress bar / ARTIFACTS hold-back unchanged.
+- Preview remains `srcDoc` (multi-file fetch still limited); real crawl data is baked into generated files by the agent.
 
 ## API
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET/POST/PATCH` | `/sites…` | unchanged |
-| `GET/PUT` | `/sites/{id}/files` | list (includes `text`+`encoding`) / upsert |
-| `GET` | `/sites/{id}/files/{name}/download` | attachment download (decode base64 when needed) |
-| `POST` | `/chats/{id}/ask` | body may include model prefs |
+| `POST` | `/crawl/job` | Bounded recursive crawl → JSON for agent |
+| `POST` | `/chats/{id}/ask` | optional `crawl` job then stream artifacts |
+| … | sites/chats/files/… | unchanged |
 
 ## Non-goals
 
 - Executing agent Python/JS on EC2.
-- Nested folders, recursive crawl, public share.
+- Writing crawl output directly into the site (agent assembles files).
+- Public share / nested folder trees beyond flat site files.
+- Unbounded or off-allowlist crawling.
 
 ## Acceptance
 
-- [x] Sites + site-scoped chats + baseline sandbox.
-- [x] Fullscreen files editor; icon Save / Download / Close; minimal chrome.
-- [x] File contents visible; newlines as real breaks (escapes preserved as characters when stored).
-- [x] Legacy Default chat replies render as Markdown.
-- [x] Agent settings: flash/pro + thinking + effort.
-- [x] Download text/binary agent files; `.py` allowed; binaries via base64.
+- [x] Prior sandbox baseline (sites, editor, images, progress, etc.).
+- [x] `POST /crawl/job` respects allowlist, caps, 60s timeout; returns pages JSON.
+- [x] Ask with `crawl` injects `CRAWL_RESULT` before DeepSeek; console logs crawl.
+- [x] FE settings send allowlist + startUrl + limits on Ask.
 - [x] Go tests + frontend build; commit/push.
-- [x] Console progress bar during ask (phase-estimated; no hung idle during reasoning).
-- [x] ARTIFACTS marker never leaked into chat tokens.
-- [x] Composer: paste/drop PNG (and jpg/webp/gif) → images bar + base64 site upload (no “Archivo rechazado” for valid images).
 
 ## Affected paths
 
