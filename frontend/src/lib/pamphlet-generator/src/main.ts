@@ -392,18 +392,33 @@ async function printDocument(): Promise<void> {
             header_layout: PAMPHLET_HEADER_LAYOUT_MM,
             footer_layout: PAMPHLET_FOOTER_LAYOUT_MM,
         };
+        const correlationId = createCorrelationId();
         const res = await fetch(DOCUMENT_ROUTES.pamphletPdf, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
-                "X-Correlation-ID": createCorrelationId(),
+                "X-Correlation-ID": correlationId,
             },
             body: JSON.stringify(printPayload),
         });
         if (!res.ok) {
             const text = await res.text();
-            throw new Error(text || `HTTP ${res.status}`);
+            let detail = text || `HTTP ${res.status}`;
+            try {
+                const parsed = JSON.parse(text) as { error?: string };
+                if (parsed?.error) detail = parsed.error;
+            } catch {
+                /* keep raw text */
+            }
+            throw new Error(
+                [
+                    `PDF print failed (${res.status})`,
+                    `correlation=${correlationId}`,
+                    `type=${printPayload.type}`,
+                    detail,
+                ].join("\n"),
+            );
         }
         const blob = await res.blob();
         const cd = res.headers.get("Content-Disposition") || "";
@@ -422,6 +437,10 @@ async function printDocument(): Promise<void> {
     } catch (err) {
         const message = err instanceof Error ? err.message : "No se pudo generar el PDF";
         setStatus(message, "error");
+        openApiErrorModal(message, {
+            title: "Error al generar PDF",
+            summary: "El servidor rechazó la impresión del panfleto. Copia el detalle si reportas el fallo.",
+        });
     } finally {
         endPrintDesktopLayout();
     }

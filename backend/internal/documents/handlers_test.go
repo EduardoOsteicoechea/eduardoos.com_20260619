@@ -120,6 +120,42 @@ func TestPamphletPDFRejectsBadType(t *testing.T) {
 	}
 }
 
+func TestPamphletPDFAcceptsStructuredImages(t *testing.T) {
+	secret := "doc-secret"
+	token, err := auth.IssueJWT("writer@example.com", secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := NewHandler(secret)
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	body := `{
+		"type":"pamphlet_structured_images",
+		"header":{"title":"Structured","author":"Eduardo","series":"Romanos","series_chapter":"2","date":"2026-08-23"},
+		"footer":{"action":"","message":"","label1":"WhatsApp","value1":"","label2":"Teléfono","value2":"","label3":"Dirección","value3":"","label4":"Actividades","value4":""},
+		"column_1":[{"type":"image","content":"","height_mm":52},{"type":"paragraph","content":"Cuerpo bajo la lead."}],
+		"column_2":[{"type":"paragraph","content":"Columna dos."}],
+		"column_3":[{"type":"image","content":"","height_mm":52}],
+		"column_4":[],
+		"column_5":[{"type":"image","content":"","height_mm":52}],
+		"column_6":[],
+		"column_7":[{"type":"image","content":"","height_mm":52}],
+		"column_8":[]
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/documents/pamphlet/pdf", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if !bytes.HasPrefix(rec.Body.Bytes(), []byte("%PDF-1.4")) {
+		t.Fatalf("not a PDF")
+	}
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a

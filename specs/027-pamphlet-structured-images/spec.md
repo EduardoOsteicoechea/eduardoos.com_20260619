@@ -43,6 +43,7 @@ Lead images currently sit **inside** columns, so body text starts too low and co
 4. JSON still stores the lead as the **first `image` item** of that column (serialize/deserialize round-trip); FE renders it in the lead slot.
 5. PDF parity: same outside-column placement and reduced column content height.
 6. Click lead → existing image tray (unchanged).
+7. **Print**: `POST /api/documents/pamphlet/pdf` accepts both `pamphlet_single_sheet` and `pamphlet_structured_images`; server logs correlation + type + column/image counts; FE shows ServerErrorModal on failure.
 
 ### Cloud open — soft delete to recycle bin
 
@@ -70,7 +71,10 @@ In **Open → From the cloud** modal (`#open-cloud-modal`):
 - [x] Type toggle in dynamic header; content preserved.
 - [x] Lead 10:9 in **slots above** cols 1/3/5/7; gap 3.75mm; column height reduced; PDF matches.
 - [x] Open-cloud: icon → checkboxes → confirm → recycle-bin move.
-- [ ] FE build; backend tests; commit/push.
+- [x] Print (`POST /api/documents/pamphlet/pdf`) accepts `pamphlet_single_sheet` and `pamphlet_structured_images`; rejects other types with JSON `error`.
+- [x] Server logs correlation, user, body size, type, title, column counts, image count, layout flags, PDF byte size on every print attempt.
+- [x] FE print failures open `ServerErrorModal` with status, correlation id, type, and server `error` detail.
+- [x] FE build; backend tests; commit/push.
 
 ## Affected paths
 
@@ -78,4 +82,5 @@ In **Open → From the cloud** modal (`#open-cloud-modal`):
 - `frontend/src/lib/pamphlet-generator/**`
 - `frontend/src/lib/epams.ts`, `frontend/src/config/routes.ts`
 - `backend/pkg/pdf/pamphlet.go` (+ tests)
+- `backend/internal/documents/` (PamphletPDF type allowlist + logging)
 - `backend/internal/content/` (epam store Delete/recycle + handlers)
