@@ -784,29 +784,8 @@ func (h *Handler) Ask(w http.ResponseWriter, r *http.Request) {
 	logf("info", "Ask started: loaded chat + site from S3 and opened SSE stream.", map[string]any{
 		"chatId": chatID, "siteId": site.ID, "messageChars": len(req.Message), "existingFiles": len(site.Files),
 	})
-	logf("info", "Building DeepSeek system/user prompts.", map[string]any{
-		"model":     resolveAskModel(req),
-		"thinking":  resolveThinking(req),
-		"effort":    resolveEffort(req),
-		"specChars": len(site.Spec), "allowlist": req.Allowlist,
-	})
 
-	system := `You are an AI senior web developer and web crawler architect.
-Write the admin-facing answer first as Markdown only (headings, lists, code fences OK). Never put JSON in the Markdown reply.
-After the Markdown, on its own lines, append exactly:
-
-<<<ARTIFACTS>>>
-{"spec":"...","files":[{"name":"index.html","text":"..."}],"tabs":[{"id":"home","label":"Home","file":"index.html"}]}
-<<<END>>>
-
-Rules: flat file names only; allowed text: .html,.css,.js,.json,.txt,.svg,.md,.py; binary .pdf,.docx,.xlsx and images .png,.jpg,.jpeg,.webp,.gif must use base64 in text with "encoding":"base64".
-You may emit .py scripts as downloadable helpers only — they are NEVER executed on the server. Prefer embedding crawl data as static .json/.html/.js.
-When the user message includes a CRAWL_RESULT JSON block, treat it as authoritative documentation fetched by the Eduardo OS Go crawler. Build the static site FROM that data (inline JSON or data.js). Do NOT invent fake browser crawls, progress bars that fetch relative files, or live network calls from the preview iframe (srcDoc cannot fetch data.json).
-No shell, credentials, or server code. One minimal global CSS using rem. Real newlines inside text fields (JSON will escape them).`
-
-	user := fmt.Sprintf("Workspace spec:\n%s\nRequest:\n%s\nAllowed docs hosts: %s", site.Spec, req.Message, strings.Join(req.Allowlist, ", "))
-
-	// Optional server crawl before the model: inject CRAWL_RESULT for the agent to assemble the site.
+	crawlBlock := ""
 	crawlReq, crawlMergeErr := mergeCrawlRequest(req)
 	if crawlMergeErr != nil {
 		logf("error", "Crawl config invalid.", map[string]any{"error": crawlMergeErr.Error()})
@@ -815,7 +794,7 @@ No shell, credentials, or server code. One minimal global CSS using rem. Real ne
 	}
 	if crawlReq != nil {
 		writeSSE("progress", map[string]any{"percent": 3, "phase": "crawl", "knownTotalBytes": false})
-		logf("info", "Running Go crawl job before DeepSeek.", map[string]any{
+		logf("info", "Running Go crawl job before story/codegen.", map[string]any{
 			"startUrl": crawlReq.StartURL, "allowlist": crawlReq.Allowlist,
 			"maxPages": crawlReq.MaxPages, "maxDepth": crawlReq.MaxDepth,
 		})
@@ -826,12 +805,83 @@ No shell, credentials, or server code. One minimal global CSS using rem. Real ne
 			return
 		}
 		rawJob, _ := json.Marshal(job)
-		logf("info", "Crawl job finished; injecting CRAWL_RESULT into model prompt.", map[string]any{
+		logf("info", "Crawl job finished.", map[string]any{
 			"pageCount": job.PageCount, "truncated": job.Truncated, "errors": len(job.Errors),
 		})
 		writeSSE("progress", map[string]any{"percent": 8, "phase": "crawl", "knownTotalBytes": false})
-		user += "\n\nCRAWL_RESULT (server Go crawler JSON — build the site from this; do not simulate network):\n" + string(rawJob)
+		crawlBlock = "\n\nCRAWL_RESULT (server Go crawler JSON):\n" + string(rawJob)
 	}
+
+	model := resolveAskModel(req)
+	thinking := resolveThinking(req)
+	effort := resolveEffort(req)
+	prevStory := siteStoryText(site)
+
+	// ——— Phase 1: edit story.md ———
+	writeSSE("progress", map[string]any{"percent": 12, "phase": "story", "knownTotalBytes": false})
+	logf("info", "Phase 1: editing story.md (app memory) before codegen.", map[string]any{
+		"prevStoryChars": len(prevStory), "model": model,
+	})
+	storySystem := `You are the product story editor for an Agent Sandbox site.
+Update the durable app story (Markdown) to incorporate the admin request.
+Output ONLY:
+
+<<<STORY>>>
+…full revised story markdown…
+<<<END>>>
+
+Do not emit HTML/CSS/JS or <<<ARTIFACTS>>>. Keep the story concrete: goals, pages, data, UX, constraints.
+If CRAWL_RESULT is present, fold relevant facts into the story.`
+	storyUser := fmt.Sprintf("Current story.md:\n%s\n\nAdmin request:\n%s\nAllowed docs hosts: %s%s",
+		prevStory, req.Message, strings.Join(req.Allowlist, ", "), crawlBlock)
+
+	var storyRaw strings.Builder
+	err = deepSeekReasoningStream(r.Context(), model, thinking, effort, storySystem, storyUser, func(delta string) {
+		storyRaw.WriteString(delta)
+	}, nil, func(stage, msg string) {
+		logf("info", msg, map[string]any{"stage": stage, "phase": "story"})
+	})
+	if err != nil {
+		logf("error", "Story phase DeepSeek failed.", map[string]any{"error": err.Error()})
+		writeSSE("error", map[string]string{"error": "story phase: " + err.Error()})
+		return
+	}
+	storyText := splitStory(storyRaw.String())
+	if strings.TrimSpace(storyText) == "" {
+		logf("error", "Story phase produced empty story.", nil)
+		writeSSE("error", map[string]string{"error": "story phase returned empty story"})
+		return
+	}
+	if err := applyStoryToSite(&site, storyText); err != nil {
+		logf("error", "Failed to upsert story.md.", map[string]any{"error": err.Error()})
+		writeSSE("error", map[string]string{"error": err.Error()})
+		return
+	}
+	if err := h.saveSite(r.Context(), email, site); err != nil {
+		logf("error", "S3 save after story phase failed.", map[string]any{"error": err.Error()})
+		writeSSE("error", map[string]string{"error": err.Error()})
+		return
+	}
+	logf("info", "story.md saved; Site.Spec synced.", map[string]any{"storyChars": len(storyText)})
+	writeSSE("progress", map[string]any{"percent": 22, "phase": "story", "knownTotalBytes": false})
+
+	// ——— Phase 2: codegen from story ———
+	system := `You are an AI senior web developer.
+Write the admin-facing answer first as Markdown only. Never put JSON in the Markdown reply.
+After the Markdown, on its own lines, append exactly:
+
+<<<ARTIFACTS>>>
+{"files":[{"name":"index.html","text":"..."}],"tabs":[{"id":"home","label":"Home","file":"index.html"}]}
+<<<END>>>
+
+Implement ONLY what the provided story.md requires (plus CRAWL_RESULT facts if present). Do not invent requirements absent from the story.
+Do NOT emit or overwrite story.md in artifacts (story is already saved).
+Rules: flat file names only; allowed text: .html,.css,.js,.json,.txt,.svg,.md,.py; binary .pdf,.docx,.xlsx and images .png,.jpg,.jpeg,.webp,.gif must use base64 with "encoding":"base64".
+.py is downloadable only — never executed. Prefer inline static data (no fetch('data.json') in srcDoc preview).
+No shell, credentials, or server code. One minimal global CSS using rem.`
+
+	user := fmt.Sprintf("story.md (source of truth):\n%s\n\nAdmin request (context):\n%s\nAllowed docs hosts: %s%s",
+		storyText, req.Message, strings.Join(req.Allowlist, ", "), crawlBlock)
 
 	var full strings.Builder
 	var visible strings.Builder
@@ -856,9 +906,9 @@ No shell, credentials, or server code. One minimal global CSS using rem. Real ne
 		})
 	}
 	emitProgress("request")
-	logf("info", "Calling DeepSeek reasoning stream (this can take several minutes). Progress is phase-estimated — DeepSeek SSE has no Content-Length.", nil)
+	logf("info", "Phase 2: codegen from story.md (DeepSeek stream).", map[string]any{"model": model})
 
-	err = deepSeekReasoningStream(r.Context(), resolveAskModel(req), resolveThinking(req), resolveEffort(req), system, user, func(delta string) {
+	err = deepSeekReasoningStream(r.Context(), model, thinking, effort, system, user, func(delta string) {
 		full.WriteString(delta)
 		if artifactsStarted {
 			return
@@ -900,7 +950,7 @@ No shell, credentials, or server code. One minimal global CSS using rem. Real ne
 		reasoningChars += len(rc)
 		emitProgress("reasoning")
 	}, func(stage, msg string) {
-		logf("info", msg, map[string]any{"stage": stage})
+		logf("info", msg, map[string]any{"stage": stage, "phase": "code"})
 		switch stage {
 		case "deepseek.response":
 			emitProgress("connected")
@@ -909,11 +959,11 @@ No shell, credentials, or server code. One minimal global CSS using rem. Real ne
 		}
 	})
 	if err != nil {
-		logf("error", "DeepSeek stream failed.", map[string]any{"error": err.Error(), "tokensEmitted": tokenCount})
+		logf("error", "Codegen DeepSeek stream failed.", map[string]any{"error": err.Error(), "tokensEmitted": tokenCount})
 		writeSSE("error", map[string]string{"error": err.Error()})
 		return
 	}
-	logf("info", "DeepSeek stream finished. Parsing Markdown + artifacts JSON.", map[string]any{
+	logf("info", "Codegen stream finished. Parsing Markdown + artifacts JSON.", map[string]any{
 		"fullChars": full.Len(), "visibleChars": visible.Len(), "tokensEmitted": tokenCount, "reasoningChars": reasoningChars,
 	})
 	emitProgress("saving")
@@ -931,7 +981,7 @@ No shell, credentials, or server code. One minimal global CSS using rem. Real ne
 			})
 		} else {
 			logf("info", "Artifacts JSON parsed.", map[string]any{
-				"files": len(p.Files), "tabs": len(p.Tabs), "specChars": len(p.Spec),
+				"files": len(p.Files), "tabs": len(p.Tabs),
 			})
 		}
 		if strings.TrimSpace(p.Reply) == "" {
@@ -942,11 +992,12 @@ No shell, credentials, or server code. One minimal global CSS using rem. Real ne
 	} else {
 		logf("warn", "No <<<ARTIFACTS>>> block in model output; reply-only update.", nil)
 	}
-	if p.Spec != "" {
-		site.Spec = p.Spec
-	}
 	for _, pf := range p.Files {
 		f := pf.toFile()
+		if strings.EqualFold(f.Name, storyFileName) {
+			logf("info", "Skipping artifact story.md (canonical story already saved in phase 1).", nil)
+			continue
+		}
 		if err := upsertSiteFile(&site, f); err != nil {
 			logf("error", "Artifact file rejected by validator.", map[string]any{"name": f.Name, "error": err.Error()})
 			writeSSE("error", map[string]string{"error": "agent artifact rejected: " + err.Error()})
@@ -954,6 +1005,8 @@ No shell, credentials, or server code. One minimal global CSS using rem. Real ne
 		}
 		logf("info", "Accepted artifact file into site workspace.", map[string]any{"name": f.Name, "bytes": len(f.Text)})
 	}
+	// Keep story.md + Spec authoritative after artifact upserts.
+	_ = applyStoryToSite(&site, storyText)
 	if len(p.Tabs) > 0 {
 		site.Tabs = p.Tabs
 	}
@@ -1068,6 +1121,8 @@ func estimateAskProgress(phase string, reasoningChars, contentChars int) int {
 		return 2
 	case "crawl":
 		return 8
+	case "story":
+		return 18
 	case "reasoning":
 		// Asymptotic toward 55% while thinking (no known total size).
 		x := float64(reasoningChars)

@@ -8,6 +8,7 @@ import {
     MAX_IMAGE_SCALE,
     MIN_IMAGE_HEIGHT_MM,
     MIN_IMAGE_SCALE,
+    chromeFieldMaxLength,
     clampImageHeightMm,
     imageOffsetXMmFromStyles,
     imageOffsetYMmFromStyles,
@@ -18,6 +19,18 @@ import {
 import { ICONS } from "./icons";
 
 const STYLE_INDEXES_ATTR = "data-style-indexes";
+
+function setChromeStatus(visible: boolean, remaining?: number, max?: number) {
+    const bar = document.getElementById("pamphlet-chrome-status");
+    if (!bar) return;
+    if (!visible) {
+        bar.setAttribute("hidden", "");
+        bar.textContent = "";
+        return;
+    }
+    bar.removeAttribute("hidden");
+    bar.textContent = `${remaining ?? 0} restantes · máx. ${max ?? 0}`;
+}
 
 export type EditTrayMode = "full" | "header";
 
@@ -321,6 +334,7 @@ function editTray(
 
     const saveAndClose = () => {
         detachTrayListeners();
+        if (trayMode === "header") setChromeStatus(false);
         dispatchTrayAction(elContainer, { action: "close", container: elContainer });
     };
 
@@ -636,6 +650,19 @@ function editTray(
         editTrayTextArea = document.createElement("textarea");
         editTrayTextArea.value = initialContent;
         editTrayTextArea.classList.add("edit_tray_text_area");
+        const chromeField =
+            elContainer.getAttribute("data-header-field") ||
+            elContainer.getAttribute("data-footer-field");
+        if (trayMode === "header" && chromeField) {
+            const max = chromeFieldMaxLength(chromeField);
+            editTrayTextArea.maxLength = max;
+            const updateStatus = () => {
+                const len = editTrayTextArea!.value.length;
+                setChromeStatus(true, Math.max(0, max - len), max);
+            };
+            updateStatus();
+            editTrayTextArea.addEventListener("input", updateStatus);
+        }
         // Suppress OS / browser selection chrome (copy/paste/select-all bars).
         editTrayTextArea.addEventListener("contextmenu", (e: MouseEvent) => {
             e.preventDefault();

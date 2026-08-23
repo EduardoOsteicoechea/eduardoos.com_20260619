@@ -30,6 +30,9 @@ const ICONS = {
   series: iconSvg(
     `<path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z" fill="currentColor"/>`,
   ),
+  template: iconSvg(
+    `<path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 3h7v4h-7v-4z" fill="currentColor"/>`,
+  ),
   expand: iconSvg(
     `<path d="M7 10l5 5 5-5H7z" fill="currentColor"/>`,
   ),
@@ -62,6 +65,9 @@ export function renderShell(_menuIconSrc?: string): string {
       <button type="button" id="btn-series" class="header-dynamic-menu__btn" title="Series and chapters" aria-label="Series and chapters" hidden>
         ${ICONS.series}
       </button>
+      <button type="button" id="btn-template" class="header-dynamic-menu__btn" title="Tipo de panfleto (simple / imágenes estructuradas)" aria-label="Tipo de panfleto" aria-pressed="false">
+        ${ICONS.template}
+      </button>
       <button type="button" id="btn-activity-expand" class="header-dynamic-menu__btn header-dynamic-menu__tray-toggle" title="Show action labels" aria-label="Show action labels" aria-expanded="false" aria-controls="pamphlet-header-menu-tray">
         ${ICONS.expand}
       </button>
@@ -70,6 +76,7 @@ export function renderShell(_menuIconSrc?: string): string {
       <ul class="pamphlet-header-menu-tray__labels">
         <li>Open · New · Save · Print</li>
         <li>Desktop / Mobile view</li>
+        <li>Template type (simple / structured images)</li>
         <li>Series (when a pamphlet is open)</li>
       </ul>
     </div>
@@ -179,6 +186,7 @@ export function renderShell(_menuIconSrc?: string): string {
   </div>
 </dialog>
 
+<div id="pamphlet-chrome-status" class="pamphlet-chrome-status" hidden aria-live="polite"></div>
 <main class="pamphlet-sheet"></main>
 `.trim();
 }

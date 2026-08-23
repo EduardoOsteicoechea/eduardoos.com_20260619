@@ -97,8 +97,10 @@ export const COLUMN_KEYS = [
 
 export type ColumnKey = (typeof COLUMN_KEYS)[number];
 
+export type PamphletDocType = "pamphlet_single_sheet" | "pamphlet_structured_images";
+
 export type PamphletStructure = {
-    type: "pamphlet_single_sheet";
+    type: PamphletDocType;
     /** Stable cloud/local document id (UUID). Optional on legacy files. */
     id?: string;
     /** JWT subject (email) when last saved to the cloud. Optional. */
@@ -117,6 +119,42 @@ export type PamphletStructure = {
     footer_layout?: PamphletFooterLayoutMm;
     last_edited_element: LastEditedElement;
 } & Record<ColumnKey, PamphletItem[]>;
+
+/** Odd body columns that get a 10:9 lead image in structured_images mode. */
+export const STRUCTURED_LEAD_COLUMNS: ColumnKey[] = [
+    "column_1",
+    "column_3",
+    "column_5",
+    "column_7",
+];
+
+/** Column content width (mm) × 9/10 for 10:9 lead frames. */
+export const LEAD_IMAGE_HEIGHT_MM = 52;
+
+/** Max characters for header/footer chrome fields (remaining counter). */
+export const CHROME_FIELD_MAX: Record<string, number> = {
+    title: 80,
+    subtitle: 120,
+    author: 40,
+    series: 40,
+    series_chapter: 40,
+    date: 40,
+    action: 80,
+    message: 160,
+    label1: 40,
+    value1: 40,
+    label2: 40,
+    value2: 40,
+    label3: 40,
+    value3: 40,
+    label4: 40,
+    value4: 40,
+};
+
+export function chromeFieldMaxLength(field: string | null | undefined): number {
+    if (!field) return 120;
+    return CHROME_FIELD_MAX[field] ?? 120;
+}
 
 /**
  * Exact CSS mm for `.pamphlet-page-header` — keep in sync with style.css.
@@ -601,8 +639,8 @@ export function assertPamphletStructure(data: unknown): asserts data is Pamphlet
     assertRootKeys(data);
 
     const root = data as Record<string, unknown>;
-    if (root.type !== "pamphlet_single_sheet") {
-        throw new Error('Root.type must be "pamphlet_single_sheet"');
+    if (root.type !== "pamphlet_single_sheet" && root.type !== "pamphlet_structured_images") {
+        throw new Error('Root.type must be "pamphlet_single_sheet" or "pamphlet_structured_images"');
     }
     if (root.id !== undefined && typeof root.id !== "string") {
         throw new Error("Root.id must be a string when present");
@@ -715,6 +753,24 @@ export function createEmptyPamphlet(meta: CreatePamphletMeta): PamphletStructure
         column_7: [],
         column_8: [],
     };
+}
+
+/** Ensure odd columns start with an empty/lead image when switching to structured template. */
+export function ensureStructuredLeadImages(doc: PamphletStructure): PamphletStructure {
+    const next = { ...doc, type: "pamphlet_structured_images" as const };
+    for (const col of STRUCTURED_LEAD_COLUMNS) {
+        const items = [...(next[col] ?? [])];
+        if (items[0]?.type === "image") {
+            items[0] = {
+                ...items[0],
+                height_mm: LEAD_IMAGE_HEIGHT_MM,
+            };
+        } else {
+            items.unshift(createImageItem("", LEAD_IMAGE_HEIGHT_MM));
+        }
+        next[col] = items;
+    }
+    return next;
 }
 
 export function itemTypeToTag(type: PamphletItemType): string {

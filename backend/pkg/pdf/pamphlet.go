@@ -454,12 +454,12 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	_ = drawHeader(&s, doc.Header, headerLayout, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow)
 
 	leftTop := PamphletPageHeightMm - PamphletMarginMm
-	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, leftColH, images)
-	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, leftColH, images)
+	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, leftColH, images, structuredLead(doc, 7))
+	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, leftColH, images, false)
 
 	rightTop := headerTop - headerH - bodyGutter
-	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, rightColH, images)
-	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, rightColH, images)
+	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, rightColH, images, structuredLead(doc, 1))
+	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, rightColH, images, false)
 
 	footerTop := PamphletMarginMm + footerH
 	drawFooter(&s, normalizeFooter(doc.Footer), footerLayout, colX(2), footerTop, PamphletColWidthMm*2+PamphletGutterNarrow)
@@ -470,10 +470,10 @@ func buildPage2Content(doc PamphletDocument, images map[string]*pdfImage) string
 	var s strings.Builder
 	top := PamphletPageHeightMm - PamphletMarginMm
 	h := PamphletPage2BodyMm
-	drawColumn(&s, doc.Column3, colX(2), top, PamphletColWidthMm, h, images)
-	drawColumn(&s, doc.Column4, colX(4), top, PamphletColWidthMm, h, images)
-	drawColumn(&s, doc.Column5, colX(6), top, PamphletColWidthMm, h, images)
-	drawColumn(&s, doc.Column6, colX(8), top, PamphletColWidthMm, h, images)
+	drawColumn(&s, doc.Column3, colX(2), top, PamphletColWidthMm, h, images, structuredLead(doc, 3))
+	drawColumn(&s, doc.Column4, colX(4), top, PamphletColWidthMm, h, images, false)
+	drawColumn(&s, doc.Column5, colX(6), top, PamphletColWidthMm, h, images, structuredLead(doc, 5))
+	drawColumn(&s, doc.Column6, colX(8), top, PamphletColWidthMm, h, images, false)
 	return s.String()
 }
 
@@ -1289,8 +1289,15 @@ func strokeHorizontalRuleMm(s *strings.Builder, x, top, width, strokeMm float64)
 	s.WriteString("Q\n")
 }
 
-func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage) {
-	drawStackedItems(s, items, x, top, width, heightMm, images, pamphletBodySizePt, pamphletHeadingSizePt, pamphletBodyLH, pamphletHeadingLH)
+func structuredLead(doc PamphletDocument, colNum int) bool {
+	if doc.Type != "pamphlet_structured_images" {
+		return false
+	}
+	return colNum == 1 || colNum == 3 || colNum == 5 || colNum == 7
+}
+
+func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage, leadFirst bool) {
+	drawStackedItems(s, items, x, top, width, heightMm, images, pamphletBodySizePt, pamphletHeadingSizePt, pamphletBodyLH, pamphletHeadingLH, leadFirst)
 }
 
 // drawStackedItems walks items from the CSS box top (not the first baseline).
@@ -1303,9 +1310,12 @@ func drawStackedItems(
 	x, top, width, heightMm float64,
 	images map[string]*pdfImage,
 	bodyPt, headingPt, bodyLH, headingLH float64,
+	leadFirst bool,
 ) {
 	cursorTop := top
 	floor := top - heightMm
+	const leadH = 52.0 // 10:9 of ~57.85mm column
+	const leadGap = 5.0
 	for i, item := range items {
 		// CSS .dumb-column { overflow: visible } — the last sheet line may start
 		// just below the grid floor and still sit in the 10mm page margin.
@@ -1317,9 +1327,18 @@ func drawStackedItems(
 			if h < 10 {
 				h = 10
 			}
+			lead := leadFirst && i == 0
+			if lead {
+				h = leadH
+			}
 			drawImageOrPlaceholder(s, item, x, cursorTop, width, h, images)
+			if lead {
+				drawLeadDoubleBorder(s, x, cursorTop, width, h)
+			}
 			cursorTop -= h
-			if i < len(items)-1 {
+			if lead {
+				cursorTop -= leadGap
+			} else if i < len(items)-1 {
 				cursorTop -= PamphletItemGapMm
 			}
 			continue
@@ -1350,6 +1369,14 @@ func drawStackedItems(
 			cursorTop -= PamphletItemGapMm
 		}
 	}
+}
+
+func drawLeadDoubleBorder(s *strings.Builder, x, top, width, heightMm float64) {
+	// Match header chrome: outer 0.2mm + inner inset 0.45mm / 0.1mm stroke.
+	strokeRoundedRectMm(s, x, top, width, heightMm, 1.0, 0.2)
+	inset := 0.45
+	pathInset := 0.2/2 + inset + 0.1/2
+	strokeRoundedRectMm(s, x+pathInset, top-pathInset, width-2*pathInset, heightMm-2*pathInset, 0.6, 0.1)
 }
 
 func drawImageOrPlaceholder(s *strings.Builder, item PamphletItem, x, y, width, heightMm float64, images map[string]*pdfImage) {

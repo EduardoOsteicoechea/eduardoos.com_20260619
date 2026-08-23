@@ -78,4 +78,24 @@ func TestEstimateAskProgress(t *testing.T) {
 	if estimateAskProgress("done", 0, 0) != 100 {
 		t.Fatal("done must be 100")
 	}
+	if estimateAskProgress("story", 0, 0) != 18 {
+		t.Fatal("story phase percent")
+	}
+}
+
+func TestSplitStoryAndApply(t *testing.T) {
+	got := splitStory("<<<STORY>>>\n# App\nHello\n<<<END>>>")
+	if got != "# App\nHello" {
+		t.Fatalf("split: %q", got)
+	}
+	site := Site{ID: "s1", Name: "t", Files: nil}
+	if err := applyStoryToSite(&site, "# Story body"); err != nil {
+		t.Fatal(err)
+	}
+	if site.Spec != "# Story body" {
+		t.Fatalf("spec %q", site.Spec)
+	}
+	if siteStoryText(site) != "# Story body" {
+		t.Fatal("story file missing")
+	}
 }

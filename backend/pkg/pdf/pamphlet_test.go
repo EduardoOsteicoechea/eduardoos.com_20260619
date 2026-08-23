@@ -516,7 +516,7 @@ func TestDrawColumnKeepsParagraphInPageMargin(t *testing.T) {
 		{Type: "paragraph", Content: "Mira como dice Romanos"},
 	}
 	var s strings.Builder
-	drawColumn(&s, items, 10, top, PamphletColWidthMm, height, nil)
+	drawColumn(&s, items, 10, top, PamphletColWidthMm, height, nil, false)
 	out := s.String()
 	if !strings.Contains(out, "afianzar") {
 		t.Fatalf("heading missing: %q", out)
@@ -543,7 +543,7 @@ func TestDrawColumnKeepsTrailingHeadingAndParagraph(t *testing.T) {
 		{Type: "paragraph", Content: "Mira como dice Romanos"},
 	}
 	var s strings.Builder
-	drawColumn(&s, items, 10, top, PamphletColWidthMm, height, nil)
+	drawColumn(&s, items, 10, top, PamphletColWidthMm, height, nil, false)
 	out := s.String()
 	if !strings.Contains(out, "afianzar") {
 		t.Fatalf("trailing heading clipped: %q", out)

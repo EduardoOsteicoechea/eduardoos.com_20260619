@@ -7,10 +7,13 @@ import {
     HEADER_FIELD_KEYS,
     DEFAULT_IMAGE_HEIGHT_MM,
     DEFAULT_STYLE_INDEXES,
+    LEAD_IMAGE_HEIGHT_MM,
+    STRUCTURED_LEAD_COLUMNS,
     clampImageHeightMm,
     emptyFooter,
     itemTypeToTag,
     tagToItemType,
+    type ColumnKey,
     type FooterFieldKey,
     type HeaderFieldKey,
     type LastEditedElement,
@@ -115,18 +118,29 @@ function applyItemMeta(container: HTMLElement, item: PamphletItem): void {
     container.setAttribute(HEIGHT_MM_ATTR, String(item.height_mm ?? 0));
 }
 
-function createImageItemElement(item: PamphletItem): HTMLElement {
+function createImageItemElement(item: PamphletItem, lead = false): HTMLElement {
     const container = document.createElement("div");
     container.className = "pamphlet-item";
     container.setAttribute("data-tray-mode", "full");
     applyItemMeta(container, item);
+    if (lead) {
+        container.setAttribute("data-lead-image", "1");
+    }
 
-    const heightMm = clampImageHeightMm(item.height_mm || DEFAULT_IMAGE_HEIGHT_MM);
+    const heightMm = lead
+        ? LEAD_IMAGE_HEIGHT_MM
+        : clampImageHeightMm(item.height_mm || DEFAULT_IMAGE_HEIGHT_MM);
     container.setAttribute(HEIGHT_MM_ATTR, String(heightMm));
 
     const frame = document.createElement("div");
     frame.className = "pamphlet-image-frame";
-    frame.style.height = `${heightMm}mm`;
+    if (lead) {
+        frame.classList.add("pamphlet-image-frame--lead");
+        // Aspect 10:9 driven by CSS; height mm kept for PDF / reflow math.
+        frame.style.height = `${heightMm}mm`;
+    } else {
+        frame.style.height = `${heightMm}mm`;
+    }
 
     const img = document.createElement("img");
     img.className = "pamphlet-image";
@@ -147,9 +161,9 @@ function createImageItemElement(item: PamphletItem): HTMLElement {
     return container;
 }
 
-export function createItemElement(item: PamphletItem): HTMLElement {
+export function createItemElement(item: PamphletItem, opts?: { lead?: boolean }): HTMLElement {
     if (item.type === "image") {
-        return createImageItemElement(item);
+        return createImageItemElement(item, Boolean(opts?.lead));
     }
 
     const tag = itemTypeToTag(item.type);
@@ -320,6 +334,8 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
 
 export function renderFromPamphlet(main: HTMLElement, data: PamphletStructure): void {
     main.innerHTML = "";
+    const structured = data.type === "pamphlet_structured_images";
+    const leadCols = new Set<ColumnKey>(STRUCTURED_LEAD_COLUMNS);
 
     COLUMN_KEYS.forEach((key, index) => {
         const col = document.createElement("div");
@@ -327,8 +343,9 @@ export function renderFromPamphlet(main: HTMLElement, data: PamphletStructure): 
         main.appendChild(col);
 
         const colItems = data[key];
-        colItems.forEach((item, index) => {
-            appendItemWithSpacer(col, createItemElement(item), index < colItems.length - 1);
+        colItems.forEach((item, itemIndex) => {
+            const lead = structured && leadCols.has(key) && itemIndex === 0 && item.type === "image";
+            appendItemWithSpacer(col, createItemElement(item, { lead }), itemIndex < colItems.length - 1);
         });
     });
 

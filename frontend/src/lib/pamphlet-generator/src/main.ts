@@ -66,6 +66,7 @@ import {
     PAMPHLET_HEADER_LAYOUT_MM,
     createParagraphItem,
     createEmptyPamphlet,
+    ensureStructuredLeadImages,
     type CreatePamphletMeta,
     type FooterFieldKey,
     type HeaderFieldKey,
@@ -103,6 +104,7 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const viewDesktopBtn = requireElement<HTMLButtonElement>("#btn-view-desktop");
     const viewMobileBtn = requireElement<HTMLButtonElement>("#btn-view-mobile");
     const seriesBtn = requireElement<HTMLButtonElement>("#btn-series");
+    const templateBtn = requireElement<HTMLButtonElement>("#btn-template");
     const trayToggleBtn = requireElement<HTMLButtonElement>("#btn-activity-expand");
     const activityTray = requireElement<HTMLElement>("#pamphlet-header-menu-tray");
     const createModal = requireElement<HTMLDialogElement>("#create-modal");
@@ -952,6 +954,14 @@ function activateEditAt(data: PamphletStructure, loc: LastEditedElement): void {
 function renderDocument(data: PamphletStructure, openEdit: boolean): void {
     currentDoc = data;
     currentHeader = { ...data.header };
+    appRoot.dataset.pamphletType = data.type;
+    const structured = data.type === "pamphlet_structured_images";
+    templateBtn.classList.toggle("header-dynamic-menu__btn--active", structured);
+    templateBtn.classList.toggle("is-active", structured);
+    templateBtn.setAttribute("aria-pressed", structured ? "true" : "false");
+    templateBtn.title = structured
+        ? "Plantilla: imágenes estructuradas (clic → simple)"
+        : "Plantilla: simple (clic → imágenes estructuradas)";
     renderFromPamphlet(main, data);
     reflowAndReport(main);
     updatePrintAvailability();
@@ -1825,6 +1835,18 @@ on(viewDesktopBtn, "click", () => {
 
 on(viewMobileBtn, "click", () => {
     setViewMode("mobile");
+});
+
+on(templateBtn, "click", () => {
+    if (!currentDoc) return;
+    const snap = snapshotFromDom(currentDoc.last_edited_element) ?? currentDoc;
+    let next: PamphletStructure;
+    if (snap.type === "pamphlet_structured_images") {
+        next = { ...snap, type: "pamphlet_single_sheet" };
+    } else {
+        next = ensureStructuredLeadImages(snap);
+    }
+    void commitDocument(next, false);
 });
 
 updatePrintAvailability();
