@@ -20,8 +20,10 @@ Lead images currently sit **inside** columns, so body text starts too low and co
 
 ### Mobile / tablet chrome (`data-view-mode="mobile"`)
 
-- Header and footer containers grow vertically (`height: auto`, no clip).
+- Header and footer **containers** grow vertically (`height: auto`, `max-height: none`, `overflow: visible`) so stacked title/meta/action inputs never clip.
+- Override desktop fixed mm row heights and `overflow: hidden !important` on header/footer fields (subtitle, meta rows, footer meta cells).
 - Hide separate margins/borders/padding on **lower** header meta and footer meta fields (desktop unchanged).
+- Desktop print/PDF geometry unchanged.
 
 ### Template types
 
@@ -64,6 +66,7 @@ In **Open → From the cloud** modal (`#open-cloud-modal`):
 
 - [x] Char remaining strip for header/footer edit only.
 - [x] Mobile header/footer grow; lower meta margins hidden on mobile.
+- [x] Mobile/tablet: chrome field overflow fixed via height:auto + overflow:visible !important on header/footer and meta rows.
 - [x] Type toggle in dynamic header; content preserved.
 - [x] Lead 10:9 in **slots above** cols 1/3/5/7; gap 3.75mm; column height reduced; PDF matches.
 - [x] Open-cloud: icon → checkboxes → confirm → recycle-bin move.

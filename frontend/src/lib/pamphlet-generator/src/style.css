@@ -1535,8 +1535,18 @@
 .pamphlet-app[data-view-mode="mobile"] .edit_tray_text_area {
   width: 100%;
   height: calc(120px * var(--mobile-inv-scale, 1));
+  min-height: calc(72px * var(--mobile-inv-scale, 1));
+  max-height: none;
   font-size: calc(16px * var(--mobile-inv-scale, 1));
   box-sizing: border-box;
+  overflow: auto;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header .edit_tray_text_area,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer .edit_tray_text_area {
+  height: calc(120px * var(--mobile-inv-scale, 1)) !important;
+  min-height: calc(72px * var(--mobile-inv-scale, 1)) !important;
+  max-height: none !important;
 }
 
 /* Same tray scale as text button row (zoom 0.5) so image controls stay usable on phone/tablet. */
@@ -1616,10 +1626,13 @@
   box-sizing: border-box;
 }
 
-/* Header/footer clip; body columns keep exact print heights */
+/* Header/footer grow with content on phone/tablet; body columns keep print heights */
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-header,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-page-footer {
-  overflow: hidden;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"] {
@@ -1644,14 +1657,14 @@
   /* Same width as body columns — never 92vw (that escapes the scaled sheet). */
   width: var(--column-content-width);
   max-width: var(--column-content-width);
-  height: auto;
-  min-height: 0;
-  max-height: none;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
   padding: calc(6px * var(--mobile-inv-scale, 1));
   display: flex;
   flex-direction: column;
   gap: calc(6px * var(--mobile-inv-scale, 1));
-  overflow: visible;
+  overflow: visible !important;
   box-sizing: border-box;
 }
 
@@ -1659,49 +1672,32 @@
   order: 2;
   width: var(--column-content-width);
   max-width: var(--column-content-width);
-  height: auto;
-  min-height: 0;
-  max-height: none;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
   padding: calc(6px * var(--mobile-inv-scale, 1));
   display: flex;
   flex-direction: column;
   gap: calc(6px * var(--mobile-inv-scale, 1));
-  overflow: visible;
+  overflow: visible !important;
   box-sizing: border-box;
 }
 
 /* Mobile: stack meta as normal labeled inputs (desktop header layout unchanged). */
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-bar,
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-bar {
-  display: flex;
-  flex-direction: column;
-  gap: calc(5px * var(--mobile-inv-scale, 1));
-  overflow: visible;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-row,
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row {
-  display: flex;
-  flex-direction: column;
-  gap: calc(5px * var(--mobile-inv-scale, 1));
-  width: 100%;
-  max-width: 100%;
-}
-
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field {
   flex-direction: column;
   align-items: stretch;
   gap: calc(3px * var(--mobile-inv-scale, 1));
-  overflow: visible;
+  overflow: visible !important;
   border: none;
   border-radius: 0;
   padding: 0;
   background: transparent;
   width: 100%;
   max-width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
   box-sizing: border-box;
   margin: 0;
 }
@@ -1711,40 +1707,62 @@
   display: flex;
   flex-direction: column;
   gap: calc(4px * var(--mobile-inv-scale, 1));
-  overflow: visible;
+  overflow: visible !important;
   width: 100%;
   max-width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
   box-sizing: border-box;
   margin: 0;
   padding: 0;
   border: none;
+  background-image: none;
+}
+
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-bar::before,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-bar::after,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-bar::before,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-bar::after {
+  display: none !important;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-row,
-.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row {
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row[data-meta-kind="labels"],
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row[data-meta-kind="labels"]:first-child,
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row[data-meta-kind="labels"]:not(:first-child),
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row[data-meta-kind="values"] {
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto !important;
   gap: calc(4px * var(--mobile-inv-scale, 1));
   width: 100%;
   max-width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
   margin: 0;
   padding: 0;
   border: none;
 }
 
-/* Lower chrome fields: no separate field margins/borders on mobile/tablet */
+/* Lower chrome fields: grow with text; beat desktop overflow:hidden !important */
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-meta-field > .pamphlet-item,
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row > .pamphlet-item {
   border: none !important;
   border-radius: 0;
   padding: calc(4px * var(--mobile-inv-scale, 1)) 0 !important;
   background: transparent;
-  min-height: calc(28px * var(--mobile-inv-scale, 1));
-  overflow: visible;
+  height: auto !important;
+  min-height: calc(28px * var(--mobile-inv-scale, 1)) !important;
+  max-height: none !important;
+  overflow: visible !important;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   margin: 0;
+  align-items: flex-start;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-header-title,
@@ -1755,11 +1773,14 @@
   border-radius: 3px;
   padding: calc(6px * var(--mobile-inv-scale, 1)) calc(7px * var(--mobile-inv-scale, 1)) !important;
   background: var(--pamphlet-paper-bg);
-  min-height: calc(36px * var(--mobile-inv-scale, 1));
-  overflow: visible;
+  height: auto !important;
+  min-height: calc(36px * var(--mobile-inv-scale, 1)) !important;
+  max-height: none !important;
+  overflow: visible !important;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  flex: 0 0 auto !important;
 }
 
 .pamphlet-app[data-view-mode="mobile"] .pamphlet-footer-meta-row > .pamphlet-footer-label,
