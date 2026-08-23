@@ -36,6 +36,9 @@ const ICONS = {
   expand: iconSvg(
     `<path d="M7 10l5 5 5-5H7z" fill="currentColor"/>`,
   ),
+  trash: iconSvg(
+    `<path d="M6 7h12v2H6V7zm2 3h8l-1 9H9L8 10zm3-6h2l1 1h4v2H6V5h4l1-1z" fill="currentColor"/>`,
+  ),
 };
 
 /** @param _menuIconSrc retained for call-site compatibility; unused (icons are inline). */
@@ -99,11 +102,17 @@ export function renderShell(_menuIconSrc?: string): string {
 
 <dialog id="open-cloud-modal" class="create-modal open-cloud-modal">
   <div class="create-modal-form">
-    <h2>My pamphlets in the cloud</h2>
+    <div class="open-cloud-modal__head">
+      <h2>My pamphlets in the cloud</h2>
+      <button type="button" id="open-cloud-delete-toggle" class="open-cloud-delete-toggle" title="Borrar panfletos" aria-label="Borrar panfletos" aria-pressed="false">
+        ${ICONS.trash}
+      </button>
+    </div>
     <p class="create-modal-hint" id="open-cloud-hint">Select a .epam linked to your account.</p>
     <div id="open-cloud-list" class="open-cloud-list" role="list"></div>
     <div class="create-modal-actions">
       <button type="button" id="open-cloud-cancel">Cancel</button>
+      <button type="button" id="open-cloud-delete-confirm" hidden>Borrar seleccionados</button>
     </div>
   </div>
 </dialog>

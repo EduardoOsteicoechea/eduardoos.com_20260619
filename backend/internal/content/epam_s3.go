@@ -112,6 +112,39 @@ func (s *s3EpamStore) ListByUser(ctx context.Context, userID, correlationID stri
 	return s.meta.ListByUser(ctx, userID, correlationID)
 }
 
+// Delete moves the S3 body into recycle-bin/, then drops list metadata.
+// The original object is removed after a successful copy (move semantics).
+func (s *s3EpamStore) Delete(ctx context.Context, userID, epamID, correlationID string) error {
+	rec, ok, err := s.meta.Get(ctx, userID, epamID, correlationID)
+	if err != nil {
+		return err
+	}
+	srcKey := ""
+	if ok {
+		srcKey = rec.S3Key
+	}
+	if srcKey == "" {
+		srcKey = EpamObjectKey(userID, epamID)
+	}
+	dstKey := EpamRecycleObjectKey(userID, epamID)
+	_, copyErr := s.client.CopyObject(ctx, &s3.CopyObjectInput{
+		Bucket:     aws.String(s.bucket),
+		CopySource: aws.String(s.bucket + "/" + srcKey),
+		Key:        aws.String(dstKey),
+	})
+	if copyErr != nil {
+		// Still drop metadata if the active object is already gone.
+		log.Printf("[correlation=%s] epams.s3.recycle copy failed key=%s → %s: %v", correlationID, srcKey, dstKey, copyErr)
+	} else {
+		_, _ = s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+			Bucket: aws.String(s.bucket),
+			Key:    aws.String(srcKey),
+		})
+		log.Printf("[correlation=%s] epams.s3.recycle ok %s → %s", correlationID, srcKey, dstKey)
+	}
+	return s.meta.Delete(ctx, userID, epamID, correlationID)
+}
+
 // maybeWrapEpamS3 attaches S3 body storage when S3_BUCKET is set (production cutover).
 func maybeWrapEpamS3(ctx context.Context, base EpamStore) EpamStore {
 	bucket := strings.TrimSpace(httpx.Env("S3_BUCKET", ""))

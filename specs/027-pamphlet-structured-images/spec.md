@@ -2,11 +2,13 @@
 
 ## Status
 
-Draft for implementation (2026-08-23).
+Active (2026-08-23). Extension: lead slots outside columns + cloud recycle delete.
 
 ## Problem
 
 Header/footer editing lacks live character remaining feedback. On mobile/tablet, header/footer fields overflow and lower-field margins clutter the chrome. Admins need a second pamphlet template with fixed 10:9 lead images on odd body columns without losing existing content when switching.
+
+Lead images currently sit **inside** columns, so body text starts too low and column height is wasted. Cloud open has no way to remove pamphlets without losing the `.epam` bytes forever.
 
 ## Goals
 
@@ -27,27 +29,50 @@ Header/footer editing lacks live character remaining feedback. On mobile/tablet,
 - `pamphlet_structured_images` — same chrome + columns, with lead images on columns **1, 3, 5, 7**.
 - HeaderDynamicMenu button toggles type; migrating preserves header/footer/column content; switching to structured ensures a lead image item at top of cols 1/3/5/7 if missing.
 
-### Structured lead images
+### Structured lead images (layout)
 
-- Aspect **10:9** (width = column); double border like header; **5mm** gap below image before column body.
-- Empty until click → existing image tray (upload/paste + pan/zoom).
-- PDF parity for structured type.
+**Only** when `type === pamphlet_structured_images`:
+
+1. **Gap under lead**: bottom margin / PDF gap = **0.75 ×** previous (`5mm` → **3.75mm**).
+2. **Outside columns**: each lead is a **sibling grid cell**, not the first item inside the column DOM:
+   - Col **1**: below header, above column 1 body.
+   - Cols **3, 5, 7**: above those columns (page-2 top for 3/5; page-1 top for 7).
+3. **Column height shrinks** by `leadHeight (10:9 of column width) + 3.75mm` so text flows only in the remaining band.
+4. JSON still stores the lead as the **first `image` item** of that column (serialize/deserialize round-trip); FE renders it in the lead slot.
+5. PDF parity: same outside-column placement and reduced column content height.
+6. Click lead → existing image tray (unchanged).
+
+### Cloud open — soft delete to recycle bin
+
+In **Open → From the cloud** modal (`#open-cloud-modal`):
+
+1. Top **icon-only** delete button (no text label) toggles **select mode**.
+2. In select mode: each list row shows a **checkbox**; opening a pamphlet by click is disabled while selecting.
+3. When ≥1 checked: show a bottom **Accept delete** action; modal **must not exceed viewport height** (list scrolls inside).
+4. Accept → browser `confirm`/`alert` confirmation; on OK → `DELETE` selected epams.
+5. Server **moves** S3 body to `media/epams/{safeUser}/recycle-bin/{epamId}.epam`, removes metadata from the active list (no hard delete of bytes). Series tree / list omit recycled items.
+6. No restore UI in this change.
 
 ## Non-goals
 
-- Desktop layout changes beyond template lead images.
+- Desktop layout changes for simple template.
 - New image editor (reuse tray).
+- Recycle restore / empty-bin UI.
+- Hard permanent delete of S3 objects.
 
 ## Acceptance
 
 - [x] Char remaining strip for header/footer edit only.
 - [x] Mobile header/footer grow; lower meta margins hidden on mobile.
 - [x] Type toggle in dynamic header; content preserved.
-- [x] Lead 10:9 on cols 1/3/5/7 + tray + PDF.
-- [x] FE build; commit/push.
+- [x] Lead 10:9 in **slots above** cols 1/3/5/7; gap 3.75mm; column height reduced; PDF matches.
+- [x] Open-cloud: icon → checkboxes → confirm → recycle-bin move.
+- [ ] FE build; backend tests; commit/push.
 
 ## Affected paths
 
 - `specs/027-pamphlet-structured-images/spec.md`
 - `frontend/src/lib/pamphlet-generator/**`
-- `backend/pkg/pdf/pamphlet.go` (+ tests as needed)
+- `frontend/src/lib/epams.ts`, `frontend/src/config/routes.ts`
+- `backend/pkg/pdf/pamphlet.go` (+ tests)
+- `backend/internal/content/` (epam store Delete/recycle + handlers)

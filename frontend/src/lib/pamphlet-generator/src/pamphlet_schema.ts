@@ -131,6 +131,9 @@ export const STRUCTURED_LEAD_COLUMNS: ColumnKey[] = [
 /** Column content width (mm) × 9/10 for 10:9 lead frames. */
 export const LEAD_IMAGE_HEIGHT_MM = 52;
 
+/** Gap under structured lead (0.75 × former 5mm header-body gutter). */
+export const LEAD_IMAGE_GAP_MM = 3.75;
+
 /** Max characters for header/footer chrome fields (remaining counter). */
 export const CHROME_FIELD_MAX: Record<string, number> = {
     title: 80,

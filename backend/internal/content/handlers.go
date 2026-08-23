@@ -66,6 +66,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Post("/api/epams", h.CreateEpam)
 		r.Get("/api/epams/{id}", h.GetEpam)
 		r.Put("/api/epams/{id}", h.UpdateEpam)
+		r.Delete("/api/epams/{id}", h.DeleteEpam)
 
 		r.Get("/api/playlists", h.ListPlaylists)
 		r.Post("/api/playlists", h.CreatePlaylist)
@@ -280,6 +281,33 @@ func (h *Handler) UpdateEpam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, saved)
+}
+
+// DeleteEpam soft-deletes a pamphlet: S3 body → recycle-bin/, metadata removed from list.
+func (h *Handler) DeleteEpam(w http.ResponseWriter, r *http.Request) {
+	email := auth.UserEmailFromRequest(r)
+	cid := httpx.CorrelationFromRequest(r)
+	id := strings.TrimSpace(chi.URLParam(r, "id"))
+	if id == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "epamId required")
+		return
+	}
+	_, ok, err := h.Epams.Get(r.Context(), email, id, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	if !ok {
+		httpx.WriteError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if err := h.Epams.Delete(r.Context(), email, id, cid); err != nil {
+		log.Printf("[correlation=%s] epams.delete failed user=%s epamId=%s err=%v", cid, email, id, err)
+		httpx.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	log.Printf("[correlation=%s] epams.delete ok user=%s epamId=%s", cid, email, id)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "epamId": id})
 }
 
 // --- Playlists (memory-only for now) ---

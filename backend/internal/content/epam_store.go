@@ -42,6 +42,8 @@ type EpamStore interface {
 	Save(ctx context.Context, record EpamRecord, correlationID string) (EpamRecord, error)
 	Get(ctx context.Context, userID, epamID, correlationID string) (EpamRecord, bool, error)
 	ListByUser(ctx context.Context, userID, correlationID string) ([]EpamRecord, error)
+	// Delete removes list metadata. S3 wrappers also move the body to recycle-bin.
+	Delete(ctx context.Context, userID, epamID, correlationID string) error
 }
 
 type memoryEpamStore struct {
@@ -97,6 +99,17 @@ func (m *memoryEpamStore) ListByUser(_ context.Context, userID, _ string) ([]Epa
 		out = append(out, rec)
 	}
 	return out, nil
+}
+
+func (m *memoryEpamStore) Delete(_ context.Context, userID, epamID, _ string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	bucket := m.byUser[userID]
+	if bucket == nil {
+		return nil
+	}
+	delete(bucket, epamID)
+	return nil
 }
 
 type dynamoEpamStore struct {
@@ -164,11 +177,29 @@ func (d *dynamoEpamStore) ListByUser(ctx context.Context, userID, _ string) ([]E
 	return records, nil
 }
 
+func (d *dynamoEpamStore) Delete(ctx context.Context, userID, epamID, _ string) error {
+	_, err := d.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(d.table),
+		Key: map[string]types.AttributeValue{
+			"userId": &types.AttributeValueMemberS{Value: userID},
+			"epamId": &types.AttributeValueMemberS{Value: epamID},
+		},
+	})
+	return err
+}
+
 // EpamObjectKey builds the absolute S3 object key for a cloud .epam body.
 func EpamObjectKey(userID, epamID string) string {
 	safeUser := strings.ReplaceAll(strings.TrimSpace(userID), "@", "_at_")
 	safeUser = strings.ReplaceAll(safeUser, "/", "_")
 	return fmt.Sprintf("media/epams/%s/%s.epam", safeUser, epamID)
+}
+
+// EpamRecycleObjectKey is the soft-delete destination for a cloud .epam body.
+func EpamRecycleObjectKey(userID, epamID string) string {
+	safeUser := strings.ReplaceAll(strings.TrimSpace(userID), "@", "_at_")
+	safeUser = strings.ReplaceAll(safeUser, "/", "_")
+	return fmt.Sprintf("media/epams/%s/recycle-bin/%s.epam", safeUser, epamID)
 }
 
 func epamItem(r EpamRecord) map[string]types.AttributeValue {

@@ -37,7 +37,7 @@ import {
     savePamphlet,
     setOpenFileName,
 } from "./pamphlet_file";
-import { fetchEpam, fetchEpams, fetchEpamSeriesTree, saveEpamToCloud } from "../../epams";
+import { fetchEpam, fetchEpams, fetchEpamSeriesTree, recycleEpam, saveEpamToCloud } from "../../epams";
 import { getAuthToken, isAuthenticated } from "../../auth";
 import { DOCUMENT_ROUTES } from "../../../config/routes";
 import { createCorrelationId } from "../../telemetry";
@@ -46,7 +46,6 @@ import {
     createAddItemButton,
     createItemElement,
     createItemSpacer,
-    getFlatIndex,
     getItemLocation,
     isChromeItem,
     isImageItem,
@@ -66,6 +65,8 @@ import {
     PAMPHLET_HEADER_LAYOUT_MM,
     createParagraphItem,
     createEmptyPamphlet,
+    LEAD_IMAGE_GAP_MM,
+    LEAD_IMAGE_HEIGHT_MM,
     ensureStructuredLeadImages,
     type CreatePamphletMeta,
     type FooterFieldKey,
@@ -121,6 +122,8 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const openCloudList = requireElement<HTMLElement>("#open-cloud-list");
     const openCloudHint = requireElement<HTMLElement>("#open-cloud-hint");
     const openCloudCancelBtn = requireElement<HTMLButtonElement>("#open-cloud-cancel");
+    const openCloudDeleteToggle = requireElement<HTMLButtonElement>("#open-cloud-delete-toggle");
+    const openCloudDeleteConfirm = requireElement<HTMLButtonElement>("#open-cloud-delete-confirm");
     const createForm = requireElement<HTMLFormElement>("#create-form");
     const modalCancelBtn = requireElement<HTMLButtonElement>("#modal-cancel");
     const modalTitle = requireElement<HTMLInputElement>("#modal-title");
@@ -443,9 +446,25 @@ const page1LeftColHeightMm =
     columnContentHeightMm - footerBodyGutterMm - pageFooterHeightMm; // 160.1
 
 function maxHeightForColumn(columnIndex: number): number {
-    if (columnIndex === 1 || columnIndex === 2) return page1RightColHeightMm;
-    if (columnIndex === 7 || columnIndex === 8) return page1LeftColHeightMm;
-    return columnContentHeightMm; // 3–6 (page 2)
+    const structured = currentDoc?.type === "pamphlet_structured_images";
+    const leadReserve = LEAD_IMAGE_HEIGHT_MM + LEAD_IMAGE_GAP_MM;
+    if (columnIndex === 1 || columnIndex === 2) {
+        if (structured && columnIndex === 1) {
+            // Lead sits in former gutter + top of right band.
+            return page1RightColHeightMm + headerBodyGutterMm - leadReserve;
+        }
+        return page1RightColHeightMm;
+    }
+    if (columnIndex === 7 || columnIndex === 8) {
+        if (structured && columnIndex === 7) {
+            return page1LeftColHeightMm - leadReserve;
+        }
+        return page1LeftColHeightMm;
+    }
+    if (structured && (columnIndex === 3 || columnIndex === 5)) {
+        return columnContentHeightMm - leadReserve;
+    }
+    return columnContentHeightMm; // 3–6 (page 2) or even cols
 }
 
 /** Captured at load; used to keep app chrome size stable across browser zoom. */
@@ -698,6 +717,9 @@ function placeColumnAddButton(
 }
 
 function reflowAndReport(container: HTMLElement) {
+    const leadSlots = Array.from(
+        container.querySelectorAll<HTMLElement>(":scope > .pamphlet-lead-slot"),
+    );
     const items = Array.from(
         container.querySelectorAll<HTMLElement>(
             ":scope > .dumb-column[class*='pamphlet-column-'] > .pamphlet-item",
@@ -855,6 +877,10 @@ function reflowAndReport(container: HTMLElement) {
         createAndAppendColumn();
     }
 
+    for (const slot of leadSlots) {
+        container.appendChild(slot);
+    }
+
     const filledByColumn = new Map<number, number>();
     for (const col of report.columns) {
         filledByColumn.set(col.columnIndex, col.filledHeightMm);
@@ -941,14 +967,42 @@ function activateEditAt(data: PamphletStructure, loc: LastEditedElement): void {
     const region = getRegionItems(data, loc.column);
     if (region.length === 0) return;
 
-    const flat = getFlatIndex(data, loc);
+    const oddLead =
+        data.type === "pamphlet_structured_images" &&
+        (loc.column === 1 || loc.column === 3 || loc.column === 5 || loc.column === 7) &&
+        region[0]?.type === "image";
+
+    if (oddLead && loc.index === 0) {
+        const leadItem = main.querySelector<HTMLElement>(
+            `:scope > .pamphlet-lead-${loc.column} > .pamphlet-item`,
+        );
+        if (leadItem) {
+            clickInner(leadItem);
+            return;
+        }
+    }
+
+    // DOM body items exclude structured leads; map JSON index → body slot.
+    let bodyFlat = 0;
+    for (let c = 1; c < loc.column; c++) {
+        const items = getRegionItems(data, c);
+        const lead =
+            data.type === "pamphlet_structured_images" &&
+            (c === 1 || c === 3 || c === 5 || c === 7) &&
+            items[0]?.type === "image";
+        bodyFlat += Math.max(0, items.length - (lead ? 1 : 0));
+    }
+    const bodyIndexInCol = oddLead ? loc.index - 1 : loc.index;
+    if (bodyIndexInCol < 0) return;
+    bodyFlat += bodyIndexInCol;
+
     const items = Array.from(
         main.querySelectorAll<HTMLElement>(
             ":scope > .dumb-column[class*='pamphlet-column-'] > .pamphlet-item",
         ),
     );
     if (items.length === 0) return;
-    clickInner(items[Math.min(Math.max(flat, 0), items.length - 1)]);
+    clickInner(items[Math.min(Math.max(bodyFlat, 0), items.length - 1)]);
 }
 
 function renderDocument(data: PamphletStructure, openEdit: boolean): void {
@@ -1373,28 +1427,44 @@ function closeOpenSourceModal(): void {
 }
 
 function closeOpenCloudModal(): void {
+    openCloudSelectMode = false;
+    openCloudDeleteToggle.classList.remove("is-active");
+    openCloudDeleteToggle.setAttribute("aria-pressed", "false");
+    openCloudDeleteConfirm.hidden = true;
     if (openCloudModal.open) openCloudModal.close();
 }
 
-on(openSourceCancelBtn, "click", () => {
-    closeOpenSourceModal();
-});
+let openCloudSelectMode = false;
 
-on(openSourceLocalBtn, "click", async () => {
-    closeOpenSourceModal();
-    clearError();
-    try {
-        const data = await openPamphletFile();
-        memorySession = false;
-        cloudEpamId = data.id?.trim() || null;
-        rememberLastEpamId(cloudEpamId);
-        loadPamphlet(data);
-    } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        const message = err instanceof Error ? err.message : String(err);
-        setError(`Open failed: ${message}`);
+function syncOpenCloudDeleteConfirm(): void {
+    if (!openCloudSelectMode) {
+        openCloudDeleteConfirm.hidden = true;
+        return;
     }
-});
+    const checked = openCloudList.querySelectorAll<HTMLInputElement>(
+        'input.open-cloud-list__check:checked',
+    ).length;
+    openCloudDeleteConfirm.hidden = checked === 0;
+}
+
+function setOpenCloudSelectMode(on: boolean): void {
+    openCloudSelectMode = on;
+    openCloudDeleteToggle.classList.toggle("is-active", on);
+    openCloudDeleteToggle.setAttribute("aria-pressed", on ? "true" : "false");
+    openCloudHint.textContent = on
+        ? "Marca los panfletos a borrar, luego confirma abajo."
+        : "Selecciona un .epam asociado a tu cuenta.";
+    openCloudList.querySelectorAll<HTMLElement>(".open-cloud-list__row").forEach((row) => {
+        const check = row.querySelector<HTMLInputElement>("input.open-cloud-list__check");
+        const card = row.querySelector<HTMLButtonElement>(".open-cloud-list__card");
+        if (check) {
+            check.hidden = !on;
+            if (!on) check.checked = false;
+        }
+        if (card) card.disabled = on;
+    });
+    syncOpenCloudDeleteConfirm();
+}
 
 on(openSourceCloudBtn, "click", async () => {
     closeOpenSourceModal();
@@ -1403,6 +1473,10 @@ on(openSourceCloudBtn, "click", async () => {
         setError("Sign in to open from the cloud.");
         return;
     }
+    openCloudSelectMode = false;
+    openCloudDeleteToggle.classList.remove("is-active");
+    openCloudDeleteToggle.setAttribute("aria-pressed", "false");
+    openCloudDeleteConfirm.hidden = true;
     openCloudHint.textContent = "Cargando…";
     openCloudList.replaceChildren();
     openCloudModal.showModal();
@@ -1419,10 +1493,21 @@ on(openSourceCloudBtn, "click", async () => {
         }
         openCloudHint.textContent = "Selecciona un .epam asociado a tu cuenta.";
         for (const item of epams) {
+            const row = document.createElement("div");
+            row.className = "open-cloud-list__row";
+            row.setAttribute("role", "listitem");
+
+            const check = document.createElement("input");
+            check.type = "checkbox";
+            check.className = "open-cloud-list__check";
+            check.hidden = true;
+            check.value = item.epamId;
+            check.setAttribute("aria-label", `Seleccionar ${item.title || item.fileName || item.epamId}`);
+            check.addEventListener("change", () => syncOpenCloudDeleteConfirm());
+
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "open-cloud-list__item open-cloud-list__card";
-            btn.setAttribute("role", "listitem");
             btn.setAttribute(
                 "aria-label",
                 `Abrir panfleto ${item.title || item.fileName || item.epamId}`,
@@ -1440,7 +1525,7 @@ on(openSourceCloudBtn, "click", async () => {
             btn.append(title, meta, hint);
             btn.addEventListener("click", () => {
                 void (async () => {
-                    if (btn.disabled) return;
+                    if (openCloudSelectMode || btn.disabled) return;
                     btn.disabled = true;
                     btn.classList.add("is-loading");
                     hint.textContent = "Abriendo…";
@@ -1462,7 +1547,8 @@ on(openSourceCloudBtn, "click", async () => {
                     }
                 })();
             });
-            openCloudList.appendChild(btn);
+            row.append(check, btn);
+            openCloudList.appendChild(row);
         }
     } catch (err) {
         closeOpenCloudModal();
@@ -1475,8 +1561,76 @@ on(openSourceCloudBtn, "click", async () => {
     }
 });
 
+on(openCloudDeleteToggle, "click", () => {
+    setOpenCloudSelectMode(!openCloudSelectMode);
+});
+
+on(openCloudDeleteConfirm, "click", () => {
+    void (async () => {
+        const ids = Array.from(
+            openCloudList.querySelectorAll<HTMLInputElement>(
+                "input.open-cloud-list__check:checked",
+            ),
+        ).map((el) => el.value);
+        if (ids.length === 0) return;
+        const ok = window.confirm(
+            ids.length === 1
+                ? "¿Mover este panfleto a la papelera?"
+                : `¿Mover ${ids.length} panfletos a la papelera?`,
+        );
+        if (!ok) return;
+        openCloudDeleteConfirm.disabled = true;
+        try {
+            for (const id of ids) {
+                await recycleEpam(id);
+                if (cloudEpamId === id) {
+                    cloudEpamId = null;
+                    rememberLastEpamId(null);
+                }
+            }
+            setStatus(
+                ids.length === 1
+                    ? "Panfleto movido a la papelera."
+                    : `${ids.length} panfletos movidos a la papelera.`,
+                "success",
+            );
+            closeOpenCloudModal();
+            openSourceCloudBtn.click();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            setError(`Delete failed: ${message}`);
+            openApiErrorModal(message, {
+                title: "Cloud pamphlet error",
+                summary: "Could not move pamphlet(s) to the recycle bin.",
+            });
+        } finally {
+            openCloudDeleteConfirm.disabled = false;
+        }
+    })();
+});
+
 on(openCloudCancelBtn, "click", () => {
     closeOpenCloudModal();
+});
+
+on(openSourceCancelBtn, "click", () => {
+    closeOpenSourceModal();
+});
+
+on(openSourceLocalBtn, "click", async () => {
+    closeOpenSourceModal();
+    clearError();
+    try {
+        const data = await openPamphletFile();
+        memorySession = false;
+        cloudEpamId = data.id?.trim() || null;
+        rememberLastEpamId(cloudEpamId);
+        loadPamphlet(data);
+    } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        const message = err instanceof Error ? err.message : String(err);
+        setError(`Open failed: ${message}`);
+    }
 });
 
 function closeSeriesModal(): void {

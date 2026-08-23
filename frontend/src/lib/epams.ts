@@ -193,6 +193,18 @@ export async function saveEpamToCloud(payload: {
   return result.data;
 }
 
+/** Soft-delete: move .epam body to recycle-bin and drop list metadata. */
+export async function recycleEpam(epamId: string): Promise<void> {
+  const id = epamId.trim();
+  if (!id) throw new Error("epamId required");
+  const result = await apiRequest<{ ok?: boolean }>(EPAM_ROUTES.item(id), {
+    method: "DELETE",
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) throw new Error(formatApiError(result.error));
+}
+
 /** Thin shell helpers (kept for any residual React EPAM UI). */
 export async function listEpams(): Promise<EpamDoc[]> {
   const { epams } = await fetchEpams();

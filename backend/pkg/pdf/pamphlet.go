@@ -454,11 +454,17 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	_ = drawHeader(&s, doc.Header, headerLayout, headerX, headerTop, PamphletColWidthMm*2+PamphletGutterNarrow)
 
 	leftTop := PamphletPageHeightMm - PamphletMarginMm
-	drawColumn(&s, doc.Column7, colX(2), leftTop, PamphletColWidthMm, leftColH, images, structuredLead(doc, 7))
+	drawStructuredOrPlainColumn(&s, doc, doc.Column7, colX(2), leftTop, leftColH, images, 7)
 	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, leftColH, images, false)
 
+	// Col1 lead sits under header (not after body gutter); body band shrinks.
 	rightTop := headerTop - headerH - bodyGutter
-	drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, rightColH, images, structuredLead(doc, 1))
+	if structuredLead(doc, 1) {
+		leadTop := headerTop - headerH
+		drawStructuredOrPlainColumn(&s, doc, doc.Column1, colX(6), leadTop, rightColH+bodyGutter, images, 1)
+	} else {
+		drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, rightColH, images, false)
+	}
 	drawColumn(&s, doc.Column2, colX(8), rightTop, PamphletColWidthMm, rightColH, images, false)
 
 	footerTop := PamphletMarginMm + footerH
@@ -470,9 +476,9 @@ func buildPage2Content(doc PamphletDocument, images map[string]*pdfImage) string
 	var s strings.Builder
 	top := PamphletPageHeightMm - PamphletMarginMm
 	h := PamphletPage2BodyMm
-	drawColumn(&s, doc.Column3, colX(2), top, PamphletColWidthMm, h, images, structuredLead(doc, 3))
+	drawStructuredOrPlainColumn(&s, doc, doc.Column3, colX(2), top, h, images, 3)
 	drawColumn(&s, doc.Column4, colX(4), top, PamphletColWidthMm, h, images, false)
-	drawColumn(&s, doc.Column5, colX(6), top, PamphletColWidthMm, h, images, structuredLead(doc, 5))
+	drawStructuredOrPlainColumn(&s, doc, doc.Column5, colX(6), top, h, images, 5)
 	drawColumn(&s, doc.Column6, colX(8), top, PamphletColWidthMm, h, images, false)
 	return s.String()
 }
@@ -1296,6 +1302,41 @@ func structuredLead(doc PamphletDocument, colNum int) bool {
 	return colNum == 1 || colNum == 3 || colNum == 5 || colNum == 7
 }
 
+const (
+	pamphletLeadHeightMm = 52.0 // 10:9 of ~57.85mm column
+	pamphletLeadGapMm    = 3.75 // 0.75 × former 5mm gap
+)
+
+// drawStructuredOrPlainColumn draws an optional outside-column lead, then body items
+// in the remaining height (structured template only).
+func drawStructuredOrPlainColumn(
+	s *strings.Builder,
+	doc PamphletDocument,
+	items []PamphletItem,
+	x, top, heightMm float64,
+	images map[string]*pdfImage,
+	colNum int,
+) {
+	if !structuredLead(doc, colNum) {
+		drawColumn(s, items, x, top, PamphletColWidthMm, heightMm, images, false)
+		return
+	}
+	body := items
+	cursor := top
+	h := heightMm
+	if len(items) > 0 && items[0].Type == "image" {
+		drawImageOrPlaceholder(s, items[0], x, cursor, PamphletColWidthMm, pamphletLeadHeightMm, images)
+		drawLeadDoubleBorder(s, x, cursor, PamphletColWidthMm, pamphletLeadHeightMm)
+		cursor -= pamphletLeadHeightMm + pamphletLeadGapMm
+		h -= pamphletLeadHeightMm + pamphletLeadGapMm
+		body = items[1:]
+	}
+	if h <= 0 {
+		return
+	}
+	drawColumn(s, body, x, cursor, PamphletColWidthMm, h, images, false)
+}
+
 func drawColumn(s *strings.Builder, items []PamphletItem, x, top, width, heightMm float64, images map[string]*pdfImage, leadFirst bool) {
 	drawStackedItems(s, items, x, top, width, heightMm, images, pamphletBodySizePt, pamphletHeadingSizePt, pamphletBodyLH, pamphletHeadingLH, leadFirst)
 }
@@ -1314,8 +1355,6 @@ func drawStackedItems(
 ) {
 	cursorTop := top
 	floor := top - heightMm
-	const leadH = 52.0 // 10:9 of ~57.85mm column
-	const leadGap = 5.0
 	for i, item := range items {
 		// CSS .dumb-column { overflow: visible } — the last sheet line may start
 		// just below the grid floor and still sit in the 10mm page margin.
@@ -1329,7 +1368,7 @@ func drawStackedItems(
 			}
 			lead := leadFirst && i == 0
 			if lead {
-				h = leadH
+				h = pamphletLeadHeightMm
 			}
 			drawImageOrPlaceholder(s, item, x, cursorTop, width, h, images)
 			if lead {
@@ -1337,7 +1376,7 @@ func drawStackedItems(
 			}
 			cursorTop -= h
 			if lead {
-				cursorTop -= leadGap
+				cursorTop -= pamphletLeadGapMm
 			} else if i < len(items)-1 {
 				cursorTop -= PamphletItemGapMm
 			}

@@ -332,20 +332,49 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
     main.appendChild(footerEl);
 }
 
+/** Lead slot above an odd body column (sibling of .dumb-column, not inside it). */
+export function createLeadSlotElement(columnNum: number, item: PamphletItem): HTMLElement {
+    const slot = document.createElement("div");
+    slot.className = `pamphlet-lead-slot pamphlet-lead-${columnNum}`;
+    slot.setAttribute("data-lead-for", String(columnNum));
+    slot.appendChild(createItemElement(item, { lead: true }));
+    return slot;
+}
+
+/** Re-attach structured lead slots after reflow (which clears main). */
+export function renderStructuredLeadSlots(main: HTMLElement, data: PamphletStructure): void {
+    main.querySelectorAll(":scope > .pamphlet-lead-slot").forEach((el) => el.remove());
+    if (data.type !== "pamphlet_structured_images") return;
+    for (const key of STRUCTURED_LEAD_COLUMNS) {
+        const colNum = Number(key.replace("column_", ""));
+        const first = data[key]?.[0];
+        if (!first || first.type !== "image") continue;
+        main.appendChild(createLeadSlotElement(colNum, first));
+    }
+}
+
 export function renderFromPamphlet(main: HTMLElement, data: PamphletStructure): void {
     main.innerHTML = "";
     const structured = data.type === "pamphlet_structured_images";
     const leadCols = new Set<ColumnKey>(STRUCTURED_LEAD_COLUMNS);
 
     COLUMN_KEYS.forEach((key, index) => {
+        const colNum = index + 1;
         const col = document.createElement("div");
-        col.className = `dumb-column pamphlet-column-${index + 1}`;
+        col.className = `dumb-column pamphlet-column-${colNum}`;
         main.appendChild(col);
 
-        const colItems = data[key];
+        let colItems = data[key] ?? [];
+        if (structured && leadCols.has(key) && colItems[0]?.type === "image") {
+            main.appendChild(createLeadSlotElement(colNum, colItems[0]));
+            colItems = colItems.slice(1);
+        }
         colItems.forEach((item, itemIndex) => {
-            const lead = structured && leadCols.has(key) && itemIndex === 0 && item.type === "image";
-            appendItemWithSpacer(col, createItemElement(item, { lead }), itemIndex < colItems.length - 1);
+            appendItemWithSpacer(
+                col,
+                createItemElement(item),
+                itemIndex < colItems.length - 1,
+            );
         });
     });
 
@@ -476,15 +505,30 @@ export function getItemLocation(container: HTMLElement): LastEditedElement | nul
     }
 
     const columnEl = container.closest<HTMLElement>(".dumb-column");
-    if (!columnEl) return null;
+    if (!columnEl) {
+        const leadSlot = container.closest<HTMLElement>(".pamphlet-lead-slot");
+        if (!leadSlot) return null;
+        const forCol = Number(leadSlot.getAttribute("data-lead-for") || "0");
+        if (!forCol) return null;
+        return { column: forCol, index: 0 };
+    }
 
     const match = columnEl.className.match(/pamphlet-column-(\d+)/);
     if (!match) return null;
 
     const column = Number(match[1]);
     const items = Array.from(columnEl.querySelectorAll<HTMLElement>(":scope > .pamphlet-item"));
-    const index = items.indexOf(container);
+    let index = items.indexOf(container);
     if (index < 0) return null;
+
+    // Lead lives outside the column; body items are shifted by +1 in JSON.
+    const app = columnEl.closest(".pamphlet-app");
+    const structured = app?.getAttribute("data-pamphlet-type") === "pamphlet_structured_images";
+    const hasLead =
+        structured &&
+        (column === 1 || column === 3 || column === 5 || column === 7) &&
+        Boolean(columnEl.parentElement?.querySelector(`:scope > .pamphlet-lead-${column}`));
+    if (hasLead) index += 1;
 
     return { column, index };
 }
@@ -507,10 +551,16 @@ export function countItems(data: PamphletStructure): number {
 export function serializePamphlet(
     main: HTMLElement,
     lastEdited: LastEditedElement,
-    existing?: Pick<PamphletStructure, "id" | "ownerUserId"> | null,
+    existing?: Pick<PamphletStructure, "id" | "ownerUserId" | "type"> | null,
 ): PamphletStructure {
+    const appType = main.closest(".pamphlet-app")?.getAttribute("data-pamphlet-type");
+    const type =
+        existing?.type === "pamphlet_structured_images" ||
+        appType === "pamphlet_structured_images"
+            ? "pamphlet_structured_images"
+            : "pamphlet_single_sheet";
     const pamphlet: PamphletStructure = {
-        type: "pamphlet_single_sheet",
+        type,
         header: serializeHeaderFromDom(main),
         footer: serializeFooterFromDom(main),
         last_edited_element: { ...lastEdited },
@@ -534,7 +584,17 @@ export function serializePamphlet(
             continue;
         }
         const items = Array.from(col.querySelectorAll<HTMLElement>(":scope > .pamphlet-item"));
-        pamphlet[key] = items.map(serializeItem);
+        const body = items.map(serializeItem);
+        const leadEl = main.querySelector<HTMLElement>(
+            `:scope > .pamphlet-lead-${i} > .pamphlet-item`,
+        );
+        if (leadEl) {
+            const lead = serializeItem(leadEl);
+            lead.height_mm = LEAD_IMAGE_HEIGHT_MM;
+            pamphlet[key] = [lead, ...body];
+        } else {
+            pamphlet[key] = body;
+        }
     }
 
     return pamphlet;
