@@ -29,7 +29,9 @@ Lead images currently sit **inside** columns, so body text starts too low and co
 
 - `pamphlet_single_sheet` — simple (current).
 - `pamphlet_structured_images` — same chrome + columns, with lead images on columns **1, 3, 5, 7**.
-- HeaderDynamicMenu button toggles type; migrating preserves header/footer/column content; switching to structured ensures a lead image item at top of cols 1/3/5/7 if missing.
+- HeaderDynamicMenu button toggles type; migrating preserves header/footer and **body** column content.
+- Switching **to** structured ensures a lead image item at top of cols 1/3/5/7 if missing (empty 10:9 slots).
+- Switching **to** simple (`pamphlet_single_sheet`): the four lead images **never** become column body content. Strip the lead (first `image` on cols 1/3/5/7) from the document; columns regain full height and **reflow** remaining items. Lead bytes are discarded for this toggle (re-entering structured creates fresh empty leads).
 
 ### Structured lead images (layout)
 
@@ -68,7 +70,8 @@ In **Open → From the cloud** modal (`#open-cloud-modal`):
 - [x] Char remaining strip for header/footer edit only.
 - [x] Mobile header/footer grow; lower meta margins hidden on mobile.
 - [x] Mobile/tablet: chrome field overflow fixed via height:auto + overflow:visible !important on header/footer and meta rows.
-- [x] Type toggle in dynamic header; content preserved.
+- [x] Type toggle in dynamic header; body content preserved; leads never injected into simple-mode columns.
+- [x] Structured → simple: strip leads from cols 1/3/5/7; columns grow + reflow.
 - [x] Lead 10:9 in **slots above** cols 1/3/5/7; gap 3.75mm; column height reduced; PDF matches.
 - [x] Open-cloud: icon → checkboxes → confirm → recycle-bin move.
 - [x] Print (`POST /api/documents/pamphlet/pdf`) accepts `pamphlet_single_sheet` and `pamphlet_structured_images`; rejects other types with JSON `error`.

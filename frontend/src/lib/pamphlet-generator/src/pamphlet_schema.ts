@@ -776,6 +776,23 @@ export function ensureStructuredLeadImages(doc: PamphletStructure): PamphletStru
     return next;
 }
 
+/**
+ * Leave structured template: leads never become body content.
+ * Drop the first image on cols 1/3/5/7 and set type to simple so columns
+ * regain full height and reflow remaining items.
+ */
+export function stripStructuredLeadImages(doc: PamphletStructure): PamphletStructure {
+    const next = { ...doc, type: "pamphlet_single_sheet" as const };
+    for (const col of STRUCTURED_LEAD_COLUMNS) {
+        const items = [...(next[col] ?? [])];
+        if (items[0]?.type === "image") {
+            items.shift();
+        }
+        next[col] = items;
+    }
+    return next;
+}
+
 export function itemTypeToTag(type: PamphletItemType): string {
     if (type === "heading_1") return "h1";
     if (type === "image") return "div";

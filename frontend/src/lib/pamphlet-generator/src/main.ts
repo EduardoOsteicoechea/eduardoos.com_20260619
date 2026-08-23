@@ -68,6 +68,7 @@ import {
     LEAD_IMAGE_GAP_MM,
     LEAD_IMAGE_HEIGHT_MM,
     ensureStructuredLeadImages,
+    stripStructuredLeadImages,
     type CreatePamphletMeta,
     type FooterFieldKey,
     type HeaderFieldKey,
@@ -2015,7 +2016,8 @@ on(templateBtn, "click", () => {
     const snap = snapshotFromDom(currentDoc.last_edited_element) ?? currentDoc;
     let next: PamphletStructure;
     if (snap.type === "pamphlet_structured_images") {
-        next = { ...snap, type: "pamphlet_single_sheet" };
+        // Leads stay outside body forever — strip them; columns grow + reflow.
+        next = stripStructuredLeadImages(snap);
     } else {
         next = ensureStructuredLeadImages(snap);
     }
