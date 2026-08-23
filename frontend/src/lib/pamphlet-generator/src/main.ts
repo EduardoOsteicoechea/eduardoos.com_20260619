@@ -450,8 +450,8 @@ function maxHeightForColumn(columnIndex: number): number {
     const leadReserve = LEAD_IMAGE_HEIGHT_MM + LEAD_IMAGE_GAP_MM;
     if (columnIndex === 1 || columnIndex === 2) {
         if (structured && columnIndex === 1) {
-            // Lead sits in former gutter + top of right band.
-            return page1RightColHeightMm + headerBodyGutterMm - leadReserve;
+            // Lead shares col2 top (after header-body-gutter); body is right band − lead − gap.
+            return page1RightColHeightMm - leadReserve;
         }
         return page1RightColHeightMm;
     }

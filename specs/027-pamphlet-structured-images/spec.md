@@ -37,7 +37,7 @@ Lead images currently sit **inside** columns, so body text starts too low and co
 
 1. **Gap under lead**: bottom margin / PDF gap = **0.75 ×** previous (`5mm` → **3.75mm**).
 2. **Outside columns**: each lead is a **sibling grid cell**, not the first item inside the column DOM:
-   - Col **1**: below header, above column 1 body.
+   - Col **1**: below header **with the same `--header-body-gutter` (5mm) as column 2**, then above column 1 body.
    - Cols **3, 5, 7**: above those columns (page-2 top for 3/5; page-1 top for 7).
 3. **Column height shrinks** by `leadHeight (10:9 of column width) + 3.75mm` so text flows only in the remaining band.
 4. JSON still stores the lead as the **first `image` item** of that column (serialize/deserialize round-trip); FE renders it in the lead slot.

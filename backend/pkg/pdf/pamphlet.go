@@ -457,11 +457,10 @@ func buildPage1Content(doc PamphletDocument, images map[string]*pdfImage) string
 	drawStructuredOrPlainColumn(&s, doc, doc.Column7, colX(2), leftTop, leftColH, images, 7)
 	drawColumn(&s, doc.Column8, colX(4), leftTop, PamphletColWidthMm, leftColH, images, false)
 
-	// Col1 lead sits under header (not after body gutter); body band shrinks.
+	// Col1 lead shares col2 top (after header→body gutter); body band shrinks by lead+gap.
 	rightTop := headerTop - headerH - bodyGutter
 	if structuredLead(doc, 1) {
-		leadTop := headerTop - headerH
-		drawStructuredOrPlainColumn(&s, doc, doc.Column1, colX(6), leadTop, rightColH+bodyGutter, images, 1)
+		drawStructuredOrPlainColumn(&s, doc, doc.Column1, colX(6), rightTop, rightColH, images, 1)
 	} else {
 		drawColumn(&s, doc.Column1, colX(6), rightTop, PamphletColWidthMm, rightColH, images, false)
 	}
