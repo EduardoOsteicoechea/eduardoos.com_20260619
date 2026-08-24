@@ -25,4 +25,6 @@ See also the earlier relocated copy under `backend/revitapi/` and the HTML guide
 
 ## Spec
 
-`specs/028-aps-app-restore/spec.md`
+- Restore note: `specs/028-aps-app-restore/spec.md`
+- **Client meeting playbook (APS app → robot → ACC Hub → automation on sync):**  
+  `specs/029-aps-acc-client-meeting-playbook/spec.md`
