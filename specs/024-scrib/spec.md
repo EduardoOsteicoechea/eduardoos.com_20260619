@@ -54,6 +54,7 @@ Dynamic header host (`#header-dynamic-menu-host`):
 7. **Eraser** — toggle; erases only on active layer and accepts only `pointerType === "pen"`; finger, palm, and mouse never erase. Prefer deleting path hits under brush; MVP: freehand eraser that removes path points within radius of active layer paths.
 8. **Layers modal** — per layer: opacity slider (0–1), radio to set **sole** active layer. Clicking the backdrop outside its panel closes it and persists its current values.
 9. **Undo** — revert last stroke/erase action on active layer (in-memory stack + persist after undo)
+10. **Print** — icon in dynamic header; opens the browser print dialog for **only the current sheet** (ruled background + SVG layers). Print uses each layer’s **current opacity** (same visibility as the editor). Geometry: **portrait US Letter** (`@page size: letter`, 215.9×279.4 mm), no zoom/pan transform, no editor chrome / header / modals. Screen dark-mode invert is **disabled** for print so ink stays dark on the ruled page. Browser print only — not a server PDF.
 
 Default mode = **zoom** on active layer. Stroke color: **`#141820`** (site ink) all layers for MVP.
 
@@ -95,7 +96,7 @@ Gateway mounts `internal/scrib` like church/homescool.
 
 ## Non-goals (MVP)
 - Multi-user collaboration / sharing sheets across users
-- PDF export
+- Server-side PDF export (browser print of the live sheet is in scope)
 - Per-layer stroke colors / text typing tools (draw-only)
 - Offline-first IndexedDB
 
@@ -113,6 +114,7 @@ Gateway mounts `internal/scrib` like church/homescool.
 - [x] Slow or rapid autosaves preserve all completed strokes and never apply stale server responses over newer local changes
 - [x] Fullscreen exit is a red icon-only X control; dark mode inverts the background and SVG layers; Scrib uses the v2 column background
 - [x] Fullscreen preserves zoom/pan, retains all Scrib tools, and can toggle the visible header sidebar
+- [x] Dynamic header Print prints only the current sheet, portrait US Letter, with live layer opacities; chrome/zoom hidden; no dark invert on print
 
 ## Affected paths
 - `specs/024-scrib/spec.md`

@@ -395,3 +395,79 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
 .scrib-layer-card__opacity input[type="range"] {
   width: 100%;
 }
+
+/* —— Print: only the current sheet, portrait US Letter, live layer opacities —— */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 215.9mm !important;
+    height: 279.4mm !important;
+    overflow: hidden !important;
+    background: #fff !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .scrib-page,
+  .scrib-page * {
+    visibility: visible !important;
+  }
+
+  .site-header,
+  #header-dynamic-menu-host,
+  .header-dynamic-menu,
+  .scrib-layers-modal,
+  .scrib-fullscreen-controls,
+  .scrib-save-hint,
+  .scrib-stroke-widget {
+    display: none !important;
+  }
+
+  .scrib-viewport {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    width: 215.9mm !important;
+    height: 279.4mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+    outline: none !important;
+    visibility: visible !important;
+  }
+
+  .scrib-stage {
+    transform: none !important;
+    will-change: auto !important;
+    visibility: visible !important;
+  }
+
+  .scrib-page {
+    position: relative !important;
+    width: 215.9mm !important;
+    height: 279.4mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .scrib-page__bg,
+  .scrib-layer {
+    /* Print as ink on paper — never apply screen dark-mode invert. */
+    filter: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

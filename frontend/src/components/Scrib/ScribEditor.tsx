@@ -505,6 +505,14 @@ export default function ScribEditor() {
         onSelectErase={() => setMode("erase")}
         onEnterFullscreen={() => void enterFullscreen()}
         onOpenLayers={() => setLayersOpen(true)}
+        onPrint={() => {
+          setLayersOpen(false);
+          setDraftPath("");
+          // Let the modal unmount and print styles settle before the dialog opens.
+          requestAnimationFrame(() => {
+            window.print();
+          });
+        }}
         onUndo={() => void onUndo()}
       />
 
