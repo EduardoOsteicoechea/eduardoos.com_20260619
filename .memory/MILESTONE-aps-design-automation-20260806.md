@@ -8,3 +8,7 @@
 #
 # Required env: APS_CLIENT_ID, APS_CLIENT_SECRET, APS_ACTIVITY_ID
 # IAM: EC2 role needs PutObject on arn:aws:s3:::aps20250806/*
+#
+# Peak functional AppBundle tree: commit f3e41eb (Revit 2027 + singleRoom.rvt).
+# 2026-08-24: AppBundle+scripts restored only under backend/aps_app/ (spec 028);
+# gateway /aps-admin remain pruned.

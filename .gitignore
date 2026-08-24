@@ -37,6 +37,9 @@ secrets/
 backend/revitapi/**/bin/
 backend/revitapi/**/obj/
 backend/revitapi/**/*.zip
+backend/aps_app/**/bin/
+backend/aps_app/**/obj/
+backend/aps_app/**/*.zip
 
 
 # Local CV / portfolio PDFs (not product code)

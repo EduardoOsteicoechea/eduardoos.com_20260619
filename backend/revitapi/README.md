@@ -1,8 +1,9 @@
 ﻿# Revit / APS Design Automation assets (Eduardo OS)
 
-Lives under `backend/revitapi/` next to the Go APS routes in `backend/internal/aps`.
+Earlier relocated copy of the AppBundle. **Prefer the restored peak snapshot** at
+`backend/aps_app/` (from commit `f3e41eb` — see `specs/028-aps-app-restore/spec.md`).
 
-## Contents
+## Contents (this folder)
 
 | Path | Role |
 |------|------|
@@ -13,4 +14,5 @@ Lives under `backend/revitapi/` next to the Go APS routes in `backend/internal/a
 
 ## Backend pairing
 
-Note: In feature 008 route pruning, public web gateway routes for APS were removed from the active backend server (`main.go`). The standalone AppBundle sources and packaging scripts remain here for Revit Design Automation offline / direct use.
+Public gateway routes for APS were pruned (feature 008). AppBundle sources remain
+for Design Automation offline / direct use; canonical restore = `backend/aps_app/`.
