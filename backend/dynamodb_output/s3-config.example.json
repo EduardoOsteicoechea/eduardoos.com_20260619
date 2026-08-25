@@ -1,0 +1,5 @@
+{
+  "bucket": "REEMPLAZA_CON_EL_NOMBRE_DE_TU_BUCKET",
+  "prefix": "calvin-institutes",
+  "region": "us-east-1"
+}

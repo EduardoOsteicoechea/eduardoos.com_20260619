@@ -1,0 +1,113 @@
+.calvins-institutes {
+  box-sizing: border-box;
+  width: min(100%, var(--max_desktop_width, 72rem));
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2.5rem;
+  color: var(--site-body-fg);
+}
+
+.calvins-institutes__head h1 {
+  margin: 0 0 0.35rem;
+  font-family: Montserrat, sans-serif;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 650;
+}
+
+.calvins-institutes__lead,
+.calvins-institutes__status,
+.calvins-institutes__error {
+  font-family: Raleway, sans-serif;
+  line-height: 1.45;
+  max-width: 48rem;
+}
+
+.calvins-institutes__error {
+  color: #b42318;
+}
+
+.calvins-institutes__layout {
+  display: grid;
+  grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .calvins-institutes__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.calvins-institutes__nav {
+  max-height: min(70vh, 40rem);
+  overflow: auto;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--glassed_background, var(--site-body-bg));
+}
+
+.calvins-institutes__nav ol {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+}
+
+.calvins-institutes__nav-btn {
+  display: grid;
+  grid-template-columns: 2.25rem 1fr;
+  gap: 0.45rem;
+  width: 100%;
+  margin: 0 0 0.2rem;
+  padding: 0.45rem 0.5rem;
+  border: none;
+  border-radius: var(--border_radius_001);
+  background: transparent;
+  color: var(--site-body-fg);
+  text-align: left;
+  cursor: pointer;
+  font-family: Raleway, sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.calvins-institutes__nav-btn:hover,
+.calvins-institutes__nav-btn.is-active {
+  background: color-mix(in srgb, var(--site-accent) 14%, transparent);
+}
+
+.calvins-institutes__nav-order {
+  font-family: Montserrat, sans-serif;
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+
+.calvins-institutes__nav-heading {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.calvins-institutes__panel {
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  padding: 1rem 1.1rem 1.5rem;
+  background: var(--glassed_background, var(--site-body-bg));
+  min-height: 16rem;
+}
+
+.calvins-institutes__panel h2 {
+  margin: 0 0 0.75rem;
+  font-family: Montserrat, sans-serif;
+  font-size: 1.15rem;
+}
+
+.calvins-institutes__text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: Raleway, Georgia, serif;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}

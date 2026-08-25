@@ -18,6 +18,7 @@ import (
 	"eduardoos.nex/internal/health"
 	"eduardoos.nex/internal/homescool"
 	"eduardoos.nex/internal/httpx"
+	"eduardoos.nex/internal/latin"
 	"eduardoos.nex/internal/payments"
 	"eduardoos.nex/internal/ereport"
 	"eduardoos.nex/internal/scrib"
@@ -92,6 +93,7 @@ func main() {
 	agentSandboxHandler := agentsandbox.NewHandler(ctx, jwtSecret, userStore)
 	apsWebhookHandler := apswebhook.NewHandler(jwtSecret, userStore, apswebhook.SecretFromEnv())
 	apsProbesHandler := apsprobes.NewHandler(jwtSecret, userStore, apsWebhookHandler)
+	latinHandler := latin.NewHandler(ctx)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -116,6 +118,8 @@ func main() {
 	apsWebhookHandler.Routes(r)
 	// MPS meeting probes (admin-only, isolated).
 	apsProbesHandler.Routes(r)
+	// Calvin’s Institutes reader (public S3 proxy).
+	latinHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
 	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s church=%s church-groups=%s church-leaders=%s church-objects=%s scrib=%s ereport=%s epams=%s",

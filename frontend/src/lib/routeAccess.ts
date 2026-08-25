@@ -39,6 +39,12 @@ export function isPublicPagePath(pathname: string): boolean {
   if (path === normalizePath(APP_ROUTES.articles) || path.startsWith("/articulos/")) {
     return true;
   }
+  if (
+    path === normalizePath(APP_ROUTES.calvinsInstitutes) ||
+    path.startsWith(`${normalizePath(APP_ROUTES.calvinsInstitutes)}/`)
+  ) {
+    return true;
+  }
   if (path === normalizePath(APP_ROUTES.subscription)) return true;
 
   return false;

@@ -1,0 +1,14 @@
+---
+/**
+ * Calvin’s Institutes — public reader (S3-backed via /api/latin/…).
+ */
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import CalvinsInstitutesReader from "../../components/CalvinsInstitutes/CalvinsInstitutesReader";
+---
+
+<BaseLayout
+  title="Calvin’s Institutes — Eduardo OS"
+  description="John Calvin, Institutes of the Christian Religion (Allen English from Latin)."
+>
+  <CalvinsInstitutesReader client:load />
+</BaseLayout>

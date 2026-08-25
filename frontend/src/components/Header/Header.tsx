@@ -59,6 +59,7 @@ const SERVICES_LINKS = [
   { href: APP_ROUTES.scrib, label: "Scrib" },
   { href: APP_ROUTES.ereport, label: "eReport" },
   { href: APP_ROUTES.articles, label: "Articles" },
+  { href: APP_ROUTES.calvinsInstitutes, label: "Calvin’s Institutes" },
 ] as const;
 
 /** Platform-admin MPS product-test routes (webhook monitor + meeting probes). */

@@ -45,6 +45,8 @@ export const APP_ROUTES = {
     `/ereport/${encodeURIComponent(userSafe)}/${encodeURIComponent(reportId)}`,
   ereportHub: "/ereport/hub",
   ereportWorkspace: "/ereport/workspace",
+  /** Public Calvin’s Institutes reader (S3-backed). */
+  calvinsInstitutes: "/latin/calvins-institutes",
   adminUsers: "/admin/users",
   agentSandbox: "/admin/agent-sandbox",
   /** Admin-only APS webhook live monitor (product-tests). */
@@ -251,4 +253,11 @@ export const ADMIN_ROUTES = {
 /** Public APS webhook ingest (Autodesk → Eduardo OS). */
 export const APS_WEBHOOK_ROUTES = {
   ingest: "/api/aps/webhooks",
+} as const;
+
+/** Public Calvin’s Institutes (S3 proxy). */
+export const LATIN_API_ROUTES = {
+  institutesIndex: "/api/latin/calvins-institutes",
+  institutesSection: (id: string) =>
+    `/api/latin/calvins-institutes/sections/${encodeURIComponent(id)}`,
 } as const;
