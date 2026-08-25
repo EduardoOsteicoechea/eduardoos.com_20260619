@@ -3,7 +3,7 @@
 Console: https://eduardoos.com/product-tests/mps/meeting-probes  
 Webhook monitor: https://eduardoos.com/product-tests/mps/aps-webhook  
 
-Platform admin JWT required. Probes never auto-run on load.
+Platform admin JWT required. In the global header tray: **MPS tests** → **APS webhook** / **MPS probes**. Probes never auto-run on load.
 
 ## Before the call
 

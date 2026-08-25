@@ -16,7 +16,7 @@ During a live APS/ACC client meeting we need **independent, clickable probes** o
 |---------|------|------|
 | FE console | `/product-tests/mps/meeting-probes` | Platform admin only |
 | Link from | `/product-tests/mps/aps-webhook` | Same |
-| Header | optional under admin links: **MPS probes** | `isPlatformAdmin()` |
+| Header | Admin tray: **MPS tests** submenu → **APS webhook** + **MPS probes** | `isPlatformAdmin()` |
 | BE | `POST /api/admin/aps/probes/{probeId}` | JWT + platform admin |
 | BE catalog | `GET /api/admin/aps/probes` | JWT + platform admin |
 

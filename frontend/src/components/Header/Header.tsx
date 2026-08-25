@@ -61,6 +61,12 @@ const SERVICES_LINKS = [
   { href: APP_ROUTES.articles, label: "Articles" },
 ] as const;
 
+/** Platform-admin MPS product-test routes (webhook monitor + meeting probes). */
+const MPS_TEST_LINKS = [
+  { href: APP_ROUTES.apsWebhookMonitor, label: "APS webhook" },
+  { href: APP_ROUTES.mpsMeetingProbes, label: "MPS probes" },
+] as const;
+
 interface AccountMenuProps {
   initial: string;
   profileImageUrl: string;
@@ -253,6 +259,62 @@ function ServicesMenu({ pathname, navClass, onNavigate }: ServicesMenuProps) {
           aria-label="Services Apps & Subscriptions"
         >
           {SERVICES_LINKS.map(({ href, label }) => (
+            <a
+              key={href}
+              className={`site-header__services-item${navClass(href) ? ` ${navClass(href)}` : ""}`}
+              role="menuitem"
+              href={href}
+              onClick={() => onNavigate()}
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+interface MpsTestsMenuProps {
+  pathname: string;
+  navClass: (href: string) => string;
+  onNavigate: () => void;
+}
+
+/** Admin tray submenu: APS webhook monitor + MPS meeting probes. */
+function MpsTestsMenu({ pathname, navClass, onNavigate }: MpsTestsMenuProps) {
+  const mpsActive = MPS_TEST_LINKS.some(
+    ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
+  );
+  const [open, setOpen] = useState(mpsActive);
+
+  useEffect(() => {
+    setOpen(mpsActive);
+  }, [pathname, mpsActive]);
+
+  return (
+    <div className="site-header__services">
+      <button
+        type="button"
+        className={`site-header__services-toggle${mpsActive ? " is-active" : ""}`}
+        aria-expanded={open}
+        aria-controls="site-header-mps-tests-menu"
+        aria-haspopup="menu"
+        onClick={() => setOpen((current) => !current)}
+      >
+        MPS tests
+        <span className="site-header__services-caret" aria-hidden="true">
+          {open ? "▴" : "▾"}
+        </span>
+      </button>
+      {open ? (
+        <div
+          id="site-header-mps-tests-menu"
+          className="site-header__services-menu"
+          role="menu"
+          aria-label="MPS tests"
+        >
+          {MPS_TEST_LINKS.map(({ href, label }) => (
             <a
               key={href}
               className={`site-header__services-item${navClass(href) ? ` ${navClass(href)}` : ""}`}
@@ -555,20 +617,7 @@ export function Header({ pathname }: HeaderProps) {
             >
               Agent Sandbox
             </a>
-            <a
-              className={navClass(APP_ROUTES.apsWebhookMonitor)}
-              href={APP_ROUTES.apsWebhookMonitor}
-              onClick={closeMenu}
-            >
-              APS webhook
-            </a>
-            <a
-              className={navClass(APP_ROUTES.mpsMeetingProbes)}
-              href={APP_ROUTES.mpsMeetingProbes}
-              onClick={closeMenu}
-            >
-              MPS probes
-            </a>
+            <MpsTestsMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
           </>
         ) : null}
         {showAuth ? (
