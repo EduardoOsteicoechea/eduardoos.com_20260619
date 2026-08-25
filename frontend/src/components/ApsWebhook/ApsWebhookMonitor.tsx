@@ -15,6 +15,8 @@ import "./ApsWebhookMonitor.css";
 export type ApsWebhookEvent = {
   id: string;
   kind?: string;
+  disposition?: string;
+  syncState?: string;
   receivedAt: string;
   correlationId: string;
   contentType?: string;
@@ -373,6 +375,8 @@ export default function ApsWebhookMonitor() {
               <div className="aps-webhook-monitor__card-head">
                 <time dateTime={ev.receivedAt}>{new Date(ev.receivedAt).toLocaleString()}</time>
                 <span>{ev.kind === "error" ? "ERROR" : "POST"}</span>
+                {ev.disposition ? <span>{ev.disposition}</span> : null}
+                {ev.syncState ? <span>{ev.syncState}</span> : null}
                 {ev.httpStatus ? <span>HTTP {ev.httpStatus}</span> : null}
                 <span>id={ev.id.slice(0, 8)}…</span>
                 <span>cid={ev.correlationId}</span>

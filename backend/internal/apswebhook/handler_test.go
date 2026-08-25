@@ -56,6 +56,47 @@ func TestIngestAndList(t *testing.T) {
 	}
 }
 
+func TestSyncCompleteDisposition(t *testing.T) {
+	h := NewHandler("test-secret", auth.NewMemoryStore(), "")
+	r := chi.NewRouter()
+	h.Routes(r)
+	body := `{"hook":{"system":"adsk.c4r","event":"model.sync"},"payload":{"state":"SYNC_COMPLETE"}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/aps/webhooks", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d", rec.Code)
+	}
+	var ack map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &ack)
+	if ack["disposition"] != "meeting_relevant" || ack["triggersDA"] != false {
+		t.Fatalf("ack=%v", ack)
+	}
+	evs := h.snapshot()
+	if len(evs) != 1 || evs[0].Disposition != "meeting_relevant" || evs[0].SyncState != "SYNC_COMPLETE" {
+		t.Fatalf("event=%+v", evs)
+	}
+}
+
+func TestSyncStartIgnoredNoDA(t *testing.T) {
+	h := NewHandler("test-secret", auth.NewMemoryStore(), "")
+	r := chi.NewRouter()
+	h.Routes(r)
+	body := `{"hook":{"system":"adsk.c4r","event":"model.sync"},"payload":{"state":"SYNC_START"}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/aps/webhooks", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d", rec.Code)
+	}
+	evs := h.snapshot()
+	if len(evs) != 1 || evs[0].Disposition != "ignored_no_da" {
+		t.Fatalf("event=%+v", evs)
+	}
+}
+
 func TestIngestRequiresSecretWhenConfigured(t *testing.T) {
 	h := NewHandler("test-secret", auth.NewMemoryStore(), "s3cr3t")
 	r := chi.NewRouter()

@@ -2,11 +2,11 @@
 
 ## Status
 
-Active (2026-08-25).
+Active (2026-08-25). Handoff hardening: ACC_ env aliases, configurable timeouts, SYNC disposition, nginx probe timeout.
 
 ## Problem
 
-During a live APS/ACC client meeting we need **independent, clickable probes** on Eduardo OS that verify auth, hub/Docs access, webhook ingest, and admin parameters — one at a time — with verbose JSON diagnostics. A failure in probe N must never crash the API or block probe N+1.
+During a live APS/ACC client meeting we need **independent, clickable probes** on Eduardo OS that verify auth, hub/Docs access, webhook ingest, and admin parameters — one at a time — with verbose JSON diagnostics. A failure in probe N must never crash the API or block probe N+1. Slow APS calls must return structured JSON (`ok:false` + `nextStep`), not opaque nginx 504 HTML as the only signal.
 
 ## Goals
 
@@ -16,107 +16,79 @@ During a live APS/ACC client meeting we need **independent, clickable probes** o
 |---------|------|------|
 | FE console | `/product-tests/mps/meeting-probes` | Platform admin only |
 | Link from | `/product-tests/mps/aps-webhook` | Same |
-| Header | Admin tray: **MPS tests** submenu → **APS webhook** + **MPS probes** | `isPlatformAdmin()` |
+| Header | Admin tray: **MPS tests** → **APS webhook** + **MPS probes** | `isPlatformAdmin()` |
 | BE | `POST /api/admin/aps/probes/{probeId}` | JWT + platform admin |
 | BE catalog | `GET /api/admin/aps/probes` | JWT + platform admin |
+| Ingest | `GET/POST /api/aps/webhooks` | Public (+ optional `X-Aps-Webhook-Secret`) |
 
-### Probe wrapper contract (always)
+### Sync semantics (not Design Automation)
 
-HTTP **200** from the wrapper unless Eduardo itself is misconfigured (missing critical wiring → **503**).
+- **Sync** = Revit Cloud Worksharing **Sync With Central** (C4R `adsk.c4r` / `model.sync`).
+- `SYNC_COMPLETE` → disposition `meeting_relevant` (stored + displayed).
+- `SYNC_START` → disposition `ignored_no_da` (stored + displayed; **never** triggers DA / any worker).
+- No AppBundle / Activity / WorkItem in this feature.
 
-```json
-{
-  "ok": true,
-  "probeId": "aps-token",
-  "title": "APS 2LO token",
-  "startedAt": "...",
-  "finishedAt": "...",
-  "summary": "one line",
-  "details": { },
-  "nextStep": "plain language fix hint",
-  "httpStatus": 200
-}
-```
+### Probe wrapper contract
 
-- Underlying APS/ACC failure → `ok: false`, put status/body (truncated, redacted) in `details`, set actionable `nextStep`.
-- Timeout per probe: **25s**.
-- No secrets/tokens/private keys in `details`, UI, or logs (booleans / lengths / scopes only).
+HTTP **200** from the wrapper unless Eduardo itself is misconfigured (empty probeId → 400).
 
-### Probes (button order)
+Timeout per probe: `PROBE_TIMEOUT_MS` (default **25000**). APS HTTP client timeout: `APS_HTTP_TIMEOUT_MS` (default **20000**). On deadline: `ok:false`, `details.timeout=true`, `nextStep` mentions upstream/nginx timeout — never treat nginx HTML as success.
 
-1. `health` — Eduardo `/health` reachable locally.
-2. `env-check` — required env present as booleans only (`APS_CLIENT_ID`, `APS_CLIENT_SECRET`, optional `APS_WEBHOOK_SECRET`, optional `APS_HUB_ID` / `APS_PROJECT_ID`).
-3. `aps-token` — 2LO `client_credentials` token; report requested scopes; never return the token string.
-4. `webhook-ingest-get` — GET public ingest probe.
-5. `webhook-ingest-post-synthetic` — POST synthetic `adsk.c4r` `model.sync` with `state=SYNC_COMPLETE` and `source=meeting-probe`; confirm event appears in the in-memory monitor store.
-6. `webhook-ignore-sync-start` — POST `SYNC_START`; confirm stored; document that no DA trigger exists yet (stored-only, not a worker kick).
-7. `hubs-list` — Data Management hubs for the app token.
-8. `projects-list` — projects for configured hub (`hubId` query/body or `APS_HUB_ID`).
-9. `docs-smoke` — top folders / Docs root for a project (`projectId` or `APS_PROJECT_ID`).
-10. `admin-project-params` — Admin API project parameters; on 403 verbose: Admin not provisioned / `account:read` / Custom Integration.
-11. `hooks-list-c4r` — list webhooks `system=adsk.c4r` `event=model.sync` (read-only); show callback URLs + hook ids.
+### Probes (order)
 
-### UI
+1. `health`
+2. `env-check` — booleans for APS_/ACC_ credentials and optional hub/project/secret/scopes
+3. `aps-token` — 2LO; never return token
+4. `webhook-ingest-get`
+5. `webhook-sync-complete` (alias `webhook-ingest-post-synthetic`)
+6. `webhook-sync-start` (alias `webhook-ignore-sync-start`)
+7. `hubs-list`
+8. `projects-list`
+9. `docs-smoke`
+10. `admin-project-params` — 403 → Admin provisioning message (not “empty fields”)
+11. `hooks-list-c4r`
 
-- Title: **MPS meeting probes**
-- Vertical list: Run probe, description, status chip (`idle`/`running`/`ok`/`fail`), timestamp, expandable verbose panel (`summary`, pretty JSON `details`, `nextStep`).
-- Optional **Run all sequentially** — continues after failures; end summary.
-- Never auto-run on load.
-- Optional fields: `hubId`, `projectId`, `region` (defaults from env).
-- Meeting README blurb on the page.
-- Do not break `/api/aps/webhooks` receive + monitor.
+### Env (backend only)
 
-### Config / env
+| Env | Alias / notes |
+|-----|----------------|
+| `APS_CLIENT_ID` | or `ACC_CLIENT_ID` |
+| `APS_CLIENT_SECRET` | or `ACC_CLIENT_SECRET` |
+| `APS_OAUTH_SCOPE` | or `ACC_SCOPES` (default includes `data:read` + `account:read`) |
+| `APS_HUB_ID` | or `ACC_HUB_ID` |
+| `ACC_HUB_NAME` | optional label only |
+| `APS_PROJECT_ID` | or `ACC_PROJECT_ID` |
+| `APS_REGION` | or `ACC_WEBHOOK_REGION` |
+| `APS_WEBHOOK_SECRET` | Eduardo `X-Aps-Webhook-Secret` ≠ APS `x-adsk-signature` |
+| `APS_WEBHOOK_CALLBACK_URL` | documented default `https://eduardoos.com/api/aps/webhooks` |
+| `PROBE_TIMEOUT_MS` | default 25000 |
+| `APS_HTTP_TIMEOUT_MS` | default 20000 |
 
-| Env | Required | Notes |
-|-----|----------|--------|
-| `APS_CLIENT_ID` | for APS probes | |
-| `APS_CLIENT_SECRET` | for APS probes | never echo |
-| `APS_WEBHOOK_SECRET` | optional | Eduardo `X-Aps-Webhook-Secret` (≠ APS `x-adsk-signature`) |
-| `APS_HUB_ID` | optional default | |
-| `APS_PROJECT_ID` | optional default | |
-| `APS_REGION` | optional | e.g. `US` |
-| `APS_OAUTH_SCOPE` | optional | default scopes for 2LO |
+### Nginx (ops)
 
-Document on page: callback `https://eduardoos.com/api/aps/webhooks`.
-
-### Deploy env (GitHub Actions → EC2 `.env.production`)
-
-Wire these secrets into production env (booleans only in `env-check`):
-
-| GitHub secret | Written to server |
-|---------------|-------------------|
-| `APS_CLIENT_ID` / `APS_CLIENT_SECRET` / `APS_ACTIVITY_ID` | yes |
-| `APS_OAUTH_SCOPE` | yes (default `code:all data:read data:write account:read` if empty) |
-| `APS_WEBHOOK_SECRET` | yes (optional) |
-| `APS_HUB_ID` / `APS_PROJECT_ID` | yes (optional defaults for probes) |
-| `APS_REGION` | yes (default `US`) |
-
-Updating secrets alone does nothing until a deploy rewrites `.env` and restarts the backend.
+`location ^~ /api/admin/aps/probes` must use `proxy_read_timeout` **≥ probe timeout** (ship **90s**). Generic `/api/` must not be shorter than probes or clients see 504 HTML before the wrapper finishes.
 
 ## Non-goals
 
 - Design Automation AppBundle / Activity / WorkItem.
-- dm.version.added publish automation.
-- Destructive webhook deletes (unless future gated flag — not this change).
+- dm.version.added / Publish trigger.
+- DynamoDB persistence of webhook history (in-memory ring buffer remains).
+- OAuth Redirect URL = webhook URL.
 
 ## Acceptance
 
-- [x] Spec unambiguous.
-- [x] 11 probes isolated; wrapper always structured JSON; 5xx only for Eduardo misconfig.
-- [x] FE console + link from webhook monitor; admin-only.
-- [x] Synthetic SYNC_COMPLETE appears in monitor store; SYNC_START documented as stored-only.
-- [x] Existing webhook ingest/SSE unchanged.
-- [x] Go tests for wrapper + at least health/env/synthetic; FE build; commit + push.
+- [x] Isolated probes; wrapper structured JSON; secrets never echoed.
+- [x] SYNC_COMPLETE / SYNC_START dispositions; no DA trigger.
+- [x] ACC_/APS_ aliases; configurable timeouts; timeout nextStep.
+- [x] Nginx probes location ≥ 90s.
+- [x] FE Sync With Central copy; meeting README.
 
 ## Affected paths
 
-- `specs/031-mps-meeting-probes/spec.md`
+- `specs/031-mps-meeting-probes/**`
+- `backend/internal/apswebhook/**`
 - `backend/internal/apsprobes/**`
-- `backend/internal/apswebhook/**` (inspect/helpers only)
-- `backend/cmd/server/main.go`
-- `frontend/src/pages/product-tests/mps/meeting-probes.astro`
-- `frontend/src/components/ApsProbes/**`
-- `frontend/src/components/ApsWebhook/ApsWebhookMonitor.tsx` (link)
-- `frontend/src/config/routes.ts`, `routeAccess.ts`, `Header.tsx`
+- `nginx/default.conf`
 - `.env.example`
+- `frontend/src/components/ApsProbes/**`
+- `frontend/src/components/ApsWebhook/**`

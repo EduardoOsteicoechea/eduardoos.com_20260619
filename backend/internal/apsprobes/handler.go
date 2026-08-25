@@ -6,12 +6,14 @@ package apsprobes
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,7 +24,32 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-const probeTimeout = 25 * time.Second
+// probeTimeout returns PROBE_TIMEOUT_MS (default 25s). Must stay below nginx
+// proxy_read_timeout for /api/admin/aps/probes (shipped at 90s).
+func probeTimeout() time.Duration {
+	return durationFromEnvMS("PROBE_TIMEOUT_MS", 25000)
+}
+
+// apsHTTPTimeout returns APS_HTTP_TIMEOUT_MS (default 20s) for individual APS calls.
+func apsHTTPTimeout() time.Duration {
+	return durationFromEnvMS("APS_HTTP_TIMEOUT_MS", 20000)
+}
+
+func durationFromEnvMS(key string, defMS int) time.Duration {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return time.Duration(defMS) * time.Millisecond
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1000 {
+		return time.Duration(defMS) * time.Millisecond
+	}
+	return time.Duration(n) * time.Millisecond
+}
+
+func apsHTTPClient() *http.Client {
+	return &http.Client{Timeout: apsHTTPTimeout()}
+}
 
 // Result is the stable meeting-probe response contract.
 type Result struct {
@@ -109,11 +136,11 @@ func (h *Handler) requireAdmin(next http.Handler) http.Handler {
 func catalog() []CatalogEntry {
 	return []CatalogEntry{
 		{ID: "health", Title: "Eduardo health", Description: "Eduardo API /health responds."},
-		{ID: "env-check", Title: "Env check", Description: "Required APS env vars present (booleans only)."},
+		{ID: "env-check", Title: "Env check", Description: "Required APS/ACC env vars present (booleans only)."},
 		{ID: "aps-token", Title: "APS 2LO token", Description: "Obtain client_credentials token; never return the token."},
 		{ID: "webhook-ingest-get", Title: "Webhook ingest GET", Description: "Probe GET /api/aps/webhooks."},
-		{ID: "webhook-ingest-post-synthetic", Title: "Webhook SYNC_COMPLETE", Description: "POST synthetic model.sync SYNC_COMPLETE; confirm monitor store."},
-		{ID: "webhook-ignore-sync-start", Title: "Webhook SYNC_START", Description: "POST SYNC_START; confirm stored-only (no DA trigger)."},
+		{ID: "webhook-sync-complete", Title: "Webhook SYNC_COMPLETE", Description: "Synthetic C4R Sync With Central SYNC_COMPLETE; confirm monitor store (meeting_relevant)."},
+		{ID: "webhook-sync-start", Title: "Webhook SYNC_START", Description: "Synthetic SYNC_START; stored as ignored_no_da — never triggers Design Automation."},
 		{ID: "hubs-list", Title: "Hubs list", Description: "Data Management hubs visible to the app."},
 		{ID: "projects-list", Title: "Projects list", Description: "Projects for configured hub."},
 		{ID: "docs-smoke", Title: "Docs smoke", Description: "Read top folders for a project (Custom Integration Docs)."},
@@ -126,8 +153,11 @@ func catalog() []CatalogEntry {
 func (h *Handler) Catalog(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"probes":            catalog(),
-		"defaultCallback":   "https://eduardoos.com/api/aps/webhooks",
+		"defaultCallback":   resolveCallbackURL(),
 		"webhookSecretNote": "Eduardo X-Aps-Webhook-Secret ≠ APS x-adsk-signature",
+		"syncNote":          "Sync = Revit Sync With Central (C4R model.sync), NOT Design Automation",
+		"probeTimeoutMs":    probeTimeout().Milliseconds(),
+		"apsHttpTimeoutMs":  apsHTTPTimeout().Milliseconds(),
 	})
 }
 
@@ -141,7 +171,7 @@ func (h *Handler) Run(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[correlation=%s] aps.probe.begin id=%s hub=%q project=%q",
 		cid, probeID, opts.HubID, opts.ProjectID)
 
-	ctx, cancel := context.WithTimeout(r.Context(), probeTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), probeTimeout())
 	defer cancel()
 
 	var res Result
@@ -202,15 +232,34 @@ func parseOptions(r *http.Request) Options {
 		}
 	}
 	if opts.HubID == "" {
-		opts.HubID = strings.TrimSpace(os.Getenv("APS_HUB_ID"))
+		opts.HubID = envFirst("APS_HUB_ID", "ACC_HUB_ID")
 	}
 	if opts.ProjectID == "" {
-		opts.ProjectID = strings.TrimSpace(os.Getenv("APS_PROJECT_ID"))
+		opts.ProjectID = envFirst("APS_PROJECT_ID", "ACC_PROJECT_ID")
 	}
 	if opts.Region == "" {
-		opts.Region = strings.TrimSpace(httpx.Env("APS_REGION", "US"))
+		opts.Region = envFirst("APS_REGION", "ACC_WEBHOOK_REGION")
+		if opts.Region == "" {
+			opts.Region = "US"
+		}
 	}
 	return opts
+}
+
+func envFirst(keys ...string) string {
+	for _, k := range keys {
+		if v := strings.TrimSpace(os.Getenv(k)); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func resolveCallbackURL() string {
+	if u := envFirst("APS_WEBHOOK_CALLBACK_URL", "ACC_WEBHOOK_CALLBACK_URL"); u != "" {
+		return u
+	}
+	return "https://eduardoos.com/api/aps/webhooks"
 }
 
 func titleFor(id string) string {
@@ -245,9 +294,9 @@ func (h *Handler) runProbe(ctx context.Context, id string, opts Options) Result 
 		return h.probeToken(ctx)
 	case "webhook-ingest-get":
 		return h.probeWebhookGET(ctx)
-	case "webhook-ingest-post-synthetic":
+	case "webhook-sync-complete", "webhook-ingest-post-synthetic":
 		return h.probeWebhookSynthetic(ctx, "SYNC_COMPLETE")
-	case "webhook-ignore-sync-start":
+	case "webhook-sync-start", "webhook-ignore-sync-start":
 		return h.probeWebhookSynthetic(ctx, "SYNC_START")
 	case "hubs-list":
 		return h.probeHubs(ctx)
@@ -281,10 +330,9 @@ func (h *Handler) probeHealth(ctx context.Context) Result {
 		return failResult(id, title, "could not build health request", map[string]any{"error": err.Error()},
 			"Check ADDR/PORT for the Eduardo process.", 0)
 	}
-	res, err := http.DefaultClient.Do(req)
+	res, err := apsHTTPClient().Do(req)
 	if err != nil {
-		return failResult(id, title, "health request failed", map[string]any{"error": err.Error(), "url": h.baseURL + "/health"},
-			"Ensure the Eduardo backend is listening.", 0)
+		return timeoutOrFail(id, title, "health request failed", err, map[string]any{"url": h.baseURL + "/health"})
 	}
 	defer res.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
@@ -299,23 +347,34 @@ func (h *Handler) probeHealth(ctx context.Context) Result {
 
 func (h *Handler) probeEnv() Result {
 	id, title := "env-check", titleFor("env-check")
+	clientIDSet := envFirst("APS_CLIENT_ID", "ACC_CLIENT_ID") != ""
+	clientSecretSet := envFirst("APS_CLIENT_SECRET", "ACC_CLIENT_SECRET") != ""
 	details := map[string]any{
-		"APS_CLIENT_ID_set":     envSet("APS_CLIENT_ID"),
-		"APS_CLIENT_SECRET_set": envSet("APS_CLIENT_SECRET"),
+		"APS_CLIENT_ID_set":      clientIDSet,
+		"APS_CLIENT_SECRET_set":  clientSecretSet,
+		"ACC_CLIENT_ID_set":      envSet("ACC_CLIENT_ID"),
+		"ACC_CLIENT_SECRET_set":  envSet("ACC_CLIENT_SECRET"),
 		"APS_WEBHOOK_SECRET_set": envSet("APS_WEBHOOK_SECRET"),
-		"APS_HUB_ID_set":        envSet("APS_HUB_ID"),
-		"APS_PROJECT_ID_set":    envSet("APS_PROJECT_ID"),
-		"APS_REGION":            httpx.Env("APS_REGION", "US"),
-		"APS_OAUTH_SCOPE_set":   envSet("APS_OAUTH_SCOPE"),
-		"note":                  "Secret values are never returned.",
+		"APS_HUB_ID_set":         envFirst("APS_HUB_ID", "ACC_HUB_ID") != "",
+		"APS_PROJECT_ID_set":     envFirst("APS_PROJECT_ID", "ACC_PROJECT_ID") != "",
+		"ACC_HUB_NAME_set":       envSet("ACC_HUB_NAME"),
+		"APS_REGION":             envFirst("APS_REGION", "ACC_WEBHOOK_REGION"),
+		"APS_OAUTH_SCOPE_set":    envFirst("APS_OAUTH_SCOPE", "ACC_SCOPES") != "",
+		"callbackURL":            resolveCallbackURL(),
+		"probeTimeoutMs":         probeTimeout().Milliseconds(),
+		"apsHttpTimeoutMs":       apsHTTPTimeout().Milliseconds(),
+		"note":                   "Secret values are never returned. APS_* and ACC_* aliases both accepted.",
 	}
-	ok := envSet("APS_CLIENT_ID") && envSet("APS_CLIENT_SECRET")
+	if details["APS_REGION"] == "" {
+		details["APS_REGION"] = "US"
+	}
+	ok := clientIDSet && clientSecretSet
 	if !ok {
-		return failResult(id, title, "missing APS_CLIENT_ID and/or APS_CLIENT_SECRET", details,
-			"Set APS_CLIENT_ID and APS_CLIENT_SECRET on the Eduardo server env (never in the browser).", 0)
+		return failResult(id, title, "missing APS_CLIENT_ID/ACC_CLIENT_ID and/or secret", details,
+			"Set APS_CLIENT_ID + APS_CLIENT_SECRET (or ACC_CLIENT_ID + ACC_CLIENT_SECRET) on the Eduardo server env.", 0)
 	}
-	return okResult(id, title, "Required APS client credentials present", details,
-		"Optional: APS_HUB_ID / APS_PROJECT_ID for defaults; APS_WEBHOOK_SECRET for ingest auth.")
+	return okResult(id, title, "Required APS/ACC client credentials present", details,
+		"Optional: APS_HUB_ID / APS_PROJECT_ID (or ACC_*) for defaults; APS_WEBHOOK_SECRET for ingest auth.")
 }
 
 func envSet(key string) bool {
@@ -324,11 +383,14 @@ func envSet(key string) bool {
 
 func (h *Handler) probeToken(ctx context.Context) Result {
 	id, title := "aps-token", titleFor("aps-token")
-	scope := httpx.Env("APS_OAUTH_SCOPE", "data:read data:write account:read")
+	scope := defaultScope()
 	tok, meta, err := fetchToken(ctx, scope)
 	if err != nil {
+		if isTimeoutErr(err) {
+			return timeoutOrFail(id, title, "2LO token failed", err, meta)
+		}
 		return failResult(id, title, "2LO token failed", meta,
-			"Check Client ID/Secret in APS portal; confirm app type allows client_credentials; verify scopes.",
+			"Check Client ID/Secret in APS portal; confirm app type allows client_credentials; verify scopes (ACC_SCOPES / APS_OAUTH_SCOPE).",
 			statusFromDetails(meta))
 	}
 	_ = tok // never return
@@ -348,10 +410,9 @@ func (h *Handler) probeWebhookGET(ctx context.Context) Result {
 	if h.Webhooks != nil && h.Webhooks.SecretConfigured() {
 		req.Header.Set("X-Aps-Webhook-Secret", os.Getenv("APS_WEBHOOK_SECRET"))
 	}
-	res, err := http.DefaultClient.Do(req)
+	res, err := apsHTTPClient().Do(req)
 	if err != nil {
-		return failResult(id, title, "GET ingest failed", map[string]any{"error": err.Error()},
-			"Ensure /api/aps/webhooks is mounted.", 0)
+		return timeoutOrFail(id, title, "GET ingest failed", err, map[string]any{"url": u})
 	}
 	defer res.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
@@ -370,9 +431,9 @@ func (h *Handler) probeWebhookGET(ctx context.Context) Result {
 
 func (h *Handler) probeWebhookSynthetic(ctx context.Context, state string) Result {
 	_ = ctx
-	id := "webhook-ingest-post-synthetic"
+	id := "webhook-sync-complete"
 	if state == "SYNC_START" {
-		id = "webhook-ignore-sync-start"
+		id = "webhook-sync-start"
 	}
 	title := titleFor(id)
 	if h.Webhooks == nil {
@@ -400,18 +461,21 @@ func (h *Handler) probeWebhookSynthetic(ctx context.Context, state string) Resul
 		"pushedEventId":   ev.ID,
 		"foundInStore":    ok,
 		"foundEventId":    found.ID,
-		"disposition":     "stored_in_monitor",
+		"disposition":     found.Disposition,
 		"triggersDA":      false,
-		"currentBehavior": "All POSTs are stored and displayed; no Design Automation worker is wired yet.",
+		"syncMeaning":     "Revit Sync With Central (C4R), NOT Design Automation",
+		"currentBehavior": "Events are stored/displayed only; no Design Automation worker is wired.",
 	}
 	if !ok {
 		return failResult(id, title, "synthetic event not found in monitor store", details,
 			"Check apswebhook ring buffer / PushMeetingProbeEvent wiring.", 0)
 	}
-	summary := fmt.Sprintf("%s stored in monitor (id=%s)", state, found.ID[:8])
+	summary := fmt.Sprintf("%s stored (disposition=%s, id=%s)", state, found.Disposition, found.ID[:8])
 	next := "Open /product-tests/mps/aps-webhook — event should appear (newest first)."
 	if state == "SYNC_START" {
-		next = "SYNC_START is stored only; it does not trigger DA. Treat SYNC_COMPLETE as the meaningful sync signal when a worker exists."
+		next = "SYNC_START is ignored_no_da: stored for the monitor, never kicks DA. SYNC_COMPLETE is the meeting-relevant sync signal."
+	} else {
+		next = "SYNC_COMPLETE is meeting_relevant. Confirm it on the webhook monitor; still no DA worker in this stage."
 	}
 	return okResult(id, title, summary, details, next)
 }
@@ -425,8 +489,7 @@ func (h *Handler) probeHubs(ctx context.Context) Result {
 	status, body, err := apsGET(ctx, tok, "https://developer.api.autodesk.com/project/v1/hubs")
 	details := map[string]any{"httpStatus": status, "bodyPreview": truncate(redactJSON(body), 2000)}
 	if err != nil {
-		details["error"] = err.Error()
-		return failResult(id, title, "hubs request error", details, "Check network / APS status.", 0)
+		return timeoutOrFail(id, title, "hubs request error", err, details)
 	}
 	if status >= 400 {
 		return failResult(id, title, fmt.Sprintf("hubs HTTP %d", status), details,
@@ -450,8 +513,7 @@ func (h *Handler) probeProjects(ctx context.Context, opts Options) Result {
 	status, body, err := apsGET(ctx, tok, u)
 	details := map[string]any{"hubId": opts.HubID, "httpStatus": status, "bodyPreview": truncate(redactJSON(body), 2000)}
 	if err != nil {
-		details["error"] = err.Error()
-		return failResult(id, title, "projects request error", details, "Check hub id format.", 0)
+		return timeoutOrFail(id, title, "projects request error", err, details)
 	}
 	if status >= 400 {
 		return failResult(id, title, fmt.Sprintf("projects HTTP %d", status), details,
@@ -480,8 +542,7 @@ func (h *Handler) probeDocs(ctx context.Context, opts Options) Result {
 		"httpStatus": status, "bodyPreview": truncate(redactJSON(body), 2000),
 	}
 	if err != nil {
-		details["error"] = err.Error()
-		return failResult(id, title, "docs request error", details, "Retry; check APS status.", 0)
+		return timeoutOrFail(id, title, "docs request error", err, details)
 	}
 	if status >= 400 {
 		return failResult(id, title, fmt.Sprintf("docs HTTP %d", status), details,
@@ -517,8 +578,7 @@ func (h *Handler) probeAdminParams(ctx context.Context, opts Options) Result {
 		"requestedScope": scope,
 	}
 	if err != nil {
-		details["error"] = err.Error()
-		return failResult(id, title, "admin request error", details, "Retry.", 0)
+		return timeoutOrFail(id, title, "admin request error", err, details)
 	}
 	if status == http.StatusForbidden || status == http.StatusUnauthorized {
 		return failResult(id, title, fmt.Sprintf("Admin API HTTP %d — not empty fields", status), details,
@@ -545,10 +605,10 @@ func (h *Handler) probeHooks(ctx context.Context) Result {
 		"bodyPreview": truncate(redactJSON(body), 3000),
 		"system":      "adsk.c4r",
 		"event":       "model.sync",
+		"callbackHint": resolveCallbackURL(),
 	}
 	if err != nil {
-		details["error"] = err.Error()
-		return failResult(id, title, "hooks list error", details, "Retry.", 0)
+		return timeoutOrFail(id, title, "hooks list error", err, details)
 	}
 	if status >= 400 {
 		return failResult(id, title, fmt.Sprintf("hooks HTTP %d", status), details,
@@ -559,26 +619,55 @@ func (h *Handler) probeHooks(ctx context.Context) Result {
 }
 
 func defaultScope() string {
-	return httpx.Env("APS_OAUTH_SCOPE", "data:read data:write account:read")
+	if s := envFirst("APS_OAUTH_SCOPE", "ACC_SCOPES"); s != "" {
+		return s
+	}
+	return "data:read data:write account:read"
 }
 
 func stripProjectPrefix(id string) string {
 	id = strings.TrimSpace(id)
 	if i := strings.LastIndex(id, "."); i >= 0 && i+1 < len(id) {
-		// b.projectid → projectid for some Admin APIs
 		return id[i+1:]
 	}
 	return id
 }
 
+func timeoutOrFail(id, title, summary string, err error, details map[string]any) Result {
+	if details == nil {
+		details = map[string]any{}
+	}
+	details["error"] = err.Error()
+	if isTimeoutErr(err) {
+		details["timeout"] = true
+		details["probeTimeoutMs"] = probeTimeout().Milliseconds()
+		details["apsHttpTimeoutMs"] = apsHTTPTimeout().Milliseconds()
+		return failResult(id, title, summary+" (timeout)", details,
+			"APS/ACC call timed out before Eduardo finished. Raise APS_HTTP_TIMEOUT_MS / PROBE_TIMEOUT_MS if needed, and ensure nginx proxy_read_timeout for /api/admin/aps/probes is greater than the probe timeout (shipped 90s). Do not treat nginx 504 HTML as a successful probe result.",
+			0)
+	}
+	return failResult(id, title, summary, details, "Check network / APS status / Custom Integration.", 0)
+}
+
+func isTimeoutErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	low := strings.ToLower(err.Error())
+	return strings.Contains(low, "timeout") || strings.Contains(low, "deadline exceeded")
+}
+
 func fetchToken(ctx context.Context, scope string) (token string, meta map[string]any, err error) {
 	meta = map[string]any{"requestedScope": scope}
-	id := strings.TrimSpace(os.Getenv("APS_CLIENT_ID"))
-	secret := strings.TrimSpace(os.Getenv("APS_CLIENT_SECRET"))
+	id := envFirst("APS_CLIENT_ID", "ACC_CLIENT_ID")
+	secret := envFirst("APS_CLIENT_SECRET", "ACC_CLIENT_SECRET")
 	meta["clientIdSet"] = id != ""
 	meta["clientSecretSet"] = secret != ""
 	if id == "" || secret == "" {
-		return "", meta, fmt.Errorf("APS_CLIENT_ID / APS_CLIENT_SECRET missing")
+		return "", meta, fmt.Errorf("APS_CLIENT_ID/ACC_CLIENT_ID or secret missing")
 	}
 	form := url.Values{}
 	form.Set("grant_type", "client_credentials")
@@ -592,7 +681,7 @@ func fetchToken(ctx context.Context, scope string) (token string, meta map[strin
 		return "", meta, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	res, err := http.DefaultClient.Do(req)
+	res, err := apsHTTPClient().Do(req)
 	if err != nil {
 		return "", meta, err
 	}
@@ -626,7 +715,7 @@ func apsGET(ctx context.Context, token, rawURL string) (status int, body string,
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/json")
-	res, err := http.DefaultClient.Do(req)
+	res, err := apsHTTPClient().Do(req)
 	if err != nil {
 		return 0, "", err
 	}

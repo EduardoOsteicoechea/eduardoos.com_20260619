@@ -27,6 +27,10 @@ const maxBodyBytes = 2 << 20 // 2 MiB
 type Event struct {
 	ID            string            `json:"id"`
 	Kind          string            `json:"kind,omitempty"` // "post" (default) | "error"
+	Disposition   string            `json:"disposition,omitempty"` // meeting_relevant | ignored_no_da | stored | error
+	SyncState     string            `json:"syncState,omitempty"`   // SYNC_COMPLETE | SYNC_START | …
+	HookSystem    string            `json:"hookSystem,omitempty"`  // e.g. adsk.c4r
+	HookEvent     string            `json:"hookEvent,omitempty"`   // e.g. model.sync
 	ReceivedAt    time.Time         `json:"receivedAt"`
 	CorrelationID string            `json:"correlationId"`
 	ContentType   string            `json:"contentType"`
@@ -187,19 +191,24 @@ func (h *Handler) Ingest(w http.ResponseWriter, r *http.Request) {
 	ev.Kind = "post"
 	if json.Valid(raw) {
 		ev.Body = append(json.RawMessage(nil), raw...)
+		applySyncDisposition(&ev, raw)
 	} else {
 		ev.BodyText = trimmed
 		ev.Error = "body is not valid JSON; stored as bodyText"
+		ev.Disposition = "stored"
 	}
 
 	h.push(ev)
-	log.Printf("[correlation=%s] aps.webhook.ingest ok id=%s bodyBytes=%d subscribers=%d",
-		cid, ev.ID, len(raw), h.subscriberCount())
+	log.Printf("[correlation=%s] aps.webhook.ingest ok id=%s bytes=%d disposition=%s syncState=%s subscribers=%d",
+		cid, ev.ID, len(raw), ev.Disposition, ev.SyncState, h.subscriberCount())
 
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"ok":            true,
 		"id":            ev.ID,
 		"correlationId": cid,
+		"disposition":   ev.Disposition,
+		"syncState":     ev.SyncState,
+		"triggersDA":    false,
 	})
 }
 
@@ -208,6 +217,7 @@ func (h *Handler) pushError(base Event, status int, shortMsg, detail string) {
 	ev.Kind = "error"
 	ev.HTTPStatus = status
 	ev.Error = shortMsg
+	ev.Disposition = "error"
 	payload := map[string]any{
 		"ok":            false,
 		"error":         shortMsg,
@@ -359,6 +369,7 @@ func (h *Handler) SecretConfigured() bool {
 
 // PushMeetingProbeEvent stores a synthetic monitor event and fans out SSE.
 // Used by meeting probes so ingest behavior stays in one place.
+// Never triggers Design Automation — Sync With Central events are display-only here.
 func (h *Handler) PushMeetingProbeEvent(body map[string]any, kind string) Event {
 	raw, _ := json.Marshal(body)
 	ev := Event{
@@ -375,8 +386,45 @@ func (h *Handler) PushMeetingProbeEvent(body map[string]any, kind string) Event 
 	if kind == "" {
 		ev.Kind = "post"
 	}
+	applySyncDisposition(&ev, raw)
 	h.push(ev)
 	return ev
+}
+
+// applySyncDisposition tags C4R model.sync SYNC_* for the monitor / probes.
+// SYNC_COMPLETE = meeting_relevant; SYNC_START = ignored_no_da (stored, no DA).
+func applySyncDisposition(ev *Event, raw []byte) {
+	if ev == nil {
+		return
+	}
+	var envelope struct {
+		Hook struct {
+			System string `json:"system"`
+			Event  string `json:"event"`
+		} `json:"hook"`
+		Payload struct {
+			State string `json:"state"`
+		} `json:"payload"`
+		State string `json:"state"`
+	}
+	_ = json.Unmarshal(raw, &envelope)
+	ev.HookSystem = strings.TrimSpace(envelope.Hook.System)
+	ev.HookEvent = strings.TrimSpace(envelope.Hook.Event)
+	state := strings.TrimSpace(envelope.Payload.State)
+	if state == "" {
+		state = strings.TrimSpace(envelope.State)
+	}
+	ev.SyncState = state
+	switch strings.ToUpper(state) {
+	case "SYNC_COMPLETE":
+		ev.Disposition = "meeting_relevant"
+	case "SYNC_START":
+		ev.Disposition = "ignored_no_da"
+	default:
+		if ev.Disposition == "" {
+			ev.Disposition = "stored"
+		}
+	}
 }
 
 // FindEventContaining returns the newest event whose JSON body contains needle.

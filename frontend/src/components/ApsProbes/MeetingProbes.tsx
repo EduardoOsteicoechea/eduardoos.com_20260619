@@ -42,18 +42,18 @@ const runURL = (id: string) => `/api/admin/aps/probes/${encodeURIComponent(id)}`
 
 const FALLBACK_PROBES: ProbeMeta[] = [
   { id: "health", title: "Eduardo health", description: "Eduardo API /health responds." },
-  { id: "env-check", title: "Env check", description: "Required APS env vars present (booleans only)." },
+  { id: "env-check", title: "Env check", description: "Required APS/ACC env vars present (booleans only)." },
   { id: "aps-token", title: "APS 2LO token", description: "Obtain client_credentials token; never return the token." },
   { id: "webhook-ingest-get", title: "Webhook ingest GET", description: "Probe GET /api/aps/webhooks." },
   {
-    id: "webhook-ingest-post-synthetic",
+    id: "webhook-sync-complete",
     title: "Webhook SYNC_COMPLETE",
-    description: "POST synthetic model.sync SYNC_COMPLETE; confirm monitor store.",
+    description: "Synthetic C4R Sync With Central SYNC_COMPLETE; confirm monitor (meeting_relevant).",
   },
   {
-    id: "webhook-ignore-sync-start",
+    id: "webhook-sync-start",
     title: "Webhook SYNC_START",
-    description: "POST SYNC_START; confirm stored-only (no DA trigger).",
+    description: "Synthetic SYNC_START; ignored_no_da — never Design Automation.",
   },
   { id: "hubs-list", title: "Hubs list", description: "Data Management hubs visible to the app." },
   { id: "projects-list", title: "Projects list", description: "Projects for configured hub." },
@@ -254,14 +254,17 @@ export default function MeetingProbes() {
         <h1 id="mps-probes-title">MPS meeting probes</h1>
         <p className="mps-probes__lead">
           Click one probe at a time during the client meeting. Failures stay in their panel and do not
-          block the next button. Secrets never leave the Eduardo backend.
+          block the next button. Secrets never leave the Eduardo backend.{" "}
+          <strong>Sync</strong> means Revit Cloud Worksharing Sync With Central (C4R{" "}
+          <code>adsk.c4r</code> / <code>model.sync</code>), not Design Automation.
         </p>
         <p className="mps-probes__readme">
           <strong>Meeting use:</strong> fill hub/project if known → Run env-check → aps-token → webhook
           probes → hubs/projects/docs → admin params → hooks list. Watch{" "}
           <a href={APP_ROUTES.apsWebhookMonitor}>APS webhook monitor</a> for synthetic POSTs. Default
           callback: <code>https://eduardoos.com/api/aps/webhooks</code>. Eduardo{" "}
-          <code>X-Aps-Webhook-Secret</code> ≠ APS <code>x-adsk-signature</code>.
+          <code>X-Aps-Webhook-Secret</code> ≠ APS <code>x-adsk-signature</code>. Slow APS returns
+          structured timeout JSON (not nginx 504 HTML).
         </p>
         <div className="mps-probes__config">
           <label>
