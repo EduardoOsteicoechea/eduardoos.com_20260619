@@ -29,6 +29,61 @@ const LIST_URL = "/api/admin/aps/webhook-events";
 const STREAM_URL = "/api/admin/aps/webhook-events/stream";
 const INGEST_PATH = "/api/aps/webhooks";
 
+/** Prompt for another agent: where/how to POST APS webhooks into Eduardo OS. */
+function buildAgentHandoffPrompt(callbackUrl: string): string {
+  return `You are configuring Autodesk Platform Services (APS) / ACC to deliver webhooks into Eduardo OS.
+
+## Destination (send ALL webhook traffic here)
+
+- Method: POST
+- URL: ${callbackUrl}
+- Content-Type: application/json
+- Body: the full APS/ACC webhook JSON payload (e.g. dm.version.added, WorkItem callbacks, or any JSON event). Do not wrap it; POST the event body as-is.
+- Optional shared secret (only if the Eduardo OS server has APS_WEBHOOK_SECRET set):
+  - Header: X-Aps-Webhook-Secret: <same value as APS_WEBHOOK_SECRET>
+  - Or query: ${callbackUrl}?secret=<APS_WEBHOOK_SECRET>
+- Optional tracing: X-Correlation-ID: <uuid>
+- Expected success response: HTTP 200 JSON { "ok": true, "id": "<eventId>", "correlationId": "..." }
+- Probe (no body): GET ${callbackUrl} → { "ok": true, "message": "...", "path": "/api/aps/webhooks" }
+
+## What this endpoint does
+
+Eduardo OS stores the payload in an in-memory ring buffer and fans it out over SSE to the admin monitor at:
+https://eduardoos.com/product-tests/mps/aps-webhook
+(or the same path on the current origin). It does NOT trigger Design Automation by itself in this MVP — receive + display only.
+
+## Related Eduardo OS routes (do not confuse)
+
+| Role | Method | Path | Auth |
+|------|--------|------|------|
+| Ingest (you call this) | POST | /api/aps/webhooks | Public (+ optional secret) |
+| Probe | GET | /api/aps/webhooks | Public (+ optional secret) |
+| Admin list | GET | /api/admin/aps/webhook-events | JWT platform admin |
+| Admin live SSE | GET | /api/admin/aps/webhook-events/stream | JWT platform admin |
+| Admin UI | — | /product-tests/mps/aps-webhook | Platform admin only |
+
+## Register in APS Webhooks API
+
+1. Create a webhook whose callbackUrl is exactly: ${callbackUrl}
+2. Prefer events such as dm.version.added on the ACC Docs folder(s) to monitor.
+3. Fast ACK: the server responds 200 quickly; do not require a long-running response.
+4. After registering, publish/sync a test .rvt (or POST a sample JSON) and confirm the payload appears on the admin monitor page.
+
+## Minimal curl test
+
+curl -X POST "${callbackUrl}" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Correlation-ID: agent-test-001" \\
+  -d '{"hook":{"event":"dm.version.added"},"payload":{"name":"demo.rvt","source":"agent-handoff"}}'
+
+## Config knobs on Eduardo OS server
+
+- APS_WEBHOOK_SECRET (optional): if set, every ingest must send the matching header/query.
+- No APS_CLIENT_ID/SECRET required for ingest — this path only receives HTTP callbacks.
+
+Send every APS/ACC webhook you create for this product-test to ${callbackUrl}.`;
+}
+
 function formatBody(ev: ApsWebhookEvent): string {
   if (ev.bodyText) return ev.bodyText;
   if (ev.body === undefined || ev.body === null) return "(empty)";
@@ -44,11 +99,24 @@ export default function ApsWebhookMonitor() {
   const [events, setEvents] = useState<ApsWebhookEvent[]>([]);
   const [streamState, setStreamState] = useState<"idle" | "live" | "error">("idle");
   const [error, setError] = useState("");
+  const [copyState, setCopyState] = useState<"idle" | "ok" | "fail">("idle");
   const seenIds = useRef(new Set<string>());
   const abortRef = useRef<AbortController | null>(null);
 
   const callbackUrl =
     typeof window !== "undefined" ? `${window.location.origin}${INGEST_PATH}` : INGEST_PATH;
+  const agentPrompt = buildAgentHandoffPrompt(callbackUrl);
+
+  async function copyAgentPrompt() {
+    try {
+      await navigator.clipboard.writeText(agentPrompt);
+      setCopyState("ok");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      setCopyState("fail");
+      window.setTimeout(() => setCopyState("idle"), 2500);
+    }
+  }
 
   useEffect(() => {
     const ok = isAuthenticated() && isPlatformAdmin();
@@ -185,6 +253,29 @@ export default function ApsWebhookMonitor() {
           </div>
         </dl>
         {error ? <p className="aps-webhook-monitor__error">{error}</p> : null}
+
+        <div className="aps-webhook-monitor__prompt">
+          <div className="aps-webhook-monitor__prompt-head">
+            <label htmlFor="aps-agent-handoff-prompt">
+              Prompt para el otro agente (endpoint, rutas y config)
+            </label>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void copyAgentPrompt()}
+            >
+              {copyState === "ok" ? "Copiado" : copyState === "fail" ? "Error al copiar" : "Copiar"}
+            </button>
+          </div>
+          <textarea
+            id="aps-agent-handoff-prompt"
+            className="aps-webhook-monitor__prompt-box"
+            readOnly
+            rows={18}
+            value={agentPrompt}
+            spellCheck={false}
+          />
+        </div>
       </header>
 
       <ol className="aps-webhook-monitor__list">

@@ -43,6 +43,7 @@ Locked choice: **SSE** (not WebSocket). Matches Agent Sandbox / logger stream; n
 
 - Denied state for non-admin (same pattern as Agent Sandbox).
 - Show callback URL to copy: `{origin}/api/aps/webhooks`.
+- **Agent handoff prompt**: a read-only textarea with a full prompt (endpoint, routes, headers, secret, curl example) so another agent can be told to send all APS webhooks here; include a one-click Copy control. The prompt embeds the live `{origin}/api/aps/webhooks` URL.
 - Live event list: newest first; pretty-print JSON body.
 - On load: fetch recent events via list endpoint, then open SSE for new ones.
 - Plain CSS component file; Eduardo OS theme tokens.

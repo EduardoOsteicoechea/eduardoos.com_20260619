@@ -77,6 +77,43 @@
   font-family: Raleway, sans-serif;
 }
 
+.aps-webhook-monitor__prompt {
+  margin-top: 1.15rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.aps-webhook-monitor__prompt-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.aps-webhook-monitor__prompt-head label {
+  font-family: Montserrat, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.aps-webhook-monitor__prompt-box {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 16rem;
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  resize: vertical;
+  white-space: pre;
+}
+
 .aps-webhook-monitor__status {
   font-family: Raleway, sans-serif;
   padding: 1.25rem 1rem;
