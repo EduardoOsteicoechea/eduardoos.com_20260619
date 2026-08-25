@@ -562,6 +562,13 @@ export function Header({ pathname }: HeaderProps) {
             >
               APS webhook
             </a>
+            <a
+              className={navClass(APP_ROUTES.mpsMeetingProbes)}
+              href={APP_ROUTES.mpsMeetingProbes}
+              onClick={closeMenu}
+            >
+              MPS probes
+            </a>
           </>
         ) : null}
         {showAuth ? (

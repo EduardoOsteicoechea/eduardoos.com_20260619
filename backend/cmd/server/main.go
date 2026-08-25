@@ -8,6 +8,7 @@ import (
 
 	"eduardoos.nex/internal/admin"
 	"eduardoos.nex/internal/agentsandbox"
+	"eduardoos.nex/internal/apsprobes"
 	"eduardoos.nex/internal/apswebhook"
 	"eduardoos.nex/internal/auth"
 	"eduardoos.nex/internal/church"
@@ -90,6 +91,7 @@ func main() {
 	adminHandler.Mail = authHandler
 	agentSandboxHandler := agentsandbox.NewHandler(ctx, jwtSecret, userStore)
 	apsWebhookHandler := apswebhook.NewHandler(jwtSecret, userStore, apswebhook.SecretFromEnv())
+	apsProbesHandler := apsprobes.NewHandler(jwtSecret, userStore, apsWebhookHandler)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -112,6 +114,8 @@ func main() {
 	agentSandboxHandler.Routes(r)
 	// Public APS webhook ingest + admin live monitor (SSE).
 	apsWebhookHandler.Routes(r)
+	// MPS meeting probes (admin-only, isolated).
+	apsProbesHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
 	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s church=%s church-groups=%s church-leaders=%s church-objects=%s scrib=%s ereport=%s epams=%s",

@@ -378,7 +378,9 @@ export default function ApsWebhookMonitor() {
         <h1 id="aps-wh-title">APS webhook monitor</h1>
         <p className="aps-webhook-monitor__lead">
           Recibe payloads públicos en el backend y actualiza esta vista en vivo (SSE). El último POST
-          aparece primero. Errores de ingest y del monitor se imprimen abajo de forma verbosa.
+          aparece primero. Errores de ingest y del monitor se imprimen abajo de forma verbosa.{" "}
+          <a href="/product-tests/mps/meeting-probes">MPS meeting probes</a> — botones aislados para la
+          reunión APS/ACC.
         </p>
         <dl className="aps-webhook-monitor__meta">
           <div>

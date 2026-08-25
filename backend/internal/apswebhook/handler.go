@@ -347,6 +347,48 @@ func (h *Handler) snapshot() []Event {
 	return out
 }
 
+// SnapshotEvents returns newest-first copy for meeting probes / admin tooling.
+func (h *Handler) SnapshotEvents() []Event {
+	return h.snapshot()
+}
+
+// SecretConfigured reports whether APS_WEBHOOK_SECRET is non-empty (boolean only).
+func (h *Handler) SecretConfigured() bool {
+	return h != nil && h.Secret != ""
+}
+
+// PushMeetingProbeEvent stores a synthetic monitor event and fans out SSE.
+// Used by meeting probes so ingest behavior stays in one place.
+func (h *Handler) PushMeetingProbeEvent(body map[string]any, kind string) Event {
+	raw, _ := json.Marshal(body)
+	ev := Event{
+		ID:            uuid.NewString(),
+		Kind:          kind,
+		ReceivedAt:    time.Now().UTC(),
+		CorrelationID: uuid.NewString(),
+		ContentType:   "application/json",
+		Method:        "POST",
+		Path:          "/api/aps/webhooks",
+		Headers:       map[string]string{"Content-Type": "application/json", "X-Meeting-Probe": "1"},
+		Body:          raw,
+	}
+	if kind == "" {
+		ev.Kind = "post"
+	}
+	h.push(ev)
+	return ev
+}
+
+// FindEventContaining returns the newest event whose JSON body contains needle.
+func (h *Handler) FindEventContaining(needle string) (Event, bool) {
+	for _, ev := range h.snapshot() {
+		if strings.Contains(string(ev.Body), needle) || strings.Contains(ev.BodyText, needle) {
+			return ev, true
+		}
+	}
+	return Event{}, false
+}
+
 func (h *Handler) subscribe() chan Event {
 	ch := make(chan Event, 16)
 	h.mu.Lock()

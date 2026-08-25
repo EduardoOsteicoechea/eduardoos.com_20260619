@@ -49,6 +49,8 @@ export const APP_ROUTES = {
   agentSandbox: "/admin/agent-sandbox",
   /** Admin-only APS webhook live monitor (product-tests). */
   apsWebhookMonitor: "/product-tests/mps/aps-webhook",
+  /** Admin-only MPS meeting probes console. */
+  mpsMeetingProbes: "/product-tests/mps/meeting-probes",
 } as const;
 
 export const AUTH_API_ROUTES = {
@@ -242,6 +244,8 @@ export const ADMIN_ROUTES = {
     `/api/admin/users/${encodeURIComponent(email)}?email=${encodeURIComponent(email)}`,
   apsWebhookEvents: "/api/admin/aps/webhook-events",
   apsWebhookStream: "/api/admin/aps/webhook-events/stream",
+  apsProbes: "/api/admin/aps/probes",
+  apsProbe: (id: string) => `/api/admin/aps/probes/${encodeURIComponent(id)}`,
 } as const;
 
 /** Public APS webhook ingest (Autodesk → Eduardo OS). */
