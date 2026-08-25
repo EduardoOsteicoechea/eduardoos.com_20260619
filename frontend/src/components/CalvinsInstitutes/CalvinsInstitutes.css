@@ -61,6 +61,25 @@ body:has(.calvins-institutes) > main {
   -webkit-overflow-scrolling: touch;
 }
 
+.calvins-institutes__liber {
+  margin: 0 0 0.85rem;
+}
+
+.calvins-institutes__liber:last-child {
+  margin-bottom: 0;
+}
+
+.calvins-institutes__liber-title {
+  margin: 0 0 0.35rem;
+  padding: 0.15rem 0.25rem;
+  font-family: Montserrat, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
 .calvins-institutes__nav ol {
   list-style: none;
   margin: 0;
@@ -115,11 +134,43 @@ body:has(.calvins-institutes) > main {
   -webkit-overflow-scrolling: touch;
 }
 
+.calvins-institutes__meta {
+  margin: 0 0 0.35rem;
+  font-family: Montserrat, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
 .calvins-institutes__caput {
   margin: 0 0 0.75rem;
   font-family: Montserrat, sans-serif;
   font-size: 1.1rem;
   font-weight: 650;
+}
+
+.calvins-institutes__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.calvins-institutes__paragraph {
+  margin: 0;
+}
+
+.calvins-institutes__point {
+  margin: 0 0 0.45rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: Raleway, Georgia, serif;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.calvins-institutes__point:last-child {
+  margin-bottom: 0;
 }
 
 .calvins-institutes__status,
@@ -131,15 +182,6 @@ body:has(.calvins-institutes) > main {
 
 .calvins-institutes__error {
   color: #b42318;
-}
-
-.calvins-institutes__text {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: Raleway, Georgia, serif;
-  font-size: 0.95rem;
-  line-height: 1.55;
 }
 
 @media (max-width: 800px) {

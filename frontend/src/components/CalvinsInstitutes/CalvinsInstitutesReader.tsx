@@ -1,13 +1,18 @@
 /**
- * Public reader for Calvin’s Institutes — flush Capita sidebar + continuous text.
- * Sidebar docks left; toggled from Header Dynamic Menu (Homescool pattern).
+ * Public reader for Calvin’s Institutes (Latin 1559) — Liber-grouped Capita
+ * sidebar + paragraph/point body. Sidebar docks left; toggled from Header
+ * Dynamic Menu (Homescool pattern).
  */
 
 import { useEffect, useMemo, useState } from "react";
 import {
   fetchInstitutesIndex,
   fetchInstitutesSection,
+  flattenSectionBody,
+  groupSectionsByLiber,
+  sectionNavLabel,
   type InstitutesIndexSection,
+  type InstitutesSection,
 } from "../../lib/calvinsInstitutes";
 import CalvinsInstitutesHeaderMenu from "./CalvinsInstitutesHeaderMenu";
 import "./CalvinsInstitutes.css";
@@ -37,7 +42,7 @@ function writeChaptersOpen(open: boolean): void {
 export default function CalvinsInstitutesReader() {
   const [chapters, setChapters] = useState<InstitutesIndexSection[]>([]);
   const [chapterKey, setChapterKey] = useState("");
-  const [body, setBody] = useState("");
+  const [sectionDoc, setSectionDoc] = useState<InstitutesSection | null>(null);
   const [error, setError] = useState("");
   const [loadingIndex, setLoadingIndex] = useState(true);
   const [loadingSection, setLoadingSection] = useState(false);
@@ -52,11 +57,12 @@ export default function CalvinsInstitutesReader() {
     [chapters, chapterKey],
   );
 
-  const pageIds = useMemo(() => {
-    if (!activeChapter) return [] as string[];
-    if (activeChapter.pages?.length) return activeChapter.pages;
-    return [activeChapter.id];
-  }, [activeChapter]);
+  const liberGroups = useMemo(() => groupSectionsByLiber(chapters), [chapters]);
+
+  const bodyBlocks = useMemo(
+    () => (sectionDoc ? flattenSectionBody(sectionDoc).paragraphs : []),
+    [sectionDoc],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -64,7 +70,7 @@ export default function CalvinsInstitutesReader() {
       try {
         const idx = await fetchInstitutesIndex();
         if (cancelled) return;
-        const list = idx.sections ?? [];
+        const list = [...(idx.sections ?? [])].sort((a, b) => a.order - b.order);
         setChapters(list);
         if (list.length) setChapterKey(list[0].id);
       } catch (err) {
@@ -81,22 +87,19 @@ export default function CalvinsInstitutesReader() {
   }, []);
 
   useEffect(() => {
-    if (!pageIds.length) return;
+    if (!activeChapter) return;
     let cancelled = false;
     setLoadingSection(true);
     setError("");
     void (async () => {
       try {
-        const parts = await Promise.all(pageIds.map((id) => fetchInstitutesSection(id)));
+        // Load on demand from the index entry id (maps to relative url sections/NNNN.json).
+        const doc = await fetchInstitutesSection(activeChapter.id);
         if (cancelled) return;
-        const text = parts
-          .map((p) => (p.text ?? "").trim())
-          .filter(Boolean)
-          .join("\n\n");
-        setBody(text);
+        setSectionDoc(doc);
       } catch (err) {
         if (!cancelled) {
-          setBody("");
+          setSectionDoc(null);
           setError(err instanceof Error ? err.message : "Could not load section");
         }
       } finally {
@@ -106,7 +109,7 @@ export default function CalvinsInstitutesReader() {
     return () => {
       cancelled = true;
     };
-  }, [pageIds.join("|")]);
+  }, [activeChapter?.id]);
 
   function toggleChapters() {
     setChaptersOpen((prev) => {
@@ -123,6 +126,13 @@ export default function CalvinsInstitutesReader() {
     .filter(Boolean)
     .join(" ");
 
+  const readerTitle =
+    activeChapter?.section === "PRELIMINARY"
+      ? activeChapter.heading || "PRELIMINARY LATIN MATERIAL"
+      : activeChapter
+        ? `Liber ${activeChapter.book} · Caput ${activeChapter.section}`
+        : "";
+
   return (
     <div className={rootClass}>
       <CalvinsInstitutesHeaderMenu
@@ -136,27 +146,37 @@ export default function CalvinsInstitutesReader() {
             <p className="calvins-institutes__status">Loading…</p>
           ) : (
             <nav className="calvins-institutes__nav">
-              <ol>
-                {chapters.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      className={
-                        c.id === chapterKey
-                          ? "calvins-institutes__nav-btn is-active"
-                          : "calvins-institutes__nav-btn"
-                      }
-                      onClick={() => setChapterKey(c.id)}
-                    >
-                      <span className="calvins-institutes__nav-order">
-                        {c.book ? `${c.book}.` : ""}
-                        {labelCaput(c.heading)}
-                      </span>
-                      <span className="calvins-institutes__nav-heading">{c.heading}</span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
+              {liberGroups.map((group) => (
+                <div key={group.book} className="calvins-institutes__liber">
+                  <h2 className="calvins-institutes__liber-title">
+                    Liber {group.book}
+                  </h2>
+                  <ol>
+                    {group.entries.map((c) => (
+                      <li key={c.id}>
+                        <button
+                          type="button"
+                          className={
+                            c.id === chapterKey
+                              ? "calvins-institutes__nav-btn is-active"
+                              : "calvins-institutes__nav-btn"
+                          }
+                          onClick={() => setChapterKey(c.id)}
+                        >
+                          <span className="calvins-institutes__nav-order">
+                            {sectionNavLabel(c)}
+                          </span>
+                          <span className="calvins-institutes__nav-heading">
+                            {c.section === "PRELIMINARY"
+                              ? "Preliminary"
+                              : c.heading}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
             </nav>
           )}
         </aside>
@@ -165,19 +185,28 @@ export default function CalvinsInstitutesReader() {
       <section className="calvins-institutes__main">
         {error ? <p className="calvins-institutes__error">{error}</p> : null}
         {loadingSection ? <p className="calvins-institutes__status">Loading…</p> : null}
-        {activeChapter && body && !loadingSection ? (
+        {activeChapter && sectionDoc && !loadingSection ? (
           <>
-            <h1 className="calvins-institutes__caput">{activeChapter.heading}</h1>
-            <pre className="calvins-institutes__text">{body}</pre>
+            <p className="calvins-institutes__meta">{readerTitle}</p>
+            <h1 className="calvins-institutes__caput">
+              {sectionDoc.heading || activeChapter.heading}
+            </h1>
+            <div className="calvins-institutes__body">
+              {bodyBlocks.map((block) =>
+                block.lines.length ? (
+                  <div key={block.key} className="calvins-institutes__paragraph">
+                    {block.lines.map((line, i) => (
+                      <p key={`${block.key}-${i}`} className="calvins-institutes__point">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                ) : null,
+              )}
+            </div>
           </>
         ) : null}
       </section>
     </div>
   );
-}
-
-function labelCaput(heading: string): string {
-  const m = heading.match(/Caput\s+([IVXLC]+)|Argumentum/i);
-  if (!m) return "";
-  return m[1] ?? "Arg";
 }

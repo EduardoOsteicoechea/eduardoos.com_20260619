@@ -1,7 +1,9 @@
 // Package latin serves Calvin’s Institutes JSON from S3 (prefix calvin-institutes/).
 // Public read-only APIs for the /latin/calvins-institutes Astro page.
-// The public index is Latin-only; English OCR objects remain on S3 but are omitted
-// from GET /api/latin/calvins-institutes (see specs/032-calvins-institutes).
+//
+// Corpus: Latin-only 1559 Institutes (institutiochrist1559calv_abbyy.xml).
+// The public index is readiness-gated: sectionCount and sourceSha256 must match
+// the sanitized asset contract in specs/032-calvins-institutes.
 package latin
 
 import (
@@ -12,6 +14,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 
 	"eduardoos.nex/internal/awsx"
@@ -22,11 +25,14 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// sectionIDRe allows 0001, section-0001, or 1..473 padded forms only.
-var sectionIDRe = regexp.MustCompile(`^(?:section-)?(\d{1,4})$`)
+// Readiness gate for the sanitized Latin 1559 website assets.
+const (
+	expectedSourceSha256 = "ecc221dfb9428e34de11e392df0711d96cf0333e5fbb5baa1a4a5e774309ccc8"
+	expectedSectionCount = 81
+)
 
-// englishVolumePrelimRe matches English digitization sheets like "VOLUME 2 — PRELIMINARY…".
-var englishVolumePrelimRe = regexp.MustCompile(`(?i)^\s*VOLUME\s+\d+`)
+// sectionIDRe allows 0001, section-0001, or 1..9999 padded forms only.
+var sectionIDRe = regexp.MustCompile(`^(?:section-)?(\d{1,4})$`)
 
 // objectAPI is the S3 GetObject surface (mocked in tests).
 type objectAPI interface {
@@ -40,7 +46,7 @@ type Handler struct {
 	Prefix string
 }
 
-// institutesIndex is the S3 index.json shape (fields we need for filtering).
+// institutesIndex is the S3 index.json shape for the Latin 1559 corpus.
 type institutesIndex struct {
 	SchemaVersion int                    `json:"schemaVersion,omitempty"`
 	SourceSha256  string                 `json:"sourceSha256,omitempty"`
@@ -49,13 +55,15 @@ type institutesIndex struct {
 }
 
 type institutesIndexEntry struct {
-	ID      string   `json:"id"`
-	Order   int      `json:"order"`
-	Volume  *int     `json:"volume"`
-	Book    *string  `json:"book"`
-	Heading string   `json:"heading"`
-	URL     string   `json:"url"`
-	Pages   []string `json:"pages,omitempty"` // all section ids in this Caput (reading order)
+	ID              string  `json:"id"`
+	Order           int     `json:"order"`
+	Volume          *int    `json:"volume,omitempty"`
+	Book            string  `json:"book"`
+	Section         string  `json:"section"`
+	Heading         string  `json:"heading"`
+	ParagraphCount  int     `json:"paragraphCount,omitempty"`
+	PointCount      int     `json:"pointCount,omitempty"`
+	URL             string  `json:"url"`
 }
 
 // NewHandler builds a handler using S3_BUCKET and optional CALVIN_INSTITUTES_S3_PREFIX.
@@ -87,9 +95,9 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Get("/api/latin/calvins-institutes/sections/{id}", h.Section)
 }
 
-// Index streams a Latin-only view of calvin-institutes/index.json.
-// English Allen OCR (volume 1) and English volume prelim sheets stay on S3
-// but are stripped from the public index response.
+// Index streams calvin-institutes/index.json after readiness checks.
+// Stale/wrong corpora (sha or count mismatch) return 503 so the UI does not
+// ship against an old cache.
 func (h *Handler) Index(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	key := h.Prefix + "/index.json"
@@ -105,19 +113,26 @@ func (h *Handler) Index(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, "institutes index unreadable")
 		return
 	}
-	filtered := buildChapterOutline(filterLatinIndex(idx))
-	body, err := json.Marshal(filtered)
+	ready, reason := validateLatinIndex(idx)
+	if !ready {
+		log.Printf("[correlation=%s] latin.institutes not ready: %s", cid, reason)
+		httpx.WriteError(w, http.StatusServiceUnavailable, "institutes corpus not ready: "+reason)
+		return
+	}
+	out := normalizeLatinIndex(idx)
+	body, err := json.Marshal(out)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "institutes index encode failed")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Cache-Control", "public, max-age=120")
+	// Bypass CDN/browser caches so readiness always reflects the live S3 object.
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
 }
 
-// Section streams calvin-institutes/sections/NNNN.json (full S3 object, any language).
+// Section streams calvin-institutes/sections/NNNN.json (Latin 1559 section object).
 func (h *Handler) Section(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(chi.URLParam(r, "id"))
 	nnnn, err := normalizeSectionID(id)
@@ -162,7 +177,7 @@ func (h *Handler) serveKey(w http.ResponseWriter, r *http.Request, key string) {
 	defer out.Body.Close()
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Cache-Control", "public, max-age=120")
+	w.Header().Set("Cache-Control", "no-store")
 	if out.ContentLength != nil {
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", *out.ContentLength))
 	}
@@ -172,31 +187,32 @@ func (h *Handler) serveKey(w http.ResponseWriter, r *http.Request, key string) {
 	}
 }
 
-// filterLatinIndex keeps only Latin corpus entries for the public sidebar.
-// Corpus rule: volume 2, excluding English "VOLUME N …" preliminary sheets.
-func filterLatinIndex(idx institutesIndex) institutesIndex {
+// validateLatinIndex enforces the sanitized corpus readiness contract.
+func validateLatinIndex(idx institutesIndex) (bool, string) {
+	if strings.TrimSpace(idx.SourceSha256) != expectedSourceSha256 {
+		return false, "sourceSha256 mismatch"
+	}
+	if idx.SectionCount != expectedSectionCount {
+		return false, fmt.Sprintf("sectionCount=%d want %d", idx.SectionCount, expectedSectionCount)
+	}
+	if len(idx.Sections) != expectedSectionCount {
+		return false, fmt.Sprintf("sections len=%d want %d", len(idx.Sections), expectedSectionCount)
+	}
+	return true, ""
+}
+
+// normalizeLatinIndex sorts by order and refreshes sectionCount from the list.
+func normalizeLatinIndex(idx institutesIndex) institutesIndex {
 	out := institutesIndex{
 		SchemaVersion: idx.SchemaVersion,
 		SourceSha256:  idx.SourceSha256,
-		Sections:      make([]institutesIndexEntry, 0, len(idx.Sections)),
+		Sections:      append([]institutesIndexEntry(nil), idx.Sections...),
 	}
-	for _, s := range idx.Sections {
-		if isLatinIndexEntry(s) {
-			out.Sections = append(out.Sections, s)
-		}
-	}
+	sort.SliceStable(out.Sections, func(i, j int) bool {
+		return out.Sections[i].Order < out.Sections[j].Order
+	})
 	out.SectionCount = len(out.Sections)
 	return out
-}
-
-func isLatinIndexEntry(s institutesIndexEntry) bool {
-	if s.Volume == nil || *s.Volume != 2 {
-		return false
-	}
-	if englishVolumePrelimRe.MatchString(strings.TrimSpace(s.Heading)) {
-		return false
-	}
-	return true
 }
 
 func normalizeSectionID(raw string) (string, error) {

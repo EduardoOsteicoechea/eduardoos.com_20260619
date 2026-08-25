@@ -61,7 +61,13 @@ s3://eduardoos20260607/calvin-institutes/index.json
 s3://eduardoos20260607/calvin-institutes/sections/0001.json
 ```
 
-El frontend **no** lee S3 directamente. Usa la API pública:
+Corpus: Latin-only 1559 (`institutiochrist1559calv_abbyy.xml`), 81 sections
+(1 PRELIMINARY + 80 Capita). Readiness gate:
+
+- `sectionCount === 81`
+- `sourceSha256 === ecc221dfb9428e34de11e392df0711d96cf0333e5fbb5baa1a4a5e774309ccc8`
+
+El frontend **no** lee S3 directamente. Usa la API pública (`Cache-Control: no-store`):
 
 - `GET https://eduardoos.com/api/latin/calvins-institutes`
 - `GET https://eduardoos.com/api/latin/calvins-institutes/sections/{id}`
