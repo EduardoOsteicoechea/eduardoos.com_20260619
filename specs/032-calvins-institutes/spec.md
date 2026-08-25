@@ -34,6 +34,7 @@ The uploaded Latin OCR begins at **Liber III Caput XI**. Liber I–II and Liber 
 - Sidebar **toggles** via Header Dynamic Menu (`#header-dynamic-menu-host`, Homescool portal pattern). Host wait retries until Header (`client:only`) mounts.
 - When sidebar is closed, the text panel is **full width** of `main`.
 - Text panel: **no** outer border/box; continuous Caput body (joined OCR pages).
+- Outline labels use **canonical Latin Caput titles** from Institutio 1559 (Barth/Niesel), sourced from [calvin.reformation.nl](https://calvin.reformation.nl/) Liber III–IV tables. Order remains III.XI–XXV then IV Argumentum + I–XX (matching the Latin S3 corpus).
 
 ## Non-goals
 
@@ -46,3 +47,4 @@ The uploaded Latin OCR begins at **Liber III Caput XI**. Liber I–II and Liber 
 - [x] No on-page Calvin’s Institutes heading
 - [x] Flush left sidebar; toggled from header dynamic menu
 - [x] Text panel borderless; expands when sidebar hidden
+- [x] Outline labels use canonical Latin Caput titles (1559), ordered Liber III.XI–XXV then IV.I–XX

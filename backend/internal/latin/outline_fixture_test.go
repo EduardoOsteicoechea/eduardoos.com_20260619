@@ -27,7 +27,7 @@ func TestOutlineFromLocalWebsiteAssets(t *testing.T) {
 	if out.SectionCount < 30 || out.SectionCount > 50 {
 		t.Fatalf("unexpected outline size %d headings=%v", out.SectionCount, headingsOf(out.Sections))
 	}
-	if out.Sections[0].Heading != "Liber III · Caput XI" {
+	if out.Sections[0].Heading != "Caput XI — De iustificatione fidei, ac primo de ipsa nominis et rei definitione" {
 		t.Fatalf("first=%q", out.Sections[0].Heading)
 	}
 	seen := map[string]bool{}
@@ -45,7 +45,12 @@ func TestOutlineFromLocalWebsiteAssets(t *testing.T) {
 		if strings.Contains(s.Heading, "Argumentum") {
 			rank = 0
 		} else if i := strings.Index(s.Heading, "Caput "); i >= 0 {
-			rank = caputRank(s.Heading[i+len("Caput "):])
+			rest := s.Heading[i+len("Caput "):]
+			roman := rest
+			if j := strings.Index(rest, " —"); j >= 0 {
+				roman = strings.TrimSpace(rest[:j])
+			}
+			rank = caputRank(roman)
 		}
 		if liber == prevLiber && rank <= prevRank {
 			t.Fatalf("out of order after rank %d: %q", prevRank, s.Heading)

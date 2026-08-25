@@ -96,21 +96,21 @@ func TestIndexBuildsOrderedChapterOutline(t *testing.T) {
 	}
 
 	wantHeadings := []string{
-		"Liber III · Caput XI",
-		"Liber III · Caput XII",
-		"Liber III · Caput XIII",
-		"Liber III · Caput XIV",
-		"Liber IV · Argumentum",
-		"Liber IV · Caput I",
-		"Liber IV · Caput II",
-		"Liber IV · Caput III",
-		"Liber IV · Caput IV",
-		"Liber IV · Caput V",
-		"Liber IV · Caput VI",
-		"Liber IV · Caput VII",
-		"Liber IV · Caput VIII",
-		"Liber IV · Caput IX",
-		"Liber IV · Caput X",
+		"Caput XI — De iustificatione fidei, ac primo de ipsa nominis et rei definitione",
+		"Caput XII — Ut serio nobis persuadeatur gratuita iustificatio, ad Dei tribunal tollendas esse mentes",
+		"Caput XIII — Duo esse in gratuita iustificatione observanda",
+		"Caput XIV — Quale initium iustificationis et continui progressus",
+		"Liber IV · Argumentum — De externis mediis vel adminiculis",
+		"Caput I — De vera Ecclesia, cum qua nobis colenda est unitas: quia piorum omnium mater est",
+		"Caput II — Comparatio falsae Ecclesiae cum vera",
+		"Caput III — De Ecclesiae doctoribus et ministris, eorum electione et officio",
+		"Caput IV — De statu veteris Ecclesiae et ratione gubernandi quae in usu fuit ante Papatum",
+		"Caput V — Antiquam regiminis formam omnino pessundatam fuisse tyrannide Papatus",
+		"Caput VI — De primatu Romanae sedis",
+		"Caput VII — De exordio et incrementis Romani Papatus, donec se in hanc altitudinem extulit qua et Ecclesiae libertas oppressa, et omnis moderatio eversa fuit",
+		"Caput VIII — De potestate Ecclesiae quoad fidei dogmata: et quam effraeni licentia ad vitiandam omnem doctrinae puritatem tracta fuerit in Papatu",
+		"Caput IX — De Conciliis, eorumque authoritate",
+		"Caput X — De potestate in legibus ferendis, in qua saevissimam tyrannidem in animas et carnificinam exercuit Papa cum suis",
 	}
 	if len(parsed.Sections) != len(wantHeadings) {
 		t.Fatalf("got %d sections %#v", len(parsed.Sections), headingsOf(parsed.Sections))

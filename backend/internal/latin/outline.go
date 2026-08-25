@@ -136,8 +136,15 @@ func buildChapterOutline(latin institutesIndex) institutesIndex {
 }
 
 func outlineHeading(liber, caput string) string {
+	title := canonicalCaputTitle(liber, caput)
 	if caput == "Argumentum" {
+		if title != "" {
+			return "Liber " + liber + " · Argumentum — " + title
+		}
 		return "Liber " + liber + " · Argumentum"
+	}
+	if title != "" {
+		return "Caput " + caput + " — " + title
 	}
 	return "Liber " + liber + " · Caput " + caput
 }
