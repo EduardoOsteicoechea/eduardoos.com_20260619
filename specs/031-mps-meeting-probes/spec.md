@@ -80,6 +80,20 @@ HTTP **200** from the wrapper unless Eduardo itself is misconfigured (missing cr
 
 Document on page: callback `https://eduardoos.com/api/aps/webhooks`.
 
+### Deploy env (GitHub Actions → EC2 `.env.production`)
+
+Wire these secrets into production env (booleans only in `env-check`):
+
+| GitHub secret | Written to server |
+|---------------|-------------------|
+| `APS_CLIENT_ID` / `APS_CLIENT_SECRET` / `APS_ACTIVITY_ID` | yes |
+| `APS_OAUTH_SCOPE` | yes (default `code:all data:read data:write account:read` if empty) |
+| `APS_WEBHOOK_SECRET` | yes (optional) |
+| `APS_HUB_ID` / `APS_PROJECT_ID` | yes (optional defaults for probes) |
+| `APS_REGION` | yes (default `US`) |
+
+Updating secrets alone does nothing until a deploy rewrites `.env` and restarts the backend.
+
 ## Non-goals
 
 - Design Automation AppBundle / Activity / WorkItem.

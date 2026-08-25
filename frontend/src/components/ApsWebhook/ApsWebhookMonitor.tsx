@@ -42,61 +42,6 @@ const STREAM_URL = "/api/admin/aps/webhook-events/stream";
 const INGEST_PATH = "/api/aps/webhooks";
 const MAX_ERRORS = 50;
 
-/** Prompt for another agent: where/how to POST APS webhooks into Eduardo OS. */
-function buildAgentHandoffPrompt(callbackUrl: string): string {
-  return `You are configuring Autodesk Platform Services (APS) / ACC to deliver webhooks into Eduardo OS.
-
-## Destination (send ALL webhook traffic here)
-
-- Method: POST
-- URL: ${callbackUrl}
-- Content-Type: application/json
-- Body: the full APS/ACC webhook JSON payload (e.g. dm.version.added, WorkItem callbacks, or any JSON event). Do not wrap it; POST the event body as-is.
-- Optional shared secret (only if the Eduardo OS server has APS_WEBHOOK_SECRET set):
-  - Header: X-Aps-Webhook-Secret: <same value as APS_WEBHOOK_SECRET>
-  - Or query: ${callbackUrl}?secret=<APS_WEBHOOK_SECRET>
-- Optional tracing: X-Correlation-ID: <uuid>
-- Expected success response: HTTP 200 JSON { "ok": true, "id": "<eventId>", "correlationId": "..." }
-- Probe (no body): GET ${callbackUrl} → { "ok": true, "message": "...", "path": "/api/aps/webhooks" }
-
-## What this endpoint does
-
-Eduardo OS stores the payload in an in-memory ring buffer and fans it out over SSE to the admin monitor at:
-https://eduardoos.com/product-tests/mps/aps-webhook
-(or the same path on the current origin). It does NOT trigger Design Automation by itself in this MVP — receive + display only.
-
-## Related Eduardo OS routes (do not confuse)
-
-| Role | Method | Path | Auth |
-|------|--------|------|------|
-| Ingest (you call this) | POST | /api/aps/webhooks | Public (+ optional secret) |
-| Probe | GET | /api/aps/webhooks | Public (+ optional secret) |
-| Admin list | GET | /api/admin/aps/webhook-events | JWT platform admin |
-| Admin live SSE | GET | /api/admin/aps/webhook-events/stream | JWT platform admin |
-| Admin UI | — | /product-tests/mps/aps-webhook | Platform admin only |
-
-## Register in APS Webhooks API
-
-1. Create a webhook whose callbackUrl is exactly: ${callbackUrl}
-2. Prefer events such as dm.version.added on the ACC Docs folder(s) to monitor.
-3. Fast ACK: the server responds 200 quickly; do not require a long-running response.
-4. After registering, publish/sync a test .rvt (or POST a sample JSON) and confirm the payload appears on the admin monitor page.
-
-## Minimal curl test
-
-curl -X POST "${callbackUrl}" \\
-  -H "Content-Type: application/json" \\
-  -H "X-Correlation-ID: agent-test-001" \\
-  -d '{"hook":{"event":"dm.version.added"},"payload":{"name":"demo.rvt","source":"agent-handoff"}}'
-
-## Config knobs on Eduardo OS server
-
-- APS_WEBHOOK_SECRET (optional): if set, every ingest must send the matching header/query.
-- No APS_CLIENT_ID/SECRET required for ingest — this path only receives HTTP callbacks.
-
-Send every APS/ACC webhook you create for this product-test to ${callbackUrl}.`;
-}
-
 function formatBody(ev: ApsWebhookEvent): string {
   if (ev.bodyText) return ev.bodyText;
   if (ev.body === undefined || ev.body === null) {
@@ -146,13 +91,11 @@ export default function ApsWebhookMonitor() {
   const [events, setEvents] = useState<ApsWebhookEvent[]>([]);
   const [verboseErrors, setVerboseErrors] = useState<VerboseError[]>([]);
   const [streamState, setStreamState] = useState<"idle" | "live" | "error">("idle");
-  const [copyState, setCopyState] = useState<"idle" | "ok" | "fail">("idle");
   const seenIds = useRef(new Set<string>());
   const abortRef = useRef<AbortController | null>(null);
 
   const callbackUrl =
     typeof window !== "undefined" ? `${window.location.origin}${INGEST_PATH}` : INGEST_PATH;
-  const agentPrompt = buildAgentHandoffPrompt(callbackUrl);
 
   function pushVerboseError(source: string, err: unknown, extra = "") {
     const { message, detail } = describeErr(err);
@@ -164,18 +107,6 @@ export default function ApsWebhookMonitor() {
       detail: extra ? `${detail}\n\n---\n${extra}` : detail,
     };
     setVerboseErrors((prev) => [entry, ...prev].slice(0, MAX_ERRORS));
-  }
-
-  async function copyAgentPrompt() {
-    try {
-      await navigator.clipboard.writeText(agentPrompt);
-      setCopyState("ok");
-      window.setTimeout(() => setCopyState("idle"), 2000);
-    } catch (err) {
-      setCopyState("fail");
-      pushVerboseError("clipboard.copy", err);
-      window.setTimeout(() => setCopyState("idle"), 2500);
-    }
   }
 
   useEffect(() => {
@@ -361,13 +292,13 @@ export default function ApsWebhookMonitor() {
   }, []);
 
   if (allowed === null) {
-    return <p className="aps-webhook-monitor__status">Comprobando acceso…</p>;
+    return <p className="aps-webhook-monitor__status">Checking access…</p>;
   }
   if (!allowed) {
     return (
       <section className="aps-webhook-monitor aps-webhook-monitor--denied" aria-labelledby="aps-wh-denied">
         <h1 id="aps-wh-denied">APS webhook</h1>
-        <p>Acceso exclusivo para administradores de plataforma.</p>
+        <p>Platform administrators only.</p>
       </section>
     );
   }
@@ -377,10 +308,11 @@ export default function ApsWebhookMonitor() {
       <header className="aps-webhook-monitor__head">
         <h1 id="aps-wh-title">APS webhook monitor</h1>
         <p className="aps-webhook-monitor__lead">
-          Recibe payloads públicos en el backend y actualiza esta vista en vivo (SSE). El último POST
-          aparece primero. Errores de ingest y del monitor se imprimen abajo de forma verbosa.{" "}
-          <a href="/product-tests/mps/meeting-probes">MPS meeting probes</a> — botones aislados para la
-          reunión APS/ACC.
+          Public ingest lands on the Eduardo backend and updates this view live (SSE). Newest POST first.
+          Ingest and monitor errors print below verbosely. Sync means Revit Sync With Central (C4R{" "}
+          <code>adsk.c4r</code> / <code>model.sync</code>), not Design Automation.{" "}
+          <a href="/product-tests/mps/meeting-probes">MPS meeting probes</a> — isolated APS/ACC setup
+          buttons.
         </p>
         <dl className="aps-webhook-monitor__meta">
           <div>
@@ -402,30 +334,11 @@ export default function ApsWebhookMonitor() {
             </dd>
           </div>
         </dl>
-
-        <div className="aps-webhook-monitor__prompt">
-          <div className="aps-webhook-monitor__prompt-head">
-            <label htmlFor="aps-agent-handoff-prompt">
-              Prompt para el otro agente (endpoint, rutas y config)
-            </label>
-            <button type="button" className="btn" onClick={() => void copyAgentPrompt()}>
-              {copyState === "ok" ? "Copiado" : copyState === "fail" ? "Error al copiar" : "Copiar"}
-            </button>
-          </div>
-          <textarea
-            id="aps-agent-handoff-prompt"
-            className="aps-webhook-monitor__prompt-box"
-            readOnly
-            rows={18}
-            value={agentPrompt}
-            spellCheck={false}
-          />
-        </div>
       </header>
 
       {verboseErrors.length > 0 ? (
-        <section className="aps-webhook-monitor__errors" aria-label="Errores verbosos">
-          <h2>Errores (más reciente primero)</h2>
+        <section className="aps-webhook-monitor__errors" aria-label="Verbose errors">
+          <h2>Errors (newest first)</h2>
           <ol className="aps-webhook-monitor__error-list">
             {verboseErrors.map((e) => (
               <li key={e.id} className="aps-webhook-monitor__error-card">
@@ -441,11 +354,11 @@ export default function ApsWebhookMonitor() {
         </section>
       ) : null}
 
-      <h2 className="aps-webhook-monitor__list-title">Eventos (último POST primero)</h2>
+      <h2 className="aps-webhook-monitor__list-title">Events (newest POST first)</h2>
       <ol className="aps-webhook-monitor__list">
         {events.length === 0 ? (
           <li className="aps-webhook-monitor__empty">
-            Sin eventos aún. Prueba:{" "}
+            No events yet. Try:{" "}
             <code>
               curl -X POST {callbackUrl} -H &quot;Content-Type: application/json&quot; -d
               &quot;{`{"ping":true}`}&quot;
