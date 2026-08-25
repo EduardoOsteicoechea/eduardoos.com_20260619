@@ -2,7 +2,7 @@
 
 ## Status
 
-Active (2026-08-25). Updated: Latin-only public index.
+Active (2026-08-25). Updated: Latin-only **chapter outline** (ordered Capita).
 
 ## Problem
 
@@ -10,33 +10,42 @@ Public domain Institutes text is uploaded under S3 prefix `calvin-institutes/`. 
 
 The S3 corpus mixes Allen English OCR (volume 1 + volume-2 digitization prelim) with Latin OCR. The public UI must show **Latin only** for now; English objects stay on S3 but must not appear in the public index.
 
+Raw Latin OCR headings are noisy (running headers, OCR typos like `XIY`/`XXTIT`, duplicate Caput labels per page). The sidebar must show **one entry per chapter in canonical Liber/Caput order**, not every OCR page fragment.
+
 ## Goals
 
 | Surface | Path | Auth |
 |---------|------|------|
 | FE page | `/latin/calvins-institutes` | Public |
 | Header | Services → **Calvin’s Institutes** | Always |
-| BE index | `GET /api/latin/calvins-institutes` | Public — **Latin sections only** |
+| BE index | `GET /api/latin/calvins-institutes` | Public — **Latin chapter outline** |
 | BE section | `GET /api/latin/calvins-institutes/sections/{id}` | Public (raw S3 object; English keys still fetchable if known) |
 
 - S3 source: `s3://{S3_BUCKET}/calvin-institutes/index.json` and `…/sections/NNNN.json` (full corpus unchanged)
 - Optional env `CALVIN_INSTITUTES_S3_PREFIX` (default `calvin-institutes`)
 - No Docker changes; upload via `backend/dynamodb_output/sync_to_s3.ps1`
 
-### Latin-only index filter
+### Latin-only index filter + chapter outline
 
-`GET /api/latin/calvins-institutes` reads the full S3 `index.json`, then returns a filtered JSON document:
+`GET /api/latin/calvins-institutes` reads the full S3 `index.json`, then:
 
-- **Include** sections with `volume == 2` whose heading is **not** an English volume prelim (`VOLUME 2 …`).
-- **Exclude** all `volume == 1` (Allen English) and the English digitization sheet at the start of volume 2.
-- Response keeps `schemaVersion` / `sourceSha256` from S3; `sectionCount` and `sections` reflect the filtered list only.
-- S3 objects for excluded sections are **not** deleted or rewritten.
+1. Keeps Latin rows only: `volume == 2`, excluding English `VOLUME N …` prelim sheets.
+2. Builds a **chapter outline** from those rows:
+   - Tracks Liber III / Liber IV from `LIBER …` headings (incl. OCR `LIBER IY`).
+   - Maps `CAPUT …` headings to Roman numerals with OCR normalization (`Y→V`, `XXTIT→XXIII`, etc.).
+   - Ignores non-sequential Caput jumps within a Liber (e.g. Caput I → Caput X mid-stream = running-header noise; page stays on current Caput).
+   - Collapses all pages of the same `(Liber, Caput)` into **one** outline entry.
+   - Sorts outline: Liber III Capita ascending, then Liber IV (Argumentum, then Capita I…).
+   - Heading labels: `Liber III · Caput XI`, `Liber IV · Caput I`, `Liber IV · Argumentum`.
+3. Each outline entry’s `id` / `url` / `order` point at the **first** page of that chapter; optional `pages` lists all section ids in reading order for in-chapter paging.
+4. S3 objects for excluded English / non-outline rows are **not** deleted.
 
 ## Non-goals
 
-- DynamoDB import, OCR cleanup, CloudFront, public bucket ACLs.
+- DynamoDB import, full OCR cleanup of body text, CloudFront, public bucket ACLs.
 - Deleting or rewriting English JSON on S3.
 - Blocking direct section fetches by numeric id (hide via index only).
+- Inventing Liber III Capita I–X if absent from the Latin S3 corpus.
 
 ## Acceptance
 
@@ -45,3 +54,5 @@ The S3 corpus mixes Allen English OCR (volume 1 + volume-2 digitization prelim) 
 - [x] Missing object → 404 JSON; backend stays up
 - [x] Public index lists Latin sections only (no Allen English headings)
 - [x] FE copy states Latin OCR (not Allen English)
+- [x] Sidebar shows unique Capita in Liber/Caput order (no duplicate OCR page headings)
+- [x] Multi-page chapters can step through pages without leaving the chapter

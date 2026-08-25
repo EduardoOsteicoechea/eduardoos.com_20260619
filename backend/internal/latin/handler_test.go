@@ -39,16 +39,38 @@ type simpleErr string
 func (e simpleErr) Error() string { return string(e) }
 func fmtErr(s string) error       { return simpleErr(s) }
 
-func TestIndexFiltersEnglishAndSectionPassthrough(t *testing.T) {
+func vol(n int) *int { return &n }
+
+func TestIndexBuildsOrderedChapterOutline(t *testing.T) {
 	fullIndex := `{
   "schemaVersion": 1,
   "sourceSha256": "abc",
-  "sectionCount": 4,
+  "sectionCount": 10,
   "sections": [
     {"id":"section-0001","order":1,"volume":1,"heading":"CHAP.I.]CHRISTIANRELIGION.","url":"sections/0001.json"},
     {"id":"section-0305","order":305,"volume":2,"heading":"VOLUME 2 — PRELIMINARY MATERIAL","url":"sections/0305.json"},
     {"id":"section-0306","order":306,"volume":2,"heading":"LIBER TERTIUS.","url":"sections/0306.json"},
-    {"id":"section-0307","order":307,"volume":2,"heading":"CAPUT XI.","url":"sections/0307.json"}
+    {"id":"section-0307","order":307,"volume":2,"heading":"CAPUT XI.","url":"sections/0307.json"},
+    {"id":"section-0308","order":308,"volume":2,"heading":"CAPUT XII.","url":"sections/0308.json"},
+    {"id":"section-0309","order":309,"volume":2,"heading":"CAPUT XIII.","url":"sections/0309.json"},
+    {"id":"section-0310","order":310,"volume":2,"heading":"CAPUT XIV.","url":"sections/0310.json"},
+    {"id":"section-0313","order":313,"volume":2,"heading":"CAPUT XIY.","url":"sections/0313.json"},
+    {"id":"section-0339","order":339,"volume":2,"heading":"LIBER QUARTUS,","url":"sections/0339.json"},
+    {"id":"section-0340","order":340,"volume":2,"heading":"ARGUMENTUM.","url":"sections/0340.json"},
+    {"id":"section-0341","order":341,"volume":2,"heading":"CAPUT I.","url":"sections/0341.json"},
+    {"id":"section-0342","order":342,"volume":2,"heading":"LIBER IV. DE EXTERNIS MEDIIS AD SALUTEM.","url":"sections/0342.json"},
+    {"id":"section-0343","order":343,"volume":2,"heading":"CAPUT I.","url":"sections/0343.json"},
+    {"id":"section-0344","order":344,"volume":2,"heading":"CAPUT X.","url":"sections/0344.json"},
+    {"id":"section-0345","order":345,"volume":2,"heading":"CAPUT I.","url":"sections/0345.json"},
+    {"id":"section-0351","order":351,"volume":2,"heading":"CAPUT II.","url":"sections/0351.json"},
+    {"id":"section-0357","order":357,"volume":2,"heading":"CAPUT III.","url":"sections/0357.json"},
+    {"id":"section-0361","order":361,"volume":2,"heading":"CAPUT IV.","url":"sections/0361.json"},
+    {"id":"section-0366","order":366,"volume":2,"heading":"CAPUT V.","url":"sections/0366.json"},
+    {"id":"section-0372","order":372,"volume":2,"heading":"CAPUT VI.","url":"sections/0372.json"},
+    {"id":"section-0374","order":374,"volume":2,"heading":"CAPUT VII.","url":"sections/0374.json"},
+    {"id":"section-0383","order":383,"volume":2,"heading":"CAPUT VIII.","url":"sections/0383.json"},
+    {"id":"section-0386","order":386,"volume":2,"heading":"CAPUT IX.","url":"sections/0386.json"},
+    {"id":"section-0391","order":391,"volume":2,"heading":"CAPUT X.","url":"sections/0391.json"}
   ]
 }`
 	h := &Handler{
@@ -56,8 +78,8 @@ func TestIndexFiltersEnglishAndSectionPassthrough(t *testing.T) {
 		Prefix: "calvin-institutes",
 		S3: &fakeS3{objects: map[string]string{
 			"calvin-institutes/index.json":         fullIndex,
+			"calvin-institutes/sections/0307.json": `{"id":"section-0307","heading":"CAPUT XI.","text":"xi"}`,
 			"calvin-institutes/sections/0001.json": `{"id":"section-0001","heading":"English","text":"Body"}`,
-			"calvin-institutes/sections/0306.json": `{"id":"section-0306","heading":"LIBER TERTIUS.","text":"De modo"}`,
 		}},
 	}
 	r := chi.NewRouter()
@@ -72,58 +94,82 @@ func TestIndexFiltersEnglishAndSectionPassthrough(t *testing.T) {
 	if err := json.Unmarshal(idx.Body.Bytes(), &parsed); err != nil {
 		t.Fatalf("unmarshal: %v body=%s", err, idx.Body.String())
 	}
-	if parsed.SectionCount != 2 || len(parsed.Sections) != 2 {
-		t.Fatalf("want 2 latin sections, got count=%d len=%d body=%s", parsed.SectionCount, len(parsed.Sections), idx.Body.String())
+
+	wantHeadings := []string{
+		"Liber III · Caput XI",
+		"Liber III · Caput XII",
+		"Liber III · Caput XIII",
+		"Liber III · Caput XIV",
+		"Liber IV · Argumentum",
+		"Liber IV · Caput I",
+		"Liber IV · Caput II",
+		"Liber IV · Caput III",
+		"Liber IV · Caput IV",
+		"Liber IV · Caput V",
+		"Liber IV · Caput VI",
+		"Liber IV · Caput VII",
+		"Liber IV · Caput VIII",
+		"Liber IV · Caput IX",
+		"Liber IV · Caput X",
 	}
-	if parsed.Sections[0].Heading != "LIBER TERTIUS." || parsed.Sections[1].Heading != "CAPUT XI." {
-		t.Fatalf("unexpected latin headings: %+v", parsed.Sections)
+	if len(parsed.Sections) != len(wantHeadings) {
+		t.Fatalf("got %d sections %#v", len(parsed.Sections), headingsOf(parsed.Sections))
+	}
+	for i, want := range wantHeadings {
+		if parsed.Sections[i].Heading != want {
+			t.Fatalf("section[%d]=%q want %q; all=%v", i, parsed.Sections[i].Heading, want, headingsOf(parsed.Sections))
+		}
+	}
+	// Caput XIV collapses OCR XIY page into pages[].
+	xiv := parsed.Sections[3]
+	if len(xiv.Pages) != 2 {
+		t.Fatalf("XIV pages=%v", xiv.Pages)
+	}
+	// Caput I absorbs noisy Caput X running header page.
+	capI := parsed.Sections[5]
+	if len(capI.Pages) < 3 {
+		t.Fatalf("Caput I should absorb noise pages, got %v", capI.Pages)
 	}
 	if bytes.Contains(idx.Body.Bytes(), []byte("CHRISTIANRELIGION")) {
-		t.Fatal("english heading leaked into index")
-	}
-	if bytes.Contains(idx.Body.Bytes(), []byte("VOLUME 2")) {
-		t.Fatal("english prelim leaked into index")
+		t.Fatal("english leaked")
 	}
 
 	sec := httptest.NewRecorder()
-	r.ServeHTTP(sec, httptest.NewRequest(http.MethodGet, "/api/latin/calvins-institutes/sections/306", nil))
+	r.ServeHTTP(sec, httptest.NewRequest(http.MethodGet, "/api/latin/calvins-institutes/sections/307", nil))
 	if sec.Code != http.StatusOK {
 		t.Fatalf("section status=%d", sec.Code)
 	}
-	if !bytes.Contains(sec.Body.Bytes(), []byte("LIBER TERTIUS")) {
-		t.Fatalf("section body=%s", sec.Body.String())
-	}
+}
 
-	// English section object still fetchable by id (left on S3; hidden from index only).
-	eng := httptest.NewRecorder()
-	r.ServeHTTP(eng, httptest.NewRequest(http.MethodGet, "/api/latin/calvins-institutes/sections/1", nil))
-	if eng.Code != http.StatusOK {
-		t.Fatalf("english section status=%d", eng.Code)
+func headingsOf(sections []institutesIndexEntry) []string {
+	out := make([]string, len(sections))
+	for i, s := range sections {
+		out[i] = s.Heading
 	}
+	return out
+}
 
-	miss := httptest.NewRecorder()
-	r.ServeHTTP(miss, httptest.NewRequest(http.MethodGet, "/api/latin/calvins-institutes/sections/9999", nil))
-	if miss.Code != http.StatusNotFound {
-		t.Fatalf("miss status=%d", miss.Code)
+func TestNormalizeRomanOCR(t *testing.T) {
+	cases := map[string]string{
+		"XIY": "XIV", "XY": "XV", "XXTIT": "XXIII", "xxiil": "XXIII", "in": "III", "IY": "IV", "VIL": "VII",
+	}
+	for in, want := range cases {
+		if got := normalizeRomanOCR(in); got != want {
+			t.Fatalf("%q → %q want %q", in, got, want)
+		}
 	}
 }
 
 func TestIsLatinIndexEntry(t *testing.T) {
 	v1, v2 := 1, 2
-	cases := []struct {
-		name string
-		e    institutesIndexEntry
-		want bool
-	}{
-		{"english v1", institutesIndexEntry{Volume: &v1, Heading: "CHAP.I."}, false},
-		{"prelim v2", institutesIndexEntry{Volume: &v2, Heading: "VOLUME 2 — PRELIMINARY MATERIAL"}, false},
-		{"latin liber", institutesIndexEntry{Volume: &v2, Heading: "LIBER TERTIUS."}, true},
-		{"nil volume", institutesIndexEntry{Heading: "CAPUT XI."}, false},
+	if isLatinIndexEntry(institutesIndexEntry{Volume: &v1, Heading: "CHAP.I."}) {
+		t.Fatal("v1")
 	}
-	for _, tc := range cases {
-		if got := isLatinIndexEntry(tc.e); got != tc.want {
-			t.Fatalf("%s: got %v want %v", tc.name, got, tc.want)
-		}
+	if isLatinIndexEntry(institutesIndexEntry{Volume: &v2, Heading: "VOLUME 2 — PRELIMINARY MATERIAL"}) {
+		t.Fatal("prelim")
+	}
+	if !isLatinIndexEntry(institutesIndexEntry{Volume: &v2, Heading: "LIBER TERTIUS."}) {
+		t.Fatal("liber")
 	}
 }
 

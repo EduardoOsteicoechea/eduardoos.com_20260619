@@ -49,12 +49,13 @@ type institutesIndex struct {
 }
 
 type institutesIndexEntry struct {
-	ID      string  `json:"id"`
-	Order   int     `json:"order"`
-	Volume  *int    `json:"volume"`
-	Book    *string `json:"book"`
-	Heading string  `json:"heading"`
-	URL     string  `json:"url"`
+	ID      string   `json:"id"`
+	Order   int      `json:"order"`
+	Volume  *int     `json:"volume"`
+	Book    *string  `json:"book"`
+	Heading string   `json:"heading"`
+	URL     string   `json:"url"`
+	Pages   []string `json:"pages,omitempty"` // all section ids in this Caput (reading order)
 }
 
 // NewHandler builds a handler using S3_BUCKET and optional CALVIN_INSTITUTES_S3_PREFIX.
@@ -104,7 +105,7 @@ func (h *Handler) Index(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, "institutes index unreadable")
 		return
 	}
-	filtered := filterLatinIndex(idx)
+	filtered := buildChapterOutline(filterLatinIndex(idx))
 	body, err := json.Marshal(filtered)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "institutes index encode failed")

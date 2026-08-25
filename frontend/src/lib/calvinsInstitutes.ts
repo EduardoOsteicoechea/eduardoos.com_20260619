@@ -12,6 +12,8 @@ export type InstitutesIndexSection = {
   book?: string | null;
   heading: string;
   url: string;
+  /** All OCR page section ids for this Caput (reading order). */
+  pages?: string[];
 };
 
 export type InstitutesIndex = {

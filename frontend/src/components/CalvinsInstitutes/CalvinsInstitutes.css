@@ -55,7 +55,7 @@
 
 .calvins-institutes__nav-btn {
   display: grid;
-  grid-template-columns: 2.25rem 1fr;
+  grid-template-columns: 2.75rem 1fr;
   gap: 0.45rem;
   width: 100%;
   margin: 0 0 0.2rem;
@@ -84,9 +84,40 @@
 
 .calvins-institutes__nav-heading {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.calvins-institutes__pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0 0 0.85rem;
+}
+
+.calvins-institutes__pager-btn {
+  min-height: var(--control_min_height, 2.25rem);
+  padding: 0.35rem 0.75rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: transparent;
+  color: var(--site-body-fg);
+  font-family: Montserrat, sans-serif;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.calvins-institutes__pager-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.calvins-institutes__pager-status {
+  font-family: Raleway, sans-serif;
+  font-size: 0.82rem;
+  opacity: 0.8;
 }
 
 .calvins-institutes__panel {
