@@ -1,6 +1,6 @@
 /**
- * Public reader for Calvin’s Institutes — chapter outline + section panel.
- * Index is Latin-only Capita in Liber order; pages[] steps through OCR pages.
+ * Public reader for Calvin’s Institutes — Liber/Caput sidebar + continuous text.
+ * Loads all OCR pages for the selected Caput and joins them (no page pager).
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -8,15 +8,13 @@ import {
   fetchInstitutesIndex,
   fetchInstitutesSection,
   type InstitutesIndexSection,
-  type InstitutesSection,
 } from "../../lib/calvinsInstitutes";
 import "./CalvinsInstitutes.css";
 
 export default function CalvinsInstitutesReader() {
   const [chapters, setChapters] = useState<InstitutesIndexSection[]>([]);
   const [chapterKey, setChapterKey] = useState("");
-  const [pageIndex, setPageIndex] = useState(0);
-  const [section, setSection] = useState<InstitutesSection | null>(null);
+  const [body, setBody] = useState("");
   const [error, setError] = useState("");
   const [loadingIndex, setLoadingIndex] = useState(true);
   const [loadingSection, setLoadingSection] = useState(false);
@@ -32,8 +30,6 @@ export default function CalvinsInstitutesReader() {
     return [activeChapter.id];
   }, [activeChapter]);
 
-  const selectedId = pageIds[pageIndex] ?? "";
-
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -42,10 +38,7 @@ export default function CalvinsInstitutesReader() {
         if (cancelled) return;
         const list = idx.sections ?? [];
         setChapters(list);
-        if (list.length) {
-          setChapterKey(list[0].id);
-          setPageIndex(0);
-        }
+        if (list.length) setChapterKey(list[0].id);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Could not load index");
@@ -60,17 +53,22 @@ export default function CalvinsInstitutesReader() {
   }, []);
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!pageIds.length) return;
     let cancelled = false;
     setLoadingSection(true);
     setError("");
     void (async () => {
       try {
-        const data = await fetchInstitutesSection(selectedId);
-        if (!cancelled) setSection(data);
+        const parts = await Promise.all(pageIds.map((id) => fetchInstitutesSection(id)));
+        if (cancelled) return;
+        const text = parts
+          .map((p) => (p.text ?? "").trim())
+          .filter(Boolean)
+          .join("\n\n");
+        setBody(text);
       } catch (err) {
         if (!cancelled) {
-          setSection(null);
+          setBody("");
           setError(err instanceof Error ? err.message : "Could not load section");
         }
       } finally {
@@ -80,21 +78,12 @@ export default function CalvinsInstitutesReader() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId]);
-
-  function selectChapter(id: string) {
-    setChapterKey(id);
-    setPageIndex(0);
-  }
+  }, [pageIds.join("|")]);
 
   return (
     <section className="calvins-institutes" aria-labelledby="calvins-title">
       <header className="calvins-institutes__head">
         <h1 id="calvins-title">Calvin’s Institutes</h1>
-        <p className="calvins-institutes__lead">
-          Latin text only — Liber III–IV Capita in order. English Allen sheets stay on S3 but
-          are hidden. Use page controls when a Caput spans several OCR sheets.
-        </p>
       </header>
 
       {loadingIndex ? <p className="calvins-institutes__status">Loading index…</p> : null}
@@ -112,7 +101,7 @@ export default function CalvinsInstitutesReader() {
                       ? "calvins-institutes__nav-btn is-active"
                       : "calvins-institutes__nav-btn"
                   }
-                  onClick={() => selectChapter(c.id)}
+                  onClick={() => setChapterKey(c.id)}
                 >
                   <span className="calvins-institutes__nav-order">
                     {c.book ? `${c.book}.` : ""}
@@ -126,35 +115,11 @@ export default function CalvinsInstitutesReader() {
         </nav>
 
         <article className="calvins-institutes__panel">
-          {activeChapter && pageIds.length > 1 ? (
-            <div className="calvins-institutes__pager">
-              <button
-                type="button"
-                className="calvins-institutes__pager-btn"
-                disabled={pageIndex <= 0 || loadingSection}
-                onClick={() => setPageIndex((i) => Math.max(0, i - 1))}
-              >
-                Previous page
-              </button>
-              <span className="calvins-institutes__pager-status">
-                Page {pageIndex + 1} / {pageIds.length}
-              </span>
-              <button
-                type="button"
-                className="calvins-institutes__pager-btn"
-                disabled={pageIndex >= pageIds.length - 1 || loadingSection}
-                onClick={() => setPageIndex((i) => Math.min(pageIds.length - 1, i + 1))}
-              >
-                Next page
-              </button>
-            </div>
-          ) : null}
-
           {loadingSection ? <p className="calvins-institutes__status">Loading section…</p> : null}
-          {section && !loadingSection ? (
+          {activeChapter && body && !loadingSection ? (
             <>
-              <h2>{activeChapter?.heading ?? section.heading}</h2>
-              <pre className="calvins-institutes__text">{section.text}</pre>
+              <h2>{activeChapter.heading}</h2>
+              <pre className="calvins-institutes__text">{body}</pre>
             </>
           ) : null}
         </article>
