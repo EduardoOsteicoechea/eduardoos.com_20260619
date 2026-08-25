@@ -185,8 +185,37 @@ export default function ApsWebhookMonitor() {
 
     const token = getAuthToken();
     let cancelled = false;
+    let pollTimer: number | null = null;
+    let reconnectTimer: number | null = null;
+    let backoffMs = 1500;
 
-    async function loadList() {
+    function stopPoll() {
+      if (pollTimer !== null) {
+        window.clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function startPoll() {
+      if (pollTimer !== null || cancelled) return;
+      pollTimer = window.setInterval(() => {
+        void refreshList("poll");
+      }, 2000);
+    }
+
+    function diagnostics(extra: string): string {
+      return [
+        extra,
+        `url=${window.location.origin}${STREAM_URL}`,
+        `listUrl=${window.location.origin}${LIST_URL}`,
+        `online=${navigator.onLine}`,
+        `hasToken=${Boolean(token)}`,
+        `tokenLen=${token?.length ?? 0}`,
+        `userAgent=${navigator.userAgent}`,
+      ].join("\n");
+    }
+
+    async function refreshList(source: string) {
       const cid = createCorrelationId();
       try {
         const res = await fetch(LIST_URL, {
@@ -203,19 +232,22 @@ export default function ApsWebhookMonitor() {
         try {
           data = JSON.parse(text) as { events?: ApsWebhookEvent[] };
         } catch (parseErr) {
-          pushVerboseError("list.json_parse", parseErr, text.slice(0, 4000));
+          pushVerboseError(`${source}.json_parse`, parseErr, text.slice(0, 4000));
           return;
         }
         const list = sortNewestFirst(Array.isArray(data.events) ? data.events : []);
         if (cancelled) return;
         for (const ev of list) seenIds.current.add(ev.id);
-        setEvents(list);
+        setEvents((prev) => mergeEvents(prev, list));
       } catch (err) {
-        if (!cancelled) pushVerboseError("list.fetch", err, `correlationId=${cid}`);
+        if (!cancelled) {
+          pushVerboseError(`${source}.fetch`, err, diagnostics(`correlationId=${cid}`));
+        }
       }
     }
 
     async function openStream() {
+      if (cancelled) return;
       abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
@@ -229,12 +261,15 @@ export default function ApsWebhookMonitor() {
             "X-Correlation-ID": cid,
           },
           signal: ac.signal,
+          cache: "no-store",
         });
         if (!res.ok || !res.body) {
           const text = await res.text().catch(() => "");
-          throw new Error(`GET ${STREAM_URL} → HTTP ${res.status}\n${text}`);
+          throw new Error(`GET ${STREAM_URL} → HTTP ${res.status} ${res.statusText}\n${text}`);
         }
         setStreamState("live");
+        stopPoll();
+        backoffMs = 1500;
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
@@ -246,9 +281,11 @@ export default function ApsWebhookMonitor() {
               setStreamState("error");
               pushVerboseError(
                 "stream.ended",
-                new Error("SSE stream closed by server"),
-                `correlationId=${cid}`,
+                new Error("SSE stream closed by server (will reconnect + poll)"),
+                diagnostics(`correlationId=${cid}`),
               );
+              startPoll();
+              scheduleReconnect();
             }
             break;
           }
@@ -275,7 +312,6 @@ export default function ApsWebhookMonitor() {
               }
               if (seenIds.current.has(ev.id)) continue;
               seenIds.current.add(ev.id);
-              // Newest first: prepend then re-sort by receivedAt.
               setEvents((prev) => mergeEvents(prev, [ev]));
             } catch (parseErr) {
               pushVerboseError("stream.event_parse", parseErr, dataLine.slice(0, 4000));
@@ -285,14 +321,41 @@ export default function ApsWebhookMonitor() {
       } catch (err) {
         if (ac.signal.aborted || cancelled) return;
         setStreamState("error");
-        pushVerboseError("stream.fetch", err, `correlationId=${cid}`);
+        const name = err instanceof Error ? err.name : "Error";
+        const message = err instanceof Error ? err.message : String(err);
+        pushVerboseError(
+          "stream.fetch",
+          err,
+          diagnostics(
+            [
+              `correlationId=${cid}`,
+              `errorName=${name}`,
+              `errorMessage=${message}`,
+              "hint=If HTTP 404, backend deploy missing apswebhook routes. If Failed to fetch/network error, check nginx SSE proxy + backend :3000.",
+            ].join("\n"),
+          ),
+        );
+        startPoll();
+        scheduleReconnect();
       }
     }
 
-    void loadList().then(() => openStream());
+    function scheduleReconnect() {
+      if (cancelled || reconnectTimer !== null) return;
+      const wait = backoffMs;
+      backoffMs = Math.min(backoffMs * 1.6, 20000);
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null;
+        void openStream();
+      }, wait);
+    }
+
+    void refreshList("list").then(() => openStream());
 
     return () => {
       cancelled = true;
+      stopPoll();
+      if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
       abortRef.current?.abort();
     };
   }, []);
@@ -328,7 +391,11 @@ export default function ApsWebhookMonitor() {
             <dt>Stream</dt>
             <dd>
               <span className={`aps-webhook-monitor__pill aps-webhook-monitor__pill--${streamState}`}>
-                {streamState === "live" ? "live" : streamState === "error" ? "reconnect needed" : "connecting…"}
+                {streamState === "live"
+                  ? "live"
+                  : streamState === "error"
+                    ? "polling + reconnect…"
+                    : "connecting…"}
               </span>
             </dd>
           </div>

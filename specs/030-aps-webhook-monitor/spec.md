@@ -47,6 +47,8 @@ Locked choice: **SSE** (not WebSocket). Matches Agent Sandbox / logger stream; n
 - Live event list: **newest POST first** (sort by `receivedAt` descending).
 - **Verbose error log** on the same page: any FE/stream/list/parse failure and any failed ingest (backend records error events) print with timestamp, source, HTTP status, body/text, and stack when available.
 - On load: fetch recent events via list endpoint, then open SSE for new ones.
+- If SSE fails (**network error** / reconnect): auto-retry with backoff and **poll** `GET /api/admin/aps/webhook-events` every 2s until live again so new POSTs still appear (newest first).
+- Verbose error log must include stream failures with URL, online flag, and HTTP body when available.
 - Plain CSS component file; Eduardo OS theme tokens.
 
 ### Persistence
