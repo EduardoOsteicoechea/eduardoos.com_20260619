@@ -68,6 +68,9 @@ func TestIngestRequiresSecretWhenConfigured(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rec.Code)
 	}
+	if len(h.snapshot()) != 1 || h.snapshot()[0].Kind != "error" {
+		t.Fatalf("expected error event recorded, got %+v", h.snapshot())
+	}
 
 	req2 := httptest.NewRequest(http.MethodPost, "/api/aps/webhooks", strings.NewReader(`{"a":1}`))
 	req2.Header.Set("Content-Type", "application/json")

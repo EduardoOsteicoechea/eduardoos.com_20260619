@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,9 +23,10 @@ import (
 const maxEvents = 100
 const maxBodyBytes = 2 << 20 // 2 MiB
 
-// Event is one ingested webhook payload shown on the admin monitor.
+// Event is one ingested webhook payload (or ingest error) shown on the admin monitor.
 type Event struct {
 	ID            string            `json:"id"`
+	Kind          string            `json:"kind,omitempty"` // "post" (default) | "error"
 	ReceivedAt    time.Time         `json:"receivedAt"`
 	CorrelationID string            `json:"correlationId"`
 	ContentType   string            `json:"contentType"`
@@ -35,6 +37,8 @@ type Event struct {
 	Headers       map[string]string `json:"headers"`
 	Body          json.RawMessage   `json:"body,omitempty"`
 	BodyText      string            `json:"bodyText,omitempty"`
+	Error         string            `json:"error,omitempty"`
+	HTTPStatus    int               `json:"httpStatus,omitempty"`
 }
 
 // Handler serves public ingest + admin list/stream.
@@ -107,6 +111,17 @@ func (h *Handler) IngestProbe(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	log.Printf("[correlation=%s] aps.webhook.probe method=GET remote=%s", cid, r.RemoteAddr)
 	if !h.checkSecret(r) {
+		h.pushError(Event{
+			ID:            uuid.NewString(),
+			ReceivedAt:    time.Now().UTC(),
+			CorrelationID: cid,
+			RemoteAddr:    r.RemoteAddr,
+			Method:        r.Method,
+			Path:          r.URL.Path,
+			Query:         r.URL.RawQuery,
+			Headers:       selectHeaders(r),
+		}, http.StatusUnauthorized, "invalid webhook secret",
+			"GET probe rejected: missing or wrong webhook secret.")
 		httpx.WriteError(w, http.StatusUnauthorized, "invalid webhook secret")
 		return
 	}
@@ -118,36 +133,14 @@ func (h *Handler) IngestProbe(w http.ResponseWriter, r *http.Request) {
 }
 
 // Ingest stores a webhook payload and notifies SSE subscribers.
+// Failed ingest attempts are also pushed as kind=error so the admin monitor
+// shows them verbosely (newest first via the ring buffer snapshot).
 func (h *Handler) Ingest(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	log.Printf("[correlation=%s] aps.webhook.ingest begin remote=%s contentLength=%d contentType=%q",
 		cid, r.RemoteAddr, r.ContentLength, r.Header.Get("Content-Type"))
 
-	if !h.checkSecret(r) {
-		log.Printf("[correlation=%s] aps.webhook.ingest unauthorized secret", cid)
-		httpx.WriteError(w, http.StatusUnauthorized, "invalid webhook secret")
-		return
-	}
-
-	raw, err := io.ReadAll(io.LimitReader(r.Body, maxBodyBytes+1))
-	if err != nil {
-		log.Printf("[correlation=%s] aps.webhook.ingest read_failed err=%v", cid, err)
-		httpx.WriteError(w, http.StatusBadRequest, "could not read body")
-		return
-	}
-	if len(raw) > maxBodyBytes {
-		log.Printf("[correlation=%s] aps.webhook.ingest body_too_large bytes=%d", cid, len(raw))
-		httpx.WriteError(w, http.StatusRequestEntityTooLarge, "body too large")
-		return
-	}
-	trimmed := strings.TrimSpace(string(raw))
-	if trimmed == "" {
-		log.Printf("[correlation=%s] aps.webhook.ingest empty_body", cid)
-		httpx.WriteError(w, http.StatusBadRequest, "body must be non-empty JSON")
-		return
-	}
-
-	ev := Event{
+	base := Event{
 		ID:            uuid.NewString(),
 		ReceivedAt:    time.Now().UTC(),
 		CorrelationID: cid,
@@ -158,10 +151,45 @@ func (h *Handler) Ingest(w http.ResponseWriter, r *http.Request) {
 		Query:         r.URL.RawQuery,
 		Headers:       selectHeaders(r),
 	}
+
+	if !h.checkSecret(r) {
+		log.Printf("[correlation=%s] aps.webhook.ingest unauthorized secret", cid)
+		h.pushError(base, http.StatusUnauthorized, "invalid webhook secret",
+			"Missing or wrong X-Aps-Webhook-Secret / ?secret= (APS_WEBHOOK_SECRET is set on the server).")
+		httpx.WriteError(w, http.StatusUnauthorized, "invalid webhook secret")
+		return
+	}
+
+	raw, err := io.ReadAll(io.LimitReader(r.Body, maxBodyBytes+1))
+	if err != nil {
+		log.Printf("[correlation=%s] aps.webhook.ingest read_failed err=%v", cid, err)
+		h.pushError(base, http.StatusBadRequest, "could not read body", err.Error())
+		httpx.WriteError(w, http.StatusBadRequest, "could not read body")
+		return
+	}
+	if len(raw) > maxBodyBytes {
+		log.Printf("[correlation=%s] aps.webhook.ingest body_too_large bytes=%d", cid, len(raw))
+		h.pushError(base, http.StatusRequestEntityTooLarge, "body too large",
+			"Payload exceeded 2 MiB limit; bytesReadApprox="+strconv.Itoa(len(raw)))
+		httpx.WriteError(w, http.StatusRequestEntityTooLarge, "body too large")
+		return
+	}
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" {
+		log.Printf("[correlation=%s] aps.webhook.ingest empty_body", cid)
+		h.pushError(base, http.StatusBadRequest, "body must be non-empty JSON",
+			"Empty POST body rejected.")
+		httpx.WriteError(w, http.StatusBadRequest, "body must be non-empty JSON")
+		return
+	}
+
+	ev := base
+	ev.Kind = "post"
 	if json.Valid(raw) {
 		ev.Body = append(json.RawMessage(nil), raw...)
 	} else {
 		ev.BodyText = trimmed
+		ev.Error = "body is not valid JSON; stored as bodyText"
 	}
 
 	h.push(ev)
@@ -173,6 +201,34 @@ func (h *Handler) Ingest(w http.ResponseWriter, r *http.Request) {
 		"id":            ev.ID,
 		"correlationId": cid,
 	})
+}
+
+func (h *Handler) pushError(base Event, status int, shortMsg, detail string) {
+	ev := base
+	ev.Kind = "error"
+	ev.HTTPStatus = status
+	ev.Error = shortMsg
+	payload := map[string]any{
+		"ok":            false,
+		"error":         shortMsg,
+		"detail":        detail,
+		"httpStatus":    status,
+		"correlationId": base.CorrelationID,
+		"remoteAddr":    base.RemoteAddr,
+		"method":        base.Method,
+		"path":          base.Path,
+		"query":         base.Query,
+		"headers":       base.Headers,
+		"receivedAt":    base.ReceivedAt.Format(time.RFC3339Nano),
+	}
+	if b, err := json.Marshal(payload); err == nil {
+		ev.Body = b
+	} else {
+		ev.BodyText = detail
+	}
+	h.push(ev)
+	log.Printf("[correlation=%s] aps.webhook.ingest_error status=%d msg=%q detail=%q",
+		base.CorrelationID, status, shortMsg, detail)
 }
 
 // List returns recent events newest-first.
