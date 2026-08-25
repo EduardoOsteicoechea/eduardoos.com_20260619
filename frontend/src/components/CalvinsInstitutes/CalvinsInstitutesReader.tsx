@@ -1,6 +1,6 @@
 /**
- * Public reader for Calvin’s Institutes — Liber/Caput sidebar + continuous text.
- * Loads all OCR pages for the selected Caput and joins them (no page pager).
+ * Public reader for Calvin’s Institutes — flush Capita sidebar + continuous text.
+ * Sidebar docks left; toggled from Header Dynamic Menu (Homescool pattern).
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -9,7 +9,30 @@ import {
   fetchInstitutesSection,
   type InstitutesIndexSection,
 } from "../../lib/calvinsInstitutes";
+import CalvinsInstitutesHeaderMenu from "./CalvinsInstitutesHeaderMenu";
 import "./CalvinsInstitutes.css";
+
+const CHAPTERS_SIDEBAR_KEY = "eduardoos-calvins-chapters-open";
+
+function readChaptersOpen(): boolean {
+  if (typeof localStorage === "undefined") return true;
+  try {
+    const stored = localStorage.getItem(CHAPTERS_SIDEBAR_KEY);
+    if (stored === null) return true;
+    return stored === "1" || stored === "true";
+  } catch {
+    return true;
+  }
+}
+
+function writeChaptersOpen(open: boolean): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(CHAPTERS_SIDEBAR_KEY, open ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
 
 export default function CalvinsInstitutesReader() {
   const [chapters, setChapters] = useState<InstitutesIndexSection[]>([]);
@@ -18,6 +41,11 @@ export default function CalvinsInstitutesReader() {
   const [error, setError] = useState("");
   const [loadingIndex, setLoadingIndex] = useState(true);
   const [loadingSection, setLoadingSection] = useState(false);
+  const [chaptersOpen, setChaptersOpen] = useState(true);
+
+  useEffect(() => {
+    setChaptersOpen(readChaptersOpen());
+  }, []);
 
   const activeChapter = useMemo(
     () => chapters.find((c) => c.id === chapterKey) ?? null,
@@ -80,51 +108,71 @@ export default function CalvinsInstitutesReader() {
     };
   }, [pageIds.join("|")]);
 
+  function toggleChapters() {
+    setChaptersOpen((prev) => {
+      const next = !prev;
+      writeChaptersOpen(next);
+      return next;
+    });
+  }
+
+  const rootClass = [
+    "calvins-institutes",
+    chaptersOpen ? "" : "calvins-institutes--collapsed",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <section className="calvins-institutes" aria-labelledby="calvins-title">
-      <header className="calvins-institutes__head">
-        <h1 id="calvins-title">Calvin’s Institutes</h1>
-      </header>
+    <div className={rootClass}>
+      <CalvinsInstitutesHeaderMenu
+        chaptersOpen={chaptersOpen}
+        onToggleChapters={toggleChapters}
+      />
 
-      {loadingIndex ? <p className="calvins-institutes__status">Loading index…</p> : null}
-      {error ? <p className="calvins-institutes__error">{error}</p> : null}
+      {chaptersOpen ? (
+        <aside className="calvins-institutes__aside" aria-label="Capita">
+          {loadingIndex ? (
+            <p className="calvins-institutes__status">Loading…</p>
+          ) : (
+            <nav className="calvins-institutes__nav">
+              <ol>
+                {chapters.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      className={
+                        c.id === chapterKey
+                          ? "calvins-institutes__nav-btn is-active"
+                          : "calvins-institutes__nav-btn"
+                      }
+                      onClick={() => setChapterKey(c.id)}
+                    >
+                      <span className="calvins-institutes__nav-order">
+                        {c.book ? `${c.book}.` : ""}
+                        {labelCaput(c.heading)}
+                      </span>
+                      <span className="calvins-institutes__nav-heading">{c.heading}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
+        </aside>
+      ) : null}
 
-      <div className="calvins-institutes__layout">
-        <nav className="calvins-institutes__nav" aria-label="Capita">
-          <ol>
-            {chapters.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  className={
-                    c.id === chapterKey
-                      ? "calvins-institutes__nav-btn is-active"
-                      : "calvins-institutes__nav-btn"
-                  }
-                  onClick={() => setChapterKey(c.id)}
-                >
-                  <span className="calvins-institutes__nav-order">
-                    {c.book ? `${c.book}.` : ""}
-                    {labelCaput(c.heading)}
-                  </span>
-                  <span className="calvins-institutes__nav-heading">{c.heading}</span>
-                </button>
-              </li>
-            ))}
-          </ol>
-        </nav>
-
-        <article className="calvins-institutes__panel">
-          {loadingSection ? <p className="calvins-institutes__status">Loading section…</p> : null}
-          {activeChapter && body && !loadingSection ? (
-            <>
-              <h2>{activeChapter.heading}</h2>
-              <pre className="calvins-institutes__text">{body}</pre>
-            </>
-          ) : null}
-        </article>
-      </div>
-    </section>
+      <section className="calvins-institutes__main">
+        {error ? <p className="calvins-institutes__error">{error}</p> : null}
+        {loadingSection ? <p className="calvins-institutes__status">Loading…</p> : null}
+        {activeChapter && body && !loadingSection ? (
+          <>
+            <h1 className="calvins-institutes__caput">{activeChapter.heading}</h1>
+            <pre className="calvins-institutes__text">{body}</pre>
+          </>
+        ) : null}
+      </section>
+    </div>
   );
 }
 

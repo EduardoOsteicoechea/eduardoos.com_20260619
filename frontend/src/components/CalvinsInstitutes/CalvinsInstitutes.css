@@ -1,64 +1,49 @@
+/**
+ * Institutes reader — flush to left rail (Homescool workspace pattern).
+ * Narrow gutter; Capita aside docks left; main text is borderless and full-bleed
+ * when the sidebar is collapsed via Header Dynamic Menu.
+ */
+
 .calvins-institutes {
+  --calvins-gutter: var(--page-inline-pad, 15px);
   box-sizing: border-box;
-  width: min(100%, var(--max_desktop_width, 72rem));
-  margin: 0 auto;
-  padding: 1.25rem 1rem 2.5rem;
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  gap: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  min-height: calc(100dvh - var(--header_offset, var(--header_height, 0px)));
+  padding: 0.5rem max(0.35rem, env(safe-area-inset-right, 0px)) 2rem 0;
   color: var(--site-body-fg);
 }
 
-.calvins-institutes__head h1 {
-  margin: 0 0 1rem;
-  font-family: Montserrat, sans-serif;
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  font-weight: 650;
+.calvins-institutes--collapsed {
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.calvins-institutes__status,
-.calvins-institutes__error {
-  font-family: Raleway, sans-serif;
-  line-height: 1.45;
-  max-width: 48rem;
-}
-
-.calvins-institutes__error {
-  color: #b42318;
-}
-
-.calvins-institutes__layout {
-  display: grid;
-  grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
-  gap: 1rem;
-  margin-top: 1.25rem;
-  align-items: start;
-}
-
-@media (max-width: 800px) {
-  .calvins-institutes__layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-.calvins-institutes__nav {
-  max-height: min(70vh, 40rem);
+.calvins-institutes__aside {
+  box-sizing: border-box;
+  border-right: 1px solid var(--site-border);
+  padding: 0.35rem var(--calvins-gutter) 1rem;
+  max-height: calc(100dvh - var(--header_offset, var(--header_height, 0px)) - 1rem);
   overflow: auto;
-  border: var(--border_001);
-  border-radius: var(--border_radius_001);
-  background: var(--glassed_background, var(--site-body-bg));
+  background: transparent;
 }
 
 .calvins-institutes__nav ol {
   list-style: none;
   margin: 0;
-  padding: 0.35rem;
+  padding: 0;
 }
 
 .calvins-institutes__nav-btn {
   display: grid;
   grid-template-columns: 2.75rem 1fr;
-  gap: 0.45rem;
+  gap: 0.4rem;
   width: 100%;
-  margin: 0 0 0.2rem;
-  padding: 0.45rem 0.5rem;
+  margin: 0 0 0.15rem;
+  padding: 0.4rem 0.35rem;
   border: none;
   border-radius: var(--border_radius_001);
   background: transparent;
@@ -66,7 +51,7 @@
   text-align: left;
   cursor: pointer;
   font-family: Raleway, sans-serif;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   line-height: 1.3;
 }
 
@@ -77,7 +62,7 @@
 
 .calvins-institutes__nav-order {
   font-family: Montserrat, sans-serif;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   opacity: 0.7;
 }
 
@@ -88,18 +73,28 @@
   overflow: hidden;
 }
 
-.calvins-institutes__panel {
-  border: var(--border_001);
-  border-radius: var(--border_radius_001);
-  padding: 1rem 1.1rem 1.5rem;
-  background: var(--glassed_background, var(--site-body-bg));
-  min-height: 16rem;
+.calvins-institutes__main {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 0.35rem var(--calvins-gutter) 1.5rem;
 }
 
-.calvins-institutes__panel h2 {
+.calvins-institutes__caput {
   margin: 0 0 0.75rem;
   font-family: Montserrat, sans-serif;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.calvins-institutes__status,
+.calvins-institutes__error {
+  font-family: Raleway, sans-serif;
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+}
+
+.calvins-institutes__error {
+  color: #b42318;
 }
 
 .calvins-institutes__text {
@@ -109,4 +104,16 @@
   font-family: Raleway, Georgia, serif;
   font-size: 0.95rem;
   line-height: 1.55;
+}
+
+@media (max-width: 800px) {
+  .calvins-institutes:not(.calvins-institutes--collapsed) {
+    grid-template-columns: 1fr;
+  }
+
+  .calvins-institutes__aside {
+    max-height: min(40vh, 18rem);
+    border-right: none;
+    border-bottom: 1px solid var(--site-border);
+  }
 }
