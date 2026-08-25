@@ -47,6 +47,8 @@ export const APP_ROUTES = {
   ereportWorkspace: "/ereport/workspace",
   adminUsers: "/admin/users",
   agentSandbox: "/admin/agent-sandbox",
+  /** Admin-only APS webhook live monitor (product-tests). */
+  apsWebhookMonitor: "/product-tests/mps/aps-webhook",
 } as const;
 
 export const AUTH_API_ROUTES = {
@@ -238,4 +240,11 @@ export const ADMIN_ROUTES = {
     `/api/admin/users/${encodeURIComponent(email)}/entitlements?email=${encodeURIComponent(email)}`,
   deleteUser: (email: string) =>
     `/api/admin/users/${encodeURIComponent(email)}?email=${encodeURIComponent(email)}`,
+  apsWebhookEvents: "/api/admin/aps/webhook-events",
+  apsWebhookStream: "/api/admin/aps/webhook-events/stream",
+} as const;
+
+/** Public APS webhook ingest (Autodesk → Eduardo OS). */
+export const APS_WEBHOOK_ROUTES = {
+  ingest: "/api/aps/webhooks",
 } as const;

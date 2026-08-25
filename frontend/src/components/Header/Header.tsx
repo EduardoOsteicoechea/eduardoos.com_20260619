@@ -555,6 +555,13 @@ export function Header({ pathname }: HeaderProps) {
             >
               Agent Sandbox
             </a>
+            <a
+              className={navClass(APP_ROUTES.apsWebhookMonitor)}
+              href={APP_ROUTES.apsWebhookMonitor}
+              onClick={closeMenu}
+            >
+              APS webhook
+            </a>
           </>
         ) : null}
         {showAuth ? (

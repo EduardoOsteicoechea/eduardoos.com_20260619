@@ -28,3 +28,6 @@ See also the earlier relocated copy under `backend/revitapi/` and the HTML guide
 - Restore note: `specs/028-aps-app-restore/spec.md`
 - **Client meeting playbook (APS app → robot → ACC Hub → automation on sync):**  
   `specs/029-aps-acc-client-meeting-playbook/spec.md`
+- **Live webhook monitor (admin UI + public ingest + SSE):**  
+  `specs/030-aps-webhook-monitor/spec.md`  
+  Callback: `POST /api/aps/webhooks` · Page: `/product-tests/mps/aps-webhook`
