@@ -70,8 +70,8 @@ export default function CalvinsInstitutesReader() {
       <header className="calvins-institutes__head">
         <h1 id="calvins-title">Calvin’s Institutes</h1>
         <p className="calvins-institutes__lead">
-          Allen English translation (from the Latin). Text is historical OCR — spacing artifacts
-          are expected. Source objects live under S3 prefix <code>calvin-institutes/</code>.
+          Latin text only (Institutes OCR). English Allen sheets stay on S3 but are hidden from
+          this index for now. Spacing artifacts are expected.
         </p>
       </header>
 
