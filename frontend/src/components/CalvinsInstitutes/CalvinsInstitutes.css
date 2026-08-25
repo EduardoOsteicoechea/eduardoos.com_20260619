@@ -1,20 +1,36 @@
 /**
- * Institutes reader — flush to left rail (Homescool workspace pattern).
- * Narrow gutter; Capita aside docks left; main text is borderless and full-bleed
- * when the sidebar is collapsed via Header Dynamic Menu.
+ * Institutes reader — flush to left rail; Capita column fixed; only main scrolls.
+ * Sidebar toggles from Header Dynamic Menu (#header-dynamic-menu-host).
  */
+
+/* Lock document scroll while this reader is mounted. */
+body:has(.calvins-institutes) {
+  overflow: hidden;
+}
+
+body:has(.calvins-institutes) > main {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
 
 .calvins-institutes {
   --calvins-gutter: var(--page-inline-pad, 15px);
+  --calvins-aside-width: 16rem;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  grid-template-columns: var(--calvins-aside-width) minmax(0, 1fr);
   gap: 0;
   width: 100%;
   max-width: none;
   margin: 0;
-  min-height: calc(100dvh - var(--header_offset, var(--header_height, 0px)));
-  padding: 0.5rem max(0.35rem, env(safe-area-inset-right, 0px)) 2rem 0;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 max(0.35rem, env(safe-area-inset-right, 0px)) 0 0;
   color: var(--site-body-fg);
 }
 
@@ -22,13 +38,27 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* Fixed Capita column: stays put; list may overflow internally if viewport is short. */
 .calvins-institutes__aside {
   box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
   border-right: 1px solid var(--site-border);
-  padding: 0.35rem var(--calvins-gutter) 1rem;
-  max-height: calc(100dvh - var(--header_offset, var(--header_height, 0px)) - 1rem);
-  overflow: auto;
+  padding: 0.35rem var(--calvins-gutter) 0.5rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: transparent;
+}
+
+.calvins-institutes__nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Capita stay reachable if the viewport is shorter than the list;
+     Caput text still scrolls only in .calvins-institutes__main. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .calvins-institutes__nav ol {
@@ -39,11 +69,11 @@
 
 .calvins-institutes__nav-btn {
   display: grid;
-  grid-template-columns: 2.75rem 1fr;
-  gap: 0.4rem;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 0.35rem;
   width: 100%;
-  margin: 0 0 0.15rem;
-  padding: 0.4rem 0.35rem;
+  margin: 0;
+  padding: 0.28rem 0.25rem;
   border: none;
   border-radius: var(--border_radius_001);
   background: transparent;
@@ -51,8 +81,8 @@
   text-align: left;
   cursor: pointer;
   font-family: Raleway, sans-serif;
-  font-size: 0.8rem;
-  line-height: 1.3;
+  font-size: 0.76rem;
+  line-height: 1.25;
 }
 
 .calvins-institutes__nav-btn:hover,
@@ -62,21 +92,27 @@
 
 .calvins-institutes__nav-order {
   font-family: Montserrat, sans-serif;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   opacity: 0.7;
 }
 
 .calvins-institutes__nav-heading {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
+/* Only this panel scrolls. */
 .calvins-institutes__main {
   box-sizing: border-box;
   min-width: 0;
-  padding: 0.35rem var(--calvins-gutter) 1.5rem;
+  min-height: 0;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.5rem var(--calvins-gutter) 2rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .calvins-institutes__caput {
@@ -108,11 +144,13 @@
 
 @media (max-width: 800px) {
   .calvins-institutes:not(.calvins-institutes--collapsed) {
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-columns: 1fr;
   }
 
   .calvins-institutes__aside {
-    max-height: min(40vh, 18rem);
+    height: auto;
+    max-height: min(32vh, 14rem);
     border-right: none;
     border-bottom: 1px solid var(--site-border);
   }

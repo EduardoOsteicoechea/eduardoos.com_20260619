@@ -28,9 +28,10 @@ The uploaded Latin OCR begins at **Liber III Caput XI**. Liber I–II and Liber 
 ### Reader UI (flush workspace)
 
 - **No** on-page `h1` “Calvin’s Institutes” (document `<title>` may still say it).
-- Narrow padding: flush to the left rail like Homescool (`padding-left: 0` on shell; content uses `--page-inline-pad` / ~0.85rem gutter).
-- Capita **sidebar docked left** (border-right only; not a floating card).
-- Sidebar **toggles** via Header Dynamic Menu button (same portal pattern as Homescool Folders).
+- Narrow padding: flush to the left rail like Homescool.
+- Capita **sidebar fixed** in the left column (does not scroll away with the Caput text).
+- **Only the main panel scrolls** (`overflow-y: auto`); the page/`main` shell does not.
+- Sidebar **toggles** via Header Dynamic Menu (`#header-dynamic-menu-host`, Homescool portal pattern). Host wait retries until Header (`client:only`) mounts.
 - When sidebar is closed, the text panel is **full width** of `main`.
 - Text panel: **no** outer border/box; continuous Caput body (joined OCR pages).
 

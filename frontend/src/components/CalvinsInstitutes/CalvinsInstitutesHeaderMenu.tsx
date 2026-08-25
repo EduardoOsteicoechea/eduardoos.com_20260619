@@ -1,6 +1,9 @@
 /**
  * Institutes Header Dynamic Menu — Capita sidebar toggle in #header-dynamic-menu-host
  * (same portal pattern as Homescool Folders).
+ *
+ * Header mounts with client:only, so this island may hydrate first — retry until
+ * the host exists, then portal the toggler into the dynamic section.
  */
 
 import { useLayoutEffect, useState, type ReactNode } from "react";
@@ -37,11 +40,33 @@ export default function CalvinsInstitutesHeaderMenu({
   const [host, setHost] = useState<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
-    const el = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
-    setHost(el);
-    if (!el) return;
+    let cancelled = false;
+    let intervalId = 0;
+    let timeoutId = 0;
+
+    function attach() {
+      const el = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
+      if (!el || cancelled) return false;
+      setHost(el);
+      return true;
+    }
+
+    if (!attach()) {
+      intervalId = window.setInterval(() => {
+        if (attach()) {
+          window.clearInterval(intervalId);
+          window.clearTimeout(timeoutId);
+        }
+      }, 50);
+      timeoutId = window.setTimeout(() => {
+        window.clearInterval(intervalId);
+      }, 8000);
+    }
 
     return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
       const registered = window.__eduardoosHeaderDynamicMenu;
       if (registered?.id === "calvins-institutes-header-menu") {
         window.__eduardoosHeaderDynamicMenu = null;
