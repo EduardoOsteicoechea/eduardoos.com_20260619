@@ -1,0 +1,22 @@
+EOSTORY
+
+Sintesis: la esencia de la creación agéntica de productos
+
+Explicacion: EOSTORY es una nueva app que posibilita el proceso más puro de creación de software.
+
+Proceso:
+
+1. Selecciona el proyecto
+    - Crea el proyecto    
+    - provee la rama de integración de Github
+    - provee las credenciales del modelo
+
+2. Crea la historia
+    - nombre de la app
+    - Sintesis
+    - workflow
+        que pasa al abrir
+        cuandtas rutas
+            ruta 1
+
+3. 
