@@ -52,9 +52,10 @@ func TestIndexServesReadyLatinCorpus(t *testing.T) {
 		t.Fatalf("first=%s.%s", parsed.Sections[0].Book, parsed.Sections[0].Section)
 	}
 
-	// Spot-check Liber coverage including previously missing III.I–X.
+	// Spot-check Liber coverage including previously missing III.I–X and clean I.XI.
 	mustHave := []struct{ book, section string }{
 		{"I", "I"},
+		{"I", "XI"},
 		{"II", "I"},
 		{"III", "I"},
 		{"III", "X"},
@@ -65,6 +66,13 @@ func TestIndexServesReadyLatinCorpus(t *testing.T) {
 		if !hasBookSection(parsed.Sections, want.book, want.section) {
 			t.Fatalf("missing Liber %s Caput %s", want.book, want.section)
 		}
+	}
+	xi := findBookSection(parsed.Sections, "I", "XI")
+	if xi == nil || !strings.Contains(xi.Heading, "visibilem formam") {
+		t.Fatalf("I.XI heading not clean: %#v", xi)
+	}
+	if strings.Contains(strings.ToLower(xi.Heading), "utfibilem") {
+		t.Fatalf("OCR garbage still in I.XI: %q", xi.Heading)
 	}
 
 	// No English Allen leakage markers in the outline.
@@ -137,15 +145,22 @@ func TestValidateLatinIndexLocalAssets(t *testing.T) {
 			t.Fatalf("book %s count=%d want %d", book, books[book], n)
 		}
 	}
+	if !strings.Contains(strings.ToLower(idx.SourceEdition), "barth") {
+		t.Fatalf("sourceEdition=%q", idx.SourceEdition)
+	}
 }
 
 func hasBookSection(sections []institutesIndexEntry, book, section string) bool {
-	for _, s := range sections {
-		if s.Book == book && s.Section == section {
-			return true
+	return findBookSection(sections, book, section) != nil
+}
+
+func findBookSection(sections []institutesIndexEntry, book, section string) *institutesIndexEntry {
+	for i := range sections {
+		if sections[i].Book == book && sections[i].Section == section {
+			return &sections[i]
 		}
 	}
-	return false
+	return nil
 }
 
 func loadLocalIndexOrSkip(t *testing.T) []byte {

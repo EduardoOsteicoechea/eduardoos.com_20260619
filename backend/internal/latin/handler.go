@@ -27,7 +27,8 @@ import (
 
 // Readiness gate for the sanitized Latin 1559 website assets.
 const (
-	expectedSourceSha256 = "ecc221dfb9428e34de11e392df0711d96cf0333e5fbb5baa1a4a5e774309ccc8"
+	// Clean Barth/Niesel Latin pack (calvin.reformation.nl), not ABBYY OCR.
+	expectedSourceSha256 = "162390b53e8173f25b7b94caa2dd5002d874c1071497a944a4232b793a0921f2"
 	expectedSectionCount = 81
 )
 
@@ -50,6 +51,7 @@ type Handler struct {
 type institutesIndex struct {
 	SchemaVersion int                    `json:"schemaVersion,omitempty"`
 	SourceSha256  string                 `json:"sourceSha256,omitempty"`
+	SourceEdition string                 `json:"sourceEdition,omitempty"`
 	SectionCount  int                    `json:"sectionCount"`
 	Sections      []institutesIndexEntry `json:"sections"`
 }
@@ -206,6 +208,7 @@ func normalizeLatinIndex(idx institutesIndex) institutesIndex {
 	out := institutesIndex{
 		SchemaVersion: idx.SchemaVersion,
 		SourceSha256:  idx.SourceSha256,
+		SourceEdition: idx.SourceEdition,
 		Sections:      append([]institutesIndexEntry(nil), idx.Sections...),
 	}
 	sort.SliceStable(out.Sections, func(i, j int) bool {

@@ -8,7 +8,7 @@ import { createCorrelationId } from "./correlation";
 
 /** Expected sanitized corpus fingerprint (must match backend gate). */
 export const INSTITUTES_EXPECTED_SOURCE_SHA256 =
-  "ecc221dfb9428e34de11e392df0711d96cf0333e5fbb5baa1a4a5e774309ccc8";
+  "162390b53e8173f25b7b94caa2dd5002d874c1071497a944a4232b793a0921f2";
 export const INSTITUTES_EXPECTED_SECTION_COUNT = 81;
 
 export type InstitutesIndexSection = {
@@ -26,6 +26,7 @@ export type InstitutesIndexSection = {
 export type InstitutesIndex = {
   schemaVersion?: number;
   sourceSha256?: string;
+  sourceEdition?: string;
   sectionCount?: number;
   sections: InstitutesIndexSection[];
 };
@@ -115,22 +116,25 @@ export function groupSectionsByLiber(
     .map((book) => ({ book, entries: map.get(book)! }));
 }
 
-/** Prefer points when present; otherwise paragraph text. Sorted by order. */
+/**
+ * Prefer paragraphs[].text (clean pack: one readable paragraph per entry).
+ * Fall back to points[].text only when paragraph text is empty.
+ */
 export function flattenSectionBody(section: InstitutesSection): {
   paragraphs: { key: string; lines: string[] }[];
 } {
   const paras = [...(section.paragraphs ?? [])].sort((a, b) => a.order - b.order);
   return {
     paragraphs: paras.map((p) => {
+      const text = (p.text ?? "").trim();
+      if (text) {
+        return { key: `p-${p.order}`, lines: [text] };
+      }
       const points = [...(p.points ?? [])]
         .sort((a, b) => a.order - b.order)
         .map((pt) => (pt.text ?? "").trim())
         .filter(Boolean);
-      if (points.length) {
-        return { key: `p-${p.order}`, lines: points };
-      }
-      const text = (p.text ?? "").trim();
-      return { key: `p-${p.order}`, lines: text ? [text] : [] };
+      return { key: `p-${p.order}`, lines: points };
     }),
   };
 }

@@ -167,9 +167,7 @@ export default function CalvinsInstitutesReader() {
                             {sectionNavLabel(c)}
                           </span>
                           <span className="calvins-institutes__nav-heading">
-                            {c.section === "PRELIMINARY"
-                              ? "Preliminary"
-                              : c.heading}
+                            {c.heading}
                           </span>
                         </button>
                       </li>

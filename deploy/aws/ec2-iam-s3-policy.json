@@ -24,7 +24,9 @@
             "ereport/",
             "ereport/*",
             "agentsandbox/",
-            "agentsandbox/*"
+            "agentsandbox/*",
+            "calvin-institutes/",
+            "calvin-institutes/*"
           ]
         }
       }
@@ -76,6 +78,12 @@
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
       "Resource": "arn:aws:s3:::eduardoos20260607/agentsandbox/*"
+    },
+    {
+      "Sid": "S3CalvinInstitutesObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::eduardoos20260607/calvin-institutes/*"
     },
     {
       "Sid": "S3ListApsBucket",
