@@ -119,7 +119,8 @@ export function groupSectionsByLiber(
 /**
  * Prefer paragraphs[].text (clean pack: one readable paragraph per entry).
  * Fall back to points[].text only when paragraph text is empty.
- * Numbered paragraphs (`1. …`) get line breaks after periods for readability.
+ * Insert blank lines after sentence periods for readability (incl. Praefatio);
+ * numbered paragraphs (`1. …`) also break after the leading marker.
  */
 export function flattenSectionBody(section: InstitutesSection): {
   paragraphs: { key: string; lines: string[] }[];
@@ -129,11 +130,11 @@ export function flattenSectionBody(section: InstitutesSection): {
     paragraphs: paras.map((p) => {
       const text = (p.text ?? "").trim();
       if (text) {
-        return { key: `p-${p.order}`, lines: [formatNumberedParagraphBreaks(text)] };
+        return { key: `p-${p.order}`, lines: [formatReadableParagraphBreaks(text)] };
       }
       const points = [...(p.points ?? [])]
         .sort((a, b) => a.order - b.order)
-        .map((pt) => formatNumberedParagraphBreaks((pt.text ?? "").trim()))
+        .map((pt) => formatReadableParagraphBreaks((pt.text ?? "").trim()))
         .filter(Boolean);
       return { key: `p-${p.order}`, lines: points };
     }),
@@ -141,16 +142,16 @@ export function flattenSectionBody(section: InstitutesSection): {
 }
 
 /**
- * If the line starts with a decimal section number (`12. …`), put a blank line
- * after that marker and after each later sentence-ending period + space
- * (one empty line of spacing). Non-numbered paragraphs are unchanged.
+ * Blank line after each sentence-ending period + space.
+ * If the line starts with `N. …`, also put a blank line after that marker.
  */
-export function formatNumberedParagraphBreaks(text: string): string {
+export function formatReadableParagraphBreaks(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return trimmed;
   const m = trimmed.match(/^(\d+)\.\s+([\s\S]*)$/);
-  if (!m) return trimmed;
-  const marker = m[1];
-  const body = m[2].replace(/\.\s+/g, ".\n\n").trimEnd();
-  return `${marker}.\n\n${body}`;
+  if (m) {
+    const body = m[2].replace(/\.\s+/g, ".\n\n").trimEnd();
+    return `${m[1]}.\n\n${body}`;
+  }
+  return trimmed.replace(/\.\s+/g, ".\n\n").trimEnd();
 }
