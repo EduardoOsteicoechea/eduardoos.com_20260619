@@ -122,6 +122,37 @@ func TestLibraryBookSheetRoundTrip(t *testing.T) {
 		t.Fatalf("expected 1 path, got %#v", loaded.Layers[0].Paths)
 	}
 
+	// Rename book
+	req = httptest.NewRequest(http.MethodPut, "/api/scrib/books/"+book.ID,
+		bytes.NewBufferString(`{"name":"Marcos"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("rename book status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var renamedBook Book
+	if err := json.Unmarshal(rec.Body.Bytes(), &renamedBook); err != nil {
+		t.Fatal(err)
+	}
+	if renamedBook.Name != "Marcos" {
+		t.Fatalf("book name=%q", renamedBook.Name)
+	}
+
+	// Rename sheet via full PUT
+	loaded.Name = "Hoja A"
+	body, _ = json.Marshal(loaded)
+	req = httptest.NewRequest(http.MethodPut, "/api/scrib/books/"+book.ID+"/sheets/"+sheet.ID,
+		bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("rename sheet status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
 	// Library lists book with sheet card
 	req = httptest.NewRequest(http.MethodGet, "/api/scrib/library", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -137,6 +168,18 @@ func TestLibraryBookSheetRoundTrip(t *testing.T) {
 	books, _ := lib["books"].([]any)
 	if len(books) != 1 {
 		t.Fatalf("books=%#v", books)
+	}
+	row, _ := books[0].(map[string]any)
+	if row["name"] != "Marcos" {
+		t.Fatalf("library book name=%v", row["name"])
+	}
+	sheets, _ := row["sheets"].([]any)
+	if len(sheets) != 1 {
+		t.Fatalf("sheets=%#v", sheets)
+	}
+	sc, _ := sheets[0].(map[string]any)
+	if sc["name"] != "Hoja A" {
+		t.Fatalf("library sheet name=%v", sc["name"])
 	}
 }
 

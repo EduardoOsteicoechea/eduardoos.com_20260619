@@ -132,6 +132,30 @@ export async function deleteScribBook(
   return { ok: true };
 }
 
+export async function renameScribBook(
+  bookId: string,
+  name: string,
+): Promise<{ book: ScribBookCard | null; error?: string }> {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return { book: null, error: "name required" };
+  }
+  const result = await apiRequest<ScribBookCard>(SCRIB_ROUTES.book(bookId), {
+    method: "PUT",
+    body: { name: trimmed },
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) {
+    return { book: null, error: formatApiError(result.error) };
+  }
+  return {
+    book: result.data
+      ? { ...result.data, sheets: result.data.sheets ?? [] }
+      : null,
+  };
+}
+
 export async function createScribSheet(
   bookId: string,
   name: string,
@@ -181,6 +205,26 @@ export async function saveScribSheet(
     return { sheet: null, error: formatApiError(result.error) };
   }
   return { sheet: result.data ?? null };
+}
+
+/** Rename a sheet by loading it, updating `name`, and saving the full document. */
+export async function renameScribSheet(
+  bookId: string,
+  sheetId: string,
+  name: string,
+): Promise<{ sheet: ScribSheet | null; error?: string }> {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return { sheet: null, error: "name required" };
+  }
+  const loaded = await fetchScribSheet(bookId, sheetId);
+  if (loaded.error || !loaded.sheet) {
+    return { sheet: null, error: loaded.error ?? "sheet not found" };
+  }
+  if (loaded.sheet.name === trimmed) {
+    return { sheet: loaded.sheet };
+  }
+  return saveScribSheet({ ...loaded.sheet, name: trimmed });
 }
 
 export async function deleteScribSheet(

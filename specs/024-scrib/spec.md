@@ -22,7 +22,7 @@ Need a subscribed app **Scrib**: books of ruled US Letter sheets with layered SV
 | `/scrib/sheet?user=&book=&sheet=` | Editor shell (static; always loads without nginx rewrite) |
 | `/scrib/{userSafe}/{bookId}/{sheetId}` | Pretty editor URL — nginx rewrites to `/scrib/sheet/index.html`; client `replaceState` after open |
 
-**Bugfix (2026-08-20):** Navigating straight to the pretty path without an nginx rewrite (or when `try_files` fell through to `/index.html`) showed the home page. Links open the static shell first; nginx rewrite uses `rewrite … last` (homescool pattern), not a fallback to home.
+**Editable names (2026-08-26):** On the dashboard, **book name** and **sheet name** are inline-editable. Blur or Enter persists (book: `PUT /api/scrib/books/{bookId}` `{ name }`; sheet: load sheet → update `name` → `PUT` full sheet). Empty names are rejected / restored. Opening a sheet remains a separate control so editing the name does not navigate away.
 
 
 ### 4. Sheet geometry
@@ -103,6 +103,7 @@ Gateway mounts `internal/scrib` like church/homescool.
 ## Acceptance
 - [x] Catalog `scrib` + subscription UI + gate
 - [x] Dashboard books/sheets CRUD
+- [x] Dashboard: book name and sheet name are editable and persist
 - [x] Editor route with exact Letter portrait + background image fit
 - [x] Six SVG layers; one active; opacity; draw/erase/undo; zoom/pan mode
 - [x] Header tools as listed; autosave on pointer up

@@ -1,8 +1,9 @@
 /**
  * Scrib dashboard — books as containers with sheet cards + new sheet.
+ * Book and sheet names are inline-editable (blur / Enter persist).
  */
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import ServiceGate from "../ServiceGate/ServiceGate";
 import {
   createScribBook,
@@ -10,6 +11,8 @@ import {
   deleteScribBook,
   deleteScribSheet,
   fetchScribLibrary,
+  renameScribBook,
+  renameScribSheet,
   scribSheetHref,
   type ScribBookCard,
 } from "../../lib/scrib";
@@ -92,6 +95,70 @@ export default function ScribDashboard() {
     await reload();
   }
 
+  async function commitBookName(bookId: string, previous: string, nextRaw: string) {
+    const next = nextRaw.trim();
+    if (!next || next === previous || busy) {
+      if (!next) await reload();
+      return;
+    }
+    setBusy(true);
+    setBooks((prev) =>
+      prev.map((b) => (b.id === bookId ? { ...b, name: next } : b)),
+    );
+    const res = await renameScribBook(bookId, next);
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      await reload();
+      return;
+    }
+  }
+
+  async function commitSheetName(
+    bookId: string,
+    sheetId: string,
+    previous: string,
+    nextRaw: string,
+  ) {
+    const next = nextRaw.trim();
+    if (!next || next === previous || busy) {
+      if (!next) await reload();
+      return;
+    }
+    setBusy(true);
+    setBooks((prev) =>
+      prev.map((b) =>
+        b.id !== bookId
+          ? b
+          : {
+              ...b,
+              sheets: b.sheets.map((s) =>
+                s.id === sheetId ? { ...s, name: next } : s,
+              ),
+            },
+      ),
+    );
+    const res = await renameScribSheet(bookId, sheetId, next);
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      await reload();
+      return;
+    }
+  }
+
+  function onNameKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      (e.target as HTMLInputElement).blur();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      void reload();
+      (e.target as HTMLInputElement).blur();
+    }
+  }
+
   return (
     <ServiceGate serviceId="scrib" serviceLabel="Scrib" requireSubscription>
       <article className="scrib-dashboard">
@@ -100,7 +167,8 @@ export default function ScribDashboard() {
           <h1 className="scrib-dashboard__title">Scrib</h1>
           <p className="scrib-dashboard__lead">
             Libros de hojas US Letter con capas de manuscrito. Todo se guarda
-            bajo <code>scrib/</code> en la nube.
+            bajo <code>scrib/</code> en la nube. Haz clic en el nombre de un
+            libro o una hoja para editarlo.
           </p>
         </header>
 
@@ -137,7 +205,18 @@ export default function ScribDashboard() {
           {books.map((book) => (
             <section key={book.id} className="scrib-book" aria-label={book.name}>
               <div className="scrib-book__head">
-                <h2 className="scrib-book__title">{book.name}</h2>
+                <input
+                  className="scrib-book__title-input"
+                  aria-label="Nombre del libro"
+                  defaultValue={book.name}
+                  key={`${book.id}:${book.name}`}
+                  maxLength={120}
+                  disabled={busy}
+                  onBlur={(e) =>
+                    void commitBookName(book.id, book.name, e.target.value)
+                  }
+                  onKeyDown={onNameKeyDown}
+                />
                 <button
                   type="button"
                   className="btn scrib-book__delete"
@@ -150,17 +229,38 @@ export default function ScribDashboard() {
               <div className="scrib-sheets" role="list">
                 {(book.sheets ?? []).map((sheet) => (
                   <div key={sheet.id} className="scrib-sheet-card" role="listitem">
-                    <a
-                      className="scrib-sheet-card__link"
-                      href={scribSheetHref(userSafe, book.id, sheet.id)}
-                    >
-                      <span className="scrib-sheet-card__name">{sheet.name}</span>
+                    <div className="scrib-sheet-card__body">
+                      <input
+                        className="scrib-sheet-card__name-input"
+                        aria-label="Nombre de la hoja"
+                        defaultValue={sheet.name}
+                        key={`${sheet.id}:${sheet.name}`}
+                        maxLength={120}
+                        disabled={busy}
+                        onBlur={(e) =>
+                          void commitSheetName(
+                            book.id,
+                            sheet.id,
+                            sheet.name,
+                            e.target.value,
+                          )
+                        }
+                        onKeyDown={onNameKeyDown}
+                      />
                       <span className="scrib-sheet-card__meta">
                         {sheet.updatedAt
                           ? new Date(sheet.updatedAt).toLocaleString()
                           : ""}
                       </span>
-                    </a>
+                      {userSafe ? (
+                        <a
+                          className="scrib-sheet-card__open"
+                          href={scribSheetHref(userSafe, book.id, sheet.id)}
+                        >
+                          Abrir
+                        </a>
+                      ) : null}
+                    </div>
                     <button
                       type="button"
                       className="scrib-sheet-card__remove"
