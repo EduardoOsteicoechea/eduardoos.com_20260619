@@ -2,26 +2,80 @@ package latin
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
 )
 
+// Minimal ready index: 81 entries with the clean Caput map (no OCR, no repo assets).
+func readyIndexFixture() string {
+	type entry struct {
+		ID      string `json:"id"`
+		Order   int    `json:"order"`
+		Volume  int    `json:"volume"`
+		Book    string `json:"book"`
+		Section string `json:"section"`
+		Heading string `json:"heading"`
+		URL     string `json:"url"`
+	}
+	romans := []string{
+		"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
+		"XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX",
+		"XXI", "XXII", "XXIII", "XXIV", "XXV",
+	}
+	var sections []entry
+	order := 1
+	add := func(book, section, heading string) {
+		id := fmt.Sprintf("section-%04d", order)
+		sections = append(sections, entry{
+			ID: id, Order: order, Volume: 1559, Book: book, Section: section,
+			Heading: heading, URL: fmt.Sprintf("sections/%04d.json", order),
+		})
+		order++
+	}
+	add("I", "PRELIMINARY", "Praefatio ad Regem Christianissimum")
+	for i := 0; i < 18; i++ {
+		h := "CAPUT " + romans[i] + "."
+		if romans[i] == "XI" {
+			h = "CAPUT XI. — Deo tribuere visibilem formam nefas esse, ac generaliter deficere a vero Deo quicunque idola sibi erigunt."
+		}
+		add("I", romans[i], h)
+	}
+	for i := 0; i < 17; i++ {
+		add("II", romans[i], "CAPUT "+romans[i]+".")
+	}
+	for i := 0; i < 25; i++ {
+		add("III", romans[i], "CAPUT "+romans[i]+".")
+	}
+	for i := 0; i < 20; i++ {
+		add("IV", romans[i], "CAPUT "+romans[i]+".")
+	}
+	payload := map[string]any{
+		"schemaVersion": 1,
+		"sourceSha256":  expectedSourceSha256,
+		"sourceEdition": "Barth/Niesel Latin 1559 via calvin.reformation.nl",
+		"sectionCount":  len(sections),
+		"sections":      sections,
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		panic(err)
+	}
+	return string(raw)
+}
+
 func TestIndexServesReadyLatinCorpus(t *testing.T) {
-	raw := loadLocalIndexOrSkip(t)
+	raw := readyIndexFixture()
 	h := &Handler{
 		Bucket: "test-bucket",
 		Prefix: "calvin-institutes",
 		S3: &fakeS3{objects: map[string]string{
-			"calvin-institutes/index.json":         string(raw),
+			"calvin-institutes/index.json":         raw,
 			"calvin-institutes/sections/0002.json": `{"id":"section-0002","book":"I","section":"I","heading":"CAPUT I.","paragraphs":[]}`,
-			"calvin-institutes/sections/0037.json": `{"id":"section-0037","book":"III","section":"I","heading":"CAPUT I.","paragraphs":[]}`,
 		}},
 	}
 	r := chi.NewRouter()
@@ -46,21 +100,16 @@ func TestIndexServesReadyLatinCorpus(t *testing.T) {
 	if parsed.SourceSha256 != expectedSourceSha256 {
 		t.Fatalf("sha=%q", parsed.SourceSha256)
 	}
+	if !strings.Contains(strings.ToLower(parsed.SourceEdition), "barth") {
+		t.Fatalf("sourceEdition=%q", parsed.SourceEdition)
+	}
 
-	wantFirst := map[string]string{"book": "I", "section": "PRELIMINARY"}
-	if parsed.Sections[0].Book != wantFirst["book"] || parsed.Sections[0].Section != wantFirst["section"] {
+	if parsed.Sections[0].Book != "I" || parsed.Sections[0].Section != "PRELIMINARY" {
 		t.Fatalf("first=%s.%s", parsed.Sections[0].Book, parsed.Sections[0].Section)
 	}
 
-	// Spot-check Liber coverage including previously missing III.I–X and clean I.XI.
 	mustHave := []struct{ book, section string }{
-		{"I", "I"},
-		{"I", "XI"},
-		{"II", "I"},
-		{"III", "I"},
-		{"III", "X"},
-		{"III", "XI"},
-		{"IV", "I"},
+		{"I", "I"}, {"I", "XI"}, {"II", "I"}, {"III", "I"}, {"III", "X"}, {"III", "XI"}, {"IV", "I"},
 	}
 	for _, want := range mustHave {
 		if !hasBookSection(parsed.Sections, want.book, want.section) {
@@ -71,15 +120,15 @@ func TestIndexServesReadyLatinCorpus(t *testing.T) {
 	if xi == nil || !strings.Contains(xi.Heading, "visibilem formam") {
 		t.Fatalf("I.XI heading not clean: %#v", xi)
 	}
-	if strings.Contains(strings.ToLower(xi.Heading), "utfibilem") {
-		t.Fatalf("OCR garbage still in I.XI: %q", xi.Heading)
-	}
 
-	// No English Allen leakage markers in the outline.
-	body := idx.Body.String()
-	for _, bad := range []string{"CHRISTIANRELIGION", "CHAP.I.", "Allen"} {
-		if strings.Contains(body, bad) {
-			t.Fatalf("english marker %q leaked", bad)
+	books := map[string]int{}
+	for _, s := range parsed.Sections {
+		books[s.Book]++
+	}
+	wantBooks := map[string]int{"I": 19, "II": 17, "III": 25, "IV": 20}
+	for book, n := range wantBooks {
+		if books[book] != n {
+			t.Fatalf("book %s count=%d want %d", book, books[book], n)
 		}
 	}
 
@@ -121,35 +170,6 @@ func TestNormalizeSectionID(t *testing.T) {
 	}
 }
 
-func TestValidateLatinIndexLocalAssets(t *testing.T) {
-	raw := loadLocalIndexOrSkip(t)
-	var idx institutesIndex
-	if err := json.Unmarshal(raw, &idx); err != nil {
-		t.Fatal(err)
-	}
-	ok, reason := validateLatinIndex(idx)
-	if !ok {
-		t.Fatalf("not ready: %s", reason)
-	}
-	out := normalizeLatinIndex(idx)
-	if out.Sections[0].Section != "PRELIMINARY" {
-		t.Fatalf("first section=%q", out.Sections[0].Section)
-	}
-	books := map[string]int{}
-	for _, s := range out.Sections {
-		books[s.Book]++
-	}
-	wantBooks := map[string]int{"I": 19, "II": 17, "III": 25, "IV": 20}
-	for book, n := range wantBooks {
-		if books[book] != n {
-			t.Fatalf("book %s count=%d want %d", book, books[book], n)
-		}
-	}
-	if !strings.Contains(strings.ToLower(idx.SourceEdition), "barth") {
-		t.Fatalf("sourceEdition=%q", idx.SourceEdition)
-	}
-}
-
 func hasBookSection(sections []institutesIndexEntry, book, section string) bool {
 	return findBookSection(sections, book, section) != nil
 }
@@ -161,18 +181,4 @@ func findBookSection(sections []institutesIndexEntry, book, section string) *ins
 		}
 	}
 	return nil
-}
-
-func loadLocalIndexOrSkip(t *testing.T) []byte {
-	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("caller")
-	}
-	indexPath := filepath.Join(filepath.Dir(file), "..", "..", "dynamodb_output", "website_assets", "index.json")
-	raw, err := os.ReadFile(indexPath)
-	if err != nil {
-		t.Skipf("local assets missing: %v", err)
-	}
-	return raw
 }

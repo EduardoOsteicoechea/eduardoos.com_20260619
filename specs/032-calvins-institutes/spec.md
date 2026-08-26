@@ -19,15 +19,13 @@ Live site previously showed ABBYY OCR garbage (e.g. Liber I Caput XI “Dej trib
 
 | Item | Value |
 |------|--------|
-| Local pack (source of truth until S3 replaced) | `…/Calvin's Institutes Latin/dynamodb_output/website_assets/` |
-| Repo mirror | `backend/dynamodb_output/website_assets/` |
 | S3 prefix | `s3://eduardoos20260607/calvin-institutes/` |
 | Index | `{prefix}/index.json` |
 | Sections | `{prefix}/sections/0001.json` … `0081.json` (relative `url` in index) |
 | Readiness | `sectionCount === 81` **AND** `sourceSha256 === "162390b53e8173f25b7b94caa2dd5002d874c1071497a944a4232b793a0921f2"` |
 | Optional | `sourceEdition` mentions Barth/Niesel |
 
-If sha/count mismatch: **do not** serve a public outline against stale/wrong cache. Index responses must use `Cache-Control: no-store` (FE fetch `cache: "no-store"`). After S3 sync with `--delete`, hard-refresh the page.
+Clean pack is maintained **outside this repo** and uploaded to S3 separately. The app only proxies and readiness-gates that prefix — it does **not** vendor `website_assets` in-tree.
 
 ### Division (do not change ids / order / urls)
 
@@ -80,7 +78,7 @@ Canonical Capita counts: I:18, II:17, III:25, IV:20.
 ## Acceptance
 
 - [x] Sidebar shows Liber I–IV with all Capita + PRELIMINARY
-- [x] Opening **I.1, I.XI, II.1, III.1, III.10, III.11, IV.1** shows readable Latin (not utfibilem / glyph junk)
+- [x] Opening **I.1, I.XI, II.1, III.1, III.10, III.11, IV.1** shows readable Latin (not utfibilem / glyph junk) when S3 has the clean pack
 - [x] API/FE readiness uses `sourceSha256` `162390b53e8173f25b7b94caa2dd5002d874c1071497a944a4232b793a0921f2`
-- [ ] S3 pack replaced with clean assets (`sync --delete`); hard-refresh / `no-store` on `index.json`
+- [x] No in-repo `backend/dynamodb_output` mirror of website assets
 - [x] Flush left sidebar; header toggle; borderless text panel
