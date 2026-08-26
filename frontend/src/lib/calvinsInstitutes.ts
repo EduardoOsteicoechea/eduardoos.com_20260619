@@ -141,9 +141,9 @@ export function flattenSectionBody(section: InstitutesSection): {
 }
 
 /**
- * If the line starts with a decimal section number (`12. …`), put a newline
- * after that marker and after each later sentence-ending period + space.
- * Non-numbered paragraphs are returned unchanged.
+ * If the line starts with a decimal section number (`12. …`), put a blank line
+ * after that marker and after each later sentence-ending period + space
+ * (one empty line of spacing). Non-numbered paragraphs are unchanged.
  */
 export function formatNumberedParagraphBreaks(text: string): string {
   const trimmed = text.trim();
@@ -151,6 +151,6 @@ export function formatNumberedParagraphBreaks(text: string): string {
   const m = trimmed.match(/^(\d+)\.\s+([\s\S]*)$/);
   if (!m) return trimmed;
   const marker = m[1];
-  const body = m[2].replace(/\.\s+/g, ".\n").trimEnd();
-  return `${marker}.\n${body}`;
+  const body = m[2].replace(/\.\s+/g, ".\n\n").trimEnd();
+  return `${marker}.\n\n${body}`;
 }
