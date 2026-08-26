@@ -67,6 +67,7 @@ Canonical Capita counts: I:18, II:17, III:25, IV:20.
 - Sidebar grouped by Liber I–IV, sorted by `order`; PRELIMINARY under Liber I (label from heading).
 - Caput label = `heading` (already short clean titles).
 - Load section JSON on demand from index `url` / `id`; index fetch uncached.
+- Numbered body paragraphs (text starting with `N.`): insert a line break after the leading number’s period and after each subsequent sentence period (`. ` → newline) for readability. Display with `white-space: pre-wrap`.
 
 ## Non-goals
 

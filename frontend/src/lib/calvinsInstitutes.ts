@@ -119,6 +119,7 @@ export function groupSectionsByLiber(
 /**
  * Prefer paragraphs[].text (clean pack: one readable paragraph per entry).
  * Fall back to points[].text only when paragraph text is empty.
+ * Numbered paragraphs (`1. …`) get line breaks after periods for readability.
  */
 export function flattenSectionBody(section: InstitutesSection): {
   paragraphs: { key: string; lines: string[] }[];
@@ -128,13 +129,28 @@ export function flattenSectionBody(section: InstitutesSection): {
     paragraphs: paras.map((p) => {
       const text = (p.text ?? "").trim();
       if (text) {
-        return { key: `p-${p.order}`, lines: [text] };
+        return { key: `p-${p.order}`, lines: [formatNumberedParagraphBreaks(text)] };
       }
       const points = [...(p.points ?? [])]
         .sort((a, b) => a.order - b.order)
-        .map((pt) => (pt.text ?? "").trim())
+        .map((pt) => formatNumberedParagraphBreaks((pt.text ?? "").trim()))
         .filter(Boolean);
       return { key: `p-${p.order}`, lines: points };
     }),
   };
+}
+
+/**
+ * If the line starts with a decimal section number (`12. …`), put a newline
+ * after that marker and after each later sentence-ending period + space.
+ * Non-numbered paragraphs are returned unchanged.
+ */
+export function formatNumberedParagraphBreaks(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+  const m = trimmed.match(/^(\d+)\.\s+([\s\S]*)$/);
+  if (!m) return trimmed;
+  const marker = m[1];
+  const body = m[2].replace(/\.\s+/g, ".\n").trimEnd();
+  return `${marker}.\n${body}`;
 }
