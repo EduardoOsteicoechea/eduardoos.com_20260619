@@ -696,6 +696,7 @@
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
+    align-content: flex-start;
     gap: 0.6mm; /* chrome_gap — message → meta */
     /* Keep chrome inside the band so trays don't paint over cols 7–8. */
     overflow: hidden;
@@ -860,12 +861,15 @@
 
 /* Footer fixed chrome — Acción + Mensaje, then meta.
    Resting view matches PDF (no cell borders); borders only while editing.
-   Acción/Mensaje may shrink so meta rows keep their reserved mm (PDF floor). */
+   Pack to flex-start; Acción/Mensaje may shrink so meta keeps reserved mm. */
 .pamphlet-page-footer > .pamphlet-footer-action {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    flex: 0 1 auto; /* shrink before meta when the 30mm band is tight */
+    flex: 0 1 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
     box-sizing: border-box;
     border: none !important;
     padding: 0.7mm 1.4mm !important;
@@ -874,17 +878,22 @@
     overflow: hidden !important;
 }
 
-/* Mensaje = first row under the Acción divider; bottom pad −1mm vs Acción. */
+/* Mensaje = subtítulo under Acción divider; fixed −1mm vs prior 4.5mm min. */
 .pamphlet-page-footer > .pamphlet-footer-message {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    flex: 0 1 auto;
+    flex: 0 0 3.5mm; /* message_min_h */
+    height: 3.5mm;
+    min-height: 3.5mm;
+    max-height: 3.5mm;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
     box-sizing: border-box;
     border: none !important;
-    padding: 0.7mm 1.4mm 0 !important;
+    padding: 0.4mm 1.4mm 0 !important; /* message_pad_top / pad_x / pad_bottom */
     background: transparent;
-    min-height: 4.5mm;
     overflow: hidden !important;
 }
 
@@ -1040,7 +1049,7 @@
     overflow: hidden;
     box-sizing: border-box;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 1mm;
     padding: 0.7mm 1mm;
 }

@@ -121,11 +121,14 @@ func TestDrawHeaderSubtitleInStream(t *testing.T) {
 
 func TestFooterMessagePadBottomReduced(t *testing.T) {
 	d := defaultFooterLayout()
-	if d.MessagePadTop != 0.7 {
-		t.Fatalf("message_pad_top want 0.7, got %v", d.MessagePadTop)
+	if d.MessagePadTop != 0.4 {
+		t.Fatalf("message_pad_top want 0.4, got %v", d.MessagePadTop)
 	}
 	if d.MessagePadBottom != 0 {
 		t.Fatalf("message_pad_bottom want 0 (−1mm vs prior 0.7), got %v", d.MessagePadBottom)
+	}
+	if d.MessageMinH != 3.5 {
+		t.Fatalf("message_min_h want 3.5 (subtítulo −1mm), got %v", d.MessageMinH)
 	}
 	if d.MetaLabel1RowH != 3.0 {
 		t.Fatalf("meta_label1_row_h want 3.0 (WhatsApp/Teléfono −1.5mm bottom), got %v", d.MetaLabel1RowH)
@@ -146,11 +149,11 @@ func TestFooterMessagePadBottomReduced(t *testing.T) {
 		Height:           29.8,
 		PadTop:           1.2,
 		PadBottom:        0,
-		MessagePadTop:    0.7,
+		MessagePadTop:    0.4,
 		MessagePadBottom: 0,
 		MessagePadY:      0.7,
 	})
-	if got.MessagePadBottom != 0 || got.MessagePadTop != 0.7 {
+	if got.MessagePadBottom != 0 || got.MessagePadTop != 0.4 {
 		t.Fatalf("normalize message pads: top=%v bottom=%v", got.MessagePadTop, got.MessagePadBottom)
 	}
 	if got.PadBottom != 0 || got.PadTop != 1.2 {

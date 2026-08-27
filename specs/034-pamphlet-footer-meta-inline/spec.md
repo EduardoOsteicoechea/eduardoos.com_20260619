@@ -60,6 +60,12 @@ non-empty; otherwise `meta_label2_row_h` only.
 - `meta_label1_row_h` **3.5 → 3.0** (another −0.5mm).
 - Pair1 with values: **4.5mm**. Footer band height **29.8** unchanged.
 
+## Revision 2026-08-27e — Mensaje (subtítulo) −1mm + flex-start
+
+- `message_min_h` **4.5 → 3.5**; `message_pad_top` **0.7 → 0.4** so one line still fits.
+- Footer column: `justify-content: flex-start`; meta cells / Acción–Mensaje align to start.
+- Band height **29.8** unchanged (slack stays at the bottom of the frame).
+
 ## Non-goals
 
 - Changing footer band `height` (29.8), outer/inner chrome, Acción/Mensaje

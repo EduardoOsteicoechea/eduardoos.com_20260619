@@ -346,10 +346,10 @@ export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
     message_size: 2.469,
     message_lh: 1.25,
     message_pad_x: 1.4,
-    message_pad_top: 0.7,
+    message_pad_top: 0.4, // −0.3 vs prior 0.7 (with message_min_h 3.5)
     message_pad_bottom: 0, // −1mm vs prior symmetric 0.7 (clamped)
     message_pad_y: 0.7, // legacy fallback
-    message_min_h: 4.5,
+    message_min_h: 3.5, // subtítulo row −1mm vs prior 4.5
     meta_gap: 0.4,
     meta_col_gap: 2,
     meta_row_h: 5.5,
