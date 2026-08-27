@@ -3,8 +3,13 @@
  * Pretty URLs /church/{denom}/{churchId} rewrite here via nginx;
  * React reads denom/church from path or ?denom=&church=.
  */
+import { CHURCH_FEATURE_ENABLED } from "../../lib/churchFeature";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ChurchDetailPage from "../../components/Church/ChurchDetailPage";
+
+if (!CHURCH_FEATURE_ENABLED) {
+  return Astro.redirect("/");
+}
 ---
 
 <BaseLayout title="Church detail — Eduardo Osteicoechea">

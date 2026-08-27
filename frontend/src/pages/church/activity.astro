@@ -1,6 +1,11 @@
 ---
+import { CHURCH_FEATURE_ENABLED } from "../../lib/churchFeature";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ChurchActivityPage from "../../components/Church/ChurchActivityPage";
+
+if (!CHURCH_FEATURE_ENABLED) {
+  return Astro.redirect("/");
+}
 ---
 
 <BaseLayout title="Church activities — Eduardo Osteicoechea">

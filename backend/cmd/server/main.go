@@ -33,6 +33,7 @@ import (
 // memory when AWS creds are missing. Homescool teacher→student links follow
 // HOMESCOOL_BACKEND or DATABASE_BACKEND into eduardoos_catalog.
 // Church catalog/memberships follow CHURCH_BACKEND or DATABASE_BACKEND.
+// CHURCH_ENABLED=1 mounts /api/church/*; default off (temporary product hide).
 // SMTP_USER / SMTP_PASS drive OTP email delivery; empty SMTP_PASS logs codes locally.
 // DEV_RETURN_OTP=1 includes OTP in JSON for local testing only.
 func main() {
@@ -111,7 +112,15 @@ func main() {
 	paymentsHandler.Routes(r)
 	documentsHandler.Routes(r)
 	homescoolHandler.Routes(r)
-	churchHandler.Routes(r)
+	// Church product API is off by default (spec 004 temporary hide).
+	// Set CHURCH_ENABLED=1 to mount /api/church/* again.
+	churchEnabled := os.Getenv("CHURCH_ENABLED") == "1"
+	if churchEnabled {
+		churchHandler.Routes(r)
+		log.Printf("church: API mounted (CHURCH_ENABLED=1)")
+	} else {
+		log.Printf("church: API not mounted (set CHURCH_ENABLED=1 to enable)")
+	}
 	scribHandler.Routes(r)
 	ereportHandler.Routes(r)
 	adminHandler.Routes(r)

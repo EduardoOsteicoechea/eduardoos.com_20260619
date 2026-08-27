@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { APP_ROUTES } from "../../config/routes";
+import { CHURCH_FEATURE_ENABLED } from "../../lib/churchFeature";
 import {
   AUTH_SESSION_EXPIRED_EVENT,
   getAuthToken,
@@ -53,7 +54,9 @@ const PRIMARY_LINKS = [
 
 const SERVICES_LINKS = [
   { href: APP_ROUTES.homescool, label: "Homescool" },
-  { href: APP_ROUTES.church, label: "Church" },
+  ...(CHURCH_FEATURE_ENABLED
+    ? ([{ href: APP_ROUTES.church, label: "Church" }] as const)
+    : []),
   { href: APP_ROUTES.mediaPlaylist, label: "Music" },
   { href: APP_ROUTES.pamphlet, label: "Pamphlet" },
   { href: APP_ROUTES.scrib, label: "Scrib" },

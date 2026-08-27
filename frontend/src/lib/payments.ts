@@ -5,6 +5,7 @@
 import { PAYMENT_ROUTES } from "../config/routes";
 import { apiRequest, formatApiError } from "./api";
 import { getAuthToken, isPlatformAdmin, getAuthEmailFromToken } from "./auth";
+import { CHURCH_FEATURE_ENABLED } from "./churchFeature";
 import { createCorrelationId } from "./correlation";
 
 export type BillingPeriod = "monthly" | "yearly";
@@ -17,7 +18,7 @@ export type SubscriptionService = {
 };
 
 /** Billable catalog — services still offered on Subscribe. */
-export const SUBSCRIPTION_SERVICES: SubscriptionService[] = [
+const SUBSCRIPTION_SERVICES_ALL: SubscriptionService[] = [
   {
     id: "playlist",
     label: "Music",
@@ -55,6 +56,11 @@ export const SUBSCRIPTION_SERVICES: SubscriptionService[] = [
     monthlyUsd: 1,
   },
 ];
+
+/** Public subscribe catalog — church-management hidden while Church is offline. */
+export const SUBSCRIPTION_SERVICES: SubscriptionService[] = CHURCH_FEATURE_ENABLED
+  ? SUBSCRIPTION_SERVICES_ALL
+  : SUBSCRIPTION_SERVICES_ALL.filter((s) => s.id !== "church-management");
 
 export type PaymentIntentResponse = {
   intent_id: string;
