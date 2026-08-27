@@ -50,6 +50,11 @@ non-empty; otherwise `meta_label2_row_h` only.
 - Pair1 with values: **5.5mm** (was 6). Footer band height **29.8** unchanged.
 - Desktop CSS + PDF via posted `footer_layout`.
 
+## Revision 2026-08-27c — pair1 bottom pad −0.5mm more
+
+- `meta_label1_row_h` **4.0 → 3.5** (another −0.5mm).
+- Pair1 with values: **5.0mm**. Footer band height **29.8** unchanged.
+
 ## Non-goals
 
 - Changing footer band `height` (29.8), outer/inner chrome, Acción/Mensaje

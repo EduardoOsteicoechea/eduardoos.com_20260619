@@ -992,17 +992,17 @@
   Footer band height stays 29.8mm.
 */
 .pamphlet-footer-meta-row[data-meta-kind="pair1"] {
-    flex: 0 0 5.5mm; /* 4.0 + 1.5 */
-    height: 5.5mm;
-    min-height: 5.5mm;
-    max-height: 5.5mm;
+    flex: 0 0 5mm; /* 3.5 + 1.5 */
+    height: 5mm;
+    min-height: 5mm;
+    max-height: 5mm;
 }
 
 .pamphlet-footer-meta-row[data-meta-kind="pair1"][data-values-empty="1"] {
-    flex: 0 0 4mm;
-    height: 4mm;
-    min-height: 4mm;
-    max-height: 4mm;
+    flex: 0 0 3.5mm;
+    height: 3.5mm;
+    min-height: 3.5mm;
+    max-height: 3.5mm;
 }
 
 .pamphlet-footer-meta-row[data-meta-kind="pair2"] {
