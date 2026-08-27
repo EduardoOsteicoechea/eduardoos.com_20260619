@@ -498,7 +498,7 @@ func TestNormalizeFooterMigratesLegacyItems(t *testing.T) {
 	if got.Action != "Acción legacy" || got.Message != "Mensaje legacy" || got.Value1 != "wa" {
 		t.Fatalf("migrate failed: %+v", got)
 	}
-	if got.Label1 != "WhatsApp" || got.Label2 != "Teléfono" {
+	if got.Label1 != "WhatsApp:" || got.Label2 != "Teléfono:" {
 		t.Fatalf("default labels missing: %+v", got)
 	}
 }
