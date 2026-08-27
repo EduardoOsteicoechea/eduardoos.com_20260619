@@ -353,7 +353,7 @@ export const PAMPHLET_FOOTER_LAYOUT_MM: PamphletFooterLayoutMm = {
     meta_gap: 0.4,
     meta_col_gap: 2,
     meta_row_h: 5.5,
-    meta_label1_row_h: 3.5, // WhatsApp/Teléfono (−1.0mm bottom vs original 4.5)
+    meta_label1_row_h: 3.0, // WhatsApp/Teléfono (−1.5mm bottom vs original 4.5)
     meta_label2_row_h: 6.5, // Dirección/Actividades (+1mm bottom pad); height fixed
     meta_label2_pad_top: 1, // Dirección/Actividades top pad (row height unchanged)
     meta_value_row_h: 1.5,

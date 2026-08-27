@@ -127,8 +127,8 @@ func TestFooterMessagePadBottomReduced(t *testing.T) {
 	if d.MessagePadBottom != 0 {
 		t.Fatalf("message_pad_bottom want 0 (−1mm vs prior 0.7), got %v", d.MessagePadBottom)
 	}
-	if d.MetaLabel1RowH != 3.5 {
-		t.Fatalf("meta_label1_row_h want 3.5 (WhatsApp/Teléfono −1.0mm bottom), got %v", d.MetaLabel1RowH)
+	if d.MetaLabel1RowH != 3.0 {
+		t.Fatalf("meta_label1_row_h want 3.0 (WhatsApp/Teléfono −1.5mm bottom), got %v", d.MetaLabel1RowH)
 	}
 	if d.MetaLabel2RowH != 6.5 {
 		t.Fatalf("meta_label2_row_h want 6.5 (Dirección/Actividades +1mm bottom), got %v", d.MetaLabel2RowH)
