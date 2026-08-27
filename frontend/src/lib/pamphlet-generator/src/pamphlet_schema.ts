@@ -21,9 +21,10 @@ export interface PamphletHeader {
 
 /**
  * Fixed footer chrome (mirrors header): action heading, message paragraph,
- * then a 4×2 meta grid painted as:
- *   label1|label2, value1|value2, label3|label4, value3|value4
- * so captions (WhatsApp / Teléfono / …) sit on their own row above values.
+ * then a 2×2 meta grid of label+value pairs (spec 034):
+ *   row1: (label1|value1) | (label2|value2)  — inline, single line
+ *   row2: (label3|value3) | (label4|value4)  — label + wrapping value (2 lines)
+ * Band height stays 29.8mm; pair row heights reuse label + value mm tokens.
  */
 export interface PamphletFooter {
     action: string;

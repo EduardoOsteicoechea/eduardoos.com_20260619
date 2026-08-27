@@ -386,7 +386,10 @@ func TestFooterLayoutActionMessageGapAndInnerInset(t *testing.T) {
 		t.Fatalf("inner path inset=%.3f want %.3f", pathInset, want)
 	}
 	if d.Height < 29.5 || d.Height > 30.5 {
-		t.Fatalf("footer height want 30mm, got %v", d.Height)
+		t.Fatalf("footer height want 29.8mm, got %v", d.Height)
+	}
+	if d.Height != 29.8 {
+		t.Fatalf("footer height must stay 29.8mm (spec 034), got %v", d.Height)
 	}
 }
 

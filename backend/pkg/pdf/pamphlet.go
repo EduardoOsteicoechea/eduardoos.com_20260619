@@ -1042,8 +1042,8 @@ func measureWrappedHeightMm(text string, sizeMm, lh, widthMm float64) float64 {
 }
 
 // drawFooter paints fixed chrome using frontend footer_layout mm: outer frame,
-// Acción/Mensaje text, then a 4×2 meta grid. Inner input cell borders are
-// desktop edit chrome only — never stroked in the PDF print.
+// Acción/Mensaje text, then a 2×2 meta pair grid (spec 034). Inner input cell
+// borders are desktop edit chrome only — never stroked in the PDF print.
 func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayout, x, top, width float64) {
 	f = normalizeFooter(f)
 	layout = normalizeFooterLayout(layout)
@@ -1161,86 +1161,150 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	}
 	rightX := innerX + half + layout.MetaColGap
 
-	type metaRow struct {
-		left, right string
-		isLabel     bool
-	}
-	allRows := []metaRow{
-		{f.Label1, f.Label2, true},
-		{f.Value1, f.Value2, false},
-		{f.Label3, f.Label4, true},
-		{f.Value3, f.Value4, false},
-	}
 	metaPt := MmToPoints(layout.MetaSize)
 	metaSizeMm := layout.MetaSize
 	metaLH := layout.MetaLH
 	if metaLH <= 0 {
 		metaLH = 1.25
 	}
-	cellW := half - layout.MetaPadX
-	if cellW < 4 {
-		cellW = half
+	labelGap := 1.0 // mm between bold label and value (matches CSS gap)
+
+	type metaPair struct {
+		labelL, valueL, labelR, valueR string
+		labelRowH                      float64
+		padY                           float64
+		wrap                           bool // pair2: value wraps under/beside label
+	}
+	pairs := []metaPair{
+		{
+			labelL: f.Label1, valueL: f.Value1, labelR: f.Label2, valueR: f.Value2,
+			labelRowH: layout.MetaLabel1RowH, padY: layout.MetaPadY, wrap: false,
+		},
+		{
+			labelL: f.Label3, valueL: f.Value3, labelR: f.Label4, valueR: f.Value4,
+			labelRowH: layout.MetaLabel2RowH, padY: layout.MetaLabel2PadTop, wrap: true,
+		},
+	}
+	if pairs[1].padY <= 0 {
+		pairs[1].padY = layout.MetaPadY
 	}
 
-	drawn := 0
-	labelRowsDrawn := 0
 	metaSectionTop := cursorTop
-	metaSectionBottom := cursorTop
-	for _, row := range allRows {
-		if !row.isLabel {
-			if strings.TrimSpace(row.left) == "" && strings.TrimSpace(row.right) == "" {
-				continue // hide empty value rows (spec 008)
-			}
-		}
-		rowH := layout.MetaRowH
-		padY := layout.MetaPadY
-		if !row.isLabel {
-			rowH = layout.MetaValueRowH
-			padY = layout.MetaValuePadY
-		} else if labelRowsDrawn == 0 && layout.MetaLabel1RowH > 0 {
-			// WhatsApp/Teléfono — 1mm less bottom than other label rows.
-			rowH = layout.MetaLabel1RowH
-		} else if labelRowsDrawn == 1 && layout.MetaLabel2RowH > 0 {
-			// Dirección/Actividades — same row height; +0.5mm top pad inside the cell.
-			rowH = layout.MetaLabel2RowH
-			if layout.MetaLabel2PadTop > 0 {
-				padY = layout.MetaLabel2PadTop
-			}
+	drawnH := 0.0
+	for i, pair := range pairs {
+		valuesEmpty := strings.TrimSpace(pair.valueL) == "" && strings.TrimSpace(pair.valueR) == ""
+		rowH := pair.labelRowH
+		if !valuesEmpty {
+			rowH += layout.MetaValueRowH
 		}
 		if cursorTop-rowH < floor-0.01 {
 			break
 		}
-		if drawn > 0 {
+		if i > 0 {
 			cursorTop -= layout.MetaGap
+			drawnH += layout.MetaGap
 		}
 
-		metaY := cursorTop - padY - cssBaselineOffsetMm(metaSizeMm, metaLH)
-		font := "F1"
-		if row.isLabel {
-			font = "F2"
+		drawMetaPairCell := func(cellX float64, label, value string) {
+			textW := half - layout.MetaPadX
+			if textW < 4 {
+				textW = half
+			}
+			x0 := cellX + layout.MetaPadX*0.5
+			textTop := cursorTop - pair.padY
+			baseline := textTop - cssBaselineOffsetMm(metaSizeMm, metaLH)
+			floorCell := cursorTop - rowH + layout.MetaValuePadY
+			if floorCell < floor {
+				floorCell = floor
+			}
+
+			label = strings.TrimSpace(label)
+			value = strings.TrimSpace(value)
+			labelW := 0.0
+			if label != "" {
+				labelW = stringWidthPt(toWinAnsi(label), metaPt, true) * 25.4 / 72.0
+				if labelW > textW*0.45 {
+					labelW = textW * 0.45
+				}
+				writeGrayText(s, "F2", metaPt, x0, baseline, labelW+0.5, label)
+			}
+			if value == "" {
+				return
+			}
+			valueX := x0
+			valueW := textW
+			if labelW > 0 {
+				valueX = x0 + labelW + labelGap
+				valueW = textW - labelW - labelGap
+				if valueW < 4 {
+					valueW = 4
+					valueX = x0 + textW - valueW
+				}
+			}
+			if pair.wrap {
+				writeGrayWrapped(s, "F1", metaPt, metaLH, valueX, baseline, valueW, value, floorCell)
+			} else {
+				writeGrayText(s, "F1", metaPt, valueX, baseline, valueW, value)
+			}
 		}
-		if strings.TrimSpace(row.left) != "" {
-			writeGrayText(s, font, metaPt, innerX+layout.MetaPadX*0.5, metaY, cellW, row.left)
-		}
-		if strings.TrimSpace(row.right) != "" {
-			writeGrayText(s, font, metaPt, rightX+layout.MetaPadX*0.5, metaY, cellW, row.right)
-		}
+
+		drawMetaPairCell(innerX, pair.labelL, pair.valueL)
+		drawMetaPairCell(rightX, pair.labelR, pair.valueR)
 		cursorTop -= rowH
-		metaSectionBottom = cursorTop
-		drawn++
-		if row.isLabel {
-			labelRowsDrawn++
+		drawnH += rowH
+	}
+	if drawnH > 0 {
+		// Top + vertical cross; mid horizontal at end of pair1 (+ half gap).
+		pair1H := pairs[0].labelRowH
+		if strings.TrimSpace(pairs[0].valueL) != "" || strings.TrimSpace(pairs[0].valueR) != "" {
+			pair1H += layout.MetaValueRowH
 		}
+		midFromTop := pair1H + layout.MetaGap/2
+		strokeGrayMetaCrossAtMm(s, innerX, metaSectionTop, innerW, drawnH, midFromTop, true)
 	}
-	if drawn > 0 && metaSectionTop > metaSectionBottom {
-		// Top double rule + cross (matches footer orange sketch).
-		strokeGrayMetaCrossMm(s, innerX, metaSectionTop, innerW, metaSectionTop-metaSectionBottom, true)
+}
+
+// writeGrayWrapped paints up to two gray lines (footer meta pair2 values).
+func writeGrayWrapped(s *strings.Builder, font string, sizePt, lineHeight, xMm, yMm, widthMm float64, text string, floorMm float64) {
+	text = strings.TrimSpace(toWinAnsi(text))
+	if text == "" || widthMm <= 0 {
+		return
 	}
+	if lineHeight < 1.0 {
+		lineHeight = 1.25
+	}
+	lines := wrapWordsToWidth(text, sizePt, MmToPoints(widthMm), font == "F2")
+	if len(lines) == 0 {
+		return
+	}
+	if len(lines) > 2 {
+		lines = lines[:2]
+	}
+	lineH := sizePt * lineHeight * 25.4 / 72.0
+	sizeMm := sizePt * 25.4 / 72.0
+	offset := cssBaselineOffsetMm(sizeMm, lineHeight)
+	y := yMm
+	s.WriteString("0.4 0.4 0.4 rg\n")
+	for _, line := range lines {
+		lineBoxTop := y + offset
+		if lineBoxTop < floorMm-lineH {
+			break
+		}
+		s.WriteString(fmt.Sprintf("BT /%s %.2f Tf %.2f %.2f Td (%s) Tj ET\n",
+			font, sizePt, MmToPoints(xMm), MmToPoints(y), escape(line)))
+		y -= lineH
+	}
+	s.WriteString("0 0 0 rg\n")
 }
 
 // strokeGrayMetaCrossMm paints single gray hairlines: optional top, mid horizontal, center vertical.
 // Matches CSS meta ::before/::after overlays — does not affect layout math.
 func strokeGrayMetaCrossMm(s *strings.Builder, x, top, width, height float64, includeTop bool) {
+	strokeGrayMetaCrossAtMm(s, x, top, width, height, height/2, includeTop)
+}
+
+// strokeGrayMetaCrossAtMm is like strokeGrayMetaCrossMm but places the mid rule at midFromTop mm below top.
+func strokeGrayMetaCrossAtMm(s *strings.Builder, x, top, width, height, midFromTop float64, includeTop bool) {
 	if width <= 0 || height <= 0 {
 		return
 	}
@@ -1248,7 +1312,10 @@ func strokeGrayMetaCrossMm(s *strings.Builder, x, top, width, height float64, in
 	if includeTop {
 		strokeHorizontalRuleGrayMm(s, x, top, width, stroke)
 	}
-	midY := top - height/2
+	midY := top - midFromTop
+	if midFromTop <= 0 || midFromTop >= height {
+		midY = top - height/2
+	}
 	strokeHorizontalRuleGrayMm(s, x, midY, width, stroke)
 	cx := x + width/2
 	strokeVerticalRuleGrayMm(s, cx, top, height, stroke)

@@ -60,17 +60,34 @@ const HEADER_META_FIELDS: { field: HeaderFieldKey; label: string }[] = [
 ];
 
 /**
- * Footer meta as 4 rows × 2 cells (not label|value side-by-side):
- *   f1: label1 | label2
- *   f2: value1 | value2
- *   f3: label3 | label4
- *   f4: value3 | value4
+ * Footer meta as 2 pair-rows × 2 columns (spec 034):
+ *   pair1 inline: (label1|value1) | (label2|value2)
+ *   pair2 wrap:   (label3|value3) | (label4|value4)
  */
-const FOOTER_META_ROWS: [FooterFieldKey, FooterFieldKey][] = [
-    ["label1", "label2"],
-    ["value1", "value2"],
-    ["label3", "label4"],
-    ["value3", "value4"],
+const FOOTER_META_PAIRS: {
+    kind: "pair1" | "pair2";
+    layout: "inline" | "wrap";
+    leftLabel: FooterFieldKey;
+    leftValue: FooterFieldKey;
+    rightLabel: FooterFieldKey;
+    rightValue: FooterFieldKey;
+}[] = [
+    {
+        kind: "pair1",
+        layout: "inline",
+        leftLabel: "label1",
+        leftValue: "value1",
+        rightLabel: "label2",
+        rightValue: "value2",
+    },
+    {
+        kind: "pair2",
+        layout: "wrap",
+        leftLabel: "label3",
+        leftValue: "value3",
+        rightLabel: "label4",
+        rightValue: "value4",
+    },
 ];
 
 export function parseStyleIndexes(raw: string | null): StyleIndexes {
@@ -234,6 +251,21 @@ function createFooterFieldElement(
     return container;
 }
 
+/** One meta column: bold label + value (inline single-line or wrap two-line). */
+function createFooterMetaCell(
+    labelField: FooterFieldKey,
+    valueField: FooterFieldKey,
+    labelText: string,
+    valueText: string,
+    layout: "inline" | "wrap",
+): HTMLElement {
+    const cell = document.createElement("div");
+    cell.className = `pamphlet-footer-meta-cell pamphlet-footer-meta-cell--${layout}`;
+    cell.appendChild(createFooterFieldElement(labelField, labelText, "p"));
+    cell.appendChild(createFooterFieldElement(valueField, valueText, "p"));
+    return cell;
+}
+
 function createLabeledHeaderMetaField(
     field: HeaderFieldKey,
     label: string,
@@ -312,18 +344,31 @@ export function renderPageChrome(main: HTMLElement, data: PamphletStructure): vo
 
     const footerMeta = document.createElement("div");
     footerMeta.className = "pamphlet-footer-meta-bar";
-    for (const [leftField, rightField] of FOOTER_META_ROWS) {
+    for (const pair of FOOTER_META_PAIRS) {
         const row = document.createElement("div");
         row.className = "pamphlet-footer-meta-row";
-        const isValues = leftField.startsWith("value");
-        row.dataset.metaKind = isValues ? "values" : "labels";
-        row.appendChild(createFooterFieldElement(leftField, footer[leftField] ?? "", "p"));
-        row.appendChild(createFooterFieldElement(rightField, footer[rightField] ?? "", "p"));
-        if (isValues) {
-            const leftEmpty = !(footer[leftField] ?? "").trim();
-            const rightEmpty = !(footer[rightField] ?? "").trim();
-            if (leftEmpty && rightEmpty) row.dataset.empty = "1";
-        }
+        row.dataset.metaKind = pair.kind;
+        row.appendChild(
+            createFooterMetaCell(
+                pair.leftLabel,
+                pair.leftValue,
+                footer[pair.leftLabel] ?? "",
+                footer[pair.leftValue] ?? "",
+                pair.layout,
+            ),
+        );
+        row.appendChild(
+            createFooterMetaCell(
+                pair.rightLabel,
+                pair.rightValue,
+                footer[pair.rightLabel] ?? "",
+                footer[pair.rightValue] ?? "",
+                pair.layout,
+            ),
+        );
+        const leftEmpty = !(footer[pair.leftValue] ?? "").trim();
+        const rightEmpty = !(footer[pair.rightValue] ?? "").trim();
+        if (leftEmpty && rightEmpty) row.dataset.valuesEmpty = "1";
         footerMeta.appendChild(row);
     }
     footerEl.appendChild(footerMeta);
@@ -455,23 +500,25 @@ export function serializeFooterFromDom(main: HTMLElement): PamphletFooter {
     return footer;
 }
 
-/** Hide empty value rows (WhatsApp/Teléfono values, Dirección/Actividades values). */
+/**
+ * When both values in a pair-row are empty, mark valuesEmpty so CSS uses the
+ * label-only row height (drops the +1.5mm value slice) without changing band height.
+ */
 export function syncFooterMetaEmptyFlags(root: HTMLElement, footer?: PamphletFooter): void {
     const data = footer ?? serializeFooterFieldsOnly(root);
-    const pairs: [FooterFieldKey, FooterFieldKey][] = [
-        ["value1", "value2"],
-        ["value3", "value4"],
+    const pairs: { kind: string; left: FooterFieldKey; right: FooterFieldKey }[] = [
+        { kind: "pair1", left: "value1", right: "value2" },
+        { kind: "pair2", left: "value3", right: "value4" },
     ];
-    const rows = root.querySelectorAll<HTMLElement>(
-        ".pamphlet-footer-meta-row[data-meta-kind='values']",
-    );
-    rows.forEach((row, i) => {
-        const pair = pairs[i];
-        if (!pair) return;
-        const empty = !data[pair[0]].trim() && !data[pair[1]].trim();
-        if (empty) row.dataset.empty = "1";
-        else delete row.dataset.empty;
-    });
+    for (const pair of pairs) {
+        const row = root.querySelector<HTMLElement>(
+            `.pamphlet-footer-meta-row[data-meta-kind='${pair.kind}']`,
+        );
+        if (!row) continue;
+        const empty = !data[pair.left].trim() && !data[pair.right].trim();
+        if (empty) row.dataset.valuesEmpty = "1";
+        else delete row.dataset.valuesEmpty;
+    }
 }
 
 function serializeFooterFieldsOnly(root: HTMLElement): PamphletFooter {
