@@ -205,6 +205,22 @@ export async function recycleEpam(epamId: string): Promise<void> {
   if (result.error) throw new Error(formatApiError(result.error));
 }
 
+/** Duplicate a cloud pamphlet; server assigns title suffix _n and a new id. */
+export async function copyEpam(epamId: string): Promise<EpamDocumentResponse> {
+  const id = epamId.trim();
+  if (!id) throw new Error("epamId required");
+  const result = await apiRequest<EpamDocumentResponse>(EPAM_ROUTES.copy(id), {
+    method: "POST",
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) throw new Error(formatApiError(result.error));
+  if (!result.data?.document || !result.data?.meta) {
+    throw new Error("Empty epam copy response");
+  }
+  return result.data;
+}
+
 /** Thin shell helpers (kept for any residual React EPAM UI). */
 export async function listEpams(): Promise<EpamDoc[]> {
   const { epams } = await fetchEpams();

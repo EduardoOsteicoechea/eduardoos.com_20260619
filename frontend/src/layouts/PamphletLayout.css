@@ -155,8 +155,10 @@ body.page-pamphlet .item-type-options button:hover {
   font-weight: 600;
 }
 
-body.page-pamphlet .create-modal.series-modal {
-  width: min(480px, calc(100vw - 32px));
+body.page-pamphlet .create-modal.series-modal,
+body.page-pamphlet .create-modal.footer-modal,
+body.page-pamphlet .create-modal.open-cloud-modal {
+  width: min(520px, calc(100vw - 32px));
 }
 
 body.page-pamphlet .create-modal {

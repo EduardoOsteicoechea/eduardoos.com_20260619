@@ -108,6 +108,16 @@ export type PamphletStructure = {
     header: PamphletHeader;
     footer: PamphletFooter;
     /**
+     * Optional reusable footer profile this pamphlet was applied from.
+     * Combined with footer_bind.
+     */
+    footer_profile_id?: string;
+    /**
+     * "linked" — GET overlays the current master profile.
+     * "snapshot" — frozen copy; master edits do not apply.
+     */
+    footer_bind?: "linked" | "snapshot";
+    /**
      * Header type/spacing sizes in mm — source of truth for PDF parity.
      * Sent on print; not required in saved .epam files.
      */
@@ -426,7 +436,7 @@ export function writeImageTransformToStyles(
 }
 
 const ROOT_REQUIRED_KEYS = ["type", "header", "footer", "last_edited_element", ...COLUMN_KEYS] as const;
-const ROOT_OPTIONAL_KEYS = ["id", "ownerUserId"] as const;
+const ROOT_OPTIONAL_KEYS = ["id", "ownerUserId", "footer_profile_id", "footer_bind"] as const;
 const HEADER_KEYS = [
     "title",
     "subtitle",
@@ -650,6 +660,16 @@ export function assertPamphletStructure(data: unknown): asserts data is Pamphlet
     }
     if (root.ownerUserId !== undefined && typeof root.ownerUserId !== "string") {
         throw new Error("Root.ownerUserId must be a string when present");
+    }
+    if (root.footer_profile_id !== undefined && typeof root.footer_profile_id !== "string") {
+        throw new Error("Root.footer_profile_id must be a string when present");
+    }
+    if (
+        root.footer_bind !== undefined &&
+        root.footer_bind !== "linked" &&
+        root.footer_bind !== "snapshot"
+    ) {
+        throw new Error('Root.footer_bind must be "linked" or "snapshot" when present');
     }
 
     if (typeof root.header !== "object" || root.header === null || Array.isArray(root.header)) {

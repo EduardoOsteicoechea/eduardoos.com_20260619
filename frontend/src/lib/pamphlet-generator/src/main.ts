@@ -37,7 +37,16 @@ import {
     savePamphlet,
     setOpenFileName,
 } from "./pamphlet_file";
-import { fetchEpam, fetchEpams, fetchEpamSeriesTree, recycleEpam, saveEpamToCloud } from "../../epams";
+import { copyEpam, fetchEpam, fetchEpams, fetchEpamSeriesTree, recycleEpam, saveEpamToCloud } from "../../epams";
+import type { EpamSeriesTreeItem, EpamSeriesTreeResponse } from "../../epams";
+import {
+    createFooterProfile,
+    deleteFooterProfile,
+    fetchFooterProfiles,
+    footerFromForm,
+    updateFooterProfile,
+    type FooterProfile,
+} from "../../pamphletFooters";
 import { getAuthToken, isAuthenticated } from "../../auth";
 import { DOCUMENT_ROUTES } from "../../../config/routes";
 import { createCorrelationId } from "../../telemetry";
@@ -65,6 +74,7 @@ import {
     PAMPHLET_HEADER_LAYOUT_MM,
     createParagraphItem,
     createEmptyPamphlet,
+    emptyFooter,
     LEAD_IMAGE_GAP_MM,
     LEAD_IMAGE_HEIGHT_MM,
     ensureStructuredLeadImages,
@@ -138,6 +148,22 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const seriesTreeEl = requireElement<HTMLElement>("#series-tree");
     const seriesTreeHint = requireElement<HTMLElement>("#series-tree-hint");
     const seriesModalCancelBtn = requireElement<HTMLButtonElement>("#series-modal-cancel");
+    const footerBtn = requireElement<HTMLButtonElement>("#btn-footer");
+    const footerModal = requireElement<HTMLDialogElement>("#footer-modal");
+    const footerModalHint = requireElement<HTMLElement>("#footer-modal-hint");
+    const footerProfileList = requireElement<HTMLElement>("#footer-profile-list");
+    const footerProfileForm = requireElement<HTMLFormElement>("#footer-profile-form");
+    const footerFormId = requireElement<HTMLInputElement>("#footer-form-id");
+    const footerFormName = requireElement<HTMLInputElement>("#footer-form-name");
+    const footerFormAction = requireElement<HTMLInputElement>("#footer-form-action");
+    const footerFormMessage = requireElement<HTMLInputElement>("#footer-form-message");
+    const footerFormValue1 = requireElement<HTMLInputElement>("#footer-form-value1");
+    const footerFormValue2 = requireElement<HTMLInputElement>("#footer-form-value2");
+    const footerFormValue3 = requireElement<HTMLInputElement>("#footer-form-value3");
+    const footerFormValue4 = requireElement<HTMLInputElement>("#footer-form-value4");
+    const footerFormReset = requireElement<HTMLButtonElement>("#footer-form-reset");
+    const footerFormFromSheet = requireElement<HTMLButtonElement>("#footer-form-from-sheet");
+    const footerModalCancelBtn = requireElement<HTMLButtonElement>("#footer-modal-cancel");
     const itemTypeModal = requireElement<HTMLDialogElement>("#item-type-modal");
     const itemTypeCancelBtn = requireElement<HTMLButtonElement>("#item-type-cancel");
     const headerMenu = requireElement<HTMLElement>("#pamphlet-header-menu");
@@ -1109,6 +1135,14 @@ async function commitChromeOnly(data: PamphletStructure): Promise<void> {
 
     try {
         let next = ensureDocumentId(data);
+        if (next.footer_bind === "linked" && currentDoc?.footer_bind === "linked") {
+            const before = JSON.stringify(currentDoc.footer);
+            const after = JSON.stringify(next.footer);
+            if (before !== after) {
+                next = { ...next, footer_bind: "snapshot" };
+                setStatus("Pie desvinculado — los cambios son solo de este panfleto.", "info");
+            }
+        }
         currentDoc = next;
         currentHeader = { ...next.header };
         renderPageChrome(main, next);
@@ -1446,6 +1480,8 @@ function closeOpenSourceModal(): void {
     if (openSourceModal.open) openSourceModal.close();
 }
 
+const COPY_ICON_SVG = `<svg class="open-cloud-list__copy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 4h10v12h-2V6H8V4zm-4 4h10v12H4V8zm2 2v8h6v-8H6z" fill="currentColor"/></svg>`;
+
 function closeOpenCloudModal(): void {
     openCloudSelectMode = false;
     openCloudDeleteToggle.classList.remove("is-active");
@@ -1486,6 +1522,141 @@ function setOpenCloudSelectMode(on: boolean): void {
     syncOpenCloudDeleteConfirm();
 }
 
+function appendCloudPamphletRow(parent: HTMLElement, item: EpamSeriesTreeItem): void {
+    const row = document.createElement("div");
+    row.className = "open-cloud-list__row";
+    row.setAttribute("role", "listitem");
+
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.className = "open-cloud-list__check";
+    check.hidden = !openCloudSelectMode;
+    check.value = item.epamId;
+    check.setAttribute("aria-label", `Seleccionar ${item.title || item.fileName || item.epamId}`);
+    check.addEventListener("change", () => syncOpenCloudDeleteConfirm());
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "open-cloud-list__item open-cloud-list__card";
+    btn.disabled = openCloudSelectMode;
+    btn.setAttribute(
+        "aria-label",
+        `Abrir panfleto ${item.title || item.fileName || item.epamId}`,
+    );
+    const title = document.createElement("span");
+    title.className = "open-cloud-list__title";
+    title.textContent = item.title || item.fileName || item.epamId;
+    const meta = document.createElement("span");
+    meta.className = "open-cloud-list__meta";
+    const updated = (item.updatedAt ?? "").slice(0, 10) || "—";
+    meta.textContent = `${item.fileName || "sin-nombre.epam"} · ${updated}`;
+    const hint = document.createElement("span");
+    hint.className = "open-cloud-list__action";
+    hint.textContent = "Clic para abrir";
+    btn.append(title, meta, hint);
+    btn.addEventListener("click", () => {
+        void (async () => {
+            if (openCloudSelectMode || btn.disabled) return;
+            btn.disabled = true;
+            btn.classList.add("is-loading");
+            hint.textContent = "Abriendo…";
+            try {
+                await openCloudDocumentById(item.epamId);
+                closeOpenCloudModal();
+                setStatus(`Opened from cloud: ${item.fileName || item.title}`, "success");
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                setError(`Cloud open failed: ${message}`);
+                openApiErrorModal(message, {
+                    title: "Cloud pamphlet error",
+                    summary: "Could not open this .epam from the server.",
+                });
+                hint.textContent = "Clic para abrir";
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove("is-loading");
+            }
+        })();
+    });
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "open-cloud-list__copy";
+    copyBtn.title = "Crear copia";
+    copyBtn.setAttribute("aria-label", `Crear copia de ${item.title || item.fileName || item.epamId}`);
+    copyBtn.innerHTML = COPY_ICON_SVG;
+    copyBtn.addEventListener("click", () => {
+        void (async () => {
+            if (openCloudSelectMode) return;
+            copyBtn.disabled = true;
+            try {
+                const copied = await copyEpam(item.epamId);
+                setStatus(`Copia creada: ${copied.meta.title}`, "success");
+                await reloadOpenCloudList();
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                setError(`Copy failed: ${message}`);
+                openApiErrorModal(message, {
+                    title: "Cloud pamphlet error",
+                    summary: "Could not duplicate this .epam.",
+                });
+            } finally {
+                copyBtn.disabled = false;
+            }
+        })();
+    });
+
+    row.append(check, btn, copyBtn);
+    parent.appendChild(row);
+}
+
+function renderOpenCloudTree(tree: EpamSeriesTreeResponse): void {
+    openCloudList.replaceChildren();
+    if (tree.count === 0) {
+        openCloudHint.textContent = "No hay panfletos en la nube para esta cuenta.";
+        const empty = document.createElement("p");
+        empty.className = "open-cloud-list__empty";
+        empty.textContent = "Save a pamphlet with “Save to cloud”.";
+        openCloudList.appendChild(empty);
+        return;
+    }
+    openCloudHint.textContent = openCloudSelectMode
+        ? "Marca los panfletos a borrar, luego confirma abajo."
+        : "Selecciona un .epam asociado a tu cuenta.";
+    for (const seriesNode of tree.series) {
+        const seriesEl = document.createElement("details");
+        seriesEl.className = "open-cloud-list__series";
+        seriesEl.open = true;
+        const seriesSummary = document.createElement("summary");
+        seriesSummary.className = "open-cloud-list__series-title";
+        seriesSummary.textContent = seriesNode.name;
+        seriesEl.appendChild(seriesSummary);
+        for (const chapter of seriesNode.chapters) {
+            const chapterEl = document.createElement("details");
+            chapterEl.className = "open-cloud-list__chapter";
+            chapterEl.open = true;
+            const chapterSummary = document.createElement("summary");
+            chapterSummary.className = "open-cloud-list__chapter-title";
+            chapterSummary.textContent = `Capítulo ${chapter.name}`;
+            chapterEl.appendChild(chapterSummary);
+            const chapterList = document.createElement("div");
+            chapterList.className = "open-cloud-list__chapter-items";
+            for (const item of chapter.items) {
+                appendCloudPamphletRow(chapterList, item);
+            }
+            chapterEl.appendChild(chapterList);
+            seriesEl.appendChild(chapterEl);
+        }
+        openCloudList.appendChild(seriesEl);
+    }
+}
+
+async function reloadOpenCloudList(): Promise<void> {
+    openCloudHint.textContent = "Cargando…";
+    const tree = await fetchEpamSeriesTree();
+    renderOpenCloudTree(tree);
+}
+
 on(openSourceCloudBtn, "click", async () => {
     closeOpenSourceModal();
     clearError();
@@ -1497,79 +1668,10 @@ on(openSourceCloudBtn, "click", async () => {
     openCloudDeleteToggle.classList.remove("is-active");
     openCloudDeleteToggle.setAttribute("aria-pressed", "false");
     openCloudDeleteConfirm.hidden = true;
-    openCloudHint.textContent = "Cargando…";
     openCloudList.replaceChildren();
     openCloudModal.showModal();
     try {
-        const { epams } = await fetchEpams();
-        openCloudList.replaceChildren();
-        if (epams.length === 0) {
-            openCloudHint.textContent = "No hay panfletos en la nube para esta cuenta.";
-            const empty = document.createElement("p");
-            empty.className = "open-cloud-list__empty";
-            empty.textContent = "Save a pamphlet with “Save to cloud”.";
-            openCloudList.appendChild(empty);
-            return;
-        }
-        openCloudHint.textContent = "Selecciona un .epam asociado a tu cuenta.";
-        for (const item of epams) {
-            const row = document.createElement("div");
-            row.className = "open-cloud-list__row";
-            row.setAttribute("role", "listitem");
-
-            const check = document.createElement("input");
-            check.type = "checkbox";
-            check.className = "open-cloud-list__check";
-            check.hidden = true;
-            check.value = item.epamId;
-            check.setAttribute("aria-label", `Seleccionar ${item.title || item.fileName || item.epamId}`);
-            check.addEventListener("change", () => syncOpenCloudDeleteConfirm());
-
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "open-cloud-list__item open-cloud-list__card";
-            btn.setAttribute(
-                "aria-label",
-                `Abrir panfleto ${item.title || item.fileName || item.epamId}`,
-            );
-            const title = document.createElement("span");
-            title.className = "open-cloud-list__title";
-            title.textContent = item.title || item.fileName;
-            const meta = document.createElement("span");
-            meta.className = "open-cloud-list__meta";
-            const updated = (item.updatedAt ?? "").slice(0, 10) || "—";
-            meta.textContent = `${item.fileName || "sin-nombre.epam"} · ${item.series || "—"} ch.${item.seriesChapter || "—"} · ${updated}`;
-            const hint = document.createElement("span");
-            hint.className = "open-cloud-list__action";
-            hint.textContent = "Clic para abrir";
-            btn.append(title, meta, hint);
-            btn.addEventListener("click", () => {
-                void (async () => {
-                    if (openCloudSelectMode || btn.disabled) return;
-                    btn.disabled = true;
-                    btn.classList.add("is-loading");
-                    hint.textContent = "Abriendo…";
-                    try {
-                        await openCloudDocumentById(item.epamId);
-                        closeOpenCloudModal();
-                        setStatus(`Opened from cloud: ${item.fileName}`, "success");
-                    } catch (err) {
-                        const message = err instanceof Error ? err.message : String(err);
-                        setError(`Cloud open failed: ${message}`);
-                        openApiErrorModal(message, {
-                            title: "Cloud pamphlet error",
-                            summary: "Could not open this .epam from the server.",
-                        });
-                        hint.textContent = "Clic para abrir";
-                    } finally {
-                        btn.disabled = false;
-                        btn.classList.remove("is-loading");
-                    }
-                })();
-            });
-            row.append(check, btn);
-            openCloudList.appendChild(row);
-        }
+        await reloadOpenCloudList();
     } catch (err) {
         closeOpenCloudModal();
         const message = err instanceof Error ? err.message : String(err);
@@ -1614,8 +1716,11 @@ on(openCloudDeleteConfirm, "click", () => {
                     : `${ids.length} panfletos movidos a la papelera.`,
                 "success",
             );
-            closeOpenCloudModal();
-            openSourceCloudBtn.click();
+            openCloudSelectMode = false;
+            openCloudDeleteToggle.classList.remove("is-active");
+            openCloudDeleteToggle.setAttribute("aria-pressed", "false");
+            openCloudDeleteConfirm.hidden = true;
+            await reloadOpenCloudList();
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             setError(`Delete failed: ${message}`);
@@ -1794,6 +1899,240 @@ on(seriesForm, "submit", (event: Event) => {
             openApiErrorModal(message, {
                 title: "Series save error",
                 summary: "Could not save series metadata for this pamphlet.",
+            });
+        }
+    })();
+});
+
+function closeFooterModal(): void {
+    if (footerModal.open) footerModal.close();
+}
+
+function readFooterFormFields() {
+    return footerFromForm({
+        action: footerFormAction.value,
+        message: footerFormMessage.value,
+        value1: footerFormValue1.value,
+        value2: footerFormValue2.value,
+        value3: footerFormValue3.value,
+        value4: footerFormValue4.value,
+    });
+}
+
+function fillFooterForm(profile: FooterProfile | null): void {
+    footerFormId.value = profile?.footerId ?? "";
+    footerFormName.value = profile?.name ?? "";
+    const f = profile?.footer ?? emptyFooter();
+    footerFormAction.value = f.action;
+    footerFormMessage.value = f.message;
+    footerFormValue1.value = f.value1;
+    footerFormValue2.value = f.value2;
+    footerFormValue3.value = f.value3;
+    footerFormValue4.value = f.value4;
+}
+
+async function applyFooterProfile(profile: FooterProfile, bind: "snapshot" | "linked"): Promise<void> {
+    if (!currentDoc) {
+        setError("Abre un panfleto para aplicar este pie.");
+        return;
+    }
+    const live = serializePamphlet(main, currentDoc.last_edited_element, currentDoc);
+    const next: PamphletStructure = {
+        ...live,
+        footer: { ...profile.footer },
+        footer_profile_id: profile.footerId,
+        footer_bind: bind,
+    };
+    currentDoc = next;
+    renderPageChrome(main, next);
+    try {
+        if (hasOpenFile()) {
+            await savePamphlet(next);
+        } else if (getAuthToken() && isAuthenticated() && cloudEpamId) {
+            const saved = await persistCloud(next);
+            currentDoc = {
+                ...saved,
+                footer: next.footer,
+                footer_profile_id: next.footer_profile_id,
+                footer_bind: next.footer_bind,
+            };
+            renderPageChrome(main, currentDoc);
+        }
+        setStatus(
+            bind === "linked"
+                ? `Pie vinculado: ${profile.name}`
+                : `Pie copiado: ${profile.name}`,
+            "success",
+        );
+        await refreshFooterProfiles();
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(`Footer apply failed: ${message}`);
+        openApiErrorModal(message, {
+            title: "Pie de página",
+            summary: "No se pudo aplicar el pie al panfleto.",
+        });
+    }
+}
+
+async function refreshFooterProfiles(): Promise<void> {
+    footerProfileList.replaceChildren();
+    if (!getAuthToken() || !isAuthenticated()) {
+        footerModalHint.textContent = "Inicia sesión para guardar pies reutilizables.";
+        return;
+    }
+    footerModalHint.textContent = currentDoc
+        ? "Copia deja un snapshot. Vincular actualiza este panfleto cuando edites el maestro."
+        : "Crea pies reutilizables (la info). Abre un panfleto para copiarlos o vincularlos.";
+    try {
+        const { footers } = await fetchFooterProfiles();
+        if (footers.length === 0) {
+            const empty = document.createElement("p");
+            empty.className = "footer-profile-list__empty";
+            empty.textContent = "Aún no hay pies guardados.";
+            footerProfileList.appendChild(empty);
+            return;
+        }
+        for (const profile of footers) {
+            const card = document.createElement("article");
+            card.className = "footer-profile-card";
+            card.setAttribute("role", "listitem");
+            if (currentDoc?.footer_profile_id === profile.footerId) {
+                card.classList.add("is-current");
+            }
+            const heading = document.createElement("h3");
+            heading.className = "footer-profile-card__name";
+            heading.textContent = profile.name;
+            const meta = document.createElement("p");
+            meta.className = "footer-profile-card__meta";
+            const bindLabel =
+                currentDoc?.footer_profile_id === profile.footerId
+                    ? currentDoc.footer_bind === "linked"
+                        ? "vinculado"
+                        : "copiado en este panfleto"
+                    : "";
+            meta.textContent = [profile.footer.action, profile.footer.value1, bindLabel]
+                .filter(Boolean)
+                .join(" · ");
+            const actions = document.createElement("div");
+            actions.className = "footer-profile-card__actions";
+
+            const editBtn = document.createElement("button");
+            editBtn.type = "button";
+            editBtn.textContent = "Editar";
+            editBtn.addEventListener("click", () => fillFooterForm(profile));
+
+            const delBtn = document.createElement("button");
+            delBtn.type = "button";
+            delBtn.textContent = "Borrar";
+            delBtn.addEventListener("click", () => {
+                void (async () => {
+                    if (!window.confirm(`¿Borrar el pie “${profile.name}”?`)) return;
+                    try {
+                        await deleteFooterProfile(profile.footerId);
+                        if (footerFormId.value === profile.footerId) fillFooterForm(null);
+                        await refreshFooterProfiles();
+                    } catch (err) {
+                        const message = err instanceof Error ? err.message : String(err);
+                        setError(`Footer delete failed: ${message}`);
+                    }
+                })();
+            });
+
+            actions.append(editBtn, delBtn);
+            if (currentDoc) {
+                const snapBtn = document.createElement("button");
+                snapBtn.type = "button";
+                snapBtn.textContent = "Copiar";
+                snapBtn.title = "Snapshot: el maestro ya no cambia este panfleto";
+                snapBtn.addEventListener("click", () => {
+                    void applyFooterProfile(profile, "snapshot");
+                });
+                const linkBtn = document.createElement("button");
+                linkBtn.type = "button";
+                linkBtn.textContent = "Vincular";
+                linkBtn.title = "Si editas el maestro, este panfleto se actualiza al abrirlo";
+                linkBtn.addEventListener("click", () => {
+                    void applyFooterProfile(profile, "linked");
+                });
+                actions.append(snapBtn, linkBtn);
+            }
+            card.append(heading, meta, actions);
+            footerProfileList.appendChild(card);
+        }
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        footerModalHint.textContent = `No se pudieron cargar los pies: ${message}`;
+        openApiErrorModal(message, {
+            title: "Pie de página",
+            summary: "Could not list static footer profiles.",
+        });
+    }
+}
+
+async function openFooterModal(): Promise<void> {
+    closeActivityTray();
+    clearError();
+    fillFooterForm(null);
+    footerModal.showModal();
+    footerFormName.focus();
+    await refreshFooterProfiles();
+}
+
+on(footerBtn, "click", () => {
+    void openFooterModal();
+});
+
+on(footerModalCancelBtn, "click", () => {
+    closeFooterModal();
+});
+
+on(footerFormReset, "click", () => {
+    fillFooterForm(null);
+    footerFormName.focus();
+});
+
+on(footerFormFromSheet, "click", () => {
+    if (!currentDoc) {
+        setError("Abre un panfleto para copiar su pie al formulario.");
+        return;
+    }
+    const live = serializePamphlet(main, currentDoc.last_edited_element, currentDoc);
+    fillFooterForm({
+        userId: "",
+        footerId: footerFormId.value,
+        name: footerFormName.value.trim() || live.header.title || "Pie actual",
+        footer: live.footer,
+    });
+});
+
+on(footerProfileForm, "submit", (event: Event) => {
+    event.preventDefault();
+    void (async () => {
+        const name = footerFormName.value.trim();
+        if (!name) {
+            setError("El pie necesita un nombre.");
+            return;
+        }
+        if (!getAuthToken() || !isAuthenticated()) {
+            setError("Inicia sesión para guardar pies.");
+            return;
+        }
+        const payload = { name, footer: readFooterFormFields() };
+        try {
+            const id = footerFormId.value.trim();
+            const saved = id
+                ? await updateFooterProfile(id, payload)
+                : await createFooterProfile(payload);
+            fillFooterForm(saved);
+            setStatus(`Pie guardado: ${saved.name}`, "success");
+            await refreshFooterProfiles();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            setError(`Footer save failed: ${message}`);
+            openApiErrorModal(message, {
+                title: "Pie de página",
+                summary: "Could not save this static footer.",
             });
         }
     })();

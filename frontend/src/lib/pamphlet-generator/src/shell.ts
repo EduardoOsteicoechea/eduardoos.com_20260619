@@ -33,6 +33,12 @@ const ICONS = {
   template: iconSvg(
     `<path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 3h7v4h-7v-4z" fill="currentColor"/>`,
   ),
+  footer: iconSvg(
+    `<path d="M4 4h16v2H4V4zm0 14h16v2H4v-2zm2-8h4v2H6v-2zm6 0h6v2h-6v-2zM6 14h12v2H6v-2z" fill="currentColor"/>`,
+  ),
+  copy: iconSvg(
+    `<path d="M8 4h10v12h-2V6H8V4zm-4 4h10v12H4V8zm2 2v8h6v-8H6z" fill="currentColor"/>`,
+  ),
   expand: iconSvg(
     `<path d="M7 10l5 5 5-5H7z" fill="currentColor"/>`,
   ),
@@ -71,6 +77,9 @@ export function renderShell(_menuIconSrc?: string): string {
       <button type="button" id="btn-template" class="header-dynamic-menu__btn" title="Tipo de panfleto (simple / imágenes estructuradas)" aria-label="Tipo de panfleto" aria-pressed="false">
         ${ICONS.template}
       </button>
+      <button type="button" id="btn-footer" class="header-dynamic-menu__btn" title="Pie de página estático" aria-label="Pie de página estático">
+        ${ICONS.footer}
+      </button>
       <button type="button" id="btn-activity-expand" class="header-dynamic-menu__btn header-dynamic-menu__tray-toggle" title="Show action labels" aria-label="Show action labels" aria-expanded="false" aria-controls="pamphlet-header-menu-tray">
         ${ICONS.expand}
       </button>
@@ -80,6 +89,7 @@ export function renderShell(_menuIconSrc?: string): string {
         <li>Open · New · Save · Print</li>
         <li>Desktop / Mobile view</li>
         <li>Template type (simple / structured images)</li>
+        <li>Static footer profiles (copy or link)</li>
         <li>Series (when a pamphlet is open)</li>
       </ul>
     </div>
@@ -178,6 +188,53 @@ export function renderShell(_menuIconSrc?: string): string {
       <button type="submit" id="series-modal-save">Save series</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="footer-modal" class="create-modal footer-modal">
+  <div class="create-modal-form">
+    <h2>Pie de página estático</h2>
+    <p class="create-modal-hint" id="footer-modal-hint">Crea pies reutilizables (la info). Con un panfleto abierto puedes copiarlos o vincularlos.</p>
+    <div id="footer-profile-list" class="footer-profile-list" role="list"></div>
+    <form id="footer-profile-form" class="footer-profile-form">
+      <input type="hidden" id="footer-form-id" value="" />
+      <label>
+        Nombre
+        <input id="footer-form-name" name="name" type="text" required autocomplete="off" />
+      </label>
+      <label>
+        Acción
+        <input id="footer-form-action" name="action" type="text" autocomplete="off" />
+      </label>
+      <label>
+        Mensaje
+        <input id="footer-form-message" name="message" type="text" autocomplete="off" />
+      </label>
+      <label>
+        WhatsApp
+        <input id="footer-form-value1" name="value1" type="text" autocomplete="off" />
+      </label>
+      <label>
+        Teléfono
+        <input id="footer-form-value2" name="value2" type="text" autocomplete="off" />
+      </label>
+      <label>
+        Dirección
+        <input id="footer-form-value3" name="value3" type="text" autocomplete="off" />
+      </label>
+      <label>
+        Actividades
+        <input id="footer-form-value4" name="value4" type="text" autocomplete="off" />
+      </label>
+      <div class="create-modal-actions">
+        <button type="button" id="footer-form-reset">Nuevo</button>
+        <button type="button" id="footer-form-from-sheet">Usar pie actual</button>
+        <button type="submit" id="footer-form-save">Guardar pie</button>
+      </div>
+    </form>
+    <div class="create-modal-actions">
+      <button type="button" id="footer-modal-cancel">Cerrar</button>
+    </div>
+  </div>
 </dialog>
 
 <dialog id="item-type-modal" class="create-modal item-type-modal">

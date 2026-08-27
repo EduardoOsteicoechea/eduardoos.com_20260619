@@ -75,7 +75,10 @@ export const EPAM_ROUTES = {
   list: "/api/epams",
   save: "/api/epams",
   seriesTree: "/api/epams/series-tree",
+  footers: "/api/epams/footers",
+  footer: (footerId: string) => `/api/epams/footers/${encodeURIComponent(footerId)}`,
   item: (epamId: string) => `/api/epams/${encodeURIComponent(epamId)}`,
+  copy: (epamId: string) => `/api/epams/${encodeURIComponent(epamId)}/copy`,
 } as const;
 
 /** Public pamphlet-as-article APIs (no JWT required; Bearer scopes to that user). */

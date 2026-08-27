@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { APP_ROUTES, ARTICLE_ROUTES } from "../../config/routes";
 import { fetchArticles, type ArticlesListResponse } from "../../lib/articles";
 import type { EpamRecord } from "../../lib/epams";
+import { groupEpamsBySeries } from "../../lib/seriesTree";
 import "./Articles.css";
 
 /**
@@ -31,6 +32,22 @@ function CrawlOnlyLinks({ items }: { items: EpamRecord[] }) {
   );
 }
 
+function ArticleCard({ item }: { item: EpamRecord | { epamId: string; title: string; author?: string; date?: string } }) {
+  return (
+    <a className="articles__card" href={APP_ROUTES.article(item.epamId)}>
+      <span className="articles__card-title">{item.title || "Untitled"}</span>
+      <span className="articles__card-meta">
+        {[
+          "author" in item ? item.author : undefined,
+          "date" in item ? item.date : undefined,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </span>
+    </a>
+  );
+}
+
 export default function ArticlesList() {
   const [items, setItems] = useState<EpamRecord[]>([]);
   const [error, setError] = useState("");
@@ -53,12 +70,15 @@ export default function ArticlesList() {
     };
   }, []);
 
+  const tree = useMemo(() => groupEpamsBySeries(items), [items]);
+
   return (
     <div className="articles">
       <header className="articles__header">
         <h1 className="articles__title">Articles</h1>
         <p className="articles__lead">
-          Pamphlets in continuous reading order.
+          Pamphlets grouped by series and chapter. Expand or collapse a heading
+          to browse.
         </p>
       </header>
       {loading && <p className="articles__status">Loading…</p>}
@@ -70,22 +90,37 @@ export default function ArticlesList() {
           account.
         </p>
       )}
-      <ul className="articles__list">
-        {items.map((item) => (
-          <li key={item.epamId}>
-            <a className="articles__card" href={APP_ROUTES.article(item.epamId)}>
-              <span className="articles__card-title">
-                {item.title || item.fileName || "Untitled"}
-              </span>
-              <span className="articles__card-meta">
-                {[item.author, item.series, item.seriesChapter, item.date]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            </a>
-          </li>
+      <div className="articles__tree">
+        {tree.series.map((series) => (
+          <details key={series.name} className="articles__series" open>
+            <summary className="articles__series-title">{series.name}</summary>
+            {series.chapters.map((chapter) => (
+              <details key={chapter.name} className="articles__chapter" open>
+                <summary className="articles__chapter-title">{chapter.name}</summary>
+                <ul className="articles__list">
+                  {chapter.items.map((item) => {
+                    const full = items.find((row) => row.epamId === item.epamId);
+                    return (
+                      <li key={item.epamId}>
+                        <ArticleCard
+                          item={
+                            full ?? {
+                              epamId: item.epamId,
+                              title: item.title,
+                              author: item.author,
+                              date: item.date,
+                            }
+                          }
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </details>
+            ))}
+          </details>
         ))}
-      </ul>
+      </div>
       <CrawlOnlyLinks items={items} />
     </div>
   );

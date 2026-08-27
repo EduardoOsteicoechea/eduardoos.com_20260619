@@ -15,12 +15,12 @@ import (
 	"eduardoos.nex/internal/contact"
 	"eduardoos.nex/internal/content"
 	"eduardoos.nex/internal/documents"
+	"eduardoos.nex/internal/ereport"
 	"eduardoos.nex/internal/health"
 	"eduardoos.nex/internal/homescool"
 	"eduardoos.nex/internal/httpx"
 	"eduardoos.nex/internal/latin"
 	"eduardoos.nex/internal/payments"
-	"eduardoos.nex/internal/ereport"
 	"eduardoos.nex/internal/scrib"
 
 	"github.com/go-chi/chi/v5"
@@ -50,6 +50,7 @@ func main() {
 
 	userStore := auth.OpenUserStore(ctx)
 	epamStore := content.OpenEpamStore(ctx)
+	footerStore := content.OpenFooterStore(ctx)
 
 	authHandler := &auth.Handler{
 		Store:        userStore,
@@ -59,6 +60,7 @@ func main() {
 		DevReturnOTP: os.Getenv("DEV_RETURN_OTP") == "1",
 	}
 	contentHandler := content.NewHandler(jwtSecret, epamStore)
+	contentHandler.Footers = footerStore
 	paymentsHandler := payments.NewHandler(jwtSecret, httpx.Env("PAYPAL_HOSTED_BUTTON_ID", "PLACEHOLDER_HOSTED_BUTTON"))
 	paymentsHandler.Users = userStore
 	documentsHandler := documents.NewHandler(jwtSecret)

@@ -1,4 +1,4 @@
-﻿package content
+package content
 
 import (
 	"encoding/json"
@@ -19,6 +19,7 @@ import (
 type Handler struct {
 	JWTSecret string
 	Epams     EpamStore
+	Footers   FooterStore
 	Playlists *PlaylistStore
 	auth      *auth.Handler
 }
@@ -32,6 +33,7 @@ func NewHandler(jwtSecret string, epams EpamStore) *Handler {
 	return &Handler{
 		JWTSecret: jwtSecret,
 		Epams:     epams,
+		Footers:   NewMemoryFooterStore(),
 		Playlists: NewPlaylistStore(),
 		auth:      ah,
 	}
@@ -60,10 +62,15 @@ func (h *Handler) Routes(r chi.Router) {
 		// Admin-only soft-delete: hide from library list; keep S3 audio object.
 		r.Delete("/api/media/audio/library", h.RemoveMediaAudioLibrary)
 
-		// series-tree before {id} so "series-tree" is not captured as an epam id.
+		// Static paths (series-tree, footers) before {id} so those names are not epam ids.
 		r.Get("/api/epams/series-tree", h.ListEpamSeriesTree)
+		r.Get("/api/epams/footers", h.ListFooters)
+		r.Post("/api/epams/footers", h.CreateFooter)
+		r.Put("/api/epams/footers/{id}", h.UpdateFooter)
+		r.Delete("/api/epams/footers/{id}", h.DeleteFooter)
 		r.Get("/api/epams", h.ListEpams)
 		r.Post("/api/epams", h.CreateEpam)
+		r.Post("/api/epams/{id}/copy", h.CopyEpam)
 		r.Get("/api/epams/{id}", h.GetEpam)
 		r.Put("/api/epams/{id}", h.UpdateEpam)
 		r.Delete("/api/epams/{id}", h.DeleteEpam)
@@ -248,6 +255,7 @@ func (h *Handler) GetEpam(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, "epam body is empty — S3 object missing or not readable")
 		return
 	}
+	h.applyLinkedFooter(r, &rec, cid)
 	log.Printf("[correlation=%s] epams.get ok epamId=%s bytes=%d", cid, id, rec.ContentSizeBytes)
 	httpx.WriteJSON(w, http.StatusOK, epamDocumentResponse(rec))
 }

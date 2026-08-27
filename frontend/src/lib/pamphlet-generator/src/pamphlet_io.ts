@@ -551,7 +551,10 @@ export function countItems(data: PamphletStructure): number {
 export function serializePamphlet(
     main: HTMLElement,
     lastEdited: LastEditedElement,
-    existing?: Pick<PamphletStructure, "id" | "ownerUserId" | "type"> | null,
+    existing?: Pick<
+        PamphletStructure,
+        "id" | "ownerUserId" | "type" | "footer_profile_id" | "footer_bind"
+    > | null,
 ): PamphletStructure {
     const appType = main.closest(".pamphlet-app")?.getAttribute("data-pamphlet-type");
     const type =
@@ -575,6 +578,8 @@ export function serializePamphlet(
     };
     if (existing?.id) pamphlet.id = existing.id;
     if (existing?.ownerUserId) pamphlet.ownerUserId = existing.ownerUserId;
+    if (existing?.footer_profile_id) pamphlet.footer_profile_id = existing.footer_profile_id;
+    if (existing?.footer_bind) pamphlet.footer_bind = existing.footer_bind;
 
     for (let i = 1; i <= 8; i++) {
         const key = COLUMN_KEYS[i - 1];

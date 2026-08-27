@@ -46,6 +46,7 @@ func (h *Handler) ListArticlesHTML(w http.ResponseWriter, r *http.Request) {
 	if base == "" {
 		base = "https://eduardoos.com"
 	}
+	tree := BuildSeriesTree(records)
 	var body strings.Builder
 	body.WriteString("<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n<meta charset=\"utf-8\">\n")
 	body.WriteString("<meta name=\"robots\" content=\"index,follow\">\n")
@@ -54,32 +55,12 @@ func (h *Handler) ListArticlesHTML(w http.ResponseWriter, r *http.Request) {
 	body.WriteString(html.EscapeString(base + "/articulos"))
 	body.WriteString("\">\n</head>\n<body>\n<main>\n")
 	body.WriteString("<h1>Articles (pamphlets)</h1>\n")
-	body.WriteString("<p>Linear reading copies of cloud pamphlets. Machine formats: ")
+	body.WriteString("<p>Linear reading copies of cloud pamphlets, grouped by series and chapter. Machine formats: ")
 	body.WriteString("<a href=\"/api/articles\">JSON</a>, ")
-	body.WriteString("<a href=\"/llms.txt\">llms.txt</a>.</p>\n<ul>\n")
-	for _, rec := range records {
-		title := strings.TrimSpace(rec.Title)
-		if title == "" {
-			title = strings.TrimSpace(rec.FileName)
-		}
-		if title == "" {
-			title = rec.EpamID
-		}
-		id := url.PathEscape(rec.EpamID)
-		body.WriteString("<li><a href=\"")
-		body.WriteString(html.EscapeString(base + "/articulos/ver?id=" + rec.EpamID))
-		body.WriteString("\">")
-		body.WriteString(html.EscapeString(title))
-		body.WriteString("</a> — <a href=\"/api/articles/")
-		body.WriteString(id)
-		body.WriteString("/html\">HTML</a> · <a href=\"/api/articles/")
-		body.WriteString(id)
-		body.WriteString("/text\">text</a> · <a href=\"/api/articles/")
-		body.WriteString(id)
-		body.WriteString("\">JSON</a></li>\n")
-	}
-	body.WriteString("</ul>\n</main>\n</body>\n</html>\n")
-	log.Printf("[correlation=%s] articles.list_html ok owner=%s count=%d", cid, owner, len(records))
+	body.WriteString("<a href=\"/llms.txt\">llms.txt</a>.</p>\n")
+	writeArticlesSeriesHTML(&body, tree, base)
+	body.WriteString("</main>\n</body>\n</html>\n")
+	log.Printf("[correlation=%s] articles.list_html ok owner=%s count=%d series=%d", cid, owner, tree.Count, len(tree.Series))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Robots-Tag", "index, follow")
 	w.WriteHeader(http.StatusOK)
@@ -126,6 +107,7 @@ func (h *Handler) loadArticleRecord(r *http.Request, epamID string) (EpamRecord,
 		return EpamRecord{}, owner, err
 	}
 	if ok {
+		h.applyLinkedFooter(r, &rec, cid)
 		return rec, owner, nil
 	}
 	// Signed-in users may still open a public pamphlet by id.
@@ -136,6 +118,7 @@ func (h *Handler) loadArticleRecord(r *http.Request, epamID string) (EpamRecord,
 			return EpamRecord{}, pub, err
 		}
 		if ok {
+			h.applyLinkedFooter(r, &rec, cid)
 			return rec, pub, nil
 		}
 	}
@@ -266,4 +249,40 @@ func (h *Handler) GetArticleHTML(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Robots-Tag", "index, follow, max-snippet:-1")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(htmlDoc))
+}
+
+// writeArticlesSeriesHTML nests series → chapter → pamphlet links for crawlers.
+func writeArticlesSeriesHTML(body *strings.Builder, tree SeriesTreeResponse, base string) {
+	if tree.Count == 0 {
+		body.WriteString("<p>No public pamphlets yet.</p>\n")
+		return
+	}
+	body.WriteString("<ul>\n")
+	for _, series := range tree.Series {
+		body.WriteString("<li><strong>")
+		body.WriteString(html.EscapeString(series.Name))
+		body.WriteString("</strong>\n<ul>\n")
+		for _, ch := range series.Chapters {
+			body.WriteString("<li>")
+			body.WriteString(html.EscapeString(ch.Name))
+			body.WriteString("\n<ul>\n")
+			for _, item := range ch.Items {
+				id := url.PathEscape(item.EpamID)
+				body.WriteString("<li><a href=\"")
+				body.WriteString(html.EscapeString(base + "/articulos/ver?id=" + item.EpamID))
+				body.WriteString("\">")
+				body.WriteString(html.EscapeString(item.Title))
+				body.WriteString("</a> — <a href=\"/api/articles/")
+				body.WriteString(id)
+				body.WriteString("/html\">HTML</a> · <a href=\"/api/articles/")
+				body.WriteString(id)
+				body.WriteString("/text\">text</a> · <a href=\"/api/articles/")
+				body.WriteString(id)
+				body.WriteString("\">JSON</a></li>\n")
+			}
+			body.WriteString("</ul></li>\n")
+		}
+		body.WriteString("</ul></li>\n")
+	}
+	body.WriteString("</ul>\n")
 }

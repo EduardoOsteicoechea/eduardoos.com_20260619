@@ -97,7 +97,7 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
 - Metadata already on Dynamo `eduardoos_epams`: `series`, `seriesChapter` (plus title/author); body JSON header uses `series` / `series_chapter`.
 - Gateway: authenticated `GET /api/epams/series-tree` returns the grouped tree for the signed-in user (derived from list metadata — no new Dynamo table).
 - When a pamphlet session is open, the Header Dynamic Menu exposes a **Series** control that opens a modal to view the tree and define/update the current pamphlet’s series + chapter (persists meta + document header).
-- Articles UI may consume the same tree later; v1 wires pamphlets end-to-end.
+- Articles UI consumes the same series → chapter tree with expand/collapse (`specs/033-pamphlet-copy-series-footer`).
 
 ## Success criteria
 

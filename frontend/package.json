@@ -13,7 +13,8 @@
     "test:church": "node --test src/lib/church.test.mjs",
     "test:server-error-modal": "node --test src/components/ServerErrorModal/ServerErrorModal.test.mjs",
     "test:service-access": "node --test src/lib/serviceAccess.test.mjs",
-    "test:markdown": "node --test src/lib/markdown.test.mjs"
+    "test:markdown": "node --test src/lib/markdown.test.mjs",
+    "test:series-tree": "node --test src/lib/seriesTree.test.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^4.2.0",

@@ -66,6 +66,64 @@
   color: #c62828;
 }
 
+.articles__tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.articles__series,
+.articles__chapter {
+  border: 1px solid var(--site-border, #ccc);
+  border-radius: var(--border_radius_001, 4px);
+  background: var(--site-surface, var(--glassed_background, transparent));
+  padding: 0.15rem 0.75rem 0.75rem;
+}
+
+.articles__chapter {
+  margin: 0.55rem 0 0;
+  background: color-mix(in srgb, var(--site-body-fg) 4%, var(--site-body-bg));
+}
+
+.articles__series-title,
+.articles__chapter-title {
+  cursor: pointer;
+  list-style: none;
+  font-family: Montserrat, sans-serif;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  padding: 0.7rem 0.15rem;
+}
+
+.articles__series-title::-webkit-details-marker,
+.articles__chapter-title::-webkit-details-marker {
+  display: none;
+}
+
+.articles__series-title::before,
+.articles__chapter-title::before {
+  content: "▾ ";
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.articles__series:not([open]) > .articles__series-title::before,
+.articles__chapter:not([open]) > .articles__chapter-title::before {
+  content: "▸ ";
+}
+
+.articles__chapter-title {
+  font-family: Raleway, sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: var(--site-muted-fg, var(--site-body-fg));
+}
+
+.articles__series .articles__list {
+  margin-top: 0.35rem;
+}
+
 /* Crawl-only: in the DOM for bots, clipped so humans never see it.
    Avoid display:none — some crawlers skip those nodes. */
 .articles-crawl-only {
