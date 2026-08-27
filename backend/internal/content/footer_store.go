@@ -319,7 +319,7 @@ func footerFromItem(item map[string]types.AttributeValue) (FooterProfile, bool) 
 // so pamphlets and their static footers land on the same AWS account without a
 // second feature flag.
 //
-// Table default is eduardoos_static_pamphlet_footers (userId + footerId).
+// Table default is eduardoos_pamphlet_footer_profiles (userId + footerId).
 // Do not point FOOTERS_TABLE at legacy eduardoos_pamphlet_footers — that table
 // uses sort key pamphletId and will reject PutItem without pamphletId.
 func OpenFooterStore(ctx context.Context) FooterStore {
@@ -336,7 +336,7 @@ func OpenFooterStore(ctx context.Context) FooterStore {
 		log.Printf("pamphlet footers FOOTERS_BACKEND=dynamodb but AWS unavailable (%v); falling back to memory", err)
 		return NewMemoryFooterStore()
 	}
-	table := httpx.Env("FOOTERS_TABLE", "eduardoos_static_pamphlet_footers")
+	table := httpx.Env("FOOTERS_TABLE", "eduardoos_pamphlet_footer_profiles")
 	log.Printf("pamphlet footers store backend=dynamodb table=%s", table)
 	return &dynamoFooterStore{client: dynamodb.NewFromConfig(cfg), table: table}
 }

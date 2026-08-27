@@ -32,7 +32,7 @@ The pamphlet cloud list is a flat row of `.epam` files. Duplicating a pamphlet m
 Reusable named footers (the info): `action`, `message`, `label1`/`value1` … `label4`/`value4` (WhatsApp, Teléfono, Dirección, Actividades by default).
 
 - Authenticated CRUD: `GET/POST /api/epams/footers`, `PUT/DELETE /api/epams/footers/{id}`.
-- Storage: Dynamo `eduardoos_static_pamphlet_footers` (PK `userId`, SK `footerId`) when `EPAMS_BACKEND=dynamodb`; memory otherwise.
+- Storage: Dynamo `eduardoos_pamphlet_footer_profiles` (PK `userId`, SK `footerId`) when `EPAMS_BACKEND=dynamodb`; memory otherwise.
   - Do **not** reuse legacy `eduardoos_pamphlet_footers` (PK `userId`, SK `pamphletId` — different product shape).
 - Pamphlet route: Header Dynamic Menu **Pie estático** opens a manager (create / edit / delete) even with no pamphlet open.
 - When a pamphlet **is** open, each profile offers:

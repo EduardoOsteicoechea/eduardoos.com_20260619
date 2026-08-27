@@ -199,7 +199,7 @@ if [[ "${DEPLOY_BACKEND}" == "1" ]]; then
   bash deploy/aws/create-observability-tables.sh || echo "WARNING: could not create observability tables (check IAM)"
 
   echo "==> Ensuring DynamoDB static pamphlet footers table exists"
-  bash deploy/aws/create-pamphlet-footers-table.sh || echo "WARNING: could not create eduardoos_static_pamphlet_footers (check IAM)"
+  bash deploy/aws/create-pamphlet-footers-table.sh || echo "WARNING: could not create eduardoos_pamphlet_footer_profiles (check IAM)"
 
   echo "==> Ensuring DynamoDB edebats table exists"
   bash deploy/aws/create-edebats-table.sh || echo "WARNING: could not create eduardoos_edebats (check IAM)"
