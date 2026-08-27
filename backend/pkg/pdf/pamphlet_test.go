@@ -411,6 +411,8 @@ func TestEnsureFooterLabelColon(t *testing.T) {
 		t.Fatalf("normalize Label1 want WhatsApp:, got %q", f.Label1)
 	}
 }
+
+func TestDrawFooterShowsLabelsWhenValuesEmpty(t *testing.T) {
 	var s strings.Builder
 	drawFooter(&s, PamphletFooter{
 		Action:  "Acción",
