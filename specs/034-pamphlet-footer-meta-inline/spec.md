@@ -44,6 +44,12 @@ non-empty; otherwise `meta_label2_row_h` only.
   one pair fits, omit the mid horizontal rule.
 - Outer/inner rounded frame still uses fixed `height` 29.8mm.
 
+## Revision 2026-08-27b — pair1 bottom pad −0.5mm (print)
+
+- `meta_label1_row_h` **4.5 → 4.0** (−0.5mm bottom on WhatsApp/Teléfono row).
+- Pair1 with values: **5.5mm** (was 6). Footer band height **29.8** unchanged.
+- Desktop CSS + PDF via posted `footer_layout`.
+
 ## Non-goals
 
 - Changing footer band `height` (29.8), outer/inner chrome, Acción/Mensaje
