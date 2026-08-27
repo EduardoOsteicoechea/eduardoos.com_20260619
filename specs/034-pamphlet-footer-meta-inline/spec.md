@@ -66,6 +66,13 @@ non-empty; otherwise `meta_label2_row_h` only.
 - Footer column: `justify-content: flex-start`; meta cells / Acción–Mensaje align to start.
 - Band height **29.8** unchanged (slack stays at the bottom of the frame).
 
+## Revision 2026-08-27f — PDF meta packs under Mensaje (no mid-band gap)
+
+- PDF no longer bottom-anchors the meta block inside the band (that left empty space
+  between Mensaje and WhatsApp). Meta follows Mensaje + `chrome_gap` like desktop
+  flex-start; Acción/Mensaje still cannot grow into the reserved meta height.
+- Leftover band height (if any) sits **below** Dirección/Actividades.
+
 ## Non-goals
 
 - Changing footer band `height` (29.8), outer/inner chrome, Acción/Mensaje

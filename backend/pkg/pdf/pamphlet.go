@@ -1176,17 +1176,12 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 		cursorTop -= msgBoxH
 	}
 
-	// Meta sits on the reserved band at the footer floor (desktop flex parity).
-	metaTop := floor + metaH
-	if cursorTop-layout.ChromeGap < metaTop {
-		// Upper stack used its budget; pin meta to reserved top.
-		cursorTop = metaTop
-	} else {
-		cursorTop -= layout.ChromeGap
-		// Prefer bottom-aligned meta when slack remains above the reserve.
-		if cursorTop > metaTop {
-			cursorTop = metaTop
-		}
+	// Pack meta under Mensaje (desktop flex-start). upperFloor still caps Acción/Mensaje
+	// so they cannot invade the reserved meta height; leftover band stays below meta.
+	cursorTop -= layout.ChromeGap
+	if cursorTop-metaH < floor-0.01 {
+		// Upper stack ate the reserve — pin meta to the floor band.
+		cursorTop = floor + metaH
 	}
 
 	half := (innerW - layout.MetaColGap) / 2
