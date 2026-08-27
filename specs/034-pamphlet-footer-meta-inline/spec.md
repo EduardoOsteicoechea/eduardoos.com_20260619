@@ -28,13 +28,21 @@ hidden empty value row).
 
 Each column is a two-line cell:
 
-- **Sub-row 1:** bold label left + first part of the value right
-- **Sub-row 2:** remainder of the value (wraps beside/under the label via normal
-  flow / float-equivalent; PDF uses label width + wrapped value in the remaining
-  width)
+- **Sub-row 1:** bold label left + first part of the value right (same line)
+- **Sub-row 2:** remainder of the value **flush left** at the column’s left edge
+  (not indented under the value). Desktop: inline flow (no float). PDF: first
+  wrapped line beside the label; following lines at full cell text width from `x0`.
 
 Row height = `meta_label2_row_h` + `meta_value_row_h` when either value is
 non-empty; otherwise `meta_label2_row_h` only.
+
+## PDF parity (revision 2026-08-27)
+
+- **Reserve meta height from the footer floor** before growing Acción/Mensaje so
+  the meta pair rows (and outer bottom stroke) are never eaten by a long Acción.
+- Meta mid-rule sits between pair1 and pair2 (never through pair1 text). If only
+  one pair fits, omit the mid horizontal rule.
+- Outer/inner rounded frame still uses fixed `height` 29.8mm.
 
 ## Non-goals
 
@@ -46,11 +54,11 @@ non-empty; otherwise `meta_label2_row_h` only.
 ## Acceptance
 
 - [x] Desktop: meta is two pair rows; row 1 label|value inline per column.
-- [x] Desktop: row 2 wraps value to a second line within the column; label bold.
+- [x] Desktop: row 2 sub-row 2 is flush left (full column), not indented under value.
 - [x] Footer CSS/PDF band height remains **29.8mm**.
 - [x] Empty value pairs still collapse the +1.5mm value slice (labels-only height).
-- [x] PDF `drawFooter` matches the pair layout using posted `footer_layout` mm.
-- [x] Meta vertical + horizontal cross still divides the two pair rows / two columns.
+- [x] PDF reserves meta band; Acción cannot hide the bottom frame / pair2.
+- [x] PDF mid-rule between pairs only; pair2 wrap line 2 flush left.
 - [x] Serialize/edit trays still bind `data-footer-field` for all eight meta fields.
 
 ## Affected paths

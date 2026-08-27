@@ -418,6 +418,41 @@ func TestDrawFooterShowsLabelsWhenValuesEmpty(t *testing.T) {
 	}
 }
 
+func TestDrawFooterReservesMetaDespiteLongAction(t *testing.T) {
+	long := strings.Repeat("conocer más de la Biblia y compartir con una comunidad ", 8)
+	var s strings.Builder
+	layout := defaultFooterLayout()
+	drawFooter(&s, PamphletFooter{
+		Action:  long,
+		Message: "Puedes obtener más publicaciones como ésta.",
+		Label1:  "WhatsApp",
+		Value1:  "+58 414-9740694",
+		Label2:  "Teléfono",
+		Value2:  "0414-9740694",
+		Label3:  "Dirección",
+		Value3:  "Avenidas las Américas, Sector el campito, Colegio de Ingenieros",
+		Label4:  "Actividades",
+		Value4:  "Reunión dominical los domingos a las 10:00 am",
+	}, layout, 10, 58, PamphletColWidthMm*2+PamphletGutterNarrow)
+	out := s.String()
+	if layout.Height != 29.8 {
+		t.Fatalf("footer height must stay 29.8, got %v", layout.Height)
+	}
+	for _, want := range []string{"WhatsApp", "Direcci", "Actividades", "campito", "dominical"} {
+		stem := want
+		if len(stem) > 6 {
+			stem = stem[:6]
+		}
+		if !strings.Contains(out, stem) && !strings.Contains(out, want) {
+			t.Fatalf("long-action footer missing meta %q: %q", want, out)
+		}
+	}
+	// Outer frame still stroked (bottom segment present via rounded-rect path).
+	if !strings.Contains(out, " S\n") && !strings.Contains(out, "S\n") {
+		t.Fatalf("long-action footer missing frame stroke: %q", out)
+	}
+}
+
 func TestNormalizeFooterLayoutUsesFrontendDefaults(t *testing.T) {
 	got := normalizeFooterLayout(PamphletFooterLayout{})
 	want := defaultFooterLayout()

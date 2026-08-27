@@ -1041,6 +1041,19 @@ func measureWrappedHeightMm(text string, sizeMm, lh, widthMm float64) float64 {
 	return float64(n) * lineH
 }
 
+// footerMetaSectionHeightMm is the reserved mm for the 2 pair-rows (+ gap), matching CSS.
+func footerMetaSectionHeightMm(f PamphletFooter, layout PamphletFooterLayout) float64 {
+	pair1 := layout.MetaLabel1RowH
+	if strings.TrimSpace(f.Value1) != "" || strings.TrimSpace(f.Value2) != "" {
+		pair1 += layout.MetaValueRowH
+	}
+	pair2 := layout.MetaLabel2RowH
+	if strings.TrimSpace(f.Value3) != "" || strings.TrimSpace(f.Value4) != "" {
+		pair2 += layout.MetaValueRowH
+	}
+	return pair1 + layout.MetaGap + pair2
+}
+
 // drawFooter paints fixed chrome using frontend footer_layout mm: outer frame,
 // Acción/Mensaje text, then a 2×2 meta pair grid (spec 034). Inner input cell
 // borders are desktop edit chrome only — never stroked in the PDF print.
@@ -1085,6 +1098,14 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	floor := top - heightMm + padBottom
 	cursorTop := innerTop
 
+	// Reserve meta (+ chrome_gap) at the bottom so a long Acción cannot eat pair2
+	// or the visual bottom of the footer frame (spec 034 revision).
+	metaH := footerMetaSectionHeightMm(f, layout)
+	upperFloor := floor + metaH + layout.ChromeGap
+	if upperFloor > innerTop {
+		upperFloor = innerTop
+	}
+
 	dividerH := layout.DividerOuterStroke + layout.DividerGap + layout.DividerInnerStroke
 
 	// Acción — box height from FE layout only; no cell border in print.
@@ -1097,8 +1118,8 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	if actionBoxH < layout.ActionMinH {
 		actionBoxH = layout.ActionMinH
 	}
-	if cursorTop-actionBoxH < floor {
-		actionBoxH = cursorTop - floor
+	if cursorTop-actionBoxH < upperFloor {
+		actionBoxH = cursorTop - upperFloor
 	}
 	if actionBoxH > 0 {
 		if strings.TrimSpace(f.Action) != "" {
@@ -1112,7 +1133,7 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	}
 
 	// Double horizontal rule (same language as footer outer/inner frame).
-	if dividerH > 0 && cursorTop-dividerH > floor {
+	if dividerH > 0 && cursorTop-dividerH > upperFloor {
 		strokeHorizontalRuleMm(s, innerX, cursorTop, innerW, layout.DividerOuterStroke)
 		cursorTop -= layout.DividerOuterStroke + layout.DividerGap
 		strokeHorizontalRuleMm(s, innerX, cursorTop, innerW, layout.DividerInnerStroke)
@@ -1141,8 +1162,8 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 	if msgBoxH < layout.MessageMinH {
 		msgBoxH = layout.MessageMinH
 	}
-	if cursorTop-msgBoxH < floor {
-		msgBoxH = cursorTop - floor
+	if cursorTop-msgBoxH < upperFloor {
+		msgBoxH = cursorTop - upperFloor
 	}
 	if msgBoxH > 0 {
 		if strings.TrimSpace(f.Message) != "" {
@@ -1152,7 +1173,20 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 			writeWrapped(s, "F1", MmToPoints(layout.MessageSize), layout.MessageLH,
 				innerX+layout.MessagePadX, y, msgTextW, f.Message, textFloor)
 		}
-		cursorTop -= msgBoxH + layout.ChromeGap
+		cursorTop -= msgBoxH
+	}
+
+	// Meta sits on the reserved band at the footer floor (desktop flex parity).
+	metaTop := floor + metaH
+	if cursorTop-layout.ChromeGap < metaTop {
+		// Upper stack used its budget; pin meta to reserved top.
+		cursorTop = metaTop
+	} else {
+		cursorTop -= layout.ChromeGap
+		// Prefer bottom-aligned meta when slack remains above the reserve.
+		if cursorTop > metaTop {
+			cursorTop = metaTop
+		}
 	}
 
 	half := (innerW - layout.MetaColGap) / 2
@@ -1173,7 +1207,7 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 		labelL, valueL, labelR, valueR string
 		labelRowH                      float64
 		padY                           float64
-		wrap                           bool // pair2: value wraps under/beside label
+		wrap                           bool // pair2: value wraps; line2+ flush left
 	}
 	pairs := []metaPair{
 		{
@@ -1191,6 +1225,8 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 
 	metaSectionTop := cursorTop
 	drawnH := 0.0
+	pairsDrawn := 0
+	pair1DrawnH := 0.0
 	for i, pair := range pairs {
 		valuesEmpty := strings.TrimSpace(pair.valueL) == "" && strings.TrimSpace(pair.valueR) == ""
 		rowH := pair.labelRowH
@@ -1242,7 +1278,7 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 				}
 			}
 			if pair.wrap {
-				writeGrayWrapped(s, "F1", metaPt, metaLH, valueX, baseline, valueW, value, floorCell)
+				writeGrayWrappedFlushLeft(s, "F1", metaPt, metaLH, valueX, x0, valueW, textW, baseline, value, floorCell)
 			} else {
 				writeGrayText(s, "F1", metaPt, valueX, baseline, valueW, value)
 			}
@@ -1252,59 +1288,132 @@ func drawFooter(s *strings.Builder, f PamphletFooter, layout PamphletFooterLayou
 		drawMetaPairCell(rightX, pair.labelR, pair.valueR)
 		cursorTop -= rowH
 		drawnH += rowH
+		pairsDrawn++
+		if i == 0 {
+			pair1DrawnH = rowH
+		}
 	}
 	if drawnH > 0 {
-		// Top + vertical cross; mid horizontal at end of pair1 (+ half gap).
-		pair1H := pairs[0].labelRowH
-		if strings.TrimSpace(pairs[0].valueL) != "" || strings.TrimSpace(pairs[0].valueR) != "" {
-			pair1H += layout.MetaValueRowH
+		midFromTop := 0.0
+		drawMid := pairsDrawn >= 2
+		if drawMid {
+			midFromTop = pair1DrawnH + layout.MetaGap/2
 		}
-		midFromTop := pair1H + layout.MetaGap/2
-		strokeGrayMetaCrossAtMm(s, innerX, metaSectionTop, innerW, drawnH, midFromTop, true)
+		strokeGrayMetaCrossAtMm(s, innerX, metaSectionTop, innerW, drawnH, midFromTop, true, drawMid)
 	}
 }
 
-// writeGrayWrapped paints up to two gray lines (footer meta pair2 values).
-func writeGrayWrapped(s *strings.Builder, font string, sizePt, lineHeight, xMm, yMm, widthMm float64, text string, floorMm float64) {
+// writeGrayWrappedFlushLeft paints pair2 values: first line beside the label,
+// following lines flush at fullX with fullW (spec 034 — not indented under value).
+func writeGrayWrappedFlushLeft(
+	s *strings.Builder,
+	font string,
+	sizePt, lineHeight, firstX, fullX, firstW, fullW, yMm float64,
+	text string,
+	floorMm float64,
+) {
 	text = strings.TrimSpace(toWinAnsi(text))
-	if text == "" || widthMm <= 0 {
+	if text == "" || firstW <= 0 {
 		return
 	}
 	if lineHeight < 1.0 {
 		lineHeight = 1.25
 	}
-	lines := wrapWordsToWidth(text, sizePt, MmToPoints(widthMm), font == "F2")
-	if len(lines) == 0 {
+	if fullW < 4 {
+		fullW = firstW
+	}
+	bold := font == "F2"
+	words := strings.Fields(text)
+	if len(words) == 0 {
 		return
 	}
-	if len(lines) > 2 {
-		lines = lines[:2]
+
+	// Pack first line into firstW (beside label).
+	spaceW := glyphWidthEm(' ', bold) * sizePt
+	maxFirst := MmToPoints(firstW)
+	var first strings.Builder
+	firstWidth := 0.0
+	restStart := 0
+	for i, w := range words {
+		ww := stringWidthPt(w, sizePt, bold)
+		if first.Len() == 0 {
+			if ww > maxFirst {
+				// Single long word: hard-split for line 1, remainder continues.
+				parts := splitLongWord(w, sizePt, maxFirst, bold)
+				if len(parts) > 0 {
+					first.WriteString(parts[0])
+				}
+				if len(parts) > 1 {
+					words = append(parts[1:], words[i+1:]...)
+					restStart = 0
+				} else {
+					restStart = i + 1
+				}
+				break
+			}
+			first.WriteString(w)
+			firstWidth = ww
+			restStart = i + 1
+			continue
+		}
+		if firstWidth+spaceW+ww > maxFirst {
+			restStart = i
+			break
+		}
+		first.WriteByte(' ')
+		first.WriteString(w)
+		firstWidth += spaceW + ww
+		restStart = i + 1
 	}
+
 	lineH := sizePt * lineHeight * 25.4 / 72.0
 	sizeMm := sizePt * 25.4 / 72.0
 	offset := cssBaselineOffsetMm(sizeMm, lineHeight)
 	y := yMm
+
 	s.WriteString("0.4 0.4 0.4 rg\n")
-	for _, line := range lines {
+	if first.Len() > 0 {
 		lineBoxTop := y + offset
-		if lineBoxTop < floorMm-lineH {
-			break
+		if lineBoxTop >= floorMm-lineH {
+			s.WriteString(fmt.Sprintf("BT /%s %.2f Tf %.2f %.2f Td (%s) Tj ET\n",
+				font, sizePt, MmToPoints(firstX), MmToPoints(y), escape(first.String())))
+			y -= lineH
 		}
-		s.WriteString(fmt.Sprintf("BT /%s %.2f Tf %.2f %.2f Td (%s) Tj ET\n",
-			font, sizePt, MmToPoints(xMm), MmToPoints(y), escape(line)))
-		y -= lineH
+	}
+
+	// Remaining lines at full column width, flush left (max one more line in the band).
+	if restStart < len(words) {
+		rest := strings.Join(words[restStart:], " ")
+		lines := wrapWordsToWidth(rest, sizePt, MmToPoints(fullW), bold)
+		if len(lines) > 1 {
+			lines = lines[:1]
+		}
+		for _, line := range lines {
+			lineBoxTop := y + offset
+			if lineBoxTop < floorMm-lineH {
+				break
+			}
+			s.WriteString(fmt.Sprintf("BT /%s %.2f Tf %.2f %.2f Td (%s) Tj ET\n",
+				font, sizePt, MmToPoints(fullX), MmToPoints(y), escape(line)))
+			y -= lineH
+		}
 	}
 	s.WriteString("0 0 0 rg\n")
+}
+
+// writeGrayWrapped paints up to two gray lines at a fixed x (legacy helper).
+func writeGrayWrapped(s *strings.Builder, font string, sizePt, lineHeight, xMm, yMm, widthMm float64, text string, floorMm float64) {
+	writeGrayWrappedFlushLeft(s, font, sizePt, lineHeight, xMm, xMm, widthMm, widthMm, yMm, text, floorMm)
 }
 
 // strokeGrayMetaCrossMm paints single gray hairlines: optional top, mid horizontal, center vertical.
 // Matches CSS meta ::before/::after overlays — does not affect layout math.
 func strokeGrayMetaCrossMm(s *strings.Builder, x, top, width, height float64, includeTop bool) {
-	strokeGrayMetaCrossAtMm(s, x, top, width, height, height/2, includeTop)
+	strokeGrayMetaCrossAtMm(s, x, top, width, height, height/2, includeTop, true)
 }
 
-// strokeGrayMetaCrossAtMm is like strokeGrayMetaCrossMm but places the mid rule at midFromTop mm below top.
-func strokeGrayMetaCrossAtMm(s *strings.Builder, x, top, width, height, midFromTop float64, includeTop bool) {
+// strokeGrayMetaCrossAtMm places the mid rule at midFromTop mm below top when drawMid is true.
+func strokeGrayMetaCrossAtMm(s *strings.Builder, x, top, width, height, midFromTop float64, includeTop, drawMid bool) {
 	if width <= 0 || height <= 0 {
 		return
 	}
@@ -1312,11 +1421,9 @@ func strokeGrayMetaCrossAtMm(s *strings.Builder, x, top, width, height, midFromT
 	if includeTop {
 		strokeHorizontalRuleGrayMm(s, x, top, width, stroke)
 	}
-	midY := top - midFromTop
-	if midFromTop <= 0 || midFromTop >= height {
-		midY = top - height/2
+	if drawMid && midFromTop > 0 && midFromTop < height {
+		strokeHorizontalRuleGrayMm(s, x, top-midFromTop, width, stroke)
 	}
-	strokeHorizontalRuleGrayMm(s, x, midY, width, stroke)
 	cx := x + width/2
 	strokeVerticalRuleGrayMm(s, cx, top, height, stroke)
 }

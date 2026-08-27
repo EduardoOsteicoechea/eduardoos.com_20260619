@@ -1051,10 +1051,12 @@
 }
 
 .pamphlet-footer-meta-cell--wrap {
+    /* Inline flow: line1 = label + first words; line2+ start at column left (spec 034). */
     display: block;
     padding-top: 1mm; /* meta_label2_pad_top */
     padding-bottom: 0.2mm;
     line-height: 1.25;
+    overflow: hidden;
 }
 
 .pamphlet-footer-meta-cell > .pamphlet-item {
@@ -1082,18 +1084,19 @@
     flex: 1 1 auto;
 }
 
-/* Row 2: label floats left so line1 = label + first words; line2 = rest. */
-.pamphlet-footer-meta-cell--wrap > .pamphlet-footer-label {
-    float: left;
-    margin-right: 1mm;
-    max-width: 40%;
+/* Row 2: inline label+value so wrapped lines flush left (not float-indented). */
+.pamphlet-footer-meta-cell--wrap > .pamphlet-footer-label,
+.pamphlet-footer-meta-cell--wrap > .pamphlet-footer-value {
+    display: inline;
+    float: none;
+    max-width: none;
+    margin: 0;
+    vertical-align: baseline;
 }
 
-.pamphlet-footer-meta-cell--wrap > .pamphlet-footer-value {
-    display: block;
-    overflow: hidden;
-    /* Cap at two meta line-boxes (2.8mm × 1.25 × 2) so band height stays fixed. */
-    max-height: 7mm;
+.pamphlet-footer-meta-cell--wrap > .pamphlet-footer-label {
+    margin-right: 1mm;
+    font-weight: 600;
 }
 
 .pamphlet-footer-meta-cell > .pamphlet-item p {
@@ -1112,15 +1115,18 @@
     white-space: nowrap;
 }
 
-.pamphlet-footer-meta-cell--wrap > .pamphlet-footer-label p {
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
+.pamphlet-footer-meta-cell--wrap > .pamphlet-footer-label p,
 .pamphlet-footer-meta-cell--wrap > .pamphlet-footer-value p {
+    display: inline;
     white-space: normal;
     overflow-wrap: break-word;
     word-break: break-word;
+    text-overflow: unset;
+}
+
+.pamphlet-footer-meta-cell--wrap > .pamphlet-footer-label p {
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .pamphlet-footer-meta-cell > .pamphlet-footer-label p {
