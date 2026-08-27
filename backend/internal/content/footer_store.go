@@ -52,13 +52,13 @@ type FooterStore interface {
 
 const (
 	// DefaultFooterLabel1 is the first meta caption when the user leaves it blank.
-	DefaultFooterLabel1 = "WhatsApp"
+	DefaultFooterLabel1 = "WhatsApp:"
 	// DefaultFooterLabel2 is the second meta caption.
-	DefaultFooterLabel2 = "Teléfono"
+	DefaultFooterLabel2 = "Teléfono:"
 	// DefaultFooterLabel3 is the third meta caption.
-	DefaultFooterLabel3 = "Dirección"
+	DefaultFooterLabel3 = "Dirección:"
 	// DefaultFooterLabel4 is the fourth meta caption.
-	DefaultFooterLabel4 = "Actividades"
+	DefaultFooterLabel4 = "Actividades:"
 	// FooterBindLinked means GET overlays the current master profile into the document.
 	FooterBindLinked = "linked"
 	// FooterBindSnapshot means the pamphlet keeps a frozen copy of the footer fields.
@@ -74,18 +74,34 @@ func defaultFooterFields() FooterFields {
 	}
 }
 
+func ensureFooterLabelColon(label string) string {
+	t := strings.TrimSpace(label)
+	if t == "" || strings.HasSuffix(t, ":") {
+		return t
+	}
+	return t + ":"
+}
+
 func normalizeFooterFields(f FooterFields) FooterFields {
 	if strings.TrimSpace(f.Label1) == "" {
 		f.Label1 = DefaultFooterLabel1
+	} else {
+		f.Label1 = ensureFooterLabelColon(f.Label1)
 	}
 	if strings.TrimSpace(f.Label2) == "" {
 		f.Label2 = DefaultFooterLabel2
+	} else {
+		f.Label2 = ensureFooterLabelColon(f.Label2)
 	}
 	if strings.TrimSpace(f.Label3) == "" {
 		f.Label3 = DefaultFooterLabel3
+	} else {
+		f.Label3 = ensureFooterLabelColon(f.Label3)
 	}
 	if strings.TrimSpace(f.Label4) == "" {
 		f.Label4 = DefaultFooterLabel4
+	} else {
+		f.Label4 = ensureFooterLabelColon(f.Label4)
 	}
 	return f
 }

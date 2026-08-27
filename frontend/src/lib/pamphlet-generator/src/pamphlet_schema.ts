@@ -77,13 +77,20 @@ export const FOOTER_FIELD_KEYS = [
 
 export type FooterFieldKey = (typeof FOOTER_FIELD_KEYS)[number];
 
-/** Default captions for the four meta slots (user can rewrite each label). */
+/** Default captions for the four meta slots (trailing `:` — user can rewrite each). */
 export const FOOTER_DEFAULT_LABELS = {
-    label1: "WhatsApp",
-    label2: "Teléfono",
-    label3: "Dirección",
-    label4: "Actividades",
+    label1: "WhatsApp:",
+    label2: "Teléfono:",
+    label3: "Dirección:",
+    label4: "Actividades:",
 } as const;
+
+/** Ensure a non-empty meta label ends with `:` (legacy docs without colon). */
+export function ensureFooterLabelColon(label: string): string {
+    const t = label.trim();
+    if (!t) return t;
+    return t.endsWith(":") ? t : `${t}:`;
+}
 
 export const COLUMN_KEYS = [
     "column_1",
@@ -494,6 +501,10 @@ export function normalizeFooter(raw: unknown): PamphletFooter {
         if (!base.label2.trim()) base.label2 = FOOTER_DEFAULT_LABELS.label2;
         if (!base.label3.trim()) base.label3 = FOOTER_DEFAULT_LABELS.label3;
         if (!base.label4.trim()) base.label4 = FOOTER_DEFAULT_LABELS.label4;
+        base.label1 = ensureFooterLabelColon(base.label1);
+        base.label2 = ensureFooterLabelColon(base.label2);
+        base.label3 = ensureFooterLabelColon(base.label3);
+        base.label4 = ensureFooterLabelColon(base.label4);
         return base;
     }
 
@@ -505,6 +516,10 @@ export function normalizeFooter(raw: unknown): PamphletFooter {
         base.value2 = typeof f.phone === "string" ? f.phone : "";
         base.value3 = typeof f.address === "string" ? f.address : "";
         base.value4 = typeof f.activities === "string" ? f.activities : "";
+        base.label1 = ensureFooterLabelColon(base.label1);
+        base.label2 = ensureFooterLabelColon(base.label2);
+        base.label3 = ensureFooterLabelColon(base.label3);
+        base.label4 = ensureFooterLabelColon(base.label4);
         return base;
     }
 
@@ -517,6 +532,10 @@ export function normalizeFooter(raw: unknown): PamphletFooter {
         base.value3 = texts[4] ?? "";
         base.value4 = texts[5] ?? "";
     }
+    base.label1 = ensureFooterLabelColon(base.label1);
+    base.label2 = ensureFooterLabelColon(base.label2);
+    base.label3 = ensureFooterLabelColon(base.label3);
+    base.label4 = ensureFooterLabelColon(base.label4);
     return base;
 }
 

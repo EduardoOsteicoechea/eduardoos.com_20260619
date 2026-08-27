@@ -396,7 +396,21 @@ func TestFooterLayoutActionMessageGapAndInnerInset(t *testing.T) {
 	}
 }
 
-func TestDrawFooterShowsLabelsWhenValuesEmpty(t *testing.T) {
+func TestEnsureFooterLabelColon(t *testing.T) {
+	if got := ensureFooterLabelColon("WhatsApp"); got != "WhatsApp:" {
+		t.Fatalf("bare label: got %q", got)
+	}
+	if got := ensureFooterLabelColon("Teléfono:"); got != "Teléfono:" {
+		t.Fatalf("already colon: got %q", got)
+	}
+	if got := ensureFooterLabelColon(""); got != "" {
+		t.Fatalf("empty: got %q", got)
+	}
+	f := normalizeFooter(PamphletFooter{Label1: "WhatsApp", Value1: "1"})
+	if f.Label1 != "WhatsApp:" {
+		t.Fatalf("normalize Label1 want WhatsApp:, got %q", f.Label1)
+	}
+}
 	var s strings.Builder
 	drawFooter(&s, PamphletFooter{
 		Action:  "Acción",

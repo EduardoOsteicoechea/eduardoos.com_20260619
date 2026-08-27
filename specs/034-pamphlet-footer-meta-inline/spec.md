@@ -73,6 +73,11 @@ non-empty; otherwise `meta_label2_row_h` only.
   flex-start; Acción/Mensaje still cannot grow into the reserved meta height.
 - Leftover band height (if any) sits **below** Dirección/Actividades.
 
+## Revision 2026-08-27g — meta labels end with `:`
+
+- Default captions: `WhatsApp:`, `Teléfono:`, `Dirección:`, `Actividades:`.
+- Normalize appends a trailing `:` when a non-empty label lacks one (desktop load + PDF).
+
 ## Non-goals
 
 - Changing footer band `height` (29.8), outer/inner chrome, Acción/Mensaje

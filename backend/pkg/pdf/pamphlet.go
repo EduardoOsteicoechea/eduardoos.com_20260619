@@ -669,7 +669,7 @@ func labeledMeta(label, value string) string {
 	return label + ": " + value
 }
 
-var pamphletFooterDefaultLabels = [4]string{"WhatsApp", "Teléfono", "Dirección", "Actividades"}
+var pamphletFooterDefaultLabels = [4]string{"WhatsApp:", "Teléfono:", "Dirección:", "Actividades:"}
 
 // defaultHeaderLayout mirrors frontend PAMPHLET_HEADER_LAYOUT_MM / style.css.
 func defaultHeaderLayout() PamphletHeaderLayout {
@@ -996,9 +996,20 @@ func normalizeFooter(f PamphletFooter) PamphletFooter {
 	for i, p := range labels {
 		if strings.TrimSpace(*p) == "" {
 			*p = pamphletFooterDefaultLabels[i]
+		} else {
+			*p = ensureFooterLabelColon(*p)
 		}
 	}
 	return f
+}
+
+// ensureFooterLabelColon appends ":" when a non-empty meta caption lacks one.
+func ensureFooterLabelColon(label string) string {
+	t := strings.TrimSpace(label)
+	if t == "" || strings.HasSuffix(t, ":") {
+		return t
+	}
+	return t + ":"
 }
 
 // writeGrayText paints a single line in medium gray (UI meta color), clipped by width via wrap.
