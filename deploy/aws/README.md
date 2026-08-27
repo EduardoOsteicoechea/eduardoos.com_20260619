@@ -13,7 +13,8 @@ This stack runs on **Graviton (arm64)** EC2 instances in **us-east-1** and uses:
 | DynamoDB | `eduardoos_test_runs` | QA + build test runs (7-day TTL) |
 | DynamoDB | `eduardoos_playlists` | Worship playlists (PK `userId`, SK `playlistId`) |
 | DynamoDB | `eduardoos_epams` | Cloud .epam pamphlets metadata (PK `userId`, SK `epamId`; body in S3 `media/epams/`) |
-| DynamoDB | `eduardoos_pamphlet_footers` | Reusable static pamphlet footer profiles (PK `userId`, SK `footerId`) |
+| DynamoDB | `eduardoos_pamphlet_footers` | Legacy pamphlet footer rows (PK `userId`, SK `pamphletId`) — not used by static profiles |
+| DynamoDB | `eduardoos_static_pamphlet_footers` | Reusable static pamphlet footer profiles (PK `userId`, SK `footerId`) |
 | DynamoDB | `eduardoos_edebats` | Cloud .edebat debate metadata (PK `userId`, SK `debateId`; body in S3 `media/edebats/`) |
 | DynamoDB | `eduardoos_payments` | PayPal intents and completed payments (PK `intentId`, GSI `userEmail` + `createdAt`) |
 | DynamoDB | `eduardoos_entitlements` | Active service access per user (PK `userEmail`, SK `serviceId`) |
