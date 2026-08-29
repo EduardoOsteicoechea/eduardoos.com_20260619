@@ -440,16 +440,36 @@
               <td>Accurate enough to stake out / federate with survey and GIS (centimetres–millimetres intent). Needs CRS + conversion, not only a WGS84 hint.</td>
             </tr>
             <tr>
+              <td class="term">DEM</td>
+              <td><strong>Digital Elevation Model</strong> — a height map of the ground (or surface) stored as a grid image: each pixel is an elevation in metres, not a photo colour. Common file: GeoTIFF. Check whether your file is bare earth (DTM) or includes trees/roofs (DSM).</td>
+            </tr>
+            <tr>
+              <td class="term">GeoTIFF</td>
+              <td>A TIFF image that also stores <strong>where on Earth</strong> it sits (coordinates + CRS). Used for aerial photos and for elevation grids (DEM).</td>
+            </tr>
+            <tr>
+              <td class="term">ASC / .asc</td>
+              <td>Simple text grid format for elevation (ESRI ASCII Grid). Another common DEM download format; BlenderGIS can import it.</td>
+            </tr>
+            <tr>
+              <td class="term">BlenderGIS</td>
+              <td>A free Blender <strong>add-on</strong> (separate from Bonsai) that pulls map/GIS data into Blender: basemaps, OpenStreetMap outlines, and elevation grids that become 3D ground meshes. It does <em>not</em> write IFC by itself — you use it to build the terrain shape, then Bonsai assigns the IFC class.</td>
+            </tr>
+            <tr>
+              <td class="term">QGIS</td>
+              <td>Free desktop <strong>GIS</strong> (Geographic Information System) software — like a map workshop. People use it to download/clip DEM tiles, reproject to the right EPSG, and export a smaller GeoTIFF before Blender. Optional if BlenderGIS can load your DEM directly.</td>
+            </tr>
+            <tr>
+              <td class="term">GIS</td>
+              <td><strong>Geographic Information System</strong> — software for maps, coordinates, and layered geographic data (not the same as BIM, though they talk to each other).</td>
+            </tr>
+            <tr>
               <td class="term">DTM</td>
               <td><strong>Digital Terrain Model</strong> — bare-earth ground surface (no buildings/trees). The topography mesh you usually want as TERRAIN.</td>
             </tr>
             <tr>
               <td class="term">DSM</td>
               <td><strong>Digital Surface Model</strong> — top of everything (roofs, canopy), not bare ground.</td>
-            </tr>
-            <tr>
-              <td class="term">DEM</td>
-              <td><strong>Digital Elevation Model</strong> — generic elevation raster/grid; check whether the source is DTM or DSM.</td>
             </tr>
             <tr>
               <td class="term">TIN</td>
@@ -601,13 +621,45 @@
 
       <section class="block" id="prereqs">
         <h2>5. Prerequisites (Blender + Bonsai)</h2>
+        <p>You need two Blender add-ons for different jobs:</p>
         <ol>
-          <li>Install a current <strong>Blender</strong> LTS/stable build.</li>
-          <li>Install <strong>Bonsai</strong> (formerly BlenderBIM) from the official Bonsai / IfcOpenShell channels.</li>
-          <li>Optional for DEM import: <strong>BlenderGIS</strong> or prepare a mesh in QGIS → export → Blender.</li>
-          <li>Know your project’s <strong>EPSG</strong> projected CRS and surveyor map-conversion parameters (or a known control point).</li>
-          <li>Start a <strong>new IFC4 or IFC4.3</strong> project in Bonsai (IFC2x3 cannot carry proper map conversion).</li>
+          <li>
+            <strong>Blender</strong> — free 3D app (the host program). Install a current stable build from
+            <a href="https://www.blender.org/" target="_blank" rel="noopener">blender.org</a>.
+          </li>
+          <li>
+            <strong>Bonsai</strong> (formerly BlenderBIM) — Blender add-on that creates and edits
+            <strong>IFC / BIM</strong> data (Site, classes, georeferencing, <code>.ifc</code> export).
+            Install from the official Bonsai / IfcOpenShell channels.
+          </li>
+          <li>
+            <strong>BlenderGIS</strong> (optional but common) — a <em>different</em> free Blender add-on that
+            imports <strong>map elevation</strong> (DEM/GeoTIFF) and turns it into a 3D ground mesh.
+            It does not replace Bonsai. Get it from
+            <a href="https://github.com/domlysz/BlenderGIS" target="_blank" rel="noopener">github.com/domlysz/BlenderGIS</a>
+            → install ZIP via Blender <em>Edit → Preferences → Add-ons → Install</em>, then enable “BlenderGIS”.
+            Official import notes:
+            <a href="https://github.com/domlysz/BlenderGIS/wiki/Import-DEM-grid" target="_blank" rel="noopener">Import DEM grid wiki</a>.
+          </li>
+          <li>
+            <strong>QGIS</strong> (optional) — free map software if you need to <em>prepare</em> elevation data first
+            (download a large DEM, cut it to your site, change EPSG). Then you still bring the result into Blender
+            (often via BlenderGIS). Download:
+            <a href="https://qgis.org/" target="_blank" rel="noopener">qgis.org</a>.
+          </li>
+          <li>
+            From your surveyor (or project GIS lead): the site’s <strong>EPSG</strong> code and
+            <strong>map conversion</strong> numbers (or at least one known control point).
+          </li>
+          <li>
+            In Bonsai, start a <strong>new IFC4 or IFC4.3</strong> project (IFC2x3 cannot store proper map conversion).
+          </li>
         </ol>
+        <div class="callout">
+          <strong>Who does what?</strong>
+          BlenderGIS (or QGIS) builds the <em>shape</em> of the ground.
+          Bonsai makes that shape <em>mean</em> “terrain in IFC” and attaches real-world location.
+        </div>
       </section>
 
       <section class="block" id="step-project-site">
@@ -643,18 +695,77 @@
 
       <section class="block" id="step-terrain-mesh">
         <h2>8. Step C — Build the topography mesh</h2>
+        <p>
+          Goal: get a 3D “blanket” of the ground into Blender as a mesh.
+          That mesh is <em>not</em> IFC yet — it is just geometry.
+        </p>
+
+        <h3>What you are importing</h3>
+        <p>
+          A <strong>DEM</strong> is a height map: a grid file where each cell stores elevation (metres),
+          usually as a <strong>GeoTIFF</strong> (or <code>.asc</code>). Prefer a <strong>DTM</strong> (bare earth)
+          for site topography. You can get DEMs from national open-data portals, or from your surveyor.
+        </p>
+
+        <h3>Path 1 — BlenderGIS (most direct inside Blender)</h3>
         <ol>
-          <li><strong>Import elevation data</strong> into Blender (pick one path):
-            <ul>
-              <li>BlenderGIS: DEM / ASC / GeoTIFF → terrain mesh near your local origin.</li>
-              <li>QGIS: clip DEM → export mesh / points → import and triangulate in Blender.</li>
-              <li>Survey CSV: points → Delaunay / terrain tools → mesh.</li>
-            </ul>
+          <li>Enable the BlenderGIS add-on (Preferences → Add-ons).</li>
+          <li>
+            In BlenderGIS, set the <strong>scene CRS</strong> to the same projected EPSG your project uses
+            (add a custom CRS by EPSG code if it is not in the list).
           </li>
-          <li>Clean the mesh: remove non-manifold edges, huge spikes, duplicate verts. Prefer a single open surface (TIN), not a closed solid unless intentional.</li>
-          <li>Place the mesh so it sits correctly relative to Site local 0,0,0 (same engineering system as the rest of the BIM).</li>
-          <li>Apply transforms (location/rotation/scale) so Object Placement is clean before IFC assignment.</li>
+          <li>
+            Use <strong>Import → Georeferenced raster</strong> (GIS menu / BlenderGIS panel — wording varies slightly by version).
+          </li>
+          <li>
+            Choose your DEM file. Set import mode to something like
+            <strong>“DEM as displacement texture”</strong> / <strong>“As DEM”</strong>
+            (this builds a subdivided plane and pushes vertices up/down by elevation).
+          </li>
+          <li>
+            Confirm the raster’s CRS if asked (must match the file’s real CRS).
+            Import. You should see a bumpy ground surface.
+          </li>
+          <li>
+            <strong>Apply</strong> the Subdivision and Displace modifiers (Object → Apply → Visual Geometry to Mesh,
+            or apply each modifier) so you have a real mesh, not only a modifier stack.
+            Soften spikes, delete junk, keep one open surface.
+          </li>
+          <li>
+            Move/scale the mesh so it sits in your BIM <strong>local</strong> engineering coordinates
+            (near Site 0,0,0) — do not leave huge map coordinates if Bonsai is using a map conversion.
+            Then <em>Apply</em> Location/Rotation/Scale.
+          </li>
         </ol>
+        <div class="callout">
+          <strong>Tip.</strong> Huge country-wide DEMs can choke Blender. Clip to a few hundred metres around the site
+          first (often easier in QGIS), then import the small GeoTIFF with BlenderGIS.
+        </div>
+
+        <h3>Path 2 — QGIS first, then Blender</h3>
+        <ol>
+          <li>Open QGIS. Load the DEM GeoTIFF.</li>
+          <li>Reproject / clip to your site extent and to the project EPSG.</li>
+          <li>Export a smaller GeoTIFF (or points). Import that file with BlenderGIS as above,
+              or export a mesh/OBJ if you already triangulated elsewhere.</li>
+        </ol>
+        <p>
+          Use this path when BlenderGIS alone cannot download/clip your data, or when the raw DEM is too large.
+        </p>
+
+        <h3>Path 3 — Survey points (CSV)</h3>
+        <ol>
+          <li>Import XYZ / CSV points into Blender.</li>
+          <li>Build a surface (Delaunay / terrain addon / manual) → one TIN mesh.</li>
+          <li>Same cleanup + place near Site origin + Apply transforms.</li>
+        </ol>
+
+        <h3>Before you leave this step</h3>
+        <ul>
+          <li>One clean open surface (prefer TIN triangles), not a random solid box.</li>
+          <li>Mesh sits correctly vs Site local 0,0,0.</li>
+          <li>Transforms applied — ready for Bonsai class assignment in the next step.</li>
+        </ul>
       </section>
 
       <section class="block" id="step-semantic">
