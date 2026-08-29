@@ -17,11 +17,11 @@ IFC stores geometry + materials. **Lights and shadows are viewer/Three.js**, not
    - **Sun elevation °** — higher = shorter shadows; lower = long dusk shadows  
    - **Sun azimuth °** — rotate light around the model  
    - **Shadow map size** — `2048` or `4096` (sharper, heavier)  
-   - **Shadow bias** — if you see stripes/acne, nudge bias (e.g. around `-0.002`)  
+   - **Shadow bias** — if you see stripes/acne, nudge bias (default in Eduardo OS is now around `-0.002`)  
    - Directional intensity — not too harsh vs ambient (soft fill)
-5. Orbit, then let the camera **rest** so cascaded shadows can refresh (`updateShadows`).
+5. Orbit, then let the camera **rest** so cascaded shadows can refresh (`updateShadows`). On open, the viewer also schedules refreshes so you should not need to orbit first.
 
-Defaults: SimpleScene, shadows **off**. Reset lights restores that.
+Defaults: shadows **on**, bias **-0.002**, limestone paper floor + background. Reset lights restores that.
 
 ---
 

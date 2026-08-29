@@ -70,7 +70,7 @@ const DEFAULT_LIGHTS: LightSettings = {
   sunAzimuth: 42,
   shadowsEnabled: true,
   shadowMapSize: 2048,
-  shadowBias: 0,
+  shadowBias: -0.002,
 };
 
 const SHADOW_MAP_SIZES = [512, 1024, 2048, 4096] as const;
@@ -225,6 +225,17 @@ function requestShadowUpdate(scene: {
   const dr = scene.distanceRenderer;
   if (dr) dr._isWorkerBusy = false;
   void scene.updateShadows();
+}
+
+/**
+ * Spec 037: after IFC load / first paint, CSM often needs a short delay while
+ * fragments finish streaming. Refresh now + ~100ms + ~500ms so the limestone
+ * floor and slab shading settle without the user having to orbit first.
+ */
+function scheduleShadowRefresh(run: () => void) {
+  run();
+  window.setTimeout(run, 100);
+  window.setTimeout(run, 500);
 }
 
 /** Keep DistanceRenderer depth uniforms aligned with the live camera (near/far). */
@@ -389,18 +400,30 @@ export default function BimIfcViewer() {
           scene instanceof OBC.ShadowedScene;
 
         const addShadowGround = (scene: ShadowedScene) => {
+          const paperMat = () =>
+            new THREE.MeshStandardMaterial({
+              color: VIEWPORT_BG,
+              roughness: 1,
+              metalness: 0,
+            });
           const existing = scene.three.getObjectByName(SHADOW_GROUND_NAME);
           if (existing) {
             // Always keep ground out of CSM distance (huge plane would blow the frustum).
             scene.distanceRenderer.excludedObjects.add(existing);
-            return existing as THREE.Mesh;
+            const mesh = existing as THREE.Mesh;
+            // Upgrade older ShadowMaterial catchers to visible limestone paper.
+            if (mesh.material && "isShadowMaterial" in (mesh.material as object)) {
+              const prev = mesh.material as THREE.Material;
+              mesh.material = paperMat();
+              prev.dispose();
+            }
+            mesh.receiveShadow = true;
+            mesh.castShadow = false;
+            return mesh;
           }
-          // Receiver for contact shadows on empty ground; slightly below Y=0 to reduce
-          // z-fight with terrain/street slabs sitting on the origin plane.
-          const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(500, 500),
-            new THREE.ShadowMaterial({ opacity: 0.35 }),
-          );
+          // Visible limestone studio floor (matches VIEWPORT_BG) that receives contact
+          // shadows — ShadowMaterial alone looked like “no floor” until shadows settled.
+          const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), paperMat());
           ground.name = SHADOW_GROUND_NAME;
           ground.rotation.x = -Math.PI / 2;
           ground.position.y = -0.02;
@@ -600,9 +623,13 @@ export default function BimIfcViewer() {
           void fragments.core.update(true);
           const scene = world.scene as AnyScene;
           if (isShadowed(scene) && scene.shadowsEnabled) {
-            applyFragmentShadowFlags();
-            syncDistanceRendererCamera(scene, world.camera.three);
-            requestShadowUpdate(scene);
+            scheduleShadowRefresh(() => {
+              const s = world.scene as AnyScene;
+              if (!isShadowed(s) || !s.shadowsEnabled) return;
+              applyFragmentShadowFlags();
+              syncDistanceRendererCamera(s, world.camera.three);
+              requestShadowUpdate(s);
+            });
           }
         });
 
@@ -624,9 +651,13 @@ export default function BimIfcViewer() {
           await fragments.core.update(true);
           const scene = world.scene as AnyScene;
           if (isShadowed(scene) && scene.shadowsEnabled) {
-            applyFragmentShadowFlags();
-            syncDistanceRendererCamera(scene, world.camera.three);
-            requestShadowUpdate(scene);
+            scheduleShadowRefresh(() => {
+              const s = world.scene as AnyScene;
+              if (!isShadowed(s) || !s.shadowsEnabled) return;
+              applyFragmentShadowFlags();
+              syncDistanceRendererCamera(s, world.camera.three);
+              requestShadowUpdate(s);
+            });
           }
         };
 

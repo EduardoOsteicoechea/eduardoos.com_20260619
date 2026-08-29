@@ -41,8 +41,10 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
    - Ambient intensity **2.85**, color `#ffffff`
    - Directional intensity **4.05**, color `#ffffff`
    - Sun elevation **16°**, azimuth **42°**
-   - Shadows **on** (start on `ShadowedScene` + VSM), map size **2048**, bias **0**
+   - Shadows **on** (start on `ShadowedScene` + VSM), map size **2048**, bias **-0.002** (reduces stripe/acne on horizontal slabs; Reset restores this)
    - Keep existing shadow quality rules: exclude grid + shadow ground from `distanceRenderer`; `updateShadows` on load / sun change / camera `rest`; cast/receive on fragment meshes
+   - **Shadow ground:** Visible limestone paper plane (`MeshStandardMaterial` `#f2f3f6` at Y≈-0.02) that receives shadows — not an invisible `ShadowMaterial` catcher.
+   - **First paint:** After IFC load (including auto-load), schedule shadow refresh immediately and again after short delays (~100ms, ~500ms) so the shadow catcher + slab shading settle without requiring the user to orbit first.
 9. **Nav:** Link **BIM IFC viewer** in Services Apps for everyone (not admin-only block). Remove from admin-only page path gate.
 10. **Python runtime:** Unchanged (`backend/bim/bim_runtime`, timeout/caps, `BIM_IFC_ARGS` metadata only).
 
@@ -66,9 +68,10 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
 - [x] No top-right status message overlay.
 - [x] Lights control lives in header dynamic menu (Material Symbol); rail lights button gone.
 - [x] Header tool icons use Google Material Symbols.
-- [x] Default / Reset lights match preset: ambient 2.85, directional 4.05, sun 16°/42°, shadows on, map 2048, bias 0.
+- [x] Default / Reset lights match preset: ambient 2.85, directional 4.05, sun 16°/42°, shadows on, map 2048, bias **-0.002**.
 - [x] Services menu shows BIM IFC viewer; page is not admin-only gated.
 - [x] Viewport background is soft limestone `#f2f3f6` (not black); helper grid is hidden.
+- [x] Horizontal floor/slab shadow acne reduced via default bias -0.002; limestone shadow ground visible; shadows refresh on open without orbit.
 
 ## Affected paths
 
