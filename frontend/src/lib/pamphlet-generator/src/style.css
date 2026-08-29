@@ -595,7 +595,13 @@
     overflow: clip !important;
 }
 
-/* Trays / + controls sit outside the ink box — open clip while present. */
+/*
+ * Spec 035: edit trays / + sit outside the ink box.
+ * While any .element_edit_tray is open, unlock overflow on EVERY body column — a
+ * single-column :has() is not enough when the absolute tray paints into gutters /
+ * neighboring column boxes that still clip. Trailing + only needs its own column.
+ */
+.pamphlet-app[data-view-mode="desktop"] main.pamphlet-sheet:has(.element_edit_tray) .dumb-column[class*="pamphlet-column-"],
 .pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"]:has(.element_edit_tray),
 .pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"]:has(> .pamphlet-add-item-button) {
     overflow: visible !important;
@@ -612,6 +618,16 @@
 .pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item:has(.element_edit_tray) p,
 .pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item:has(.element_edit_tray) h1 {
     overflow: visible !important;
+}
+
+/* Absolute tray is out-of-flow under the item; raise the editing stack so later
+   siblings (also position:relative) cannot paint over buttons / textarea. */
+.pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"]:has(.element_edit_tray) {
+    z-index: 40;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item:has(.element_edit_tray) {
+    z-index: 50;
 }
 
 /* Page 1: left = cols 7–8 + footer; right = header + cols 1–2.
