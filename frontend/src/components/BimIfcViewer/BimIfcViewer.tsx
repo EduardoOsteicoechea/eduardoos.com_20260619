@@ -400,30 +400,29 @@ export default function BimIfcViewer() {
           scene instanceof OBC.ShadowedScene;
 
         const addShadowGround = (scene: ShadowedScene) => {
-          const paperMat = () =>
-            new THREE.MeshStandardMaterial({
-              color: VIEWPORT_BG,
-              roughness: 1,
-              metalness: 0,
-            });
+          const catcherMat = () => new THREE.ShadowMaterial({ opacity: 0.28 });
           const existing = scene.three.getObjectByName(SHADOW_GROUND_NAME);
           if (existing) {
             // Always keep ground out of CSM distance (huge plane would blow the frustum).
             scene.distanceRenderer.excludedObjects.add(existing);
             const mesh = existing as THREE.Mesh;
-            // Upgrade older ShadowMaterial catchers to visible limestone paper.
-            if (mesh.material && "isShadowMaterial" in (mesh.material as object)) {
-              const prev = mesh.material as THREE.Material;
-              mesh.material = paperMat();
-              prev.dispose();
+            // Downgrade the brief opaque limestone plane — it dwarfed the model.
+            const mat = mesh.material as THREE.Material | THREE.Material[];
+            const single = Array.isArray(mat) ? mat[0] : mat;
+            if (single && !("isShadowMaterial" in single && (single as THREE.ShadowMaterial).isShadowMaterial)) {
+              if (Array.isArray(mat)) {
+                for (const m of mat) m.dispose();
+              } else {
+                mat.dispose();
+              }
+              mesh.material = catcherMat();
             }
             mesh.receiveShadow = true;
             mesh.castShadow = false;
             return mesh;
           }
-          // Visible limestone studio floor (matches VIEWPORT_BG) that receives contact
-          // shadows — ShadowMaterial alone looked like “no floor” until shadows settled.
-          const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), paperMat());
+          // Invisible catcher: soft contact shadows only — no opaque “default plane”.
+          const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), catcherMat());
           ground.name = SHADOW_GROUND_NAME;
           ground.rotation.x = -Math.PI / 2;
           ground.position.y = -0.02;
