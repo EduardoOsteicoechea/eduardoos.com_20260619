@@ -1,5 +1,5 @@
 // Package bim serves the BIM IFC viewer backend (spec 037):
-// public library list/file under ifcbim/library/, admin upload + host Python sandbox.
+// public library list/file under ifcbim/library/, admin upload/delete + host Python sandbox.
 package bim
 
 import (
@@ -96,6 +96,7 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Use(h.auth.RequireJWT)
 		pr.Use(h.requireAdmin)
 		pr.Post("/api/bim/models/upload", h.UploadModel)
+		pr.Delete("/api/bim/models/file/*", h.DeleteModel)
 		pr.Post("/api/bim/python/run", h.RunPython)
 	})
 }

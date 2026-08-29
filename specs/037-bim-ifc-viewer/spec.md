@@ -17,6 +17,7 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
    | Open viewer, orbit, lights, offload | Anyone |
    | Browse library + load IFC from S3 | Anyone (public APIs) |
    | Upload IFC to library | Platform admin (JWT + `IsAdmin`) |
+   | **Delete IFC from library** | Platform admin only (JWT + `IsAdmin`); browser **confirm** before DELETE |
    | Python console / Output / run API | Platform admin only |
 3. **Storage:** S3 bucket `eduardoos20260607` (env `S3_BUCKET` / `IFCBIM_S3_BUCKET`), prefix **`ifcbim/library/`** only (for now). Keys: `ifcbim/library/{safeBasename}.ifc`. DynamoDB `eduardoos_ifcbim` is **out of scope** for this slice (list from S3).
    - **Unique names:** Upload requires a **library name** form field (not only the OS filename). Server sanitizes to `[A-Za-z0-9][A-Za-z0-9._-]{1,119}.ifc`. If that key already exists (`HeadObject`), respond **409 Conflict** — no overwrite. Admin must choose a different name.
@@ -25,12 +26,13 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
    - `GET /api/bim/models` — public — list `.ifc` under `ifcbim/library/`
    - `GET /api/bim/models/file/*` — public — stream object (path must stay under `ifcbim/library/`)
    - `POST /api/bim/models/upload` — JWT + admin — multipart `file` + required `name` → put under `ifcbim/library/` only if key free
+   - `DELETE /api/bim/models/file/*` — JWT + admin — delete object under `ifcbim/library/` only (same path rules as GET file). **404** if missing. Non-admin → **403**.
    - `POST /api/bim/python/run` — JWT + admin — unchanged host sandbox
 5. **Viewer:** Astro + React + `@thatopen/components`. Load IFC bytes from local file (admin upload path also stores to S3) or from library download URL. `COORDINATE_TO_ORIGIN: false`; `ifcLoader.load(..., coordinate=false, ...)`.
    - **Default model:** On first paint after the scene is ready, fetch `GET /api/bim/models` and **auto-load the first** library entry (sorted by `name` ascending). If the library is empty, leave the empty scene. User can still Browse / Upload / Offload afterward.
 6. **Header dynamic menu** (icon-only, **Google Material Symbols** via site font link):
    - **Upload** — admin only; modal with **required library name** input + file picker; upload to S3 + load; surface 409 if name taken
-   - **Browse** — everyone; modal lists library models with **date + size**; Load fetches bytes and shows in scene
+   - **Browse** — everyone; modal lists library models with **date + size**; Load fetches bytes and shows in scene. **Admin only:** each row also has **Delete**; clicking runs `window.confirm` with the model name; on OK, `DELETE` the S3 object and refresh the list. If the deleted file is the one currently loaded in the viewer, **offload** it.
    - **Lights** — everyone; toggles lights side panel (moved off viewport rail)
    - **Python** / **Output** — admin only
    - **Offload model** — everyone when a model is loaded
@@ -58,7 +60,9 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
 - OpenCascade / IFC bytes to Python
 - Separate Python Docker service
 - Non-admin upload
+- Non-admin delete
 - Silent overwrite of existing library keys
+- Silent delete without confirmation in the UI
 
 ## Acceptance
 
@@ -75,6 +79,7 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
 - [x] Services menu shows BIM IFC viewer; page is not admin-only gated.
 - [x] Viewport background is bone `#e8e0d4` in light theme and cool grey-blue `#141820` in dark theme; helper grid is hidden; updates when site Theme toggles.
 - [x] Horizontal floor/slab shadow acne reduced via default bias -0.002; **no** shadow-catcher plane (IFC meshes only); shadows refresh on open without orbit.
+- [x] Admin can Delete a library model from Browse after `confirm`; DELETE API removes S3 object under `ifcbim/library/`; non-admin has no Delete control / API 403.
 
 ## Affected paths
 

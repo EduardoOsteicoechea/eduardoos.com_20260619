@@ -408,6 +408,17 @@ html.dark .bim-ifc-viewer__canvas {
   color: var(--site-meta-fg);
 }
 
+.bim-ifc-viewer__library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.bim-ifc-viewer__library-delete {
+  color: color-mix(in srgb, var(--site-body-fg) 70%, #a33 30%);
+}
+
 .bim-ifc-viewer__field--stack {
   display: flex;
   flex-direction: column;

@@ -341,6 +341,7 @@ export default function BimIfcViewer() {
   const [library, setLibrary] = useState<LibraryModel[]>([]);
   const [libraryStatus, setLibraryStatus] = useState("");
   const [libraryLoading, setLibraryLoading] = useState(false);
+  const [deletingKey, setDeletingKey] = useState("");
 
   useEffect(() => {
     setIsAdmin(isPlatformAdmin());
@@ -792,6 +793,41 @@ export default function BimIfcViewer() {
     }
   }, []);
 
+  const deleteLibraryModel = useCallback(
+    async (model: LibraryModel) => {
+      if (!isAdmin) return;
+      const ok = window.confirm(
+        `Delete "${model.name}" from the shared library?\n\nThis permanently removes ifcbim/library/${model.name} from S3 and cannot be undone.`,
+      );
+      if (!ok) return;
+      setDeletingKey(model.key);
+      setLibraryStatus(`Deleting ${model.name}…`);
+      try {
+        const token = getAuthToken().trim();
+        const res = await fetch(model.url || BIM_ROUTES.modelFile(model.name), {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+        if (!res.ok) {
+          setLibraryStatus(payload.error || payload.message || `Delete failed (${res.status})`);
+          return;
+        }
+        if (ifc.loaded && ifc.name === model.name) {
+          await offloadIfcRef.current?.();
+          setIfc({ name: "", sizeBytes: 0, loaded: false });
+        }
+        setStatus(`Deleted ${model.name}`);
+        await refreshLibrary();
+      } catch (err) {
+        setLibraryStatus(err instanceof Error ? err.message : String(err));
+      } finally {
+        setDeletingKey("");
+      }
+    },
+    [isAdmin, ifc.loaded, ifc.name, refreshLibrary],
+  );
+
   // Spec 037: after scene ready, auto-load the first library model (by name).
   useEffect(() => {
     if (!viewerReady) return;
@@ -1203,13 +1239,25 @@ export default function BimIfcViewer() {
                       {model.sizeHuman ? ` · ${model.sizeHuman}` : ""}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    className="btn btn--primary"
-                    onClick={() => void loadLibraryModel(model)}
-                  >
-                    Load
-                  </button>
+                  <div className="bim-ifc-viewer__library-actions">
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => void loadLibraryModel(model)}
+                    >
+                      Load
+                    </button>
+                    {isAdmin ? (
+                      <button
+                        type="button"
+                        className="btn bim-ifc-viewer__library-delete"
+                        disabled={deletingKey === model.key}
+                        onClick={() => void deleteLibraryModel(model)}
+                      >
+                        {deletingKey === model.key ? "Deleting…" : "Delete"}
+                      </button>
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>

@@ -52,6 +52,7 @@ type s3API interface {
 	GetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.Options)) (*s3.GetObjectOutput, error)
 	PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error)
 	HeadObject(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error)
+	DeleteObject(ctx context.Context, params *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error)
 }
 
 func (h *Handler) resolveBucket() string {
@@ -361,6 +362,68 @@ func (h *Handler) UploadModel(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{
 		"model":  model,
 		"prefix": libraryPrefix,
+	})
+}
+
+// DeleteModel — DELETE /api/bim/models/file/* (admin JWT). Removes one IFC under ifcbim/library/.
+func (h *Handler) DeleteModel(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+
+	suffix := strings.TrimPrefix(chi.URLParam(r, "*"), "/")
+	if suffix == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "file key required")
+		return
+	}
+	if decoded, err := url.PathUnescape(suffix); err == nil {
+		suffix = decoded
+	}
+	key, ok := ensureKeyUnderLibrary(suffix)
+	if !ok {
+		key, ok = ensureKeyUnderLibrary(librarySearchPrefix() + path.Base(suffix))
+	}
+	if !ok {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid library path")
+		return
+	}
+
+	client, bucket, err := h.s3Client(r.Context())
+	if err != nil {
+		log.Printf("[correlation=%s] bim.models.delete no-s3 user=%s: %v", cid, email, err)
+		httpx.WriteError(w, http.StatusServiceUnavailable, "IFC library unavailable")
+		return
+	}
+
+	_, headErr := client.HeadObject(r.Context(), &s3.HeadObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if headErr != nil {
+		if isS3NotFound(headErr) {
+			httpx.WriteError(w, http.StatusNotFound, "model not found")
+			return
+		}
+		log.Printf("[correlation=%s] bim.models.delete head user=%s key=%s: %v", cid, email, key, headErr)
+		httpx.WriteError(w, http.StatusBadGateway, "could not check model")
+		return
+	}
+
+	_, err = client.DeleteObject(r.Context(), &s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		log.Printf("[correlation=%s] bim.models.delete s3_error user=%s key=%s: %v", cid, email, key, err)
+		httpx.WriteError(w, http.StatusBadGateway, "IFC delete failed")
+		return
+	}
+
+	log.Printf("[correlation=%s] bim.models.delete ok user=%s key=%s", cid, email, key)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"deleted": true,
+		"key":     key,
+		"name":    path.Base(key),
+		"prefix":  libraryPrefix,
 	})
 }
 
