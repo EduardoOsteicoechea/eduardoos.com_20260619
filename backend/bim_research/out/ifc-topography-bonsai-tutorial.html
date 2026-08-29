@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Semantic IFC topography — Site, geo &amp; Bonsai</title>
+  <style>
+    :root {
+      --rail: 50px;
+      --nav-w: 220px;
+      --toc-w: 260px;
+      --paper: #e8eef4;
+      --ink: #1a2332;
+      --muted: #5a6a7a;
+      --line: #b8c4d0;
+      --accent: #3a5a78;
+      --panel: #f4f7fa;
+      --panel-2: #dfe8f0;
+      --focus: #2a6a9a;
+      --font-ui: "Montserrat", "Segoe UI", system-ui, sans-serif;
+      --font-body: "Raleway", "Segoe UI", system-ui, sans-serif;
+      --font-display: "Cormorant Garamond", Georgia, serif;
+    }
+    html.dark, html[data-theme="dark"] {
+      --paper: #121820;
+      --ink: #e6edf4;
+      --muted: #9aabbc;
+      --line: #2a3848;
+      --accent: #7a9ab8;
+      --panel: #1a2430;
+      --panel-2: #243040;
+      --focus: #6ab0e0;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.55;
+    }
+    a { color: var(--focus); }
+    a:hover { text-decoration: underline; }
+
+    .app {
+      display: grid;
+      grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr) var(--toc-w);
+      height: 100%;
+      min-height: 100vh;
+    }
+
+    /* 50px icon-only left bar (header chrome) */
+    .rail {
+      width: var(--rail);
+      background: var(--panel-2);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0;
+      gap: 6px;
+      z-index: 4;
+    }
+    .rail button, .rail a.icon {
+      width: 38px;
+      height: 38px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      text-decoration: none;
+      padding: 0;
+    }
+    .rail button:hover, .rail a.icon:hover,
+    .rail button[aria-pressed="true"], .rail a.icon[aria-current="page"] {
+      background: var(--panel);
+      border-color: var(--line);
+      color: var(--accent);
+    }
+    .rail svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+    .rail .spacer { flex: 1; }
+
+    /* Left sidebar — future views */
+    .nav {
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      padding: 16px 12px;
+      overflow: auto;
+      font-family: var(--font-ui);
+      font-size: 12px;
+    }
+    .nav h2 {
+      margin: 0 0 12px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .nav ul { list-style: none; margin: 0; padding: 0; }
+    .nav li { margin: 0 0 4px; }
+    .nav a, .nav span {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 4px;
+      color: var(--ink);
+      text-decoration: none;
+      border: 1px solid transparent;
+    }
+    .nav a:hover { background: var(--panel-2); }
+    .nav a[aria-current="page"] {
+      border-color: var(--line);
+      background: var(--paper);
+      color: var(--accent);
+    }
+    .nav .future {
+      color: var(--muted);
+      font-style: italic;
+      cursor: default;
+    }
+
+    /* Main */
+    .main {
+      overflow: auto;
+      scroll-behavior: smooth;
+      padding: 28px 36px 80px;
+    }
+    .main header.page {
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .main header.page .kicker {
+      font-family: var(--font-ui);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+    .main h1 {
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: clamp(1.8rem, 3vw, 2.4rem);
+      line-height: 1.15;
+      margin: 0 0 10px;
+      color: var(--ink);
+    }
+    .main .lede {
+      margin: 0;
+      max-width: 62ch;
+      color: var(--muted);
+    }
+    section.block {
+      max-width: 68ch;
+      margin: 0 0 2.4rem;
+      scroll-margin-top: 24px;
+    }
+    section.block h2 {
+      font-family: var(--font-display);
+      font-size: 1.55rem;
+      font-weight: 500;
+      margin: 0 0 0.6rem;
+      padding-top: 0.4rem;
+    }
+    section.block h3 {
+      font-family: var(--font-ui);
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin: 1.2rem 0 0.45rem;
+      color: var(--accent);
+    }
+    section.block p, section.block li { color: var(--ink); }
+    section.block ol, section.block ul { padding-left: 1.25rem; }
+    section.block li { margin: 0.35rem 0; }
+    .callout {
+      border-left: 3px solid var(--accent);
+      background: var(--panel);
+      padding: 10px 14px;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
+    .callout strong { color: var(--accent); }
+    code, .mono {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 0.88em;
+      background: var(--panel-2);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+    }
+    pre {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 12px 14px;
+      overflow: auto;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+    table.links {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 0.8rem 0;
+    }
+    table.links th, table.links td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.links th {
+      background: var(--panel);
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .tree {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.82rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 12px 14px;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    /* Right scroll-spy TOC */
+    .toc {
+      background: var(--panel);
+      border-left: 1px solid var(--line);
+      padding: 16px 12px;
+      overflow: auto;
+      font-family: var(--font-ui);
+      font-size: 12px;
+    }
+    .toc h2 {
+      margin: 0 0 8px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .toc .pos {
+      margin: 0 0 14px;
+      padding: 8px 10px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .toc .pos strong {
+      display: block;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+    .toc li { margin: 0 0 2px; }
+    .toc a {
+      display: block;
+      padding: 6px 8px;
+      color: var(--ink);
+      text-decoration: none;
+      border-radius: 3px;
+      border-left: 2px solid transparent;
+    }
+    .toc a:hover { background: var(--panel-2); }
+    .toc a.active {
+      border-left-color: var(--accent);
+      background: var(--paper);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: var(--rail) minmax(0, 1fr) minmax(180px, 220px); }
+      .nav { display: none; }
+    }
+    @media (max-width: 720px) {
+      .app { grid-template-columns: var(--rail) minmax(0, 1fr); }
+      .toc { display: none; }
+      .main { padding: 20px 16px 64px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .main { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- 50px icon-only header bar -->
+    <aside class="rail" aria-label="App chrome">
+      <a class="icon" href="#overview" aria-current="page" title="Tutorial" aria-label="Tutorial">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>
+      </a>
+      <button type="button" id="btn-nav" title="Views" aria-label="Toggle views" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      </button>
+      <a class="icon" href="#official-docs" title="Official docs" aria-label="Official docs">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6V4z"/><path d="M14 4v4h4"/></svg>
+      </a>
+      <div class="spacer"></div>
+      <button type="button" id="btn-theme" title="Theme" aria-label="Toggle theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </aside>
+
+    <nav class="nav" id="side-nav" aria-label="Views">
+      <h2>Views</h2>
+      <ul>
+        <li><a href="#overview" aria-current="page">Tutorial — topography</a></li>
+        <li><span class="future">IFC schema map (soon)</span></li>
+        <li><span class="future">EPSG picker notes (soon)</span></li>
+        <li><span class="future">Sample IFC snippets (soon)</span></li>
+      </ul>
+    </nav>
+
+    <main class="main" id="scroll-root">
+      <header class="page">
+        <p class="kicker">BIM research lab · IFC / ISO 16739 · Blender + Bonsai</p>
+        <h1>Create topography in semantic IFC</h1>
+        <p class="lede">
+          Step-by-step: place an <span class="mono">IfcSite</span>, set geographic / map referencing,
+          and author terrain as <span class="mono">IfcGeographicElement</span> with
+          <span class="mono">PredefinedType = TERRAIN</span> in Blender using Bonsai.
+        </p>
+      </header>
+
+      <section class="block" id="overview">
+        <h2>1. Overview</h2>
+        <p>
+          In IFC, <strong>topography is not the Site itself</strong>. The site is the spatial container
+          and georeference anchor. The terrain mesh (TIN / surface) is a product occurrence —
+          typically <code>IfcGeographicElement</code> with predefined type <code>TERRAIN</code> —
+          contained in the site.
+        </p>
+        <div class="tree">IfcProject
+└── IfcSite                          ← spatial + geo anchor
+    └── IfcGeographicElement         ← topography geometry
+         PredefinedType = .TERRAIN.
+    └── (buildings, roads, …)</div>
+        <div class="callout">
+          <strong>Precision rule.</strong> Exact georeferencing uses
+          <code>IfcProjectedCRS</code> + <code>IfcMapConversion</code> (IFC4+).
+          <code>IfcSite.RefLatitude</code> / <code>RefLongitude</code> / <code>RefElevation</code>
+          are only an approximate WGS84 hint (e.g. sun studies), not survey-grade.
+        </div>
+      </section>
+
+      <section class="block" id="iso-semantics">
+        <h2>2. What the ISO / IFC schema says</h2>
+        <p>
+          Industry Foundation Classes are published as <strong>ISO 16739</strong>.
+          The freely usable HTML documentation of the schema is hosted by
+          <strong>buildingSMART</strong> under a Creative Commons license (same technical content as the ISO edition).
+          ISO.org sells the formal ISO PDF; the Online Browsing Platform (OBP) offers a limited free preview.
+        </p>
+        <h3>IfcSite</h3>
+        <ul>
+          <li>Defined area of land for the construction project.</li>
+          <li>Precise geospatial location comes from project georeferencing
+            (<code>IfcCoordinateReferenceSystem</code> / <code>IfcCoordinateOperation</code> (map conversion).</li>
+          <li><code>RefLatitude</code>, <code>RefLongitude</code>, <code>RefElevation</code> ≈ WGS84 point of site local origin — approximate only.</li>
+        </ul>
+        <h3>IfcGeographicElement + TERRAIN</h3>
+        <ul>
+          <li>Generalization of geographic landscape features (trees, terrain, …).</li>
+          <li><code>PredefinedType = TERRAIN</code> is the semantic type for topography / DTM surface.</li>
+          <li>Geometry is typically a tessellated surface (e.g. triangulated face set / mesh) in the product representation.</li>
+          <li>Contain the element in <code>IfcSite</code> via <code>IfcRelContainedInSpatialStructure</code>.</li>
+        </ul>
+        <h3>Map conversion</h3>
+        <ul>
+          <li><code>IfcMapConversion</code>: Eastings, Northings, OrthogonalHeight, optional X-axis vector (rotation), Scale.</li>
+          <li>Target CRS must be a projected CRS (<code>IfcProjectedCRS</code>), usually named with an EPSG code.</li>
+        </ul>
+      </section>
+
+      <section class="block" id="official-docs">
+        <h2>3. Official free documentation links</h2>
+        <p>
+          Prefer these over random blogs when citing. Full ISO PDFs on iso.org are generally paid;
+          buildingSMART’s HTML is the practical free normative schema documentation.
+        </p>
+        <table class="links">
+          <thead>
+            <tr><th>Source</th><th>What you get</th><th>Link</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>ISO catalogue</td>
+              <td>ISO 16739-1:2024 entry + OBP preview (not full free PDF)</td>
+              <td><a href="https://www.iso.org/standard/84123.html" target="_blank" rel="noopener">iso.org/standard/84123</a></td>
+            </tr>
+            <tr>
+              <td>ISO OBP</td>
+              <td>Online Browsing Platform (limited free preview of ISO texts)</td>
+              <td><a href="https://www.iso.org/obp/ui/" target="_blank" rel="noopener">iso.org/obp/ui</a></td>
+            </tr>
+            <tr>
+              <td>buildingSMART</td>
+              <td>IFC overview — CC-licensed open standard, ISO 16739 alignment</td>
+              <td><a href="https://www.buildingsmart.org/standards/bsi-standards/industry-foundation-classes/" target="_blank" rel="noopener">IFC standard page</a></td>
+            </tr>
+            <tr>
+              <td>IFC 4.3 HTML</td>
+              <td><code>IfcSite</code> semantic definition</td>
+              <td><a href="https://ifc43-docs.standards.buildingsmart.org/IFC/RELEASE/IFC4x3/HTML/lexical/IfcSite.htm" target="_blank" rel="noopener">IfcSite</a></td>
+            </tr>
+            <tr>
+              <td>IFC 4.3 HTML</td>
+              <td><code>IfcGeographicElement</code></td>
+              <td><a href="https://ifc43-docs.standards.buildingsmart.org/IFC/RELEASE/IFC4x3/HTML/lexical/IfcGeographicElement.htm" target="_blank" rel="noopener">IfcGeographicElement</a></td>
+            </tr>
+            <tr>
+              <td>IFC 4.3 HTML</td>
+              <td><code>TERRAIN</code> enum</td>
+              <td><a href="https://ifc43-docs.standards.buildingsmart.org/IFC/RELEASE/IFC4x3/HTML/lexical/IfcGeographicElementTypeEnum.htm" target="_blank" rel="noopener">IfcGeographicElementTypeEnum</a></td>
+            </tr>
+            <tr>
+              <td>IFC 4.3 HTML</td>
+              <td><code>IfcMapConversion</code></td>
+              <td><a href="https://standards.buildingsmart.org/IFC/RELEASE/IFC4_3/HTML/lexical/IfcMapConversion.htm" target="_blank" rel="noopener">IfcMapConversion</a></td>
+            </tr>
+            <tr>
+              <td>IFC 4.3 HTML</td>
+              <td><code>IfcProjectedCRS</code></td>
+              <td><a href="https://standards.buildingsmart.org/IFC/RELEASE/IFC4_3/HTML/lexical/IfcProjectedCRS.htm" target="_blank" rel="noopener">IfcProjectedCRS</a></td>
+            </tr>
+            <tr>
+              <td>buildingSMART PDF</td>
+              <td>User Guide for Geo-referencing in IFC (free PDF)</td>
+              <td><a href="https://www.buildingsmart.org/wp-content/uploads/2020/02/User-Guide-for-Geo-referencing-in-IFC-v2.0.pdf" target="_blank" rel="noopener">Geo-referencing guide v2.0</a></td>
+            </tr>
+            <tr>
+              <td>EPSG</td>
+              <td>Public CRS registry (codes for projected CRS names)</td>
+              <td><a href="https://epsg.org/" target="_blank" rel="noopener">epsg.org</a></td>
+            </tr>
+            <tr>
+              <td>Bonsai docs</td>
+              <td>Authoring georeferencing in Blender</td>
+              <td><a href="https://docs-unstable.bonsaibim.org/guides/authoring/advanced_modeling/georeferencing.html" target="_blank" rel="noopener">Georeferencing guide</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="prereqs">
+        <h2>4. Prerequisites (Blender + Bonsai)</h2>
+        <ol>
+          <li>Install a current <strong>Blender</strong> LTS/stable build.</li>
+          <li>Install <strong>Bonsai</strong> (formerly BlenderBIM) from the official Bonsai / IfcOpenShell channels.</li>
+          <li>Optional for DEM import: <strong>BlenderGIS</strong> or prepare a mesh in QGIS → export → Blender.</li>
+          <li>Know your project’s <strong>EPSG</strong> projected CRS and surveyor map-conversion parameters (or a known control point).</li>
+          <li>Start a <strong>new IFC4 or IFC4.3</strong> project in Bonsai (IFC2x3 cannot carry proper map conversion).</li>
+        </ol>
+      </section>
+
+      <section class="block" id="step-project-site">
+        <h2>5. Step A — Project and Site</h2>
+        <ol>
+          <li>In Bonsai: create / open an IFC project (IFC4 or IFC4.3).</li>
+          <li>Ensure spatial structure includes an <code>IfcSite</code> (default project templates usually create Project → Site → Building).</li>
+          <li>Select the Site in the IFC spatial tree. Set a clear <code>Name</code> / <code>LongName</code>.</li>
+          <li>Optionally set approximate <code>RefLatitude</code>, <code>RefLongitude</code>, <code>RefElevation</code> for WGS84 hinting — do <em>not</em> treat this as the survey transform.</li>
+          <li>Keep Site local placement coherent: engineering origin at a sensible local 0,0,0 (boundary corner / grid intersection), not raw map millions.</li>
+        </ol>
+      </section>
+
+      <section class="block" id="step-georef">
+        <h2>6. Step B — Geographic / map location</h2>
+        <ol>
+          <li>Open <strong>Scene Properties → IFC Georeferencing</strong> (Bonsai).</li>
+          <li>Set <strong>Projected CRS</strong> to your EPSG code (example: <code>EPSG:7856</code> for GDA2020 / MGA Zone 56 — use <em>your</em> zone).</li>
+          <li>Enter <strong>Map Conversion</strong> from the surveyor:
+            <ul>
+              <li><code>Eastings</code>, <code>Northings</code>, <code>OrthogonalHeight</code> — map position of local 0,0,0</li>
+              <li><code>XAxisAbscissa</code> / <code>XAxisOrdinate</code> — rotation from project east to grid east</li>
+              <li><code>Scale</code> — combined scale factor (≈1 for small sites; confirm with surveyor)</li>
+            </ul>
+          </li>
+          <li>Optionally store True North for solar studies only; never use it as the federating rotation source.</li>
+          <li>Stay under ~1&nbsp;km extents in Blender’s engineering coordinates (single-precision limits). Prefer local coords + map conversion over modeling in raw map coordinates.</li>
+        </ol>
+        <div class="callout">
+          <strong>Check.</strong> A model with large XYZ numbers but <em>no</em> Projected CRS is <em>not</em> georeferenced.
+        </div>
+      </section>
+
+      <section class="block" id="step-terrain-mesh">
+        <h2>7. Step C — Build the topography mesh</h2>
+        <ol>
+          <li><strong>Import elevation data</strong> into Blender (pick one path):
+            <ul>
+              <li>BlenderGIS: DEM / ASC / GeoTIFF → terrain mesh near your local origin.</li>
+              <li>QGIS: clip DEM → export mesh / points → import and triangulate in Blender.</li>
+              <li>Survey CSV: points → Delaunay / terrain tools → mesh.</li>
+            </ul>
+          </li>
+          <li>Clean the mesh: remove non-manifold edges, huge spikes, duplicate verts. Prefer a single open surface (TIN), not a closed solid unless intentional.</li>
+          <li>Place the mesh so it sits correctly relative to Site local 0,0,0 (same engineering system as the rest of the BIM).</li>
+          <li>Apply transforms (location/rotation/scale) so Object Placement is clean before IFC assignment.</li>
+        </ol>
+      </section>
+
+      <section class="block" id="step-semantic">
+        <h2>8. Step D — Assign semantic IFC class</h2>
+        <ol>
+          <li>Select the terrain mesh object.</li>
+          <li>In Bonsai Object Properties → IFC: assign class
+            <code>IfcGeographicElement</code>.</li>
+          <li>Set <code>PredefinedType</code> to <code>TERRAIN</code>.</li>
+          <li>Assign spatial container: <strong>contained in</strong> the project’s <code>IfcSite</code> (not floating under Project).</li>
+          <li>Give a readable Name (e.g. <code>ExistingTopography</code>).</li>
+          <li>Save the IFC. Re-open or inspect with another IFC viewer to confirm class + containment.</li>
+        </ol>
+        <p>Conceptual STEP line (illustrative):</p>
+        <pre>#120=IFCGEOGRAPHICELEMENT('3xY…',#1,'ExistingTopography',$,$,#121,#122,$,.TERRAIN.);</pre>
+      </section>
+
+      <section class="block" id="step-verify">
+        <h2>9. Step E — Verify georef + terrain</h2>
+        <ol>
+          <li>In Bonsai Georeferencing panel: confirm CRS code + non-empty map conversion (unless intentionally identity).</li>
+          <li>Use Local ↔ Global conversion tools in the sidebar to spot-check a known survey point.</li>
+          <li>In the IFC explorer: Site contains GeographicElement / TERRAIN.</li>
+          <li>Federate with a second discipline file that shares the same CRS + conversion; terrain and building should align.</li>
+          <li>If consumers choke on dense TINs, simplify mesh or use IfcOpenShell / ifcpatch recipes aimed at terrain cleanup (as needed).</li>
+        </ol>
+      </section>
+
+      <section class="block" id="checklist">
+        <h2>10. Quick checklist</h2>
+        <ul>
+          <li>□ IFC4 / 4.3 (not 2x3 for map conversion)</li>
+          <li>□ <code>IfcProjectedCRS</code> with correct EPSG</li>
+          <li>□ <code>IfcMapConversion</code> matches surveyor</li>
+          <li>□ Local engineering coords (small), not raw map millions in Blender</li>
+          <li>□ Terrain mesh → <code>IfcGeographicElement</code> / <code>TERRAIN</code></li>
+          <li>□ Contained in <code>IfcSite</code></li>
+          <li>□ Site RefLat/Long only as optional hint</li>
+        </ul>
+      </section>
+
+      <section class="block" id="caveats">
+        <h2>11. Caveats</h2>
+        <ul>
+          <li>Do not assign the topography mesh as the Site’s body and call it “semantic terrain” — Site is spatial; terrain is an element.</li>
+          <li>Textures / orthophotos often do not round-trip in IFC the way Blender materials do; geometry + semantics are the exchange priority.</li>
+          <li>Large sites (&gt;1&nbsp;km) need survey-aware workflows and may hit Blender precision limits — split, use false origin carefully, or civil-specialized tools.</li>
+          <li>Respect data licenses for DEM / cadastral sources; prefer public open data.</li>
+        </ul>
+      </section>
+
+      <section class="block" id="sources-lab">
+        <h2>12. Lab notes</h2>
+        <p>
+          This page lives in the Eduardo OS BIM research write sandbox:
+          <code>backend/bim_research/out/ifc-topography-bonsai-tutorial.html</code>.
+          Local brief: <code>backend/bim_research/specs/ifc-topography-bonsai.md</code>.
+        </p>
+      </section>
+    </main>
+
+    <aside class="toc" aria-label="On this page">
+      <h2>On this page</h2>
+      <div class="pos" id="scroll-pos" aria-live="polite">
+        <strong id="current-heading">Overview</strong>
+        <span id="current-meta">scroll 0%</span>
+      </div>
+      <ol id="toc-list"></ol>
+    </aside>
+  </div>
+
+  <script>
+    (function () {
+      const STORAGE_KEY = "bim-lab:route:" + location.pathname.replace(/\\/g, "/");
+      const root = document.getElementById("scroll-root");
+      const sections = Array.from(root.querySelectorAll("section.block[id]"));
+      const tocList = document.getElementById("toc-list");
+      const currentHeading = document.getElementById("current-heading");
+      const currentMeta = document.getElementById("current-meta");
+      let restoreDone = false;
+      let ignoreHashOnce = false;
+
+      // Build TOC
+      sections.forEach((sec) => {
+        const h = sec.querySelector("h2");
+        if (!h) return;
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.href = "#" + sec.id;
+        a.textContent = h.textContent.replace(/^\d+\.\s*/, "");
+        a.dataset.target = sec.id;
+        li.appendChild(a);
+        tocList.appendChild(li);
+      });
+
+      function maxScroll() {
+        return Math.max(1, root.scrollHeight - root.clientHeight);
+      }
+
+      function saveRoute() {
+        const active = document.querySelector(".toc a.active");
+        const headingId = active ? active.dataset.target : (location.hash || "").slice(1);
+        const payload = {
+          scrollTop: root.scrollTop,
+          headingId: headingId || sections[0]?.id || "",
+          pct: Math.round((root.scrollTop / maxScroll()) * 100),
+          ts: Date.now(),
+        };
+        try {
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        } catch (_) {}
+        if (payload.headingId && location.hash !== "#" + payload.headingId) {
+          ignoreHashOnce = true;
+          history.replaceState(null, "", "#" + payload.headingId);
+        }
+      }
+
+      function setActive(id) {
+        tocList.querySelectorAll("a").forEach((a) => {
+          a.classList.toggle("active", a.dataset.target === id);
+        });
+        const sec = document.getElementById(id);
+        const title = sec?.querySelector("h2")?.textContent || id;
+        currentHeading.textContent = title;
+        const pct = Math.round((root.scrollTop / maxScroll()) * 100);
+        currentMeta.textContent = "scroll " + pct + "% · #" + id;
+      }
+
+      function headingFromScroll() {
+        const top = root.scrollTop + 48;
+        let current = sections[0]?.id;
+        for (const sec of sections) {
+          if (sec.offsetTop <= top) current = sec.id;
+        }
+        return current;
+      }
+
+      function onScroll() {
+        const id = headingFromScroll();
+        setActive(id);
+        saveRoute();
+      }
+
+      function restoreRoute() {
+        if (restoreDone) return;
+        restoreDone = true;
+        const hashId = (location.hash || "").slice(1);
+        let stored = null;
+        try {
+          stored = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "null");
+        } catch (_) {}
+
+        if (hashId && document.getElementById(hashId)) {
+          const el = document.getElementById(hashId);
+          root.scrollTop = el.offsetTop;
+          setActive(hashId);
+          return;
+        }
+        if (stored && typeof stored.scrollTop === "number") {
+          root.scrollTop = stored.scrollTop;
+          setActive(stored.headingId || headingFromScroll());
+          if (stored.headingId) {
+            ignoreHashOnce = true;
+            history.replaceState(null, "", "#" + stored.headingId);
+          }
+          return;
+        }
+        setActive(headingFromScroll());
+      }
+
+      root.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("hashchange", () => {
+        if (ignoreHashOnce) {
+          ignoreHashOnce = false;
+          return;
+        }
+        const id = (location.hash || "").slice(1);
+        const el = document.getElementById(id);
+        if (el) {
+          root.scrollTop = el.offsetTop;
+          setActive(id);
+          saveRoute();
+        }
+      });
+
+      // Theme
+      const themeBtn = document.getElementById("btn-theme");
+      const savedTheme = localStorage.getItem("eduardoos-theme");
+      if (savedTheme === "dark" || (!savedTheme && matchMedia("(prefers-color-scheme: dark)").matches)) {
+        document.documentElement.setAttribute("data-theme", "dark");
+        document.documentElement.classList.add("dark");
+      }
+      themeBtn.addEventListener("click", () => {
+        const dark = document.documentElement.getAttribute("data-theme") !== "dark";
+        document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+        document.documentElement.classList.toggle("dark", dark);
+        localStorage.setItem("eduardoos-theme", dark ? "dark" : "light");
+      });
+
+      // Views rail button (future: toggle nav)
+      const navBtn = document.getElementById("btn-nav");
+      navBtn.addEventListener("click", () => {
+        const nav = document.getElementById("side-nav");
+        const hide = nav.style.display === "none";
+        nav.style.display = hide ? "" : "none";
+        navBtn.setAttribute("aria-pressed", hide ? "false" : "true");
+      });
+
+      restoreRoute();
+      onScroll();
+    })();
+  </script>
+</body>
+</html>
