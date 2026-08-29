@@ -37,7 +37,8 @@ Need a clear, citable walkthrough of how to represent **topography** in semantic
 - Topography ≠ Site body: use `IfcGeographicElement` + `TERRAIN`, contained in `IfcSite`.
 - Exact geo: `IfcProjectedCRS` + `IfcMapConversion` (IFC4+). Site RefLat/Long = approximate WGS84 only.
 - Free schema docs: buildingSMART IFC 4.3 HTML (CC). ISO 16739-1:2024 on iso.org is catalogue + paid PDF; OBP preview only.
-- Bonsai: Scene → IFC Georeferencing; assign mesh class GeographicElement / TERRAIN.
+- Bonsai: Properties → Geometry → Georeferencing (IfcMapConversion; “Not Georeferenced” = no Projected CRS yet) — not Site Attributes / not Scene→IFC Georeferencing wording from older docs; assign mesh class GeographicElement / TERRAIN.
+- Step 7 updated to match Blender 5 + Bonsai screenshot (Geometry fold with Units + Georeferencing; separate from Step 6 RefLatitude).
 - Tutorial primary terrain path: hand-model verts + quads/tris (DEM/BlenderGIS optional).
 - Sample Site WGS84 hint (Bonsai UI lists): RefLatitude `[10, 28, 50, 0]`, RefLongitude `[-66, -54, -13, 0]`, RefElevation `900.0`, LandTitleNumber `CAT-2026-001-LIBERTADOR`.
 

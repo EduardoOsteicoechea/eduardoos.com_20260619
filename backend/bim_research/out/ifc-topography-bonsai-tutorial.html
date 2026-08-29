@@ -1157,13 +1157,33 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
                   <details class="fold" id="fold-project-setup">
                     <summary>Project Setup</summary>
                     <div class="fold-body">
-                      Units, templates…<br />
-                      <span style="color:var(--b-muted)">CRS / Map Conversion may appear near here or under IFC Georeferencing (Step B).</span>
+                      Templates / project tools…<br />
+                      <span style="color:var(--b-muted)">Not the place for CRS — use Geometry → Georeferencing (Step 7).</span>
                     </div>
                   </details>
-                  <details class="fold">
+                  <details class="fold" id="fold-geometry">
                     <summary>Geometry</summary>
-                    <div class="fold-body" style="color:var(--b-muted)">Geometry settings (sample).</div>
+                    <div class="fold-body" id="mock-geometry-body">
+                      <div style="margin-bottom:8px">
+                        <strong>Units</strong><br />
+                        <span style="color:var(--b-muted)">Length / area / volume (sample).</span>
+                      </div>
+                      <details class="fold" id="fold-georef" open>
+                        <summary>Georeferencing</summary>
+                        <div class="fold-body" id="mock-georef-body">
+                          <div style="margin-bottom:6px;color:var(--b-warn,#e0a060)">
+                            <strong>Not Georeferenced</strong>
+                            <span style="color:var(--b-muted)"> — no Projected CRS yet.</span>
+                          </div>
+                          <div class="attr-row"><label>Mode</label><input value="IfcMapConversion ▾" readonly /></div>
+                          <div style="margin:6px 0 4px;color:var(--b-muted)">Blender Coordinates</div>
+                          <div class="attr-row"><label>Eastings (m)</label><input value="0" readonly /></div>
+                          <div class="attr-row"><label>Northings (m)</label><input value="0" readonly /></div>
+                          <div class="attr-row"><label>OrthogonalHeight</label><input value="0" readonly /></div>
+                          <span style="color:var(--b-muted)">Project-level (not Site Attributes). See Step 7.</span>
+                        </div>
+                      </details>
+                    </div>
                   </details>
                   <details class="fold">
                     <summary>Stakeholders</summary>
@@ -1210,9 +1230,10 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
             <button type="button" id="mock-show-wrong">Show wrong tab (Project Overview)</button>
             <button type="button" id="mock-show-right">Show correct path (Object Information → Attributes)</button>
             <button type="button" id="mock-show-psets">Show Property Sets (address)</button>
+            <button type="button" id="mock-show-georef">Show georef path (Geometry → Georeferencing)</button>
           </div>
           <p class="ui-mock-status" id="mock-status" aria-live="polite">
-            <strong>Tip:</strong> Your screenshot was on Project Overview — click “Show correct path”.
+            <strong>Tip:</strong> Site lat/long → “Show correct path”. Survey CRS → “Show georef path”.
           </p>
         </div>
       </section>
@@ -1220,32 +1241,55 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
       <section class="block" id="step-georef">
         <h2>7. Step B — Geographic / map location</h2>
         <p>
-          Survey-grade location is <em>not</em> in the Site Attributes list.
-          It is project georeferencing (CRS + map conversion).
+          Survey-grade location is <em>not</em> in Site Attributes (Step 6).
+          It is <strong>project-level georeferencing</strong> under the Properties
+          <strong>Geometry</strong> panel — even if the Outliner has <code>IfcSite</code> selected.
         </p>
         <ol>
           <li>
-            Right Properties → Bonsai / Scene area → look for the panel titled
-            <strong>IFC Georeferencing</strong>
-            (official docs: Scene Properties → IFC Georeferencing).
-            On builds that nest it under <strong>Project Overview</strong>, try expanding
-            <strong>Project Setup</strong> or scroll other Scene/Bonsai tabs until you see
-            <em>Projected CRS</em> and <em>Map Conversion</em>.
+            Right <strong>Properties</strong> panel → find the collapsible
+            <strong>Geometry</strong> section and expand it.
+            Under Geometry you should see at least <strong>Units</strong> and
+            <strong>Georeferencing</strong>.
           </li>
-          <li>Set <strong>Projected CRS</strong> to your EPSG code (use <em>your</em> zone; e.g. <code>EPSG:7856</code> is only an Australian example).</li>
-          <li>Enter <strong>Map Conversion</strong> from the surveyor:
+          <li>
+            Expand <strong>Georeferencing</strong>.
+            If the header (or status) says <strong>Not Georeferenced</strong>, the project has
+            <em>no Projected CRS yet</em> — Site <code>RefLatitude</code> alone does not count as georeferenced.
+          </li>
+          <li>
+            Set a <strong>Projected CRS</strong> (your EPSG zone; e.g. <code>EPSG:7856</code> is only an Australian example —
+            use the code your surveyor / national mapping agency specifies for the site).
+            Until a CRS is assigned, Bonsai correctly shows “Not Georeferenced”.
+          </li>
+          <li>
+            Choose conversion mode <strong>IfcMapConversion</strong> (dropdown in the Georeferencing UI).
+            Under <strong>Blender Coordinates</strong> (or Map Conversion fields), enter the surveyor values that place
+            local engineering <code>0,0,0</code> on the map:
             <ul>
-              <li><code>Eastings</code>, <code>Northings</code>, <code>OrthogonalHeight</code> — map position of local 0,0,0</li>
-              <li><code>XAxisAbscissa</code> / <code>XAxisOrdinate</code> — rotation from project east to grid east</li>
-              <li><code>Scale</code> — combined scale factor (≈1 for small sites; confirm with surveyor)</li>
+              <li><strong>Eastings (m)</strong> — map easting of the project origin</li>
+              <li><strong>Northings (m)</strong> — map northing of the project origin</li>
+              <li><strong>OrthogonalHeight</strong> — map height / orthometric elevation of local Z = 0</li>
+              <li>Optional: <code>XAxisAbscissa</code> / <code>XAxisOrdinate</code> — rotation from project east toward grid east</li>
+              <li>Optional: <code>Scale</code> — combined scale factor (≈1 for small sites; confirm with surveyor)</li>
             </ul>
+            Fresh projects often show Eastings / Northings at <code>0</code> until you paste real survey figures.
           </li>
           <li>Optionally store True North for solar studies only; never use it as the federating rotation source.</li>
-          <li>Stay under ~1&nbsp;km extents in Blender’s engineering coordinates. Prefer local coords + map conversion over modeling in raw map coordinates.</li>
+          <li>Stay under ~1&nbsp;km extents in Blender’s engineering coordinates. Prefer local coords + map conversion over modeling in raw map meters.</li>
         </ol>
         <div class="callout">
-          <strong>Check.</strong> A model with large XYZ numbers but <em>no</em> Projected CRS is <em>not</em> georeferenced.
-          Site <code>RefLatitude</code>/<code>RefLongitude</code> alone do not replace this panel.
+          <strong>Separate from Step 6.</strong>
+          Outliner may show <code>IfcSite</code> (e.g. EduOS Lab Site Caracas) selected, and
+          Object Information → Attributes holds approximate WGS84
+          (<code>RefLatitude</code> / <code>RefLongitude</code> / <code>RefElevation</code>).
+          Exact map placement lives only under <strong>Geometry → Georeferencing</strong>
+          (<code>IfcProjectedCRS</code> + <code>IfcMapConversion</code>).
+          Use the mock button “Show georef path” above to see that fold.
+        </div>
+        <div class="callout">
+          <strong>Check.</strong> “Not Georeferenced” + empty/missing Projected CRS = not survey-ready,
+          even if Site Attributes already have lat/long. Large XYZ numbers without a CRS are also not georeferenced.
         </div>
       </section>
 
@@ -1348,7 +1392,7 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
       <section class="block" id="step-verify">
         <h2>10. Step E — Verify georef + terrain</h2>
         <ol>
-          <li>In Bonsai Georeferencing panel: confirm CRS code + non-empty map conversion (unless intentionally identity).</li>
+          <li>In Properties → Geometry → Georeferencing: confirm Projected CRS is set (not “Not Georeferenced”) and map conversion fields match the surveyor (unless intentionally identity).</li>
           <li>Use Local ↔ Global conversion tools in the sidebar to spot-check a known survey point.</li>
           <li>In the IFC explorer: Site contains GeographicElement / TERRAIN.</li>
           <li>Federate with a second discipline file that shares the same CRS + conversion; terrain and building should align.</li>
@@ -1585,7 +1629,10 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
         const tabObject = document.getElementById("tab-object");
         const foldAttr = document.getElementById("fold-attributes");
         const foldPsets = document.getElementById("fold-psets");
+        const foldGeometry = document.getElementById("fold-geometry");
+        const foldGeoref = document.getElementById("fold-georef");
         const mockAttrs = document.getElementById("mock-attributes");
+        const mockGeoref = document.getElementById("mock-georef-body");
         const hint = document.getElementById("mock-viewport-hint");
         if (!paneOverview || !paneObject) return;
 
@@ -1656,6 +1703,17 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
           if (foldPsets) foldPsets.open = true;
           pulse(foldPsets);
           if (status) status.innerHTML = "<strong>Address:</strong> Object Information → Property Sets → Pset_Address.";
+        });
+        document.getElementById("mock-show-georef")?.addEventListener("click", () => {
+          selectSite();
+          showTab("overview");
+          if (foldGeometry) foldGeometry.open = true;
+          if (foldGeoref) foldGeoref.open = true;
+          pulse(mockGeoref || foldGeoref);
+          if (hint) {
+            hint.innerHTML = '3D Viewport<br />Active: <mark>IfcSite/My Site</mark><br /><span style="opacity:0.85">Georef is project-level: Properties → <strong>Geometry → Georeferencing</strong> (not Site Attributes).</span>';
+          }
+          if (status) status.innerHTML = "<strong>Step 7 path:</strong> Properties → Geometry → Georeferencing (IfcMapConversion / Eastings / Northings). Separate from Site RefLatitude.";
         });
       })();
 
