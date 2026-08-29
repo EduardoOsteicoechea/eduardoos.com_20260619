@@ -75,7 +75,6 @@ const DEFAULT_LIGHTS: LightSettings = {
 };
 
 const SHADOW_MAP_SIZES = [512, 1024, 2048, 4096] as const;
-const SHADOW_GROUND_NAME = "bim-ifc-shadow-ground";
 /** Soft bone (light) / cool grey-blue (dark) — spec 037, follows site theme. */
 const VIEWPORT_BG_LIGHT = "#e8e0d4";
 const VIEWPORT_BG_DARK = "#141820";
@@ -150,13 +149,17 @@ function softenFragmentMaterialZFight(material: THREE.Material) {
   material.polygonOffsetFactor = Math.random();
 }
 
-/** Move non-light, non-ground children so models/grid survive scene-class swaps. */
+/** Move non-light children so models/grid survive scene-class swaps. */
 function migrateSceneContents(from: THREE.Scene, to: THREE.Scene) {
   const movers: THREE.Object3D[] = [];
   for (const child of [...from.children]) {
     const asLight = child as THREE.Light;
     if ("isLight" in asLight && asLight.isLight) continue;
-    if (child.name === SHADOW_GROUND_NAME) continue;
+    // Drop legacy studio shadow-catcher planes from older builds.
+    if (child.name === "bim-ifc-shadow-ground") {
+      from.remove(child);
+      continue;
+    }
     movers.push(child);
   }
   for (const obj of movers) {
@@ -421,46 +424,24 @@ export default function BimIfcViewer() {
         const isShadowed = (scene: AnyScene): scene is ShadowedScene =>
           scene instanceof OBC.ShadowedScene;
 
-        const addShadowGround = (scene: ShadowedScene) => {
-          const catcherMat = () => new THREE.ShadowMaterial({ opacity: 0.28 });
-          const existing = scene.three.getObjectByName(SHADOW_GROUND_NAME);
-          if (existing) {
-            // Always keep ground out of CSM distance (huge plane would blow the frustum).
-            scene.distanceRenderer.excludedObjects.add(existing);
-            const mesh = existing as THREE.Mesh;
-            // Downgrade the brief opaque limestone plane — it dwarfed the model.
-            const mat = mesh.material as THREE.Material | THREE.Material[];
-            const single = Array.isArray(mat) ? mat[0] : mat;
-            if (single && !("isShadowMaterial" in single && (single as THREE.ShadowMaterial).isShadowMaterial)) {
-              if (Array.isArray(mat)) {
-                for (const m of mat) m.dispose();
-              } else {
-                mat.dispose();
-              }
-              mesh.material = catcherMat();
-            }
-            mesh.receiveShadow = true;
-            mesh.castShadow = false;
-            return mesh;
-          }
-          // Invisible catcher: soft contact shadows only — no opaque “default plane”.
-          const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), catcherMat());
-          ground.name = SHADOW_GROUND_NAME;
-          ground.rotation.x = -Math.PI / 2;
-          ground.position.y = -0.02;
-          ground.receiveShadow = true;
-          ground.castShadow = false;
-          ground.frustumCulled = false;
-          scene.three.add(ground);
-          scene.distanceRenderer.excludedObjects.add(ground);
-          return ground;
-        };
-
         /** That Open recipe: grid must not drive farthest-distance for CSM. */
         const excludeNonModelFromDistance = (scene: ShadowedScene) => {
           scene.distanceRenderer.excludedObjects.add(grid.three);
-          const ground = scene.three.getObjectByName(SHADOW_GROUND_NAME);
-          if (ground) scene.distanceRenderer.excludedObjects.add(ground);
+        };
+
+        /** Remove any leftover studio catcher from older viewer builds. */
+        const stripLegacyShadowGround = (root: THREE.Object3D) => {
+          const legacy = root.getObjectByName("bim-ifc-shadow-ground");
+          if (!legacy) return;
+          legacy.parent?.remove(legacy);
+          legacy.traverse((obj) => {
+            if (!(obj as THREE.Mesh).isMesh) return;
+            const mesh = obj as THREE.Mesh;
+            mesh.geometry?.dispose();
+            const mat = mesh.material;
+            if (Array.isArray(mat)) for (const m of mat) m.dispose();
+            else mat?.dispose();
+          });
         };
 
         const disposePreviousScene = (prev: AnyScene) => {
@@ -548,7 +529,7 @@ export default function BimIfcViewer() {
             next.autoBias = false;
             next.bias = settings.shadowBias;
             next.shadowsEnabled = true;
-            addShadowGround(next);
+            stripLegacyShadowGround(next.three);
             excludeNonModelFromDistance(next);
             migrateSceneContents(prev.three, next.three);
             disposePreviousScene(prev);
@@ -587,7 +568,7 @@ export default function BimIfcViewer() {
               resolution: settings.shadowMapSize,
             } as Parameters<ShadowedScene["setup"]>[0]);
             applyViewportBackground(prev.three);
-            addShadowGround(prev);
+            stripLegacyShadowGround(prev.three);
             excludeNonModelFromDistance(prev);
           }
 

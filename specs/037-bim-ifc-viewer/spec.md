@@ -45,8 +45,8 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
    - Directional intensity **4.05**, color `#ffffff`
    - Sun elevation **16°**, azimuth **42°**
    - Shadows **on** (start on `ShadowedScene` + VSM), map size **2048**, bias **-0.002** (reduces stripe/acne on horizontal slabs; Reset restores this)
-   - Keep existing shadow quality rules: exclude grid + shadow ground from `distanceRenderer`; `updateShadows` on load / sun change / camera `rest`; cast/receive on fragment meshes
-   - **Shadow ground:** Invisible `ShadowMaterial` catcher only (soft contact shadows on empty paper). **No** opaque studio plane — a large visible plane dwarfs the model.
+   - Keep existing shadow quality rules: exclude **grid only** from `distanceRenderer`; `updateShadows` on load / sun change / camera `rest`; cast/receive on **IFC fragment meshes** (terrain, street, cars, etc.)
+   - **No shadow ground plane** — do not add a studio/catcher mesh. Shadows land on the IFC geometry itself.
    - **First paint:** After IFC load (including auto-load), schedule shadow refresh immediately and again after short delays (~100ms, ~500ms) so slab shading settles without requiring the user to orbit first.
 9. **Nav:** Link **BIM IFC viewer** in Services Apps for everyone (not admin-only block). Remove from admin-only page path gate.
 10. **Python runtime:** Unchanged (`backend/bim/bim_runtime`, timeout/caps, `BIM_IFC_ARGS` metadata only).
@@ -74,7 +74,7 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
 - [x] Default / Reset lights match preset: ambient 2.85, directional 4.05, sun 16°/42°, shadows on, map 2048, bias **-0.002**.
 - [x] Services menu shows BIM IFC viewer; page is not admin-only gated.
 - [x] Viewport background is bone `#e8e0d4` in light theme and cool grey-blue `#141820` in dark theme; helper grid is hidden; updates when site Theme toggles.
-- [x] Horizontal floor/slab shadow acne reduced via default bias -0.002; invisible ShadowMaterial catcher (no opaque default plane); shadows refresh on open without orbit.
+- [x] Horizontal floor/slab shadow acne reduced via default bias -0.002; **no** shadow-catcher plane (IFC meshes only); shadows refresh on open without orbit.
 
 ## Affected paths
 
