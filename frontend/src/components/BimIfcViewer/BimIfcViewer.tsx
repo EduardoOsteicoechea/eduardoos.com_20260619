@@ -1,9 +1,9 @@
 /**
- * Admin BIM IFC viewer (spec 037): That Open scene + browser IFC upload +
- * host Python console posting IFC metadata args + viewport light sidebar.
+ * Admin BIM IFC viewer (spec 037): That Open ShadowedScene + browser IFC upload +
+ * host Python console posting IFC metadata args + viewport Lights sidebar
+ * (ambient / directional / sun elevation+azimuth / shadows).
  * Upload / Python / Output / Offload are icon-only header-dynamic-menu tools.
  * Viewport is full-bleed; That Open logo is disabled via showLogo = false.
- * IFC load keeps world (0,0,0) at the grid: COORDINATE_TO_ORIGIN false + load coordinate false.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -28,26 +28,60 @@ type RunResponse = {
   runtime?: string;
 };
 
-/** Matches That Open SimpleScene._defaultConfig after setup(). */
+/** Live scene light + sun + shadow controls (spec 037). */
 type LightSettings = {
   ambientIntensity: number;
   ambientColor: string;
   directionalIntensity: number;
   directionalColor: string;
-  dirX: number;
-  dirY: number;
-  dirZ: number;
+  /** Degrees above horizon (Y-up). */
+  sunElevation: number;
+  /** Degrees from +Z toward +X. */
+  sunAzimuth: number;
+  shadowsEnabled: boolean;
+  /** Shadow map edge length (That Open ShadowedScene resolution). */
+  shadowMapSize: number;
+  /** Shadow bias (typically 0 … -0.005). */
+  shadowBias: number;
 };
+
+/** Legacy SimpleScene light position used to seed default sun angles. */
+const LEGACY_DIR = { x: 5, y: 10, z: 3 };
+const SUN_DISTANCE = Math.hypot(LEGACY_DIR.x, LEGACY_DIR.y, LEGACY_DIR.z);
+
+function sunDirectionFromAngles(elevationDeg: number, azimuthDeg: number, radius = SUN_DISTANCE) {
+  const e = (elevationDeg * Math.PI) / 180;
+  const a = (azimuthDeg * Math.PI) / 180;
+  const cosE = Math.cos(e);
+  return new THREE.Vector3(
+    radius * cosE * Math.sin(a),
+    radius * Math.sin(e),
+    radius * cosE * Math.cos(a),
+  );
+}
+
+function anglesFromDirection(x: number, y: number, z: number) {
+  const r = Math.hypot(x, y, z) || 1;
+  const elevation = (Math.asin(Math.min(1, Math.max(-1, y / r))) * 180) / Math.PI;
+  const azimuth = (((Math.atan2(x, z) * 180) / Math.PI) + 360) % 360;
+  return { elevation, azimuth };
+}
+
+const LEGACY_SUN = anglesFromDirection(LEGACY_DIR.x, LEGACY_DIR.y, LEGACY_DIR.z);
 
 const DEFAULT_LIGHTS: LightSettings = {
   ambientIntensity: 1,
   ambientColor: "#ffffff",
   directionalIntensity: 1.5,
   directionalColor: "#ffffff",
-  dirX: 5,
-  dirY: 10,
-  dirZ: 3,
+  sunElevation: Number(LEGACY_SUN.elevation.toFixed(1)),
+  sunAzimuth: Number(LEGACY_SUN.azimuth.toFixed(1)),
+  shadowsEnabled: true,
+  shadowMapSize: 2048,
+  shadowBias: -0.002,
 };
+
+const SHADOW_MAP_SIZES = [512, 1024, 2048, 4096] as const;
 
 const DEFAULT_CODE = `# Empty code runs hello_world.py on the server.
 # BIM_IFC_ARGS JSON is injected for the browser-loaded IFC metadata.
@@ -55,8 +89,25 @@ print("custom run")
 `;
 
 type SceneLightsApi = {
-  apply: (settings: LightSettings) => void;
+  apply: (settings: LightSettings, opts?: { rebuildShadows?: boolean }) => void;
 };
+
+function enableMeshShadows(root: THREE.Object3D) {
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!("isMesh" in mesh) || !mesh.isMesh) return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const opaque = mats.every((m) => {
+      if (!m) return true;
+      const opacity = "opacity" in m ? Number((m as THREE.Material & { opacity?: number }).opacity ?? 1) : 1;
+      return opacity >= 0.99;
+    });
+    if (opaque) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    }
+  });
+}
 
 function LightIcon() {
   return (
@@ -111,12 +162,13 @@ export default function BimIfcViewer() {
 
         const components = new OBC.Components();
         const worlds = components.get(OBC.Worlds);
-        const world = worlds.create();
+        const world = worlds.create<
+          InstanceType<typeof OBC.ShadowedScene>,
+          InstanceType<typeof OBC.OrthoPerspectiveCamera>,
+          InstanceType<typeof OBC.SimpleRenderer>
+        >();
 
-        world.scene = new OBC.SimpleScene(components);
-        world.scene.setup();
-        world.scene.three.background = null;
-
+        world.scene = new OBC.ShadowedScene(components);
         const renderer = new OBC.SimpleRenderer(components, host);
         // Official API: hide That Open Company watermark (full-bleed clean viewport).
         renderer.showLogo = false;
@@ -124,20 +176,86 @@ export default function BimIfcViewer() {
         world.camera = new OBC.OrthoPerspectiveCamera(components);
         await world.camera.controls.setLookAt(12, 8, 12, 0, 0, 0);
         components.init();
+
+        renderer.three.shadowMap.enabled = true;
+        renderer.three.shadowMap.type = THREE.VSMShadowMap;
+
+        const sunDir = sunDirectionFromAngles(DEFAULT_LIGHTS.sunElevation, DEFAULT_LIGHTS.sunAzimuth);
+        // Runtime ShadowedScene.setup reads cascade/resolution at top level (merged with defaults).
+        world.scene.setup({
+          ambientLight: {
+            color: new THREE.Color(DEFAULT_LIGHTS.ambientColor),
+            intensity: DEFAULT_LIGHTS.ambientIntensity,
+          },
+          directionalLight: {
+            color: new THREE.Color(DEFAULT_LIGHTS.directionalColor),
+            intensity: DEFAULT_LIGHTS.directionalIntensity,
+            position: sunDir.clone(),
+          },
+          shadows: {
+            cascade: 1,
+            resolution: DEFAULT_LIGHTS.shadowMapSize,
+          },
+          cascade: 1,
+          resolution: DEFAULT_LIGHTS.shadowMapSize,
+        } as Parameters<typeof world.scene.setup>[0]);
+
+        world.scene.three.background = null;
+        world.scene.autoBias = false;
+        world.scene.bias = DEFAULT_LIGHTS.shadowBias;
+        world.scene.shadowsEnabled = DEFAULT_LIGHTS.shadowsEnabled;
+
+        // Ground receiver so building shadows read against the XY plane (Y-up).
+        const ground = new THREE.Mesh(
+          new THREE.PlaneGeometry(400, 400),
+          new THREE.ShadowMaterial({ opacity: 0.32 }),
+        );
+        ground.name = "bim-ifc-shadow-ground";
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = 0;
+        ground.receiveShadow = true;
+        ground.castShadow = false;
+        world.scene.three.add(ground);
+
         components.get(OBC.Grids).create(world);
+        await world.scene.updateShadows();
+
+        world.camera.controls.addEventListener("rest", () => {
+          void world.scene.updateShadows();
+        });
 
         lightsApiRef.current = {
-          apply: (settings: LightSettings) => {
+          apply: (settings, opts) => {
+            const dir = sunDirectionFromAngles(settings.sunElevation, settings.sunAzimuth);
+
+            if (opts?.rebuildShadows) {
+              world.scene.setup({
+                ambientLight: {
+                  color: new THREE.Color(settings.ambientColor),
+                  intensity: settings.ambientIntensity,
+                },
+                directionalLight: {
+                  color: new THREE.Color(settings.directionalColor),
+                  intensity: settings.directionalIntensity,
+                  position: dir.clone(),
+                },
+                shadows: { cascade: 1, resolution: settings.shadowMapSize },
+                cascade: 1,
+                resolution: settings.shadowMapSize,
+              } as Parameters<typeof world.scene.setup>[0]);
+            }
+
             const cfg = world.scene.config;
             cfg.ambientLight.intensity = settings.ambientIntensity;
             cfg.ambientLight.color = new THREE.Color(settings.ambientColor);
             cfg.directionalLight.intensity = settings.directionalIntensity;
             cfg.directionalLight.color = new THREE.Color(settings.directionalColor);
-            cfg.directionalLight.position = new THREE.Vector3(
-              settings.dirX,
-              settings.dirY,
-              settings.dirZ,
-            );
+            cfg.directionalLight.position = dir;
+
+            world.scene.shadowsEnabled = settings.shadowsEnabled;
+            world.scene.autoBias = false;
+            world.scene.bias = settings.shadowBias;
+            void world.scene.updateShadows();
           },
         };
         lightsApiRef.current.apply(DEFAULT_LIGHTS);
@@ -151,6 +269,13 @@ export default function BimIfcViewer() {
           },
         });
 
+        // Keep IFC world origin at scene origin (no first-vertex coordinate shift).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const webIfcSettings = (ifcLoader as any).settings ?? (ifcLoader as any).webIfc;
+        if (webIfcSettings && typeof webIfcSettings === "object") {
+          webIfcSettings.COORDINATE_TO_ORIGIN = false;
+        }
+
         const workerUrl = await OBC.FragmentsManager.getWorker();
         const fragments = components.get(OBC.FragmentsManager);
         fragments.init(workerUrl);
@@ -161,7 +286,20 @@ export default function BimIfcViewer() {
         fragments.list.onItemSet.add(({ value: model }: { value: any }) => {
           model.useCamera(world.camera.three);
           world.scene.three.add(model.object);
+          enableMeshShadows(model.object);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          model.tiles?.onItemSet?.add(({ value: mesh }: { value: any }) => {
+            if (mesh && "isMesh" in mesh && mesh.isMesh) {
+              const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+              const opacity = mats[0] && "opacity" in mats[0] ? Number(mats[0].opacity ?? 1) : 1;
+              if (opacity >= 0.99) {
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+              }
+            }
+          });
           void fragments.core.update(true);
+          void world.scene.updateShadows();
         });
 
         loadIfcRef.current = async (file: File) => {
@@ -172,17 +310,7 @@ export default function BimIfcViewer() {
           }
           setStatus(`Converting ${file.name}…`);
           const data = new Uint8Array(await file.arrayBuffer());
-          // coordinate=false: do not re-align models via coordination matrices.
-          // COORDINATE_TO_ORIGIN=false: keep IFC (0,0,0) at scene/grid origin.
-          // Fragments IfcImporter defaults COORDINATE_TO_ORIGIN=true (first vertex
-          // → origin), which makes a correct IFC corner-at-zero look “off” the grid.
           await ifcLoader.load(data, false, file.name.replace(/\.[^.]+$/, "") || "model", {
-            instanceCallback: (importer) => {
-              importer.webIfcSettings = {
-                ...importer.webIfcSettings,
-                COORDINATE_TO_ORIGIN: false,
-              };
-            },
             processData: {
               progressCallback: (progress: number) => {
                 setStatus(`Converting ${file.name}… ${Math.round(progress * 100)}%`);
@@ -191,6 +319,7 @@ export default function BimIfcViewer() {
           });
           setIfc({ name: file.name, sizeBytes: file.size, loaded: true });
           setStatus(`Loaded ${file.name}`);
+          void world.scene.updateShadows();
         };
 
         offloadIfcRef.current = async () => {
@@ -199,6 +328,7 @@ export default function BimIfcViewer() {
             await fragments.core.disposeModel(modelId);
           }
           void fragments.core.update(true);
+          void world.scene.updateShadows();
         };
 
         disposeRef.current = () => {
@@ -226,10 +356,10 @@ export default function BimIfcViewer() {
     };
   }, [allowed]);
 
-  const patchLights = useCallback((patch: Partial<LightSettings>) => {
+  const patchLights = useCallback((patch: Partial<LightSettings>, rebuildShadows = false) => {
     setLights((prev) => {
       const next = { ...prev, ...patch };
-      lightsApiRef.current?.apply(next);
+      lightsApiRef.current?.apply(next, { rebuildShadows });
       return next;
     });
   }, []);
@@ -431,41 +561,73 @@ export default function BimIfcViewer() {
                 onChange={(e) => patchLights({ directionalColor: e.target.value })}
               />
             </label>
+          </fieldset>
+
+          <fieldset className="bim-ifc-viewer__lights-group">
+            <legend>Sun</legend>
             <label className="bim-ifc-viewer__field">
-              <span>Pos X</span>
+              <span>Elevation</span>
               <input
                 type="range"
-                min={-30}
-                max={30}
+                min={1}
+                max={89}
                 step={0.5}
-                value={lights.dirX}
-                onChange={(e) => patchLights({ dirX: Number(e.target.value) })}
+                value={lights.sunElevation}
+                onChange={(e) => patchLights({ sunElevation: Number(e.target.value) })}
               />
-              <span className="bim-ifc-viewer__field-val">{lights.dirX.toFixed(1)}</span>
+              <span className="bim-ifc-viewer__field-val">{lights.sunElevation.toFixed(1)}°</span>
             </label>
             <label className="bim-ifc-viewer__field">
-              <span>Pos Y</span>
+              <span>Azimuth</span>
               <input
                 type="range"
-                min={-30}
-                max={30}
-                step={0.5}
-                value={lights.dirY}
-                onChange={(e) => patchLights({ dirY: Number(e.target.value) })}
+                min={0}
+                max={360}
+                step={1}
+                value={lights.sunAzimuth}
+                onChange={(e) => patchLights({ sunAzimuth: Number(e.target.value) })}
               />
-              <span className="bim-ifc-viewer__field-val">{lights.dirY.toFixed(1)}</span>
+              <span className="bim-ifc-viewer__field-val">{lights.sunAzimuth.toFixed(0)}°</span>
+            </label>
+          </fieldset>
+
+          <fieldset className="bim-ifc-viewer__lights-group">
+            <legend>Shadows</legend>
+            <label className="bim-ifc-viewer__field bim-ifc-viewer__field--check">
+              <span>Enabled</span>
+              <input
+                type="checkbox"
+                checked={lights.shadowsEnabled}
+                onChange={(e) => patchLights({ shadowsEnabled: e.target.checked })}
+              />
+              <span className="bim-ifc-viewer__field-val">{lights.shadowsEnabled ? "on" : "off"}</span>
             </label>
             <label className="bim-ifc-viewer__field">
-              <span>Pos Z</span>
+              <span>Map size</span>
+              <select
+                className="bim-ifc-viewer__select"
+                value={lights.shadowMapSize}
+                onChange={(e) => patchLights({ shadowMapSize: Number(e.target.value) }, true)}
+              >
+                {SHADOW_MAP_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+              <span className="bim-ifc-viewer__field-val">{lights.shadowMapSize}</span>
+            </label>
+            <label className="bim-ifc-viewer__field">
+              <span>Bias</span>
               <input
                 type="range"
-                min={-30}
-                max={30}
-                step={0.5}
-                value={lights.dirZ}
-                onChange={(e) => patchLights({ dirZ: Number(e.target.value) })}
+                min={-0.01}
+                max={0}
+                step={0.0001}
+                value={lights.shadowBias}
+                onChange={(e) => patchLights({ shadowBias: Number(e.target.value) })}
               />
-              <span className="bim-ifc-viewer__field-val">{lights.dirZ.toFixed(1)}</span>
+              <span className="bim-ifc-viewer__field-val">{lights.shadowBias.toFixed(4)}</span>
             </label>
           </fieldset>
 
@@ -474,7 +636,7 @@ export default function BimIfcViewer() {
             className="btn bim-ifc-viewer__lights-reset"
             onClick={() => {
               setLights(DEFAULT_LIGHTS);
-              lightsApiRef.current?.apply(DEFAULT_LIGHTS);
+              lightsApiRef.current?.apply(DEFAULT_LIGHTS, { rebuildShadows: true });
             }}
           >
             Reset lights

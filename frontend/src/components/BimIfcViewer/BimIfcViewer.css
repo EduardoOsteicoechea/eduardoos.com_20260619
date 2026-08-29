@@ -205,6 +205,32 @@
   color: var(--site-meta-fg);
 }
 
+.bim-ifc-viewer__field--check {
+  grid-template-columns: 4.2rem auto 2.4rem;
+}
+
+.bim-ifc-viewer__field--check input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  justify-self: start;
+  accent-color: var(--site-accent);
+  cursor: pointer;
+}
+
+.bim-ifc-viewer__select {
+  width: 100%;
+  min-width: 0;
+  min-height: 1.6rem;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001, 2px);
+  background: color-mix(in srgb, var(--site-body-bg) 90%, var(--site-body-fg) 10%);
+  color: var(--site-body-fg);
+  font-family: Raleway, Roboto, sans-serif;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
 .bim-ifc-viewer__lights-reset {
   align-self: flex-start;
   margin-top: 0.15rem;

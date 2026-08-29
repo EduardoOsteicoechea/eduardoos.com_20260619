@@ -2,7 +2,7 @@
 
 ## Status
 
-Locked from user answers (2026-08-29). Viewport chrome polish (2026-08-29): full-bleed stage, no That Open logo, icon-only header tools, Offload model. Implement from this file.
+Locked from user answers (2026-08-29). Viewport chrome polish (2026-08-29): full-bleed stage, no That Open logo, icon-only header tools, Offload model. Shadows + sun controls (2026-08-29): ShadowedScene, Lights sidebar Sun/Shadows fieldsets. Implement from this file.
 
 ## Problem
 
@@ -23,10 +23,25 @@ Admins need a browser IFC viewer (That Open / web-ifc) and a host Python console
    - **Offload model** — clears/disposes the currently loaded IFC/fragments from the browser scene only (no server call). Resets IFC metadata (`loaded: false`, clear name/size), updates status, leaves viewer ready for a new upload. Disabled or no-op when nothing is loaded.
    The page may keep a **compact status line** (load progress / last run hint). Light sidebar stays on the viewport rail (not in the header menu).
 7. **Hello world:** Default / empty-code runs `hello_world.py` under the runtime root (prints hello + echoes `BIM_IFC_ARGS`).
-8. **Scene lights (viewer UI):** A rail **icon button** on the viewer viewport toggles a **side panel** with live That Open `SimpleScene` light controls (ambient + directional intensity/color; directional position). Defaults match `world.scene.setup()`; changes apply immediately to the Three.js lights — no server round-trip.
-9. **Admin nav:** Global header tray (admin block, after Agent Sandbox) links to `/bim/ifc/viewer` as **BIM IFC viewer**, gated by the same `isPlatformAdmin()` check as other admin links. Not under Services Apps.
-10. **Full-bleed viewport:** The 3D stage fills the available page content area edge-to-edge (no outer padding/border gap around the canvas separating it from the header rail / page edges). Respect desktop left site-header rail via existing `--header_width` / main layout tokens — do not underlap the rail.
-11. **No third-party logo watermark:** Hide/disable the That Open Company logo overlay (`world.renderer.showLogo = false` or equivalent). Viewport stays clean without breaking the viewer.
+8. **Scene lights (viewer UI):** A rail **icon button** on the viewer viewport toggles a **side panel** with live That Open light controls. Changes apply immediately — no server round-trip. Sidebar fieldsets:
+   - **Ambient** — intensity, color.
+   - **Directional** — intensity, color (sun “brightness” / tint).
+   - **Sun** — elevation ° (above horizon) and azimuth ° (from +Z toward +X on the Y-up scene). These derive the directional light **direction** vector; raw Pos X/Y/Z sliders are **hidden** (not shown). When sun angles change, sync internal `dirX/Y/Z` and apply to `world.scene.config.directionalLight.position`, then refresh shadows.
+   - **Shadows** — enable/disable, shadow map resolution (e.g. 512 / 1024 / 2048 / 4096), and bias (stripe-artifact control). Reset restores lights + sun + shadow defaults together.
+9. **Scene shadows:** Use That Open **`ShadowedScene`** (not `SimpleScene`) with `SimpleRenderer` shadow maps enabled (`shadowMap.enabled`, prefer `VSMShadowMap`). Call `scene.setup` with shadow cascade/resolution (cascade `1`), then `updateShadows()` after setup, after model load/tile mesh flags, after sun direction changes, and on camera controls `rest`. Opaque fragment tiles (and model object children) set `castShadow` / `receiveShadow`. Add a large Y=0 ground plane with `ShadowMaterial` that **receives** shadows so buildings ground correctly. Toggle via `world.scene.shadowsEnabled`; bias via `world.scene.bias` (disable `autoBias` when the user sets bias manually, or set bias after each update).
+10. **Admin nav:** Global header tray (admin block, after Agent Sandbox) links to `/bim/ifc/viewer` as **BIM IFC viewer**, gated by the same `isPlatformAdmin()` check as other admin links. Not under Services Apps.
+11. **Full-bleed viewport:** The 3D stage fills the available page content area edge-to-edge (no outer padding/border gap around the canvas separating it from the header rail / page edges). Respect desktop left site-header rail via existing `--header_width` / main layout tokens — do not underlap the rail.
+12. **No third-party logo watermark:** Hide/disable the That Open Company logo overlay (`world.renderer.showLogo = false` or equivalent). Viewport stays clean without breaking the viewer.
+
+### Sun direction math (Y-up Three.js)
+
+Given elevation \(e\) (degrees above horizon) and azimuth \(a\) (degrees from **+Z** toward **+X**), with fixed direction length \(r\) (default matches legacy light position magnitude ≈ 11.58):
+
+- \(x = r \cdot \cos(e) \cdot \sin(a)\)
+- \(y = r \cdot \sin(e)\)
+- \(z = r \cdot \cos(e) \cdot \cos(a)\)
+
+`ShadowedScene` treats this vector as the sun **direction** (normalized internally when recomputing cascaded shadow lights). Defaults chosen so the initial direction matches the prior SimpleScene light at `(5, 10, 3)`.
 
 ## Isolation (host subprocess)
 
@@ -59,7 +74,9 @@ Crawling **within** scripts (e.g. `urllib`) is allowed for research under the ru
 - [x] Header **Python** modal → run hello world → **Output** modal shows greeting + IFC JSON args (same content as former bottom panel).
 - [x] Custom Python runs under `backend/bim/bim_runtime` with timeout/caps.
 - [x] No new Docker Compose Python service.
-- [x] Light icon on the viewport rail opens/closes a sidebar; ambient/directional intensity, color, and directional position update the live scene.
+- [x] Light icon on the viewport rail opens/closes a sidebar; ambient/directional intensity and color update the live scene.
+- [x] Lights sidebar includes **Sun** (elevation °, azimuth °) that updates directional light direction; raw Pos X/Y/Z controls are not shown.
+- [x] Lights sidebar includes **Shadows** (enable, map resolution, bias); scene uses `ShadowedScene` + renderer shadow maps; loaded model meshes cast/receive; ground plane receives.
 - [x] Signed-in platform admin sees **BIM IFC viewer** in the global header tray admin block (same gate as Agent Sandbox).
 - [x] Header dynamic menu exposes **Upload**, **Python**, and **Output**; page has no permanent bottom Python output block and no inline toolbar upload control (compact status line OK).
 - [x] 3D viewport is full-bleed in the page content area (no outer padding/border gap around the canvas; desktop left rail still respected via layout tokens).
