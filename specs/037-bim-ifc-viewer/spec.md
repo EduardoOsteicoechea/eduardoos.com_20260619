@@ -17,6 +17,8 @@ Admins need a browser IFC viewer (That Open / web-ifc) and a host Python console
 5. **IFC args:** Console POSTs metadata of the browser-loaded IFC (`name`, `sizeBytes`, `loaded`, optional client notes). Injected into the process as env `BIM_IFC_ARGS` (JSON). OCC processing of the file itself is **out of scope** for v1.
 6. **Header:** Dynamic-menu control **only on this page** opens a Python console modal; stdout/stderr from the run fill an output panel on the page.
 7. **Hello world:** Default / empty-code runs `hello_world.py` under the runtime root (prints hello + echoes `BIM_IFC_ARGS`).
+8. **Scene lights (viewer UI):** A rail **icon button** on the viewer viewport toggles a **side panel** with live That Open `SimpleScene` light controls (ambient + directional intensity/color; directional position). Defaults match `world.scene.setup()`; changes apply immediately to the Three.js lights — no server round-trip.
+9. **Admin nav:** Global header tray (admin block, after Agent Sandbox) links to `/bim/ifc/viewer` as **BIM IFC viewer**, gated by the same `isPlatformAdmin()` check as other admin links. Not under Services Apps.
 
 ## Isolation (host subprocess)
 
@@ -49,6 +51,8 @@ Crawling **within** scripts (e.g. `urllib`) is allowed for research under the ru
 - [x] Header console → run hello world → output panel shows greeting + IFC JSON args.
 - [x] Custom Python runs under `backend/bim/bim_runtime` with timeout/caps.
 - [x] No new Docker Compose Python service.
+- [x] Light icon on the viewport rail opens/closes a sidebar; ambient/directional intensity, color, and directional position update the live scene.
+- [x] Signed-in platform admin sees **BIM IFC viewer** in the global header tray admin block (same gate as Agent Sandbox).
 
 ## Affected paths
 
