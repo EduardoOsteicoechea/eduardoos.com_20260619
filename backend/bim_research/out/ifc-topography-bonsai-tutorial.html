@@ -668,7 +668,22 @@
           <li>In Bonsai: create / open an IFC project (IFC4 or IFC4.3).</li>
           <li>Ensure spatial structure includes an <code>IfcSite</code> (default project templates usually create Project → Site → Building).</li>
           <li>Select the Site in the IFC spatial tree. Set a clear <code>Name</code> / <code>LongName</code>.</li>
-          <li>Optionally set approximate <code>RefLatitude</code>, <code>RefLongitude</code>, <code>RefElevation</code> for WGS84 hinting — do <em>not</em> treat this as the survey transform.</li>
+          <li>
+            Open the Site’s IFC attributes and set the approximate WGS84 hint
+            (Bonsai text fields — <strong>include the square brackets</strong>;
+            west/south values must have <strong>the same sign on every number</strong>):
+            <pre>RefLatitude     = [10, 28, 50, 0]
+RefLongitude    = [-66, -54, -13, 0]
+RefElevation    = 900.0
+LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
+            Meaning: about 10°28′50″N, 66°54′13″W, elevation 900&nbsp;m (Caracas-style lab example).
+            This is <em>not</em> the survey map conversion.
+          </li>
+          <li>
+            Optional address: if your Bonsai build still shows <code>SiteAddress</code>, fill postal fields
+            (e.g. Town <code>Caracas</code>, Region <code>Distrito Capital</code>, PostalCode <code>1060</code>, Country <code>VE</code>).
+            On IFC4.3 prefer <code>Pset_Address</code> / <code>Pset_LandRegistration</code> instead of deprecated Site attributes.
+          </li>
           <li>Keep Site local placement coherent: engineering origin at a sensible local 0,0,0 (boundary corner / grid intersection), not raw map millions.</li>
         </ol>
       </section>
@@ -698,71 +713,77 @@
         <p>
           Goal: get a 3D “blanket” of the ground into Blender as a mesh.
           That mesh is <em>not</em> IFC yet — it is just geometry.
+          <strong>This tutorial’s main path:</strong> model the terrain yourself with vertices and faces
+          (quads and/or triangles). DEM / BlenderGIS / QGIS are optional alternatives below.
         </p>
 
-        <h3>What you are importing</h3>
-        <p>
-          A <strong>DEM</strong> is a height map: a grid file where each cell stores elevation (metres),
-          usually as a <strong>GeoTIFF</strong> (or <code>.asc</code>). Prefer a <strong>DTM</strong> (bare earth)
-          for site topography. You can get DEMs from national open-data portals, or from your surveyor.
-        </p>
-
-        <h3>Path 1 — BlenderGIS (most direct inside Blender)</h3>
+        <h3>Path 1 — Model by hand (recommended here)</h3>
         <ol>
-          <li>Enable the BlenderGIS add-on (Preferences → Add-ons).</li>
           <li>
-            In BlenderGIS, set the <strong>scene CRS</strong> to the same projected EPSG your project uses
-            (add a custom CRS by EPSG code if it is not in the list).
+            In Blender Object Mode: add a mesh (e.g. <em>Add → Mesh → Plane</em>), or start from an empty mesh
+            and switch to <strong>Edit Mode</strong>.
           </li>
           <li>
-            Use <strong>Import → Georeferenced raster</strong> (GIS menu / BlenderGIS panel — wording varies slightly by version).
+            Place <strong>vertices</strong> (dots) where you want ground points — corner of site, break of slope,
+            ridge, low spot. Work in metres near Site local <code>0,0,0</code>.
           </li>
           <li>
-            Choose your DEM file. Set import mode to something like
-            <strong>“DEM as displacement texture”</strong> / <strong>“As DEM”</strong>
-            (this builds a subdivided plane and pushes vertices up/down by elevation).
+            Raise/lower vertices on <strong>Z</strong> to set elevation (relative to your project datum).
+            You can type exact Z in the sidebar (Item → Transform → Z).
           </li>
           <li>
-            Confirm the raster’s CRS if asked (must match the file’s real CRS).
-            Import. You should see a bumpy ground surface.
+            Connect vertices into faces:
+            <ul>
+              <li>Select 3 verts → <em>Face → Make Edge/Face</em> → <strong>triangle</strong></li>
+              <li>Select 4 verts → same → <strong>quad</strong></li>
+            </ul>
+            Cover the site with a continuous surface (a patchwork of quads/tris). Prefer mostly triangles
+            if you want a classic TIN; quads are fine in Blender and usually triangulate on IFC export.
           </li>
           <li>
-            <strong>Apply</strong> the Subdivision and Displace modifiers (Object → Apply → Visual Geometry to Mesh,
-            or apply each modifier) so you have a real mesh, not only a modifier stack.
-            Soften spikes, delete junk, keep one open surface.
+            Optional: start from a subdivided grid (<em>Loop Cut</em> / subdivision), then move verts
+            up and down like a heightfield — still hand modeled, just faster.
           </li>
           <li>
-            Move/scale the mesh so it sits in your BIM <strong>local</strong> engineering coordinates
-            (near Site 0,0,0) — do not leave huge map coordinates if Bonsai is using a map conversion.
-            Then <em>Apply</em> Location/Rotation/Scale.
+            Cleanup: merge doubles, remove loose verts, keep <strong>one open surface</strong>
+            (not a closed solid box unless you mean a volume). Recalculate normals outward/upward.
+          </li>
+          <li>
+            Object Mode → apply Location, Rotation, Scale so Bonsai sees a clean mesh.
           </li>
         </ol>
         <div class="callout">
-          <strong>Tip.</strong> Huge country-wide DEMs can choke Blender. Clip to a few hundred metres around the site
-          first (often easier in QGIS), then import the small GeoTIFF with BlenderGIS.
+          <strong>Mental model.</strong>
+          Each vertex = a ground point. Each triangle/quad = a facet of the terrain skin.
+          Next step: assign <code>IfcGeographicElement</code> / <code>TERRAIN</code> to this whole object.
         </div>
 
-        <h3>Path 2 — QGIS first, then Blender</h3>
-        <ol>
-          <li>Open QGIS. Load the DEM GeoTIFF.</li>
-          <li>Reproject / clip to your site extent and to the project EPSG.</li>
-          <li>Export a smaller GeoTIFF (or points). Import that file with BlenderGIS as above,
-              or export a mesh/OBJ if you already triangulated elsewhere.</li>
-        </ol>
+        <h3>Path 2 — BlenderGIS (optional DEM import)</h3>
         <p>
-          Use this path when BlenderGIS alone cannot download/clip your data, or when the raw DEM is too large.
+          Use when you already have a GeoTIFF/<code>.asc</code> elevation file.
+          Install <a href="https://github.com/domlysz/BlenderGIS" target="_blank" rel="noopener">BlenderGIS</a>,
+          set scene EPSG, <em>Import → Georeferenced raster</em> as DEM/displacement, apply modifiers,
+          then shift the mesh into local engineering coordinates near Site <code>0,0,0</code>.
+          Wiki:
+          <a href="https://github.com/domlysz/BlenderGIS/wiki/Import-DEM-grid" target="_blank" rel="noopener">Import DEM grid</a>.
         </p>
 
-        <h3>Path 3 — Survey points (CSV)</h3>
+        <h3>Path 3 — QGIS first (optional)</h3>
+        <p>
+          Clip/reproject a huge DEM in QGIS, export a small GeoTIFF, then import with BlenderGIS —
+          or export points and rebuild faces by hand as in Path 1.
+        </p>
+
+        <h3>Path 4 — Survey CSV (optional)</h3>
         <ol>
           <li>Import XYZ / CSV points into Blender.</li>
-          <li>Build a surface (Delaunay / terrain addon / manual) → one TIN mesh.</li>
-          <li>Same cleanup + place near Site origin + Apply transforms.</li>
+          <li>Connect them into triangles/quads (or Delaunay) → one surface mesh.</li>
+          <li>Same cleanup + Apply transforms as Path 1.</li>
         </ol>
 
         <h3>Before you leave this step</h3>
         <ul>
-          <li>One clean open surface (prefer TIN triangles), not a random solid box.</li>
+          <li>One clean open surface of verts + faces (quads and/or tris).</li>
           <li>Mesh sits correctly vs Site local 0,0,0.</li>
           <li>Transforms applied — ready for Bonsai class assignment in the next step.</li>
         </ul>
