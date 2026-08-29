@@ -49,6 +49,8 @@ export const APP_ROUTES = {
   calvinsInstitutes: "/latin/calvins-institutes",
   adminUsers: "/admin/users",
   agentSandbox: "/admin/agent-sandbox",
+  /** Admin-only BIM IFC viewer (That Open + host Python console). */
+  bimIfcViewer: "/bim/ifc/viewer",
   /** Admin-only APS webhook live monitor (product-tests). */
   apsWebhookMonitor: "/product-tests/mps/aps-webhook",
   /** Admin-only MPS meeting probes console. */
@@ -251,6 +253,11 @@ export const ADMIN_ROUTES = {
   apsWebhookStream: "/api/admin/aps/webhook-events/stream",
   apsProbes: "/api/admin/aps/probes",
   apsProbe: (id: string) => `/api/admin/aps/probes/${encodeURIComponent(id)}`,
+} as const;
+
+/** Admin-only BIM host Python runner (spec 037). */
+export const BIM_ROUTES = {
+  pythonRun: "/api/bim/python/run",
 } as const;
 
 /** Public APS webhook ingest (Autodesk → Eduardo OS). */

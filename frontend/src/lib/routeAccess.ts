@@ -21,6 +21,8 @@ export function isAdminOnlyPagePath(pathname: string): boolean {
     path.startsWith(`${normalizePath(APP_ROUTES.adminUsers)}/`) ||
     path === normalizePath(APP_ROUTES.agentSandbox) ||
     path.startsWith(`${normalizePath(APP_ROUTES.agentSandbox)}/`) ||
+    path === normalizePath(APP_ROUTES.bimIfcViewer) ||
+    path.startsWith(`${normalizePath(APP_ROUTES.bimIfcViewer)}/`) ||
     path === normalizePath(APP_ROUTES.apsWebhookMonitor) ||
     path.startsWith(`${normalizePath(APP_ROUTES.apsWebhookMonitor)}/`) ||
     path === normalizePath(APP_ROUTES.mpsMeetingProbes) ||

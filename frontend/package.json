@@ -22,14 +22,20 @@
     "@fullcalendar/daygrid": "^6.1.21",
     "@fullcalendar/react": "^6.1.21",
     "@fullcalendar/timegrid": "^6.1.21",
+    "@thatopen/components": "^3.4.8",
+    "@thatopen/fragments": "^3.4.7",
     "astro": "^5.3.0",
+    "camera-controls": "^3.1.2",
     "localforage": "^1.10.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "three": "^0.184.0",
+    "web-ifc": "^0.0.77"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.184.0",
     "typescript": "^5.7.0"
   }
 }

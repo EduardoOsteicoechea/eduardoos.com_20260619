@@ -1,0 +1,12 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import BimIfcViewer from "../../../components/BimIfcViewer/BimIfcViewer";
+---
+
+<BaseLayout
+  title="BIM IFC Viewer | Eduardo OS"
+  description="Admin IFC viewer (That Open) with host Python console."
+  requireAuth={true}
+>
+  <BimIfcViewer client:only="react" />
+</BaseLayout>

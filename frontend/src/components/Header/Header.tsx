@@ -621,6 +621,13 @@ export function Header({ pathname }: HeaderProps) {
             >
               Agent Sandbox
             </a>
+            <a
+              className={navClass(APP_ROUTES.bimIfcViewer)}
+              href={APP_ROUTES.bimIfcViewer}
+              onClick={closeMenu}
+            >
+              BIM IFC viewer
+            </a>
             <MpsTestsMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
           </>
         ) : null}

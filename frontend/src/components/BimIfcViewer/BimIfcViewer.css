@@ -1,0 +1,170 @@
+/* BIM IFC viewer — plain CSS, site tokens (spec 037). */
+
+.bim-ifc-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: calc(100svh - var(--header_offset, var(--header_height, 60px)) - 2rem);
+  padding: 0.75rem 1rem 1.5rem;
+  box-sizing: border-box;
+  color: var(--site-body-fg);
+}
+
+.bim-ifc-viewer__gate {
+  padding: 2rem 1rem;
+  color: var(--site-meta-fg);
+}
+
+.bim-ifc-viewer__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.bim-ifc-viewer__upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--control_min_height, 40px);
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001, 2px);
+  background: color-mix(in srgb, var(--site-body-bg) 88%, var(--site-accent) 12%);
+  cursor: pointer;
+  font-family: Raleway, Roboto, sans-serif;
+  font-size: 0.9rem;
+}
+
+.bim-ifc-viewer__upload input {
+  max-width: 14rem;
+  font-size: 0.85rem;
+}
+
+.bim-ifc-viewer__status {
+  margin: 0;
+  flex: 1 1 12rem;
+  font-family: Raleway, Roboto, sans-serif;
+  font-size: 0.9rem;
+  color: var(--site-meta-fg);
+}
+
+.bim-ifc-viewer__canvas {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 420px;
+  width: 100%;
+  border: 1px solid var(--site-border);
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 40%, color-mix(in srgb, var(--site-accent) 10%, transparent), transparent 70%),
+    color-mix(in srgb, var(--site-body-bg) 92%, var(--site-body-fg) 8%);
+  overflow: hidden;
+}
+
+.bim-ifc-viewer__canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.bim-ifc-viewer__output {
+  border: 1px solid var(--site-border);
+  padding: 0.65rem 0.75rem;
+  background: color-mix(in srgb, var(--site-body-bg) 94%, var(--site-body-fg) 6%);
+}
+
+.bim-ifc-viewer__output-title {
+  margin: 0 0 0.4rem;
+  font-family: Montserrat, Raleway, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.bim-ifc-viewer__pre {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--site-body-fg);
+}
+
+.bim-ifc-viewer__modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, #000 45%, transparent);
+}
+
+.bim-ifc-viewer__modal-panel {
+  width: min(100%, 640px);
+  max-height: min(90svh, 720px);
+  overflow: auto;
+  padding: 1rem 1.1rem 1.15rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001, 2px);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  box-shadow: 0 12px 40px color-mix(in srgb, #000 28%, transparent);
+}
+
+.bim-ifc-viewer__modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.bim-ifc-viewer__modal-head h2 {
+  margin: 0;
+  font-family: Montserrat, Raleway, sans-serif;
+  font-size: 1.1rem;
+}
+
+.bim-ifc-viewer__close {
+  min-height: var(--control_min_height, 40px);
+  padding: 0 0.75rem;
+  border: 1px solid var(--site-border);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-family: Raleway, Roboto, sans-serif;
+}
+
+.bim-ifc-viewer__hint,
+.bim-ifc-viewer__meta {
+  margin: 0 0 0.55rem;
+  font-family: Raleway, Roboto, sans-serif;
+  font-size: 0.85rem;
+  color: var(--site-meta-fg);
+  line-height: 1.45;
+}
+
+.bim-ifc-viewer__code {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001, 2px);
+  background: color-mix(in srgb, var(--site-body-bg) 90%, var(--site-body-fg) 10%);
+  color: var(--site-body-fg);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.bim-ifc-viewer__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
