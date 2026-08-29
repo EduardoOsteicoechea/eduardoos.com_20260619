@@ -1,0 +1,31 @@
+---
+description: BIM research write sandbox — writes only under backend/bim_research/; repo is read-only elsewhere
+alwaysApply: true
+---
+
+# BIM research write sandbox (036)
+
+## Boundary
+
+- **Write root:** `backend/bim_research/` only (create tree if missing).
+- **Read:** entire repo allowed.
+- **Shell outside write root:** read-only (`git status`/`diff`, `rg`, list, read). No redirects, installs, or file writes outside the root.
+- **Research turns:** follow the user exactly, but mutate **only** the write root. Refuse “helpful” edits elsewhere; ask to widen via `specs/036-bim-research-write-sandbox/spec.md` if needed.
+
+## Spec-first
+
+- Research: update a **local** brief under `backend/bim_research/specs/` (or `…/research/<topic>/spec.md`) before durable scripts/crawlers/artifacts.
+- Do **not** write root `specs/**` during research turns (except maintaining 036 itself).
+
+## Git after research changes
+
+- Mandatory commit + push, staging **only** `backend/bim_research/**` (never `.env`/secrets).
+- No frontend build gate for research-only turns.
+
+## Bootstrap exception (036 only)
+
+May also touch: `specs/036-bim-research-write-sandbox/**`, `.cursor/rules/**`, `.cursor/skills/**` for this harness, and root `.gitignore` lab entries only.
+
+## Lab purpose
+
+Chats, crawlers, Python → viewable `.md` / `.html` / `.docx` under the write root. Prefer `backend/bim_research/.venv`. Network OK; outputs stay in-root. Not feature 026 admin agent-sandbox.

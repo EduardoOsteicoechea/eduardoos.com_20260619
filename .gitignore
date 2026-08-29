@@ -45,3 +45,11 @@ backend/aps_app/**/*.zip
 # Local CV / portfolio PDFs (not product code)
 EDUARDO_OSTEICOECHEA_DEVELOPER_ARCHITECT2025.pdf
 about_eduardo_*
+
+# BIM research lab (036) — heavy / local-only artifacts; keep .md/.html/.docx trackable
+backend/bim_research/.venv/
+backend/bim_research/**/__pycache__/
+backend/bim_research/**/*.pyc
+backend/bim_research/.cache/
+backend/bim_research/out/.cache/
+backend/bim_research/**/.crawl_cache/

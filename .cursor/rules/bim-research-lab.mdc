@@ -1,0 +1,13 @@
+---
+description: When editing bim_research — local Spec-first, scripts/crawlers, outputs in out/
+globs: backend/bim_research/**
+alwaysApply: false
+---
+
+# Inside `backend/bim_research/`
+
+1. Clarify via `specs/<topic>.md` (local) before new scripts or crawlers.
+2. Put Python under `scripts/`; session notes under `chats/`; deliverables under `out/` (`.md`, `.html`, `.docx`).
+3. Use `.venv/` in this directory for deps; do not install into the rest of the repo.
+4. Never write outside this folder in the same turn (see always-apply 036 rule).
+5. Prefer public sources; no credential stuffing or auth-wall bypass.

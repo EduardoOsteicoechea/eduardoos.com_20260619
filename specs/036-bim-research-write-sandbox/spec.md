@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft locked from user answers (2026-08-29). Implement only after user confirms this file.
+Implemented (2026-08-29). User confirmed; harness rules + lab seed shipped.
 
 ## Problem
 
@@ -103,13 +103,13 @@ No other repo paths.
 
 ## Acceptance
 
-- [ ] Spec confirmed by user (this file).
-- [ ] Always-apply Cursor rule encodes: write root, read-all, shell read-only outside, Spec-first local briefs, commit/push sandbox-only.
-- [ ] Optional glob-scoped rule or skill for `backend/bim_research/**`.
-- [ ] `backend/bim_research/README.md` states lab purpose and layout.
-- [ ] `.gitignore` ignores heavy/generated lab paths as needed (venv, caches) without ignoring result formats the user wants tracked (`.md` / `.html` / `.docx` by default **are** trackable unless a local brief says otherwise).
-- [ ] Agent faced with a request to edit outside the write root during a research turn: refuses that write and continues only inside the lab (or asks to widen scope via this spec).
-- [ ] After a research change set: commit + push include only sandbox (or bootstrap) paths.
+- [x] Spec confirmed by user (this file).
+- [x] Always-apply Cursor rule encodes: write root, read-all, shell read-only outside, Spec-first local briefs, commit/push sandbox-only.
+- [x] Optional glob-scoped rule or skill for `backend/bim_research/**`.
+- [x] `backend/bim_research/README.md` states lab purpose and layout.
+- [x] `.gitignore` ignores heavy/generated lab paths as needed (venv, caches) without ignoring result formats the user wants tracked (`.md` / `.html` / `.docx` by default **are** trackable unless a local brief says otherwise).
+- [x] Agent faced with a request to edit outside the write root during a research turn: refuses that write and continues only inside the lab (or asks to widen scope via this spec).
+- [x] After a research change set: commit + push include only sandbox (or bootstrap) paths.
 
 ## Affected paths
 
