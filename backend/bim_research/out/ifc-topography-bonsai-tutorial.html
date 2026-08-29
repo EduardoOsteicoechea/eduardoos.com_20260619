@@ -762,7 +762,7 @@
             </tr>
             <tr>
               <td class="term">EPSG</td>
-              <td><strong>European Petroleum Survey Group</strong> registry (now IOGP). A public catalogue of CRS definitions. An <strong>EPSG code</strong> is a short ID such as <code>EPSG:4326</code> (WGS84 lat/long) or <code>EPSG:32618</code> (UTM zone 18N). In IFC/Bonsai you usually type that code as the CRS name.</td>
+              <td><strong>European Petroleum Survey Group</strong> registry (now IOGP). A public catalogue of CRS definitions. An <strong>EPSG code</strong> is a short ID such as <code>EPSG:4326</code> (WGS84 lat/long), <code>EPSG:2202</code> (a regional projected grid), or <code>EPSG:32618</code> (UTM zone 18N). In IFC/Bonsai you usually type that code as the CRS name. Plain-language “what / who / skip?” guidance: <a href="#step-georef">Step 7 — Geographic / map location</a>.</td>
             </tr>
             <tr>
               <td class="term">WGS84</td>
@@ -1001,8 +1001,10 @@
             <a href="https://qgis.org/" target="_blank" rel="noopener">qgis.org</a>.
           </li>
           <li>
-            From your surveyor (or project GIS lead): the site’s <strong>EPSG</strong> code and
-            <strong>map conversion</strong> numbers (or at least one known control point).
+            <strong>Optional for this lab:</strong> if you later need survey-grade georef, ask a surveyor /
+            civil engineer (or check the national mapping CRS list) for the site’s <strong>EPSG</strong> code and
+            Eastings/Northings — you do not invent those yourself. Skip until you have them
+            (see <a href="#step-georef">Step 7</a>).
           </li>
           <li>
             In Bonsai, start a <strong>new IFC4 or IFC4.3</strong> project (IFC2x3 cannot store proper map conversion).
@@ -1245,6 +1247,31 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
           It is <strong>project-level georeferencing</strong> under the Properties
           <strong>Geometry</strong> panel — even if the Outliner has <code>IfcSite</code> selected.
         </p>
+
+        <div class="callout" id="epsg-plain">
+          <strong>EPSG / projected CRS — plain language (you can skip this for the lab).</strong>
+          <ul>
+            <li>
+              <strong>What it is.</strong> A projected CRS / EPSG code (e.g. <code>EPSG:2202</code>) is the official
+              “map grid” for a region — how metres on a flat map relate to Earth.
+              Without it, Eastings and Northings have no agreed meaning. See also
+              <a href="#glossary">CRS / EPSG in the glossary</a>.
+            </li>
+            <li>
+              <strong>Who provides it.</strong> You do not invent the code. It comes from a surveyor or civil engineer,
+              or from the national mapping agency / official CRS list for that country.
+              BIM authors usually copy the same EPSG the survey package already uses — when that package exists.
+            </li>
+            <li>
+              <strong>Should you skip?</strong> For this lab tutorial: <strong>yes</strong> — you can skip survey-grade georef.
+              Do <a href="#step-project-site">Step 6</a> (Site lat/long hint) if you want a rough “where on Earth” pin or sun studies.
+              Leave the status as <strong>Not Georeferenced</strong> until you have a real EPSG plus Eastings/Northings from a survey package.
+              Hand-modeled terrain + <code>IfcGeographicElement</code> / <code>TERRAIN</code> still works fine in local <code>0,0,0</code>.
+              Survey CRS is only required when you must align with GIS, survey stakes, or another consultant’s map coordinates.
+            </li>
+          </ul>
+        </div>
+
         <ol>
           <li>
             Right <strong>Properties</strong> panel → find the collapsible
@@ -1256,22 +1283,24 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
             Expand <strong>Georeferencing</strong>.
             If the header (or status) says <strong>Not Georeferenced</strong>, the project has
             <em>no Projected CRS yet</em> — Site <code>RefLatitude</code> alone does not count as georeferenced.
+            For this lab, leaving it that way is OK (see callout above).
           </li>
           <li>
-            Set a <strong>Projected CRS</strong> (your EPSG zone; e.g. <code>EPSG:7856</code> is only an Australian example —
-            use the code your surveyor / national mapping agency specifies for the site).
-            Until a CRS is assigned, Bonsai correctly shows “Not Georeferenced”.
+            When you <em>do</em> have real survey data later: set a <strong>Projected CRS</strong>
+            (EPSG ID for the site’s map grid; e.g. <code>EPSG:2202</code> or <code>EPSG:7856</code> —
+            examples only). Paste the code from the survey / GIS package, or look it up on the national CRS list —
+            do not guess. Until a CRS is assigned, Bonsai correctly shows “Not Georeferenced”.
           </li>
           <li>
             Choose conversion mode <strong>IfcMapConversion</strong> (dropdown in the Georeferencing UI).
-            Under <strong>Blender Coordinates</strong> (or Map Conversion fields), enter the surveyor values that place
-            local engineering <code>0,0,0</code> on the map:
+            Under <strong>Blender Coordinates</strong> (or Map Conversion fields), enter the map values that place
+            local engineering <code>0,0,0</code> on that grid (again: only when you have them):
             <ul>
               <li><strong>Eastings (m)</strong> — map easting of the project origin</li>
               <li><strong>Northings (m)</strong> — map northing of the project origin</li>
               <li><strong>OrthogonalHeight</strong> — map height / orthometric elevation of local Z = 0</li>
               <li>Optional: <code>XAxisAbscissa</code> / <code>XAxisOrdinate</code> — rotation from project east toward grid east</li>
-              <li>Optional: <code>Scale</code> — combined scale factor (≈1 for small sites; confirm with surveyor)</li>
+              <li>Optional: <code>Scale</code> — combined scale factor (≈1 for small sites; confirm with the survey package)</li>
             </ul>
             Fresh projects often show Eastings / Northings at <code>0</code> until you paste real survey figures.
           </li>
@@ -1290,6 +1319,7 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
         <div class="callout">
           <strong>Check.</strong> “Not Georeferenced” + empty/missing Projected CRS = not survey-ready,
           even if Site Attributes already have lat/long. Large XYZ numbers without a CRS are also not georeferenced.
+          For this lab that is fine — terrain in local coordinates still works.
         </div>
       </section>
 
