@@ -38,3 +38,7 @@ Need a clear, citable walkthrough of how to represent **topography** in semantic
 - Exact geo: `IfcProjectedCRS` + `IfcMapConversion` (IFC4+). Site RefLat/Long = approximate WGS84 only.
 - Free schema docs: buildingSMART IFC 4.3 HTML (CC). ISO 16739-1:2024 on iso.org is catalogue + paid PDF; OBP preview only.
 - Bonsai: Scene → IFC Georeferencing; assign mesh class GeographicElement / TERRAIN.
+
+## Follow-ups
+
+- [x] Add plain-language glossary for acronyms/jargon in the HTML tutorial (CRS, EPSG, DTM, TIN, WGS84, IFC, ISO, OBP, DEM/DSM, etc.).

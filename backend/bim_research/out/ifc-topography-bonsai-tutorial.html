@@ -222,6 +222,13 @@
       letter-spacing: 0.06em;
       color: var(--muted);
     }
+    table.links td.term {
+      font-family: var(--font-ui);
+      font-weight: 600;
+      white-space: nowrap;
+      color: var(--accent);
+      width: 28%;
+    }
     .tree {
       font-family: ui-monospace, Consolas, monospace;
       font-size: 0.82rem;
@@ -340,7 +347,8 @@
         <h2>1. Overview</h2>
         <p>
           In IFC, <strong>topography is not the Site itself</strong>. The site is the spatial container
-          and georeference anchor. The terrain mesh (TIN / surface) is a product occurrence —
+          and georeference anchor. The terrain mesh (a <strong>TIN</strong> / triangulated surface — see
+          <a href="#glossary">glossary</a>) is a product occurrence —
           typically <code>IfcGeographicElement</code> with predefined type <code>TERRAIN</code> —
           contained in the site.
         </p>
@@ -357,8 +365,139 @@
         </div>
       </section>
 
+      <section class="block" id="glossary">
+        <h2>2. Glossary (acronyms &amp; jargon)</h2>
+        <p>
+          Plain-language definitions for terms used in this tutorial. Skip ahead once these feel familiar.
+        </p>
+        <table class="links">
+          <thead>
+            <tr><th>Term</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="term">IFC</td>
+              <td><strong>Industry Foundation Classes</strong> — open data schema for BIM (buildings + infrastructure). Files often end in <code>.ifc</code>. “Semantic IFC” means objects carry class meaning (Site, Wall, Terrain…), not just dumb geometry.</td>
+            </tr>
+            <tr>
+              <td class="term">ISO 16739</td>
+              <td>The <strong>International Organization for Standardization</strong> number for the IFC standard. Same family of content as buildingSMART’s free IFC HTML docs; the formal ISO PDF is usually paid.</td>
+            </tr>
+            <tr>
+              <td class="term">OBP</td>
+              <td><strong>Online Browsing Platform</strong> on iso.org — limited free preview of ISO texts, not a full free download of ISO 16739.</td>
+            </tr>
+            <tr>
+              <td class="term">BIM</td>
+              <td><strong>Building Information Modeling</strong> — digital models of built assets with structured data, not only 3D pictures.</td>
+            </tr>
+            <tr>
+              <td class="term">CRS</td>
+              <td><strong>Coordinate Reference System</strong> — the agreed “ruler + map” that gives meaning to numbers (lat/long, or easting/northing). Without a CRS, coordinates are just numbers floating in space.</td>
+            </tr>
+            <tr>
+              <td class="term">Geographic CRS</td>
+              <td>Positions as <strong>latitude / longitude</strong> (and height) on the globe — e.g. WGS84. Good for “where on Earth”; awkward for measuring short site distances in metres on a flat drawing.</td>
+            </tr>
+            <tr>
+              <td class="term">Projected CRS</td>
+              <td>A CRS that <strong>flattens a region of Earth onto a plane</strong> so you can work in metres as Eastings/Northings (like a survey grid or UTM zone). Construction/BIM georeferencing usually targets a projected CRS.</td>
+            </tr>
+            <tr>
+              <td class="term">IfcProjectedCRS</td>
+              <td>IFC entity that stores the project’s <strong>projected</strong> CRS (name, datum, map projection). This is the “target CRS” for map conversion.</td>
+            </tr>
+            <tr>
+              <td class="term">EPSG</td>
+              <td><strong>European Petroleum Survey Group</strong> registry (now IOGP). A public catalogue of CRS definitions. An <strong>EPSG code</strong> is a short ID such as <code>EPSG:4326</code> (WGS84 lat/long) or <code>EPSG:32618</code> (UTM zone 18N). In IFC/Bonsai you usually type that code as the CRS name.</td>
+            </tr>
+            <tr>
+              <td class="term">WGS84</td>
+              <td><strong>World Geodetic System 1984</strong> — the global GPS-style datum. Lat/long in IFC Site reference attributes are in WGS84. Fine as a rough “pin on the world map”; not a full survey grid transform.</td>
+            </tr>
+            <tr>
+              <td class="term">Map conversion</td>
+              <td>The math that turns <strong>local engineering XYZ</strong> (small site coordinates in the model) into <strong>map Eastings/Northings/height</strong> (and back). In IFC4+: <code>IfcMapConversion</code>.</td>
+            </tr>
+            <tr>
+              <td class="term">IfcMapConversion</td>
+              <td>IFC entity holding Eastings, Northings, OrthogonalHeight, optional rotation vector, and Scale — the bridge from local model origin to the projected CRS.</td>
+            </tr>
+            <tr>
+              <td class="term">Eastings / Northings</td>
+              <td>Map-grid metres: <strong>Easting</strong> ≈ distance east, <strong>Northing</strong> ≈ distance north, within a projected CRS (not lat/long).</td>
+            </tr>
+            <tr>
+              <td class="term">Local engineering coordinates</td>
+              <td>The small XYZ system architects/engineers model in (origin near the site). Prefer these in Blender; hang the big map numbers on map conversion instead.</td>
+            </tr>
+            <tr>
+              <td class="term">Georeferencing</td>
+              <td>Tying the BIM to the real world via CRS + map conversion (survey-grade) — distinct from only storing approximate Site lat/long.</td>
+            </tr>
+            <tr>
+              <td class="term">Survey-grade</td>
+              <td>Accurate enough to stake out / federate with survey and GIS (centimetres–millimetres intent). Needs CRS + conversion, not only a WGS84 hint.</td>
+            </tr>
+            <tr>
+              <td class="term">DTM</td>
+              <td><strong>Digital Terrain Model</strong> — bare-earth ground surface (no buildings/trees). The topography mesh you usually want as TERRAIN.</td>
+            </tr>
+            <tr>
+              <td class="term">DSM</td>
+              <td><strong>Digital Surface Model</strong> — top of everything (roofs, canopy), not bare ground.</td>
+            </tr>
+            <tr>
+              <td class="term">DEM</td>
+              <td><strong>Digital Elevation Model</strong> — generic elevation raster/grid; check whether the source is DTM or DSM.</td>
+            </tr>
+            <tr>
+              <td class="term">TIN</td>
+              <td><strong>Triangulated Irregular Network</strong> — terrain as a mesh of triangles from irregular survey/DEM points (common IFC terrain shape).</td>
+            </tr>
+            <tr>
+              <td class="term">Tessellated</td>
+              <td>Geometry made of many flat faces (triangles/polygons) approximating a surface — typical for terrain export.</td>
+            </tr>
+            <tr>
+              <td class="term">IfcSite</td>
+              <td>IFC <strong>spatial</strong> object for the land parcel / site. Container and geo anchor — not the terrain mesh itself.</td>
+            </tr>
+            <tr>
+              <td class="term">IfcGeographicElement</td>
+              <td>IFC product for landscape features (terrain, vegetation, …). Use with <code>PredefinedType = TERRAIN</code> for topography.</td>
+            </tr>
+            <tr>
+              <td class="term">Bonsai</td>
+              <td>Blender add-on for native IFC authoring (formerly BlenderBIM), built on IfcOpenShell.</td>
+            </tr>
+            <tr>
+              <td class="term">IfcOpenShell</td>
+              <td>Open-source toolkit/library for reading and writing IFC.</td>
+            </tr>
+            <tr>
+              <td class="term">False origin</td>
+              <td>Temporary shift Bonsai/Blender may apply so huge map coordinates display with usable precision — a viewer workaround, not a substitute for proper CRS.</td>
+            </tr>
+            <tr>
+              <td class="term">True North / Grid North / Project North</td>
+              <td><strong>True</strong> = toward the North Pole (varies slightly by location). <strong>Grid</strong> = north of the map CRS. <strong>Project</strong> = “up” on the drawing for drafting convenience. Georef rotation relates project ↔ grid; true north is mainly for solar hints.</td>
+            </tr>
+            <tr>
+              <td class="term">CC license</td>
+              <td><strong>Creative Commons</strong> — how buildingSMART publishes IFC documentation for free reuse (unlike a paid ISO PDF purchase).</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <strong>That confusing sentence, unpacked.</strong>
+          “Target CRS must be a projected CRS (<code>IfcProjectedCRS</code>), usually named with an EPSG code”
+          means: the map system you convert <em>into</em> must be a flat metre grid (not raw lat/long), stored in IFC as <code>IfcProjectedCRS</code>, and you normally identify it by an EPSG ID like <code>EPSG:32618</code>.
+        </div>
+      </section>
+
       <section class="block" id="iso-semantics">
-        <h2>2. What the ISO / IFC schema says</h2>
+        <h2>3. What the ISO / IFC schema says</h2>
         <p>
           Industry Foundation Classes are published as <strong>ISO 16739</strong>.
           The freely usable HTML documentation of the schema is hosted by
@@ -382,12 +521,16 @@
         <h3>Map conversion</h3>
         <ul>
           <li><code>IfcMapConversion</code>: Eastings, Northings, OrthogonalHeight, optional X-axis vector (rotation), Scale.</li>
-          <li>Target CRS must be a projected CRS (<code>IfcProjectedCRS</code>), usually named with an EPSG code.</li>
+          <li>
+            The <strong>target CRS</strong> (the map system you convert into) must be a
+            <strong>projected</strong> CRS — stored as <code>IfcProjectedCRS</code> —
+            and is usually identified by an <strong>EPSG code</strong> (see <a href="#glossary">glossary</a>).
+          </li>
         </ul>
       </section>
 
       <section class="block" id="official-docs">
-        <h2>3. Official free documentation links</h2>
+        <h2>4. Official free documentation links</h2>
         <p>
           Prefer these over random blogs when citing. Full ISO PDFs on iso.org are generally paid;
           buildingSMART’s HTML is the practical free normative schema documentation.
@@ -457,7 +600,7 @@
       </section>
 
       <section class="block" id="prereqs">
-        <h2>4. Prerequisites (Blender + Bonsai)</h2>
+        <h2>5. Prerequisites (Blender + Bonsai)</h2>
         <ol>
           <li>Install a current <strong>Blender</strong> LTS/stable build.</li>
           <li>Install <strong>Bonsai</strong> (formerly BlenderBIM) from the official Bonsai / IfcOpenShell channels.</li>
@@ -468,7 +611,7 @@
       </section>
 
       <section class="block" id="step-project-site">
-        <h2>5. Step A — Project and Site</h2>
+        <h2>6. Step A — Project and Site</h2>
         <ol>
           <li>In Bonsai: create / open an IFC project (IFC4 or IFC4.3).</li>
           <li>Ensure spatial structure includes an <code>IfcSite</code> (default project templates usually create Project → Site → Building).</li>
@@ -479,7 +622,7 @@
       </section>
 
       <section class="block" id="step-georef">
-        <h2>6. Step B — Geographic / map location</h2>
+        <h2>7. Step B — Geographic / map location</h2>
         <ol>
           <li>Open <strong>Scene Properties → IFC Georeferencing</strong> (Bonsai).</li>
           <li>Set <strong>Projected CRS</strong> to your EPSG code (example: <code>EPSG:7856</code> for GDA2020 / MGA Zone 56 — use <em>your</em> zone).</li>
@@ -499,7 +642,7 @@
       </section>
 
       <section class="block" id="step-terrain-mesh">
-        <h2>7. Step C — Build the topography mesh</h2>
+        <h2>8. Step C — Build the topography mesh</h2>
         <ol>
           <li><strong>Import elevation data</strong> into Blender (pick one path):
             <ul>
@@ -515,7 +658,7 @@
       </section>
 
       <section class="block" id="step-semantic">
-        <h2>8. Step D — Assign semantic IFC class</h2>
+        <h2>9. Step D — Assign semantic IFC class</h2>
         <ol>
           <li>Select the terrain mesh object.</li>
           <li>In Bonsai Object Properties → IFC: assign class
@@ -530,7 +673,7 @@
       </section>
 
       <section class="block" id="step-verify">
-        <h2>9. Step E — Verify georef + terrain</h2>
+        <h2>10. Step E — Verify georef + terrain</h2>
         <ol>
           <li>In Bonsai Georeferencing panel: confirm CRS code + non-empty map conversion (unless intentionally identity).</li>
           <li>Use Local ↔ Global conversion tools in the sidebar to spot-check a known survey point.</li>
@@ -541,7 +684,7 @@
       </section>
 
       <section class="block" id="checklist">
-        <h2>10. Quick checklist</h2>
+        <h2>11. Quick checklist</h2>
         <ul>
           <li>□ IFC4 / 4.3 (not 2x3 for map conversion)</li>
           <li>□ <code>IfcProjectedCRS</code> with correct EPSG</li>
@@ -554,7 +697,7 @@
       </section>
 
       <section class="block" id="caveats">
-        <h2>11. Caveats</h2>
+        <h2>12. Caveats</h2>
         <ul>
           <li>Do not assign the topography mesh as the Site’s body and call it “semantic terrain” — Site is spatial; terrain is an element.</li>
           <li>Textures / orthophotos often do not round-trip in IFC the way Blender materials do; geometry + semantics are the exchange priority.</li>
@@ -564,7 +707,7 @@
       </section>
 
       <section class="block" id="sources-lab">
-        <h2>12. Lab notes</h2>
+        <h2>13. Lab notes</h2>
         <p>
           This page lives in the Eduardo OS BIM research write sandbox:
           <code>backend/bim_research/out/ifc-topography-bonsai-tutorial.html</code>.
