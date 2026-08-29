@@ -31,6 +31,7 @@ Need a clear, citable walkthrough of how to represent **topography** in semantic
 ## Deliverable
 
 - Tutorial HTML: `backend/bim_research/out/ifc-topography-bonsai-tutorial.html`
+- Related Q&A (origin at a corner for That Open): [`../out/ifc-origin-zero-that-open.md`](../out/ifc-origin-zero-that-open.md)
 
 ## Findings (summary)
 
