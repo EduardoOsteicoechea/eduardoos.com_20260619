@@ -19,16 +19,18 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
    | Upload IFC to library | Platform admin (JWT + `IsAdmin`) |
    | Python console / Output / run API | Platform admin only |
 3. **Storage:** S3 bucket `eduardoos20260607` (env `S3_BUCKET` / `IFCBIM_S3_BUCKET`), prefix **`ifcbim/library/`** only (for now). Keys: `ifcbim/library/{safeBasename}.ifc`. DynamoDB `eduardoos_ifcbim` is **out of scope** for this slice (list from S3).
+   - **Unique names:** Upload requires a **library name** form field (not only the OS filename). Server sanitizes to `[A-Za-z0-9][A-Za-z0-9._-]{1,119}.ifc`. If that key already exists (`HeadObject`), respond **409 Conflict** — no overwrite. Admin must choose a different name.
+   - **Browse labels:** List shows **name**, **size**, and a human **uploaded/modified date** (from S3 `LastModified`) so entries are visually distinct even when names are similar.
 4. **APIs:**
    - `GET /api/bim/models` — public — list `.ifc` under `ifcbim/library/`
    - `GET /api/bim/models/file/*` — public — stream object (path must stay under `ifcbim/library/`)
-   - `POST /api/bim/models/upload` — JWT + admin — multipart `file` → put under `ifcbim/library/`
+   - `POST /api/bim/models/upload` — JWT + admin — multipart `file` + required `name` → put under `ifcbim/library/` only if key free
    - `POST /api/bim/python/run` — JWT + admin — unchanged host sandbox
 5. **Viewer:** Astro + React + `@thatopen/components`. Load IFC bytes from local file (admin upload path also stores to S3) or from library download URL. `COORDINATE_TO_ORIGIN: false`; `ifcLoader.load(..., coordinate=false, ...)`.
    - **Default model:** On first paint after the scene is ready, fetch `GET /api/bim/models` and **auto-load the first** library entry (sorted by `name` ascending). If the library is empty, leave the empty scene. User can still Browse / Upload / Offload afterward.
 6. **Header dynamic menu** (icon-only, **Google Material Symbols** via site font link):
-   - **Upload** — admin only; modal; after pick, upload to S3 library **and** load into scene
-   - **Browse** — everyone; modal lists library models; Load fetches bytes and shows in scene
+   - **Upload** — admin only; modal with **required library name** input + file picker; upload to S3 + load; surface 409 if name taken
+   - **Browse** — everyone; modal lists library models with **date + size**; Load fetches bytes and shows in scene
    - **Lights** — everyone; toggles lights side panel (moved off viewport rail)
    - **Python** / **Output** — admin only
    - **Offload model** — everyone when a model is loaded
@@ -49,13 +51,15 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
 - OpenCascade / IFC bytes to Python
 - Separate Python Docker service
 - Non-admin upload
+- Silent overwrite of existing library keys
 
 ## Acceptance
 
 - [x] On open, after the viewer is ready, auto-load the first `ifcbim/library` model (by name); empty library → empty scene.
 - [x] Public user opens `/bim/ifc/viewer` without login; sees scene + Browse + Lights + Offload (when loaded).
-- [x] Browse modal lists `ifcbim/library/*.ifc`; Load puts model in the viewer.
-- [x] Admin Upload stores under `ifcbim/library/` and loads into the scene; non-admin has no Upload control; upload API returns 403.
+- [x] Browse modal lists `ifcbim/library/*.ifc` with **name + size + formatted date**; Load puts model in the viewer.
+- [x] Admin Upload requires a **library name** input; stores under `ifcbim/library/{name}.ifc`; **409** if name already exists (no overwrite).
+- [x] Admin Upload loads into the scene; non-admin has no Upload control; upload API returns 403 for non-admin.
 - [x] Python / Output / run API admin-only; non-admin cannot run.
 - [x] No top-right status message overlay.
 - [x] Lights control lives in header dynamic menu (Material Symbol); rail lights button gone.

@@ -255,6 +255,32 @@ function sortLibrary(models: LibraryModel[]) {
   return [...models].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 }
 
+function formatLibraryDate(iso: string): string {
+  const trimmed = iso.trim();
+  if (!trimmed) return "";
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) return trimmed;
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const LIBRARY_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{1,119}$/;
+
+function normalizeLibraryNameInput(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\.[Ii][Ff][Cc]$/, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-._]+|[-._]+$/g, "");
+}
+
 export default function BimIfcViewer() {
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
   const disposeRef = useRef<null | (() => void)>(null);
@@ -278,6 +304,8 @@ export default function BimIfcViewer() {
   const [output, setOutput] = useState("");
   const [running, setRunning] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadName, setUploadName] = useState("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [library, setLibrary] = useState<LibraryModel[]>([]);
   const [libraryStatus, setLibraryStatus] = useState("");
   const [libraryLoading, setLibraryLoading] = useState(false);
@@ -640,18 +668,24 @@ export default function BimIfcViewer() {
     });
   }, []);
 
-  const onFile = useCallback(async (file: File | null) => {
-    if (!file || !loadIfcRef.current) return;
+  const onFile = useCallback(async () => {
+    if (!uploadFile || !loadIfcRef.current) return;
+    const stem = normalizeLibraryNameInput(uploadName);
+    if (!LIBRARY_NAME_PATTERN.test(stem)) {
+      setStatus("Library name: 2–120 chars; start with a letter/number; only . _ - allowed.");
+      return;
+    }
     setUploading(true);
     try {
-      const data = new Uint8Array(await file.arrayBuffer());
+      const data = new Uint8Array(await uploadFile.arrayBuffer());
       const token = getAuthToken().trim();
       if (!token) {
         setStatus("Sign in as admin to upload.");
         return;
       }
       const body = new FormData();
-      body.append("file", file);
+      body.append("file", uploadFile);
+      body.append("name", stem);
       const res = await fetch(BIM_ROUTES.modelUpload, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -662,17 +696,21 @@ export default function BimIfcViewer() {
         setStatus(payload.error || payload.message || `Upload failed (${res.status})`);
         return;
       }
-      await loadIfcRef.current({ name: file.name, sizeBytes: file.size, data });
+      const storedName = payload.model?.name || `${stem}.ifc`;
+      await loadIfcRef.current({ name: storedName, sizeBytes: uploadFile.size, data });
       setUploadOpen(false);
-      setStatus(`Uploaded & loaded ${payload.model?.name || file.name}`);
+      setUploadFile(null);
+      setUploadName("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setStatus(`Uploaded & loaded ${storedName}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setStatus(`Upload failed: ${msg}`);
-      setIfc({ name: file.name, sizeBytes: file.size, loaded: false });
+      setIfc({ name: uploadFile.name, sizeBytes: uploadFile.size, loaded: false });
     } finally {
       setUploading(false);
     }
-  }, []);
+  }, [uploadFile, uploadName]);
 
   const refreshLibrary = useCallback(async () => {
     setLibraryLoading(true);
@@ -1039,10 +1077,29 @@ export default function BimIfcViewer() {
               </button>
             </header>
             <p className="bim-ifc-viewer__hint">
-              Admin only. Stores under S3 <code>ifcbim/library/</code> and loads into the viewport.
+              Admin only. Stores as <code>ifcbim/library/&#123;name&#125;.ifc</code>. Names must be unique — duplicates
+              are rejected.
             </p>
-            <p className="bim-ifc-viewer__meta" role="status">
-              {uploading ? "Uploading…" : status}
+            <label className="bim-ifc-viewer__field bim-ifc-viewer__field--stack">
+              <span>Library name</span>
+              <input
+                type="text"
+                className="bim-ifc-viewer__text-input"
+                value={uploadName}
+                onChange={(e) => setUploadName(e.target.value)}
+                placeholder="e.g. street-cars-2026-08-29"
+                pattern="[A-Za-z0-9][A-Za-z0-9._\-]{1,119}"
+                minLength={2}
+                maxLength={120}
+                required
+                disabled={uploading}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            <p className="bim-ifc-viewer__meta">
+              Use letters/numbers; optional <code>.</code> <code>_</code> <code>-</code>. Min 2 characters. Do not
+              include <code>.ifc</code> (added automatically).
             </p>
             <label className="bim-ifc-viewer__upload bim-ifc-viewer__upload--modal">
               <span>Choose IFC file</span>
@@ -1051,9 +1108,28 @@ export default function BimIfcViewer() {
                 type="file"
                 accept=".ifc,application/x-step,application/octet-stream"
                 disabled={uploading}
-                onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setUploadFile(file);
+                  if (file && !uploadName.trim()) {
+                    setUploadName(normalizeLibraryNameInput(file.name));
+                  }
+                }}
               />
             </label>
+            <p className="bim-ifc-viewer__meta" role="status">
+              {uploading ? "Uploading…" : status}
+            </p>
+            <div className="bim-ifc-viewer__modal-actions">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={uploading || !uploadFile || !LIBRARY_NAME_PATTERN.test(normalizeLibraryNameInput(uploadName))}
+                onClick={() => void onFile()}
+              >
+                {uploading ? "Uploading…" : "Upload & load"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -1068,7 +1144,7 @@ export default function BimIfcViewer() {
               </button>
             </header>
             <p className="bim-ifc-viewer__hint">
-              Shared library <code>ifcbim/library/</code>. Load any listed IFC into the viewer.
+              Shared library <code>ifcbim/library/</code>. Each row shows name, size, and last modified date.
             </p>
             <div className="bim-ifc-viewer__modal-actions bim-ifc-viewer__modal-actions--start">
               <button type="button" className="btn" disabled={libraryLoading} onClick={() => void refreshLibrary()}>
@@ -1082,8 +1158,8 @@ export default function BimIfcViewer() {
                   <div className="bim-ifc-viewer__library-meta">
                     <span className="bim-ifc-viewer__library-name">{model.name}</span>
                     <span className="bim-ifc-viewer__library-sub">
-                      {model.sizeHuman}
-                      {model.lastModified ? ` · ${model.lastModified}` : ""}
+                      {formatLibraryDate(model.lastModified) || "Date unknown"}
+                      {model.sizeHuman ? ` · ${model.sizeHuman}` : ""}
                     </span>
                   </div>
                   <button

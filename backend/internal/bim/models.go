@@ -5,6 +5,7 @@ package bim
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -31,7 +32,10 @@ const (
 	maxListKeys            = 500
 )
 
-var safeIfcBaseName = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
+var (
+	safeIfcBaseName   = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
+	libraryNameStemRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{1,119}$`)
+)
 
 // LibraryModel is one IFC object listed for the browse modal.
 type LibraryModel struct {
@@ -47,6 +51,7 @@ type s3API interface {
 	ListObjectsV2(ctx context.Context, params *s3.ListObjectsV2Input, optFns ...func(*s3.Options)) (*s3.ListObjectsV2Output, error)
 	GetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.Options)) (*s3.GetObjectOutput, error)
 	PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error)
+	HeadObject(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error)
 }
 
 func (h *Handler) resolveBucket() string {
@@ -97,28 +102,34 @@ func formatBytes(n int64) string {
 	return fmt.Sprintf("%.1f MiB", float64(n)/(1024*1024))
 }
 
-func sanitizeIfcFilename(uploadName string) string {
-	base := path.Base(strings.TrimSpace(uploadName))
-	ext := strings.ToLower(path.Ext(base))
-	if ext != ".ifc" {
-		ext = ".ifc"
-	}
-	stem := strings.TrimSuffix(base, path.Ext(base))
-	stem = strings.Map(func(r rune) rune {
+func sanitizeLibraryName(raw string) string {
+	base := path.Base(strings.TrimSpace(raw))
+	base = strings.TrimSuffix(base, path.Ext(base))
+	base = strings.Map(func(r rune) rune {
 		if unicode.IsSpace(r) {
 			return '-'
 		}
 		return r
-	}, stem)
-	stem = safeIfcBaseName.ReplaceAllString(stem, "-")
-	stem = strings.Trim(stem, "-._")
-	if stem == "" {
-		stem = fmt.Sprintf("model-%d", time.Now().UTC().Unix())
+	}, base)
+	base = safeIfcBaseName.ReplaceAllString(base, "-")
+	base = strings.Trim(base, "-._")
+	for strings.Contains(base, "--") {
+		base = strings.ReplaceAll(base, "--", "-")
 	}
-	if len(stem) > 120 {
-		stem = stem[:120]
+	if len(base) > 120 {
+		base = base[:120]
 	}
-	return stem + ext
+	if !libraryNameStemRe.MatchString(base) {
+		return ""
+	}
+	return base + ".ifc"
+}
+
+func sanitizeIfcFilename(uploadName string) string {
+	if name := sanitizeLibraryName(uploadName); name != "" {
+		return name
+	}
+	return fmt.Sprintf("model-%d.ifc", time.Now().UTC().Unix())
 }
 
 func libraryObjectKey(filename string) string {
@@ -261,6 +272,7 @@ func (h *Handler) GetModelFile(w http.ResponseWriter, r *http.Request) {
 }
 
 // UploadModel — POST /api/bim/models/upload (admin JWT).
+// Multipart: file (required) + name (required library basename). Rejects duplicate keys.
 func (h *Handler) UploadModel(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	email := auth.UserEmailFromRequest(r)
@@ -290,13 +302,36 @@ func (h *Handler) UploadModel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename := sanitizeIfcFilename(header.Filename)
+	rawName := strings.TrimSpace(r.FormValue("name"))
+	if rawName == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "library name required")
+		return
+	}
+	filename := sanitizeLibraryName(rawName)
+	if filename == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid library name (use letters, numbers, . _ - ; min 2 chars)")
+		return
+	}
 	key := libraryObjectKey(filename)
 
 	client, bucket, err := h.s3Client(r.Context())
 	if err != nil {
 		log.Printf("[correlation=%s] bim.models.upload no-s3 user=%s: %v", cid, email, err)
 		httpx.WriteError(w, http.StatusServiceUnavailable, "IFC library unavailable")
+		return
+	}
+
+	_, headErr := client.HeadObject(r.Context(), &s3.HeadObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if headErr == nil {
+		httpx.WriteError(w, http.StatusConflict, "library name already exists; choose a different name")
+		return
+	}
+	if !isS3NotFound(headErr) {
+		log.Printf("[correlation=%s] bim.models.upload head user=%s key=%s: %v", cid, email, key, headErr)
+		httpx.WriteError(w, http.StatusBadGateway, "could not check library name")
 		return
 	}
 
@@ -312,6 +347,9 @@ func (h *Handler) UploadModel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_ = header // original upload filename kept only for logs
+	log.Printf("[correlation=%s] bim.models.upload ok user=%s key=%s bytes=%d src=%s", cid, email, key, len(data), header.Filename)
+
 	model := LibraryModel{
 		Key:          key,
 		Name:         filename,
@@ -320,9 +358,24 @@ func (h *Handler) UploadModel(w http.ResponseWriter, r *http.Request) {
 		LastModified: time.Now().UTC().Format(time.RFC3339),
 		URL:          "/api/bim/models/file/" + encodeLibraryPath(filename),
 	}
-	log.Printf("[correlation=%s] bim.models.upload ok user=%s key=%s bytes=%d", cid, email, key, len(data))
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{
 		"model":  model,
 		"prefix": libraryPrefix,
 	})
+}
+
+func isS3NotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "not found") || strings.Contains(msg, "nosuchkey") || strings.Contains(msg, "status code: 404") || strings.Contains(msg, "statuscode: 404") {
+		return true
+	}
+	var api interface{ ErrorCode() string }
+	if errors.As(err, &api) {
+		code := strings.ToUpper(api.ErrorCode())
+		return code == "NOTFOUND" || code == "NOSUCHKEY"
+	}
+	return false
 }

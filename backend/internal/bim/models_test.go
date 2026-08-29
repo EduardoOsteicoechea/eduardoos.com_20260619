@@ -2,17 +2,30 @@ package bim
 
 import "testing"
 
-func TestSanitizeIfcFilename(t *testing.T) {
-	got := sanitizeIfcFilename("My Model (1).IFC")
-	if got != "My-Model-1.ifc" && got != "My-Model-(1).ifc" {
-		// spaces → dash, unsafe stripped; must end .ifc
-		if len(got) < 5 || got[len(got)-4:] != ".ifc" {
-			t.Fatalf("sanitize=%q", got)
-		}
+func TestSanitizeLibraryName(t *testing.T) {
+	got := sanitizeLibraryName("My Model (1)")
+	if got != "My-Model-1.ifc" {
+		t.Fatalf("got %q", got)
 	}
-	empty := sanitizeIfcFilename("")
-	if empty[len(empty)-4:] != ".ifc" {
-		t.Fatalf("empty sanitize=%q", empty)
+	if sanitizeLibraryName("a") != "" {
+		t.Fatal("single char should be invalid")
+	}
+	if sanitizeLibraryName("topo001") != "topo001.ifc" {
+		t.Fatalf("topo001 → %q", sanitizeLibraryName("topo001"))
+	}
+	if sanitizeLibraryName("../bad") != "" && stringsHasDotDot(sanitizeLibraryName("../bad")) {
+		t.Fatal("path escape")
+	}
+}
+
+func stringsHasDotDot(s string) bool {
+	return len(s) >= 2 && (s == ".." || len(s) > 2 && (s[:2] == ".." || s[len(s)-2:] == ".."))
+}
+
+func TestSanitizeIfcFilenameFallback(t *testing.T) {
+	got := sanitizeIfcFilename("My Model (1).IFC")
+	if got[len(got)-4:] != ".ifc" {
+		t.Fatalf("sanitize=%q", got)
 	}
 }
 
