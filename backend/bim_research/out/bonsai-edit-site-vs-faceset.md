@@ -16,6 +16,36 @@ You do **not** put FaceSets into Site as containers. FaceSets are **shape data i
 
 ---
 
+## “But the FaceSet *is* the actual geometry” — yes
+
+Correct. In IFC:
+
+```
+IfcCovering / IfcGeographicElement   ← PRODUCT (who / where / material / Spatial Container)
+ └── Representation → Body / Tessellation
+      └── IfcPolygonalFaceSet        ← GEOMETRY (verts + faces — the mesh you see)
+```
+
+So when you select `Item/IfcPolygonalFaceSet/242` and see the grey slab in the viewport, you **are** looking at the triangle data. That does **not** mean:
+
+- the sidewalk “lives in” the storey, or  
+- you should edit / contain / save that FaceSet as if it were the sidewalk.
+
+**Analogy:** FaceSet = the PNG pixels. Product = the photo file (name, folder, EXIF). Outliner under Storey for a lone FaceSet = the pixels floating outside the file.
+
+Bonsai still needs the **product** selected because:
+
+| Action | Needs product | FaceSet alone |
+|--------|---------------|---------------|
+| Spatial Container = Site | yes | no (no container) |
+| Materials / Styles | yes | no |
+| Manually Save Representation | yes | → `assert product` |
+| Delete orphan cleanup | — | delete FaceSet if stranded |
+
+If Terrain/Street/Sidewalk under **Site** still show the same mesh when selected, FaceSet/242 under Storey is almost certainly a **stranded Blender item** from an edit session — delete it after you confirm products still look right.
+
+---
+
 ## Two different trees (why it feels dual)
 
 ### 1. Spatial containment (BIM meaning)
