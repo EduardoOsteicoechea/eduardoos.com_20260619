@@ -75,6 +75,12 @@ const DEFAULT_LIGHTS: LightSettings = {
 
 const SHADOW_MAP_SIZES = [512, 1024, 2048, 4096] as const;
 const SHADOW_GROUND_NAME = "bim-ifc-shadow-ground";
+/** Soft limestone paper (spec 037) — fixed light studio, not site dark theme. */
+const VIEWPORT_BG = "#f2f3f6";
+
+function applyViewportBackground(scene: THREE.Scene) {
+  scene.background = new THREE.Color(VIEWPORT_BG);
+}
 
 const DEFAULT_CODE = `# Empty code runs hello_world.py on the server.
 # BIM_IFC_ARGS JSON is injected for the browser-loaded IFC metadata.
@@ -337,7 +343,7 @@ export default function BimIfcViewer() {
         // Original first-ship path (886ebc8): SimpleScene + plain setup(), no light overwrite.
         world.scene = new OBC.SimpleScene(components);
         world.scene.setup();
-        world.scene.three.background = null;
+        applyViewportBackground(world.scene.three);
 
         const renderer = new OBC.SimpleRenderer(components, host);
         renderer.showLogo = false;
@@ -345,9 +351,9 @@ export default function BimIfcViewer() {
         world.camera = new OBC.OrthoPerspectiveCamera(components);
         await world.camera.controls.setLookAt(12, 8, 12, 0, 0, 0);
         components.init();
-        // Keep grid handle: That Open ShadowedScene samples exclude it from distanceRenderer
-        // so CSM frustum fits the model (not the infinite grid / shadow ground).
+        // Keep grid handle for CSM distanceRenderer exclusion, but hide the helper lines.
         const grid = components.get(OBC.Grids).create(world);
+        grid.three.visible = false;
 
         const ifcLoader = components.get(OBC.IfcLoader);
         await ifcLoader.setup({
@@ -443,12 +449,13 @@ export default function BimIfcViewer() {
           if (!isShadowed(prev) && settings === null) {
             // Already SimpleScene and Reset wants untouched library setup.
             prev.setup();
-            prev.three.background = null;
+            applyViewportBackground(prev.three);
             renderer.three.shadowMap.enabled = false;
             return;
           }
           if (!isShadowed(prev) && settings) {
             applySimpleLightConfig(prev, settings, sunDirForSettings(settings));
+            applyViewportBackground(prev.three);
             renderer.three.shadowMap.enabled = false;
             return;
           }
@@ -456,7 +463,7 @@ export default function BimIfcViewer() {
           const next = new OBC.SimpleScene(components);
           world.scene = next;
           next.setup();
-          next.three.background = null;
+          applyViewportBackground(next.three);
           migrateSceneContents(prev.three, next.three);
           disposePreviousScene(prev);
           renderer.three.shadowMap.enabled = false;
@@ -493,7 +500,7 @@ export default function BimIfcViewer() {
               cascade: 1,
               resolution: settings.shadowMapSize,
             } as Parameters<ShadowedScene["setup"]>[0]);
-            next.three.background = null;
+            applyViewportBackground(next.three);
             next.autoBias = false;
             next.bias = settings.shadowBias;
             next.shadowsEnabled = true;
@@ -535,7 +542,7 @@ export default function BimIfcViewer() {
               cascade: 1,
               resolution: settings.shadowMapSize,
             } as Parameters<ShadowedScene["setup"]>[0]);
-            prev.three.background = null;
+            applyViewportBackground(prev.three);
             addShadowGround(prev);
             excludeNonModelFromDistance(prev);
           }
