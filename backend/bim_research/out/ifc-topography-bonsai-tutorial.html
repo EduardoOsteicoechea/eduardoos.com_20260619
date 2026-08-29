@@ -4,32 +4,38 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Semantic IFC topography — Site, geo &amp; Bonsai</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
   <style>
     :root {
       --rail: 50px;
       --nav-w: 220px;
       --toc-w: 260px;
       --paper: #e8eef4;
-      --ink: #1a2332;
+      --ink: #243040;
       --muted: #5a6a7a;
       --line: #b8c4d0;
       --accent: #3a5a78;
       --panel: #f4f7fa;
       --panel-2: #dfe8f0;
       --focus: #2a6a9a;
-      --font-ui: "Montserrat", "Segoe UI", system-ui, sans-serif;
-      --font-body: "Raleway", "Segoe UI", system-ui, sans-serif;
-      --font-display: "Cormorant Garamond", Georgia, serif;
+      --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+      --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+      --font-display: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+      --fw-regular: 400;
+      --fw-medium: 500;
+      --fw-semibold: 600;
     }
     html.dark, html[data-theme="dark"] {
       --paper: #121820;
-      --ink: #e6edf4;
-      --muted: #9aabbc;
+      --ink: #c5ced8;
+      --muted: #8a9aaa;
       --line: #2a3848;
-      --accent: #7a9ab8;
+      --accent: #8eb0cc;
       --panel: #1a2430;
       --panel-2: #243040;
-      --focus: #6ab0e0;
+      --focus: #7ab4dc;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -39,7 +45,16 @@
       color: var(--ink);
       font-family: var(--font-body);
       font-size: 16px;
-      line-height: 1.55;
+      font-weight: var(--fw-regular);
+      font-synthesis: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      line-height: 1.6;
+      letter-spacing: 0.01em;
+    }
+    strong, b {
+      font-weight: var(--fw-medium);
+      color: inherit;
     }
     a { color: var(--focus); }
     a:hover { text-decoration: underline; }
@@ -49,6 +64,19 @@
       grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr) var(--toc-w);
       height: 100%;
       min-height: 100vh;
+    }
+    .app.nav-collapsed {
+      grid-template-columns: var(--rail) 0 minmax(0, 1fr) var(--toc-w);
+    }
+    .app.toc-collapsed {
+      grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr) 0;
+    }
+    .app.nav-collapsed.toc-collapsed {
+      grid-template-columns: var(--rail) 0 minmax(0, 1fr) 0;
+    }
+    .app.nav-collapsed .nav,
+    .app.toc-collapsed .toc {
+      display: none;
     }
 
     /* 50px icon-only left bar (header chrome) */
@@ -100,7 +128,7 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--muted);
-      font-weight: 600;
+      font-weight: var(--fw-medium);
     }
     .nav ul { list-style: none; margin: 0; padding: 0; }
     .nav li { margin: 0 0 4px; }
@@ -145,11 +173,12 @@
     }
     .main h1 {
       font-family: var(--font-display);
-      font-weight: 500;
-      font-size: clamp(1.8rem, 3vw, 2.4rem);
-      line-height: 1.15;
+      font-weight: var(--fw-medium);
+      font-size: clamp(1.65rem, 2.6vw, 2.1rem);
+      line-height: 1.25;
       margin: 0 0 10px;
       color: var(--ink);
+      letter-spacing: -0.01em;
     }
     .main .lede {
       margin: 0;
@@ -161,17 +190,20 @@
       margin: 0 0 2.4rem;
       scroll-margin-top: 24px;
     }
+    section.block:has(.ui-mock-wrap) {
+      max-width: min(960px, 100%);
+    }
     section.block h2 {
       font-family: var(--font-display);
-      font-size: 1.55rem;
-      font-weight: 500;
+      font-size: 1.35rem;
+      font-weight: var(--fw-medium);
       margin: 0 0 0.6rem;
       padding-top: 0.4rem;
     }
     section.block h3 {
       font-family: var(--font-ui);
-      font-size: 0.95rem;
-      font-weight: 600;
+      font-size: 0.92rem;
+      font-weight: var(--fw-medium);
       margin: 1.2rem 0 0.45rem;
       color: var(--accent);
     }
@@ -239,6 +271,258 @@
       overflow: auto;
     }
 
+    /* Blender / Bonsai UI mock */
+    .ui-mock-wrap {
+      max-width: none;
+      margin: 1.2rem 0 0.4rem;
+    }
+    .ui-mock-caption {
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+    .ui-mock {
+      --b-bg: #303030;
+      --b-panel: #3d3d3d;
+      --b-panel2: #424242;
+      --b-border: #2a2a2a;
+      --b-text: #e6e6e6;
+      --b-muted: #9a9a9a;
+      --b-accent: #4772b3;
+      --b-select: #5a7a9a;
+      --b-hl: #6a9ccc;
+      display: grid;
+      grid-template-columns: 168px minmax(120px, 1fr) 220px;
+      grid-template-rows: 28px 1fr;
+      height: 420px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      color: var(--b-text);
+      background: var(--b-bg);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    }
+    .ui-mock .topbar {
+      grid-column: 1 / -1;
+      background: #2b2b2b;
+      border-bottom: 1px solid var(--b-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--b-muted);
+    }
+    .ui-mock .topbar strong { color: var(--b-text); font-weight: 600; }
+    .ui-mock .outliner {
+      background: var(--b-panel);
+      border-right: 1px solid var(--b-border);
+      overflow: auto;
+      padding: 6px 0;
+    }
+    .ui-mock .outliner .head {
+      padding: 4px 8px;
+      color: var(--b-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 10px;
+    }
+    .ui-mock .tree-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: inherit;
+      width: 100%;
+      text-align: left;
+      font: inherit;
+    }
+    .ui-mock .tree-item:hover { background: #4a4a4a; }
+    .ui-mock .tree-item.active {
+      background: var(--b-select);
+      color: #fff;
+    }
+    .ui-mock .tree-item .twist {
+      width: 12px;
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+    .ui-mock .tree-item[data-depth="1"] { padding-left: 16px; }
+    .ui-mock .tree-item[data-depth="2"] { padding-left: 28px; }
+    .ui-mock .tree-item[data-depth="3"] { padding-left: 40px; }
+    .ui-mock .viewport {
+      background: #1f1f1f;
+      position: relative;
+      display: grid;
+      place-items: center;
+      border-right: 1px solid var(--b-border);
+    }
+    .ui-mock .viewport .hint {
+      color: var(--b-muted);
+      text-align: center;
+      padding: 12px;
+      line-height: 1.45;
+      max-width: 28ch;
+    }
+    .ui-mock .viewport .hint mark {
+      background: rgba(106, 156, 204, 0.25);
+      color: var(--b-hl);
+      padding: 0 3px;
+      border-radius: 2px;
+    }
+    .ui-mock .props {
+      background: var(--b-panel);
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .ui-mock .prop-tabs {
+      background: #353535;
+      border-right: 1px solid var(--b-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4px 0;
+      gap: 4px;
+    }
+    .ui-mock .prop-tabs button {
+      width: 22px;
+      height: 22px;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      background: transparent;
+      color: var(--b-muted);
+      cursor: pointer;
+      padding: 0;
+      font-size: 9px;
+      line-height: 1;
+    }
+    .ui-mock .prop-tabs button[aria-pressed="true"] {
+      background: var(--b-panel2);
+      border-color: #555;
+      color: #fff;
+    }
+    .ui-mock .prop-tabs button:hover { color: #fff; }
+    .ui-mock .prop-body {
+      overflow: auto;
+      min-width: 0;
+    }
+    .ui-mock .prop-title {
+      padding: 6px 8px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--b-border);
+      background: #383838;
+    }
+    .ui-mock details.fold {
+      border-bottom: 1px solid var(--b-border);
+    }
+    .ui-mock details.fold > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 6px 8px;
+      background: var(--b-panel2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+    .ui-mock details.fold > summary::-webkit-details-marker { display: none; }
+    .ui-mock details.fold > summary::before {
+      content: "▶";
+      font-size: 8px;
+      opacity: 0.8;
+      transition: transform 0.12s ease;
+    }
+    .ui-mock details.fold[open] > summary::before { transform: rotate(90deg); }
+    .ui-mock details.fold .fold-body {
+      padding: 6px 8px 8px;
+      background: #3a3a3a;
+    }
+    .ui-mock .attr-row {
+      display: grid;
+      grid-template-columns: 42% 1fr;
+      gap: 4px;
+      margin: 0 0 4px;
+      align-items: center;
+    }
+    .ui-mock .attr-row label {
+      color: var(--b-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ui-mock .attr-row input {
+      width: 100%;
+      background: #2c2c2c;
+      border: 1px solid #555;
+      color: var(--b-text);
+      border-radius: 2px;
+      padding: 2px 4px;
+      font: inherit;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 10px;
+    }
+    .ui-mock .attr-row input:focus {
+      outline: 1px solid var(--b-accent);
+      border-color: var(--b-accent);
+    }
+    .ui-mock .pulse {
+      animation: ui-pulse 1.2s ease-in-out 2;
+      box-shadow: inset 0 0 0 1px var(--b-hl);
+    }
+    @keyframes ui-pulse {
+      0%, 100% { background: var(--b-panel2); }
+      50% { background: #4a6080; }
+    }
+    .ui-mock-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0 0;
+    }
+    .ui-mock-actions button {
+      font-family: var(--font-ui);
+      font-size: 11px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      border-radius: 4px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .ui-mock-actions button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .ui-mock-status {
+      margin: 8px 0 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+      min-height: 1.3em;
+    }
+    .ui-mock-status strong { color: var(--accent); }
+    @media (max-width: 720px) {
+      .ui-mock {
+        grid-template-columns: 1fr;
+        grid-template-rows: 28px 120px 140px 220px;
+        height: auto;
+      }
+      .ui-mock .outliner, .ui-mock .viewport, .ui-mock .props {
+        border-right: none;
+        border-bottom: 1px solid var(--b-border);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .ui-mock .pulse { animation: none; }
+      .ui-mock details.fold > summary::before { transition: none; }
+    }
+
     /* Right scroll-spy TOC */
     .toc {
       background: var(--panel);
@@ -254,7 +538,7 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--muted);
-      font-weight: 600;
+      font-weight: var(--fw-medium);
     }
     .toc .pos {
       margin: 0 0 14px;
@@ -268,7 +552,7 @@
     .toc .pos strong {
       display: block;
       color: var(--accent);
-      font-weight: 600;
+      font-weight: var(--fw-medium);
       margin-bottom: 2px;
     }
     .toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
@@ -286,16 +570,45 @@
       border-left-color: var(--accent);
       background: var(--paper);
       color: var(--accent);
-      font-weight: 600;
+      font-weight: var(--fw-medium);
     }
 
     @media (max-width: 1100px) {
-      .app { grid-template-columns: var(--rail) minmax(0, 1fr) minmax(180px, 220px); }
+      .app { grid-template-columns: var(--rail) 0 minmax(0, 1fr) minmax(180px, 220px); }
+      .app:not(.nav-collapsed) { grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr) minmax(180px, 220px); }
+      .app.toc-collapsed { grid-template-columns: var(--rail) 0 minmax(0, 1fr) 0; }
+      .app:not(.nav-collapsed).toc-collapsed { grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr) 0; }
       .nav { display: none; }
+      .app:not(.nav-collapsed) .nav { display: block; }
     }
     @media (max-width: 720px) {
-      .app { grid-template-columns: var(--rail) minmax(0, 1fr); }
-      .toc { display: none; }
+      .app,
+      .app.nav-collapsed,
+      .app.toc-collapsed,
+      .app.nav-collapsed.toc-collapsed {
+        grid-template-columns: var(--rail) minmax(0, 1fr);
+      }
+      .nav, .toc { display: none; }
+      .app:not(.nav-collapsed) .nav {
+        display: block;
+        position: fixed;
+        left: var(--rail);
+        top: 0;
+        bottom: 0;
+        width: var(--nav-w);
+        z-index: 5;
+        box-shadow: 4px 0 16px rgba(0,0,0,0.2);
+      }
+      .app:not(.toc-collapsed) .toc {
+        display: block;
+        position: fixed;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: var(--toc-w);
+        z-index: 5;
+        box-shadow: -4px 0 16px rgba(0,0,0,0.2);
+      }
       .main { padding: 20px 16px 64px; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -310,9 +623,15 @@
       <a class="icon" href="#overview" aria-current="page" title="Tutorial" aria-label="Tutorial">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>
       </a>
-      <button type="button" id="btn-nav" title="Views" aria-label="Toggle views" aria-pressed="false">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      <button type="button" id="btn-toggle-nav" title="Toggle left sidebar (Views)" aria-label="Toggle left sidebar" aria-pressed="true" aria-controls="side-nav">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h6v14H4z"/><path d="M12 5h8M12 12h8M12 19h8"/></svg>
       </button>
+      <button type="button" id="btn-toggle-toc" title="Toggle right sidebar (On this page)" aria-label="Toggle right sidebar" aria-pressed="true" aria-controls="side-toc">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h6v14h-6z"/><path d="M4 5h8M4 12h8M4 19h8"/></svg>
+      </button>
+      <a class="icon" href="#bonsai-ui-mock" title="Bonsai UI sample" aria-label="Bonsai UI sample">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="6" height="14" rx="1"/><rect x="14" y="5" width="6" height="14" rx="1"/><path d="M11 8h2M11 12h2"/></svg>
+      </a>
       <a class="icon" href="#official-docs" title="Official docs" aria-label="Official docs">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6V4z"/><path d="M14 4v4h4"/></svg>
       </a>
@@ -326,6 +645,7 @@
       <h2>Views</h2>
       <ul>
         <li><a href="#overview" aria-current="page">Tutorial — topography</a></li>
+        <li><a href="#bonsai-ui-mock">Bonsai UI sample</a></li>
         <li><span class="future">IFC schema map (soon)</span></li>
         <li><span class="future">EPSG picker notes (soon)</span></li>
         <li><span class="future">Sample IFC snippets (soon)</span></li>
@@ -736,6 +1056,132 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
           That tab manages the project; Site <code>RefLatitude</code> lives under
           <strong>Object Information → Attributes</strong> while <code>IfcSite</code> is selected.
         </div>
+
+        <div class="ui-mock-wrap" id="bonsai-ui-mock">
+          <p class="ui-mock-caption">
+            Interactive sample (not real Blender): click Outliner Site → switch Properties tab → expand collapsible panels.
+            Use the buttons under the mock to jump to the correct place.
+          </p>
+          <div class="ui-mock" role="application" aria-label="Blender Bonsai UI sample">
+            <div class="topbar">
+              <strong>Blender</strong>
+              <span>File</span><span>Edit</span><span>…</span>
+              <span style="margin-left:auto">Bonsai · IFC4 · UI sample</span>
+            </div>
+
+            <aside class="outliner" aria-label="Outliner sample">
+              <div class="head">Scene Collection</div>
+              <button type="button" class="tree-item" data-depth="0" data-select="project">
+                <span class="twist">▾</span> IfcProject/My Project
+              </button>
+              <button type="button" class="tree-item active" data-depth="1" data-select="site" id="mock-site-item">
+                <span class="twist">▾</span> IfcSite/My Site
+              </button>
+              <button type="button" class="tree-item" data-depth="2" data-select="building">
+                <span class="twist">▾</span> IfcBuilding/My Building
+              </button>
+              <button type="button" class="tree-item" data-depth="3" data-select="storey">
+                <span class="twist">·</span> IfcBuildingStorey/My Storey
+              </button>
+            </aside>
+
+            <div class="viewport" aria-label="3D Viewport sample">
+              <p class="hint" id="mock-viewport-hint">
+                3D Viewport<br />
+                Active: <mark>IfcSite/My Site</mark><br />
+                <span style="opacity:0.85">Properties on the right → switch to <strong>Object Information</strong> for Site attributes.</span>
+              </p>
+            </div>
+
+            <div class="props" aria-label="Properties sample">
+              <div class="prop-tabs" role="tablist" aria-label="Properties tabs">
+                <button type="button" role="tab" id="tab-overview" aria-pressed="true" title="Project Overview" data-tab="overview">PO</button>
+                <button type="button" role="tab" id="tab-object" aria-pressed="false" title="Object Information" data-tab="object">OI</button>
+                <button type="button" role="tab" aria-pressed="false" title="Geometry (sample)" data-tab="geom" disabled style="opacity:0.35">G</button>
+              </div>
+              <div class="prop-body">
+                <div class="prop-pane" id="pane-overview" data-pane="overview">
+                  <div class="prop-title">Project Overview</div>
+                  <details class="fold" open>
+                    <summary>Project Info</summary>
+                    <div class="fold-body">
+                      IFC Schema: IFC4<br />
+                      File: unsaved.ifc<br />
+                      <span style="color:var(--b-muted)">Project-level metadata only — not Site lat/long.</span>
+                    </div>
+                  </details>
+                  <details class="fold">
+                    <summary>Spatial</summary>
+                    <div class="fold-body">
+                      Project → Site → Building → Storey<br />
+                      <button type="button" class="tree-item" style="padding-left:0;margin-top:4px" data-select="site">Select IfcSite/My Site</button>
+                    </div>
+                  </details>
+                  <details class="fold">
+                    <summary>Grouping and Filtering</summary>
+                    <div class="fold-body" style="color:var(--b-muted)">Filters (sample, collapsed content).</div>
+                  </details>
+                  <details class="fold" id="fold-project-setup">
+                    <summary>Project Setup</summary>
+                    <div class="fold-body">
+                      Units, templates…<br />
+                      <span style="color:var(--b-muted)">CRS / Map Conversion may appear near here or under IFC Georeferencing (Step B).</span>
+                    </div>
+                  </details>
+                  <details class="fold">
+                    <summary>Geometry</summary>
+                    <div class="fold-body" style="color:var(--b-muted)">Geometry settings (sample).</div>
+                  </details>
+                  <details class="fold">
+                    <summary>Stakeholders</summary>
+                    <div class="fold-body" style="color:var(--b-muted)">Actors / organisations (sample).</div>
+                  </details>
+                </div>
+
+                <div class="prop-pane" id="pane-object" data-pane="object" hidden>
+                  <div class="prop-title">Object Information</div>
+                  <details class="fold">
+                    <summary>Object Metadata</summary>
+                    <div class="fold-body">Class: <strong>IfcSite</strong></div>
+                  </details>
+                  <details class="fold" id="fold-attributes" open>
+                    <summary>Attributes ← put RefLatitude here</summary>
+                    <div class="fold-body" id="mock-attributes">
+                      <div class="attr-row"><label>Name</label><input value="My Site" readonly /></div>
+                      <div class="attr-row"><label>LongName</label><input value="EduOS Lab Site Caracas" readonly /></div>
+                      <div class="attr-row"><label>RefLatitude</label><input value="[10, 28, 50, 0]" readonly /></div>
+                      <div class="attr-row"><label>RefLongitude</label><input value="[-66, -54, -13, 0]" readonly /></div>
+                      <div class="attr-row"><label>RefElevation</label><input value="900.0" readonly /></div>
+                      <div class="attr-row"><label>LandTitleNumber</label><input value="CAT-2026-001-LIBERTADOR" readonly /></div>
+                    </div>
+                  </details>
+                  <details class="fold" id="fold-psets">
+                    <summary>Property Sets</summary>
+                    <div class="fold-body">
+                      <strong>Pset_Address</strong><br />
+                      Town: Caracas · Region: Distrito Capital<br />
+                      PostalCode: 1060 · Country: VE<br />
+                      <span style="color:var(--b-muted)">Also: Pset_LandRegistration (IFC4.3)</span>
+                    </div>
+                  </details>
+                  <details class="fold">
+                    <summary>Spatial Container</summary>
+                    <div class="fold-body" style="color:var(--b-muted)">Contained under IfcProject (sample).</div>
+                  </details>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ui-mock-actions">
+            <button type="button" id="mock-show-wrong">Show wrong tab (Project Overview)</button>
+            <button type="button" id="mock-show-right">Show correct path (Object Information → Attributes)</button>
+            <button type="button" id="mock-show-psets">Show Property Sets (address)</button>
+          </div>
+          <p class="ui-mock-status" id="mock-status" aria-live="polite">
+            <strong>Tip:</strong> Your screenshot was on Project Overview — click “Show correct path”.
+          </p>
+        </div>
       </section>
 
       <section class="block" id="step-georef">
@@ -910,7 +1356,7 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
       </section>
     </main>
 
-    <aside class="toc" aria-label="On this page">
+    <aside class="toc" id="side-toc" aria-label="On this page">
       <h2>On this page</h2>
       <div class="pos" id="scroll-pos" aria-live="polite">
         <strong id="current-heading">Overview</strong>
@@ -1048,14 +1494,131 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
         localStorage.setItem("eduardoos-theme", dark ? "dark" : "light");
       });
 
-      // Views rail button (future: toggle nav)
-      const navBtn = document.getElementById("btn-nav");
-      navBtn.addEventListener("click", () => {
-        const nav = document.getElementById("side-nav");
-        const hide = nav.style.display === "none";
-        nav.style.display = hide ? "" : "none";
-        navBtn.setAttribute("aria-pressed", hide ? "false" : "true");
+      // Sidebar toggles (left Views / right TOC)
+      const appEl = document.querySelector(".app");
+      const btnNav = document.getElementById("btn-toggle-nav");
+      const btnToc = document.getElementById("btn-toggle-toc");
+      const SIDEBAR_KEY = "bim-lab:sidebars:" + location.pathname.replace(/\\/g, "/");
+
+      function applySidebars(navOpen, tocOpen) {
+        appEl.classList.toggle("nav-collapsed", !navOpen);
+        appEl.classList.toggle("toc-collapsed", !tocOpen);
+        btnNav.setAttribute("aria-pressed", navOpen ? "true" : "false");
+        btnToc.setAttribute("aria-pressed", tocOpen ? "true" : "false");
+        try {
+          sessionStorage.setItem(SIDEBAR_KEY, JSON.stringify({ navOpen, tocOpen }));
+        } catch (_) {}
+      }
+
+      let navOpen = true;
+      let tocOpen = true;
+      try {
+        const savedBars = JSON.parse(sessionStorage.getItem(SIDEBAR_KEY) || "null");
+        if (savedBars) {
+          navOpen = savedBars.navOpen !== false;
+          tocOpen = savedBars.tocOpen !== false;
+        }
+      } catch (_) {}
+      if (matchMedia("(max-width: 1100px)").matches && !sessionStorage.getItem(SIDEBAR_KEY)) {
+        navOpen = false;
+      }
+      if (matchMedia("(max-width: 720px)").matches && !sessionStorage.getItem(SIDEBAR_KEY)) {
+        navOpen = false;
+        tocOpen = false;
+      }
+      applySidebars(navOpen, tocOpen);
+
+      btnNav.addEventListener("click", () => {
+        navOpen = !navOpen;
+        applySidebars(navOpen, tocOpen);
       });
+      btnToc.addEventListener("click", () => {
+        tocOpen = !tocOpen;
+        applySidebars(navOpen, tocOpen);
+      });
+
+      // Bonsai UI mock
+      (function initMock() {
+        const status = document.getElementById("mock-status");
+        const paneOverview = document.getElementById("pane-overview");
+        const paneObject = document.getElementById("pane-object");
+        const tabOverview = document.getElementById("tab-overview");
+        const tabObject = document.getElementById("tab-object");
+        const foldAttr = document.getElementById("fold-attributes");
+        const foldPsets = document.getElementById("fold-psets");
+        const mockAttrs = document.getElementById("mock-attributes");
+        const hint = document.getElementById("mock-viewport-hint");
+        if (!paneOverview || !paneObject) return;
+
+        function selectSite() {
+          document.querySelectorAll(".ui-mock .tree-item[data-select]").forEach((el) => {
+            el.classList.toggle("active", el.getAttribute("data-select") === "site");
+          });
+          if (hint) {
+            hint.innerHTML = '3D Viewport<br />Active: <mark>IfcSite/My Site</mark><br /><span style="opacity:0.85">Properties → <strong>Object Information</strong> → Attributes.</span>';
+          }
+        }
+
+        function showTab(which) {
+          const isObject = which === "object";
+          paneOverview.hidden = isObject;
+          paneObject.hidden = !isObject;
+          tabOverview.setAttribute("aria-pressed", isObject ? "false" : "true");
+          tabObject.setAttribute("aria-pressed", isObject ? "true" : "false");
+        }
+
+        function pulse(el) {
+          if (!el) return;
+          el.classList.remove("pulse");
+          void el.offsetWidth;
+          el.classList.add("pulse");
+        }
+
+        document.querySelectorAll(".ui-mock [data-select]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-select");
+            document.querySelectorAll(".ui-mock .outliner .tree-item").forEach((el) => {
+              el.classList.toggle("active", el.getAttribute("data-select") === id);
+            });
+            if (id === "site") selectSite();
+          });
+        });
+
+        tabOverview.addEventListener("click", () => {
+          showTab("overview");
+          if (status) status.innerHTML = "<strong>Wrong tab for Site lat/long:</strong> Project Overview — switch to Object Information.";
+        });
+        tabObject.addEventListener("click", () => {
+          showTab("object");
+          selectSite();
+          if (foldAttr) foldAttr.open = true;
+          pulse(mockAttrs);
+          if (status) status.innerHTML = "<strong>Correct:</strong> Object Information → Attributes (sample values shown).";
+        });
+
+        document.getElementById("mock-show-wrong")?.addEventListener("click", () => {
+          selectSite();
+          showTab("overview");
+          document.getElementById("fold-project-setup")?.setAttribute("open", "");
+          pulse(paneOverview.querySelector(".prop-title"));
+          if (status) status.innerHTML = "<strong>Wrong place:</strong> Project Overview (like your screenshot). Site RefLatitude is not here.";
+        });
+        document.getElementById("mock-show-right")?.addEventListener("click", () => {
+          selectSite();
+          showTab("object");
+          if (foldAttr) foldAttr.open = true;
+          if (foldPsets) foldPsets.open = false;
+          pulse(mockAttrs);
+          if (status) status.innerHTML = "<strong>Correct path:</strong> Select IfcSite → Object Information (OI) → Attributes.";
+        });
+        document.getElementById("mock-show-psets")?.addEventListener("click", () => {
+          selectSite();
+          showTab("object");
+          if (foldPsets) foldPsets.open = true;
+          pulse(foldPsets);
+          if (status) status.innerHTML = "<strong>Address:</strong> Object Information → Property Sets → Pset_Address.";
+        });
+      })();
 
       restoreRoute();
       onScroll();

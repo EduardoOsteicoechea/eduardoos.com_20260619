@@ -44,4 +44,4 @@ Need a clear, citable walkthrough of how to represent **topography** in semantic
 ## Follow-ups
 
 - [x] Add plain-language glossary for acronyms/jargon in the HTML tutorial (CRS, EPSG, DTM, TIN, WGS84, IFC, ISO, OBP, DEM/DSM, etc.).
-- [x] Clarify BlenderGIS / QGIS / DEM import in non-architect language + how to use BlenderGIS.
+- [x] Interactive Bonsai UI mock + rail toggles for left/right tutorial sidebars; lighter body fonts.
