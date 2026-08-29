@@ -2,7 +2,7 @@
 
 ## Status
 
-Locked from user answers (2026-08-29). Viewport chrome polish (2026-08-29): full-bleed stage, no That Open logo, icon-only header tools, Offload model. Shadows + sun controls (2026-08-29): ShadowedScene, Lights sidebar Sun/Shadows fieldsets. Implement from this file.
+Locked from user answers (2026-08-29). Viewport chrome polish (2026-08-29): full-bleed stage, no That Open logo, icon-only header tools, Offload model. Shadows + sun controls (2026-08-29): ShadowedScene, Lights sidebar Sun/Shadows fieldsets. Light defaults restored to SimpleScene originals (2026-08-29): ambient 1 / directional 1.5 / `(5,10,3)`, shadows off by default. Implement from this file.
 
 ## Problem
 
@@ -28,10 +28,14 @@ Admins need a browser IFC viewer (That Open / web-ifc) and a host Python console
    - **Directional** — intensity, color (sun “brightness” / tint).
    - **Sun** — elevation ° (above horizon) and azimuth ° (from +Z toward +X on the Y-up scene). These derive the directional light **direction** vector; raw Pos X/Y/Z sliders are **hidden** (not shown). When sun angles change, sync internal `dirX/Y/Z` and apply to `world.scene.config.directionalLight.position`, then refresh shadows.
    - **Shadows** — enable/disable, shadow map resolution (e.g. 512 / 1024 / 2048 / 4096), and bias (stripe-artifact control). Reset restores lights + sun + shadow defaults together.
-9. **Scene shadows:** Use That Open **`ShadowedScene`** (not `SimpleScene`) with `SimpleRenderer` shadow maps enabled (`shadowMap.enabled`, prefer `VSMShadowMap`). Call `scene.setup` with shadow cascade/resolution (cascade `1`), then `updateShadows()` after setup, after model load/tile mesh flags, after sun direction changes, and on camera controls `rest`. Opaque fragment tiles (and model object children) set `castShadow` / `receiveShadow`. Add a large Y=0 ground plane with `ShadowMaterial` that **receives** shadows so buildings ground correctly. Toggle via `world.scene.shadowsEnabled`; bias via `world.scene.bias` (disable `autoBias` when the user sets bias manually, or set bias after each update).
-10. **Admin nav:** Global header tray (admin block, after Agent Sandbox) links to `/bim/ifc/viewer` as **BIM IFC viewer**, gated by the same `isPlatformAdmin()` check as other admin links. Not under Services Apps.
-11. **Full-bleed viewport:** The 3D stage fills the available page content area edge-to-edge (no outer padding/border gap around the canvas separating it from the header rail / page edges). Respect desktop left site-header rail via existing `--header_width` / main layout tokens — do not underlap the rail.
-12. **No third-party logo watermark:** Hide/disable the That Open Company logo overlay (`world.renderer.showLogo = false` or equivalent). Viewport stays clean without breaking the viewer.
+9. **Default light values (That Open SimpleScene originals):** Initial `setup()`, React default state, and **Reset lights** must match pre-shadow SimpleScene defaults — not the ShadowedScene tutorial samples (those use directional intensity `4` / position `(5,10,5)`):
+   - Ambient: intensity `1`, color `#ffffff`
+   - Directional: intensity `1.5`, color `#ffffff`, position / sun direction `(5, 10, 3)` (or elevation/azimuth equivalent ≈ `59.8°` / `59°`)
+   - Shadows: **disabled by default** so the first paint matches the original flat SimpleScene look; user can enable shadows from the sidebar. Default map size `2048`, bias `-0.002` when enabled.
+10. **Scene shadows:** Use That Open **`ShadowedScene`** (not `SimpleScene`) with `SimpleRenderer` shadow maps enabled (`shadowMap.enabled`, prefer `VSMShadowMap`). Call `scene.setup` with shadow cascade/resolution (cascade `1`), then `updateShadows()` after setup (when shadows enabled), after model load/tile mesh flags, after sun direction changes, and on camera controls `rest`. Opaque fragment tiles (and model object children) set `castShadow` / `receiveShadow`. Add a large Y=0 ground plane with `ShadowMaterial` that **receives** shadows so buildings ground correctly. Toggle via `world.scene.shadowsEnabled`; bias via `world.scene.bias` (disable `autoBias` when the user sets bias manually, or set bias after each update). When shadows are **off**, keep cascade lights parked at the configured direction vector (SimpleScene-like fixed sun at `(5,10,3)` targeting origin) so lighting matches the original viewer.
+11. **Admin nav:** Global header tray (admin block, after Agent Sandbox) links to `/bim/ifc/viewer` as **BIM IFC viewer**, gated by the same `isPlatformAdmin()` check as other admin links. Not under Services Apps.
+12. **Full-bleed viewport:** The 3D stage fills the available page content area edge-to-edge (no outer padding/border gap around the canvas separating it from the header rail / page edges). Respect desktop left site-header rail via existing `--header_width` / main layout tokens — do not underlap the rail.
+13. **No third-party logo watermark:** Hide/disable the That Open Company logo overlay (`world.renderer.showLogo = false` or equivalent). Viewport stays clean without breaking the viewer.
 
 ### Sun direction math (Y-up Three.js)
 
@@ -42,6 +46,10 @@ Given elevation \(e\) (degrees above horizon) and azimuth \(a\) (degrees from **
 - \(z = r \cdot \cos(e) \cdot \cos(a)\)
 
 `ShadowedScene` treats this vector as the sun **direction** (normalized internally when recomputing cascaded shadow lights). Defaults chosen so the initial direction matches the prior SimpleScene light at `(5, 10, 3)`.
+
+## Acceptance (lights defaults)
+
+- [x] Default / Reset lights use ambient `1` `#ffffff`, directional `1.5` `#ffffff`, sun direction from `(5, 10, 3)`; shadows off until the user enables them.
 
 ## Isolation (host subprocess)
 
@@ -77,6 +85,7 @@ Crawling **within** scripts (e.g. `urllib`) is allowed for research under the ru
 - [x] Light icon on the viewport rail opens/closes a sidebar; ambient/directional intensity and color update the live scene.
 - [x] Lights sidebar includes **Sun** (elevation °, azimuth °) that updates directional light direction; raw Pos X/Y/Z controls are not shown.
 - [x] Lights sidebar includes **Shadows** (enable, map resolution, bias); scene uses `ShadowedScene` + renderer shadow maps; loaded model meshes cast/receive; ground plane receives.
+- [x] Default / Reset lights restore SimpleScene originals: ambient `1` `#ffffff`, directional `1.5` `#ffffff`, sun from `(5,10,3)`; shadows start **off**.
 - [x] Signed-in platform admin sees **BIM IFC viewer** in the global header tray admin block (same gate as Agent Sandbox).
 - [x] Header dynamic menu exposes **Upload**, **Python**, and **Output**; page has no permanent bottom Python output block and no inline toolbar upload control (compact status line OK).
 - [x] 3D viewport is full-bleed in the page content area (no outer padding/border gap around the canvas; desktop left rail still respected via layout tokens).

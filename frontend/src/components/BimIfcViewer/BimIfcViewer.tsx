@@ -45,7 +45,11 @@ type LightSettings = {
   shadowBias: number;
 };
 
-/** Legacy SimpleScene light position used to seed default sun angles. */
+/**
+ * Original That Open SimpleScene._defaultConfig light (pre-shadows viewer).
+ * Keep intensities/colors/position locked here — ShadowedScene tutorials use
+ * directional intensity 4 / position (5,10,5); we intentionally do not.
+ */
 const LEGACY_DIR = { x: 5, y: 10, z: 3 };
 const SUN_DISTANCE = Math.hypot(LEGACY_DIR.x, LEGACY_DIR.y, LEGACY_DIR.z);
 
@@ -67,6 +71,11 @@ function anglesFromDirection(x: number, y: number, z: number) {
   return { elevation, azimuth };
 }
 
+/** Exact SimpleScene light position vector (prefer over angle round-trip in setup). */
+function legacySunPosition() {
+  return new THREE.Vector3(LEGACY_DIR.x, LEGACY_DIR.y, LEGACY_DIR.z);
+}
+
 const LEGACY_SUN = anglesFromDirection(LEGACY_DIR.x, LEGACY_DIR.y, LEGACY_DIR.z);
 
 const DEFAULT_LIGHTS: LightSettings = {
@@ -74,9 +83,11 @@ const DEFAULT_LIGHTS: LightSettings = {
   ambientColor: "#ffffff",
   directionalIntensity: 1.5,
   directionalColor: "#ffffff",
+  // UI angles derived from (5,10,3); setup still pins the exact vector.
   sunElevation: Number(LEGACY_SUN.elevation.toFixed(1)),
   sunAzimuth: Number(LEGACY_SUN.azimuth.toFixed(1)),
-  shadowsEnabled: true,
+  // Off by default so first paint matches original flat SimpleScene lighting.
+  shadowsEnabled: false,
   shadowMapSize: 2048,
   shadowBias: -0.002,
 };
@@ -180,7 +191,8 @@ export default function BimIfcViewer() {
         renderer.three.shadowMap.enabled = true;
         renderer.three.shadowMap.type = THREE.VSMShadowMap;
 
-        const sunDir = sunDirectionFromAngles(DEFAULT_LIGHTS.sunElevation, DEFAULT_LIGHTS.sunAzimuth);
+        // Pin exact SimpleScene light position (5,10,3) — not the angle round-trip.
+        const sunDir = legacySunPosition();
         // Runtime ShadowedScene.setup reads cascade/resolution at top level (merged with defaults).
         world.scene.setup({
           ambientLight: {
@@ -218,15 +230,28 @@ export default function BimIfcViewer() {
         world.scene.three.add(ground);
 
         components.get(OBC.Grids).create(world);
-        await world.scene.updateShadows();
+
+        /** Park cascade lights like SimpleScene: position = sun vector, target = origin. */
+        const parkLightsAtSun = (dir: THREE.Vector3) => {
+          for (const [, light] of world.scene.directionalLights) {
+            light.position.copy(dir);
+            light.target.position.set(0, 0, 0);
+            light.target.updateMatrixWorld();
+          }
+        };
 
         world.camera.controls.addEventListener("rest", () => {
-          void world.scene.updateShadows();
+          if (world.scene.shadowsEnabled) void world.scene.updateShadows();
         });
 
         lightsApiRef.current = {
           apply: (settings, opts) => {
-            const dir = sunDirectionFromAngles(settings.sunElevation, settings.sunAzimuth);
+            const atDefaultSun =
+              settings.sunElevation === DEFAULT_LIGHTS.sunElevation &&
+              settings.sunAzimuth === DEFAULT_LIGHTS.sunAzimuth;
+            const dir = atDefaultSun
+              ? legacySunPosition()
+              : sunDirectionFromAngles(settings.sunElevation, settings.sunAzimuth);
 
             if (opts?.rebuildShadows) {
               world.scene.setup({
@@ -246,6 +271,8 @@ export default function BimIfcViewer() {
             }
 
             const cfg = world.scene.config;
+            // Re-apply intensities/colors after setup — That Open SimpleScene.setup
+            // builds AmbientLight from directional values (library quirk).
             cfg.ambientLight.intensity = settings.ambientIntensity;
             cfg.ambientLight.color = new THREE.Color(settings.ambientColor);
             cfg.directionalLight.intensity = settings.directionalIntensity;
@@ -255,7 +282,13 @@ export default function BimIfcViewer() {
             world.scene.shadowsEnabled = settings.shadowsEnabled;
             world.scene.autoBias = false;
             world.scene.bias = settings.shadowBias;
-            void world.scene.updateShadows();
+
+            if (settings.shadowsEnabled) {
+              void world.scene.updateShadows();
+            } else {
+              // Fixed sun like original SimpleScene (cascade lights otherwise drift with camera).
+              parkLightsAtSun(dir);
+            }
           },
         };
         lightsApiRef.current.apply(DEFAULT_LIGHTS);
