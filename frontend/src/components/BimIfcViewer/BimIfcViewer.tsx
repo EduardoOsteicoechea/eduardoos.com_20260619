@@ -1,15 +1,11 @@
 /**
- * Admin BIM IFC viewer (spec 037): That Open SimpleScene by default (original
- * 886ebc8 lighting) + optional ShadowedScene when Shadows are enabled; browser
- * IFC upload + host Python console; viewport Lights sidebar (ambient /
- * directional / sun elevation+azimuth / shadows). Upload / Python / Output /
- * Offload are icon-only header-dynamic-menu tools. Viewport is full-bleed;
- * That Open logo is disabled via showLogo = false.
+ * BIM IFC viewer (spec 037): public That Open scene, shared ifcbim/library/
+ * browse, admin S3 upload + Python console, header Lights with locked preset.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { APP_ROUTES, BIM_ROUTES } from "../../config/routes";
+import { BIM_ROUTES } from "../../config/routes";
 import { getAuthToken, isPlatformAdmin } from "../../lib/auth";
 import BimIfcHeaderMenu from "./BimIfcHeaderMenu";
 import "./BimIfcViewer.css";
@@ -64,29 +60,17 @@ function sunDirectionFromAngles(elevationDeg: number, azimuthDeg: number, radius
   );
 }
 
-function anglesFromDirection(x: number, y: number, z: number) {
-  const r = Math.hypot(x, y, z) || 1;
-  const elevation = (Math.asin(Math.min(1, Math.max(-1, y / r))) * 180) / Math.PI;
-  const azimuth = (((Math.atan2(x, z) * 180) / Math.PI) + 360) % 360;
-  return { elevation, azimuth };
-}
-
-function legacySunPosition() {
-  return new THREE.Vector3(LEGACY_DIR.x, LEGACY_DIR.y, LEGACY_DIR.z);
-}
-
-const LEGACY_SUN = anglesFromDirection(LEGACY_DIR.x, LEGACY_DIR.y, LEGACY_DIR.z);
-
+/** User-locked light preset (live panel 2026-08-29) — Reset restores this. */
 const DEFAULT_LIGHTS: LightSettings = {
-  ambientIntensity: 1,
+  ambientIntensity: 2.85,
   ambientColor: "#ffffff",
-  directionalIntensity: 1.5,
+  directionalIntensity: 4.05,
   directionalColor: "#ffffff",
-  sunElevation: Number(LEGACY_SUN.elevation.toFixed(1)),
-  sunAzimuth: Number(LEGACY_SUN.azimuth.toFixed(1)),
-  shadowsEnabled: false,
+  sunElevation: 16,
+  sunAzimuth: 42,
+  shadowsEnabled: true,
   shadowMapSize: 2048,
-  shadowBias: -0.002,
+  shadowBias: 0,
 };
 
 const SHADOW_MAP_SIZES = [512, 1024, 2048, 4096] as const;
@@ -163,12 +147,7 @@ function migrateSceneContents(from: THREE.Scene, to: THREE.Scene) {
 }
 
 function sunDirForSettings(settings: LightSettings) {
-  const atDefaultSun =
-    settings.sunElevation === DEFAULT_LIGHTS.sunElevation &&
-    settings.sunAzimuth === DEFAULT_LIGHTS.sunAzimuth;
-  return atDefaultSun
-    ? legacySunPosition()
-    : sunDirectionFromAngles(settings.sunElevation, settings.sunAzimuth);
+  return sunDirectionFromAngles(settings.sunElevation, settings.sunAzimuth);
 }
 
 function applySimpleLightConfig(
@@ -261,29 +240,31 @@ function syncDistanceRendererCamera(
   }
 }
 
-function LightIcon() {
-  return (
-    <svg className="bim-ifc-viewer__rail-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        fill="currentColor"
-        d="M12 4.5a1 1 0 0 1 1 1V7a1 1 0 1 1-2 0V5.5a1 1 0 0 1 1-1zm0 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zm7.07-8.57a1 1 0 0 1 0 1.41l-1.06 1.06a1 1 0 1 1-1.41-1.41l1.06-1.06a1 1 0 0 1 1.41 0zM6.4 15.6a1 1 0 0 1 0 1.41l-1.06 1.06a1 1 0 1 1-1.41-1.41L5 15.6a1 1 0 0 1 1.4 0zM19.5 12a1 1 0 0 1-1 1H17a1 1 0 1 1 0-2h1.5a1 1 0 0 1 1 1zM7 12a1 1 0 0 1-1 1H4.5a1 1 0 1 1 0-2H6a1 1 0 0 1 1 1zm10.66 5.07a1 1 0 0 1-1.41 0l-1.06-1.06a1 1 0 0 1 1.41-1.41l1.06 1.06a1 1 0 0 1 0 1.41zM8.46 7.4A1 1 0 0 1 7.05 6L6 4.93A1 1 0 0 1 7.4 3.52L8.46 4.58a1 1 0 0 1 0 1.82zM12 16.5a1 1 0 0 1 1 1V19a1 1 0 1 1-2 0v-1.5a1 1 0 0 1 1-1z"
-      />
-    </svg>
-  );
-}
+type LibraryModel = {
+  key: string;
+  name: string;
+  sizeBytes: number;
+  sizeHuman: string;
+  lastModified: string;
+  url: string;
+};
+
+type LoadIfcInput = { name: string; sizeBytes: number; data: Uint8Array };
 
 export default function BimIfcViewer() {
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
   const disposeRef = useRef<null | (() => void)>(null);
-  const loadIfcRef = useRef<null | ((file: File) => Promise<void>)>(null);
+  const loadIfcRef = useRef<null | ((input: LoadIfcInput) => Promise<void>)>(null);
   const offloadIfcRef = useRef<null | (() => Promise<void>)>(null);
   const lightsApiRef = useRef<SceneLightsApi | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [allowed, setAllowed] = useState<boolean | null>(null);
+  const [ready, setReady] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [status, setStatus] = useState("Initializing viewer…");
   const [ifc, setIfc] = useState<IfcMeta>({ name: "", sizeBytes: 0, loaded: false });
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [browseOpen, setBrowseOpen] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(false);
   const [lightsOpen, setLightsOpen] = useState(false);
@@ -291,18 +272,18 @@ export default function BimIfcViewer() {
   const [code, setCode] = useState("");
   const [output, setOutput] = useState("");
   const [running, setRunning] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [library, setLibrary] = useState<LibraryModel[]>([]);
+  const [libraryStatus, setLibraryStatus] = useState("");
+  const [libraryLoading, setLibraryLoading] = useState(false);
 
   useEffect(() => {
-    if (!isPlatformAdmin()) {
-      setAllowed(false);
-      window.location.replace(`${APP_ROUTES.login}?next=${encodeURIComponent(APP_ROUTES.bimIfcViewer)}`);
-      return;
-    }
-    setAllowed(true);
+    setIsAdmin(isPlatformAdmin());
+    setReady(true);
   }, []);
 
   useEffect(() => {
-    if (!allowed) return;
+    if (!ready) return;
     const host = canvasHostRef.current;
     if (!host) return;
     let cancelled = false;
@@ -552,18 +533,19 @@ export default function BimIfcViewer() {
         lightsApiRef.current = {
           apply: (settings, opts) => {
             if (opts?.resetOriginal) {
-              ensureSimpleScene(null);
+              // Reset → user-locked preset (shadows on), not bare SimpleScene.
+              ensureShadowedScene(DEFAULT_LIGHTS, true);
               return;
             }
             if (settings.shadowsEnabled) {
               ensureShadowedScene(settings, Boolean(opts?.rebuildShadows));
             } else {
-              // Shadows off → SimpleScene. Re-apply slider state so sun/intensity stay live.
               ensureSimpleScene(settings);
             }
           },
         };
-        // Do not apply(DEFAULT_LIGHTS) after first setup — that was not the original path.
+        // Apply locked light preset (includes ShadowedScene).
+        lightsApiRef.current.apply(DEFAULT_LIGHTS, { rebuildShadows: true });
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fragments.list.onItemSet.add(({ value: model }: { value: any }) => {
@@ -584,22 +566,21 @@ export default function BimIfcViewer() {
           }
         });
 
-        loadIfcRef.current = async (file: File) => {
+        loadIfcRef.current = async (input: LoadIfcInput) => {
           const existingIds = [...fragments.list.keys()];
           for (const modelId of existingIds) {
             await fragments.core.disposeModel(modelId);
           }
-          setStatus(`Converting ${file.name}…`);
-          const data = new Uint8Array(await file.arrayBuffer());
-          await ifcLoader.load(data, false, file.name.replace(/\.[^.]+$/, "") || "model", {
+          setStatus(`Converting ${input.name}…`);
+          await ifcLoader.load(input.data, false, input.name.replace(/\.[^.]+$/, "") || "model", {
             processData: {
               progressCallback: (progress: number) => {
-                setStatus(`Converting ${file.name}… ${Math.round(progress * 100)}%`);
+                setStatus(`Converting ${input.name}… ${Math.round(progress * 100)}%`);
               },
             },
           });
-          setIfc({ name: file.name, sizeBytes: file.size, loaded: true });
-          setStatus(`Loaded ${file.name}`);
+          setIfc({ name: input.name, sizeBytes: input.sizeBytes, loaded: true });
+          setStatus(`Loaded ${input.name}`);
           await fragments.core.update(true);
           const scene = world.scene as AnyScene;
           if (isShadowed(scene) && scene.shadowsEnabled) {
@@ -627,7 +608,7 @@ export default function BimIfcViewer() {
             /* ignore dispose races */
           }
         };
-        setStatus("Upload an IFC file to load the model.");
+        setStatus("Browse or upload an IFC to load the model.");
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         setStatus(`Viewer failed: ${msg}`);
@@ -642,7 +623,7 @@ export default function BimIfcViewer() {
       offloadIfcRef.current = null;
       lightsApiRef.current = null;
     };
-  }, [allowed]);
+  }, [ready]);
 
   const patchLights = useCallback((patch: Partial<LightSettings>, rebuildShadows = false) => {
     setLights((prev) => {
@@ -654,13 +635,73 @@ export default function BimIfcViewer() {
 
   const onFile = useCallback(async (file: File | null) => {
     if (!file || !loadIfcRef.current) return;
+    setUploading(true);
     try {
-      await loadIfcRef.current(file);
+      const data = new Uint8Array(await file.arrayBuffer());
+      const token = getAuthToken().trim();
+      if (!token) {
+        setStatus("Sign in as admin to upload.");
+        return;
+      }
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch(BIM_ROUTES.modelUpload, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body,
+      });
+      const payload = (await res.json()) as { model?: LibraryModel; error?: string; message?: string };
+      if (!res.ok) {
+        setStatus(payload.error || payload.message || `Upload failed (${res.status})`);
+        return;
+      }
+      await loadIfcRef.current({ name: file.name, sizeBytes: file.size, data });
       setUploadOpen(false);
+      setStatus(`Uploaded & loaded ${payload.model?.name || file.name}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setStatus(`Load failed: ${msg}`);
+      setStatus(`Upload failed: ${msg}`);
       setIfc({ name: file.name, sizeBytes: file.size, loaded: false });
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
+  const refreshLibrary = useCallback(async () => {
+    setLibraryLoading(true);
+    setLibraryStatus("Loading library…");
+    try {
+      const res = await fetch(BIM_ROUTES.models);
+      const data = (await res.json()) as { models?: LibraryModel[]; error?: string };
+      if (!res.ok) {
+        setLibraryStatus(data.error || `HTTP ${res.status}`);
+        setLibrary([]);
+        return;
+      }
+      setLibrary(data.models ?? []);
+      setLibraryStatus((data.models?.length ?? 0) === 0 ? "No models in ifcbim/library yet." : "");
+    } catch (err) {
+      setLibraryStatus(err instanceof Error ? err.message : String(err));
+      setLibrary([]);
+    } finally {
+      setLibraryLoading(false);
+    }
+  }, []);
+
+  const loadLibraryModel = useCallback(async (model: LibraryModel) => {
+    if (!loadIfcRef.current) return;
+    setLibraryStatus(`Fetching ${model.name}…`);
+    try {
+      const res = await fetch(model.url);
+      if (!res.ok) {
+        setLibraryStatus(`Fetch failed (${res.status})`);
+        return;
+      }
+      const buf = new Uint8Array(await res.arrayBuffer());
+      await loadIfcRef.current({ name: model.name, sizeBytes: model.sizeBytes || buf.byteLength, data: buf });
+      setBrowseOpen(false);
+    } catch (err) {
+      setLibraryStatus(err instanceof Error ? err.message : String(err));
     }
   }, []);
 
@@ -701,8 +742,8 @@ export default function BimIfcViewer() {
       setOutput(parts.join("\n"));
       setStatus(
         data.ok
-          ? `Python ok (exit ${data.exitCode}) — open Output for details.`
-          : `Python failed (exit ${data.exitCode}) — open Output for details.`,
+          ? `Python ok (exit ${data.exitCode})`
+          : `Python failed (exit ${data.exitCode})`,
       );
       setOutputOpen(true);
     } catch (err) {
@@ -714,19 +755,37 @@ export default function BimIfcViewer() {
   }, [code, ifc]);
 
   const openUpload = useCallback(() => {
+    setBrowseOpen(false);
     setConsoleOpen(false);
     setOutputOpen(false);
     setUploadOpen((v) => !v);
   }, []);
 
+  const openBrowse = useCallback(() => {
+    setUploadOpen(false);
+    setConsoleOpen(false);
+    setOutputOpen(false);
+    setBrowseOpen((v) => {
+      const next = !v;
+      if (next) void refreshLibrary();
+      return next;
+    });
+  }, [refreshLibrary]);
+
+  const openLights = useCallback(() => {
+    setLightsOpen((v) => !v);
+  }, []);
+
   const openConsole = useCallback(() => {
     setUploadOpen(false);
+    setBrowseOpen(false);
     setOutputOpen(false);
     setConsoleOpen((v) => !v);
   }, []);
 
   const openOutput = useCallback(() => {
     setUploadOpen(false);
+    setBrowseOpen(false);
     setConsoleOpen(false);
     setOutputOpen((v) => !v);
   }, []);
@@ -738,54 +797,36 @@ export default function BimIfcViewer() {
       await offloadIfcRef.current();
       setIfc({ name: "", sizeBytes: 0, loaded: false });
       if (fileInputRef.current) fileInputRef.current.value = "";
-      setStatus("Model offloaded. Upload an IFC file to load a new model.");
+      setStatus("Model offloaded.");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setStatus(`Offload failed: ${msg}`);
     }
   }, [ifc.loaded]);
 
-  if (allowed === null) {
-    return <p className="bim-ifc-viewer__gate">Checking admin access…</p>;
-  }
-  if (!allowed) {
-    return <p className="bim-ifc-viewer__gate">Admin only.</p>;
+  if (!ready) {
+    return <p className="bim-ifc-viewer__gate">Loading viewer…</p>;
   }
 
   return (
     <div className="bim-ifc-viewer">
       <BimIfcHeaderMenu
+        isAdmin={isAdmin}
         uploadOpen={uploadOpen}
+        browseOpen={browseOpen}
+        lightsOpen={lightsOpen}
         consoleOpen={consoleOpen}
         outputOpen={outputOpen}
         modelLoaded={ifc.loaded}
         onToggleUpload={openUpload}
+        onToggleBrowse={openBrowse}
+        onToggleLights={openLights}
         onToggleConsole={openConsole}
         onToggleOutput={openOutput}
         onOffloadModel={() => void offloadModel()}
       />
 
       <div className={`bim-ifc-viewer__stage${lightsOpen ? " bim-ifc-viewer__stage--lights-open" : ""}`}>
-        <p className="bim-ifc-viewer__status" role="status">
-          {status}
-          {ifc.loaded ? ` · IFC: ${ifc.name}` : ""}
-          {output && !outputOpen ? " · Output available in header" : ""}
-        </p>
-
-        <div className="bim-ifc-viewer__rail" role="toolbar" aria-label="Viewport tools">
-          <button
-            type="button"
-            className={`bim-ifc-viewer__rail-btn${lightsOpen ? " is-active" : ""}`}
-            title="Scene lights"
-            aria-label="Scene lights"
-            aria-pressed={lightsOpen}
-            aria-controls="bim-ifc-lights-panel"
-            onClick={() => setLightsOpen((v) => !v)}
-          >
-            <LightIcon />
-          </button>
-        </div>
-
         <aside
           id="bim-ifc-lights-panel"
           className="bim-ifc-viewer__lights"
@@ -944,11 +985,10 @@ export default function BimIfcViewer() {
               </button>
             </header>
             <p className="bim-ifc-viewer__hint">
-              File stays in the browser only — nothing is uploaded to the server. Choose an{" "}
-              <code>.ifc</code> model to load into the viewport.
+              Admin only. Stores under S3 <code>ifcbim/library/</code> and loads into the viewport.
             </p>
-            <p className="bim-ifc-viewer__meta">
-              Current: {ifc.loaded ? `${ifc.name} (${ifc.sizeBytes} bytes)` : "none loaded"}
+            <p className="bim-ifc-viewer__meta" role="status">
+              {uploading ? "Uploading…" : status}
             </p>
             <label className="bim-ifc-viewer__upload bim-ifc-viewer__upload--modal">
               <span>Choose IFC file</span>
@@ -956,9 +996,52 @@ export default function BimIfcViewer() {
                 ref={fileInputRef}
                 type="file"
                 accept=".ifc,application/x-step,application/octet-stream"
+                disabled={uploading}
                 onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
               />
             </label>
+          </div>
+        </div>
+      ) : null}
+
+      {browseOpen ? (
+        <div className="bim-ifc-viewer__modal" role="dialog" aria-modal="true" aria-label="Browse IFC models">
+          <div className="bim-ifc-viewer__modal-panel">
+            <header className="bim-ifc-viewer__modal-head">
+              <h2>Browse models</h2>
+              <button type="button" className="bim-ifc-viewer__close" onClick={() => setBrowseOpen(false)}>
+                Close
+              </button>
+            </header>
+            <p className="bim-ifc-viewer__hint">
+              Shared library <code>ifcbim/library/</code>. Load any listed IFC into the viewer.
+            </p>
+            <div className="bim-ifc-viewer__modal-actions bim-ifc-viewer__modal-actions--start">
+              <button type="button" className="btn" disabled={libraryLoading} onClick={() => void refreshLibrary()}>
+                {libraryLoading ? "Refreshing…" : "Refresh"}
+              </button>
+            </div>
+            {libraryStatus ? <p className="bim-ifc-viewer__meta">{libraryStatus}</p> : null}
+            <ul className="bim-ifc-viewer__library-list">
+              {library.map((model) => (
+                <li key={model.key} className="bim-ifc-viewer__library-item">
+                  <div className="bim-ifc-viewer__library-meta">
+                    <span className="bim-ifc-viewer__library-name">{model.name}</span>
+                    <span className="bim-ifc-viewer__library-sub">
+                      {model.sizeHuman}
+                      {model.lastModified ? ` · ${model.lastModified}` : ""}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => void loadLibraryModel(model)}
+                  >
+                    Load
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       ) : null}

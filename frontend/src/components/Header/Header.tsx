@@ -63,6 +63,7 @@ const SERVICES_LINKS = [
   { href: APP_ROUTES.ereport, label: "eReport" },
   { href: APP_ROUTES.articles, label: "Articles" },
   { href: APP_ROUTES.calvinsInstitutes, label: "Calvin’s Institutes" },
+  { href: APP_ROUTES.bimIfcViewer, label: "BIM IFC viewer" },
 ] as const;
 
 /** Platform-admin MPS product-test routes (webhook monitor + meeting probes). */
@@ -620,13 +621,6 @@ export function Header({ pathname }: HeaderProps) {
               onClick={closeMenu}
             >
               Agent Sandbox
-            </a>
-            <a
-              className={navClass(APP_ROUTES.bimIfcViewer)}
-              href={APP_ROUTES.bimIfcViewer}
-              onClick={closeMenu}
-            >
-              BIM IFC viewer
             </a>
             <MpsTestsMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
           </>

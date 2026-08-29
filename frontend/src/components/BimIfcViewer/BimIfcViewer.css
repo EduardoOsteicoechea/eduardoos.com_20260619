@@ -353,8 +353,56 @@
   resize: vertical;
 }
 
+.bim-ifc-viewer__library-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  max-height: min(50svh, 420px);
+  overflow: auto;
+  border: 1px solid var(--site-border);
+}
+
+.bim-ifc-viewer__library-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid var(--site-border);
+}
+
+.bim-ifc-viewer__library-item:last-child {
+  border-bottom: none;
+}
+
+.bim-ifc-viewer__library-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.bim-ifc-viewer__library-name {
+  font-family: Montserrat, Raleway, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bim-ifc-viewer__library-sub {
+  font-family: Raleway, Roboto, sans-serif;
+  font-size: 0.75rem;
+  color: var(--site-meta-fg);
+}
+
 .bim-ifc-viewer__modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.bim-ifc-viewer__modal-actions--start {
+  justify-content: flex-start;
 }

@@ -1,5 +1,5 @@
-// Package bim serves the admin-only BIM IFC viewer backend (spec 037):
-// host Python subprocess under backend/bim/bim_runtime — no extra Docker service.
+// Package bim serves the BIM IFC viewer backend (spec 037):
+// public library list/file under ifcbim/library/, admin upload + host Python sandbox.
 package bim
 
 import (
@@ -55,7 +55,7 @@ type RunResponse struct {
 	Runtime  string `json:"runtime"`
 }
 
-// Handler mounts JWT + admin BIM routes.
+// Handler mounts public library routes + JWT admin upload/Python.
 type Handler struct {
 	JWTSecret  string
 	Users      auth.UserStore
@@ -64,6 +64,9 @@ type Handler struct {
 	Python     string
 	PythonArgs []string
 	Timeout    time.Duration
+	// Optional injected S3 (tests); production resolves via env.
+	S3     s3API
+	Bucket string
 }
 
 // NewHandler resolves the bim_runtime root and Python binary.
@@ -84,11 +87,15 @@ func NewHandler(jwtSecret string, users auth.UserStore) *Handler {
 	return h
 }
 
-// Routes mounts /api/bim/* (admin-gated; path is not under /api/admin).
+// Routes mounts public library GETs and admin-only upload/Python.
 func (h *Handler) Routes(r chi.Router) {
+	r.Get("/api/bim/models", h.ListModels)
+	r.Get("/api/bim/models/file/*", h.GetModelFile)
+
 	r.Group(func(pr chi.Router) {
 		pr.Use(h.auth.RequireJWT)
 		pr.Use(h.requireAdmin)
+		pr.Post("/api/bim/models/upload", h.UploadModel)
 		pr.Post("/api/bim/python/run", h.RunPython)
 	})
 }

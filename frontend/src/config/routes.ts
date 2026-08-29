@@ -255,9 +255,13 @@ export const ADMIN_ROUTES = {
   apsProbe: (id: string) => `/api/admin/aps/probes/${encodeURIComponent(id)}`,
 } as const;
 
-/** Admin-only BIM host Python runner (spec 037). */
+/** Admin-only BIM host Python runner + shared IFC library (spec 037). */
 export const BIM_ROUTES = {
   pythonRun: "/api/bim/python/run",
+  models: "/api/bim/models",
+  modelUpload: "/api/bim/models/upload",
+  modelFile: (name: string) =>
+    `/api/bim/models/file/${name.split("/").map(encodeURIComponent).join("/")}`,
 } as const;
 
 /** Public APS webhook ingest (Autodesk → Eduardo OS). */

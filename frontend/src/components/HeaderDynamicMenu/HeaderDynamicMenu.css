@@ -79,6 +79,13 @@
   flex-shrink: 0;
 }
 
+.header-dynamic-menu__btn .material-symbols-outlined.header-dynamic-menu__icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  color: inherit;
+}
+
 .header-dynamic-menu__btn:hover:not(:disabled) {
   border-color: var(--site-accent);
   color: var(--site-accent);
