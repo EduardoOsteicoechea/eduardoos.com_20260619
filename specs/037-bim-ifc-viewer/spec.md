@@ -2,7 +2,7 @@
 
 ## Status
 
-Locked from user answers (2026-08-29). Header tools UX updated (Upload / Python / Output modals). Implement from this file.
+Locked from user answers (2026-08-29). Viewport chrome polish (2026-08-29): full-bleed stage, no That Open logo, icon-only header tools, Offload model. Implement from this file.
 
 ## Problem
 
@@ -15,14 +15,17 @@ Admins need a browser IFC viewer (That Open / web-ifc) and a host Python console
 3. **Python API:** `POST /api/bim/python/run` — JWT + admin. Real `python3` subprocess on the **host** (same machine as the Go binary / systemd). **No** extra Docker Compose Python service.
 4. **Runtime root:** `backend/bim/bim_runtime/` (override with `BIM_RUNTIME_ROOT`). Scripts may read/write/crawl **only inside that tree** by convention; Go sets `cwd`, `HOME`, `TMPDIR`, and `BIM_RUNTIME_ROOT` to that directory.
 5. **IFC args:** Console POSTs metadata of the browser-loaded IFC (`name`, `sizeBytes`, `loaded`, optional client notes). Injected into the process as env `BIM_IFC_ARGS` (JSON). OCC processing of the file itself is **out of scope** for v1.
-6. **Header dynamic menu (this page only):** Three controls portal into `#header-dynamic-menu-host` (same pattern as Agent Sandbox / existing Python control):
+6. **Header dynamic menu (this page only):** Controls portal into `#header-dynamic-menu-host` (same pattern as Agent Sandbox). **Icon-only** buttons (no visible text labels); keep `title` + `aria-label` for a11y — match Agent Sandbox / Scrib header-dynamic-menu pattern:
    - **Upload** — opens a **modal** to choose/upload an IFC file (browser-only). No redundant inline toolbar file input on the page.
    - **Python** — opens a **modal** to edit/run host Python (existing behavior).
    - **Output** — opens a **modal** showing the same stdout/stderr content previously shown in the permanent bottom “Python output” panel. Full console is header-modal driven; no permanent bottom output block.
+   - **Offload model** — clears/disposes the currently loaded IFC/fragments from the browser scene only (no server call). Resets IFC metadata (`loaded: false`, clear name/size), updates status, leaves viewer ready for a new upload. Disabled or no-op when nothing is loaded.
    The page may keep a **compact status line** (load progress / last run hint). Light sidebar stays on the viewport rail (not in the header menu).
 7. **Hello world:** Default / empty-code runs `hello_world.py` under the runtime root (prints hello + echoes `BIM_IFC_ARGS`).
 8. **Scene lights (viewer UI):** A rail **icon button** on the viewer viewport toggles a **side panel** with live That Open `SimpleScene` light controls (ambient + directional intensity/color; directional position). Defaults match `world.scene.setup()`; changes apply immediately to the Three.js lights — no server round-trip.
 9. **Admin nav:** Global header tray (admin block, after Agent Sandbox) links to `/bim/ifc/viewer` as **BIM IFC viewer**, gated by the same `isPlatformAdmin()` check as other admin links. Not under Services Apps.
+10. **Full-bleed viewport:** The 3D stage fills the available page content area edge-to-edge (no outer padding/border gap around the canvas separating it from the header rail / page edges). Respect desktop left site-header rail via existing `--header_width` / main layout tokens — do not underlap the rail.
+11. **No third-party logo watermark:** Hide/disable the That Open Company logo overlay (`world.renderer.showLogo = false` or equivalent). Viewport stays clean without breaking the viewer.
 
 ## Isolation (host subprocess)
 
@@ -58,6 +61,10 @@ Crawling **within** scripts (e.g. `urllib`) is allowed for research under the ru
 - [x] Light icon on the viewport rail opens/closes a sidebar; ambient/directional intensity, color, and directional position update the live scene.
 - [x] Signed-in platform admin sees **BIM IFC viewer** in the global header tray admin block (same gate as Agent Sandbox).
 - [x] Header dynamic menu exposes **Upload**, **Python**, and **Output**; page has no permanent bottom Python output block and no inline toolbar upload control (compact status line OK).
+- [x] 3D viewport is full-bleed in the page content area (no outer padding/border gap around the canvas; desktop left rail still respected via layout tokens).
+- [x] That Open Company logo/watermark is not visible in the viewport.
+- [x] Header dynamic menu tools (Upload / Python / Output / Offload model) are **icon-only** with `title` + `aria-label`.
+- [x] **Offload model** disposes browser-loaded IFC/fragments, resets metadata (`loaded: false`, clear name/size), updates status, and leaves the viewer ready for upload; disabled/no-op when nothing is loaded.
 
 ## Affected paths
 

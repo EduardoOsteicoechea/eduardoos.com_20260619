@@ -1,6 +1,6 @@
 /**
  * BIM IFC viewer header tools — portal into #header-dynamic-menu-host.
- * Spec 037: Upload, Python, and Output modals only on /bim/ifc/viewer.
+ * Spec 037: icon-only Upload / Python / Output / Offload model on /bim/ifc/viewer.
  */
 
 import { useLayoutEffect, useState, type ReactNode } from "react";
@@ -12,9 +12,11 @@ type BimIfcHeaderMenuProps = {
   uploadOpen: boolean;
   consoleOpen: boolean;
   outputOpen: boolean;
+  modelLoaded: boolean;
   onToggleUpload: () => void;
   onToggleConsole: () => void;
   onToggleOutput: () => void;
+  onOffloadModel: () => void;
 };
 
 function IconUpload() {
@@ -45,6 +47,18 @@ function IconOutput() {
       <path
         fill="currentColor"
         d="M4 3h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1zm1 2v14h14V5H5zm2 2h10v1.5H7V7zm0 3.5h10V12H7v-1.5zm0 3.5h7V15.5H7V14z"
+      />
+    </svg>
+  );
+}
+
+/** Eject / clear — offload browser-loaded IFC from the scene. */
+function IconOffload() {
+  return (
+    <svg className="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M5 17h14v2H5v-2zm7-12L5.33 15h13.34L12 5zm0 3.6l3.76 5.4H8.24L12 8.6z"
       />
     </svg>
   );
@@ -87,7 +101,6 @@ export default function BimIfcHeaderMenu(props: BimIfcHeaderMenuProps) {
             onClick={props.onToggleUpload}
           >
             <IconUpload />
-            <span className="header-dynamic-menu__label">Upload</span>
           </button>
           <button
             type="button"
@@ -98,7 +111,6 @@ export default function BimIfcHeaderMenu(props: BimIfcHeaderMenuProps) {
             onClick={props.onToggleConsole}
           >
             <IconConsole />
-            <span className="header-dynamic-menu__label">Python</span>
           </button>
           <button
             type="button"
@@ -109,7 +121,16 @@ export default function BimIfcHeaderMenu(props: BimIfcHeaderMenuProps) {
             onClick={props.onToggleOutput}
           >
             <IconOutput />
-            <span className="header-dynamic-menu__label">Output</span>
+          </button>
+          <button
+            type="button"
+            className="header-dynamic-menu__btn"
+            title="Offload model"
+            aria-label="Offload model"
+            disabled={!props.modelLoaded}
+            onClick={props.onOffloadModel}
+          >
+            <IconOffload />
           </button>
         </div>
       </div>

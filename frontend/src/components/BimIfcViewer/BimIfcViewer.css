@@ -1,13 +1,17 @@
-/* BIM IFC viewer — plain CSS, site tokens (spec 037). */
+/* BIM IFC viewer — plain CSS, site tokens (spec 037). Full-bleed stage. */
 
 .bim-ifc-viewer {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  min-height: calc(100svh - var(--header_offset, var(--header_height, 60px)) - 2rem);
-  padding: 0.75rem 1rem 1.5rem;
+  gap: 0;
+  min-height: calc(100svh - var(--header_offset, var(--header_height, 60px)));
+  height: calc(100svh - var(--header_offset, var(--header_height, 60px)));
+  max-height: calc(100svh - var(--header_offset, var(--header_height, 60px)));
+  padding: 0;
+  margin: 0;
   box-sizing: border-box;
   color: var(--site-body-fg);
+  overflow: hidden;
 }
 
 .bim-ifc-viewer__gate {
@@ -16,11 +20,22 @@
 }
 
 .bim-ifc-viewer__status {
+  position: absolute;
+  z-index: 4;
+  top: 0.55rem;
+  right: 0.55rem;
+  left: auto;
+  max-width: min(28rem, calc(100% - 4.5rem));
   margin: 0;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001, 2px);
+  background: color-mix(in srgb, var(--site-body-bg) 88%, var(--site-accent) 12%);
   font-family: Raleway, Roboto, sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--site-meta-fg);
-  line-height: 1.4;
+  line-height: 1.35;
+  pointer-events: none;
 }
 
 .bim-ifc-viewer__upload {
@@ -53,12 +68,11 @@
   position: relative;
   display: flex;
   flex: 1 1 auto;
-  min-height: 420px;
+  min-height: 0;
   width: 100%;
-  border: 1px solid var(--site-border);
-  background:
-    radial-gradient(ellipse 70% 55% at 50% 40%, color-mix(in srgb, var(--site-accent) 10%, transparent), transparent 70%),
-    color-mix(in srgb, var(--site-body-bg) 92%, var(--site-body-fg) 8%);
+  margin: 0;
+  border: none;
+  background: #000;
   overflow: hidden;
 }
 
@@ -199,15 +213,23 @@
 .bim-ifc-viewer__canvas {
   position: relative;
   flex: 1 1 auto;
-  min-height: 420px;
+  min-height: 0;
   width: 100%;
+  height: 100%;
+  margin: 0;
   overflow: hidden;
+  background: #000;
 }
 
 .bim-ifc-viewer__canvas canvas {
   display: block;
   width: 100% !important;
   height: 100% !important;
+}
+
+/* Defense-in-depth: hide That Open watermark if any residual DOM remains. */
+.bim-ifc-viewer__canvas [data-thatopen-logo] {
+  display: none !important;
 }
 
 .bim-ifc-viewer__pre {

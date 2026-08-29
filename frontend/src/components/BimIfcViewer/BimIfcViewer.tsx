@@ -1,7 +1,8 @@
 /**
  * Admin BIM IFC viewer (spec 037): That Open scene + browser IFC upload +
  * host Python console posting IFC metadata args + viewport light sidebar.
- * Upload / Python / Output are header-dynamic-menu modals (not page chrome).
+ * Upload / Python / Output / Offload are icon-only header-dynamic-menu tools.
+ * Viewport is full-bleed; That Open logo is disabled via showLogo = false.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -71,6 +72,7 @@ export default function BimIfcViewer() {
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
   const disposeRef = useRef<null | (() => void)>(null);
   const loadIfcRef = useRef<null | ((file: File) => Promise<void>)>(null);
+  const offloadIfcRef = useRef<null | (() => Promise<void>)>(null);
   const lightsApiRef = useRef<SceneLightsApi | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -114,7 +116,10 @@ export default function BimIfcViewer() {
         world.scene.setup();
         world.scene.three.background = null;
 
-        world.renderer = new OBC.SimpleRenderer(components, host);
+        const renderer = new OBC.SimpleRenderer(components, host);
+        // Official API: hide That Open Company watermark (full-bleed clean viewport).
+        renderer.showLogo = false;
+        world.renderer = renderer;
         world.camera = new OBC.OrthoPerspectiveCamera(components);
         await world.camera.controls.setLookAt(12, 8, 12, 0, 0, 0);
         components.init();
@@ -159,6 +164,11 @@ export default function BimIfcViewer() {
         });
 
         loadIfcRef.current = async (file: File) => {
+          // Replace any previously loaded models before converting a new IFC.
+          const existingIds = [...fragments.list.keys()];
+          for (const modelId of existingIds) {
+            await fragments.core.disposeModel(modelId);
+          }
           setStatus(`Converting ${file.name}…`);
           const data = new Uint8Array(await file.arrayBuffer());
           await ifcLoader.load(data, false, file.name.replace(/\.[^.]+$/, "") || "model", {
@@ -170,6 +180,14 @@ export default function BimIfcViewer() {
           });
           setIfc({ name: file.name, sizeBytes: file.size, loaded: true });
           setStatus(`Loaded ${file.name}`);
+        };
+
+        offloadIfcRef.current = async () => {
+          const modelIds = [...fragments.list.keys()];
+          for (const modelId of modelIds) {
+            await fragments.core.disposeModel(modelId);
+          }
+          void fragments.core.update(true);
         };
 
         disposeRef.current = () => {
@@ -192,6 +210,7 @@ export default function BimIfcViewer() {
       disposeRef.current?.();
       disposeRef.current = null;
       loadIfcRef.current = null;
+      offloadIfcRef.current = null;
       lightsApiRef.current = null;
     };
   }, [allowed]);
@@ -283,6 +302,20 @@ export default function BimIfcViewer() {
     setOutputOpen((v) => !v);
   }, []);
 
+  const offloadModel = useCallback(async () => {
+    if (!ifc.loaded || !offloadIfcRef.current) return;
+    try {
+      setStatus("Offloading model…");
+      await offloadIfcRef.current();
+      setIfc({ name: "", sizeBytes: 0, loaded: false });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setStatus("Model offloaded. Upload an IFC file to load a new model.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setStatus(`Offload failed: ${msg}`);
+    }
+  }, [ifc.loaded]);
+
   if (allowed === null) {
     return <p className="bim-ifc-viewer__gate">Checking admin access…</p>;
   }
@@ -296,18 +329,20 @@ export default function BimIfcViewer() {
         uploadOpen={uploadOpen}
         consoleOpen={consoleOpen}
         outputOpen={outputOpen}
+        modelLoaded={ifc.loaded}
         onToggleUpload={openUpload}
         onToggleConsole={openConsole}
         onToggleOutput={openOutput}
+        onOffloadModel={() => void offloadModel()}
       />
 
-      <p className="bim-ifc-viewer__status" role="status">
-        {status}
-        {ifc.loaded ? ` · IFC: ${ifc.name}` : ""}
-        {output && !outputOpen ? " · Output available in header" : ""}
-      </p>
-
       <div className={`bim-ifc-viewer__stage${lightsOpen ? " bim-ifc-viewer__stage--lights-open" : ""}`}>
+        <p className="bim-ifc-viewer__status" role="status">
+          {status}
+          {ifc.loaded ? ` · IFC: ${ifc.name}` : ""}
+          {output && !outputOpen ? " · Output available in header" : ""}
+        </p>
+
         <div className="bim-ifc-viewer__rail" role="toolbar" aria-label="Viewport tools">
           <button
             type="button"
