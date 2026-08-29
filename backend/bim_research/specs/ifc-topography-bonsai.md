@@ -26,7 +26,7 @@ Need a clear, citable walkthrough of how to represent **topography** in semantic
 - [x] Local brief committed
 - [x] Research notes cite free official links
 - [x] `out/` HTML tutorial matches chrome + scroll memory behavior
-- [ ] Commit/push sandbox-only
+- [x] Commit/push sandbox-only
 
 ## Deliverable
 
@@ -45,3 +45,14 @@ Need a clear, citable walkthrough of how to represent **topography** in semantic
 
 - [x] Add plain-language glossary for acronyms/jargon in the HTML tutorial (CRS, EPSG, DTM, TIN, WGS84, IFC, ISO, OBP, DEM/DSM, etc.).
 - [x] Interactive Bonsai UI mock + rail toggles for left/right tutorial sidebars; lighter body fonts.
+
+## Rail sidebar toggles (verified)
+
+Left 50px `.rail` has two icon buttons that collapse/expand the tutorial sidebars via classes on `.app`:
+
+| Button ID | Controls | Collapse class | Aside |
+|-----------|----------|----------------|-------|
+| `btn-toggle-nav` | Left Views | `nav-collapsed` | `#side-nav` |
+| `btn-toggle-toc` | Right TOC | `toc-collapsed` | `#side-toc` |
+
+JS sets `aria-pressed`, updates title/aria-label (Hide/Show), and persists `{ navOpen, tocOpen }` in `sessionStorage` under `bim-lab:sidebars:<pathname>`.

@@ -623,11 +623,21 @@
       <a class="icon" href="#overview" aria-current="page" title="Tutorial" aria-label="Tutorial">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>
       </a>
-      <button type="button" id="btn-toggle-nav" title="Toggle left sidebar (Views)" aria-label="Toggle left sidebar" aria-pressed="true" aria-controls="side-nav">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h6v14H4z"/><path d="M12 5h8M12 12h8M12 19h8"/></svg>
+      <button type="button" id="btn-toggle-nav" title="Hide left sidebar (Views)" aria-label="Hide left sidebar (Views)" aria-pressed="true" aria-controls="side-nav">
+        <!-- Left panel: filled left strip + frame (Views) -->
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="1.5" />
+          <path d="M9 4v16" />
+          <rect x="3.5" y="4.5" width="5" height="15" fill="currentColor" stroke="none" opacity="0.35" />
+        </svg>
       </button>
-      <button type="button" id="btn-toggle-toc" title="Toggle right sidebar (On this page)" aria-label="Toggle right sidebar" aria-pressed="true" aria-controls="side-toc">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h6v14h-6z"/><path d="M4 5h8M4 12h8M4 19h8"/></svg>
+      <button type="button" id="btn-toggle-toc" title="Hide right sidebar (On this page)" aria-label="Hide right sidebar (On this page)" aria-pressed="true" aria-controls="side-toc">
+        <!-- Right panel: filled right strip + frame (On this page) -->
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="1.5" />
+          <path d="M15 4v16" />
+          <rect x="15.5" y="4.5" width="5" height="15" fill="currentColor" stroke="none" opacity="0.35" />
+        </svg>
       </button>
       <a class="icon" href="#bonsai-ui-mock" title="Bonsai UI sample" aria-label="Bonsai UI sample">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="6" height="14" rx="1"/><rect x="14" y="5" width="6" height="14" rx="1"/><path d="M11 8h2M11 12h2"/></svg>
@@ -1505,6 +1515,12 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
         appEl.classList.toggle("toc-collapsed", !tocOpen);
         btnNav.setAttribute("aria-pressed", navOpen ? "true" : "false");
         btnToc.setAttribute("aria-pressed", tocOpen ? "true" : "false");
+        const navLabel = navOpen ? "Hide left sidebar (Views)" : "Show left sidebar (Views)";
+        const tocLabel = tocOpen ? "Hide right sidebar (On this page)" : "Show right sidebar (On this page)";
+        btnNav.setAttribute("title", navLabel);
+        btnNav.setAttribute("aria-label", navLabel);
+        btnToc.setAttribute("title", tocLabel);
+        btnToc.setAttribute("aria-label", tocLabel);
         try {
           sessionStorage.setItem(SIDEBAR_KEY, JSON.stringify({ navOpen, tocOpen }));
         } catch (_) {}
