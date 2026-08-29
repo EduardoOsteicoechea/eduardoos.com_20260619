@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { BIM_ROUTES } from "../../config/routes";
 import { getAuthToken, isPlatformAdmin } from "../../lib/auth";
+import { resolveTheme } from "../../lib/theme";
 import BimIfcHeaderMenu from "./BimIfcHeaderMenu";
 import "./BimIfcViewer.css";
 
@@ -75,11 +76,22 @@ const DEFAULT_LIGHTS: LightSettings = {
 
 const SHADOW_MAP_SIZES = [512, 1024, 2048, 4096] as const;
 const SHADOW_GROUND_NAME = "bim-ifc-shadow-ground";
-/** Soft limestone paper (spec 037) — fixed light studio, not site dark theme. */
-const VIEWPORT_BG = "#f2f3f6";
+/** Soft bone (light) / cool grey-blue (dark) — spec 037, follows site theme. */
+const VIEWPORT_BG_LIGHT = "#e8e0d4";
+const VIEWPORT_BG_DARK = "#141820";
+
+function viewportBgForTheme(): string {
+  if (typeof document === "undefined") return VIEWPORT_BG_LIGHT;
+  const html = document.documentElement;
+  const attr = html.getAttribute("data-theme");
+  if (attr === "dark" || html.classList.contains("dark")) return VIEWPORT_BG_DARK;
+  if (attr === "light") return VIEWPORT_BG_LIGHT;
+  // Bootstrap may not have set data-theme yet — match resolveTheme.
+  return resolveTheme() === "dark" ? VIEWPORT_BG_DARK : VIEWPORT_BG_LIGHT;
+}
 
 function applyViewportBackground(scene: THREE.Scene) {
-  scene.background = new THREE.Color(VIEWPORT_BG);
+  scene.background = new THREE.Color(viewportBgForTheme());
 }
 
 const DEFAULT_CODE = `# Empty code runs hello_world.py on the server.
@@ -355,6 +367,16 @@ export default function BimIfcViewer() {
         world.scene = new OBC.SimpleScene(components);
         world.scene.setup();
         applyViewportBackground(world.scene.three);
+
+        const syncViewportBackground = () => {
+          const scene = world.scene as AnyScene | undefined;
+          if (scene?.three) applyViewportBackground(scene.three);
+        };
+        const themeObserver = new MutationObserver(syncViewportBackground);
+        themeObserver.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ["data-theme", "class"],
+        });
 
         const renderer = new OBC.SimpleRenderer(components, host);
         renderer.showLogo = false;
@@ -672,6 +694,7 @@ export default function BimIfcViewer() {
 
         disposeRef.current = () => {
           lightsApiRef.current = null;
+          themeObserver.disconnect();
           try {
             components.dispose();
           } catch {

@@ -35,7 +35,10 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
    - **Python** / **Output** — admin only
    - **Offload model** — everyone when a model is loaded
 7. **UI chrome:** No top-right status overlay message. Full-bleed viewport. No That Open logo. Lights panel opens from header (not a floating rail button).
-   - **Viewport background:** Soft limestone paper **`#f2f3f6`** (cute light studio, not black). Set on Three.js `scene.background` and matching CSS on stage/canvas host. Fixed light paper even when site theme is dark — model reads on white.
+   - **Viewport background:** Follows site theme (`html[data-theme]` / `html.dark`):
+     - Light: warm **bone** paper **`#e8e0d4`** (not harsh white / not cold limestone `#f2f3f6`)
+     - Dark: cool grey-blue **`#141820`**
+     Set on Three.js `scene.background` and matching CSS on stage/canvas host. Re-apply when the user toggles Theme in the header.
    - **Helper grid:** That Open `Grids` instance may still exist for CSM `distanceRenderer` exclusion, but **`grid.three.visible = false`** by default (no visible floor grid).
 8. **Default light preset** (user-locked from live panel; **Reset lights** restores this — not SimpleScene-only original):
    - Ambient intensity **2.85**, color `#ffffff`
@@ -70,7 +73,7 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
 - [x] Header tool icons use Google Material Symbols.
 - [x] Default / Reset lights match preset: ambient 2.85, directional 4.05, sun 16°/42°, shadows on, map 2048, bias **-0.002**.
 - [x] Services menu shows BIM IFC viewer; page is not admin-only gated.
-- [x] Viewport background is soft limestone `#f2f3f6` (not black); helper grid is hidden.
+- [x] Viewport background is bone `#e8e0d4` in light theme and cool grey-blue `#141820` in dark theme; helper grid is hidden; updates when site Theme toggles.
 - [x] Horizontal floor/slab shadow acne reduced via default bias -0.002; invisible ShadowMaterial catcher (no opaque default plane); shadows refresh on open without orbit.
 
 ## Affected paths

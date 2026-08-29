@@ -72,9 +72,14 @@
   width: 100%;
   margin: 0;
   border: none;
-  /* Soft limestone paper (spec 037) — matches Three.js VIEWPORT_BG. */
-  background: #f2f3f6;
+  /* Bone paper (light) — matches Three.js VIEWPORT_BG_LIGHT. */
+  background: #e8e0d4;
   overflow: hidden;
+}
+
+html[data-theme="dark"] .bim-ifc-viewer__stage,
+html.dark .bim-ifc-viewer__stage {
+  background: #141820;
 }
 
 .bim-ifc-viewer__rail {
@@ -245,7 +250,12 @@
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #f2f3f6;
+  background: #e8e0d4;
+}
+
+html[data-theme="dark"] .bim-ifc-viewer__canvas,
+html.dark .bim-ifc-viewer__canvas {
+  background: #141820;
 }
 
 .bim-ifc-viewer__canvas canvas {
