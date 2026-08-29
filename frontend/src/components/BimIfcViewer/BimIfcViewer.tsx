@@ -1,9 +1,10 @@
 /**
- * Admin BIM IFC viewer (spec 037): That Open ShadowedScene + browser IFC upload +
- * host Python console posting IFC metadata args + viewport Lights sidebar
- * (ambient / directional / sun elevation+azimuth / shadows).
- * Upload / Python / Output / Offload are icon-only header-dynamic-menu tools.
- * Viewport is full-bleed; That Open logo is disabled via showLogo = false.
+ * Admin BIM IFC viewer (spec 037): That Open SimpleScene by default (original
+ * 886ebc8 lighting) + optional ShadowedScene when Shadows are enabled; browser
+ * IFC upload + host Python console; viewport Lights sidebar (ambient /
+ * directional / sun elevation+azimuth / shadows). Upload / Python / Output /
+ * Offload are icon-only header-dynamic-menu tools. Viewport is full-bleed;
+ * That Open logo is disabled via showLogo = false.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -46,9 +47,8 @@ type LightSettings = {
 };
 
 /**
- * Original That Open SimpleScene._defaultConfig light (pre-shadows viewer).
- * Keep intensities/colors/position locked here — ShadowedScene tutorials use
- * directional intensity 4 / position (5,10,5); we intentionally do not.
+ * Nominal SimpleScene._defaultConfig values for sidebar / Reset (documentation).
+ * First paint does NOT post-apply these — original viewer was plain setup() only.
  */
 const LEGACY_DIR = { x: 5, y: 10, z: 3 };
 const SUN_DISTANCE = Math.hypot(LEGACY_DIR.x, LEGACY_DIR.y, LEGACY_DIR.z);
@@ -71,7 +71,6 @@ function anglesFromDirection(x: number, y: number, z: number) {
   return { elevation, azimuth };
 }
 
-/** Exact SimpleScene light position vector (prefer over angle round-trip in setup). */
 function legacySunPosition() {
   return new THREE.Vector3(LEGACY_DIR.x, LEGACY_DIR.y, LEGACY_DIR.z);
 }
@@ -83,16 +82,15 @@ const DEFAULT_LIGHTS: LightSettings = {
   ambientColor: "#ffffff",
   directionalIntensity: 1.5,
   directionalColor: "#ffffff",
-  // UI angles derived from (5,10,3); setup still pins the exact vector.
   sunElevation: Number(LEGACY_SUN.elevation.toFixed(1)),
   sunAzimuth: Number(LEGACY_SUN.azimuth.toFixed(1)),
-  // Off by default so first paint matches original flat SimpleScene lighting.
   shadowsEnabled: false,
   shadowMapSize: 2048,
   shadowBias: -0.002,
 };
 
 const SHADOW_MAP_SIZES = [512, 1024, 2048, 4096] as const;
+const SHADOW_GROUND_NAME = "bim-ifc-shadow-ground";
 
 const DEFAULT_CODE = `# Empty code runs hello_world.py on the server.
 # BIM_IFC_ARGS JSON is injected for the browser-loaded IFC metadata.
@@ -100,7 +98,7 @@ print("custom run")
 `;
 
 type SceneLightsApi = {
-  apply: (settings: LightSettings, opts?: { rebuildShadows?: boolean }) => void;
+  apply: (settings: LightSettings, opts?: { rebuildShadows?: boolean; resetOriginal?: boolean }) => void;
 };
 
 function enableMeshShadows(root: THREE.Object3D) {
@@ -118,6 +116,42 @@ function enableMeshShadows(root: THREE.Object3D) {
       mesh.receiveShadow = true;
     }
   });
+}
+
+/** Move non-light, non-ground children so models/grid survive scene-class swaps. */
+function migrateSceneContents(from: THREE.Scene, to: THREE.Scene) {
+  const movers: THREE.Object3D[] = [];
+  for (const child of [...from.children]) {
+    const asLight = child as THREE.Light;
+    if ("isLight" in asLight && asLight.isLight) continue;
+    if (child.name === SHADOW_GROUND_NAME) continue;
+    movers.push(child);
+  }
+  for (const obj of movers) {
+    to.add(obj);
+  }
+}
+
+function sunDirForSettings(settings: LightSettings) {
+  const atDefaultSun =
+    settings.sunElevation === DEFAULT_LIGHTS.sunElevation &&
+    settings.sunAzimuth === DEFAULT_LIGHTS.sunAzimuth;
+  return atDefaultSun
+    ? legacySunPosition()
+    : sunDirectionFromAngles(settings.sunElevation, settings.sunAzimuth);
+}
+
+function applySimpleLightConfig(
+  scene: { config: { ambientLight: { intensity: number; color: THREE.Color }; directionalLight: { intensity: number; color: THREE.Color; position: THREE.Vector3 } } },
+  settings: LightSettings,
+  dir: THREE.Vector3,
+) {
+  const cfg = scene.config;
+  cfg.ambientLight.intensity = settings.ambientIntensity;
+  cfg.ambientLight.color = new THREE.Color(settings.ambientColor);
+  cfg.directionalLight.intensity = settings.directionalIntensity;
+  cfg.directionalLight.color = new THREE.Color(settings.directionalColor);
+  cfg.directionalLight.position = dir;
 }
 
 function LightIcon() {
@@ -171,127 +205,165 @@ export default function BimIfcViewer() {
         const OBC = await import("@thatopen/components");
         if (cancelled) return;
 
+        type SimpleScene = InstanceType<typeof OBC.SimpleScene>;
+        type ShadowedScene = InstanceType<typeof OBC.ShadowedScene>;
+        type AnyScene = SimpleScene | ShadowedScene;
+
         const components = new OBC.Components();
         const worlds = components.get(OBC.Worlds);
-        const world = worlds.create<
-          InstanceType<typeof OBC.ShadowedScene>,
-          InstanceType<typeof OBC.OrthoPerspectiveCamera>,
-          InstanceType<typeof OBC.SimpleRenderer>
-        >();
+        const world = worlds.create();
 
-        world.scene = new OBC.ShadowedScene(components);
+        // Original first-ship path (886ebc8): SimpleScene + plain setup(), no light overwrite.
+        world.scene = new OBC.SimpleScene(components);
+        world.scene.setup();
+        world.scene.three.background = null;
+
         const renderer = new OBC.SimpleRenderer(components, host);
-        // Official API: hide That Open Company watermark (full-bleed clean viewport).
         renderer.showLogo = false;
         world.renderer = renderer;
         world.camera = new OBC.OrthoPerspectiveCamera(components);
         await world.camera.controls.setLookAt(12, 8, 12, 0, 0, 0);
         components.init();
-
-        renderer.three.shadowMap.enabled = true;
-        renderer.three.shadowMap.type = THREE.VSMShadowMap;
-
-        // Pin exact SimpleScene light position (5,10,3) — not the angle round-trip.
-        const sunDir = legacySunPosition();
-        // Runtime ShadowedScene.setup reads cascade/resolution at top level (merged with defaults).
-        world.scene.setup({
-          ambientLight: {
-            color: new THREE.Color(DEFAULT_LIGHTS.ambientColor),
-            intensity: DEFAULT_LIGHTS.ambientIntensity,
-          },
-          directionalLight: {
-            color: new THREE.Color(DEFAULT_LIGHTS.directionalColor),
-            intensity: DEFAULT_LIGHTS.directionalIntensity,
-            position: sunDir.clone(),
-          },
-          shadows: {
-            cascade: 1,
-            resolution: DEFAULT_LIGHTS.shadowMapSize,
-          },
-          cascade: 1,
-          resolution: DEFAULT_LIGHTS.shadowMapSize,
-        } as Parameters<typeof world.scene.setup>[0]);
-
-        world.scene.three.background = null;
-        world.scene.autoBias = false;
-        world.scene.bias = DEFAULT_LIGHTS.shadowBias;
-        world.scene.shadowsEnabled = DEFAULT_LIGHTS.shadowsEnabled;
-
-        // Ground receiver so building shadows read against the XY plane (Y-up).
-        const ground = new THREE.Mesh(
-          new THREE.PlaneGeometry(400, 400),
-          new THREE.ShadowMaterial({ opacity: 0.32 }),
-        );
-        ground.name = "bim-ifc-shadow-ground";
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.y = 0;
-        ground.receiveShadow = true;
-        ground.castShadow = false;
-        world.scene.three.add(ground);
-
         components.get(OBC.Grids).create(world);
 
-        /** Park cascade lights like SimpleScene: position = sun vector, target = origin. */
-        const parkLightsAtSun = (dir: THREE.Vector3) => {
-          for (const [, light] of world.scene.directionalLights) {
-            light.position.copy(dir);
-            light.target.position.set(0, 0, 0);
-            light.target.updateMatrixWorld();
+        const isShadowed = (scene: AnyScene): scene is ShadowedScene =>
+          scene instanceof OBC.ShadowedScene;
+
+        const addShadowGround = (scene: ShadowedScene) => {
+          const existing = scene.three.getObjectByName(SHADOW_GROUND_NAME);
+          if (existing) return;
+          const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(400, 400),
+            new THREE.ShadowMaterial({ opacity: 0.32 }),
+          );
+          ground.name = SHADOW_GROUND_NAME;
+          ground.rotation.x = -Math.PI / 2;
+          ground.position.y = 0;
+          ground.receiveShadow = true;
+          ground.castShadow = false;
+          scene.three.add(ground);
+        };
+
+        const disposePreviousScene = (prev: AnyScene) => {
+          try {
+            prev.dispose();
+          } catch {
+            /* ignore dispose races during swap */
           }
         };
 
+        /** Restore original SimpleScene lighting (plain setup). Optionally re-apply user slider values. */
+        const ensureSimpleScene = (settings: LightSettings | null) => {
+          const prev = world.scene as AnyScene;
+          if (!isShadowed(prev) && settings === null) {
+            // Already SimpleScene and Reset wants untouched library setup.
+            prev.setup();
+            prev.three.background = null;
+            renderer.three.shadowMap.enabled = false;
+            return;
+          }
+          if (!isShadowed(prev) && settings) {
+            applySimpleLightConfig(prev, settings, sunDirForSettings(settings));
+            renderer.three.shadowMap.enabled = false;
+            return;
+          }
+
+          const next = new OBC.SimpleScene(components);
+          world.scene = next;
+          next.setup();
+          next.three.background = null;
+          migrateSceneContents(prev.three, next.three);
+          disposePreviousScene(prev);
+          renderer.three.shadowMap.enabled = false;
+          if (settings) {
+            applySimpleLightConfig(next, settings, sunDirForSettings(settings));
+          }
+        };
+
+        const ensureShadowedScene = (settings: LightSettings, rebuild: boolean) => {
+          const dir = sunDirForSettings(settings);
+          const prev = world.scene as AnyScene;
+
+          if (!isShadowed(prev)) {
+            const next = new OBC.ShadowedScene(components);
+            // World setter assigns currentWorld before setup (required by ShadowedScene).
+            world.scene = next;
+            next.setup({
+              ambientLight: {
+                color: new THREE.Color(settings.ambientColor),
+                intensity: settings.ambientIntensity,
+              },
+              directionalLight: {
+                color: new THREE.Color(settings.directionalColor),
+                intensity: settings.directionalIntensity,
+                position: dir.clone(),
+              },
+              shadows: { cascade: 1, resolution: settings.shadowMapSize },
+              cascade: 1,
+              resolution: settings.shadowMapSize,
+            } as Parameters<ShadowedScene["setup"]>[0]);
+            next.three.background = null;
+            next.autoBias = false;
+            next.bias = settings.shadowBias;
+            next.shadowsEnabled = true;
+            addShadowGround(next);
+            migrateSceneContents(prev.three, next.three);
+            disposePreviousScene(prev);
+            renderer.three.shadowMap.enabled = true;
+            renderer.three.shadowMap.type = THREE.VSMShadowMap;
+            applySimpleLightConfig(next, settings, dir);
+            void next.updateShadows();
+            return;
+          }
+
+          if (rebuild) {
+            prev.setup({
+              ambientLight: {
+                color: new THREE.Color(settings.ambientColor),
+                intensity: settings.ambientIntensity,
+              },
+              directionalLight: {
+                color: new THREE.Color(settings.directionalColor),
+                intensity: settings.directionalIntensity,
+                position: dir.clone(),
+              },
+              shadows: { cascade: 1, resolution: settings.shadowMapSize },
+              cascade: 1,
+              resolution: settings.shadowMapSize,
+            } as Parameters<ShadowedScene["setup"]>[0]);
+            prev.three.background = null;
+            addShadowGround(prev);
+          }
+
+          prev.autoBias = false;
+          prev.bias = settings.shadowBias;
+          prev.shadowsEnabled = true;
+          applySimpleLightConfig(prev, settings, dir);
+          renderer.three.shadowMap.enabled = true;
+          renderer.three.shadowMap.type = THREE.VSMShadowMap;
+          void prev.updateShadows();
+        };
+
         world.camera.controls.addEventListener("rest", () => {
-          if (world.scene.shadowsEnabled) void world.scene.updateShadows();
+          const scene = world.scene as AnyScene;
+          if (isShadowed(scene) && scene.shadowsEnabled) void scene.updateShadows();
         });
 
         lightsApiRef.current = {
           apply: (settings, opts) => {
-            const atDefaultSun =
-              settings.sunElevation === DEFAULT_LIGHTS.sunElevation &&
-              settings.sunAzimuth === DEFAULT_LIGHTS.sunAzimuth;
-            const dir = atDefaultSun
-              ? legacySunPosition()
-              : sunDirectionFromAngles(settings.sunElevation, settings.sunAzimuth);
-
-            if (opts?.rebuildShadows) {
-              world.scene.setup({
-                ambientLight: {
-                  color: new THREE.Color(settings.ambientColor),
-                  intensity: settings.ambientIntensity,
-                },
-                directionalLight: {
-                  color: new THREE.Color(settings.directionalColor),
-                  intensity: settings.directionalIntensity,
-                  position: dir.clone(),
-                },
-                shadows: { cascade: 1, resolution: settings.shadowMapSize },
-                cascade: 1,
-                resolution: settings.shadowMapSize,
-              } as Parameters<typeof world.scene.setup>[0]);
+            if (opts?.resetOriginal) {
+              ensureSimpleScene(null);
+              return;
             }
-
-            const cfg = world.scene.config;
-            // Re-apply intensities/colors after setup — That Open SimpleScene.setup
-            // builds AmbientLight from directional values (library quirk).
-            cfg.ambientLight.intensity = settings.ambientIntensity;
-            cfg.ambientLight.color = new THREE.Color(settings.ambientColor);
-            cfg.directionalLight.intensity = settings.directionalIntensity;
-            cfg.directionalLight.color = new THREE.Color(settings.directionalColor);
-            cfg.directionalLight.position = dir;
-
-            world.scene.shadowsEnabled = settings.shadowsEnabled;
-            world.scene.autoBias = false;
-            world.scene.bias = settings.shadowBias;
-
             if (settings.shadowsEnabled) {
-              void world.scene.updateShadows();
+              ensureShadowedScene(settings, Boolean(opts?.rebuildShadows));
             } else {
-              // Fixed sun like original SimpleScene (cascade lights otherwise drift with camera).
-              parkLightsAtSun(dir);
+              // Shadows off → SimpleScene. Re-apply slider state so sun/intensity stay live.
+              ensureSimpleScene(settings);
             }
           },
         };
-        lightsApiRef.current.apply(DEFAULT_LIGHTS);
+        // Do not apply(DEFAULT_LIGHTS) after first setup — that was not the original path.
 
         const ifcLoader = components.get(OBC.IfcLoader);
         await ifcLoader.setup({
@@ -332,11 +404,11 @@ export default function BimIfcViewer() {
             }
           });
           void fragments.core.update(true);
-          void world.scene.updateShadows();
+          const scene = world.scene as AnyScene;
+          if (isShadowed(scene) && scene.shadowsEnabled) void scene.updateShadows();
         });
 
         loadIfcRef.current = async (file: File) => {
-          // Replace any previously loaded models before converting a new IFC.
           const existingIds = [...fragments.list.keys()];
           for (const modelId of existingIds) {
             await fragments.core.disposeModel(modelId);
@@ -352,7 +424,8 @@ export default function BimIfcViewer() {
           });
           setIfc({ name: file.name, sizeBytes: file.size, loaded: true });
           setStatus(`Loaded ${file.name}`);
-          void world.scene.updateShadows();
+          const scene = world.scene as AnyScene;
+          if (isShadowed(scene) && scene.shadowsEnabled) void scene.updateShadows();
         };
 
         offloadIfcRef.current = async () => {
@@ -361,7 +434,8 @@ export default function BimIfcViewer() {
             await fragments.core.disposeModel(modelId);
           }
           void fragments.core.update(true);
-          void world.scene.updateShadows();
+          const scene = world.scene as AnyScene;
+          if (isShadowed(scene) && scene.shadowsEnabled) void scene.updateShadows();
         };
 
         disposeRef.current = () => {
@@ -669,7 +743,7 @@ export default function BimIfcViewer() {
             className="btn bim-ifc-viewer__lights-reset"
             onClick={() => {
               setLights(DEFAULT_LIGHTS);
-              lightsApiRef.current?.apply(DEFAULT_LIGHTS, { rebuildShadows: true });
+              lightsApiRef.current?.apply(DEFAULT_LIGHTS, { resetOriginal: true });
             }}
           >
             Reset lights
