@@ -34,6 +34,19 @@ That “weird double face” on the brown slope in `/bim/ifc/viewer` is almost a
 | Stripes / acne on beige pad | **Viewer shadows** (bias / first-paint refresh) |
 | Soft gray blob on empty paper background | Viewer shadow catcher (normal) |
 
+## Live scene note (Eduardo Blender shot 2026-08-29)
+
+Outliner shows **`IfcGeographicElement/…` (Earth)** plus **`IfcCovering/Street`** and **`IfcCovering/Sidewalk`** under the same storey. The **bright red flickering rectangle on the terrain top** is almost certainly **Earth’s top face + Street/Sidewalk sharing the same plane** (or Face Orientation showing that fight) — not a mystery second Terrain object.
+
+**Do this next:**
+
+1. In the Outliner, click the **eye** on `Street`, then on `Sidewalk`, one at a time.
+2. When the red flicker **disappears**, that covering is the coplanar offender.
+3. Select that covering → move **Z** up by a few mm (or give it real thickness) so it no longer shares Earth’s top plane.
+4. Optional: select Earth alone → Edit Mode → Face Orientation — confirm Earth itself has no interior double face left.
+
+Re-save IFC and re-upload under a new library name.
+
 ## Related lab notes
 
 - `backend/bim_research/out/that-open-realistic-shadows.md` — shadows are viewer-side; avoid coplanar receivers.
