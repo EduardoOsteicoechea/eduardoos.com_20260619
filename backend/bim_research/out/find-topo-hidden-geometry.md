@@ -47,6 +47,27 @@ Outliner shows **`IfcGeographicElement/…` (Earth)** plus **`IfcCovering/Street
 
 Re-save IFC and re-upload under a new library name.
 
+## Later shot — slope still cuts through pad + cars (viewer + Blender)
+
+This is **not** the Eduardo OS shadow-catcher plane (that was removed). The brown **Earth** solid still occupies the volume where the parking pad sits, so:
+
+- Earth’s slope **intersects** the beige/grey pads  
+- Cars look **half-buried** in the hill  
+- Blender and the web viewer both show the same wrong volume
+
+**Fix the IFC mesh in Blender (Boolean cut):**
+
+1. Hide cars. Keep Earth + Street + Sidewalk visible.
+2. Decide which pad(s) should “win” the parking shelf (usually Street + Sidewalk).
+3. Select **Earth** → add Modifier **Boolean** → Operation **Difference** → Object = a temporary cube that covers the parking shelf volume (or use Street mesh if it has thickness).
+4. Apply the Boolean so Earth has a **real cut** (void) under the pad — not just a coplanar slab on top of an intact hill.
+5. Or: Edit Mode on Earth → delete / reshape the faces under the parking area so the top of Earth drops to the pad elevation only in that region (no overlapping solid).
+6. Raise Street/Sidewalk a few mm above the new Earth top; give them thickness (~50–100 mm).
+7. Place cars so wheels sit on the pad top (not inside Earth).
+8. Save IFC → upload under a **new** library name → reload viewer.
+
+Until Earth is cut or reshaped, **no viewer setting** will stop the hill from eating the pad and cars.
+
 ## Related lab notes
 
 - `backend/bim_research/out/that-open-realistic-shadows.md` — shadows are viewer-side; avoid coplanar receivers.
