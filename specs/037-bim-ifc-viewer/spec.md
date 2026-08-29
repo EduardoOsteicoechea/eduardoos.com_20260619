@@ -25,6 +25,7 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
    - `POST /api/bim/models/upload` — JWT + admin — multipart `file` → put under `ifcbim/library/`
    - `POST /api/bim/python/run` — JWT + admin — unchanged host sandbox
 5. **Viewer:** Astro + React + `@thatopen/components`. Load IFC bytes from local file (admin upload path also stores to S3) or from library download URL. `COORDINATE_TO_ORIGIN: false`; `ifcLoader.load(..., coordinate=false, ...)`.
+   - **Default model:** On first paint after the scene is ready, fetch `GET /api/bim/models` and **auto-load the first** library entry (sorted by `name` ascending). If the library is empty, leave the empty scene. User can still Browse / Upload / Offload afterward.
 6. **Header dynamic menu** (icon-only, **Google Material Symbols** via site font link):
    - **Upload** — admin only; modal; after pick, upload to S3 library **and** load into scene
    - **Browse** — everyone; modal lists library models; Load fetches bytes and shows in scene
@@ -51,6 +52,7 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
 
 ## Acceptance
 
+- [x] On open, after the viewer is ready, auto-load the first `ifcbim/library` model (by name); empty library → empty scene.
 - [x] Public user opens `/bim/ifc/viewer` without login; sees scene + Browse + Lights + Offload (when loaded).
 - [x] Browse modal lists `ifcbim/library/*.ifc`; Load puts model in the viewer.
 - [x] Admin Upload stores under `ifcbim/library/` and loads into the scene; non-admin has no Upload control; upload API returns 403.

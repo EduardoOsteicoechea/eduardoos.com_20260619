@@ -251,6 +251,10 @@ type LibraryModel = {
 
 type LoadIfcInput = { name: string; sizeBytes: number; data: Uint8Array };
 
+function sortLibrary(models: LibraryModel[]) {
+  return [...models].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+}
+
 export default function BimIfcViewer() {
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
   const disposeRef = useRef<null | (() => void)>(null);
@@ -260,6 +264,7 @@ export default function BimIfcViewer() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [ready, setReady] = useState(false);
+  const [viewerReady, setViewerReady] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [status, setStatus] = useState("Initializing viewer…");
   const [ifc, setIfc] = useState<IfcMeta>({ name: "", sizeBytes: 0, loaded: false });
@@ -608,7 +613,8 @@ export default function BimIfcViewer() {
             /* ignore dispose races */
           }
         };
-        setStatus("Browse or upload an IFC to load the model.");
+        setStatus("Loading library…");
+        setViewerReady(true);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         setStatus(`Viewer failed: ${msg}`);
@@ -617,6 +623,7 @@ export default function BimIfcViewer() {
 
     return () => {
       cancelled = true;
+      setViewerReady(false);
       disposeRef.current?.();
       disposeRef.current = null;
       loadIfcRef.current = null;
@@ -678,8 +685,9 @@ export default function BimIfcViewer() {
         setLibrary([]);
         return;
       }
-      setLibrary(data.models ?? []);
-      setLibraryStatus((data.models?.length ?? 0) === 0 ? "No models in ifcbim/library yet." : "");
+      const models = sortLibrary(data.models ?? []);
+      setLibrary(models);
+      setLibraryStatus(models.length === 0 ? "No models in ifcbim/library yet." : "");
     } catch (err) {
       setLibraryStatus(err instanceof Error ? err.message : String(err));
       setLibrary([]);
@@ -704,6 +712,52 @@ export default function BimIfcViewer() {
       setLibraryStatus(err instanceof Error ? err.message : String(err));
     }
   }, []);
+
+  // Spec 037: after scene ready, auto-load the first library model (by name).
+  useEffect(() => {
+    if (!viewerReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(BIM_ROUTES.models);
+        const data = (await res.json()) as { models?: LibraryModel[]; error?: string };
+        if (cancelled) return;
+        if (!res.ok) {
+          setStatus(data.error || `Library unavailable (${res.status})`);
+          return;
+        }
+        const models = sortLibrary(data.models ?? []);
+        setLibrary(models);
+        const first = models[0];
+        if (!first) {
+          setStatus("No models in ifcbim/library yet.");
+          return;
+        }
+        if (!loadIfcRef.current) return;
+        setStatus(`Loading ${first.name}…`);
+        const fileRes = await fetch(first.url);
+        if (cancelled) return;
+        if (!fileRes.ok) {
+          setStatus(`Could not load ${first.name} (${fileRes.status})`);
+          return;
+        }
+        const buf = new Uint8Array(await fileRes.arrayBuffer());
+        if (cancelled || !loadIfcRef.current) return;
+        await loadIfcRef.current({
+          name: first.name,
+          sizeBytes: first.sizeBytes || buf.byteLength,
+          data: buf,
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setStatus(err instanceof Error ? err.message : String(err));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerReady]);
 
   const runPython = useCallback(async () => {
     setRunning(true);
