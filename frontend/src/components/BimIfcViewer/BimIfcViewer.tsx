@@ -3,6 +3,7 @@
  * host Python console posting IFC metadata args + viewport light sidebar.
  * Upload / Python / Output / Offload are icon-only header-dynamic-menu tools.
  * Viewport is full-bleed; That Open logo is disabled via showLogo = false.
+ * IFC load keeps world (0,0,0) at the grid: COORDINATE_TO_ORIGIN false + load coordinate false.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -171,7 +172,17 @@ export default function BimIfcViewer() {
           }
           setStatus(`Converting ${file.name}…`);
           const data = new Uint8Array(await file.arrayBuffer());
+          // coordinate=false: do not re-align models via coordination matrices.
+          // COORDINATE_TO_ORIGIN=false: keep IFC (0,0,0) at scene/grid origin.
+          // Fragments IfcImporter defaults COORDINATE_TO_ORIGIN=true (first vertex
+          // → origin), which makes a correct IFC corner-at-zero look “off” the grid.
           await ifcLoader.load(data, false, file.name.replace(/\.[^.]+$/, "") || "model", {
+            instanceCallback: (importer) => {
+              importer.webIfcSettings = {
+                ...importer.webIfcSettings,
+                COORDINATE_TO_ORIGIN: false,
+              };
+            },
             processData: {
               progressCallback: (progress: number) => {
                 setStatus(`Converting ${file.name}… ${Math.round(progress * 100)}%`);

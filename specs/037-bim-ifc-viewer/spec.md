@@ -12,6 +12,7 @@ Admins need a browser IFC viewer (That Open / web-ifc) and a host Python console
 
 1. **Page:** `/bim/ifc/viewer` — not under `/admin/*`, but **admin-only** (same `IsAdmin` gate as Agent Sandbox).
 2. **Viewer:** Astro + **React** client island + `@thatopen/components` (no SvelteKit). Upload IFC in the **browser only** (no server IFC upload v1).
+   - **IFC world origin:** Load with Fragments/web-ifc `COORDINATE_TO_ORIGIN: false` so IFC cartesian `(0,0,0)` stays at the scene/grid origin (do **not** shift by “first vertex”). Keep `ifcLoader.load(..., coordinate=false, ...)` so models are not re-centered relative to each other. Z-up→Y-up conversion remains normal and does not move the origin. Note: very large absolute coordinates may show float jitter; that is acceptable for this admin/origin-check use case.
 3. **Python API:** `POST /api/bim/python/run` — JWT + admin. Real `python3` subprocess on the **host** (same machine as the Go binary / systemd). **No** extra Docker Compose Python service.
 4. **Runtime root:** `backend/bim/bim_runtime/` (override with `BIM_RUNTIME_ROOT`). Scripts may read/write/crawl **only inside that tree** by convention; Go sets `cwd`, `HOME`, `TMPDIR`, and `BIM_RUNTIME_ROOT` to that directory.
 5. **IFC args:** Console POSTs metadata of the browser-loaded IFC (`name`, `sizeBytes`, `loaded`, optional client notes). Injected into the process as env `BIM_IFC_ARGS` (JSON). OCC processing of the file itself is **out of scope** for v1.
@@ -65,6 +66,7 @@ Crawling **within** scripts (e.g. `urllib`) is allowed for research under the ru
 - [x] That Open Company logo/watermark is not visible in the viewport.
 - [x] Header dynamic menu tools (Upload / Python / Output / Offload model) are **icon-only** with `title` + `aria-label`.
 - [x] **Offload model** disposes browser-loaded IFC/fragments, resets metadata (`loaded: false`, clear name/size), updates status, and leaves the viewer ready for upload; disabled/no-op when nothing is loaded.
+- [x] IFC world `(0,0,0)` maps to the viewer grid/scene origin (no first-vertex `COORDINATE_TO_ORIGIN` shift; `load` uses `coordinate=false`).
 
 ## Affected paths
 
