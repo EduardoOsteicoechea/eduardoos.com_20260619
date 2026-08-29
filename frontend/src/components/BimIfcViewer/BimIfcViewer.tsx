@@ -101,21 +101,45 @@ type SceneLightsApi = {
   apply: (settings: LightSettings, opts?: { rebuildShadows?: boolean; resetOriginal?: boolean }) => void;
 };
 
+function isOpaqueMesh(mesh: THREE.Mesh) {
+  const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  return mats.every((m) => {
+    if (!m) return true;
+    const opacity = "opacity" in m ? Number((m as THREE.Material & { opacity?: number }).opacity ?? 1) : 1;
+    return opacity >= 0.99;
+  });
+}
+
+/** Opaque fragment meshes cast + receive (That Open ShadowedScene samples). */
 function enableMeshShadows(root: THREE.Object3D) {
   root.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
     if (!("isMesh" in mesh) || !mesh.isMesh) return;
-    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    const opaque = mats.every((m) => {
-      if (!m) return true;
-      const opacity = "opacity" in m ? Number((m as THREE.Material & { opacity?: number }).opacity ?? 1) : 1;
-      return opacity >= 0.99;
-    });
-    if (opaque) {
+    if (isOpaqueMesh(mesh)) {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
     }
   });
+}
+
+function enableTileShadows(mesh: THREE.Object3D) {
+  if (!("isMesh" in mesh) || !(mesh as THREE.Mesh).isMesh) return;
+  const m = mesh as THREE.Mesh;
+  if (isOpaqueMesh(m)) {
+    m.castShadow = true;
+    m.receiveShadow = true;
+  }
+}
+
+/**
+ * Reduce coplanar z-fighting on fragment materials (That Open sample recipe).
+ * Helps terrain / street / sidewalk shadow receivers read cleanly.
+ */
+function softenFragmentMaterialZFight(material: THREE.Material) {
+  if ("isLodMaterial" in material && (material as { isLodMaterial?: boolean }).isLodMaterial) return;
+  material.polygonOffset = true;
+  material.polygonOffsetUnits = 1;
+  material.polygonOffsetFactor = Math.random();
 }
 
 /** Move non-light, non-ground children so models/grid survive scene-class swaps. */
@@ -152,6 +176,57 @@ function applySimpleLightConfig(
   cfg.directionalLight.intensity = settings.directionalIntensity;
   cfg.directionalLight.color = new THREE.Color(settings.directionalColor);
   cfg.directionalLight.position = dir;
+}
+
+/**
+ * ShadowedScene light apply: intensity/color via config setters (safe).
+ * Sun direction must update the config value used by recomputeShadows WITHOUT
+ * copying onto cascade lights — DirectionalLightConfig.position stomps CSM
+ * positions and, combined with That Open's in-flight updateShadows lock, can
+ * leave shadows broken after rapid sun slider moves.
+ */
+function applyShadowedLightConfig(
+  scene: {
+    config: {
+      ambientLight: { intensity: number; color: THREE.Color };
+      directionalLight: { intensity: number; color: THREE.Color; position: THREE.Vector3 };
+    };
+  },
+  settings: LightSettings,
+  dir: THREE.Vector3,
+) {
+  const cfg = scene.config;
+  cfg.ambientLight.intensity = settings.ambientIntensity;
+  cfg.ambientLight.color = new THREE.Color(settings.ambientColor);
+  cfg.directionalLight.intensity = settings.directionalIntensity;
+  cfg.directionalLight.color = new THREE.Color(settings.directionalColor);
+  setShadowSunDirectionConfigOnly(cfg, dir);
+}
+
+function setShadowSunDirectionConfigOnly(
+  cfg: { directionalLight: { position: THREE.Vector3 } },
+  dir: THREE.Vector3,
+) {
+  const bag = (
+    cfg as unknown as {
+      _config?: { directionalLight?: { position?: { value?: THREE.Vector3 } } };
+    }
+  )._config;
+  const stored = bag?.directionalLight?.position?.value;
+  if (stored && typeof stored.copy === "function") {
+    stored.copy(dir);
+    return;
+  }
+  // Fallback: may stomp cascade light positions until requestShadowUpdate runs.
+  cfg.directionalLight.position = dir;
+}
+
+/** Kick That Open CSM refresh; clear stuck in-flight lock so slider bursts still refresh. */
+function requestShadowUpdate(scene: { updateShadows: () => Promise<void>; shadowsEnabled: boolean }) {
+  if (!scene.shadowsEnabled) return;
+  const lock = scene as unknown as { _isComputingShadows?: boolean };
+  lock._isComputingShadows = false;
+  void scene.updateShadows();
 }
 
 function LightIcon() {
@@ -226,14 +301,45 @@ export default function BimIfcViewer() {
         components.init();
         components.get(OBC.Grids).create(world);
 
+        const ifcLoader = components.get(OBC.IfcLoader);
+        await ifcLoader.setup({
+          autoSetWasm: false,
+          wasm: {
+            path: "https://unpkg.com/web-ifc@0.0.77/",
+            absolute: true,
+          },
+        });
+
+        // Keep IFC world origin at scene origin (no first-vertex coordinate shift).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const webIfcSettings = (ifcLoader as any).settings ?? (ifcLoader as any).webIfc;
+        if (webIfcSettings && typeof webIfcSettings === "object") {
+          webIfcSettings.COORDINATE_TO_ORIGIN = false;
+        }
+
+        const workerUrl = await OBC.FragmentsManager.getWorker();
+        const fragments = components.get(OBC.FragmentsManager);
+        fragments.init(workerUrl);
+        // Fragments LOD/culling on camera move — not updateShadows (too hot).
+        world.camera.controls.addEventListener("update", () => {
+          void fragments.core.update();
+        });
+
+        // Soften z-fighting on fragment materials (That Open sample).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fragments.core.models.materials.list.onItemSet.add(({ value: material }: { value: any }) => {
+          if (material && typeof material === "object") softenFragmentMaterialZFight(material);
+        });
+
         const isShadowed = (scene: AnyScene): scene is ShadowedScene =>
           scene instanceof OBC.ShadowedScene;
 
         const addShadowGround = (scene: ShadowedScene) => {
           const existing = scene.three.getObjectByName(SHADOW_GROUND_NAME);
           if (existing) return;
+          // Large receiver for terrain / street extents (research note).
           const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(400, 400),
+            new THREE.PlaneGeometry(2000, 2000),
             new THREE.ShadowMaterial({ opacity: 0.32 }),
           );
           ground.name = SHADOW_GROUND_NAME;
@@ -249,6 +355,15 @@ export default function BimIfcViewer() {
             prev.dispose();
           } catch {
             /* ignore dispose races during swap */
+          }
+        };
+
+        /** Re-apply cast/receive on every loaded fragment model (after ShadowedScene swap). */
+        const applyFragmentShadowFlags = () => {
+          for (const [, model] of fragments.list) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const obj = (model as any)?.object as THREE.Object3D | undefined;
+            if (obj) enableMeshShadows(obj);
           }
         };
 
@@ -284,6 +399,11 @@ export default function BimIfcViewer() {
           const dir = sunDirForSettings(settings);
           const prev = world.scene as AnyScene;
 
+          // Terrain / street models need a longer camera far for CSM distance.
+          if ("far" in world.camera.three && typeof world.camera.three.far === "number") {
+            if (world.camera.three.far < 10000) world.camera.three.far = 10000;
+          }
+
           if (!isShadowed(prev)) {
             const next = new OBC.ShadowedScene(components);
             // World setter assigns currentWorld before setup (required by ShadowedScene).
@@ -311,8 +431,9 @@ export default function BimIfcViewer() {
             disposePreviousScene(prev);
             renderer.three.shadowMap.enabled = true;
             renderer.three.shadowMap.type = THREE.VSMShadowMap;
-            applySimpleLightConfig(next, settings, dir);
-            void next.updateShadows();
+            applyShadowedLightConfig(next, settings, dir);
+            applyFragmentShadowFlags();
+            requestShadowUpdate(next);
             return;
           }
 
@@ -338,15 +459,17 @@ export default function BimIfcViewer() {
           prev.autoBias = false;
           prev.bias = settings.shadowBias;
           prev.shadowsEnabled = true;
-          applySimpleLightConfig(prev, settings, dir);
+          applyShadowedLightConfig(prev, settings, dir);
           renderer.three.shadowMap.enabled = true;
           renderer.three.shadowMap.type = THREE.VSMShadowMap;
-          void prev.updateShadows();
+          applyFragmentShadowFlags();
+          requestShadowUpdate(prev);
         };
 
+        // Camera rest refreshes cascaded shadows (not every "update" — too hot).
         world.camera.controls.addEventListener("rest", () => {
           const scene = world.scene as AnyScene;
-          if (isShadowed(scene) && scene.shadowsEnabled) void scene.updateShadows();
+          if (isShadowed(scene) && scene.shadowsEnabled) requestShadowUpdate(scene);
         });
 
         lightsApiRef.current = {
@@ -365,28 +488,6 @@ export default function BimIfcViewer() {
         };
         // Do not apply(DEFAULT_LIGHTS) after first setup — that was not the original path.
 
-        const ifcLoader = components.get(OBC.IfcLoader);
-        await ifcLoader.setup({
-          autoSetWasm: false,
-          wasm: {
-            path: "https://unpkg.com/web-ifc@0.0.77/",
-            absolute: true,
-          },
-        });
-
-        // Keep IFC world origin at scene origin (no first-vertex coordinate shift).
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const webIfcSettings = (ifcLoader as any).settings ?? (ifcLoader as any).webIfc;
-        if (webIfcSettings && typeof webIfcSettings === "object") {
-          webIfcSettings.COORDINATE_TO_ORIGIN = false;
-        }
-
-        const workerUrl = await OBC.FragmentsManager.getWorker();
-        const fragments = components.get(OBC.FragmentsManager);
-        fragments.init(workerUrl);
-        world.camera.controls.addEventListener("update", () => {
-          void fragments.core.update();
-        });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fragments.list.onItemSet.add(({ value: model }: { value: any }) => {
           model.useCamera(world.camera.three);
@@ -394,18 +495,11 @@ export default function BimIfcViewer() {
           enableMeshShadows(model.object);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           model.tiles?.onItemSet?.add(({ value: mesh }: { value: any }) => {
-            if (mesh && "isMesh" in mesh && mesh.isMesh) {
-              const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-              const opacity = mats[0] && "opacity" in mats[0] ? Number(mats[0].opacity ?? 1) : 1;
-              if (opacity >= 0.99) {
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-              }
-            }
+            if (mesh) enableTileShadows(mesh);
           });
           void fragments.core.update(true);
           const scene = world.scene as AnyScene;
-          if (isShadowed(scene) && scene.shadowsEnabled) void scene.updateShadows();
+          if (isShadowed(scene) && scene.shadowsEnabled) requestShadowUpdate(scene);
         });
 
         loadIfcRef.current = async (file: File) => {
@@ -425,7 +519,10 @@ export default function BimIfcViewer() {
           setIfc({ name: file.name, sizeBytes: file.size, loaded: true });
           setStatus(`Loaded ${file.name}`);
           const scene = world.scene as AnyScene;
-          if (isShadowed(scene) && scene.shadowsEnabled) void scene.updateShadows();
+          if (isShadowed(scene) && scene.shadowsEnabled) {
+            applyFragmentShadowFlags();
+            requestShadowUpdate(scene);
+          }
         };
 
         offloadIfcRef.current = async () => {
@@ -435,7 +532,7 @@ export default function BimIfcViewer() {
           }
           void fragments.core.update(true);
           const scene = world.scene as AnyScene;
-          if (isShadowed(scene) && scene.shadowsEnabled) void scene.updateShadows();
+          if (isShadowed(scene) && scene.shadowsEnabled) requestShadowUpdate(scene);
         };
 
         disposeRef.current = () => {
@@ -705,7 +802,7 @@ export default function BimIfcViewer() {
               <input
                 type="checkbox"
                 checked={lights.shadowsEnabled}
-                onChange={(e) => patchLights({ shadowsEnabled: e.target.checked })}
+                onChange={(e) => patchLights({ shadowsEnabled: e.target.checked }, e.target.checked)}
               />
               <span className="bim-ifc-viewer__field-val">{lights.shadowsEnabled ? "on" : "off"}</span>
             </label>
