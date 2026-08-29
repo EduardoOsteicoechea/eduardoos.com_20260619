@@ -1,6 +1,7 @@
 /**
  * Admin BIM IFC viewer (spec 037): That Open scene + browser IFC upload +
  * host Python console posting IFC metadata args + viewport light sidebar.
+ * Upload / Python / Output are header-dynamic-menu modals (not page chrome).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -71,11 +72,14 @@ export default function BimIfcViewer() {
   const disposeRef = useRef<null | (() => void)>(null);
   const loadIfcRef = useRef<null | ((file: File) => Promise<void>)>(null);
   const lightsApiRef = useRef<SceneLightsApi | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [status, setStatus] = useState("Initializing viewer…");
   const [ifc, setIfc] = useState<IfcMeta>({ name: "", sizeBytes: 0, loaded: false });
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [outputOpen, setOutputOpen] = useState(false);
   const [lightsOpen, setLightsOpen] = useState(false);
   const [lights, setLights] = useState<LightSettings>(DEFAULT_LIGHTS);
   const [code, setCode] = useState("");
@@ -204,6 +208,7 @@ export default function BimIfcViewer() {
     if (!file || !loadIfcRef.current) return;
     try {
       await loadIfcRef.current(file);
+      setUploadOpen(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setStatus(`Load failed: ${msg}`);
@@ -230,6 +235,7 @@ export default function BimIfcViewer() {
       const data = (await res.json()) as RunResponse & { error?: string; message?: string };
       if (!res.ok) {
         setOutput(data.error || data.message || `HTTP ${res.status}`);
+        setOutputOpen(true);
         return;
       }
       const parts = [
@@ -245,12 +251,37 @@ export default function BimIfcViewer() {
         data.stderr || "(empty)",
       ].filter(Boolean);
       setOutput(parts.join("\n"));
+      setStatus(
+        data.ok
+          ? `Python ok (exit ${data.exitCode}) — open Output for details.`
+          : `Python failed (exit ${data.exitCode}) — open Output for details.`,
+      );
+      setOutputOpen(true);
     } catch (err) {
       setOutput(err instanceof Error ? err.message : String(err));
+      setOutputOpen(true);
     } finally {
       setRunning(false);
     }
   }, [code, ifc]);
+
+  const openUpload = useCallback(() => {
+    setConsoleOpen(false);
+    setOutputOpen(false);
+    setUploadOpen((v) => !v);
+  }, []);
+
+  const openConsole = useCallback(() => {
+    setUploadOpen(false);
+    setOutputOpen(false);
+    setConsoleOpen((v) => !v);
+  }, []);
+
+  const openOutput = useCallback(() => {
+    setUploadOpen(false);
+    setConsoleOpen(false);
+    setOutputOpen((v) => !v);
+  }, []);
 
   if (allowed === null) {
     return <p className="bim-ifc-viewer__gate">Checking admin access…</p>;
@@ -262,23 +293,19 @@ export default function BimIfcViewer() {
   return (
     <div className="bim-ifc-viewer">
       <BimIfcHeaderMenu
+        uploadOpen={uploadOpen}
         consoleOpen={consoleOpen}
-        onToggleConsole={() => setConsoleOpen((v) => !v)}
+        outputOpen={outputOpen}
+        onToggleUpload={openUpload}
+        onToggleConsole={openConsole}
+        onToggleOutput={openOutput}
       />
 
-      <header className="bim-ifc-viewer__toolbar">
-        <label className="bim-ifc-viewer__upload">
-          <span>Upload IFC</span>
-          <input
-            type="file"
-            accept=".ifc,application/x-step,application/octet-stream"
-            onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
-          />
-        </label>
-        <p className="bim-ifc-viewer__status" role="status">
-          {status}
-        </p>
-      </header>
+      <p className="bim-ifc-viewer__status" role="status">
+        {status}
+        {ifc.loaded ? ` · IFC: ${ifc.name}` : ""}
+        {output && !outputOpen ? " · Output available in header" : ""}
+      </p>
 
       <div className={`bim-ifc-viewer__stage${lightsOpen ? " bim-ifc-viewer__stage--lights-open" : ""}`}>
         <div className="bim-ifc-viewer__rail" role="toolbar" aria-label="Viewport tools">
@@ -411,10 +438,34 @@ export default function BimIfcViewer() {
         <div ref={canvasHostRef} className="bim-ifc-viewer__canvas" aria-label="IFC 3D viewport" />
       </div>
 
-      <section className="bim-ifc-viewer__output" aria-label="Python output">
-        <h2 className="bim-ifc-viewer__output-title">Python output</h2>
-        <pre className="bim-ifc-viewer__pre">{output || "Run the Python console to see stdout/stderr here."}</pre>
-      </section>
+      {uploadOpen ? (
+        <div className="bim-ifc-viewer__modal" role="dialog" aria-modal="true" aria-label="Upload IFC">
+          <div className="bim-ifc-viewer__modal-panel bim-ifc-viewer__modal-panel--narrow">
+            <header className="bim-ifc-viewer__modal-head">
+              <h2>Upload IFC</h2>
+              <button type="button" className="bim-ifc-viewer__close" onClick={() => setUploadOpen(false)}>
+                Close
+              </button>
+            </header>
+            <p className="bim-ifc-viewer__hint">
+              File stays in the browser only — nothing is uploaded to the server. Choose an{" "}
+              <code>.ifc</code> model to load into the viewport.
+            </p>
+            <p className="bim-ifc-viewer__meta">
+              Current: {ifc.loaded ? `${ifc.name} (${ifc.sizeBytes} bytes)` : "none loaded"}
+            </p>
+            <label className="bim-ifc-viewer__upload bim-ifc-viewer__upload--modal">
+              <span>Choose IFC file</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".ifc,application/x-step,application/octet-stream"
+                onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          </div>
+        </div>
+      ) : null}
 
       {consoleOpen ? (
         <div className="bim-ifc-viewer__modal" role="dialog" aria-modal="true" aria-label="Python console">
@@ -446,6 +497,22 @@ export default function BimIfcViewer() {
                 {running ? "Running…" : "Run"}
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {outputOpen ? (
+        <div className="bim-ifc-viewer__modal" role="dialog" aria-modal="true" aria-label="Python output">
+          <div className="bim-ifc-viewer__modal-panel">
+            <header className="bim-ifc-viewer__modal-head">
+              <h2>Python output</h2>
+              <button type="button" className="bim-ifc-viewer__close" onClick={() => setOutputOpen(false)}>
+                Close
+              </button>
+            </header>
+            <pre className="bim-ifc-viewer__pre bim-ifc-viewer__pre--modal">
+              {output || "Run the Python console to see stdout/stderr here."}
+            </pre>
           </div>
         </div>
       ) : null}

@@ -2,7 +2,7 @@
 
 ## Status
 
-Locked from user answers (2026-08-29). Implement from this file.
+Locked from user answers (2026-08-29). Header tools UX updated (Upload / Python / Output modals). Implement from this file.
 
 ## Problem
 
@@ -15,7 +15,11 @@ Admins need a browser IFC viewer (That Open / web-ifc) and a host Python console
 3. **Python API:** `POST /api/bim/python/run` — JWT + admin. Real `python3` subprocess on the **host** (same machine as the Go binary / systemd). **No** extra Docker Compose Python service.
 4. **Runtime root:** `backend/bim/bim_runtime/` (override with `BIM_RUNTIME_ROOT`). Scripts may read/write/crawl **only inside that tree** by convention; Go sets `cwd`, `HOME`, `TMPDIR`, and `BIM_RUNTIME_ROOT` to that directory.
 5. **IFC args:** Console POSTs metadata of the browser-loaded IFC (`name`, `sizeBytes`, `loaded`, optional client notes). Injected into the process as env `BIM_IFC_ARGS` (JSON). OCC processing of the file itself is **out of scope** for v1.
-6. **Header:** Dynamic-menu control **only on this page** opens a Python console modal; stdout/stderr from the run fill an output panel on the page.
+6. **Header dynamic menu (this page only):** Three controls portal into `#header-dynamic-menu-host` (same pattern as Agent Sandbox / existing Python control):
+   - **Upload** — opens a **modal** to choose/upload an IFC file (browser-only). No redundant inline toolbar file input on the page.
+   - **Python** — opens a **modal** to edit/run host Python (existing behavior).
+   - **Output** — opens a **modal** showing the same stdout/stderr content previously shown in the permanent bottom “Python output” panel. Full console is header-modal driven; no permanent bottom output block.
+   The page may keep a **compact status line** (load progress / last run hint). Light sidebar stays on the viewport rail (not in the header menu).
 7. **Hello world:** Default / empty-code runs `hello_world.py` under the runtime root (prints hello + echoes `BIM_IFC_ARGS`).
 8. **Scene lights (viewer UI):** A rail **icon button** on the viewer viewport toggles a **side panel** with live That Open `SimpleScene` light controls (ambient + directional intensity/color; directional position). Defaults match `world.scene.setup()`; changes apply immediately to the Three.js lights — no server round-trip.
 9. **Admin nav:** Global header tray (admin block, after Agent Sandbox) links to `/bim/ifc/viewer` as **BIM IFC viewer**, gated by the same `isPlatformAdmin()` check as other admin links. Not under Services Apps.
@@ -46,13 +50,14 @@ Crawling **within** scripts (e.g. `urllib`) is allowed for research under the ru
 
 ## Acceptance
 
-- [x] Admin opens `/bim/ifc/viewer`, uploads an IFC, sees a That Open scene.
+- [x] Admin opens `/bim/ifc/viewer`, uploads an IFC via **header Upload modal**, sees a That Open scene.
 - [x] Non-admin gets client redirect/forbidden; API returns 403.
-- [x] Header console → run hello world → output panel shows greeting + IFC JSON args.
+- [x] Header **Python** modal → run hello world → **Output** modal shows greeting + IFC JSON args (same content as former bottom panel).
 - [x] Custom Python runs under `backend/bim/bim_runtime` with timeout/caps.
 - [x] No new Docker Compose Python service.
 - [x] Light icon on the viewport rail opens/closes a sidebar; ambient/directional intensity, color, and directional position update the live scene.
 - [x] Signed-in platform admin sees **BIM IFC viewer** in the global header tray admin block (same gate as Agent Sandbox).
+- [x] Header dynamic menu exposes **Upload**, **Python**, and **Output**; page has no permanent bottom Python output block and no inline toolbar upload control (compact status line OK).
 
 ## Affected paths
 

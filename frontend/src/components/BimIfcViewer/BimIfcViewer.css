@@ -15,15 +15,17 @@
   color: var(--site-meta-fg);
 }
 
-.bim-ifc-viewer__toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1rem;
+.bim-ifc-viewer__status {
+  margin: 0;
+  font-family: Raleway, Roboto, sans-serif;
+  font-size: 0.9rem;
+  color: var(--site-meta-fg);
+  line-height: 1.4;
 }
 
 .bim-ifc-viewer__upload {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   min-height: var(--control_min_height, 40px);
@@ -36,17 +38,15 @@
   font-size: 0.9rem;
 }
 
-.bim-ifc-viewer__upload input {
-  max-width: 14rem;
-  font-size: 0.85rem;
+.bim-ifc-viewer__upload--modal {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.25rem;
 }
 
-.bim-ifc-viewer__status {
-  margin: 0;
-  flex: 1 1 12rem;
-  font-family: Raleway, Roboto, sans-serif;
-  font-size: 0.9rem;
-  color: var(--site-meta-fg);
+.bim-ifc-viewer__upload input {
+  max-width: 100%;
+  font-size: 0.85rem;
 }
 
 .bim-ifc-viewer__stage {
@@ -62,9 +62,26 @@
   overflow: hidden;
 }
 
+.bim-ifc-viewer__rail {
+  position: absolute;
+  z-index: 3;
+  top: 0.55rem;
+  left: 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: left 0.15s ease, transform 0.15s ease;
+}
+
 .bim-ifc-viewer__stage--lights-open .bim-ifc-viewer__rail {
   left: min(17.5rem, 88%);
   transform: translateX(0.4rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bim-ifc-viewer__rail {
+    transition: none;
+  }
 }
 
 .bim-ifc-viewer__rail-btn {
@@ -193,19 +210,6 @@
   height: 100% !important;
 }
 
-.bim-ifc-viewer__output {
-  border: 1px solid var(--site-border);
-  padding: 0.65rem 0.75rem;
-  background: color-mix(in srgb, var(--site-body-bg) 94%, var(--site-body-fg) 6%);
-}
-
-.bim-ifc-viewer__output-title {
-  margin: 0 0 0.4rem;
-  font-family: Montserrat, Raleway, sans-serif;
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
 .bim-ifc-viewer__pre {
   margin: 0;
   max-height: 220px;
@@ -216,6 +220,14 @@
   font-size: 0.8rem;
   line-height: 1.4;
   color: var(--site-body-fg);
+}
+
+.bim-ifc-viewer__pre--modal {
+  max-height: min(60svh, 480px);
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--site-border);
+  border-radius: var(--border_radius_001, 2px);
+  background: color-mix(in srgb, var(--site-body-bg) 90%, var(--site-body-fg) 10%);
 }
 
 .bim-ifc-viewer__modal {
@@ -238,6 +250,10 @@
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   box-shadow: 0 12px 40px color-mix(in srgb, #000 28%, transparent);
+}
+
+.bim-ifc-viewer__modal-panel--narrow {
+  width: min(100%, 420px);
 }
 
 .bim-ifc-viewer__modal-head {
