@@ -664,35 +664,96 @@
 
       <section class="block" id="step-project-site">
         <h2>6. Step A — Project and Site</h2>
+        <p>
+          Your Blender window has three main columns: <strong>Outliner</strong> (left),
+          <strong>3D Viewport</strong> (centre), <strong>Properties</strong> (right).
+          Bonsai adds its own tabs inside Properties (Project Overview, Object Information, …).
+        </p>
         <ol>
-          <li>In Bonsai: create / open an IFC project (IFC4 or IFC4.3).</li>
-          <li>Ensure spatial structure includes an <code>IfcSite</code> (default project templates usually create Project → Site → Building).</li>
-          <li>Select the Site in the IFC spatial tree. Set a clear <code>Name</code> / <code>LongName</code>.</li>
           <li>
-            Open the Site’s IFC attributes and set the approximate WGS84 hint
-            (Bonsai text fields — <strong>include the square brackets</strong>;
-            west/south values must have <strong>the same sign on every number</strong>):
+            <strong>Create / open the IFC project.</strong>
+            Top bar: <em>File → New IFC Project</em> (or <em>Open IFC Project</em>).
+            Choose schema <strong>IFC4</strong> or <strong>IFC4.3</strong>.
+            Confirm in the right panel: Properties → tab <strong>Project Overview</strong> → expand
+            <strong>Project Info</strong> (you should see the schema / filename).
+          </li>
+          <li>
+            <strong>Find the Site in the spatial tree.</strong>
+            Still on <strong>Project Overview</strong>, expand <strong>Spatial</strong>
+            (sometimes labelled Spatial Decomposition).
+            You should see <code>IfcProject</code> → <code>IfcSite</code> → <code>IfcBuilding</code> → storey.
+            You can also select <code>IfcSite/My Site</code> in the <strong>Outliner</strong> (left),
+            as in a default new project.
+          </li>
+          <li>
+            <strong>Select the Site.</strong>
+            Click <code>IfcSite/My Site</code> in the Outliner <em>or</em> in Spatial.
+            The active object name (top-left of the viewport) should mention the Site.
+          </li>
+          <li>
+            <strong>Open Site attributes (this is not Project Overview).</strong>
+            On the right Properties strip, leave the Project Overview tab and open
+            <strong>Object Information</strong>
+            (Bonsai’s object tab — next to / below Project Overview in the Properties tab icons;
+            do <em>not</em> stay on the orange Blender “Object” tab alone if Bonsai’s Object Information is available).
+            Scroll to the sub-panel <strong>Attributes</strong>.
+            Click the pencil / edit control if the fields are read-only.
+          </li>
+          <li>
+            <strong>Set Name / LongName</strong> in that Attributes list (e.g. Name <code>My Site</code>,
+            LongName <code>EduOS Lab Site Caracas</code>).
+          </li>
+          <li>
+            <strong>Set the WGS84 hint</strong> in the same Attributes list.
+            Find rows <code>RefLatitude</code>, <code>RefLongitude</code>, <code>RefElevation</code>,
+            <code>LandTitleNumber</code>.
+            Type exactly (square brackets required; west = all negatives):
             <pre>RefLatitude     = [10, 28, 50, 0]
 RefLongitude    = [-66, -54, -13, 0]
 RefElevation    = 900.0
 LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
-            Meaning: about 10°28′50″N, 66°54′13″W, elevation 900&nbsp;m (Caracas-style lab example).
-            This is <em>not</em> the survey map conversion.
+            Confirm / save the attribute edit (check mark or Apply — if values vanish on reopen,
+            the brackets or signs were wrong).
+            ≈ 10°28′50″N, 66°54′13″W, 900&nbsp;m. This is <em>not</em> survey map conversion.
           </li>
           <li>
-            Optional address: if your Bonsai build still shows <code>SiteAddress</code>, fill postal fields
-            (e.g. Town <code>Caracas</code>, Region <code>Distrito Capital</code>, PostalCode <code>1060</code>, Country <code>VE</code>).
-            On IFC4.3 prefer <code>Pset_Address</code> / <code>Pset_LandRegistration</code> instead of deprecated Site attributes.
+            <strong>Optional address.</strong>
+            Same Properties → <strong>Object Information</strong> → <strong>Property Sets</strong>.
+            Add / edit <code>Pset_Address</code> (Town <code>Caracas</code>, Region <code>Distrito Capital</code>,
+            PostalCode <code>1060</code>, Country <code>VE</code>) and/or
+            <code>Pset_LandRegistration</code> for land title on IFC4.3.
+            If your build still shows a <code>SiteAddress</code> attribute on the Site, you may fill it there instead.
           </li>
-          <li>Keep Site local placement coherent: engineering origin at a sensible local 0,0,0 (boundary corner / grid intersection), not raw map millions.</li>
+          <li>
+            Keep Site local placement near engineering <code>0,0,0</code>
+            (Properties → Geometry and Materials → Placement, or the Site object’s location) —
+            not raw map millions.
+          </li>
         </ol>
+        <div class="callout">
+          <strong>You are looking at the wrong tab if…</strong>
+          Properties shows only <strong>Project Overview</strong> with Project Info / Spatial / Project Setup.
+          That tab manages the project; Site <code>RefLatitude</code> lives under
+          <strong>Object Information → Attributes</strong> while <code>IfcSite</code> is selected.
+        </div>
       </section>
 
       <section class="block" id="step-georef">
         <h2>7. Step B — Geographic / map location</h2>
+        <p>
+          Survey-grade location is <em>not</em> in the Site Attributes list.
+          It is project georeferencing (CRS + map conversion).
+        </p>
         <ol>
-          <li>Open <strong>Scene Properties → IFC Georeferencing</strong> (Bonsai).</li>
-          <li>Set <strong>Projected CRS</strong> to your EPSG code (example: <code>EPSG:7856</code> for GDA2020 / MGA Zone 56 — use <em>your</em> zone).</li>
+          <li>
+            Right Properties → Bonsai / Scene area → look for the panel titled
+            <strong>IFC Georeferencing</strong>
+            (official docs: Scene Properties → IFC Georeferencing).
+            On builds that nest it under <strong>Project Overview</strong>, try expanding
+            <strong>Project Setup</strong> or scroll other Scene/Bonsai tabs until you see
+            <em>Projected CRS</em> and <em>Map Conversion</em>.
+          </li>
+          <li>Set <strong>Projected CRS</strong> to your EPSG code (use <em>your</em> zone; e.g. <code>EPSG:7856</code> is only an Australian example).</li>
           <li>Enter <strong>Map Conversion</strong> from the surveyor:
             <ul>
               <li><code>Eastings</code>, <code>Northings</code>, <code>OrthogonalHeight</code> — map position of local 0,0,0</li>
@@ -701,10 +762,11 @@ LandTitleNumber = CAT-2026-001-LIBERTADOR</pre>
             </ul>
           </li>
           <li>Optionally store True North for solar studies only; never use it as the federating rotation source.</li>
-          <li>Stay under ~1&nbsp;km extents in Blender’s engineering coordinates (single-precision limits). Prefer local coords + map conversion over modeling in raw map coordinates.</li>
+          <li>Stay under ~1&nbsp;km extents in Blender’s engineering coordinates. Prefer local coords + map conversion over modeling in raw map coordinates.</li>
         </ol>
         <div class="callout">
           <strong>Check.</strong> A model with large XYZ numbers but <em>no</em> Projected CRS is <em>not</em> georeferenced.
+          Site <code>RefLatitude</code>/<code>RefLongitude</code> alone do not replace this panel.
         </div>
       </section>
 
