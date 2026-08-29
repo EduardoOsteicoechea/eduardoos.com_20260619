@@ -113,6 +113,27 @@ html.page-home body {
     var(--header_width) var(--header_offset, var(--header_height));
 }
 
+/* Tablet home: wash accent from the right-top (matches right-top face crop). */
+@media (min-width: 768px) and (max-width: 959.98px) {
+  html.page-home body {
+    background-image:
+      radial-gradient(
+        ellipse 85% 70% at 82% 8%,
+        var(--site-wash-accent),
+        transparent 58%
+      ),
+      radial-gradient(
+        ellipse 60% 50% at 12% 92%,
+        color-mix(in srgb, var(--site-accent) 6%, transparent),
+        transparent 55%
+      ),
+      linear-gradient(
+        var(--site-wash-ink) 1px,
+        transparent 1px
+      );
+  }
+}
+
 h1,
 h2,
 h3 {

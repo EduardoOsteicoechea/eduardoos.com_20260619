@@ -312,6 +312,38 @@ html.page-home .home-hero__primary {
   }
 }
 
+/*
+ * Tablet only (left rail, no chat panel): keep portrait fixed; face coverage from
+ * the right-top so the dossier wash does not fight a left-placed face.
+ */
+@media (min-width: 768px) and (max-width: 959.98px) {
+  html.page-home .home-hero__photo {
+    position: fixed !important;
+    top: 0;
+    left: var(--header_width, 60px);
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+    z-index: 0;
+    transform: none;
+  }
+
+  html.page-home .home-hero__photo img {
+    object-position: right top;
+  }
+
+  .home-hero__primary::after {
+    background: linear-gradient(
+      255deg,
+      color-mix(in srgb, var(--site-body-bg) 82%, transparent) 0%,
+      color-mix(in srgb, var(--site-body-bg) 48%, transparent) 38%,
+      color-mix(in srgb, var(--site-body-bg) 12%, transparent) 68%,
+      transparent 100%
+    );
+  }
+}
+
 /* Wide desktop: copy + agent panel; portrait column stays left-flush to the rail. */
 @media (min-width: 960px) {
   html.page-home .home-hero__photo {

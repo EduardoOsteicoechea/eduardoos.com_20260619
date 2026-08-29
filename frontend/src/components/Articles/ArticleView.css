@@ -25,22 +25,39 @@
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.25;
+  color: var(--site-body-fg);
 }
 
+/* Pamphlet header subtitle / meta — quieter than body copy (light + dark). */
 .article-view__meta {
-  margin: 0;
+  margin: 0 0 0.35rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--site-border, var(--site-body-fg)) 28%, transparent);
   font-family: Raleway, Roboto, sans-serif;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 500;
+  font-style: italic;
+  letter-spacing: 0.02em;
   line-height: 1.45;
   color: var(--site-meta-fg);
+  opacity: 0.92;
 }
 
 .article-view__p {
   margin: 0;
   font-family: Raleway, Roboto, sans-serif;
   font-size: 1.05rem;
+  font-weight: 400;
+  font-style: normal;
   line-height: 1.55;
+  color: var(--site-body-fg);
+}
+
+html[data-theme="dark"] .article-view__meta,
+html.dark .article-view__meta {
+  border-bottom-color: color-mix(in srgb, var(--site-body-fg) 22%, transparent);
+  color: color-mix(in srgb, var(--site-meta-fg) 88%, var(--site-body-fg));
+  opacity: 1;
 }
 
 .article-view__p strong,

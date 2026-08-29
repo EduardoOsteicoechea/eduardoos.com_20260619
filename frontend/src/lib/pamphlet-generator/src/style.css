@@ -571,6 +571,12 @@
     contain: paint;
 }
 
+/* Spec 035: edit trays paint below items — escape the letter clip while a tray is open. */
+.pamphlet-app[data-view-mode="desktop"] main.pamphlet-sheet:has(.element_edit_tray) {
+    overflow: visible;
+    contain: none;
+}
+
 .dumb-column {
     width: 100%;
     height: 100%;
@@ -589,7 +595,9 @@
     overflow: clip !important;
 }
 
-.pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"]:has(.element_edit_tray) {
+/* Trays / + controls sit outside the ink box — open clip while present. */
+.pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"]:has(.element_edit_tray),
+.pamphlet-app[data-view-mode="desktop"] .dumb-column[class*="pamphlet-column-"]:has(> .pamphlet-add-item-button) {
     overflow: visible !important;
 }
 
@@ -598,6 +606,12 @@
 .pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item h1 {
     overflow: hidden !important;
     max-width: 100%;
+}
+
+.pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item:has(.element_edit_tray),
+.pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item:has(.element_edit_tray) p,
+.pamphlet-app[data-view-mode="desktop"] .dumb-column .pamphlet-item:has(.element_edit_tray) h1 {
+    overflow: visible !important;
 }
 
 /* Page 1: left = cols 7–8 + footer; right = header + cols 1–2.
@@ -1817,6 +1831,12 @@
   background: var(--pamphlet-paper-bg);
   color: var(--pamphlet-ink);
   box-sizing: border-box;
+}
+
+/* Spec 035: hide body column frames in mobile view (header/footer keep theirs). */
+.pamphlet-app[data-view-mode="mobile"] .dumb-column[class*="pamphlet-column-"],
+.pamphlet-app[data-view-mode="mobile"] .pamphlet-lead-slot {
+  border: none !important;
 }
 
 /* Header/footer grow with content on phone/tablet; body columns keep print heights */

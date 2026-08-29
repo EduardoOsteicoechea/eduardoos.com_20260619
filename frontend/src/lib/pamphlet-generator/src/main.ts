@@ -856,7 +856,7 @@ function reflowAndReport(container: HTMLElement) {
             currentColumnItemsCount > 0 && filledWithoutTrailingGap + itemMm > currentMaxMm;
         const preview = (item.textContent ?? "").trim().slice(0, 48);
 
-        if (wouldOverflow) {
+        if (wouldOverflow && columnIndex < 8) {
             // Previous column's last item must not keep a spacer underneath.
             const strippedMm = stripTrailingItemSpacer(currentColumnDiv);
             currentColumnFilledMm -= strippedMm;
@@ -877,6 +877,8 @@ function reflowAndReport(container: HTMLElement) {
             currentColumnFilledMm = blockMm;
             currentColumnItemsCount = 1;
         } else {
+            // Spec 035: past col 8 capacity, keep packing into col 8 (CSS clips).
+            // Never create column_9+ that serializePamphlet would drop.
             currentColumnDiv.appendChild(item);
             currentColumnDiv.appendChild(spacer);
             currentColumnFilledMm += blockMm;

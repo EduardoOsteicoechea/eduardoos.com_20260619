@@ -98,6 +98,21 @@
   order: 3;
 }
 
+/*
+ * Phone home only: empty dynamic host still left a flex:1 void that shoved
+ * avatar/menu flush differently than pamphlet (tools fill the center). Collapse
+ * the empty slot so logo | bar-end matches other phone routes’ end inset.
+ */
+@media (max-width: 767.98px) {
+  html.page-home .site-header__dynamic-slot:has(.header-dynamic-menu-host:empty) {
+    display: none;
+  }
+
+  html.page-home .site-header__bar-end {
+    margin-left: auto;
+  }
+}
+
 .site-header__menu {
   display: inline-flex;
   align-items: center;
