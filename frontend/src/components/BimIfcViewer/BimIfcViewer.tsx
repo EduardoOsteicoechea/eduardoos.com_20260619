@@ -110,24 +110,30 @@ function isOpaqueMesh(mesh: THREE.Mesh) {
   });
 }
 
-/** Opaque fragment meshes cast + receive (That Open ShadowedScene samples). */
+/**
+ * Opaque fragment meshes cast + receive (That Open ShadowedScene / Fragments samples).
+ * Also marks materials needsUpdate so shaders recompile with USE_SHADOWMAP after a
+ * SimpleScene→ShadowedScene switch (model often first drew with shadowMap off).
+ */
 function enableMeshShadows(root: THREE.Object3D) {
   root.traverse((obj) => {
-    const mesh = obj as THREE.Mesh;
-    if (!("isMesh" in mesh) || !mesh.isMesh) return;
-    if (isOpaqueMesh(mesh)) {
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-    }
+    enableTileShadows(obj);
   });
 }
 
 function enableTileShadows(mesh: THREE.Object3D) {
   if (!("isMesh" in mesh) || !(mesh as THREE.Mesh).isMesh) return;
   const m = mesh as THREE.Mesh;
-  if (isOpaqueMesh(m)) {
-    m.castShadow = true;
-    m.receiveShadow = true;
+  if (!isOpaqueMesh(m)) {
+    m.castShadow = false;
+    m.receiveShadow = false;
+    return;
+  }
+  m.castShadow = true;
+  m.receiveShadow = true;
+  const mats = Array.isArray(m.material) ? m.material : [m.material];
+  for (const mat of mats) {
+    if (mat && "needsUpdate" in mat) mat.needsUpdate = true;
   }
 }
 
@@ -221,12 +227,38 @@ function setShadowSunDirectionConfigOnly(
   cfg.directionalLight.position = dir;
 }
 
-/** Kick That Open CSM refresh; clear stuck in-flight lock so slider bursts still refresh. */
-function requestShadowUpdate(scene: { updateShadows: () => Promise<void>; shadowsEnabled: boolean }) {
+/** Kick That Open CSM refresh; clear stuck locks so slider bursts still refresh. */
+function requestShadowUpdate(scene: {
+  updateShadows: () => Promise<void>;
+  shadowsEnabled: boolean;
+  distanceRenderer?: { _isWorkerBusy?: boolean };
+}) {
   if (!scene.shadowsEnabled) return;
   const lock = scene as unknown as { _isComputingShadows?: boolean };
   lock._isComputingShadows = false;
+  // DistanceRenderer.compute() can early-return while busy and leave CSM stale.
+  const dr = scene.distanceRenderer;
+  if (dr) dr._isWorkerBusy = false;
   void scene.updateShadows();
+}
+
+/** Keep DistanceRenderer depth uniforms aligned with the live camera (near/far). */
+function syncDistanceRendererCamera(
+  scene: {
+    distanceRenderer?: {
+      depthMaterial?: { uniforms?: { cameraNear?: { value: number }; cameraFar?: { value: number } } };
+    };
+  },
+  camera: THREE.Camera,
+) {
+  const uniforms = scene.distanceRenderer?.depthMaterial?.uniforms;
+  if (!uniforms) return;
+  if ("near" in camera && typeof (camera as THREE.PerspectiveCamera).near === "number") {
+    if (uniforms.cameraNear) uniforms.cameraNear.value = (camera as THREE.PerspectiveCamera).near;
+  }
+  if ("far" in camera && typeof (camera as THREE.PerspectiveCamera).far === "number") {
+    if (uniforms.cameraFar) uniforms.cameraFar.value = (camera as THREE.PerspectiveCamera).far;
+  }
 }
 
 function LightIcon() {
@@ -299,7 +331,9 @@ export default function BimIfcViewer() {
         world.camera = new OBC.OrthoPerspectiveCamera(components);
         await world.camera.controls.setLookAt(12, 8, 12, 0, 0, 0);
         components.init();
-        components.get(OBC.Grids).create(world);
+        // Keep grid handle: That Open ShadowedScene samples exclude it from distanceRenderer
+        // so CSM frustum fits the model (not the infinite grid / shadow ground).
+        const grid = components.get(OBC.Grids).create(world);
 
         const ifcLoader = components.get(OBC.IfcLoader);
         await ifcLoader.setup({
@@ -336,18 +370,33 @@ export default function BimIfcViewer() {
 
         const addShadowGround = (scene: ShadowedScene) => {
           const existing = scene.three.getObjectByName(SHADOW_GROUND_NAME);
-          if (existing) return;
-          // Large receiver for terrain / street extents (research note).
+          if (existing) {
+            // Always keep ground out of CSM distance (huge plane would blow the frustum).
+            scene.distanceRenderer.excludedObjects.add(existing);
+            return existing as THREE.Mesh;
+          }
+          // Receiver for contact shadows on empty ground; slightly below Y=0 to reduce
+          // z-fight with terrain/street slabs sitting on the origin plane.
           const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(2000, 2000),
-            new THREE.ShadowMaterial({ opacity: 0.32 }),
+            new THREE.PlaneGeometry(500, 500),
+            new THREE.ShadowMaterial({ opacity: 0.35 }),
           );
           ground.name = SHADOW_GROUND_NAME;
           ground.rotation.x = -Math.PI / 2;
-          ground.position.y = 0;
+          ground.position.y = -0.02;
           ground.receiveShadow = true;
           ground.castShadow = false;
+          ground.frustumCulled = false;
           scene.three.add(ground);
+          scene.distanceRenderer.excludedObjects.add(ground);
+          return ground;
+        };
+
+        /** That Open recipe: grid must not drive farthest-distance for CSM. */
+        const excludeNonModelFromDistance = (scene: ShadowedScene) => {
+          scene.distanceRenderer.excludedObjects.add(grid.three);
+          const ground = scene.three.getObjectByName(SHADOW_GROUND_NAME);
+          if (ground) scene.distanceRenderer.excludedObjects.add(ground);
         };
 
         const disposePreviousScene = (prev: AnyScene) => {
@@ -362,8 +411,15 @@ export default function BimIfcViewer() {
         const applyFragmentShadowFlags = () => {
           for (const [, model] of fragments.list) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const obj = (model as any)?.object as THREE.Object3D | undefined;
+            const frag = model as any;
+            const obj = frag?.object as THREE.Object3D | undefined;
             if (obj) enableMeshShadows(obj);
+            // Tile map may hold meshes even before they hang under object.children.
+            if (frag?.tiles && typeof frag.tiles[Symbol.iterator] === "function") {
+              for (const [, mesh] of frag.tiles) {
+                if (mesh) enableTileShadows(mesh);
+              }
+            }
           }
         };
 
@@ -399,9 +455,10 @@ export default function BimIfcViewer() {
           const dir = sunDirForSettings(settings);
           const prev = world.scene as AnyScene;
 
-          // Terrain / street models need a longer camera far for CSM distance.
+          // Terrain / street models need a longer camera far for CSM distance —
+          // keep it modest so a failed depth pass cannot balloon the frustum to 10km.
           if ("far" in world.camera.three && typeof world.camera.three.far === "number") {
-            if (world.camera.three.far < 10000) world.camera.three.far = 10000;
+            if (world.camera.three.far < 2000) world.camera.three.far = 2000;
           }
 
           if (!isShadowed(prev)) {
@@ -427,13 +484,25 @@ export default function BimIfcViewer() {
             next.bias = settings.shadowBias;
             next.shadowsEnabled = true;
             addShadowGround(next);
+            excludeNonModelFromDistance(next);
             migrateSceneContents(prev.three, next.three);
             disposePreviousScene(prev);
             renderer.three.shadowMap.enabled = true;
             renderer.three.shadowMap.type = THREE.VSMShadowMap;
+            renderer.three.shadowMap.needsUpdate = true;
             applyShadowedLightConfig(next, settings, dir);
+            syncDistanceRendererCamera(next, world.camera.three);
             applyFragmentShadowFlags();
             requestShadowUpdate(next);
+            // Tiles may finish streaming a frame later — refresh flags + CSM again.
+            void fragments.core.update(true).then(() => {
+              applyFragmentShadowFlags();
+              const scene = world.scene as AnyScene;
+              if (isShadowed(scene) && scene.shadowsEnabled) {
+                syncDistanceRendererCamera(scene, world.camera.three);
+                requestShadowUpdate(scene);
+              }
+            });
             return;
           }
 
@@ -454,6 +523,7 @@ export default function BimIfcViewer() {
             } as Parameters<ShadowedScene["setup"]>[0]);
             prev.three.background = null;
             addShadowGround(prev);
+            excludeNonModelFromDistance(prev);
           }
 
           prev.autoBias = false;
@@ -462,6 +532,9 @@ export default function BimIfcViewer() {
           applyShadowedLightConfig(prev, settings, dir);
           renderer.three.shadowMap.enabled = true;
           renderer.three.shadowMap.type = THREE.VSMShadowMap;
+          renderer.three.shadowMap.needsUpdate = true;
+          syncDistanceRendererCamera(prev, world.camera.three);
+          excludeNonModelFromDistance(prev);
           applyFragmentShadowFlags();
           requestShadowUpdate(prev);
         };
@@ -469,7 +542,11 @@ export default function BimIfcViewer() {
         // Camera rest refreshes cascaded shadows (not every "update" — too hot).
         world.camera.controls.addEventListener("rest", () => {
           const scene = world.scene as AnyScene;
-          if (isShadowed(scene) && scene.shadowsEnabled) requestShadowUpdate(scene);
+          if (isShadowed(scene) && scene.shadowsEnabled) {
+            syncDistanceRendererCamera(scene, world.camera.three);
+            applyFragmentShadowFlags();
+            requestShadowUpdate(scene);
+          }
         });
 
         lightsApiRef.current = {
@@ -493,13 +570,18 @@ export default function BimIfcViewer() {
           model.useCamera(world.camera.three);
           world.scene.three.add(model.object);
           enableMeshShadows(model.object);
+          // That Open ShadowedScene / Fragments samples: per-tile cast + receive.
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           model.tiles?.onItemSet?.add(({ value: mesh }: { value: any }) => {
-            if (mesh) enableTileShadows(mesh);
+            if (mesh && "isMesh" in mesh) enableTileShadows(mesh);
           });
           void fragments.core.update(true);
           const scene = world.scene as AnyScene;
-          if (isShadowed(scene) && scene.shadowsEnabled) requestShadowUpdate(scene);
+          if (isShadowed(scene) && scene.shadowsEnabled) {
+            applyFragmentShadowFlags();
+            syncDistanceRendererCamera(scene, world.camera.three);
+            requestShadowUpdate(scene);
+          }
         });
 
         loadIfcRef.current = async (file: File) => {
@@ -518,9 +600,11 @@ export default function BimIfcViewer() {
           });
           setIfc({ name: file.name, sizeBytes: file.size, loaded: true });
           setStatus(`Loaded ${file.name}`);
+          await fragments.core.update(true);
           const scene = world.scene as AnyScene;
           if (isShadowed(scene) && scene.shadowsEnabled) {
             applyFragmentShadowFlags();
+            syncDistanceRendererCamera(scene, world.camera.three);
             requestShadowUpdate(scene);
           }
         };
