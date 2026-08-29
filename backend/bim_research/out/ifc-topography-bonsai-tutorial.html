@@ -59,20 +59,28 @@
     a { color: var(--focus); }
     a:hover { text-decoration: underline; }
 
+    /*
+      Grid tracks must match VISIBLE children only.
+      display:none removes sidebars from auto-placement; a leftover `0` track
+      would steal a column and leave a white strip beside .main.
+    */
     .app {
       display: grid;
       grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr) var(--toc-w);
       height: 100%;
       min-height: 100vh;
     }
+    /* left collapsed: rail | main | toc */
     .app.nav-collapsed {
-      grid-template-columns: var(--rail) 0 minmax(0, 1fr) var(--toc-w);
+      grid-template-columns: var(--rail) minmax(0, 1fr) var(--toc-w);
     }
+    /* right collapsed: rail | nav | main */
     .app.toc-collapsed {
-      grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr) 0;
+      grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr);
     }
+    /* both collapsed: rail | main */
     .app.nav-collapsed.toc-collapsed {
-      grid-template-columns: var(--rail) 0 minmax(0, 1fr) 0;
+      grid-template-columns: var(--rail) minmax(0, 1fr);
     }
     .app.nav-collapsed .nav,
     .app.toc-collapsed .toc {
@@ -574,18 +582,33 @@
     }
 
     @media (max-width: 1100px) {
-      .app { grid-template-columns: var(--rail) 0 minmax(0, 1fr) minmax(180px, 220px); }
-      .app:not(.nav-collapsed) { grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr) minmax(180px, 220px); }
-      .app.toc-collapsed { grid-template-columns: var(--rail) 0 minmax(0, 1fr) 0; }
-      .app:not(.nav-collapsed).toc-collapsed { grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr) 0; }
+      /* default JS often starts with nav collapsed → omit nav track */
+      .app {
+        grid-template-columns: var(--rail) minmax(0, 1fr) minmax(180px, 220px);
+      }
+      .app:not(.nav-collapsed) {
+        grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr) minmax(180px, 220px);
+      }
+      .app.toc-collapsed {
+        grid-template-columns: var(--rail) minmax(0, 1fr);
+      }
+      .app:not(.nav-collapsed).toc-collapsed {
+        grid-template-columns: var(--rail) var(--nav-w) minmax(0, 1fr);
+      }
+      .app.nav-collapsed.toc-collapsed {
+        grid-template-columns: var(--rail) minmax(0, 1fr);
+      }
       .nav { display: none; }
       .app:not(.nav-collapsed) .nav { display: block; }
     }
     @media (max-width: 720px) {
+      /* overlays only — always two tracks so .main fills after rail */
       .app,
       .app.nav-collapsed,
       .app.toc-collapsed,
-      .app.nav-collapsed.toc-collapsed {
+      .app.nav-collapsed.toc-collapsed,
+      .app:not(.nav-collapsed),
+      .app:not(.nav-collapsed).toc-collapsed {
         grid-template-columns: var(--rail) minmax(0, 1fr);
       }
       .nav, .toc { display: none; }

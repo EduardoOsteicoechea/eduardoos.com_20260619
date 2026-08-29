@@ -56,3 +56,14 @@ Left 50px `.rail` has two icon buttons that collapse/expand the tutorial sidebar
 | `btn-toggle-toc` | Right TOC | `toc-collapsed` | `#side-toc` |
 
 JS sets `aria-pressed`, updates title/aria-label (Hide/Show), and persists `{ navOpen, tocOpen }` in `sessionStorage` under `bim-lab:sidebars:<pathname>`.
+
+### Desktop grid (omit collapsed tracks — never use `0` columns)
+
+| State | Classes | `grid-template-columns` |
+|-------|---------|-------------------------|
+| Both open | — | `var(--rail) var(--nav-w) minmax(0,1fr) var(--toc-w)` |
+| Left only collapsed | `nav-collapsed` | `var(--rail) minmax(0,1fr) var(--toc-w)` |
+| Right only collapsed | `toc-collapsed` | `var(--rail) var(--nav-w) minmax(0,1fr)` |
+| Both collapsed | `nav-collapsed toc-collapsed` | `var(--rail) minmax(0,1fr)` |
+
+Collapsed asides use `display:none` so they do not occupy auto-placement slots.
