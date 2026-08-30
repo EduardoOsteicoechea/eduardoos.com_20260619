@@ -44,6 +44,7 @@ func (h *Handler) Routes(r chi.Router) {
 	// Public media + lyrics read (HTML5 audio cannot send Bearer on <audio src>).
 	r.Get("/api/media/audio", h.ListMediaAudio)
 	r.Get("/api/media/file/*", h.GetMediaFile)
+	r.Head("/api/media/file/*", h.GetMediaFile)
 	r.Get("/api/emusic/{slug}", h.GetEmusic)
 
 	// Public pamphlet-as-article surface for /articulos and AI crawlers.

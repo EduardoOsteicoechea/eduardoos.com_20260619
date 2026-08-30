@@ -4,14 +4,13 @@
  * Dynamic Menu (per-route tools, e.g. Pamphlet). Mobile bar: logo left,
  * dynamic section centered, avatar then menu on the right. Hamburger opens
  * the nav tray from the left (after the 60px rail on desktop). Tray chrome
- * (A+ / A− / theme / close) sits in a top toolbar; Services and auth links
- * follow. Music keeps the bottom Activity Bar and does not register a
- * dynamic header section.
+ * (A+ / A− / theme / close) sits in a top toolbar; product links (filtered
+ * by subscription) and auth links follow. Music keeps the bottom Activity Bar
+ * and does not register a dynamic header section.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { APP_ROUTES } from "../../config/routes";
-import { CHURCH_FEATURE_ENABLED } from "../../lib/churchFeature";
 import {
   AUTH_SESSION_EXPIRED_EVENT,
   getAuthToken,
@@ -27,6 +26,16 @@ import {
 import { applyTheme, resolveTheme, toggleTheme, type SiteTheme } from "../../lib/theme";
 import { applyUiScale, bumpUiScale, resolveUiScale, type UiScale } from "../../lib/uiScale";
 import HeaderDynamicMenu from "../HeaderDynamicMenu/HeaderDynamicMenu";
+import {
+  PRIMARY_TRAY_LINKS,
+  visibleProductNavLinks,
+  type TrayNavLink,
+} from "../../lib/navServices";
+import {
+  checkServiceAccess,
+  fetchMyEntitlements,
+  type EntitlementRecord,
+} from "../../lib/payments";
 import "./Header.css";
 
 function profileInitialFromToken(token: string): string {
@@ -46,25 +55,6 @@ function profileInitialFromToken(token: string): string {
 interface HeaderProps {
   pathname: string;
 }
-
-/** Home is the logo; omit a redundant "Home" row in the tray. */
-const PRIMARY_LINKS = [
-  { href: APP_ROUTES.contact, label: "Contact" },
-] as const;
-
-const SERVICES_LINKS = [
-  { href: APP_ROUTES.homescool, label: "Homescool" },
-  ...(CHURCH_FEATURE_ENABLED
-    ? ([{ href: APP_ROUTES.church, label: "Church" }] as const)
-    : []),
-  { href: APP_ROUTES.mediaPlaylist, label: "Music" },
-  { href: APP_ROUTES.pamphlet, label: "Pamphlet" },
-  { href: APP_ROUTES.scrib, label: "Scrib" },
-  { href: APP_ROUTES.ereport, label: "eReport" },
-  { href: APP_ROUTES.articles, label: "Articles" },
-  { href: APP_ROUTES.calvinsInstitutes, label: "Calvin’s Institutes" },
-  { href: APP_ROUTES.bimIfcViewer, label: "BIM IFC viewer" },
-] as const;
 
 /** Platform-admin MPS product-test routes (webhook monitor + meeting probes). */
 const MPS_TEST_LINKS = [
@@ -215,71 +205,6 @@ function AuthControls({
   return <div className={`site-header__auth site-header__auth--${variant}`}>{content}</div>;
 }
 
-interface ServicesMenuProps {
-  pathname: string;
-  navClass: (href: string) => string;
-  onNavigate: () => void;
-}
-
-function ServicesMenu({ pathname, navClass, onNavigate }: ServicesMenuProps) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const servicesActive = SERVICES_LINKS.some(
-    ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
-  );
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!open) return;
-    function handlePointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [open]);
-
-  return (
-    <div className="site-header__services" ref={rootRef}>
-      <button
-        type="button"
-        className={`site-header__services-toggle${servicesActive ? " is-active" : ""}`}
-        aria-expanded={open}
-        aria-controls="site-header-services-menu"
-        aria-haspopup="menu"
-        onClick={() => setOpen((current) => !current)}
-      >
-        Services Apps & Subscriptions
-        <span className="site-header__services-caret" aria-hidden="true">
-          {open ? "▴" : "▾"}
-        </span>
-      </button>
-      {open ? (
-        <div
-          id="site-header-services-menu"
-          className="site-header__services-menu"
-          role="menu"
-          aria-label="Services Apps & Subscriptions"
-        >
-          {SERVICES_LINKS.map(({ href, label }) => (
-            <a
-              key={href}
-              className={`site-header__services-item${navClass(href) ? ` ${navClass(href)}` : ""}`}
-              role="menuitem"
-              href={href}
-              onClick={() => onNavigate()}
-            >
-              {label}
-            </a>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 interface MpsTestsMenuProps {
   pathname: string;
   navClass: (href: string) => string;
@@ -370,6 +295,8 @@ export function Header({ pathname }: HeaderProps) {
   const [theme, setTheme] = useState<SiteTheme>("light");
   const [uiScale, setUiScale] = useState<UiScale>(1);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [entitlements, setEntitlements] = useState<EntitlementRecord[]>([]);
+  const [isHomescoolStudent, setIsHomescoolStudent] = useState(false);
   const trayRef = useRef<HTMLElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -392,6 +319,8 @@ export function Header({ pathname }: HeaderProps) {
     setIsAdmin(authed && isPlatformAdmin());
     if (!authed) {
       setProfileImageUrl("");
+      setEntitlements([]);
+      setIsHomescoolStudent(false);
     }
   }
 
@@ -456,6 +385,37 @@ export function Header({ pathname }: HeaderProps) {
   }, [pathname]);
 
   useEffect(() => {
+    let cancelled = false;
+    if (!loggedIn) {
+      setEntitlements([]);
+      setIsHomescoolStudent(false);
+      return;
+    }
+    if (isAdmin) {
+      return;
+    }
+    void (async () => {
+      try {
+        const [ents, homescool] = await Promise.all([
+          fetchMyEntitlements(),
+          checkServiceAccess("homescool"),
+        ]);
+        if (cancelled) return;
+        setEntitlements(ents);
+        setIsHomescoolStudent(Boolean(homescool.isHomescoolStudent));
+      } catch {
+        if (!cancelled) {
+          setEntitlements([]);
+          setIsHomescoolStudent(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loggedIn, isAdmin, pathname]);
+
+  useEffect(() => {
     function handleAuthSessionExpired() {
       syncAuthState();
       setProfileImageUrl("");
@@ -494,6 +454,12 @@ export function Header({ pathname }: HeaderProps) {
   }, [menuOpen]);
 
   const showAuth = clientReady;
+  const productLinks: TrayNavLink[] = visibleProductNavLinks({
+    isAdmin,
+    entitlements,
+    isHomescoolStudent,
+  });
+  const trayLinks: TrayNavLink[] = [...PRIMARY_TRAY_LINKS, ...productLinks];
 
   return (
     <header className={`site-header${menuOpen ? " site-header--open" : ""}`}>
@@ -600,12 +566,11 @@ export function Header({ pathname }: HeaderProps) {
           </button>
         </div>
         <span className="visually-hidden">Text scale {Math.round(uiScale * 100)}%</span>
-        {PRIMARY_LINKS.map(({ href, label }) => (
+        {trayLinks.map(({ href, label }) => (
           <a key={href} className={navClass(href)} href={href} onClick={closeMenu}>
             {label}
           </a>
         ))}
-        <ServicesMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
         {isAdmin ? (
           <>
             <a

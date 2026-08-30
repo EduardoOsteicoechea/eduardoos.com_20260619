@@ -111,6 +111,7 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const main = requireElement<HTMLElement>("main.pamphlet-sheet");
     const openBtn = requireElement<HTMLButtonElement>("#btn-open");
     const createBtn = requireElement<HTMLButtonElement>("#btn-create");
+    const copyBtn = requireElement<HTMLButtonElement>("#btn-copy");
     const saveCloudBtn = requireElement<HTMLButtonElement>("#btn-save-cloud");
     const printBtn = requireElement<HTMLButtonElement>("#btn-print");
     const viewDesktopBtn = requireElement<HTMLButtonElement>("#btn-view-desktop");
@@ -130,6 +131,7 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const openSourceCloudBtn = requireElement<HTMLButtonElement>("#open-source-cloud");
     const openSourceCancelBtn = requireElement<HTMLButtonElement>("#open-source-cancel");
     const openCloudModal = requireElement<HTMLDialogElement>("#open-cloud-modal");
+    const openCloudHeading = openCloudModal.querySelector("h2");
     const openCloudList = requireElement<HTMLElement>("#open-cloud-list");
     const openCloudHint = requireElement<HTMLElement>("#open-cloud-hint");
     const openCloudCancelBtn = requireElement<HTMLButtonElement>("#open-cloud-cancel");
@@ -1484,15 +1486,47 @@ function closeOpenSourceModal(): void {
 
 const COPY_ICON_SVG = `<svg class="open-cloud-list__copy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 4h10v12h-2V6H8V4zm-4 4h10v12H4V8zm2 2v8h6v-8H6z" fill="currentColor"/></svg>`;
 
+let openCloudSelectMode = false;
+/** open = pick to load; copy = pick a source to clone (never deletes). */
+let openCloudIntent: "open" | "copy" = "open";
+
+function syncOpenCloudChrome(): void {
+    const copying = openCloudIntent === "copy";
+    openCloudDeleteToggle.hidden = copying;
+    if (openCloudHeading) {
+        openCloudHeading.textContent = copying
+            ? "Copy an existing pamphlet"
+            : "My pamphlets in the cloud";
+    }
+}
+
 function closeOpenCloudModal(): void {
     openCloudSelectMode = false;
+    openCloudIntent = "open";
     openCloudDeleteToggle.classList.remove("is-active");
     openCloudDeleteToggle.setAttribute("aria-pressed", "false");
     openCloudDeleteConfirm.hidden = true;
+    openCloudDeleteToggle.hidden = false;
+    if (openCloudHeading) {
+        openCloudHeading.textContent = "My pamphlets in the cloud";
+    }
     if (openCloudModal.open) openCloudModal.close();
 }
 
-let openCloudSelectMode = false;
+/**
+ * POST /copy only. Never DELETE/recycle the source. New id + suffixed title.
+ * When openAfter, load the clone — the editor must not stay on the original.
+ */
+async function duplicateCloudPamphlet(sourceId: string, openAfter: boolean): Promise<void> {
+    const copied = await copyEpam(sourceId);
+    if (!copied.meta.epamId || copied.meta.epamId === sourceId) {
+        throw new Error("Copy returned the original pamphlet id — aborted to protect the source.");
+    }
+    setStatus(`Copia creada: ${copied.meta.title} (original intacto)`, "success");
+    if (openAfter) {
+        await openCloudDocumentById(copied.meta.epamId);
+    }
+}
 
 function syncOpenCloudDeleteConfirm(): void {
     if (!openCloudSelectMode) {
@@ -1506,6 +1540,7 @@ function syncOpenCloudDeleteConfirm(): void {
 }
 
 function setOpenCloudSelectMode(on: boolean): void {
+    if (openCloudIntent === "copy") return;
     openCloudSelectMode = on;
     openCloudDeleteToggle.classList.toggle("is-active", on);
     openCloudDeleteToggle.setAttribute("aria-pressed", on ? "true" : "false");
@@ -1543,7 +1578,9 @@ function appendCloudPamphletRow(parent: HTMLElement, item: EpamSeriesTreeItem): 
     btn.disabled = openCloudSelectMode;
     btn.setAttribute(
         "aria-label",
-        `Abrir panfleto ${item.title || item.fileName || item.epamId}`,
+        openCloudIntent === "copy"
+            ? `Crear copia de ${item.title || item.fileName || item.epamId}`
+            : `Abrir panfleto ${item.title || item.fileName || item.epamId}`,
     );
     const title = document.createElement("span");
     title.className = "open-cloud-list__title";
@@ -1554,26 +1591,34 @@ function appendCloudPamphletRow(parent: HTMLElement, item: EpamSeriesTreeItem): 
     meta.textContent = `${item.fileName || "sin-nombre.epam"} · ${updated}`;
     const hint = document.createElement("span");
     hint.className = "open-cloud-list__action";
-    hint.textContent = "Clic para abrir";
+    hint.textContent = openCloudIntent === "copy" ? "Clic para copiar" : "Clic para abrir";
     btn.append(title, meta, hint);
     btn.addEventListener("click", () => {
         void (async () => {
             if (openCloudSelectMode || btn.disabled) return;
             btn.disabled = true;
             btn.classList.add("is-loading");
-            hint.textContent = "Abriendo…";
+            const copying = openCloudIntent === "copy";
+            hint.textContent = copying ? "Copiando…" : "Abriendo…";
             try {
-                await openCloudDocumentById(item.epamId);
-                closeOpenCloudModal();
-                setStatus(`Opened from cloud: ${item.fileName || item.title}`, "success");
+                if (copying) {
+                    await duplicateCloudPamphlet(item.epamId, true);
+                    closeOpenCloudModal();
+                } else {
+                    await openCloudDocumentById(item.epamId);
+                    closeOpenCloudModal();
+                    setStatus(`Opened from cloud: ${item.fileName || item.title}`, "success");
+                }
             } catch (err) {
                 const message = err instanceof Error ? err.message : String(err);
-                setError(`Cloud open failed: ${message}`);
+                setError(copying ? `Copy failed: ${message}` : `Cloud open failed: ${message}`);
                 openApiErrorModal(message, {
                     title: "Cloud pamphlet error",
-                    summary: "Could not open this .epam from the server.",
+                    summary: copying
+                        ? "Could not duplicate this .epam. The original was not deleted."
+                        : "Could not open this .epam from the server.",
                 });
-                hint.textContent = "Clic para abrir";
+                hint.textContent = copying ? "Clic para copiar" : "Clic para abrir";
             } finally {
                 btn.disabled = false;
                 btn.classList.remove("is-loading");
@@ -1589,18 +1634,17 @@ function appendCloudPamphletRow(parent: HTMLElement, item: EpamSeriesTreeItem): 
     copyBtn.innerHTML = COPY_ICON_SVG;
     copyBtn.addEventListener("click", () => {
         void (async () => {
-            if (openCloudSelectMode) return;
+            if (openCloudSelectMode || openCloudIntent === "copy") return;
             copyBtn.disabled = true;
             try {
-                const copied = await copyEpam(item.epamId);
-                setStatus(`Copia creada: ${copied.meta.title}`, "success");
+                await duplicateCloudPamphlet(item.epamId, false);
                 await reloadOpenCloudList();
             } catch (err) {
                 const message = err instanceof Error ? err.message : String(err);
                 setError(`Copy failed: ${message}`);
                 openApiErrorModal(message, {
                     title: "Cloud pamphlet error",
-                    summary: "Could not duplicate this .epam.",
+                    summary: "Could not duplicate this .epam. The original was not deleted.",
                 });
             } finally {
                 copyBtn.disabled = false;
@@ -1609,6 +1653,9 @@ function appendCloudPamphletRow(parent: HTMLElement, item: EpamSeriesTreeItem): 
     });
 
     row.append(check, btn, copyBtn);
+    if (openCloudIntent === "copy") {
+        copyBtn.hidden = true;
+    }
     parent.appendChild(row);
 }
 
@@ -1624,7 +1671,9 @@ function renderOpenCloudTree(tree: EpamSeriesTreeResponse): void {
     }
     openCloudHint.textContent = openCloudSelectMode
         ? "Marca los panfletos a borrar, luego confirma abajo."
-        : "Selecciona un .epam asociado a tu cuenta.";
+        : openCloudIntent === "copy"
+          ? "Elige el panfleto a copiar. Se crea uno nuevo con otro nombre e id; el original no se borra."
+          : "Selecciona un .epam asociado a tu cuenta. Copy never deletes the original.";
     for (const seriesNode of tree.series) {
         const seriesEl = document.createElement("details");
         seriesEl.className = "open-cloud-list__series";
@@ -1666,10 +1715,16 @@ on(openSourceCloudBtn, "click", async () => {
         setError("Sign in to open from the cloud.");
         return;
     }
+    await openCloudListModal("open");
+});
+
+async function openCloudListModal(intent: "open" | "copy"): Promise<void> {
+    openCloudIntent = intent;
     openCloudSelectMode = false;
     openCloudDeleteToggle.classList.remove("is-active");
     openCloudDeleteToggle.setAttribute("aria-pressed", "false");
     openCloudDeleteConfirm.hidden = true;
+    syncOpenCloudChrome();
     openCloudList.replaceChildren();
     openCloudModal.showModal();
     try {
@@ -1683,14 +1738,16 @@ on(openSourceCloudBtn, "click", async () => {
             summary: "Could not list pamphlets from the server.",
         });
     }
-});
+}
 
 on(openCloudDeleteToggle, "click", () => {
+    if (openCloudIntent === "copy") return;
     setOpenCloudSelectMode(!openCloudSelectMode);
 });
 
 on(openCloudDeleteConfirm, "click", () => {
     void (async () => {
+        if (openCloudIntent === "copy") return;
         const ids = Array.from(
             openCloudList.querySelectorAll<HTMLInputElement>(
                 "input.open-cloud-list__check:checked",
@@ -2206,6 +2263,16 @@ function openCreateSaveModal(): void {
 on(createBtn, "click", () => {
     closeActivityTray();
     openCreateModal();
+});
+
+on(copyBtn, "click", () => {
+    closeActivityTray();
+    clearError();
+    if (!getAuthToken() || !isAuthenticated()) {
+        setError("Sign in to copy a cloud pamphlet.");
+        return;
+    }
+    void openCloudListModal("copy");
 });
 
 on(modalCancelBtn, "click", () => {

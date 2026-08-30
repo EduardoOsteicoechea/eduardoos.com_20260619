@@ -32,6 +32,21 @@ func TestListMediaAudioWithoutS3ReturnsEmpty(t *testing.T) {
 	}
 }
 
+func TestPlaybackContentTypePrefersExtensionOverGenericS3(t *testing.T) {
+	if got := playbackContentType("application/octet-stream", "media/worship_playlists/song.mp3"); got != "audio/mpeg" {
+		t.Fatalf("mp3 generic s3 type → %q", got)
+	}
+	if got := playbackContentType("binary/octet-stream", "worship_playlists/clip.webm"); got != "audio/webm" {
+		t.Fatalf("webm generic s3 type → %q", got)
+	}
+	if got := playbackContentType("", "a.wav"); got != "audio/wav" {
+		t.Fatalf("empty s3 type → %q", got)
+	}
+	if got := playbackContentType("audio/mpeg", "song.mp3"); got != "audio/mpeg" {
+		t.Fatalf("real audio s3 type should stay, got %q", got)
+	}
+}
+
 func TestGetEmusicInvalidSlug(t *testing.T) {
 	h := NewHandler("test-secret", nil)
 	r := chi.NewRouter()

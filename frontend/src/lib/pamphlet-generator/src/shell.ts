@@ -59,6 +59,9 @@ export function renderShell(_menuIconSrc?: string): string {
       <button type="button" id="btn-create" class="header-dynamic-menu__btn" title="New pamphlet" aria-label="New pamphlet">
         ${ICONS.create}
       </button>
+      <button type="button" id="btn-copy" class="header-dynamic-menu__btn" title="Copy existing pamphlet" aria-label="Copy existing pamphlet">
+        ${ICONS.copy}
+      </button>
       <button type="button" id="btn-save-cloud" class="header-dynamic-menu__btn" title="Save to cloud" aria-label="Save to cloud">
         ${ICONS.save}
       </button>
@@ -86,7 +89,7 @@ export function renderShell(_menuIconSrc?: string): string {
     </div>
     <div id="pamphlet-header-menu-tray" class="header-dynamic-menu__tray" role="region" aria-label="Action labels" hidden>
       <ul class="pamphlet-header-menu-tray__labels">
-        <li>Open · New · Save · Print</li>
+        <li>Open · New · Copy existing · Save · Print</li>
         <li>Desktop / Mobile view</li>
         <li>Template type (simple / structured images)</li>
         <li>Static footer profiles (copy or link)</li>
@@ -118,7 +121,7 @@ export function renderShell(_menuIconSrc?: string): string {
         ${ICONS.trash}
       </button>
     </div>
-    <p class="create-modal-hint" id="open-cloud-hint">Select a .epam linked to your account.</p>
+    <p class="create-modal-hint" id="open-cloud-hint">Select a .epam linked to your account. Copy never deletes the original.</p>
     <div id="open-cloud-list" class="open-cloud-list" role="list"></div>
     <div class="create-modal-actions">
       <button type="button" id="open-cloud-cancel">Cancel</button>

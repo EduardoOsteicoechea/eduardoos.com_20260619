@@ -208,3 +208,21 @@ export function makeLocalTrackKey(fileName: string): string {
 export function persistableTrackIds(trackIds: string[]): string[] {
     return trackIds.filter((key) => key && !isLocalTrackKey(key));
 }
+
+/**
+ * True when a cached/fetched blob can be used as <audio src>.
+ * Stale IndexedDB entries sometimes store JSON/HTML error bodies.
+ */
+export function isPlayableAudioBlob(blob: { type?: string; size: number } | null | undefined): boolean {
+    if (!blob || !Number.isFinite(blob.size) || blob.size < 64) {
+        return false;
+    }
+    const type = (blob.type || "").toLowerCase().split(";")[0].trim();
+    if (!type || type === "application/octet-stream" || type === "binary/octet-stream") {
+        return blob.size > 1024;
+    }
+    if (type.startsWith("audio/") || type === "application/ogg") {
+        return true;
+    }
+    return false;
+}

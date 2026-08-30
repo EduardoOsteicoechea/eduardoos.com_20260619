@@ -111,6 +111,27 @@ func TestCopyEpamCreatesSuffixedClone(t *testing.T) {
 	if payload2.Meta.Title != "Foo_2" {
 		t.Fatalf("second title=%q want Foo_2", payload2.Meta.Title)
 	}
+
+	srcAfter, ok, err := store.Get(t.Context(), "owner@example.com", src.EpamID, "cid-after")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("copy deleted or hid the source pamphlet")
+	}
+	if srcAfter.Title != "Foo" {
+		t.Fatalf("source title mutated to %q", srcAfter.Title)
+	}
+	if srcAfter.EpamID != src.EpamID {
+		t.Fatalf("source id mutated to %q", srcAfter.EpamID)
+	}
+	listed, err := store.ListByUser(t.Context(), "owner@example.com", "cid-list")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed) != 3 {
+		t.Fatalf("want source + 2 copies (3 records), got %d", len(listed))
+	}
 }
 
 func TestCopyEpamUnauthorized(t *testing.T) {

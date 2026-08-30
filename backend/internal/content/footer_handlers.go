@@ -15,6 +15,7 @@ import (
 )
 
 // CopyEpam duplicates a cloud pamphlet: new UUID, same body, title + "_n".
+// The source record is never deleted, recycled, or overwritten.
 func (h *Handler) CopyEpam(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
 	cid := httpx.CorrelationFromRequest(r)

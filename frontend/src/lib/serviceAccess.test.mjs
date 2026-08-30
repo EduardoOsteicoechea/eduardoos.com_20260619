@@ -175,3 +175,84 @@ describe("homescool linked student gate", () => {
     assert.equal(gateAllowsHomescool(admin, true), true);
   });
 });
+
+describe("flattened product nav visibility (spec 038)", () => {
+  function isProductNavLinkVisible(link, input) {
+    if (!link.serviceId) return true;
+    if (input.isAdmin) return true;
+    if (link.serviceId === "homescool" && input.isHomescoolStudent) return true;
+    return hasServiceAccess(link.serviceId, input.entitlements, input.email, input.role);
+  }
+
+  const music = { href: "/media/musica", label: "Music", serviceId: "playlist" };
+  const articles = { href: "/articulos", label: "Articles" };
+  const homescool = { href: "/homescool", label: "Homescool", serviceId: "homescool" };
+
+  it("public links stay visible when logged out", () => {
+    assert.equal(
+      isProductNavLinkVisible(articles, { isAdmin: false, entitlements: [] }),
+      true,
+    );
+    assert.equal(
+      isProductNavLinkVisible(music, { isAdmin: false, entitlements: [] }),
+      false,
+    );
+  });
+
+  it("hides gated apps without entitlement and shows them with one", () => {
+    assert.equal(
+      isProductNavLinkVisible(music, {
+        isAdmin: false,
+        entitlements: [],
+        email: "member@example.com",
+        role: "user",
+      }),
+      false,
+    );
+    const ents = [
+      {
+        service_id: "playlist",
+        valid_until: new Date(Date.now() + 86400000).toISOString(),
+      },
+    ];
+    assert.equal(
+      isProductNavLinkVisible(music, {
+        isAdmin: false,
+        entitlements: ents,
+        email: "member@example.com",
+        role: "user",
+      }),
+      true,
+    );
+  });
+
+  it("admin sees gated apps without entitlements", () => {
+    assert.equal(
+      isProductNavLinkVisible(music, { isAdmin: true, entitlements: [] }),
+      true,
+    );
+  });
+
+  it("linked Homescool student sees Homescool without a paid sub", () => {
+    assert.equal(
+      isProductNavLinkVisible(homescool, {
+        isAdmin: false,
+        entitlements: [],
+        isHomescoolStudent: true,
+        email: "kid@example.com",
+        role: "user",
+      }),
+      true,
+    );
+    assert.equal(
+      isProductNavLinkVisible(music, {
+        isAdmin: false,
+        entitlements: [],
+        isHomescoolStudent: true,
+        email: "kid@example.com",
+        role: "user",
+      }),
+      false,
+    );
+  });
+});

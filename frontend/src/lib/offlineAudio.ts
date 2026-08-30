@@ -1,4 +1,5 @@
 import localforage from "localforage";
+import { isPlayableAudioBlob } from "./mediaLibrary";
 const audioStore = localforage.createInstance({
     name: "EduardoOS_Audio",
     storeName: "offline_tracks",
@@ -9,6 +10,9 @@ export async function saveTrackOffline(trackId: string, url: string): Promise<bo
         throw new Error(`Failed to download track (${response.status}): ${url}`);
     }
     const blob = await response.blob();
+    if (!isPlayableAudioBlob(blob)) {
+        throw new Error(`Downloaded track is not playable audio: ${url}`);
+    }
     await audioStore.setItem(trackId, blob);
     return true;
 }
@@ -19,7 +23,7 @@ export async function saveTrackBlobOffline(trackId: string, blob: Blob): Promise
 }
 export async function getOfflineTrackUrl(trackId: string): Promise<string | null> {
     const blob = await audioStore.getItem<Blob>(trackId);
-    if (!blob) {
+    if (!isPlayableAudioBlob(blob)) {
         return null;
     }
     return URL.createObjectURL(blob);

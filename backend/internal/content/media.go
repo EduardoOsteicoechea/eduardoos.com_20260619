@@ -117,6 +117,24 @@ func contentTypeFromKey(objectKey string) string {
 	}
 }
 
+// playbackContentType prefers the extension MIME when S3 stored a generic type.
+// Browsers refuse to play <audio> when Content-Type is application/octet-stream.
+func playbackContentType(s3Type, objectKey string) string {
+	fromKey := contentTypeFromKey(objectKey)
+	s3 := strings.ToLower(strings.TrimSpace(s3Type))
+	generic := s3 == "" ||
+		s3 == "application/octet-stream" ||
+		s3 == "binary/octet-stream" ||
+		s3 == "application/binary"
+	if generic && fromKey != "application/octet-stream" {
+		return fromKey
+	}
+	if trimmed := strings.TrimSpace(s3Type); trimmed != "" {
+		return trimmed
+	}
+	return fromKey
+}
+
 func isAudioContentType(ct, key string) bool {
 	ct = strings.ToLower(strings.TrimSpace(ct))
 	if strings.HasPrefix(ct, "audio/") || ct == "application/ogg" {
@@ -221,6 +239,7 @@ func (h *Handler) ListMediaAudio(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetMediaFile streams an object under media/ by relative path (public playback).
+// Honors Range so HTML5 <audio> can seek; HEAD is supported for duration probes.
 func (h *Handler) GetMediaFile(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	suffix := strings.TrimPrefix(chi.URLParam(r, "*"), "/")
@@ -244,28 +263,61 @@ func (h *Handler) GetMediaFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := absoluteMediaKey(suffix)
-	out, err := client.GetObject(r.Context(), &s3.GetObjectInput{
+	rangeHdr := strings.TrimSpace(r.Header.Get("Range"))
+	input := &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
-	})
+	}
+	if rangeHdr != "" {
+		input.Range = aws.String(rangeHdr)
+	}
+	out, err := client.GetObject(r.Context(), input)
 	if err != nil {
-		log.Printf("[correlation=%s] media.file miss key=%s: %v", cid, key, err)
+		log.Printf("[correlation=%s] media.file miss key=%s range=%q: %v", cid, key, rangeHdr, err)
+		if rangeHdr != "" && isUnsatisfiableRange(err) {
+			w.Header().Set("Accept-Ranges", "bytes")
+			httpx.WriteError(w, http.StatusRequestedRangeNotSatisfiable, "invalid range")
+			return
+		}
 		httpx.WriteError(w, http.StatusNotFound, "file not found")
 		return
 	}
 	defer out.Body.Close()
 
-	ct := contentTypeFromKey(key)
-	if out.ContentType != nil && strings.TrimSpace(*out.ContentType) != "" {
-		ct = *out.ContentType
+	s3Type := ""
+	if out.ContentType != nil {
+		s3Type = *out.ContentType
 	}
+	ct := playbackContentType(s3Type, key)
 	w.Header().Set("Content-Type", ct)
+	w.Header().Set("Accept-Ranges", "bytes")
 	w.Header().Set("Cache-Control", "public, max-age=300")
+	if out.ContentRange != nil && strings.TrimSpace(*out.ContentRange) != "" {
+		w.Header().Set("Content-Range", *out.ContentRange)
+	}
 	if out.ContentLength != nil {
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", *out.ContentLength))
 	}
-	w.WriteHeader(http.StatusOK)
+
+	status := http.StatusOK
+	if rangeHdr != "" && out.ContentRange != nil && strings.TrimSpace(*out.ContentRange) != "" {
+		status = http.StatusPartialContent
+	}
+	w.WriteHeader(status)
+	if r.Method == http.MethodHead {
+		return
+	}
 	if _, err := io.Copy(w, out.Body); err != nil {
 		log.Printf("[correlation=%s] media.file stream error key=%s: %v", cid, key, err)
 	}
+}
+
+func isUnsatisfiableRange(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "invalidrange") ||
+		strings.Contains(msg, "invalid range") ||
+		strings.Contains(msg, "requested range not satisfiable")
 }

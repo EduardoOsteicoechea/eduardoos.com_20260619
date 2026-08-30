@@ -9,6 +9,7 @@
     "preview": "astro preview --port 4322",
     "test:profile": "node --test src/lib/profile.test.mjs",
     "test:media-recording": "node --test src/lib/mediaRecording.test.mjs",
+    "test:media-playback": "node --test src/lib/mediaPlayback.test.mjs",
     "test:homescool": "node --test src/lib/homescool.test.mjs",
     "test:church": "node --test src/lib/church.test.mjs",
     "test:server-error-modal": "node --test src/components/ServerErrorModal/ServerErrorModal.test.mjs",
