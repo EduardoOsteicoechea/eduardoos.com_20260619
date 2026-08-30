@@ -88,6 +88,27 @@ func encodeMediaPath(key string) string {
 	return strings.Join(parts, "/")
 }
 
+// isUnsafeMediaRelativePath rejects path-traversal segments ("..") while
+// allowing filenames that merely contain the substring ".." (e.g. song..mp3).
+// Spec 042 — production 400 invalid path on "espirituales..mp3".
+func isUnsafeMediaRelativePath(rel string) bool {
+	rel = strings.TrimSpace(rel)
+	if rel == "" {
+		return true
+	}
+	// Normalize separators; reject absolute / UNC-ish forms.
+	rel = strings.ReplaceAll(rel, "\\", "/")
+	if strings.HasPrefix(rel, "/") {
+		return true
+	}
+	for _, seg := range strings.Split(rel, "/") {
+		if seg == ".." {
+			return true
+		}
+	}
+	return false
+}
+
 func contentTypeFromKey(objectKey string) string {
 	switch strings.ToLower(path.Ext(objectKey)) {
 	case ".mp3":
@@ -250,7 +271,7 @@ func (h *Handler) GetMediaFile(w http.ResponseWriter, r *http.Request) {
 	if decoded, err := url.PathUnescape(suffix); err == nil {
 		suffix = decoded
 	}
-	if strings.Contains(suffix, "..") {
+	if isUnsafeMediaRelativePath(suffix) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid path")
 		return
 	}
