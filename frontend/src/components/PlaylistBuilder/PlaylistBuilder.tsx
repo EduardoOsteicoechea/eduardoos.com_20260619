@@ -12,6 +12,10 @@ import {
 import { fetchAudioLibrary, isLocalTrackKey, makeLocalTrackKey, mediaObjectPlaybackUrl, persistableTrackIds, removeWorshipLibraryTrack, trackDisplayName, type AudioLibraryItem, } from "../../lib/mediaLibrary";
 import { countOfflineTracks, getOfflineTrackUrl, revokeOfflineTrackUrl, saveTrackOffline } from "../../lib/offlineAudio";
 import { getOfflineLibraryCatalog, saveOfflineLibraryCatalog } from "../../lib/offlineEmusic";
+import {
+    reportPlaybackFailure,
+    type PlaybackSourceKind,
+} from "../../lib/playbackDiagnostics";
 import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import PlaylistControls from "./PlaylistControls";
 import PlaylistLyrics from "./PlaylistLyrics";
@@ -52,6 +56,10 @@ export default function PlaylistBuilder() {
     const emusicsFileInputRef = useRef<HTMLInputElement>(null);
     const localBlobUrlsRef = useRef<Map<string, string>>(new Map());
     const loadedTrackKeyRef = useRef<string>("");
+    /** Last resolved playback source for diagnostic modal (spec 041). */
+    const playbackSourceKindRef = useRef<PlaybackSourceKind>("none");
+    const playbackRemoteUrlRef = useRef<string>("");
+    const lastPlaybackReportRef = useRef<{ key: string; at: number }>({ key: "", at: 0 });
     activeTracksRef.current = activeTracks;
     loopPlaylistRef.current = loopPlaylist;
     isPlayingRef.current = isPlaying;
@@ -61,6 +69,18 @@ export default function PlaylistBuilder() {
         revokeOfflineTrackUrl(blobUrlRef.current);
         blobUrlRef.current = null;
     }, []);
+    const openPlaybackDiag = useCallback(
+        (input: Parameters<typeof reportPlaybackFailure>[0]) => {
+            const now = Date.now();
+            const prev = lastPlaybackReportRef.current;
+            if (prev.key === input.trackKey && now - prev.at < 1500) {
+                return;
+            }
+            lastPlaybackReportRef.current = { key: input.trackKey, at: now };
+            void reportPlaybackFailure(input);
+        },
+        [],
+    );
     const refreshOfflineCount = useCallback(async (keys: string[]) => {
         if (keys.length === 0) {
             setOfflineReadyCount(0);
@@ -142,6 +162,8 @@ export default function PlaylistBuilder() {
         if (!currentTrackKey) {
             clearBlobUrl();
             loadedTrackKeyRef.current = "";
+            playbackSourceKindRef.current = "none";
+            playbackRemoteUrlRef.current = "";
             audio.removeAttribute("src");
             return;
         }
@@ -156,15 +178,29 @@ export default function PlaylistBuilder() {
         const remoteSrc = isLocalTrackKey(currentTrackKey)
             ? (urlByKey.get(currentTrackKey) || "")
             : mediaObjectPlaybackUrl(currentTrackKey, urlByKey.get(currentTrackKey));
+        playbackRemoteUrlRef.current = remoteSrc;
         if (!remoteSrc) {
             clearBlobUrl();
             loadedTrackKeyRef.current = "";
+            playbackSourceKindRef.current = "none";
             audio.removeAttribute("src");
+            setError("No playback URL for this track.");
+            void openPlaybackDiag({
+                phase: "empty_src",
+                trackKey: currentTrackKey,
+                displayName: trackDisplayName(currentTrackKey),
+                src: "",
+                sourceKind: "none",
+                remoteUrl: "",
+                exceptionMessage: "Resolved playback URL was empty",
+                audio,
+            });
             return;
         }
         // Local session files play from blob: URLs only — never cached offline.
         if (isLocalTrackKey(currentTrackKey)) {
             clearBlobUrl();
+            playbackSourceKindRef.current = "local_blob";
             audio.src = remoteSrc;
             audio.load();
             loadedTrackKeyRef.current = currentTrackKey;
@@ -175,28 +211,43 @@ export default function PlaylistBuilder() {
         // Prefer offline blob when present (works fully offline after .emusics import).
         clearBlobUrl();
         let nextSrc = "";
+        let sourceKind: PlaybackSourceKind = "none";
         const offlineUrl = await getOfflineTrackUrl(currentTrackKey);
         if (offlineUrl) {
             blobUrlRef.current = offlineUrl;
             nextSrc = offlineUrl;
+            sourceKind = "offline_blob";
         } else if (navigator.onLine) {
             nextSrc = remoteSrc;
+            sourceKind = "remote";
             void saveTrackOffline(currentTrackKey, remoteSrc)
                 .then(() => refreshOfflineCount(library.map((item) => item.key)))
                 .catch(() => {
             });
         } else {
             loadedTrackKeyRef.current = "";
+            playbackSourceKindRef.current = "none";
             audio.removeAttribute("src");
             setError("Track not available offline. Load a .emusics pack or reconnect.");
+            void openPlaybackDiag({
+                phase: "offline_miss",
+                trackKey: currentTrackKey,
+                displayName: trackDisplayName(currentTrackKey),
+                src: "",
+                sourceKind: "none",
+                remoteUrl: remoteSrc,
+                exceptionMessage: "Offline and no IndexedDB blob for this track",
+                audio,
+            });
             return;
         }
+        playbackSourceKindRef.current = sourceKind;
         audio.src = nextSrc;
         audio.load();
         loadedTrackKeyRef.current = currentTrackKey;
         setCurrentTime(0);
         setDuration(0);
-    }, [clearBlobUrl, currentTrackKey, library, playbackRate, refreshOfflineCount, urlByKey, volume]);
+    }, [clearBlobUrl, currentTrackKey, library, openPlaybackDiag, playbackRate, refreshOfflineCount, urlByKey, volume]);
     useEffect(() => {
         void syncAudioElement();
     }, [syncAudioElement]);
@@ -474,23 +525,43 @@ export default function PlaylistBuilder() {
             loadedTrackKeyRef.current === currentTrackKey && Boolean(audio.src) && !audio.error;
         if (!alreadyLoaded) {
             await syncAudioElement();
+            if (!audio.src) {
+                // syncAudioElement already reported empty_src / offline_miss when applicable.
+                return;
+            }
             if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
-                await new Promise<void>((resolve, reject) => {
-                    const onReady = () => {
-                        cleanup();
-                        resolve();
-                    };
-                    const onError = () => {
-                        cleanup();
-                        reject(new Error("Audio failed to load"));
-                    };
-                    const cleanup = () => {
-                        audio.removeEventListener("canplay", onReady);
-                        audio.removeEventListener("error", onError);
-                    };
-                    audio.addEventListener("canplay", onReady, { once: true });
-                    audio.addEventListener("error", onError, { once: true });
-                });
+                try {
+                    await new Promise<void>((resolve, reject) => {
+                        const onReady = () => {
+                            cleanup();
+                            resolve();
+                        };
+                        const onError = () => {
+                            cleanup();
+                            reject(new Error("Audio failed to load"));
+                        };
+                        const cleanup = () => {
+                            audio.removeEventListener("canplay", onReady);
+                            audio.removeEventListener("error", onError);
+                        };
+                        audio.addEventListener("canplay", onReady, { once: true });
+                        audio.addEventListener("error", onError, { once: true });
+                    });
+                } catch (err) {
+                    const message = err instanceof Error ? err.message : "Audio failed to load";
+                    setError(message);
+                    void openPlaybackDiag({
+                        phase: "load",
+                        trackKey: currentTrackKey,
+                        displayName: trackDisplayName(currentTrackKey),
+                        src: audio.currentSrc || audio.src || "",
+                        sourceKind: playbackSourceKindRef.current,
+                        remoteUrl: playbackRemoteUrlRef.current,
+                        exceptionMessage: message,
+                        audio,
+                    });
+                    return;
+                }
             }
         }
         try {
@@ -499,7 +570,18 @@ export default function PlaylistBuilder() {
             setIsPlaying(true);
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "Playback blocked");
+            const message = err instanceof Error ? err.message : "Playback blocked";
+            setError(message);
+            void openPlaybackDiag({
+                phase: "play",
+                trackKey: currentTrackKey,
+                displayName: trackDisplayName(currentTrackKey),
+                src: audio.currentSrc || audio.src || "",
+                sourceKind: playbackSourceKindRef.current,
+                remoteUrl: playbackRemoteUrlRef.current,
+                exceptionMessage: message,
+                audio,
+            });
         }
     }
     function stopPlayback() {
@@ -753,6 +835,24 @@ export default function PlaylistBuilder() {
             if (!audio || isSeekingRef.current)
                 return;
             setCurrentTime(audio.currentTime);
-        }} onLoadedMetadata={updateDurationFromAudio} onDurationChange={updateDurationFromAudio} onEnded={handleTrackEnded}/>
+        }} onLoadedMetadata={updateDurationFromAudio} onDurationChange={updateDurationFromAudio} onEnded={handleTrackEnded} onError={() => {
+            const audio = audioRef.current;
+            const key = currentTrackKey || loadedTrackKeyRef.current;
+            if (!key)
+                return;
+            const code = audio?.error?.code;
+            const label = code != null ? `MediaError ${code}` : "Audio element error";
+            setError(label);
+            void openPlaybackDiag({
+                phase: "load",
+                trackKey: key,
+                displayName: trackDisplayName(key),
+                src: audio?.currentSrc || audio?.src || "",
+                sourceKind: playbackSourceKindRef.current,
+                remoteUrl: playbackRemoteUrlRef.current,
+                exceptionMessage: label,
+                audio,
+            });
+        }}/>
     </div>);
 }
