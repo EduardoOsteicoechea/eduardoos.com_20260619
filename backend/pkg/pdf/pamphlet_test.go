@@ -673,14 +673,42 @@ func TestBuildPamphletPDFBlueInkUses00368c(t *testing.T) {
 	black := BuildPamphletPDF(PamphletDocument{
 		Type:     "pamphlet_single_sheet",
 		InkColor: "black",
-		Header:   PamphletHeader{Title: "Tinta"},
-		Column1:  []PamphletItem{{Type: "paragraph", Content: "Hola"}},
+		Header: PamphletHeader{
+			Title:         "Tinta",
+			Series:        "Romanos",
+			SeriesChapter: "1",
+			Author:        "Eduardo",
+			Date:          "2026-08-30",
+		},
+		Footer: PamphletFooter{
+			Action:  "Contáctanos",
+			Message: "Más en eduardoos.com",
+			Label1:  "WhatsApp",
+			Value1:  "0414",
+			Label2:  "Teléfono",
+			Value2:  "0212",
+		},
+		Column1: []PamphletItem{{Type: "paragraph", Content: "Hola"}},
 	})
 	blue := BuildPamphletPDF(PamphletDocument{
 		Type:     "pamphlet_single_sheet",
 		InkColor: "blue",
-		Header:   PamphletHeader{Title: "Tinta"},
-		Column1:  []PamphletItem{{Type: "paragraph", Content: "Hola"}},
+		Header: PamphletHeader{
+			Title:         "Tinta",
+			Series:        "Romanos",
+			SeriesChapter: "1",
+			Author:        "Eduardo",
+			Date:          "2026-08-30",
+		},
+		Footer: PamphletFooter{
+			Action:  "Contáctanos",
+			Message: "Más en eduardoos.com",
+			Label1:  "WhatsApp",
+			Value1:  "0414",
+			Label2:  "Teléfono",
+			Value2:  "0212",
+		},
+		Column1: []PamphletItem{{Type: "paragraph", Content: "Hola"}},
 	})
 	bs := string(blue)
 	if !strings.Contains(bs, "0.000 0.212 0.549 rg") {
@@ -689,9 +717,12 @@ func TestBuildPamphletPDFBlueInkUses00368c(t *testing.T) {
 	if !strings.Contains(bs, "0.000 0.212 0.549 RG") {
 		t.Fatalf("blue ink missing stroke operator for #00368c")
 	}
-	// Gray meta hierarchy stays gray.
-	if !strings.Contains(bs, "0.4 0.4 0.4") {
-		t.Fatalf("blue mode should keep gray meta operators")
+	// Header meta + footer contact grid must not stay gray in blue mode.
+	if strings.Contains(bs, "0.4 0.4 0.4") {
+		t.Fatalf("blue mode must remap gray meta (0.4) to #00368c")
+	}
+	if !strings.Contains(string(black), "0.4 0.4 0.4") {
+		t.Fatalf("black mode should still emit gray meta operators")
 	}
 	if string(black) == bs {
 		t.Fatalf("blue PDF should differ from black PDF")

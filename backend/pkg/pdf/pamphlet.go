@@ -113,8 +113,10 @@ func resolvePamphletInk(color string) pamphletInk {
 }
 
 // applyPamphletInk prefixes page content with the fill color (body/title text
-// never set a color operator — they inherit) and rewrites hardcoded black
-// stroke/fill operators. Gray (0.4 0.4 0.4) is left alone.
+// never set a color operator — they inherit) and, for non-black ink, rewrites
+// hardcoded black and gray-meta stroke/fill operators to that ink. Gray meta
+// (0.4 0.4 0.4) is the header Serie/Capítulo/Autor/Fecha grid and the footer
+// contact grid; blue mode must match outer chrome (spec 040 patch).
 func applyPamphletInk(content string, ink pamphletInk) string {
 	out := ink.Fill + content
 	if ink.Fill == "0 0 0 rg\n" {
@@ -122,6 +124,8 @@ func applyPamphletInk(content string, ink pamphletInk) string {
 	}
 	out = strings.ReplaceAll(out, "0 0 0 rg\n", ink.Fill)
 	out = strings.ReplaceAll(out, "0 0 0 RG\n", ink.Stroke)
+	out = strings.ReplaceAll(out, "0.4 0.4 0.4 rg\n", ink.Fill)
+	out = strings.ReplaceAll(out, "0.4 0.4 0.4 RG\n", ink.Stroke)
 	return out
 }
 
