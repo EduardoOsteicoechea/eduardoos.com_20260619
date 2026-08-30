@@ -89,7 +89,8 @@ export function renderShell(_menuIconSrc?: string): string {
     </div>
     <div id="pamphlet-header-menu-tray" class="header-dynamic-menu__tray" role="region" aria-label="Action labels" hidden>
       <ul class="pamphlet-header-menu-tray__labels">
-        <li>Open · New · Copy existing · Save · Print</li>
+		<li>Open · New · Copy existing · Save · Print</li>
+        <li>Print: blanco y negro or azul #00368c</li>
         <li>Desktop / Mobile view</li>
         <li>Template type (simple / structured images)</li>
         <li>Static footer profiles (copy or link)</li>
@@ -168,6 +169,20 @@ export function renderShell(_menuIconSrc?: string): string {
     <p class="create-modal-hint" id="create-save-cloud-hint" hidden>Sign in to save to the cloud.</p>
     <div class="create-modal-actions">
       <button type="button" id="create-save-cancel">Cancel</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="print-ink-modal" class="create-modal">
+  <div class="create-modal-form">
+    <h2>Imprimir panfleto</h2>
+    <p class="create-modal-hint">Elige el color de tinta del PDF. La geometría es la misma en ambas opciones.</p>
+    <div class="item-type-options">
+      <button type="button" id="print-ink-black">Blanco y negro</button>
+      <button type="button" id="print-ink-blue" title="#00368c">Azul #00368c</button>
+    </div>
+    <div class="create-modal-actions">
+      <button type="button" id="print-ink-cancel">Cancel</button>
     </div>
   </div>
 </dialog>

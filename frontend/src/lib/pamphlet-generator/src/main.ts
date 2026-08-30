@@ -126,6 +126,10 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const createSaveCloudBtn = requireElement<HTMLButtonElement>("#create-save-cloud");
     const createSaveCloudHint = requireElement<HTMLElement>("#create-save-cloud-hint");
     const createSaveCancelBtn = requireElement<HTMLButtonElement>("#create-save-cancel");
+    const printInkModal = requireElement<HTMLDialogElement>("#print-ink-modal");
+    const printInkBlackBtn = requireElement<HTMLButtonElement>("#print-ink-black");
+    const printInkBlueBtn = requireElement<HTMLButtonElement>("#print-ink-blue");
+    const printInkCancelBtn = requireElement<HTMLButtonElement>("#print-ink-cancel");
     const openSourceModal = requireElement<HTMLDialogElement>("#open-source-modal");
     const openSourceLocalBtn = requireElement<HTMLButtonElement>("#open-source-local");
     const openSourceCloudBtn = requireElement<HTMLButtonElement>("#open-source-cloud");
@@ -387,7 +391,7 @@ async function ensurePamphletImagesAreJpeg(doc: PamphletStructure): Promise<void
     }
 }
 
-async function printDocument(): Promise<void> {
+async function printDocument(inkColor: "black" | "blue" = "black"): Promise<void> {
     if (printBtn.disabled) return;
     if (!currentDoc) {
         setStatus("Abre o crea un panfleto antes de imprimir.", "error");
@@ -420,6 +424,7 @@ async function printDocument(): Promise<void> {
             ...live,
             header_layout: PAMPHLET_HEADER_LAYOUT_MM,
             footer_layout: PAMPHLET_FOOTER_LAYOUT_MM,
+            ink_color: inkColor,
         };
         const correlationId = createCorrelationId();
         const res = await fetch(DOCUMENT_ROUTES.pamphletPdf, {
@@ -445,6 +450,7 @@ async function printDocument(): Promise<void> {
                     `PDF print failed (${res.status})`,
                     `correlation=${correlationId}`,
                     `type=${printPayload.type}`,
+                    `ink=${inkColor}`,
                     detail,
                 ].join("\n"),
             );
@@ -453,7 +459,10 @@ async function printDocument(): Promise<void> {
         const cd = res.headers.get("Content-Disposition") || "";
         const fromHeader = filenameFromContentDisposition(cd);
         const fromTitle = sanitizeDownloadFilename(currentDoc.header.title || "");
-        const filename = fromHeader || (fromTitle ? `${fromTitle}.pdf` : "panfleto.pdf");
+        const inkSuffix = inkColor === "blue" ? "-azul" : "";
+        const filename =
+            fromHeader ||
+            (fromTitle ? `${fromTitle}${inkSuffix}.pdf` : `panfleto${inkSuffix}.pdf`);
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -462,7 +471,10 @@ async function printDocument(): Promise<void> {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        setStatus("PDF descargado.", "success");
+        setStatus(
+            inkColor === "blue" ? "PDF azul (#00368c) descargado." : "PDF blanco y negro descargado.",
+            "success",
+        );
     } catch (err) {
         const message = err instanceof Error ? err.message : "No se pudo generar el PDF";
         setStatus(message, "error");
@@ -473,6 +485,24 @@ async function printDocument(): Promise<void> {
     } finally {
         endPrintDesktopLayout();
     }
+}
+
+function openPrintInkModal(): void {
+    if (printBtn.disabled) return;
+    if (!currentDoc) {
+        setStatus("Abre o crea un panfleto antes de imprimir.", "error");
+        return;
+    }
+    if (!getAuthToken() || !isAuthenticated()) {
+        setStatus("Sign in to generate the PDF.", "error");
+        return;
+    }
+    closeActivityTray();
+    printInkModal.showModal();
+}
+
+function closePrintInkModal(): void {
+    if (printInkModal.open) printInkModal.close();
 }
 
 const usLetterHeightInMillimeters = 215.9;
@@ -2383,7 +2413,25 @@ on(itemTypeModal, "cancel", () => {
 });
 
 on(printBtn, "click", () => {
-    void printDocument();
+    openPrintInkModal();
+});
+
+on(printInkBlackBtn, "click", () => {
+    closePrintInkModal();
+    void printDocument("black");
+});
+
+on(printInkBlueBtn, "click", () => {
+    closePrintInkModal();
+    void printDocument("blue");
+});
+
+on(printInkCancelBtn, "click", () => {
+    closePrintInkModal();
+});
+
+on(printInkModal, "cancel", () => {
+    // Escape closes the dialog; no print.
 });
 
 on(window, "beforeprint", () => {

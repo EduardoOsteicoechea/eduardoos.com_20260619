@@ -99,6 +99,38 @@ func TestPamphletPDFReturnsFullLandscapePDF(t *testing.T) {
 	}
 }
 
+func TestPamphletPDFAcceptsBlueInk(t *testing.T) {
+	secret := "doc-secret"
+	token, err := auth.IssueJWT("writer@example.com", secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := NewHandler(secret)
+	r := chi.NewRouter()
+	h.Routes(r)
+
+	body := `{
+		"type":"pamphlet_single_sheet",
+		"ink_color":"blue",
+		"header":{"title":"Azul","author":"Eduardo","series":"S","series_chapter":"1","date":"2026-08-30"},
+		"footer":{"action":"","message":"","label1":"WhatsApp","value1":"","label2":"Teléfono","value2":"","label3":"Dirección","value3":"","label4":"Actividades","value4":""},
+		"column_1":[{"type":"paragraph","content":"Texto azul."}],
+		"column_2":[],"column_3":[],"column_4":[],"column_5":[],"column_6":[],"column_7":[],"column_8":[]
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/documents/pamphlet/pdf", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	raw := rec.Body.String()
+	if !strings.Contains(raw, "0.000 0.212 0.549 rg") {
+		t.Fatal("expected blue ink fill in PDF stream")
+	}
+}
+
 func TestPamphletPDFRejectsBadType(t *testing.T) {
 	secret := "doc-secret"
 	token, err := auth.IssueJWT("writer@example.com", secret)

@@ -669,6 +669,35 @@ func TestEmptyStructuredLeadHasNoImagenLabelOrBlackMatte(t *testing.T) {
 	}
 }
 
+func TestBuildPamphletPDFBlueInkUses00368c(t *testing.T) {
+	black := BuildPamphletPDF(PamphletDocument{
+		Type:     "pamphlet_single_sheet",
+		InkColor: "black",
+		Header:   PamphletHeader{Title: "Tinta"},
+		Column1:  []PamphletItem{{Type: "paragraph", Content: "Hola"}},
+	})
+	blue := BuildPamphletPDF(PamphletDocument{
+		Type:     "pamphlet_single_sheet",
+		InkColor: "blue",
+		Header:   PamphletHeader{Title: "Tinta"},
+		Column1:  []PamphletItem{{Type: "paragraph", Content: "Hola"}},
+	})
+	bs := string(blue)
+	if !strings.Contains(bs, "0.000 0.212 0.549 rg") {
+		t.Fatalf("blue ink missing fill operator for #00368c")
+	}
+	if !strings.Contains(bs, "0.000 0.212 0.549 RG") {
+		t.Fatalf("blue ink missing stroke operator for #00368c")
+	}
+	// Gray meta hierarchy stays gray.
+	if !strings.Contains(bs, "0.4 0.4 0.4") {
+		t.Fatalf("blue mode should keep gray meta operators")
+	}
+	if string(black) == bs {
+		t.Fatalf("blue PDF should differ from black PDF")
+	}
+}
+
 func TestDrawImageAppliesPanDownOffset(t *testing.T) {
 	dataURL := tinyJPEGDataURL(t)
 	base := BuildPamphletPDF(PamphletDocument{

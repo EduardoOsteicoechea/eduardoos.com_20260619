@@ -105,8 +105,8 @@ func (h *Handler) PamphletPDF(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	log.Printf("[correlation=%s] documents.pamphlet_pdf render type=%q title=%q cols=%v images=%d headerLayout=%v footerLayout=%v",
-		cid, t, strings.TrimSpace(doc.Header.Title), colCounts, imageItems,
+	log.Printf("[correlation=%s] documents.pamphlet_pdf render type=%q title=%q ink=%q cols=%v images=%d headerLayout=%v footerLayout=%v",
+		cid, t, strings.TrimSpace(doc.Header.Title), strings.TrimSpace(doc.InkColor), colCounts, imageItems,
 		doc.HeaderLayout != (pdf.PamphletHeaderLayout{}),
 		doc.FooterLayout != (pdf.PamphletFooterLayout{}))
 

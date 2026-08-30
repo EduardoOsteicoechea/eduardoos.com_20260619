@@ -76,14 +76,53 @@ type PamphletDocument struct {
 	Footer       PamphletFooter       `json:"footer"`
 	HeaderLayout PamphletHeaderLayout `json:"header_layout,omitempty"`
 	FooterLayout PamphletFooterLayout `json:"footer_layout,omitempty"`
-	Column1      []PamphletItem       `json:"column_1"`
-	Column2      []PamphletItem       `json:"column_2"`
-	Column3      []PamphletItem       `json:"column_3"`
-	Column4      []PamphletItem       `json:"column_4"`
-	Column5      []PamphletItem       `json:"column_5"`
-	Column6      []PamphletItem       `json:"column_6"`
-	Column7      []PamphletItem       `json:"column_7"`
-	Column8      []PamphletItem       `json:"column_8"`
+	// InkColor selects primary PDF ink: ""/"black" (default) or "blue" (#00368c).
+	// Gray meta rules stay gray; embedded photos are unchanged.
+	InkColor string         `json:"ink_color,omitempty"`
+	Column1  []PamphletItem `json:"column_1"`
+	Column2  []PamphletItem `json:"column_2"`
+	Column3  []PamphletItem `json:"column_3"`
+	Column4  []PamphletItem `json:"column_4"`
+	Column5  []PamphletItem `json:"column_5"`
+	Column6  []PamphletItem `json:"column_6"`
+	Column7  []PamphletItem `json:"column_7"`
+	Column8  []PamphletItem `json:"column_8"`
+}
+
+// pamphletInk is DeviceRGB operators for primary stroke/fill (spec 040).
+type pamphletInk struct {
+	Fill   string // e.g. "0 0 0 rg\n"
+	Stroke string // e.g. "0 0 0 RG\n"
+}
+
+// resolvePamphletInk maps ink_color from the print payload.
+// Blue is exact #00368c → RGB (0, 54, 140) / 255.
+func resolvePamphletInk(color string) pamphletInk {
+	switch strings.ToLower(strings.TrimSpace(color)) {
+	case "blue", "#00368c":
+		return pamphletInk{
+			Fill:   "0.000 0.212 0.549 rg\n",
+			Stroke: "0.000 0.212 0.549 RG\n",
+		}
+	default:
+		return pamphletInk{
+			Fill:   "0 0 0 rg\n",
+			Stroke: "0 0 0 RG\n",
+		}
+	}
+}
+
+// applyPamphletInk prefixes page content with the fill color (body/title text
+// never set a color operator — they inherit) and rewrites hardcoded black
+// stroke/fill operators. Gray (0.4 0.4 0.4) is left alone.
+func applyPamphletInk(content string, ink pamphletInk) string {
+	out := ink.Fill + content
+	if ink.Fill == "0 0 0 rg\n" {
+		return out
+	}
+	out = strings.ReplaceAll(out, "0 0 0 rg\n", ink.Fill)
+	out = strings.ReplaceAll(out, "0 0 0 RG\n", ink.Stroke)
+	return out
 }
 
 // PamphletHeaderLayout is the exact mm type/spacing from the frontend sheet CSS
@@ -270,8 +309,9 @@ func BuildPamphletPDF(doc PamphletDocument) []byte {
 		imgByContent[images[i].key] = &images[i]
 	}
 
-	content1 := buildPage1Content(doc, imgByContent)
-	content2 := buildPage2Content(doc, imgByContent)
+	ink := resolvePamphletInk(doc.InkColor)
+	content1 := applyPamphletInk(buildPage1Content(doc, imgByContent), ink)
+	content2 := applyPamphletInk(buildPage2Content(doc, imgByContent), ink)
 
 	resources := fmt.Sprintf("/Font << /F1 %d 0 R /F2 %d 0 R >>", f1, f2)
 	if xObjDecl.Len() > 0 {

@@ -135,6 +135,11 @@ export type PamphletStructure = {
      * Sent on print; not required in saved .epam files.
      */
     footer_layout?: PamphletFooterLayoutMm;
+    /**
+     * Print-only ink: "black" (default) or "blue" (#00368c). Spec 040.
+     * Not stored in .epam files.
+     */
+    ink_color?: "black" | "blue";
     last_edited_element: LastEditedElement;
 } & Record<ColumnKey, PamphletItem[]>;
 
