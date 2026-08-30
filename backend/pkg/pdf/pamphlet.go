@@ -57,12 +57,12 @@ const (
 	// Left-side cols 7–8 above footer: 195.9 − 6 − 29.8 (default layout.height)
 	PamphletPage1LeftColMm = 160.1
 	// Exact CSS type sizes on the sheet (defaults; print may override via header_layout).
-	pamphletTitleSizeMm = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band fits title + meta + rule
-	pamphletTitleLH     = 1.1
-	pamphletMetaSizeMm  = 2.5 // .pamphlet-header-meta-label { font-size: 2.5mm; line-height: 1.2 }
-	pamphletMetaLH      = 1.2
-	pamphletBodySizeMm  = 3.0 // paragraph { font-size: 3mm; line-height: 1.25 }
-	pamphletBodyLH      = 1.25
+	pamphletTitleSizeMm   = 6.75 // .pamphlet-header-title p — 1.35× of 5mm; band fits title + meta + rule
+	pamphletTitleLH       = 1.1
+	pamphletMetaSizeMm    = 2.5 // .pamphlet-header-meta-label { font-size: 2.5mm; line-height: 1.2 }
+	pamphletMetaLH        = 1.2
+	pamphletBodySizeMm    = 3.0 // paragraph { font-size: 3mm; line-height: 1.25 }
+	pamphletBodyLH        = 1.25
 	pamphletHeadingSizeMm = 4.25 // h1 { font-size: 4.25mm; line-height: 1.2 }
 	pamphletHeadingLH     = 1.2
 	pamphletBodySizePt    = 8.503937007874016 // 3mm
@@ -89,79 +89,79 @@ type PamphletDocument struct {
 // PamphletHeaderLayout is the exact mm type/spacing from the frontend sheet CSS
 // (PAMPHLET_HEADER_LAYOUT_MM). Print POSTs these; PDF must not invent sizes.
 type PamphletHeaderLayout struct {
-	Height              float64 `json:"height"`
-	BodyGutter          float64 `json:"body_gutter"`
-	Pad                 float64 `json:"pad"`
-	PadTop              float64 `json:"pad_top"`
-	PadBottom           float64 `json:"pad_bottom"`
-	PadX                float64 `json:"pad_x"`
-	Radius              float64 `json:"radius"`
-	Stroke              float64 `json:"stroke"`
-	InnerInset          float64 `json:"inner_inset"`
-	InnerStroke         float64 `json:"inner_stroke"`
-	InnerRadius         float64 `json:"inner_radius"`
-	TitleSize           float64 `json:"title_size"`
-	TitleLH             float64 `json:"title_lh"`
-	TitlePadBottom      float64 `json:"title_pad_bottom"`
-	TitleMetaGap        float64 `json:"title_meta_gap"`
-	DividerOuterStroke  float64 `json:"divider_outer_stroke"`
-	DividerGap          float64 `json:"divider_gap"`
-	DividerInnerStroke  float64 `json:"divider_inner_stroke"`
-	SubtitleSize        float64 `json:"subtitle_size"`
-	SubtitleLH          float64 `json:"subtitle_lh"`
-	SubtitlePadX        float64 `json:"subtitle_pad_x"`
-	SubtitlePadTop      float64 `json:"subtitle_pad_top"`
-	SubtitlePadY        float64 `json:"subtitle_pad_y"`
-	SubtitleMinH        float64 `json:"subtitle_min_h"`
-	MetaSize            float64 `json:"meta_size"`
-	MetaLH              float64 `json:"meta_lh"`
-	MetaRowGap          float64 `json:"meta_row_gap"`
-	MetaColGap          float64 `json:"meta_col_gap"`
-	MetaPadTop          float64 `json:"meta_pad_top"`
+	Height             float64 `json:"height"`
+	BodyGutter         float64 `json:"body_gutter"`
+	Pad                float64 `json:"pad"`
+	PadTop             float64 `json:"pad_top"`
+	PadBottom          float64 `json:"pad_bottom"`
+	PadX               float64 `json:"pad_x"`
+	Radius             float64 `json:"radius"`
+	Stroke             float64 `json:"stroke"`
+	InnerInset         float64 `json:"inner_inset"`
+	InnerStroke        float64 `json:"inner_stroke"`
+	InnerRadius        float64 `json:"inner_radius"`
+	TitleSize          float64 `json:"title_size"`
+	TitleLH            float64 `json:"title_lh"`
+	TitlePadBottom     float64 `json:"title_pad_bottom"`
+	TitleMetaGap       float64 `json:"title_meta_gap"`
+	DividerOuterStroke float64 `json:"divider_outer_stroke"`
+	DividerGap         float64 `json:"divider_gap"`
+	DividerInnerStroke float64 `json:"divider_inner_stroke"`
+	SubtitleSize       float64 `json:"subtitle_size"`
+	SubtitleLH         float64 `json:"subtitle_lh"`
+	SubtitlePadX       float64 `json:"subtitle_pad_x"`
+	SubtitlePadTop     float64 `json:"subtitle_pad_top"`
+	SubtitlePadY       float64 `json:"subtitle_pad_y"`
+	SubtitleMinH       float64 `json:"subtitle_min_h"`
+	MetaSize           float64 `json:"meta_size"`
+	MetaLH             float64 `json:"meta_lh"`
+	MetaRowGap         float64 `json:"meta_row_gap"`
+	MetaColGap         float64 `json:"meta_col_gap"`
+	MetaPadTop         float64 `json:"meta_pad_top"`
 }
 
 // PamphletFooterLayout is the exact mm chrome from the frontend sheet CSS
 // (PAMPHLET_FOOTER_LAYOUT_MM). Print POSTs these; PDF must not invent sizes.
 type PamphletFooterLayout struct {
-	Height               float64 `json:"height"`
-	Width                float64 `json:"width"`
-	Pad                  float64 `json:"pad"`
-	PadTop               float64 `json:"pad_top"`
-	PadBottom            float64 `json:"pad_bottom"`
-	Radius               float64 `json:"radius"`
-	Stroke               float64 `json:"stroke"`
-	InnerInset           float64 `json:"inner_inset"`
-	InnerStroke          float64 `json:"inner_stroke"`
-	InnerRadius          float64 `json:"inner_radius"`
-	ChromeGap            float64 `json:"chrome_gap"`
-	DividerOuterStroke   float64 `json:"divider_outer_stroke"`
-	DividerGap           float64 `json:"divider_gap"`
-	DividerInnerStroke   float64 `json:"divider_inner_stroke"`
-	ActionSize           float64 `json:"action_size"`
-	ActionLH             float64 `json:"action_lh"`
-	ActionPadX           float64 `json:"action_pad_x"`
-	ActionPadY           float64 `json:"action_pad_y"`
-	ActionMinH           float64 `json:"action_min_h"`
-	MessageSize          float64 `json:"message_size"`
-	MessageLH            float64 `json:"message_lh"`
-	MessagePadX          float64 `json:"message_pad_x"`
-	MessagePadTop        float64 `json:"message_pad_top"`
-	MessagePadBottom     float64 `json:"message_pad_bottom"`
-	MessagePadY          float64 `json:"message_pad_y"`
-	MessageMinH          float64 `json:"message_min_h"`
-	MetaGap              float64 `json:"meta_gap"`
-	MetaColGap           float64 `json:"meta_col_gap"`
-	MetaRowH             float64 `json:"meta_row_h"`
-	MetaLabel1RowH       float64 `json:"meta_label1_row_h"`
-	MetaLabel2RowH       float64 `json:"meta_label2_row_h"`
-	MetaLabel2PadTop     float64 `json:"meta_label2_pad_top"`
-	MetaValueRowH        float64 `json:"meta_value_row_h"`
-	MetaSize             float64 `json:"meta_size"`
-	MetaLH               float64 `json:"meta_lh"`
-	MetaPadX             float64 `json:"meta_pad_x"`
-	MetaPadY             float64 `json:"meta_pad_y"`
-	MetaValuePadY        float64 `json:"meta_value_pad_y"`
-	CellStroke           float64 `json:"cell_stroke"`
+	Height             float64 `json:"height"`
+	Width              float64 `json:"width"`
+	Pad                float64 `json:"pad"`
+	PadTop             float64 `json:"pad_top"`
+	PadBottom          float64 `json:"pad_bottom"`
+	Radius             float64 `json:"radius"`
+	Stroke             float64 `json:"stroke"`
+	InnerInset         float64 `json:"inner_inset"`
+	InnerStroke        float64 `json:"inner_stroke"`
+	InnerRadius        float64 `json:"inner_radius"`
+	ChromeGap          float64 `json:"chrome_gap"`
+	DividerOuterStroke float64 `json:"divider_outer_stroke"`
+	DividerGap         float64 `json:"divider_gap"`
+	DividerInnerStroke float64 `json:"divider_inner_stroke"`
+	ActionSize         float64 `json:"action_size"`
+	ActionLH           float64 `json:"action_lh"`
+	ActionPadX         float64 `json:"action_pad_x"`
+	ActionPadY         float64 `json:"action_pad_y"`
+	ActionMinH         float64 `json:"action_min_h"`
+	MessageSize        float64 `json:"message_size"`
+	MessageLH          float64 `json:"message_lh"`
+	MessagePadX        float64 `json:"message_pad_x"`
+	MessagePadTop      float64 `json:"message_pad_top"`
+	MessagePadBottom   float64 `json:"message_pad_bottom"`
+	MessagePadY        float64 `json:"message_pad_y"`
+	MessageMinH        float64 `json:"message_min_h"`
+	MetaGap            float64 `json:"meta_gap"`
+	MetaColGap         float64 `json:"meta_col_gap"`
+	MetaRowH           float64 `json:"meta_row_h"`
+	MetaLabel1RowH     float64 `json:"meta_label1_row_h"`
+	MetaLabel2RowH     float64 `json:"meta_label2_row_h"`
+	MetaLabel2PadTop   float64 `json:"meta_label2_pad_top"`
+	MetaValueRowH      float64 `json:"meta_value_row_h"`
+	MetaSize           float64 `json:"meta_size"`
+	MetaLH             float64 `json:"meta_lh"`
+	MetaPadX           float64 `json:"meta_pad_x"`
+	MetaPadY           float64 `json:"meta_pad_y"`
+	MetaValuePadY      float64 `json:"meta_value_pad_y"`
+	CellStroke         float64 `json:"cell_stroke"`
 	// Legacy: older clients sent action_message_gap; ignored when divider_* present.
 	ActionMessageGap float64 `json:"action_message_gap"`
 }
@@ -819,9 +819,9 @@ func normalizeFooterLayout(l PamphletFooterLayout) PamphletFooterLayout {
 		return def
 	}
 	return PamphletFooterLayout{
-		Height:             pick(l.Height, d.Height),
-		Width:              pick(l.Width, d.Width),
-		Pad:                pick(l.Pad, d.Pad),
+		Height: pick(l.Height, d.Height),
+		Width:  pick(l.Width, d.Width),
+		Pad:    pick(l.Pad, d.Pad),
 		PadTop: func() float64 {
 			if l.PadTop > 0 {
 				return l.PadTop
@@ -859,9 +859,9 @@ func normalizeFooterLayout(l PamphletFooterLayout) PamphletFooterLayout {
 		ActionPadX:         pick(l.ActionPadX, d.ActionPadX),
 		ActionPadY:         pick(l.ActionPadY, d.ActionPadY),
 		ActionMinH:         pick(l.ActionMinH, d.ActionMinH),
-		MessageSize: pick(l.MessageSize, d.MessageSize),
-		MessageLH:   pick(l.MessageLH, d.MessageLH),
-		MessagePadX: pick(l.MessagePadX, d.MessagePadX),
+		MessageSize:        pick(l.MessageSize, d.MessageSize),
+		MessageLH:          pick(l.MessageLH, d.MessageLH),
+		MessagePadX:        pick(l.MessagePadX, d.MessagePadX),
 		MessagePadTop: func() float64 {
 			if l.MessagePadTop > 0 {
 				return l.MessagePadTop
@@ -882,21 +882,21 @@ func normalizeFooterLayout(l PamphletFooterLayout) PamphletFooterLayout {
 			}
 			return pick(l.MessagePadY, d.MessagePadBottom)
 		}(),
-		MessagePadY: pick(l.MessagePadY, d.MessagePadY),
-		MessageMinH: pick(l.MessageMinH, d.MessageMinH),
-		MetaGap:            pick(l.MetaGap, d.MetaGap),
-		MetaColGap:         pick(l.MetaColGap, d.MetaColGap),
-		MetaRowH:           pick(l.MetaRowH, d.MetaRowH),
-		MetaLabel1RowH:     pick(l.MetaLabel1RowH, d.MetaLabel1RowH),
-		MetaLabel2RowH:     pick(l.MetaLabel2RowH, d.MetaLabel2RowH),
-		MetaLabel2PadTop:   pick(l.MetaLabel2PadTop, d.MetaLabel2PadTop),
-		MetaValueRowH:      pick(l.MetaValueRowH, d.MetaValueRowH),
-		MetaSize:           pick(l.MetaSize, d.MetaSize),
-		MetaLH:             pick(l.MetaLH, d.MetaLH),
-		MetaPadX:           pick(l.MetaPadX, d.MetaPadX),
-		MetaPadY:           pick(l.MetaPadY, d.MetaPadY),
-		MetaValuePadY:      pick(l.MetaValuePadY, d.MetaValuePadY),
-		CellStroke:         pick(l.CellStroke, d.CellStroke),
+		MessagePadY:      pick(l.MessagePadY, d.MessagePadY),
+		MessageMinH:      pick(l.MessageMinH, d.MessageMinH),
+		MetaGap:          pick(l.MetaGap, d.MetaGap),
+		MetaColGap:       pick(l.MetaColGap, d.MetaColGap),
+		MetaRowH:         pick(l.MetaRowH, d.MetaRowH),
+		MetaLabel1RowH:   pick(l.MetaLabel1RowH, d.MetaLabel1RowH),
+		MetaLabel2RowH:   pick(l.MetaLabel2RowH, d.MetaLabel2RowH),
+		MetaLabel2PadTop: pick(l.MetaLabel2PadTop, d.MetaLabel2PadTop),
+		MetaValueRowH:    pick(l.MetaValueRowH, d.MetaValueRowH),
+		MetaSize:         pick(l.MetaSize, d.MetaSize),
+		MetaLH:           pick(l.MetaLH, d.MetaLH),
+		MetaPadX:         pick(l.MetaPadX, d.MetaPadX),
+		MetaPadY:         pick(l.MetaPadY, d.MetaPadY),
+		MetaValuePadY:    pick(l.MetaValuePadY, d.MetaValuePadY),
+		CellStroke:       pick(l.CellStroke, d.CellStroke),
 	}
 }
 
@@ -1598,58 +1598,60 @@ func drawLeadDoubleBorder(s *strings.Builder, x, top, width, heightMm float64) {
 }
 
 func drawImageOrPlaceholder(s *strings.Builder, item PamphletItem, x, y, width, heightMm float64, images map[string]*pdfImage) {
+	img, ok := images[item.Content]
+	if !ok || img == nil || len(img.jpeg) == 0 {
+		// Empty / undecodable: draw nothing here (no fill, no "[imagen]" label).
+		// Structured leads get their thin double border from drawLeadDoubleBorder;
+		// stroking a second rect under that frame looked like a black matte.
+		return
+	}
+
 	bx := MmToPoints(x)
 	by := MmToPoints(y - heightMm)
 	bw := MmToPoints(width)
 	bh := MmToPoints(heightMm)
 
-	if img, ok := images[item.Content]; ok && img != nil && len(img.jpeg) > 0 {
-		// Fit image into the reserved frame (object-fit: cover → scale to fill, clip via clip rect).
-		// Optional pan/zoom from style_indexes (mirrors frontend):
-		//   [1][0] = offset_x_mm * 100 (+ right)
-		//   [1][1] = offset_y_mm * 100 (+ down in CSS; PDF y is inverted)
-		//   [2][0] = scale * 100 (100 = 1.0×)
-		s.WriteString("q\n")
-		s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re W n\n", bx, by, bw, bh))
-		iw, ih := float64(img.width), float64(img.height)
-		if iw < 1 {
-			iw = 1
-		}
-		if ih < 1 {
-			ih = 1
-		}
-		scale := bw / iw
-		if bh/ih > scale {
-			scale = bh / ih
-		}
-		zoom := 1.0
-		if len(item.StyleIndexes) > 2 && len(item.StyleIndexes[2]) > 0 && item.StyleIndexes[2][0] > 0 {
-			zoom = float64(item.StyleIndexes[2][0]) / 100.0
-			if zoom < 0.5 {
-				zoom = 0.5
-			}
-			if zoom > 3 {
-				zoom = 3
-			}
-		}
-		scale *= zoom
-		dw, dh := iw*scale, ih*scale
-		dx := bx + (bw-dw)/2
-		dy := by + (bh-dh)/2
-		if len(item.StyleIndexes) > 1 && len(item.StyleIndexes[1]) > 0 {
-			dx += MmToPoints(float64(item.StyleIndexes[1][0]) / 100.0)
-			if len(item.StyleIndexes[1]) > 1 {
-				// CSS +Y is down; PDF +Y is up → subtract.
-				dy -= MmToPoints(float64(item.StyleIndexes[1][1]) / 100.0)
-			}
-		}
-		s.WriteString(fmt.Sprintf("%.2f 0 0 %.2f %.2f %.2f cm /%s Do\n", dw, dh, dx, dy, img.name))
-		s.WriteString("Q\n")
-		return
+	// Fit image into the reserved frame (object-fit: cover → scale to fill, clip via clip rect).
+	// Optional pan/zoom from style_indexes (mirrors frontend):
+	//   [1][0] = offset_x_mm * 100 (+ right)
+	//   [1][1] = offset_y_mm * 100 (+ down in CSS; PDF y is inverted)
+	//   [2][0] = scale * 100 (100 = 1.0×)
+	s.WriteString("q\n")
+	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re W n\n", bx, by, bw, bh))
+	iw, ih := float64(img.width), float64(img.height)
+	if iw < 1 {
+		iw = 1
 	}
-
-	s.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re S\n", bx, by, bw, bh))
-	writeText(s, "F1", 7, x+1, y-4, width-2, "[imagen]")
+	if ih < 1 {
+		ih = 1
+	}
+	scale := bw / iw
+	if bh/ih > scale {
+		scale = bh / ih
+	}
+	zoom := 1.0
+	if len(item.StyleIndexes) > 2 && len(item.StyleIndexes[2]) > 0 && item.StyleIndexes[2][0] > 0 {
+		zoom = float64(item.StyleIndexes[2][0]) / 100.0
+		if zoom < 0.5 {
+			zoom = 0.5
+		}
+		if zoom > 3 {
+			zoom = 3
+		}
+	}
+	scale *= zoom
+	dw, dh := iw*scale, ih*scale
+	dx := bx + (bw-dw)/2
+	dy := by + (bh-dh)/2
+	if len(item.StyleIndexes) > 1 && len(item.StyleIndexes[1]) > 0 {
+		dx += MmToPoints(float64(item.StyleIndexes[1][0]) / 100.0)
+		if len(item.StyleIndexes[1]) > 1 {
+			// CSS +Y is down; PDF +Y is up → subtract.
+			dy -= MmToPoints(float64(item.StyleIndexes[1][1]) / 100.0)
+		}
+	}
+	s.WriteString(fmt.Sprintf("%.2f 0 0 %.2f %.2f %.2f cm /%s Do\n", dw, dh, dx, dy, img.name))
+	s.WriteString("Q\n")
 }
 
 func hasBold(item PamphletItem) bool {

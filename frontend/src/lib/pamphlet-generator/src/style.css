@@ -1244,7 +1244,8 @@
     overflow: hidden;
     position: relative;
     display: block;
-    background: color-mix(in srgb, var(--pamphlet-ink) 6%, var(--pamphlet-paper-bg));
+    /* Paper only — never a dark matte behind the frame (spec 039). */
+    background: transparent;
     flex: 0 0 auto;
 }
 
@@ -1272,6 +1273,13 @@
   border: var(--header-stroke, 0.2mm) solid var(--pamphlet-rule, var(--pamphlet-ink));
   border-radius: var(--header-radius, 1mm);
   position: relative;
+  background: transparent;
+}
+
+/* Empty lead / body image: hide src-less <img> so browsers do not paint broken-image chrome. */
+.pamphlet-image-frame .pamphlet-image:not([src]),
+.pamphlet-image-frame .pamphlet-image[src=""] {
+  display: none;
 }
 
 .pamphlet-app[data-pamphlet-type="pamphlet_structured_images"] .pamphlet-image-frame--lead::before {
@@ -1875,9 +1883,9 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  /* Tokens already follow html[data-theme]; keep image frame readable if OS dark without theme. */
+  /* Spec 039: keep empty frames transparent (no dark matte under the border). */
   .pamphlet-app[data-view-mode="mobile"] .pamphlet-image-frame {
-    background: color-mix(in srgb, var(--pamphlet-ink) 8%, var(--pamphlet-paper-bg));
+    background: transparent;
   }
 }
 

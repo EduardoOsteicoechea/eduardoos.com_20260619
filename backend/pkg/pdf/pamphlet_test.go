@@ -647,6 +647,28 @@ func TestBuildPamphletPDFEmbedsJPEG(t *testing.T) {
 	}
 }
 
+func TestEmptyStructuredLeadHasNoImagenLabelOrBlackMatte(t *testing.T) {
+	data := BuildPamphletPDF(PamphletDocument{
+		Type: "pamphlet_structured_images",
+		Header: PamphletHeader{
+			Title: "Sin imagen",
+		},
+		Column1: []PamphletItem{{
+			Type:     "image",
+			Content:  "",
+			HeightMm: 52,
+		}},
+	})
+	s := string(data)
+	if strings.Contains(s, "[imagen]") {
+		t.Fatalf("empty lead must not paint [imagen] label")
+	}
+	// Lead double border still strokes the frame (thin black rules, not a filled matte).
+	if !strings.Contains(s, " re ") && !strings.Contains(s, " m\n") {
+		t.Fatalf("expected lead border path operators in PDF")
+	}
+}
+
 func TestDrawImageAppliesPanDownOffset(t *testing.T) {
 	dataURL := tinyJPEGDataURL(t)
 	base := BuildPamphletPDF(PamphletDocument{
