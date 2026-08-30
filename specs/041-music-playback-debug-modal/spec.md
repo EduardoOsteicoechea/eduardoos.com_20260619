@@ -2,7 +2,7 @@
 
 ## Status
 
-Active (2026-08-30).
+Shipped (2026-08-30) — diagnosis only; root playback fix is a follow-up.
 
 ## Problem
 
@@ -35,10 +35,6 @@ Tracks on `/media/musica` still do not play after 038 (Range/MIME). Failures are
 - [x] Remote probe lines appear when `src` is `/api/media/file/...`.
 - [x] Blob/offline failures still open the modal (probe skipped with reason).
 - [x] `npm run build` green.
-
-## Status
-
-Shipped (2026-08-30) — diagnosis only; root playback fix is a follow-up.
 
 ## Affected paths
 
