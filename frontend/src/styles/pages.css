@@ -4,6 +4,18 @@
   padding: 1.5rem var(--page-inline-pad) 3rem;
 }
 
+/*
+ * eVoice desktop: same lateral inset as home (`--page-inline-pad`), full
+ * main-pane width — not a second centered 72rem column inside page-shell.
+ */
+.page-shell.page-shell--evoice {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 1.5rem var(--page-inline-pad, 15px) 3rem;
+  box-sizing: border-box;
+}
+
 .page-shell--wide {
   width: min(100%, 96rem);
   max-width: 100%;

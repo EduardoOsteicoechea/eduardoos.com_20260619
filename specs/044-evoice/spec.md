@@ -82,6 +82,7 @@ Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access 
 - **Docs list:** each row shows a per-file progress bar (from `job.files`) and a Generate button for that file only.
 - **Download:** each playlist track has a Download control that fetches the authenticated MP3 (`GET /api/evoice/file/.../audios/...`) and saves it locally (filename = object name). Optional “Download current” next to player actions is fine; no zip/bulk required.
 - Fit Eduardo OS plain CSS (component CSS file); ServiceGate wrapper.
+- **Desktop layout inset:** same lateral padding as home — `var(--page-inline-pad)` full-bleed in the main pane (not an extra centered narrow column with larger side gutters).
 - Admin: owner picker label **Admin only**; shows the full `/api/evoice/users` list (platform users + allowlist + S3), not only the signed-in admin.
 
 ### 6. Global menu icons
