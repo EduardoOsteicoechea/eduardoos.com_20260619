@@ -335,17 +335,19 @@ export function evoiceAudioPath(
   ownerSafe: string,
   project: string,
   name: string,
+  key?: string,
 ): string {
-  return EVOICE_ROUTES.file(ownerSafe, project, "audios", name);
+  return EVOICE_ROUTES.file(ownerSafe, project, "audios", name, key);
 }
 
 export async function fetchEvoiceAudioBlobUrl(
   ownerSafe: string,
   project: string,
   name: string,
+  key?: string,
 ): Promise<string> {
   const token = requireToken();
-  const path = evoiceAudioPath(ownerSafe, project, name);
+  const path = evoiceAudioPath(ownerSafe, project, name, key);
   const res = await fetch(path, {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
@@ -353,7 +355,7 @@ export async function fetchEvoiceAudioBlobUrl(
   if (!res.ok) {
     let body = "";
     try {
-      body = (await res.text()).slice(0, 300);
+      body = (await res.text()).slice(0, 400);
     } catch {
       /* ignore */
     }
@@ -370,8 +372,9 @@ export async function downloadEvoiceAudio(
   ownerSafe: string,
   project: string,
   name: string,
+  key?: string,
 ): Promise<void> {
-  const url = await fetchEvoiceAudioBlobUrl(ownerSafe, project, name);
+  const url = await fetchEvoiceAudioBlobUrl(ownerSafe, project, name, key);
   try {
     const a = document.createElement("a");
     a.href = url;

@@ -231,8 +231,13 @@ export const EVOICE_ROUTES = {
     `/api/evoice/jobs/${encodeURIComponent(jobId)}/stop`,
   jobResume: (jobId: string) =>
     `/api/evoice/jobs/${encodeURIComponent(jobId)}/resume`,
-  file: (ownerSafe: string, project: string, kind: "docs" | "audios", name: string) =>
-    `/api/evoice/file/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/${kind}?name=${encodeURIComponent(name)}`,
+  file: (ownerSafe: string, project: string, kind: "docs" | "audios", name: string, key?: string) => {
+    const base = `/api/evoice/file/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/${kind}`;
+    const q = new URLSearchParams();
+    q.set("name", name);
+    if (key) q.set("key", key);
+    return `${base}?${q.toString()}`;
+  },
 } as const;
 
 export const PLAYLIST_ROUTES = {

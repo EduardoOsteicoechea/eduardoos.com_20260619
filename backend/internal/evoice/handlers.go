@@ -2,6 +2,7 @@
 package evoice
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -296,6 +297,10 @@ func (h *Handler) listKind(w http.ResponseWriter, r *http.Request, kind string) 
 		if name == "" || name == ".keep" || strings.Contains(name, "/") {
 			continue
 		}
+		// Skip empty phantom objects (cannot play / often leftover markers).
+		if kind == "audios" && o.Size <= 0 {
+			continue
+		}
 		meta := ObjectMeta{
 			Name: name,
 			Key:  o.Key,
@@ -439,6 +444,60 @@ func fileNameFromRequest(r *http.Request) string {
 	return sanitizeFileName(strings.TrimPrefix(chi.URLParam(r, "*"), "/"))
 }
 
+// resolveObjectKey picks S3 key from ?key= (trusted after ACL) or constructs from name.
+func (h *Handler) resolveObjectKey(r *http.Request, owner, project, kind, name string) (string, error) {
+	rawKey := strings.TrimSpace(r.URL.Query().Get("key"))
+	if rawKey != "" {
+		rawKey = strings.TrimPrefix(rawKey, "/")
+		if !strings.HasPrefix(rawKey, RootPrefix+"/") {
+			return "", fmt.Errorf("invalid key")
+		}
+		// Must live under this owner's project kind prefix.
+		wantPrefix := DocsPrefix(owner, project) + "/"
+		if kind == "audios" {
+			wantPrefix = AudiosPrefix(owner, project) + "/"
+		}
+		if !strings.HasPrefix(rawKey, wantPrefix) {
+			return "", fmt.Errorf("key outside project")
+		}
+		base := strings.TrimPrefix(rawKey, wantPrefix)
+		if base == "" || strings.Contains(base, "/") || !ValidFileName(base) {
+			return "", fmt.Errorf("invalid key basename")
+		}
+		return rawKey, nil
+	}
+	if kind == "docs" {
+		return DocKey(owner, project, name), nil
+	}
+	return AudioKey(owner, project, name), nil
+}
+
+func (h *Handler) findKeyByBasename(ctx context.Context, owner, project, kind, name, cid string) string {
+	prefix := DocsPrefix(owner, project) + "/"
+	if kind == "audios" {
+		prefix = AudiosPrefix(owner, project) + "/"
+	}
+	objs, err := h.Objects.ListObjects(ctx, prefix, cid)
+	if err != nil {
+		return ""
+	}
+	want := strings.ToLower(strings.TrimSpace(name))
+	var soft string
+	for _, o := range objs {
+		base := strings.TrimPrefix(o.Key, prefix)
+		if base == "" || strings.Contains(base, "/") {
+			continue
+		}
+		if base == name {
+			return o.Key
+		}
+		if soft == "" && strings.EqualFold(base, want) {
+			soft = o.Key
+		}
+	}
+	return soft
+}
+
 // DeleteDoc removes one document from docs/.
 func (h *Handler) DeleteDoc(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
@@ -490,7 +549,7 @@ func (h *Handler) DeleteAudio(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetFile streams a docs/ or audios/ object (supports Range for audio seek).
-// Prefer ?name= so basenames with spaces/parens never break the path (spec 044).
+// Prefer ?key= (exact list key) or ?name=; recover via prefix list on miss (spec 044).
 func (h *Handler) GetFile(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	caller := auth.UserEmailFromRequest(r)
@@ -498,7 +557,16 @@ func (h *Handler) GetFile(w http.ResponseWriter, r *http.Request) {
 	project := chi.URLParam(r, "project")
 	kind := chi.URLParam(r, "kind")
 	name := fileNameFromRequest(r)
-	if !ValidProjectName(project) || !ValidFileName(name) || (kind != "docs" && kind != "audios") {
+	if name == "" {
+		if k := strings.TrimSpace(r.URL.Query().Get("key")); k != "" {
+			name = sanitizeFileName(path.Base(k))
+		}
+	}
+	if !ValidProjectName(project) || (kind != "docs" && kind != "audios") {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid path")
+		return
+	}
+	if name != "" && !ValidFileName(name) && strings.TrimSpace(r.URL.Query().Get("key")) == "" {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid path")
 		return
 	}
@@ -506,18 +574,28 @@ func (h *Handler) GetFile(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusForbidden, "forbidden")
 		return
 	}
-	var key string
-	if kind == "docs" {
-		key = DocKey(owner, project, name)
-	} else {
-		key = AudioKey(owner, project, name)
+	key, err := h.resolveObjectKey(r, owner, project, kind, name)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 	rangeHdr := strings.TrimSpace(r.Header.Get("Range"))
 	body, ct, length, contentRange, err := h.Objects.OpenStream(r.Context(), key, rangeHdr, cid)
+	if err != nil && (isNotFound(err) || strings.Contains(strings.ToLower(err.Error()), "not found")) {
+		if recovered := h.findKeyByBasename(r.Context(), owner, project, kind, name, cid); recovered != "" && recovered != key {
+			log.Printf("[correlation=%s] evoice.file recover key=%s → %s", cid, key, recovered)
+			key = recovered
+			body, ct, length, contentRange, err = h.Objects.OpenStream(r.Context(), key, rangeHdr, cid)
+		}
+	}
 	if err != nil {
 		if isNotFound(err) || strings.Contains(strings.ToLower(err.Error()), "not found") {
 			log.Printf("[correlation=%s] evoice.file not found key=%s name=%q", cid, key, name)
-			httpx.WriteError(w, http.StatusNotFound, "file not found")
+			httpx.WriteJSON(w, http.StatusNotFound, map[string]any{
+				"error": "file not found",
+				"key":   key,
+				"name":  name,
+			})
 			return
 		}
 		log.Printf("[correlation=%s] evoice.file: %v key=%s", cid, err, key)

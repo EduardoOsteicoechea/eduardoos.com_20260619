@@ -48,11 +48,11 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 
 ### Audio fetch (names with spaces / parentheses)
 - **Canonical:** `GET|HEAD /api/evoice/file/{ownerSafe}/{project}/{kind}?name=<basename>`  
-  Basename is a query param so nginx/chi never split on spaces or mis-handle `()`.
-- **Legacy fallback:** path wildcard `…/{kind}/*` still accepted.
-- Delete doc/audio: `DELETE …/docs?name=` and `DELETE …/audios?name=` (path `/*` fallback kept).
-- Client always builds `?name=` with `encodeURIComponent`.
-- Unit test: fetch via query param for `2 Libro … (1).mp3`.
+  and/or **`?key=<full evoice/… key>`** from list metadata (preferred when the client has it — avoids any basename/key drift).
+- Basename-only fallback: if `?name=` GetObject misses, list the kind prefix and open the first object whose basename equals `name` (exact, then case-insensitive).
+- Delete: `DELETE …/docs?name=` / `…/audios?name=` (path `/*` fallback kept).
+- Client: playlist/play/download pass `object.key` when available; error modal includes resolved key.
+- Unit tests: query `name`, query `key`, and list-recovery after casing mismatch.
 
 ### Existing (still required)
 - Admin owner sticky; paste text docs; per-file generate; delete doc/audio; job S3 snapshots; stop/resume; Console logs; home lateral pad.

@@ -213,7 +213,12 @@ function EvoiceWorkspace() {
       const track = audios[trackIndex];
       if (!track || !ownerSafe || !project || !getAuthToken()) return;
       try {
-        const url = await fetchEvoiceAudioBlobUrl(ownerSafe, project, track.name);
+        const url = await fetchEvoiceAudioBlobUrl(
+          ownerSafe,
+          project,
+          track.name,
+          track.key,
+        );
         if (revoked) {
           URL.revokeObjectURL(url);
           return;
@@ -222,6 +227,8 @@ function EvoiceWorkspace() {
         setBlobUrl(url);
       } catch (e) {
         showError("Audio fetch", e instanceof Error ? e.message : "Could not load audio");
+        // Drop ghost playlist entries that S3 no longer has.
+        void reloadDocsAudios(ownerSafe, project);
       }
     })();
     return () => {
@@ -565,10 +572,10 @@ function EvoiceWorkspace() {
     if (trackIndex < audios.length - 1) setTrackIndex((i) => i + 1);
   }
 
-  async function onDownload(name: string) {
+  async function onDownload(name: string, key?: string) {
     if (!ownerSafe || !project || busy) return;
     try {
-      await downloadEvoiceAudio(ownerSafe, project, name);
+      await downloadEvoiceAudio(ownerSafe, project, name, key);
     } catch (e) {
       showError("Download", e instanceof Error ? e.message : "Download failed");
     }
@@ -831,7 +838,7 @@ function EvoiceWorkspace() {
                         <button
                           type="button"
                           className="btn"
-                          onClick={() => void onDownload(a.name)}
+                          onClick={() => void onDownload(a.name, a.key)}
                           disabled={busy}
                         >
                           Download
@@ -871,7 +878,12 @@ function EvoiceWorkspace() {
                       <button
                         type="button"
                         className="btn btn--primary"
-                        onClick={() => void onDownload(audios[trackIndex].name)}
+                        onClick={() =>
+                          void onDownload(
+                            audios[trackIndex].name,
+                            audios[trackIndex].key,
+                          )
+                        }
                         disabled={busy}
                       >
                         Download

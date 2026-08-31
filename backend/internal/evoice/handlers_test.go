@@ -564,4 +564,14 @@ func TestGetFileWithSpacesAndParens(t *testing.T) {
 	if !bytes.Equal(rec.Body.Bytes(), []byte("ID3spaced")) {
 		t.Fatalf("query body=%q", rec.Body.Bytes())
 	}
+
+	keyURL := "/api/evoice/file/" + ownerSafe + "/" + project + "/audios?name=" +
+		url.QueryEscape(name) + "&key=" + url.QueryEscape(key)
+	req = httptest.NewRequest(http.MethodGet, keyURL, nil)
+	req.Header.Set("Authorization", authHdr)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get by key status=%d body=%s", rec.Code, rec.Body.String())
+	}
 }
