@@ -11,5 +11,6 @@ Feature 044: text-to-audio (eVoice) in Eduardo OS.
 - Premium checkbox → DeepSeek reasoning rewrite before TTS; `docs/<stem>.premium.txt`
 - Job death: UI waits `/health`, auto-resumes unfinished files; GET job loads S3 snapshot after restart
 - Convert progress: FILE/EXTRACT/PREMIUM/TTS/FFMPEG lines → per-file + overall progress
+- Stop generate + Resume unfinished files; DeepSeek premium uses SSE stream; weighted progress (std 80/10/10, premium 30/30/20+10+10)
 
 Spec: `specs/044-evoice/spec.md`

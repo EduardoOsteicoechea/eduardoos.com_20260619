@@ -227,6 +227,10 @@ export const EVOICE_ROUTES = {
   generate: (ownerSafe: string, project: string) =>
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/generate`,
   job: (jobId: string) => `/api/evoice/jobs/${encodeURIComponent(jobId)}`,
+  jobStop: (jobId: string) =>
+    `/api/evoice/jobs/${encodeURIComponent(jobId)}/stop`,
+  jobResume: (jobId: string) =>
+    `/api/evoice/jobs/${encodeURIComponent(jobId)}/resume`,
   file: (ownerSafe: string, project: string, kind: "docs" | "audios", name: string) =>
     `/api/evoice/file/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/${kind}/${encodeURIComponent(name)}`,
 } as const;

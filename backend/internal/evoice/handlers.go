@@ -62,6 +62,8 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Head("/api/evoice/file/{ownerSafe}/{project}/{kind}/{name}", h.GetFile)
 		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/generate", h.StartGenerate)
 		pr.Get("/api/evoice/jobs/{jobId}", h.GetJob)
+		pr.Post("/api/evoice/jobs/{jobId}/stop", h.StopJob)
+		pr.Post("/api/evoice/jobs/{jobId}/resume", h.ResumeJob)
 	})
 }
 
@@ -592,6 +594,71 @@ func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, job)
+}
+
+// StopJob cancels an in-flight generate and marks the job stopped.
+func (h *Handler) StopJob(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	caller := auth.UserEmailFromRequest(r)
+	jobID := chi.URLParam(r, "jobId")
+	if h.Jobs == nil {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "jobs unavailable")
+		return
+	}
+	job, ok := h.Jobs.GetOrLoad(r.Context(), h.Objects, jobID, cid)
+	if !ok {
+		httpx.WriteError(w, http.StatusNotFound, "job not found")
+		return
+	}
+	if !h.canAccessOwner(r, caller, job.Owner) {
+		httpx.WriteError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	stopped, ok := h.Jobs.Stop(r.Context(), h.Objects, jobID, cid)
+	if !ok {
+		httpx.WriteError(w, http.StatusNotFound, "job not found")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, stopped)
+}
+
+// ResumeJob starts a new generate for unfinished files from a stopped/failed job.
+func (h *Handler) ResumeJob(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	caller := auth.UserEmailFromRequest(r)
+	jobID := chi.URLParam(r, "jobId")
+	if h.Jobs == nil {
+		httpx.WriteError(w, http.StatusServiceUnavailable, "jobs unavailable")
+		return
+	}
+	job, ok := h.Jobs.GetOrLoad(r.Context(), h.Objects, jobID, cid)
+	if !ok {
+		httpx.WriteError(w, http.StatusNotFound, "job not found")
+		return
+	}
+	if !h.canAccessOwner(r, caller, job.Owner) {
+		httpx.WriteError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	if job.State == "queued" || job.State == "running" {
+		httpx.WriteError(w, http.StatusConflict, "job still running — stop it first")
+		return
+	}
+	files := ResumeFiles(job)
+	if len(files) == 0 && len(job.OnlyFiles) > 0 {
+		files = append([]string(nil), job.OnlyFiles...)
+	}
+	newID, err := h.Jobs.Start(r.Context(), h.Objects, job.Owner, job.Project, cid, files, job.Premium)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not resume job")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusAccepted, map[string]any{
+		"jobId":   newID,
+		"premium": job.Premium,
+		"files":   files,
+		"resumedFrom": jobID,
+	})
 }
 
 func s3WriteErrorMessage(err error, fallback string) string {

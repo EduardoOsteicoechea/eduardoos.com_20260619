@@ -30,7 +30,7 @@ export type EvoiceJobFile = {
 
 export type EvoiceJob = {
   id: string;
-  state: "queued" | "running" | "done" | "failed" | string;
+  state: "queued" | "running" | "done" | "failed" | "stopped" | string;
   ownerSafe: string;
   project: string;
   onlyFiles?: string[];
@@ -282,6 +282,42 @@ export async function fetchEvoiceJob(
     };
   }
   return { job: result.data ?? null, status: 200 };
+}
+
+export async function stopEvoiceJob(
+  jobId: string,
+): Promise<{ job: EvoiceJob | null; error?: string }> {
+  const result = await apiRequest<EvoiceJob>(EVOICE_ROUTES.jobStop(jobId), {
+    method: "POST",
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) {
+    return { job: null, error: formatApiError(result.error) };
+  }
+  return { job: result.data ?? null };
+}
+
+export async function resumeEvoiceJob(
+  jobId: string,
+): Promise<{ jobId: string; files?: string[]; premium?: boolean; error?: string }> {
+  const result = await apiRequest<{
+    jobId: string;
+    files?: string[];
+    premium?: boolean;
+  }>(EVOICE_ROUTES.jobResume(jobId), {
+    method: "POST",
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) {
+    return { jobId: "", error: formatApiError(result.error) };
+  }
+  return {
+    jobId: result.data?.jobId ?? "",
+    files: result.data?.files,
+    premium: result.data?.premium,
+  };
 }
 
 /** Lightweight backend liveness check used before auto-resume. */

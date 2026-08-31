@@ -27,7 +27,7 @@ type JobFileProgress struct {
 // JobStatus is the async generate job state exposed to the UI.
 type JobStatus struct {
 	ID          string            `json:"id"`
-	State       string            `json:"state"` // queued | running | done | failed
+	State       string            `json:"state"` // queued | running | done | failed | stopped
 	Owner       string            `json:"ownerSafe"`
 	Project     string            `json:"project"`
 	OnlyFiles   []string          `json:"onlyFiles,omitempty"`

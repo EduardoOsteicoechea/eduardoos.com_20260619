@@ -125,12 +125,13 @@ def load_doc_text(path: Path) -> str:
 
 
 def premium_optimize(text: str, name: str) -> str:
+    """DeepSeek chat completions with stream=true; emit PREMIUM progress as SSE chunks arrive."""
     key = (os.environ.get("DEEPSEEK_API_KEY") or "").strip()
     if not key:
         raise RuntimeError("DEEPSEEK_API_KEY not configured for premium")
     model = (os.environ.get("DEEPSEEK_MODEL_REASONING") or "deepseek-v4-pro").strip()
     base = (os.environ.get("DEEPSEEK_BASE_URL") or "https://api.deepseek.com").rstrip("/")
-    log(f"PREMIUM {name} pct=10 detail=deepseek_request model={model}")
+    log(f"PREMIUM {name} pct=5 detail=deepseek_stream_start model={model}")
     payload = {
         "model": model,
         "messages": [
@@ -138,6 +139,7 @@ def premium_optimize(text: str, name: str) -> str:
             {"role": "user", "content": text[:120000]},
         ],
         "temperature": 0.3,
+        "stream": True,
     }
     req = urllib.request.Request(
         f"{base}/chat/completions",
@@ -145,21 +147,49 @@ def premium_optimize(text: str, name: str) -> str:
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {key}",
+            "Accept": "text/event-stream",
         },
         method="POST",
     )
+    parts: list[str] = []
+    last_pct = 5
     try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            while True:
+                raw = resp.readline()
+                if not raw:
+                    break
+                line = raw.decode("utf-8", errors="replace").strip()
+                if not line:
+                    continue
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data)
+                except json.JSONDecodeError:
+                    continue
+                delta = (
+                    chunk.get("choices", [{}])[0]
+                    .get("delta", {})
+                    .get("content", "")
+                )
+                if not delta:
+                    continue
+                parts.append(delta)
+                n = sum(len(p) for p in parts)
+                # Map growing output length into 10–95 so the UI moves before completion.
+                pct = min(95, 10 + (n // 40))
+                if pct >= last_pct + 5 or (pct > last_pct and pct >= 90):
+                    last_pct = pct
+                    snippet = delta.replace("\n", " ")[:80]
+                    log(f"PREMIUM {name} pct={pct} detail=chars={n} {snippet}")
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:400]
         raise RuntimeError(f"deepseek HTTP {exc.code}: {detail}") from exc
-    content = (
-        body.get("choices", [{}])[0]
-        .get("message", {})
-        .get("content", "")
-        .strip()
-    )
+    content = "".join(parts).strip()
     if not content:
         raise RuntimeError("deepseek returned empty content")
     log(f"PREMIUM {name} pct=100 detail=optimized {len(text)}→{len(content)} chars")

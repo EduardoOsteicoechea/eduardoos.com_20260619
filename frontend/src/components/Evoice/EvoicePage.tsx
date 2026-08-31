@@ -25,7 +25,9 @@ import {
   fetchEvoiceProjects,
   fetchEvoiceUsers,
   pasteEvoiceDocText,
+  resumeEvoiceJob,
   startEvoiceGenerate,
+  stopEvoiceJob,
   uploadEvoiceDoc,
   type EvoiceJobFile,
   type EvoiceJobStep,
@@ -99,10 +101,13 @@ function EvoiceWorkspace() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [activeJobId, setActiveJobId] = useState("");
+  const [jobStopped, setJobStopped] = useState(false);
   const [trackIndex, setTrackIndex] = useState(0);
   const [blobUrl, setBlobUrl] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef("");
+  const stopRequestedRef = useRef(false);
   const projectRef = useRef(project);
   projectRef.current = project;
 
@@ -225,14 +230,17 @@ function EvoiceWorkspace() {
     proj: string,
     onlyFiles: string[] | undefined,
     usePremium: boolean,
-  ): Promise<void> {
-    let activeJobId = jobId;
+  ): Promise<"done" | "failed" | "stopped"> {
+    let activeId = jobId;
     let resumes = 0;
     for (;;) {
+      if (stopRequestedRef.current) {
+        return "stopped";
+      }
       await sleep(600);
       let jobRes: Awaited<ReturnType<typeof fetchEvoiceJob>>;
       try {
-        jobRes = await fetchEvoiceJob(activeJobId);
+        jobRes = await fetchEvoiceJob(activeId);
       } catch {
         jobRes = { job: null, error: "network error", status: 0 };
       }
@@ -243,19 +251,30 @@ function EvoiceWorkspace() {
         setProgress(
           typeof jobRes.job.progress === "number" ? jobRes.job.progress : 0,
         );
+        setActiveJobId(jobRes.job.id);
+        if (jobRes.job.state === "stopped") {
+          setJobStopped(true);
+          return "stopped";
+        }
         if (jobRes.job.state === "done" || jobRes.job.state === "failed") {
           if (jobRes.job.state === "failed") {
             setError(jobRes.job.error || "Generate failed");
-          } else if (jobRes.job.error) {
+            return "failed";
+          }
+          if (jobRes.job.error) {
             setError(jobRes.job.error);
           }
-          if (jobRes.job.state === "done") setProgress(100);
-          return;
+          setProgress(100);
+          setJobStopped(false);
+          return "done";
         }
         continue;
       }
 
       // Job missing (404) or unreachable — wait for health, then auto-resume unfinished files.
+      if (stopRequestedRef.current) {
+        return "stopped";
+      }
       const status = jobRes.status ?? 0;
       setLogs((prev) => [
         ...prev.slice(-400),
@@ -265,18 +284,22 @@ function EvoiceWorkspace() {
       ]);
       if (!(await waitUntilHealthy())) {
         setError("Backend unavailable; could not resume generate");
-        return;
+        return "failed";
+      }
+      if (stopRequestedRef.current) {
+        return "stopped";
       }
       const fresh = await reloadDocsAudios(owner, proj);
       const unfinished = docsNeedingAudio(fresh.docs, fresh.audios, onlyFiles);
       if (unfinished.length === 0) {
         setLogs((prev) => [...prev, "resume: all requested audios already present"]);
         setProgress(100);
-        return;
+        setJobStopped(false);
+        return "done";
       }
       if (resumes >= 8) {
         setError("Too many auto-resumes; stop and retry Generate manually");
-        return;
+        return "failed";
       }
       resumes += 1;
       setLogs((prev) => [
@@ -291,9 +314,10 @@ function EvoiceWorkspace() {
       );
       if (started.error || !started.jobId) {
         setError(started.error || "Could not resume generate");
-        return;
+        return "failed";
       }
-      activeJobId = started.jobId;
+      activeId = started.jobId;
+      setActiveJobId(activeId);
       setFileProgress(
         unfinished.map((name) => ({ name, state: "pending", progress: 0 })),
       );
@@ -383,6 +407,8 @@ function EvoiceWorkspace() {
     if (!ownerSafe || !project || busy) return;
     setBusy(true);
     setError("");
+    setJobStopped(false);
+    stopRequestedRef.current = false;
     setLogs(["starting…"]);
     setSteps([]);
     setFileProgress(
@@ -403,8 +429,74 @@ function EvoiceWorkspace() {
       setError(started.error || "Could not start generate");
       return;
     }
-    await pollUntilDone(started.jobId, ownerSafe, project, files, usePremium);
+    setActiveJobId(started.jobId);
+    const outcome = await pollUntilDone(
+      started.jobId,
+      ownerSafe,
+      project,
+      files,
+      usePremium,
+    );
     setBusy(false);
+    if (outcome === "stopped") {
+      setJobStopped(true);
+    }
+    await reloadDocsAudios(ownerSafe, project);
+  }
+
+  async function onStopGenerate() {
+    if (!activeJobId) return;
+    stopRequestedRef.current = true;
+    setLogs((prev) => [...prev, "stop: requesting cancel…"]);
+    const res = await stopEvoiceJob(activeJobId);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    if (res.job) {
+      setLogs(res.job.logs ?? []);
+      setSteps(res.job.steps ?? []);
+      setFileProgress(res.job.files ?? []);
+      setProgress(
+        typeof res.job.progress === "number" ? res.job.progress : progress,
+      );
+    }
+    setJobStopped(true);
+  }
+
+  async function onResumeGenerate() {
+    if (!ownerSafe || !project || busy || !activeJobId) return;
+    setBusy(true);
+    setError("");
+    setJobStopped(false);
+    stopRequestedRef.current = false;
+    setLogs((prev) => [...prev, "resume: continuing unfinished files…"]);
+    const resumed = await resumeEvoiceJob(activeJobId);
+    if (resumed.error || !resumed.jobId) {
+      setBusy(false);
+      setError(resumed.error || "Could not resume");
+      setJobStopped(true);
+      return;
+    }
+    setActiveJobId(resumed.jobId);
+    const files = resumed.files;
+    if (files?.length) {
+      setFileProgress(
+        files.map((name) => ({ name, state: "pending", progress: 0 })),
+      );
+    }
+    const usePremium = resumed.premium ?? premium;
+    const outcome = await pollUntilDone(
+      resumed.jobId,
+      ownerSafe,
+      project,
+      files,
+      usePremium,
+    );
+    setBusy(false);
+    if (outcome === "stopped") {
+      setJobStopped(true);
+    }
     await reloadDocsAudios(ownerSafe, project);
   }
 
@@ -424,7 +516,7 @@ function EvoiceWorkspace() {
   function pause() {
     audioRef.current?.pause();
   }
-  function stop() {
+  function stopPlayback() {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -545,6 +637,25 @@ function EvoiceWorkspace() {
               >
                 Generate all
               </button>
+              {busy ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void onStopGenerate()}
+                  disabled={!activeJobId}
+                >
+                  Stop generate
+                </button>
+              ) : null}
+              {!busy && jobStopped && activeJobId ? (
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={() => void onResumeGenerate()}
+                >
+                  Resume
+                </button>
+              ) : null}
             </div>
 
             <form className="evoice__paste" onSubmit={onPasteText}>
@@ -723,7 +834,7 @@ function EvoiceWorkspace() {
                     <button type="button" className="btn" onClick={pause}>
                       Pause
                     </button>
-                    <button type="button" className="btn" onClick={stop}>
+                    <button type="button" className="btn" onClick={stopPlayback}>
                       Stop
                     </button>
                     <button type="button" className="btn" onClick={next}>

@@ -407,3 +407,113 @@ func TestPasteDocAndJobSnapshotReload(t *testing.T) {
 		t.Fatalf("loaded snapshot unexpected: %+v", loaded)
 	}
 }
+
+func TestStopAndResumeHTTP(t *testing.T) {
+	users := auth.NewMemoryStore()
+	_ = users.PutUser(t.Context(), auth.User{
+		Email: "owner@example.com", PasswordHash: auth.HashPassword("x"), Verified: true,
+	})
+	h := NewHandler("evoice-secret", users)
+	h.Entitlements = payments.NewStore()
+	h.Entitlements.PutEntitlements("owner@example.com", payments.BuildEntitlements([]string{"evoice"}, "monthly", 1))
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	h.Jobs = NewJobStore(gateRunner{started: started, release: release})
+
+	r := chi.NewRouter()
+	h.Routes(r)
+	tok, _ := auth.IssueJWT("owner@example.com", "evoice-secret")
+	authHdr := "Bearer " + tok
+	ownerSafe := SafeEmailKey("owner@example.com")
+
+	body := bytes.NewBufferString(`{"name":"stopme"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/evoice/projects", body)
+	req.Header.Set("Authorization", authHdr)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create=%d %s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/evoice/projects/"+ownerSafe+"/stopme/docs/text",
+		bytes.NewBufferString(`{"text":"stop and resume me"}`))
+	req.Header.Set("Authorization", authHdr)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("paste=%d %s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/evoice/projects/"+ownerSafe+"/stopme/generate",
+		bytes.NewBufferString(`{"premium":true}`))
+	req.Header.Set("Authorization", authHdr)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("generate=%d %s", rec.Code, rec.Body.String())
+	}
+	var gen map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &gen)
+	jobID, _ := gen["jobId"].(string)
+
+	select {
+	case <-started:
+	case <-time.After(3 * time.Second):
+		t.Fatal("gate runner did not start")
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/evoice/jobs/"+jobID+"/stop", nil)
+	req.Header.Set("Authorization", authHdr)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stop=%d %s", rec.Code, rec.Body.String())
+	}
+	var stopped JobStatus
+	_ = json.Unmarshal(rec.Body.Bytes(), &stopped)
+	if stopped.State != "stopped" {
+		// Allow brief race until runJob observes cancel.
+		deadline := time.Now().Add(2 * time.Second)
+		for time.Now().Before(deadline) && stopped.State != "stopped" {
+			req = httptest.NewRequest(http.MethodGet, "/api/evoice/jobs/"+jobID, nil)
+			req.Header.Set("Authorization", authHdr)
+			rec = httptest.NewRecorder()
+			r.ServeHTTP(rec, req)
+			_ = json.Unmarshal(rec.Body.Bytes(), &stopped)
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+	if stopped.State != "stopped" {
+		t.Fatalf("want stopped got %s", stopped.State)
+	}
+	if len(stopped.Steps) < 7 {
+		t.Fatalf("premium steps missing: %d", len(stopped.Steps))
+	}
+
+	// Unblock original runner; swap to FakeRunner for resume convert.
+	close(release)
+	time.Sleep(50 * time.Millisecond)
+	h.Jobs = NewJobStore(FakeRunner{})
+	// Rehydrate stopped snapshot into new store via GetOrLoad path: put snapshot already in Objects.
+	req = httptest.NewRequest(http.MethodPost, "/api/evoice/jobs/"+jobID+"/resume", nil)
+	req.Header.Set("Authorization", authHdr)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("resume=%d %s", rec.Code, rec.Body.String())
+	}
+	var resumed map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &resumed)
+	newID, _ := resumed["jobId"].(string)
+	if newID == "" || newID == jobID {
+		t.Fatalf("expected new jobId, got %v", resumed)
+	}
+	if resumed["premium"] != true {
+		t.Fatalf("resume should keep premium: %v", resumed)
+	}
+	_ = waitJob(t, r, authHdr, newID)
+}

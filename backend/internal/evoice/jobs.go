@@ -16,14 +16,47 @@ import (
 	"github.com/google/uuid"
 )
 
-// Fixed generate plan (spec 044) — ids are stable for the UI checklist.
-var defaultJobPlan = []JobStep{
+// Fixed generate plans (spec 044) — weights differ for premium vs standard.
+var standardJobPlan = []JobStep{
 	{ID: "prepare", Label: "Prepare workdir", State: "pending"},
 	{ID: "download_docs", Label: "Download documents", State: "pending"},
 	{ID: "download_audios", Label: "Download existing audios", State: "pending"},
 	{ID: "convert", Label: "Convert docs → MP3", State: "pending"},
 	{ID: "upload", Label: "Upload audios to S3", State: "pending"},
 	{ID: "finalize", Label: "Finalize", State: "pending"},
+}
+
+var premiumJobPlan = []JobStep{
+	{ID: "prepare", Label: "Prepare workdir", State: "pending"},
+	{ID: "download_docs", Label: "Download documents", State: "pending"},
+	{ID: "download_audios", Label: "Download existing audios", State: "pending"},
+	{ID: "extract_speech", Label: "Convert to speech (extract)", State: "pending"},
+	{ID: "refine_deepseek", Label: "Refine with DeepSeek", State: "pending"},
+	{ID: "convert_audio", Label: "Convert to audio", State: "pending"},
+	{ID: "upload", Label: "Upload audios to S3", State: "pending"},
+	{ID: "finalize", Label: "Finalize", State: "pending"},
+}
+
+// stepWeights: non-premium convert=80 upload=10 rest=10; premium extract=30 refine=30 audio=20 upload=10 rest=10.
+func stepWeights(premium bool) map[string]int {
+	if premium {
+		return map[string]int{
+			"prepare": 2, "download_docs": 3, "download_audios": 3,
+			"extract_speech": 30, "refine_deepseek": 30, "convert_audio": 20,
+			"upload": 10, "finalize": 2,
+		}
+	}
+	return map[string]int{
+		"prepare": 2, "download_docs": 3, "download_audios": 3,
+		"convert": 80, "upload": 10, "finalize": 2,
+	}
+}
+
+func jobPlan(premium bool) []JobStep {
+	if premium {
+		return cloneJobSteps(premiumJobPlan)
+	}
+	return cloneJobSteps(standardJobPlan)
 }
 
 // JobRunner converts a synced local project docs/ → audios/.
@@ -72,6 +105,8 @@ func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, 
 		logFn("FILE " + name + " state=active")
 		logFn("EXTRACT " + name + " pct=50 detail=fake")
 		if premium {
+			logFn("PREMIUM " + name + " pct=20 detail=stream")
+			logFn("PREMIUM " + name + " pct=60 detail=stream")
 			logFn("PREMIUM " + name + " pct=100 detail=fake-optimized")
 			_ = os.WriteFile(filepath.Join(docsDir, stem+".premium.txt"), []byte("premium speech for "+name), 0o644)
 		}
@@ -242,9 +277,10 @@ func defaultWorkerScript() string {
 
 // JobStore tracks in-flight generate jobs and persists snapshots to ObjectSpace.
 type JobStore struct {
-	mu     sync.RWMutex
-	jobs   map[string]*JobStatus
-	runner JobRunner
+	mu      sync.RWMutex
+	jobs    map[string]*JobStatus
+	cancels map[string]context.CancelFunc
+	runner  JobRunner
 }
 
 // NewJobStore wires a runner (FakeRunner in tests; PythonRunner in prod).
@@ -252,7 +288,11 @@ func NewJobStore(runner JobRunner) *JobStore {
 	if runner == nil {
 		runner = resolveDefaultRunner()
 	}
-	return &JobStore{jobs: map[string]*JobStatus{}, runner: runner}
+	return &JobStore{
+		jobs:    map[string]*JobStatus{},
+		cancels: map[string]context.CancelFunc{},
+		runner:  runner,
+	}
 }
 
 func resolveDefaultRunner() JobRunner {
@@ -285,7 +325,6 @@ func cloneJobFiles(src []JobFileProgress) []JobFileProgress {
 }
 
 func newQueuedJob(id, ownerSafe, project string, onlyFiles []string, premium bool) *JobStatus {
-	steps := cloneJobSteps(defaultJobPlan)
 	only := append([]string(nil), onlyFiles...)
 	return &JobStatus{
 		ID:          id,
@@ -295,7 +334,7 @@ func newQueuedJob(id, ownerSafe, project string, onlyFiles []string, premium boo
 		OnlyFiles:   only,
 		Premium:     premium,
 		Logs:        []string{"queued"},
-		Steps:       steps,
+		Steps:       jobPlan(premium),
 		Files:       nil,
 		Progress:    0,
 		CurrentStep: "",
@@ -474,22 +513,38 @@ func (s *JobStore) updateFile(id, name, state string, progress int, detail strin
 	}
 }
 
+func isConvertStepID(id string) bool {
+	switch id {
+	case "convert", "extract_speech", "refine_deepseek", "convert_audio":
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *JobStore) activateStep(ctx context.Context, objects ObjectSpace, id, stepID, cid string) {
 	s.mu.Lock()
 	j, ok := s.jobs[id]
 	if ok {
 		found := false
+		enteringConvert := isConvertStepID(stepID)
 		for i := range j.Steps {
 			switch {
 			case j.Steps[i].ID == stepID:
 				j.Steps[i].State = "active"
 				j.CurrentStep = stepID
 				found = true
+			case enteringConvert && isConvertStepID(j.Steps[i].ID):
+				// Premium convert trio (and standard convert) share one progress band;
+				// switching EXTRACT→PREMIUM→TTS must not mark siblings fully done.
+				if j.Steps[i].State == "active" {
+					j.Steps[i].State = "pending"
+				}
 			case !found && (j.Steps[i].State == "pending" || j.Steps[i].State == "active"):
 				j.Steps[i].State = "done"
 			}
 		}
-		j.Progress = progressFromSteps(j.Steps)
+		j.Progress = weightedProgress(j.Premium, j.Steps, stepID, 0)
 	}
 	s.mu.Unlock()
 	if ok {
@@ -509,7 +564,7 @@ func (s *JobStore) completeStep(ctx context.Context, objects ObjectSpace, id, st
 		if j.CurrentStep == stepID {
 			j.CurrentStep = ""
 		}
-		j.Progress = progressFromSteps(j.Steps)
+		j.Progress = weightedProgress(j.Premium, j.Steps, "", 0)
 	}
 	s.mu.Unlock()
 	if ok {
@@ -529,7 +584,7 @@ func (s *JobStore) failStep(ctx context.Context, objects ObjectSpace, id, stepID
 		j.CurrentStep = ""
 		j.State = "failed"
 		j.Error = errMsg
-		j.Progress = progressFromSteps(j.Steps)
+		j.Progress = weightedProgress(j.Premium, j.Steps, "", 0)
 	}
 	s.mu.Unlock()
 	if ok {
@@ -537,6 +592,8 @@ func (s *JobStore) failStep(ctx context.Context, objects ObjectSpace, id, stepID
 	}
 }
 
+// setBandProgress sets overall progress inside the convert-related band(s).
+// done/total = completed files; filePct 0–100 within the current file's active phase.
 func (s *JobStore) setConvertProgress(id string, done, total int, filePct int) {
 	if total <= 0 {
 		return
@@ -547,35 +604,71 @@ func (s *JobStore) setConvertProgress(id string, done, total int, filePct int) {
 	if !ok {
 		return
 	}
-	stepWeight := 100 / len(j.Steps)
-	for i, st := range j.Steps {
-		if st.ID != "convert" {
-			continue
-		}
-		base := i * stepWeight
-		frac := (float64(done) + float64(filePct)/100.0) / float64(total)
-		if frac > 1 {
-			frac = 1
-		}
-		if frac < 0 {
-			frac = 0
-		}
-		j.Progress = base + int(frac*float64(stepWeight))
-		return
+	frac := (float64(done) + float64(filePct)/100.0) / float64(total)
+	if frac > 1 {
+		frac = 1
 	}
+	if frac < 0 {
+		frac = 0
+	}
+	active := j.CurrentStep
+	if active == "" {
+		if j.Premium {
+			active = "extract_speech"
+		} else {
+			active = "convert"
+		}
+	}
+	j.Progress = weightedProgress(j.Premium, j.Steps, active, frac)
 }
 
-func progressFromSteps(steps []JobStep) int {
-	if len(steps) == 0 {
-		return 0
+// weightedProgress: sum weights of done steps + frac of the active step.
+// Convert-related steps (convert / extract / refine / audio) share one 80% band:
+// while any of them is active, activeFrac applies to the full convert-band weight.
+func weightedProgress(premium bool, steps []JobStep, activeStepID string, activeFrac float64) int {
+	w := stepWeights(premium)
+	if activeFrac < 0 {
+		activeFrac = 0
 	}
-	done := 0
-	for _, st := range steps {
-		if st.State == "done" || st.State == "skipped" {
-			done++
+	if activeFrac > 1 {
+		activeFrac = 1
+	}
+	convertBand := 0
+	for id, wt := range w {
+		if isConvertStepID(id) {
+			convertBand += wt
 		}
 	}
-	return (done * 100) / len(steps)
+	sum := 0
+	convertActive := isConvertStepID(activeStepID)
+	for _, st := range steps {
+		wt := w[st.ID]
+		if isConvertStepID(st.ID) {
+			continue
+		}
+		switch {
+		case st.State == "done" || st.State == "skipped":
+			sum += wt
+		case st.ID == activeStepID:
+			sum += int(float64(wt) * activeFrac)
+		}
+	}
+	if convertActive {
+		sum += int(float64(convertBand) * activeFrac)
+	} else {
+		for _, st := range steps {
+			if !isConvertStepID(st.ID) {
+				continue
+			}
+			if st.State == "done" || st.State == "skipped" {
+				sum += w[st.ID]
+			}
+		}
+	}
+	if sum > 100 {
+		sum = 100
+	}
+	return sum
 }
 
 // Start enqueues an async generate. onlyFiles empty = all docs; else those basenames only.
@@ -588,13 +681,65 @@ func (s *JobStore) Start(ctx context.Context, objects ObjectSpace, ownerSafe, pr
 		}
 	}
 	id := uuid.NewString()
+	jobCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	s.mu.Lock()
 	s.jobs[id] = newQueuedJob(id, ownerSafe, project, cleaned, premium)
+	s.cancels[id] = cancel
 	s.mu.Unlock()
 	s.persistSnapshot(ctx, objects, id, cid)
 
-	go s.runJob(context.WithoutCancel(ctx), objects, id, ownerSafe, project, cid, cleaned, premium)
+	go s.runJob(jobCtx, objects, id, ownerSafe, project, cid, cleaned, premium)
 	return id, nil
+}
+
+// Stop cancels an in-flight job and marks it stopped (snapshot persisted).
+func (s *JobStore) Stop(ctx context.Context, objects ObjectSpace, id, cid string) (JobStatus, bool) {
+	s.mu.Lock()
+	cancel := s.cancels[id]
+	j, ok := s.jobs[id]
+	if ok && (j.State == "queued" || j.State == "running") {
+		j.State = "stopped"
+		j.Error = "stopped by user"
+		j.CurrentStep = ""
+		for i := range j.Steps {
+			if j.Steps[i].State == "active" {
+				j.Steps[i].State = "pending"
+			}
+		}
+	}
+	s.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	if !ok {
+		return JobStatus{}, false
+	}
+	s.persistSnapshot(ctx, objects, id, cid)
+	return s.Get(id)
+}
+
+// ResumeFiles returns basenames that still need generate after a stopped/failed job.
+func ResumeFiles(job JobStatus) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, f := range job.Files {
+		if f.State == "done" || f.State == "skipped" {
+			continue
+		}
+		if !seen[f.Name] {
+			seen[f.Name] = true
+			out = append(out, f.Name)
+		}
+	}
+	if len(out) == 0 {
+		for _, f := range job.OnlyFiles {
+			if !seen[f] {
+				seen[f] = true
+				out = append(out, f)
+			}
+		}
+	}
+	return out
 }
 
 func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSafe, project, cid string, onlyFiles []string, premium bool) {
@@ -617,6 +762,7 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	if err := os.MkdirAll(docsDir, 0o755); err != nil {
 		s.appendLog(ctx, objects, id, "prepare failed: "+err.Error(), cid)
 		s.failStep(ctx, objects, id, "prepare", err.Error(), cid)
+		s.clearCancel(id)
 		return
 	}
 	_ = os.MkdirAll(audiosDir, 0o755)
@@ -630,6 +776,7 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	}); err != nil {
 		s.appendLog(ctx, objects, id, "download docs failed: "+err.Error(), cid)
 		s.failStep(ctx, objects, id, "download_docs", err.Error(), cid)
+		s.clearCancel(id)
 		return
 	}
 	s.completeStep(ctx, objects, id, "download_docs", cid)
@@ -644,7 +791,11 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	targets := listConvertibleDocs(docsDir, onlyFiles)
 	s.initFiles(ctx, objects, id, targets, cid)
 
-	s.activateStep(ctx, objects, id, "convert", cid)
+	convertStep := "convert"
+	if premium {
+		convertStep = "extract_speech"
+	}
+	s.activateStep(ctx, objects, id, convertStep, cid)
 	s.appendLog(ctx, objects, id, "convert: starting TTS worker", cid)
 	jobCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
@@ -656,19 +807,38 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	docDone := 0
 	stats, err := s.runner.Run(jobCtx, projectDir, onlyFiles, premium, func(line string) {
 		s.appendLog(ctx, objects, id, line, cid)
-		s.applyConvertLogLine(ctx, objects, id, line, &docDone, docTotal, cid)
+		s.applyConvertLogLine(ctx, objects, id, line, &docDone, docTotal, cid, premium)
 	})
+	if ctx.Err() != nil {
+		s.appendLog(ctx, objects, id, "stopped: cancelled", cid)
+		s.mu.Lock()
+		if j, ok := s.jobs[id]; ok && j.State != "stopped" {
+			j.State = "stopped"
+			j.Error = "stopped by user"
+		}
+		delete(s.cancels, id)
+		s.mu.Unlock()
+		s.persistSnapshot(ctx, objects, id, cid)
+		return
+	}
 	usable := stats.Generated+stats.Skipped > 0 || countMP3(audiosDir) > 0
 	if err != nil && !usable {
 		s.appendLog(ctx, objects, id, "runner error: "+err.Error(), cid)
-		s.failStep(ctx, objects, id, "convert", err.Error(), cid)
+		s.failStep(ctx, objects, id, convertStep, err.Error(), cid)
 		s.setState(ctx, objects, id, "failed", err.Error(), cid, &stats)
+		s.clearCancel(id)
 		return
 	}
 	if err != nil {
 		s.appendLog(ctx, objects, id, "runner warning: "+err.Error()+" (continuing with partial results)", cid)
 	}
-	s.completeStep(ctx, objects, id, "convert", cid)
+	if premium {
+		s.completeStep(ctx, objects, id, "extract_speech", cid)
+		s.completeStep(ctx, objects, id, "refine_deepseek", cid)
+		s.completeStep(ctx, objects, id, "convert_audio", cid)
+	} else {
+		s.completeStep(ctx, objects, id, "convert", cid)
+	}
 
 	s.activateStep(ctx, objects, id, "upload", cid)
 	s.appendLog(ctx, objects, id, "upload: writing audios/*.mp3 (+ premium.txt) to S3", cid)
@@ -678,6 +848,7 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 		s.appendLog(ctx, objects, id, "upload list failed: "+err.Error(), cid)
 		s.failStep(ctx, objects, id, "upload", err.Error(), cid)
 		s.setState(ctx, objects, id, "failed", err.Error(), cid, &stats)
+		s.clearCancel(id)
 		return
 	}
 	for _, e := range entries {
@@ -698,6 +869,7 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 			s.appendLog(ctx, objects, id, "upload failed "+e.Name()+": "+err.Error(), cid)
 			s.failStep(ctx, objects, id, "upload", err.Error(), cid)
 			s.setState(ctx, objects, id, "failed", err.Error(), cid, &stats)
+			s.clearCancel(id)
 			return
 		}
 		s.appendLog(ctx, objects, id, "uploaded audios/"+e.Name(), cid)
@@ -730,6 +902,15 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 		final = "failed"
 	}
 	s.setState(ctx, objects, id, final, errMsg, cid, &stats)
+	s.clearCancel(id)
+}
+
+func (s *JobStore) clearCancel(id string) {
+	s.mu.Lock()
+	if c := s.cancels[id]; c != nil {
+		delete(s.cancels, id)
+	}
+	s.mu.Unlock()
 }
 
 func uploadAllowFrom(onlyFiles, targets []string) map[string]bool {
@@ -744,7 +925,7 @@ func uploadAllowFrom(onlyFiles, targets []string) map[string]bool {
 	return m
 }
 
-func (s *JobStore) applyConvertLogLine(ctx context.Context, objects ObjectSpace, id, line string, docDone *int, docTotal int, cid string) {
+func (s *JobStore) applyConvertLogLine(ctx context.Context, objects ObjectSpace, id, line string, docDone *int, docTotal int, cid string, premium bool) {
 	fields := strings.Fields(line)
 	if len(fields) == 0 {
 		return
@@ -771,6 +952,9 @@ func (s *JobStore) applyConvertLogLine(ctx context.Context, objects ObjectSpace,
 			*docDone++
 			s.setConvertProgress(id, *docDone, docTotal, 0)
 		default:
+			if premium {
+				s.activateStep(ctx, objects, id, "extract_speech", cid)
+			}
 			s.setConvertProgress(id, *docDone, docTotal, pct)
 		}
 		s.updateFile(id, name, state, pct, state)
@@ -785,15 +969,26 @@ func (s *JobStore) applyConvertLogLine(ctx context.Context, objects ObjectSpace,
 		if detail == "" {
 			detail = strings.ToLower(kind)
 		}
-		phaseBase := map[string]int{"EXTRACT": 10, "PREMIUM": 35, "TTS": 45, "FFMPEG": 90}[kind]
+		if premium {
+			switch kind {
+			case "EXTRACT":
+				s.activateStep(ctx, objects, id, "extract_speech", cid)
+			case "PREMIUM":
+				s.activateStep(ctx, objects, id, "refine_deepseek", cid)
+			case "TTS", "FFMPEG":
+				s.activateStep(ctx, objects, id, "convert_audio", cid)
+			}
+		}
+		// Map phase-local pct into file bar (extract ~0–37, refine ~37–75, audio ~75–99).
+		phaseBase := map[string]int{"EXTRACT": 0, "PREMIUM": 37, "TTS": 75, "FFMPEG": 90}[kind]
+		phaseSpan := map[string]int{"EXTRACT": 37, "PREMIUM": 38, "TTS": 15, "FFMPEG": 9}[kind]
 		if pct < 0 {
 			pct = 0
 		}
 		if pct > 100 {
 			pct = 100
 		}
-		// Map phase-local pct into roughly 10–99 within the file bar.
-		mapped := phaseBase + (pct * (100 - phaseBase) / 100)
+		mapped := phaseBase + (pct * phaseSpan / 100)
 		if mapped > 99 {
 			mapped = 99
 		}
