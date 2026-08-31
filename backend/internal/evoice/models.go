@@ -9,15 +9,25 @@ type ObjectMeta struct {
 	URL          string `json:"url,omitempty"`
 }
 
+// JobStep is one planned generate phase exposed to the UI checklist.
+type JobStep struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+	State string `json:"state"` // pending | active | done | failed | skipped
+}
+
 // JobStatus is the async generate job state exposed to the UI.
 type JobStatus struct {
-	ID      string   `json:"id"`
-	State   string   `json:"state"` // queued | running | done | failed
-	Owner   string   `json:"ownerSafe"`
-	Project string   `json:"project"`
-	Logs    []string `json:"logs"`
-	Error   string   `json:"error,omitempty"`
-	Stats   *JobStats `json:"stats,omitempty"`
+	ID          string     `json:"id"`
+	State       string     `json:"state"` // queued | running | done | failed
+	Owner       string     `json:"ownerSafe"`
+	Project     string     `json:"project"`
+	Logs        []string   `json:"logs"`
+	Steps       []JobStep  `json:"steps"`
+	Progress    int        `json:"progress"` // 0–100
+	CurrentStep string     `json:"currentStep,omitempty"`
+	Error       string     `json:"error,omitempty"`
+	Stats       *JobStats  `json:"stats,omitempty"`
 }
 
 // JobStats mirrors converter sync_project counters.

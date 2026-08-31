@@ -127,6 +127,12 @@ func TestEvoiceAPIFlow(t *testing.T) {
 	if job.State != "done" {
 		t.Fatalf("job state=%s err=%s logs=%v", job.State, job.Error, job.Logs)
 	}
+	if job.Progress != 100 {
+		t.Fatalf("progress=%d want 100 steps=%v", job.Progress, job.Steps)
+	}
+	if len(job.Steps) == 0 {
+		t.Fatal("expected planned steps")
+	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/evoice/projects/"+ownerSafe+"/smoke/audios", nil)
 	req.Header.Set("Authorization", authHdr)
@@ -155,5 +161,50 @@ func TestAllowlistBypass(t *testing.T) {
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("allowlist me status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAdminListUsersIncludesStoreAndAllowlist(t *testing.T) {
+	users := auth.NewMemoryStore()
+	_ = users.PutUser(t.Context(), auth.User{
+		Email: auth.AdminEmail, PasswordHash: auth.HashPassword("x"), Verified: true, Role: auth.RoleAdmin,
+	})
+	_ = users.PutUser(t.Context(), auth.User{
+		Email: "other@example.com", PasswordHash: auth.HashPassword("x"), Verified: true,
+	})
+	h := NewHandler("evoice-secret", users)
+	h.Entitlements = payments.NewStore()
+
+	r := chi.NewRouter()
+	h.Routes(r)
+	tok, err := auth.IssueJWT(auth.AdminEmail, "evoice-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/evoice/users", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("users status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string][]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, u := range body["users"] {
+		got[u] = true
+	}
+	want := []string{
+		SafeEmailKey(auth.AdminEmail),
+		SafeEmailKey("other@example.com"),
+		SafeEmailKey("eliasosteic@gmail.com"),
+		SafeEmailKey("laleskavf.2una@gmail.com"),
+	}
+	for _, w := range want {
+		if !got[w] {
+			t.Fatalf("missing %q in %v", w, body["users"])
+		}
 	}
 }

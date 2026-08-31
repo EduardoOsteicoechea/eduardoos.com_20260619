@@ -23,6 +23,7 @@ import {
   fetchEvoiceUsers,
   startEvoiceGenerate,
   uploadEvoiceDoc,
+  type EvoiceJobStep,
   type EvoiceObjectMeta,
 } from "../../lib/evoice";
 import { getAuthToken } from "../../lib/auth";
@@ -47,6 +48,8 @@ function EvoiceWorkspace() {
   const [docs, setDocs] = useState<EvoiceObjectMeta[]>([]);
   const [audios, setAudios] = useState<EvoiceObjectMeta[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
+  const [steps, setSteps] = useState<EvoiceJobStep[]>([]);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [trackIndex, setTrackIndex] = useState(0);
@@ -99,7 +102,10 @@ function EvoiceWorkspace() {
       setOwnerSafe(me.userSafe);
       if (me.isAdmin) {
         const u = await fetchEvoiceUsers();
-        if (!cancelled && !u.error) setUsers(u.users);
+        if (!cancelled && !u.error) {
+          const list = u.users.length ? u.users : [me.userSafe];
+          setUsers(list);
+        }
       }
       await reloadProjects(me.userSafe);
     })();
@@ -197,6 +203,8 @@ function EvoiceWorkspace() {
     setBusy(true);
     setError("");
     setLogs(["starting…"]);
+    setSteps([]);
+    setProgress(0);
     const started = await startEvoiceGenerate(ownerSafe, project);
     if (started.error || !started.jobId) {
       setBusy(false);
@@ -212,8 +220,11 @@ function EvoiceWorkspace() {
         break;
       }
       setLogs(job.logs ?? []);
+      setSteps(job.steps ?? []);
+      setProgress(typeof job.progress === "number" ? job.progress : 0);
       if (job.state === "done" || job.state === "failed") {
         if (job.state === "failed") setError(job.error || "Generate failed");
+        if (job.state === "done") setProgress(100);
         break;
       }
     }
@@ -262,7 +273,7 @@ function EvoiceWorkspace() {
               void reloadProjects(e.target.value);
             }}
           >
-            {[ownerSafe, ...users.filter((u) => u !== ownerSafe)].map((u) => (
+            {(users.length ? users : [ownerSafe]).map((u) => (
               <option key={u} value={u}>
                 {u}
               </option>
@@ -349,7 +360,35 @@ function EvoiceWorkspace() {
           </section>
 
           <section className="evoice__panel">
-            <h2>Generate log</h2>
+            <h2>Generate progress</h2>
+            <div
+              className="evoice__progress"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+              aria-label="Generate progress"
+            >
+              <div
+                className="evoice__progress-bar"
+                style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+              />
+            </div>
+            <p className="evoice__progress-label">{progress}%</p>
+            {steps.length > 0 ? (
+              <ol className="evoice__steps">
+                {steps.map((s) => (
+                  <li
+                    key={s.id}
+                    className={`evoice__step evoice__step--${s.state || "pending"}`}
+                  >
+                    <span className="evoice__step-state">{s.state}</span>
+                    <span className="evoice__step-label">{s.label}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            <h3 className="evoice__log-title">Log</h3>
             <pre className="evoice__log">{logs.join("\n") || "—"}</pre>
           </section>
 

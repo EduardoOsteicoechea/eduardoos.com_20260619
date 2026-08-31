@@ -6,5 +6,6 @@ Feature 044: text-to-audio (eVoice) in Eduardo OS.
 - S3 `evoice/{userSafe}/{project}/docs|audios` on `eduardoos20260607`
 - API `/api/evoice/*` + sandbox worker (`linux_sync.py`: Piper → espeak-ng → ffmpeg)
 - Page `/evoice` + tray link; Material Symbols icons on all global tray buttons
+- Follow-up: admin `/users` = UserStore ∪ allowlist ∪ S3; generate jobs expose `steps` + `progress` with live log stream + UI progress bar
 
 Spec: `specs/044-evoice/spec.md`

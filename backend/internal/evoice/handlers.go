@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
@@ -132,7 +133,8 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ListUsers lists all userSafe prefixes (admin only).
+// ListUsers lists owner candidates for the admin picker (spec 044):
+// all UserStore accounts as userSafe ∪ eVoice allowlist ∪ existing S3 prefixes.
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	email := auth.UserEmailFromRequest(r)
@@ -140,12 +142,39 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusForbidden, "admin only")
 		return
 	}
-	users, err := h.Objects.ListPrefixes(r.Context(), RootPrefix+"/", cid)
-	if err != nil {
-		log.Printf("[correlation=%s] evoice.users: %v", cid, err)
-		httpx.WriteError(w, http.StatusBadGateway, "could not list users")
-		return
+	seen := map[string]struct{}{}
+	add := func(safe string) {
+		safe = strings.TrimSpace(safe)
+		if safe == "" || safe == ".keep" {
+			return
+		}
+		seen[safe] = struct{}{}
 	}
+	if h.Users != nil {
+		if all, err := h.Users.ListUsers(r.Context()); err == nil {
+			for _, u := range all {
+				add(SafeEmailKey(u.Email))
+			}
+		} else {
+			log.Printf("[correlation=%s] evoice.users store: %v", cid, err)
+		}
+	}
+	for _, a := range payments.EvoiceAllowlistEmails {
+		add(SafeEmailKey(a))
+	}
+	add(SafeEmailKey(email))
+	if prefixes, err := h.Objects.ListPrefixes(r.Context(), RootPrefix+"/", cid); err == nil {
+		for _, p := range prefixes {
+			add(p)
+		}
+	} else {
+		log.Printf("[correlation=%s] evoice.users s3: %v", cid, err)
+	}
+	users := make([]string, 0, len(seen))
+	for u := range seen {
+		users = append(users, u)
+	}
+	sort.Strings(users)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"users": users})
 }
 

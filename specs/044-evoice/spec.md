@@ -96,8 +96,8 @@ Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access 
 - [x] API + tests (memory objects); generate job + playlist play URLs
 - [x] Page `/evoice` + tray link + Material icons on all tray buttons
 - [x] FE build; commit + push
-- [ ] Admin `/api/evoice/users` returns platform users ∪ allowlist ∪ S3 prefixes; owner dropdown shows more than the signed-in admin when other accounts exist
-- [ ] Generate job exposes `steps` + `progress` (0–100); UI shows progress bar + step list; logs stream during convert (not only at end)
+- [x] Admin `/api/evoice/users` returns platform users ∪ allowlist ∪ S3 prefixes; owner dropdown shows more than the signed-in admin when other accounts exist
+- [x] Generate job exposes `steps` + `progress` (0–100); UI shows progress bar + step list; logs stream during convert (not only at end)
 
 ## Affected paths
 - `specs/044-evoice/spec.md`

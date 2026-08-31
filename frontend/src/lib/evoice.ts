@@ -15,12 +15,21 @@ export type EvoiceObjectMeta = {
   url?: string;
 };
 
+export type EvoiceJobStep = {
+  id: string;
+  label: string;
+  state: "pending" | "active" | "done" | "failed" | "skipped" | string;
+};
+
 export type EvoiceJob = {
   id: string;
   state: "queued" | "running" | "done" | "failed" | string;
   ownerSafe: string;
   project: string;
   logs: string[];
+  steps?: EvoiceJobStep[];
+  progress?: number;
+  currentStep?: string;
   error?: string;
   stats?: {
     docs: number;
