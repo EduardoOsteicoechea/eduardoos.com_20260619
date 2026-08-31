@@ -14,6 +14,7 @@ import ServiceGate from "../ServiceGate/ServiceGate";
 import {
   createEvoiceProject,
   deleteEvoiceDoc,
+  downloadEvoiceAudio,
   fetchEvoiceAudioBlobUrl,
   fetchEvoiceAudios,
   fetchEvoiceDocs,
@@ -246,6 +247,16 @@ function EvoiceWorkspace() {
     if (trackIndex < audios.length - 1) setTrackIndex((i) => i + 1);
   }
 
+  async function onDownload(name: string) {
+    if (!ownerSafe || !project || busy) return;
+    setError("");
+    try {
+      await downloadEvoiceAudio(ownerSafe, project, name);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Download failed");
+    }
+  }
+
   return (
     <div className="evoice">
       <header className="evoice__head">
@@ -399,7 +410,7 @@ function EvoiceWorkspace() {
                 <>
                   <ol className="evoice__playlist">
                     {audios.map((a, i) => (
-                      <li key={a.key}>
+                      <li key={a.key} className="evoice__playlist-item">
                         <button
                           type="button"
                           className={
@@ -410,6 +421,14 @@ function EvoiceWorkspace() {
                           onClick={() => setTrackIndex(i)}
                         >
                           {a.name}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => void onDownload(a.name)}
+                          disabled={busy}
+                        >
+                          Download
                         </button>
                       </li>
                     ))}
@@ -434,6 +453,16 @@ function EvoiceWorkspace() {
                     <button type="button" className="btn" onClick={next}>
                       Next
                     </button>
+                    {audios[trackIndex] ? (
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        onClick={() => void onDownload(audios[trackIndex].name)}
+                        disabled={busy}
+                      >
+                        Download
+                      </button>
+                    ) : null}
                   </div>
                 </>
               )}

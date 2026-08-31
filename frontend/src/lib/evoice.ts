@@ -250,3 +250,23 @@ export async function fetchEvoiceAudioBlobUrl(
   const blob = await res.blob();
   return URL.createObjectURL(blob);
 }
+
+/** Fetch MP3 with JWT and trigger a browser download as `name`. */
+export async function downloadEvoiceAudio(
+  ownerSafe: string,
+  project: string,
+  name: string,
+): Promise<void> {
+  const url = await fetchEvoiceAudioBlobUrl(ownerSafe, project, name);
+  try {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}

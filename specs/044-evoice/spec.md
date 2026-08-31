@@ -77,6 +77,7 @@ Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access 
 - Project dropdown (taller), create project, upload docs, Generate, playlist + HTML5 audio with play/pause/stop/next and auto-advance.
 - Lead copy does **not** embed the raw `evoice/{userSafe}/` path (keep a short product sentence only).
 - **Generate + playlist layout (desktop):** one row with two columns — left **Console** (progress bar, step checklist with state, log); right **Playlist** (tracks + player). Stack vertically on narrow viewports.
+- **Download:** each playlist track has a Download control that fetches the authenticated MP3 (`GET /api/evoice/file/.../audios/...`) and saves it locally (filename = object name). Optional “Download current” next to player actions is fine; no zip/bulk required.
 - Fit Eduardo OS plain CSS (component CSS file); ServiceGate wrapper.
 - Admin: owner picker label **Admin only**; shows the full `/api/evoice/users` list (platform users + allowlist + S3), not only the signed-in admin.
 
@@ -99,6 +100,7 @@ Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access 
 - [x] FE build; commit + push
 - [x] Admin `/api/evoice/users` returns platform users ∪ allowlist ∪ S3 prefixes; owner dropdown shows more than the signed-in admin when other accounts exist
 - [x] Generate job exposes `steps` + `progress` (0–100); UI shows progress bar + step list; logs stream during convert (not only at end)
+- [x] Playlist tracks can be downloaded as MP3 via authenticated file fetch
 
 ## Affected paths
 - `specs/044-evoice/spec.md`
