@@ -38,7 +38,6 @@ export default function EvoicePage() {
 }
 
 function EvoiceWorkspace() {
-  const [userSafe, setUserSafe] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<string[]>([]);
   const [ownerSafe, setOwnerSafe] = useState("");
@@ -97,7 +96,6 @@ function EvoiceWorkspace() {
         setError(me.error);
         return;
       }
-      setUserSafe(me.userSafe);
       setIsAdmin(me.isAdmin);
       setOwnerSafe(me.userSafe);
       if (me.isAdmin) {
@@ -254,8 +252,8 @@ function EvoiceWorkspace() {
         <p className="evoice__eyebrow">Eduardo OS</p>
         <h1 className="evoice__title">eVoice</h1>
         <p className="evoice__lead">
-          Documents to MP3 under <code>evoice/{userSafe || "…"}/</code>. One audio
-          per source; regenerate when missing or outdated.
+          Documents to MP3. One audio per source; regenerate when missing or
+          outdated.
         </p>
       </header>
 
@@ -263,7 +261,7 @@ function EvoiceWorkspace() {
 
       {isAdmin ? (
         <label className="evoice__field">
-          <span>Owner (admin)</span>
+          <span>Admin only</span>
           <select
             className="evoice__select"
             value={ownerSafe}
@@ -359,86 +357,88 @@ function EvoiceWorkspace() {
             )}
           </section>
 
-          <section className="evoice__panel">
-            <h2>Generate progress</h2>
-            <div
-              className="evoice__progress"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progress}
-              aria-label="Generate progress"
-            >
+          <div className="evoice__workspace">
+            <section className="evoice__panel evoice__panel--console">
+              <h2>Console</h2>
               <div
-                className="evoice__progress-bar"
-                style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
-              />
-            </div>
-            <p className="evoice__progress-label">{progress}%</p>
-            {steps.length > 0 ? (
-              <ol className="evoice__steps">
-                {steps.map((s) => (
-                  <li
-                    key={s.id}
-                    className={`evoice__step evoice__step--${s.state || "pending"}`}
-                  >
-                    <span className="evoice__step-state">{s.state}</span>
-                    <span className="evoice__step-label">{s.label}</span>
-                  </li>
-                ))}
-              </ol>
-            ) : null}
-            <h3 className="evoice__log-title">Log</h3>
-            <pre className="evoice__log">{logs.join("\n") || "—"}</pre>
-          </section>
-
-          <section className="evoice__panel">
-            <h2>Playlist</h2>
-            {audios.length === 0 ? (
-              <p className="evoice__empty">No audios yet. Generate from docs.</p>
-            ) : (
-              <>
-                <ol className="evoice__playlist">
-                  {audios.map((a, i) => (
-                    <li key={a.key}>
-                      <button
-                        type="button"
-                        className={
-                          i === trackIndex
-                            ? "evoice__track evoice__track--active"
-                            : "evoice__track"
-                        }
-                        onClick={() => setTrackIndex(i)}
-                      >
-                        {a.name}
-                      </button>
+                className="evoice__progress"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progress}
+                aria-label="Generate progress"
+              >
+                <div
+                  className="evoice__progress-bar"
+                  style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+                />
+              </div>
+              <p className="evoice__progress-label">{progress}%</p>
+              {steps.length > 0 ? (
+                <ol className="evoice__steps">
+                  {steps.map((s) => (
+                    <li
+                      key={s.id}
+                      className={`evoice__step evoice__step--${s.state || "pending"}`}
+                    >
+                      <span className="evoice__step-state">{s.state}</span>
+                      <span className="evoice__step-label">{s.label}</span>
                     </li>
                   ))}
                 </ol>
-                <audio
-                  ref={audioRef}
-                  className="evoice__audio"
-                  src={blobUrl || undefined}
-                  controls
-                  onEnded={next}
-                />
-                <div className="evoice__player-actions">
-                  <button type="button" className="btn" onClick={play}>
-                    Play
-                  </button>
-                  <button type="button" className="btn" onClick={pause}>
-                    Pause
-                  </button>
-                  <button type="button" className="btn" onClick={stop}>
-                    Stop
-                  </button>
-                  <button type="button" className="btn" onClick={next}>
-                    Next
-                  </button>
-                </div>
-              </>
-            )}
-          </section>
+              ) : null}
+              <h3 className="evoice__log-title">Log</h3>
+              <pre className="evoice__log">{logs.join("\n") || "—"}</pre>
+            </section>
+
+            <section className="evoice__panel evoice__panel--playlist">
+              <h2>Playlist</h2>
+              {audios.length === 0 ? (
+                <p className="evoice__empty">No audios yet. Generate from docs.</p>
+              ) : (
+                <>
+                  <ol className="evoice__playlist">
+                    {audios.map((a, i) => (
+                      <li key={a.key}>
+                        <button
+                          type="button"
+                          className={
+                            i === trackIndex
+                              ? "evoice__track evoice__track--active"
+                              : "evoice__track"
+                          }
+                          onClick={() => setTrackIndex(i)}
+                        >
+                          {a.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                  <audio
+                    ref={audioRef}
+                    className="evoice__audio"
+                    src={blobUrl || undefined}
+                    controls
+                    onEnded={next}
+                  />
+                  <div className="evoice__player-actions">
+                    <button type="button" className="btn" onClick={play}>
+                      Play
+                    </button>
+                    <button type="button" className="btn" onClick={pause}>
+                      Pause
+                    </button>
+                    <button type="button" className="btn" onClick={stop}>
+                      Stop
+                    </button>
+                    <button type="button" className="btn" onClick={next}>
+                      Next
+                    </button>
+                  </div>
+                </>
+              )}
+            </section>
+          </div>
         </>
       ) : null}
     </div>

@@ -81,12 +81,31 @@
   font-size: 1.05rem;
 }
 
+.evoice__workspace {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 900px) {
+  .evoice__workspace {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    align-items: start;
+  }
+}
+
 .evoice__panel {
   border: var(--border_001);
   border-radius: var(--border_radius_001);
   padding: 0.9rem 1rem 1.1rem;
   background: var(--glassed_background, var(--site-body-bg));
   margin-bottom: 1rem;
+}
+
+.evoice__panel--console,
+.evoice__panel--playlist {
+  margin-bottom: 0;
+  min-height: 100%;
 }
 
 .evoice__panel h2 {

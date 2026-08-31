@@ -75,9 +75,10 @@ Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access 
 
 ### 5. Web UI
 - Project dropdown (taller), create project, upload docs, Generate, playlist + HTML5 audio with play/pause/stop/next and auto-advance.
-- **Generate panel:** progress bar bound to `job.progress`, checklist of `job.steps` (label + state), plus detailed `job.logs`.
+- Lead copy does **not** embed the raw `evoice/{userSafe}/` path (keep a short product sentence only).
+- **Generate + playlist layout (desktop):** one row with two columns — left **Console** (progress bar, step checklist with state, log); right **Playlist** (tracks + player). Stack vertically on narrow viewports.
 - Fit Eduardo OS plain CSS (component CSS file); ServiceGate wrapper.
-- Admin: owner picker shows the full `/api/evoice/users` list (platform users + allowlist + S3), not only the signed-in admin.
+- Admin: owner picker label **Admin only**; shows the full `/api/evoice/users` list (platform users + allowlist + S3), not only the signed-in admin.
 
 ### 6. Global menu icons
 - Load already present: Material Symbols Outlined in `BaseLayout.astro`.
