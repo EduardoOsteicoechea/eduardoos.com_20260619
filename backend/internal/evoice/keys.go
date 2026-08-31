@@ -95,11 +95,23 @@ func ValidProjectName(name string) bool {
 	return projectNameRe.MatchString(name)
 }
 
-// ValidFileName reports whether an uploaded file name is acceptable.
+// JobSnapshotKey is evoice/_jobs/{jobId}.json (durable across process restarts).
+// Global under evoice/_jobs/ so GET /jobs/{id} can load after restart without knowing the owner.
+func JobSnapshotKey(jobID string) string {
+	return fmt.Sprintf("%s/_jobs/%s.json", RootPrefix, strings.TrimSpace(jobID))
+}
+
+// ValidFileName reports whether a docs/audios basename is safe for S3 keys/URLs.
 func ValidFileName(name string) bool {
 	name = sanitizeFileName(name)
 	if name == "" || name == "." || name == ".." || name == ".keep" {
 		return false
 	}
-	return !strings.Contains(name, "/")
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return false
+	}
+	if len(name) > 200 {
+		return false
+	}
+	return true
 }

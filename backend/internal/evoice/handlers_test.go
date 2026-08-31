@@ -97,11 +97,11 @@ func TestEvoiceAPIFlow(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("generate status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	var genResp map[string]string
+	var genResp map[string]any
 	if err := json.Unmarshal(rec.Body.Bytes(), &genResp); err != nil {
 		t.Fatal(err)
 	}
-	jobID := genResp["jobId"]
+	jobID, _ := genResp["jobId"].(string)
 	if jobID == "" {
 		t.Fatal("missing jobId")
 	}
@@ -267,9 +267,10 @@ func TestGenerateOnlyOneFile(t *testing.T) {
 	req.Header.Set("Authorization", authHdr)
 	rec = httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
-	var gen1 map[string]string
+	var gen1 map[string]any
 	_ = json.Unmarshal(rec.Body.Bytes(), &gen1)
-	waitJob(t, r, authHdr, gen1["jobId"])
+	jobID1, _ := gen1["jobId"].(string)
+	waitJob(t, r, authHdr, jobID1)
 
 	// Touch only new.txt by re-uploading it (newer than mp3).
 	var buf bytes.Buffer
@@ -292,9 +293,10 @@ func TestGenerateOnlyOneFile(t *testing.T) {
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("generate only=%d %s", rec.Code, rec.Body.String())
 	}
-	var gen2 map[string]string
+	var gen2 map[string]any
 	_ = json.Unmarshal(rec.Body.Bytes(), &gen2)
-	job := waitJob(t, r, authHdr, gen2["jobId"])
+	jobID2, _ := gen2["jobId"].(string)
+	job := waitJob(t, r, authHdr, jobID2)
 	if len(job.OnlyFiles) != 1 || job.OnlyFiles[0] != "new.txt" {
 		t.Fatalf("onlyFiles=%v", job.OnlyFiles)
 	}
@@ -328,4 +330,80 @@ func waitJob(t *testing.T, r chi.Router, authHdr, jobID string) JobStatus {
 	}
 	t.Fatalf("timeout job=%+v", job)
 	return job
+}
+
+func TestPasteDocAndJobSnapshotReload(t *testing.T) {
+	users := auth.NewMemoryStore()
+	_ = users.PutUser(t.Context(), auth.User{
+		Email: "owner@example.com", PasswordHash: auth.HashPassword("x"), Verified: true,
+	})
+	h := NewHandler("evoice-secret", users)
+	h.Entitlements = payments.NewStore()
+	h.Entitlements.PutEntitlements("owner@example.com", payments.BuildEntitlements([]string{"evoice"}, "monthly", 1))
+
+	r := chi.NewRouter()
+	h.Routes(r)
+	tok, _ := auth.IssueJWT("owner@example.com", "evoice-secret")
+	authHdr := "Bearer " + tok
+	ownerSafe := SafeEmailKey("owner@example.com")
+
+	body := bytes.NewBufferString(`{"name":"pasteproj"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/evoice/projects", body)
+	req.Header.Set("Authorization", authHdr)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create=%d %s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/evoice/projects/"+ownerSafe+"/pasteproj/docs/text",
+		bytes.NewBufferString(`{"text":"Hola desde paste para eVoice."}`))
+	req.Header.Set("Authorization", authHdr)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("paste=%d %s", rec.Code, rec.Body.String())
+	}
+	var pasteResp map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &pasteResp)
+	pasteName, _ := pasteResp["name"].(string)
+	if !strings.HasPrefix(pasteName, "paste-") || !strings.HasSuffix(pasteName, ".txt") {
+		t.Fatalf("unexpected paste name %q", pasteName)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/api/evoice/projects/"+ownerSafe+"/pasteproj/generate",
+		bytes.NewBufferString(`{"premium":true}`))
+	req.Header.Set("Authorization", authHdr)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("generate=%d %s", rec.Code, rec.Body.String())
+	}
+	var gen map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &gen)
+	jobID, _ := gen["jobId"].(string)
+	job := waitJob(t, r, authHdr, jobID)
+	if !job.Premium {
+		t.Fatal("expected premium flag on job")
+	}
+
+	// Simulate process restart: drop in-memory jobs, keep object snapshots.
+	h.Jobs = NewJobStore(FakeRunner{})
+	req = httptest.NewRequest(http.MethodGet, "/api/evoice/jobs/"+jobID, nil)
+	req.Header.Set("Authorization", authHdr)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("snapshot reload status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var loaded JobStatus
+	if err := json.Unmarshal(rec.Body.Bytes(), &loaded); err != nil {
+		t.Fatal(err)
+	}
+	if loaded.ID != jobID || loaded.State != "done" || !loaded.Premium {
+		t.Fatalf("loaded snapshot unexpected: %+v", loaded)
+	}
 }

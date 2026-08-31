@@ -1,5 +1,5 @@
 /**
- * eVoice hub — projects, docs upload, generate jobs, playlist player (spec 044).
+ * eVoice hub — projects, docs upload/paste, generate jobs, playlist (spec 044).
  */
 
 import {
@@ -16,6 +16,7 @@ import {
   deleteEvoiceAudio,
   deleteEvoiceDoc,
   downloadEvoiceAudio,
+  fetchBackendHealth,
   fetchEvoiceAudioBlobUrl,
   fetchEvoiceAudios,
   fetchEvoiceDocs,
@@ -23,6 +24,7 @@ import {
   fetchEvoiceMe,
   fetchEvoiceProjects,
   fetchEvoiceUsers,
+  pasteEvoiceDocText,
   startEvoiceGenerate,
   uploadEvoiceDoc,
   type EvoiceJobFile,
@@ -40,6 +42,38 @@ function stemOf(name: string): string {
 function audioNameForDoc(docName: string): string {
   return `${stemOf(docName)}.mp3`;
 }
+
+function isSourceDoc(name: string): boolean {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".premium.txt")) return false;
+  return /\.(docx|txt|pdf|png|jpe?g|webp|tiff?|bmp|gif)$/i.test(name);
+}
+
+function docsNeedingAudio(
+  docs: EvoiceObjectMeta[],
+  audios: EvoiceObjectMeta[],
+  onlyFiles?: string[],
+): string[] {
+  const allow = onlyFiles?.length ? new Set(onlyFiles) : null;
+  return docs
+    .filter((d) => isSourceDoc(d.name))
+    .filter((d) => (allow ? allow.has(d.name) : true))
+    .filter((d) => {
+      const mp3 = audioNameForDoc(d.name);
+      const audio = audios.find((a) => a.name === mp3);
+      if (!audio) return true;
+      if (d.lastModified && audio.lastModified) {
+        return d.lastModified > audio.lastModified;
+      }
+      return false;
+    })
+    .map((d) => d.name);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 export default function EvoicePage() {
   return (
     <ServiceGate serviceId="evoice" serviceLabel="eVoice">
@@ -57,6 +91,8 @@ function EvoiceWorkspace() {
   const [newProject, setNewProject] = useState("");
   const [docs, setDocs] = useState<EvoiceObjectMeta[]>([]);
   const [audios, setAudios] = useState<EvoiceObjectMeta[]>([]);
+  const [pasteText, setPasteText] = useState("");
+  const [premium, setPremium] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [steps, setSteps] = useState<EvoiceJobStep[]>([]);
   const [fileProgress, setFileProgress] = useState<EvoiceJobFile[]>([]);
@@ -67,6 +103,8 @@ function EvoiceWorkspace() {
   const [blobUrl, setBlobUrl] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef("");
+  const projectRef = useRef(project);
+  projectRef.current = project;
 
   const reloadProjects = useCallback(async (owner: string) => {
     const res = await fetchEvoiceProjects(owner);
@@ -76,17 +114,20 @@ function EvoiceWorkspace() {
       return;
     }
     setProjects(res.projects);
-    setOwnerSafe(res.ownerSafe || owner);
-    if (res.projects.length && !res.projects.includes(project)) {
+    if (res.projects.length === 0) {
+      setProject("");
+      return;
+    }
+    if (!res.projects.includes(projectRef.current)) {
       setProject(res.projects[0] ?? "");
     }
-  }, [project]);
+  }, []);
 
   const reloadDocsAudios = useCallback(async (owner: string, proj: string) => {
     if (!owner || !proj) {
       setDocs([]);
       setAudios([]);
-      return;
+      return { docs: [] as EvoiceObjectMeta[], audios: [] as EvoiceObjectMeta[] };
     }
     const [d, a] = await Promise.all([
       fetchEvoiceDocs(owner, proj),
@@ -97,8 +138,11 @@ function EvoiceWorkspace() {
     setDocs(d.docs);
     setAudios(a.audios);
     setTrackIndex(0);
+    return { docs: d.docs, audios: a.audios };
   }, []);
 
+  // One-shot init — must NOT re-run when project/reloadProjects identity changes
+  // (that was snapping admin owner back to the signed-in admin).
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -113,8 +157,7 @@ function EvoiceWorkspace() {
       if (me.isAdmin) {
         const u = await fetchEvoiceUsers();
         if (!cancelled && !u.error) {
-          const list = u.users.length ? u.users : [me.userSafe];
-          setUsers(list);
+          setUsers(u.users.length ? u.users : [me.userSafe]);
         }
       }
       await reloadProjects(me.userSafe);
@@ -163,6 +206,100 @@ function EvoiceWorkspace() {
     };
   }, []);
 
+  async function waitUntilHealthy(): Promise<boolean> {
+    for (let i = 0; i < 45; i++) {
+      if (await fetchBackendHealth()) return true;
+      setLogs((prev) => {
+        const msg = `waiting for backend health… (${i + 1})`;
+        if (prev[prev.length - 1] === msg) return prev;
+        return [...prev.slice(-400), msg];
+      });
+      await sleep(2000);
+    }
+    return false;
+  }
+
+  async function pollUntilDone(
+    jobId: string,
+    owner: string,
+    proj: string,
+    onlyFiles: string[] | undefined,
+    usePremium: boolean,
+  ): Promise<void> {
+    let activeJobId = jobId;
+    let resumes = 0;
+    for (;;) {
+      await sleep(600);
+      let jobRes: Awaited<ReturnType<typeof fetchEvoiceJob>>;
+      try {
+        jobRes = await fetchEvoiceJob(activeJobId);
+      } catch {
+        jobRes = { job: null, error: "network error", status: 0 };
+      }
+      if (jobRes.job) {
+        setLogs(jobRes.job.logs ?? []);
+        setSteps(jobRes.job.steps ?? []);
+        setFileProgress(jobRes.job.files ?? []);
+        setProgress(
+          typeof jobRes.job.progress === "number" ? jobRes.job.progress : 0,
+        );
+        if (jobRes.job.state === "done" || jobRes.job.state === "failed") {
+          if (jobRes.job.state === "failed") {
+            setError(jobRes.job.error || "Generate failed");
+          } else if (jobRes.job.error) {
+            setError(jobRes.job.error);
+          }
+          if (jobRes.job.state === "done") setProgress(100);
+          return;
+        }
+        continue;
+      }
+
+      // Job missing (404) or unreachable — wait for health, then auto-resume unfinished files.
+      const status = jobRes.status ?? 0;
+      setLogs((prev) => [
+        ...prev.slice(-400),
+        status === 404
+          ? "job lost after restart — waiting to resume…"
+          : `job poll failed (${status || "network"}) — waiting to resume…`,
+      ]);
+      if (!(await waitUntilHealthy())) {
+        setError("Backend unavailable; could not resume generate");
+        return;
+      }
+      const fresh = await reloadDocsAudios(owner, proj);
+      const unfinished = docsNeedingAudio(fresh.docs, fresh.audios, onlyFiles);
+      if (unfinished.length === 0) {
+        setLogs((prev) => [...prev, "resume: all requested audios already present"]);
+        setProgress(100);
+        return;
+      }
+      if (resumes >= 8) {
+        setError("Too many auto-resumes; stop and retry Generate manually");
+        return;
+      }
+      resumes += 1;
+      setLogs((prev) => [
+        ...prev,
+        `resume #${resumes}: generating ${unfinished.length} file(s)${usePremium ? " (premium)" : ""}`,
+      ]);
+      const started = await startEvoiceGenerate(
+        owner,
+        proj,
+        unfinished,
+        usePremium,
+      );
+      if (started.error || !started.jobId) {
+        setError(started.error || "Could not resume generate");
+        return;
+      }
+      activeJobId = started.jobId;
+      setFileProgress(
+        unfinished.map((name) => ({ name, state: "pending", progress: 0 })),
+      );
+    }
+  }
+
   async function onCreateProject(e: FormEvent) {
     e.preventDefault();
     const name = newProject.trim();
@@ -195,6 +332,22 @@ function EvoiceWorkspace() {
     await reloadDocsAudios(ownerSafe, project);
   }
 
+  async function onPasteText(e: FormEvent) {
+    e.preventDefault();
+    const text = pasteText.trim();
+    if (!text || !ownerSafe || !project || busy) return;
+    setBusy(true);
+    setError("");
+    const res = await pasteEvoiceDocText(ownerSafe, project, text);
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    setPasteText("");
+    await reloadDocsAudios(ownerSafe, project);
+  }
+
   async function onDeleteDoc(name: string) {
     if (!ownerSafe || !project || busy) return;
     if (!window.confirm(`Delete document ${name}?`)) return;
@@ -222,9 +375,7 @@ function EvoiceWorkspace() {
       return;
     }
     const stem = stemOf(mp3Name);
-    setFileProgress((prev) =>
-      prev.filter((f) => stemOf(f.name) !== stem),
-    );
+    setFileProgress((prev) => prev.filter((f) => stemOf(f.name) !== stem));
     await reloadDocsAudios(ownerSafe, project);
   }
 
@@ -240,31 +391,19 @@ function EvoiceWorkspace() {
         : [],
     );
     setProgress(0);
-    const started = await startEvoiceGenerate(ownerSafe, project, files);
+    const usePremium = premium;
+    const started = await startEvoiceGenerate(
+      ownerSafe,
+      project,
+      files,
+      usePremium,
+    );
     if (started.error || !started.jobId) {
       setBusy(false);
       setError(started.error || "Could not start generate");
       return;
     }
-    const jobId = started.jobId;
-    for (;;) {
-      await new Promise((r) => setTimeout(r, 600));
-      const { job, error: jobErr } = await fetchEvoiceJob(jobId);
-      if (jobErr || !job) {
-        setError(jobErr || "Job lost");
-        break;
-      }
-      setLogs(job.logs ?? []);
-      setSteps(job.steps ?? []);
-      setFileProgress(job.files ?? []);
-      setProgress(typeof job.progress === "number" ? job.progress : 0);
-      if (job.state === "done" || job.state === "failed") {
-        if (job.state === "failed") setError(job.error || "Generate failed");
-        else if (job.error) setError(job.error);
-        if (job.state === "done") setProgress(100);
-        break;
-      }
-    }
+    await pollUntilDone(started.jobId, ownerSafe, project, files, usePremium);
     setBusy(false);
     await reloadDocsAudios(ownerSafe, project);
   }
@@ -305,6 +444,8 @@ function EvoiceWorkspace() {
     }
   }
 
+  const sourceDocs = docs.filter((d) => isSourceDoc(d.name));
+
   return (
     <div className="evoice">
       <header className="evoice__head">
@@ -325,9 +466,10 @@ function EvoiceWorkspace() {
             className="evoice__select"
             value={ownerSafe}
             onChange={(e) => {
-              setOwnerSafe(e.target.value);
+              const nextOwner = e.target.value;
+              setOwnerSafe(nextOwner);
               setProject("");
-              void reloadProjects(e.target.value);
+              void reloadProjects(nextOwner);
             }}
           >
             {(users.length ? users : [ownerSafe]).map((u) => (
@@ -386,6 +528,15 @@ function EvoiceWorkspace() {
                 Upload
                 <input type="file" hidden onChange={onUpload} disabled={busy} />
               </label>
+              <label className="evoice__premium">
+                <input
+                  type="checkbox"
+                  checked={premium}
+                  onChange={(e) => setPremium(e.target.checked)}
+                  disabled={busy}
+                />
+                <span>Premium (DeepSeek speech)</span>
+              </label>
               <button
                 type="button"
                 className="btn btn--primary"
@@ -395,11 +546,36 @@ function EvoiceWorkspace() {
                 Generate all
               </button>
             </div>
-            {docs.length === 0 ? (
-              <p className="evoice__empty">No documents yet. Upload .txt, .docx, .pdf, or images.</p>
+
+            <form className="evoice__paste" onSubmit={onPasteText}>
+              <label className="evoice__field evoice__field--grow">
+                <span>Paste text</span>
+                <textarea
+                  className="evoice__textarea"
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  rows={4}
+                  placeholder="Paste source text here…"
+                  disabled={busy}
+                />
+              </label>
+              <button
+                type="submit"
+                className="btn"
+                disabled={busy || !pasteText.trim()}
+              >
+                Add text
+              </button>
+            </form>
+
+            {sourceDocs.length === 0 ? (
+              <p className="evoice__empty">
+                No documents yet. Upload .txt, .docx, .pdf, images, or paste
+                text.
+              </p>
             ) : (
               <ul className="evoice__list">
-                {docs.map((d) => {
+                {sourceDocs.map((d) => {
                   const fp = progressForDoc(d.name);
                   const pct = fp ? Math.max(0, Math.min(100, fp.progress)) : 0;
                   const mp3 = audioNameForDoc(d.name);

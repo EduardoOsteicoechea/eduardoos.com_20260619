@@ -3,6 +3,7 @@ package evoice
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"os/exec"
@@ -27,14 +28,15 @@ var defaultJobPlan = []JobStep{
 
 // JobRunner converts a synced local project docs/ → audios/.
 // onlyFiles empty means all convertible docs; otherwise only those basenames.
+// premium asks the worker to DeepSeek-optimize speech before TTS.
 type JobRunner interface {
-	Run(ctx context.Context, projectDir string, onlyFiles []string, logFn func(string)) (JobStats, error)
+	Run(ctx context.Context, projectDir string, onlyFiles []string, premium bool, logFn func(string)) (JobStats, error)
 }
 
 // FakeRunner writes a tiny placeholder mp3 for each convertible doc (tests / no TTS).
 type FakeRunner struct{}
 
-func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, logFn func(string)) (JobStats, error) {
+func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, premium bool, logFn func(string)) (JobStats, error) {
 	docsDir := filepath.Join(projectDir, "docs")
 	audiosDir := filepath.Join(projectDir, "audios")
 	_ = os.MkdirAll(audiosDir, 0o755)
@@ -63,17 +65,27 @@ func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, 
 		mp3Info, mp3Err := os.Stat(mp3)
 		if mp3Err == nil && docInfo != nil && !docInfo.ModTime().After(mp3Info.ModTime()) {
 			logFn("skip  " + name + " (mp3 up to date)")
+			logFn("FILE " + name + " state=skipped")
 			stats.Skipped++
 			continue
 		}
+		logFn("FILE " + name + " state=active")
+		logFn("EXTRACT " + name + " pct=50 detail=fake")
+		if premium {
+			logFn("PREMIUM " + name + " pct=100 detail=fake-optimized")
+			_ = os.WriteFile(filepath.Join(docsDir, stem+".premium.txt"), []byte("premium speech for "+name), 0o644)
+		}
+		logFn("TTS " + name + " pct=50 detail=fake")
 		logFn("gen   " + name + " -> audios/" + stem + ".mp3 (fake)")
 		if err := os.WriteFile(mp3, []byte("ID3fake-evoice"), 0o644); err != nil {
 			stats.Failed++
 			logFn("FAIL  " + name + ": " + err.Error())
+			logFn("FILE " + name + " state=failed")
 			continue
 		}
 		stats.Generated++
 		logFn("ok     " + name + " -> " + stem + ".mp3")
+		logFn("FILE " + name + " state=done")
 	}
 	return stats, nil
 }
@@ -93,7 +105,11 @@ func onlySet(files []string) map[string]bool {
 }
 
 func isConvertible(name string) bool {
-	ext := strings.ToLower(filepath.Ext(name))
+	lower := strings.ToLower(name)
+	if strings.HasSuffix(lower, ".premium.txt") {
+		return false
+	}
+	ext := filepath.Ext(lower)
 	switch ext {
 	case ".docx", ".txt", ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp", ".gif":
 		return true
@@ -109,7 +125,7 @@ type PythonRunner struct {
 	Script string
 }
 
-func (p PythonRunner) Run(ctx context.Context, projectDir string, onlyFiles []string, logFn func(string)) (JobStats, error) {
+func (p PythonRunner) Run(ctx context.Context, projectDir string, onlyFiles []string, premium bool, logFn func(string)) (JobStats, error) {
 	py := p.Python
 	if py == "" {
 		py = "python3"
@@ -124,6 +140,9 @@ func (p PythonRunner) Run(ctx context.Context, projectDir string, onlyFiles []st
 		if f != "" {
 			args = append(args, "--only", f)
 		}
+	}
+	if premium {
+		args = append(args, "--premium")
 	}
 	cmd := exec.CommandContext(ctx, py, args...)
 	tmpDir := filepath.Dir(projectDir)
@@ -221,7 +240,7 @@ func defaultWorkerScript() string {
 	return "linux_sync.py"
 }
 
-// JobStore tracks in-flight generate jobs.
+// JobStore tracks in-flight generate jobs and persists snapshots to ObjectSpace.
 type JobStore struct {
 	mu     sync.RWMutex
 	jobs   map[string]*JobStatus
@@ -265,7 +284,7 @@ func cloneJobFiles(src []JobFileProgress) []JobFileProgress {
 	return out
 }
 
-func newQueuedJob(id, ownerSafe, project string, onlyFiles []string) *JobStatus {
+func newQueuedJob(id, ownerSafe, project string, onlyFiles []string, premium bool) *JobStatus {
 	steps := cloneJobSteps(defaultJobPlan)
 	only := append([]string(nil), onlyFiles...)
 	return &JobStatus{
@@ -274,6 +293,7 @@ func newQueuedJob(id, ownerSafe, project string, onlyFiles []string) *JobStatus 
 		Owner:       ownerSafe,
 		Project:     project,
 		OnlyFiles:   only,
+		Premium:     premium,
 		Logs:        []string{"queued"},
 		Steps:       steps,
 		Files:       nil,
@@ -282,7 +302,7 @@ func newQueuedJob(id, ownerSafe, project string, onlyFiles []string) *JobStatus 
 	}
 }
 
-// Get returns a copy of the job status.
+// Get returns a copy of the in-memory job status.
 func (s *JobStore) Get(id string) (JobStatus, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -290,6 +310,47 @@ func (s *JobStore) Get(id string) (JobStatus, bool) {
 	if !ok {
 		return JobStatus{}, false
 	}
+	return cloneJobStatus(j), true
+}
+
+// GetOrLoad returns memory first, else loads a durable S3/memory-object snapshot.
+func (s *JobStore) GetOrLoad(ctx context.Context, objects ObjectSpace, id, cid string) (JobStatus, bool) {
+	if job, ok := s.Get(id); ok {
+		return job, true
+	}
+	if objects == nil {
+		return JobStatus{}, false
+	}
+	body, ok, err := objects.GetBytes(ctx, JobSnapshotKey(id), cid)
+	if err != nil || !ok || len(body) == 0 {
+		return JobStatus{}, false
+	}
+	var job JobStatus
+	if err := json.Unmarshal(body, &job); err != nil {
+		return JobStatus{}, false
+	}
+	if strings.TrimSpace(job.ID) == "" {
+		job.ID = id
+	}
+	// Rehydrate into memory so subsequent polls are cheap.
+	s.mu.Lock()
+	if _, exists := s.jobs[id]; !exists {
+		cp := job
+		cp.Logs = append([]string(nil), job.Logs...)
+		cp.Steps = cloneJobSteps(job.Steps)
+		cp.Files = cloneJobFiles(job.Files)
+		cp.OnlyFiles = append([]string(nil), job.OnlyFiles...)
+		if job.Stats != nil {
+			st := *job.Stats
+			cp.Stats = &st
+		}
+		s.jobs[id] = &cp
+	}
+	s.mu.Unlock()
+	return job, true
+}
+
+func cloneJobStatus(j *JobStatus) JobStatus {
 	cp := *j
 	cp.Logs = append([]string(nil), j.Logs...)
 	cp.Steps = cloneJobSteps(j.Steps)
@@ -299,23 +360,48 @@ func (s *JobStore) Get(id string) (JobStatus, bool) {
 		st := *j.Stats
 		cp.Stats = &st
 	}
-	return cp, true
+	return cp
 }
 
-func (s *JobStore) appendLog(id, line string) {
+func (s *JobStore) persistSnapshot(ctx context.Context, objects ObjectSpace, id, cid string) {
+	if objects == nil || strings.TrimSpace(id) == "" {
+		return
+	}
+	job, ok := s.Get(id)
+	if !ok {
+		return
+	}
+	raw, err := json.Marshal(job)
+	if err != nil {
+		return
+	}
+	_ = objects.PutBytes(ctx, JobSnapshotKey(id), raw, "application/json", cid)
+}
+
+func (s *JobStore) appendLog(ctx context.Context, objects ObjectSpace, id, line, cid string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	var n int
 	if j, ok := s.jobs[id]; ok {
 		j.Logs = append(j.Logs, line)
 		if len(j.Logs) > 500 {
 			j.Logs = j.Logs[len(j.Logs)-500:]
 		}
+		n = len(j.Logs)
+	}
+	s.mu.Unlock()
+	// Persist frequently during convert so a restart leaves a useful trail.
+	if n > 0 && (n%3 == 0 || strings.HasPrefix(strings.ToUpper(line), "FILE ") ||
+		strings.HasPrefix(strings.ToUpper(line), "TTS ") ||
+		strings.HasPrefix(strings.ToUpper(line), "PREMIUM ") ||
+		strings.HasPrefix(strings.ToUpper(line), "EXTRACT ") ||
+		strings.HasPrefix(strings.ToUpper(line), "FFMPEG ") ||
+		strings.HasPrefix(line, "STATS ")) {
+		s.persistSnapshot(ctx, objects, id, cid)
 	}
 }
 
-func (s *JobStore) setState(id, state, errMsg string, stats *JobStats) {
+func (s *JobStore) setState(ctx context.Context, objects ObjectSpace, id, state, errMsg, cid string, stats *JobStats) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if j, ok := s.jobs[id]; ok {
 		j.State = state
 		j.Error = errMsg
@@ -344,20 +430,24 @@ func (s *JobStore) setState(id, state, errMsg string, stats *JobStats) {
 			}
 		}
 	}
+	s.mu.Unlock()
+	s.persistSnapshot(ctx, objects, id, cid)
 }
 
-func (s *JobStore) initFiles(id string, names []string) {
+func (s *JobStore) initFiles(ctx context.Context, objects ObjectSpace, id string, names []string, cid string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	j, ok := s.jobs[id]
-	if !ok {
-		return
+	if ok {
+		files := make([]JobFileProgress, 0, len(names))
+		for _, n := range names {
+			files = append(files, JobFileProgress{Name: n, State: "pending", Progress: 0})
+		}
+		j.Files = files
 	}
-	files := make([]JobFileProgress, 0, len(names))
-	for _, n := range names {
-		files = append(files, JobFileProgress{Name: n, State: "pending", Progress: 0})
+	s.mu.Unlock()
+	if ok {
+		s.persistSnapshot(ctx, objects, id, cid)
 	}
-	j.Files = files
 }
 
 func (s *JobStore) updateFile(id, name, state string, progress int, detail string) {
@@ -384,64 +474,70 @@ func (s *JobStore) updateFile(id, name, state string, progress int, detail strin
 	}
 }
 
-func (s *JobStore) activateStep(id, stepID string) {
+func (s *JobStore) activateStep(ctx context.Context, objects ObjectSpace, id, stepID, cid string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	j, ok := s.jobs[id]
-	if !ok {
-		return
-	}
-	found := false
-	for i := range j.Steps {
-		switch {
-		case j.Steps[i].ID == stepID:
-			j.Steps[i].State = "active"
-			j.CurrentStep = stepID
-			found = true
-		case !found && (j.Steps[i].State == "pending" || j.Steps[i].State == "active"):
-			j.Steps[i].State = "done"
+	if ok {
+		found := false
+		for i := range j.Steps {
+			switch {
+			case j.Steps[i].ID == stepID:
+				j.Steps[i].State = "active"
+				j.CurrentStep = stepID
+				found = true
+			case !found && (j.Steps[i].State == "pending" || j.Steps[i].State == "active"):
+				j.Steps[i].State = "done"
+			}
 		}
+		j.Progress = progressFromSteps(j.Steps)
 	}
-	j.Progress = progressFromSteps(j.Steps)
+	s.mu.Unlock()
+	if ok {
+		s.persistSnapshot(ctx, objects, id, cid)
+	}
 }
 
-func (s *JobStore) completeStep(id, stepID string) {
+func (s *JobStore) completeStep(ctx context.Context, objects ObjectSpace, id, stepID, cid string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	j, ok := s.jobs[id]
-	if !ok {
-		return
-	}
-	for i := range j.Steps {
-		if j.Steps[i].ID == stepID {
-			j.Steps[i].State = "done"
+	if ok {
+		for i := range j.Steps {
+			if j.Steps[i].ID == stepID {
+				j.Steps[i].State = "done"
+			}
 		}
+		if j.CurrentStep == stepID {
+			j.CurrentStep = ""
+		}
+		j.Progress = progressFromSteps(j.Steps)
 	}
-	if j.CurrentStep == stepID {
+	s.mu.Unlock()
+	if ok {
+		s.persistSnapshot(ctx, objects, id, cid)
+	}
+}
+
+func (s *JobStore) failStep(ctx context.Context, objects ObjectSpace, id, stepID, errMsg, cid string) {
+	s.mu.Lock()
+	j, ok := s.jobs[id]
+	if ok {
+		for i := range j.Steps {
+			if j.Steps[i].ID == stepID {
+				j.Steps[i].State = "failed"
+			}
+		}
 		j.CurrentStep = ""
+		j.State = "failed"
+		j.Error = errMsg
+		j.Progress = progressFromSteps(j.Steps)
 	}
-	j.Progress = progressFromSteps(j.Steps)
+	s.mu.Unlock()
+	if ok {
+		s.persistSnapshot(ctx, objects, id, cid)
+	}
 }
 
-func (s *JobStore) failStep(id, stepID, errMsg string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	j, ok := s.jobs[id]
-	if !ok {
-		return
-	}
-	for i := range j.Steps {
-		if j.Steps[i].ID == stepID {
-			j.Steps[i].State = "failed"
-		}
-	}
-	j.CurrentStep = ""
-	j.State = "failed"
-	j.Error = errMsg
-	j.Progress = progressFromSteps(j.Steps)
-}
-
-func (s *JobStore) setConvertProgress(id string, done, total int) {
+func (s *JobStore) setConvertProgress(id string, done, total int, filePct int) {
 	if total <= 0 {
 		return
 	}
@@ -451,18 +547,21 @@ func (s *JobStore) setConvertProgress(id string, done, total int) {
 	if !ok {
 		return
 	}
-	base := 0
 	stepWeight := 100 / len(j.Steps)
 	for i, st := range j.Steps {
-		if st.ID == "convert" {
-			base = i * stepWeight
-			frac := float64(done) / float64(total)
-			if frac > 1 {
-				frac = 1
-			}
-			j.Progress = base + int(frac*float64(stepWeight))
-			return
+		if st.ID != "convert" {
+			continue
 		}
+		base := i * stepWeight
+		frac := (float64(done) + float64(filePct)/100.0) / float64(total)
+		if frac > 1 {
+			frac = 1
+		}
+		if frac < 0 {
+			frac = 0
+		}
+		j.Progress = base + int(frac*float64(stepWeight))
+		return
 	}
 }
 
@@ -480,7 +579,7 @@ func progressFromSteps(steps []JobStep) int {
 }
 
 // Start enqueues an async generate. onlyFiles empty = all docs; else those basenames only.
-func (s *JobStore) Start(ctx context.Context, objects ObjectSpace, ownerSafe, project, cid string, onlyFiles []string) (string, error) {
+func (s *JobStore) Start(ctx context.Context, objects ObjectSpace, ownerSafe, project, cid string, onlyFiles []string, premium bool) (string, error) {
 	cleaned := make([]string, 0, len(onlyFiles))
 	for _, f := range onlyFiles {
 		f = sanitizeFileName(strings.TrimSpace(f))
@@ -490,59 +589,63 @@ func (s *JobStore) Start(ctx context.Context, objects ObjectSpace, ownerSafe, pr
 	}
 	id := uuid.NewString()
 	s.mu.Lock()
-	s.jobs[id] = newQueuedJob(id, ownerSafe, project, cleaned)
+	s.jobs[id] = newQueuedJob(id, ownerSafe, project, cleaned, premium)
 	s.mu.Unlock()
+	s.persistSnapshot(ctx, objects, id, cid)
 
-	go s.runJob(context.WithoutCancel(ctx), objects, id, ownerSafe, project, cid, cleaned)
+	go s.runJob(context.WithoutCancel(ctx), objects, id, ownerSafe, project, cid, cleaned, premium)
 	return id, nil
 }
 
-func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSafe, project, cid string, onlyFiles []string) {
-	s.setState(id, "running", "", nil)
+func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSafe, project, cid string, onlyFiles []string, premium bool) {
+	s.setState(ctx, objects, id, "running", "", cid, nil)
 
-	s.activateStep(id, "prepare")
-	s.appendLog(id, "prepare: creating workdir")
+	s.activateStep(ctx, objects, id, "prepare", cid)
+	s.appendLog(ctx, objects, id, "prepare: creating workdir", cid)
 	workRoot := filepath.Join(evoiceJobsBase(), id)
-	s.appendLog(id, "prepare: workRoot="+workRoot)
+	s.appendLog(ctx, objects, id, "prepare: workRoot="+workRoot, cid)
+	if premium {
+		s.appendLog(ctx, objects, id, "prepare: premium=1 (DeepSeek speech)", cid)
+	}
 	if len(onlyFiles) > 0 {
-		s.appendLog(id, "prepare: onlyFiles="+strings.Join(onlyFiles, ","))
+		s.appendLog(ctx, objects, id, "prepare: onlyFiles="+strings.Join(onlyFiles, ","), cid)
 	}
 	projectDir := filepath.Join(workRoot, "project")
 	docsDir := filepath.Join(projectDir, "docs")
 	audiosDir := filepath.Join(projectDir, "audios")
 	_ = os.RemoveAll(workRoot)
 	if err := os.MkdirAll(docsDir, 0o755); err != nil {
-		s.appendLog(id, "prepare failed: "+err.Error())
-		s.failStep(id, "prepare", err.Error())
+		s.appendLog(ctx, objects, id, "prepare failed: "+err.Error(), cid)
+		s.failStep(ctx, objects, id, "prepare", err.Error(), cid)
 		return
 	}
 	_ = os.MkdirAll(audiosDir, 0o755)
 	defer func() { _ = os.RemoveAll(workRoot) }()
-	s.completeStep(id, "prepare")
+	s.completeStep(ctx, objects, id, "prepare", cid)
 
-	s.activateStep(id, "download_docs")
-	s.appendLog(id, "download_docs: listing and fetching from S3")
+	s.activateStep(ctx, objects, id, "download_docs", cid)
+	s.appendLog(ctx, objects, id, "download_docs: listing and fetching from S3", cid)
 	if err := syncPrefixToDir(ctx, objects, DocsPrefix(ownerSafe, project)+"/", docsDir, cid, func(line string) {
-		s.appendLog(id, line)
+		s.appendLog(ctx, objects, id, line, cid)
 	}); err != nil {
-		s.appendLog(id, "download docs failed: "+err.Error())
-		s.failStep(id, "download_docs", err.Error())
+		s.appendLog(ctx, objects, id, "download docs failed: "+err.Error(), cid)
+		s.failStep(ctx, objects, id, "download_docs", err.Error(), cid)
 		return
 	}
-	s.completeStep(id, "download_docs")
+	s.completeStep(ctx, objects, id, "download_docs", cid)
 
-	s.activateStep(id, "download_audios")
-	s.appendLog(id, "download_audios: fetching existing mp3s (for skip/regen)")
+	s.activateStep(ctx, objects, id, "download_audios", cid)
+	s.appendLog(ctx, objects, id, "download_audios: fetching existing mp3s (for skip/regen)", cid)
 	_ = syncPrefixToDir(ctx, objects, AudiosPrefix(ownerSafe, project)+"/", audiosDir, cid, func(line string) {
-		s.appendLog(id, line)
+		s.appendLog(ctx, objects, id, line, cid)
 	})
-	s.completeStep(id, "download_audios")
+	s.completeStep(ctx, objects, id, "download_audios", cid)
 
 	targets := listConvertibleDocs(docsDir, onlyFiles)
-	s.initFiles(id, targets)
+	s.initFiles(ctx, objects, id, targets, cid)
 
-	s.activateStep(id, "convert")
-	s.appendLog(id, "convert: starting TTS worker")
+	s.activateStep(ctx, objects, id, "convert", cid)
+	s.appendLog(ctx, objects, id, "convert: starting TTS worker", cid)
 	jobCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
 
@@ -551,30 +654,30 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 		docTotal = 1
 	}
 	docDone := 0
-	stats, err := s.runner.Run(jobCtx, projectDir, onlyFiles, func(line string) {
-		s.appendLog(id, line)
-		s.applyConvertLogLine(id, line, &docDone, docTotal)
+	stats, err := s.runner.Run(jobCtx, projectDir, onlyFiles, premium, func(line string) {
+		s.appendLog(ctx, objects, id, line, cid)
+		s.applyConvertLogLine(ctx, objects, id, line, &docDone, docTotal, cid)
 	})
 	usable := stats.Generated+stats.Skipped > 0 || countMP3(audiosDir) > 0
 	if err != nil && !usable {
-		s.appendLog(id, "runner error: "+err.Error())
-		s.failStep(id, "convert", err.Error())
-		s.setState(id, "failed", err.Error(), &stats)
+		s.appendLog(ctx, objects, id, "runner error: "+err.Error(), cid)
+		s.failStep(ctx, objects, id, "convert", err.Error(), cid)
+		s.setState(ctx, objects, id, "failed", err.Error(), cid, &stats)
 		return
 	}
 	if err != nil {
-		s.appendLog(id, "runner warning: "+err.Error()+" (continuing with partial results)")
+		s.appendLog(ctx, objects, id, "runner warning: "+err.Error()+" (continuing with partial results)", cid)
 	}
-	s.completeStep(id, "convert")
+	s.completeStep(ctx, objects, id, "convert", cid)
 
-	s.activateStep(id, "upload")
-	s.appendLog(id, "upload: writing audios/*.mp3 to S3")
+	s.activateStep(ctx, objects, id, "upload", cid)
+	s.appendLog(ctx, objects, id, "upload: writing audios/*.mp3 (+ premium.txt) to S3", cid)
 	uploadAllow := uploadAllowFrom(onlyFiles, targets)
 	entries, err := os.ReadDir(audiosDir)
 	if err != nil {
-		s.appendLog(id, "upload list failed: "+err.Error())
-		s.failStep(id, "upload", err.Error())
-		s.setState(id, "failed", err.Error(), &stats)
+		s.appendLog(ctx, objects, id, "upload list failed: "+err.Error(), cid)
+		s.failStep(ctx, objects, id, "upload", err.Error(), cid)
+		s.setState(ctx, objects, id, "failed", err.Error(), cid, &stats)
 		return
 	}
 	for _, e := range entries {
@@ -586,24 +689,38 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 		}
 		body, err := os.ReadFile(filepath.Join(audiosDir, e.Name()))
 		if err != nil {
-			s.appendLog(id, "read mp3 failed: "+err.Error())
+			s.appendLog(ctx, objects, id, "read mp3 failed: "+err.Error(), cid)
 			continue
 		}
 		key := AudioKey(ownerSafe, project, e.Name())
-		s.appendLog(id, "upload: "+e.Name())
+		s.appendLog(ctx, objects, id, "upload: "+e.Name(), cid)
 		if err := objects.PutBytes(ctx, key, body, "audio/mpeg", cid); err != nil {
-			s.appendLog(id, "upload failed "+e.Name()+": "+err.Error())
-			s.failStep(id, "upload", err.Error())
-			s.setState(id, "failed", err.Error(), &stats)
+			s.appendLog(ctx, objects, id, "upload failed "+e.Name()+": "+err.Error(), cid)
+			s.failStep(ctx, objects, id, "upload", err.Error(), cid)
+			s.setState(ctx, objects, id, "failed", err.Error(), cid, &stats)
 			return
 		}
-		s.appendLog(id, "uploaded audios/"+e.Name())
+		s.appendLog(ctx, objects, id, "uploaded audios/"+e.Name(), cid)
 	}
-	s.completeStep(id, "upload")
+	// Upload premium speech sidecars written by the worker.
+	docEntries, _ := os.ReadDir(docsDir)
+	for _, e := range docEntries {
+		if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".premium.txt") {
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(docsDir, e.Name()))
+		if err != nil {
+			continue
+		}
+		key := DocKey(ownerSafe, project, e.Name())
+		s.appendLog(ctx, objects, id, "upload: docs/"+e.Name(), cid)
+		_ = objects.PutBytes(ctx, key, body, "text/plain; charset=utf-8", cid)
+	}
+	s.completeStep(ctx, objects, id, "upload", cid)
 
-	s.activateStep(id, "finalize")
-	s.appendLog(id, "done")
-	s.completeStep(id, "finalize")
+	s.activateStep(ctx, objects, id, "finalize", cid)
+	s.appendLog(ctx, objects, id, "done", cid)
+	s.completeStep(ctx, objects, id, "finalize", cid)
 	errMsg := ""
 	if stats.Failed > 0 {
 		errMsg = strconv.Itoa(stats.Failed) + " file(s) failed conversion"
@@ -612,7 +729,7 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	if stats.Failed > 0 && stats.Generated == 0 && stats.Skipped == 0 {
 		final = "failed"
 	}
-	s.setState(id, final, errMsg, &stats)
+	s.setState(ctx, objects, id, final, errMsg, cid, &stats)
 }
 
 func uploadAllowFrom(onlyFiles, targets []string) map[string]bool {
@@ -627,44 +744,114 @@ func uploadAllowFrom(onlyFiles, targets []string) map[string]bool {
 	return m
 }
 
-func (s *JobStore) applyConvertLogLine(id, line string, docDone *int, docTotal int) {
-	lower := strings.ToLower(line)
-	switch {
-	case strings.HasPrefix(lower, "step convert doc="):
-		// STEP convert doc=1/2 file=name.docx
-		name := fileFromStepLine(line)
-		if name != "" {
-			s.updateFile(id, name, "active", 10, "converting")
-		}
-	case strings.HasPrefix(lower, "extract "):
-		name := strings.TrimSpace(line[len("extract "):])
-		s.updateFile(id, name, "active", 35, "extract")
-	case strings.HasPrefix(lower, "tts    "):
-		name := firstToken(strings.TrimSpace(line[len("tts    "):]))
-		s.updateFile(id, name, "active", 65, "tts")
-	case strings.HasPrefix(lower, "gen   "):
-		name := firstToken(strings.TrimSpace(line[len("gen   "):]))
-		s.updateFile(id, name, "active", 20, "generate")
-	case strings.HasPrefix(lower, "ok     "):
-		name := firstToken(strings.TrimSpace(line[len("ok     "):]))
-		s.updateFile(id, name, "done", 100, "ok")
-		*docDone++
-		s.setConvertProgress(id, *docDone, docTotal)
-	case strings.HasPrefix(lower, "skip  "):
-		name := firstToken(strings.TrimSpace(line[len("skip  "):]))
-		s.updateFile(id, name, "skipped", 100, "up to date")
-		*docDone++
-		s.setConvertProgress(id, *docDone, docTotal)
-	case strings.HasPrefix(lower, "fail  "):
-		name := firstToken(strings.TrimSpace(line[len("FAIL  "):]))
-		detail := line
-		if i := strings.Index(line, ":"); i >= 0 {
-			detail = strings.TrimSpace(line[i+1:])
-		}
-		s.updateFile(id, name, "failed", 100, detail)
-		*docDone++
-		s.setConvertProgress(id, *docDone, docTotal)
+func (s *JobStore) applyConvertLogLine(ctx context.Context, objects ObjectSpace, id, line string, docDone *int, docTotal int, cid string) {
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return
 	}
+	kind := strings.ToUpper(fields[0])
+	switch kind {
+	case "FILE":
+		if len(fields) < 2 {
+			return
+		}
+		name := fields[1]
+		state := kvFromLine(line, "state")
+		if state == "" {
+			state = "active"
+		}
+		pct := 5
+		switch state {
+		case "done", "skipped":
+			pct = 100
+			*docDone++
+			s.setConvertProgress(id, *docDone, docTotal, 0)
+		case "failed":
+			pct = 100
+			*docDone++
+			s.setConvertProgress(id, *docDone, docTotal, 0)
+		default:
+			s.setConvertProgress(id, *docDone, docTotal, pct)
+		}
+		s.updateFile(id, name, state, pct, state)
+		s.persistSnapshot(ctx, objects, id, cid)
+	case "EXTRACT", "PREMIUM", "TTS", "FFMPEG":
+		if len(fields) < 2 {
+			return
+		}
+		name := fields[1]
+		pct := atoiDefault(kvFromLine(line, "pct"), 40)
+		detail := kvFromLine(line, "detail")
+		if detail == "" {
+			detail = strings.ToLower(kind)
+		}
+		phaseBase := map[string]int{"EXTRACT": 10, "PREMIUM": 35, "TTS": 45, "FFMPEG": 90}[kind]
+		if pct < 0 {
+			pct = 0
+		}
+		if pct > 100 {
+			pct = 100
+		}
+		// Map phase-local pct into roughly 10–99 within the file bar.
+		mapped := phaseBase + (pct * (100 - phaseBase) / 100)
+		if mapped > 99 {
+			mapped = 99
+		}
+		s.updateFile(id, name, "active", mapped, detail)
+		s.setConvertProgress(id, *docDone, docTotal, mapped)
+		s.persistSnapshot(ctx, objects, id, cid)
+	default:
+		lower := strings.ToLower(line)
+		switch {
+		case strings.HasPrefix(lower, "step convert doc="):
+			name := fileFromStepLine(line)
+			if name != "" {
+				s.updateFile(id, name, "active", 10, "converting")
+				s.setConvertProgress(id, *docDone, docTotal, 10)
+			}
+		case strings.HasPrefix(lower, "gen   "):
+			name := firstToken(strings.TrimSpace(line[len("gen   "):]))
+			s.updateFile(id, name, "active", 20, "generate")
+		case strings.HasPrefix(lower, "ok     "):
+			name := firstToken(strings.TrimSpace(line[len("ok     "):]))
+			s.updateFile(id, name, "done", 100, "ok")
+		case strings.HasPrefix(lower, "skip  "):
+			name := firstToken(strings.TrimSpace(line[len("skip  "):]))
+			s.updateFile(id, name, "skipped", 100, "up to date")
+		case strings.HasPrefix(lower, "fail  "):
+			name := firstToken(strings.TrimSpace(line[len("FAIL  "):]))
+			detail := line
+			if i := strings.Index(line, ":"); i >= 0 {
+				detail = strings.TrimSpace(line[i+1:])
+			}
+			s.updateFile(id, name, "failed", 100, detail)
+		}
+	}
+}
+
+func kvFromLine(line, key string) string {
+	needle := key + "="
+	lower := strings.ToLower(line)
+	idx := strings.Index(lower, strings.ToLower(needle))
+	if idx < 0 {
+		return ""
+	}
+	rest := line[idx+len(needle):]
+	if sp := strings.IndexAny(rest, " \t"); sp >= 0 {
+		rest = rest[:sp]
+	}
+	return strings.TrimSpace(rest)
+}
+
+func atoiDefault(s string, def int) int {
+	if s == "" {
+		return def
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return def
+	}
+	return n
 }
 
 func fileFromStepLine(line string) string {

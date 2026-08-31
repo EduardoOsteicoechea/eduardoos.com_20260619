@@ -3,10 +3,13 @@
 Feature 044: text-to-audio (eVoice) in Eduardo OS.
 
 - Catalog `evoice` ($1); temporary allowlist `eliasosteic@gmail.com`, `laleskavf.2una@gmail.com`; admin sees all users
-- S3 `evoice/{userSafe}/{project}/docs|audios` on `eduardoos20260607`
-- API `/api/evoice/*` + sandbox worker (`linux_sync.py`: Piper → espeak-ng → ffmpeg)
+- S3 `evoice/{userSafe}/{project}/docs|audios` on `eduardoos20260607`; job snapshots `evoice/_jobs/{jobId}.json`
+- API `/api/evoice/*` + sandbox worker (`linux_sync.py`: Piper → espeak-ng → ffmpeg; optional `--premium` DeepSeek)
 - Page `/evoice` + tray link; Material Symbols icons on all global tray buttons
-- Follow-up: admin `/users` = UserStore ∪ allowlist ∪ S3; generate jobs expose `steps` + `progress` with live log stream + UI progress bar
-- Follow-up: per-file Generate (`files[]`), skip unchanged MP3s, per-doc progress bars in Docs list
+- Admin owner picker sticky (init effect one-shot)
+- Paste textarea → `POST .../docs/text` → `paste-YYYYMMDD-HHMMSS.txt`
+- Premium checkbox → DeepSeek reasoning rewrite before TTS; `docs/<stem>.premium.txt`
+- Job death: UI waits `/health`, auto-resumes unfinished files; GET job loads S3 snapshot after restart
+- Convert progress: FILE/EXTRACT/PREMIUM/TTS/FFMPEG lines → per-file + overall progress
 
 Spec: `specs/044-evoice/spec.md`

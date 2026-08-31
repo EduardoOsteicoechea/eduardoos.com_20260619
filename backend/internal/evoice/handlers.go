@@ -54,6 +54,7 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Post("/api/evoice/projects", h.CreateProject)
 		pr.Get("/api/evoice/projects/{ownerSafe}/{project}/docs", h.ListDocs)
 		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/docs", h.UploadDoc)
+		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/docs/text", h.PasteDocText)
 		pr.Delete("/api/evoice/projects/{ownerSafe}/{project}/docs/{name}", h.DeleteDoc)
 		pr.Get("/api/evoice/projects/{ownerSafe}/{project}/audios", h.ListAudios)
 		pr.Delete("/api/evoice/projects/{ownerSafe}/{project}/audios/{name}", h.DeleteAudio)
@@ -166,6 +167,9 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	add(SafeEmailKey(email))
 	if prefixes, err := h.Objects.ListPrefixes(r.Context(), RootPrefix+"/", cid); err == nil {
 		for _, p := range prefixes {
+			if p == "_jobs" {
+				continue
+			}
 			add(p)
 		}
 	} else {
@@ -202,7 +206,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 	}
 	projects := make([]string, 0, len(names))
 	for _, n := range names {
-		if n == ProjectMarkerName || n == ".keep" {
+		if n == ProjectMarkerName || n == ".keep" || n == "_jobs" {
 			continue
 		}
 		projects = append(projects, n)
@@ -366,6 +370,60 @@ func (h *Handler) UploadDoc(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type pasteDocBody struct {
+	Text string `json:"text"`
+}
+
+// PasteDocText creates docs/paste-YYYYMMDD-HHMMSS.txt from pasted UTF-8 text.
+func (h *Handler) PasteDocText(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	caller := auth.UserEmailFromRequest(r)
+	owner := chi.URLParam(r, "ownerSafe")
+	project := chi.URLParam(r, "project")
+	if !ValidProjectName(project) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid project")
+		return
+	}
+	if !h.canAccessOwner(r, caller, owner) {
+		httpx.WriteError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	var body pasteDocBody
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxUploadBytes+1)).Decode(&body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	text := strings.TrimSpace(body.Text)
+	if text == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "text required")
+		return
+	}
+	if len(text) > maxUploadBytes {
+		httpx.WriteError(w, http.StatusRequestEntityTooLarge, "text too large")
+		return
+	}
+	name := fmt.Sprintf("paste-%s.txt", time.Now().UTC().Format("20060102-150405"))
+	if !ValidFileName(name) || !isConvertible(name) {
+		httpx.WriteError(w, http.StatusBadRequest, "could not build paste file name")
+		return
+	}
+	key := DocKey(owner, project, name)
+	raw := []byte(text)
+	if err := h.Objects.PutBytes(r.Context(), key, raw, "text/plain; charset=utf-8", cid); err != nil {
+		log.Printf("[correlation=%s] evoice.paste: %v", cid, err)
+		httpx.WriteError(w, http.StatusBadGateway, s3WriteErrorMessage(err, "could not save text"))
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{
+		"ownerSafe": owner,
+		"project":   project,
+		"name":      name,
+		"key":       key,
+		"size":      len(raw),
+		"url": fmt.Sprintf("/api/evoice/file/%s/%s/docs/%s", owner, project, name),
+	})
+}
+
 // DeleteDoc removes one document from docs/.
 func (h *Handler) DeleteDoc(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
@@ -471,7 +529,7 @@ func (h *Handler) GetFile(w http.ResponseWriter, r *http.Request) {
 }
 
 // StartGenerate enqueues a sandbox TTS job.
-// Optional JSON body: { "files": ["a.docx"] } — omit or empty = all docs.
+// Optional JSON body: { "files": ["a.docx"], "premium": true } — omit files = all docs.
 func (h *Handler) StartGenerate(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	caller := auth.UserEmailFromRequest(r)
@@ -490,37 +548,41 @@ func (h *Handler) StartGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var onlyFiles []string
+	premium := false
 	if r.Body != nil {
 		raw, _ := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 		raw = []byte(strings.TrimSpace(string(raw)))
 		if len(raw) > 0 {
 			var body struct {
-				Files []string `json:"files"`
+				Files   []string `json:"files"`
+				Premium bool     `json:"premium"`
 			}
 			if err := json.Unmarshal(raw, &body); err != nil {
 				httpx.WriteError(w, http.StatusBadRequest, "invalid json")
 				return
 			}
 			onlyFiles = body.Files
+			premium = body.Premium
 		}
 	}
-	jobID, err := h.Jobs.Start(r.Context(), h.Objects, owner, project, cid, onlyFiles)
+	jobID, err := h.Jobs.Start(r.Context(), h.Objects, owner, project, cid, onlyFiles, premium)
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, "could not start job")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusAccepted, map[string]any{"jobId": jobID})
+	httpx.WriteJSON(w, http.StatusAccepted, map[string]any{"jobId": jobID, "premium": premium})
 }
 
-// GetJob returns generate job status + logs.
+// GetJob returns generate job status + logs (memory first, else S3 snapshot).
 func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
 	caller := auth.UserEmailFromRequest(r)
 	jobID := chi.URLParam(r, "jobId")
 	if h.Jobs == nil {
 		httpx.WriteError(w, http.StatusServiceUnavailable, "jobs unavailable")
 		return
 	}
-	job, ok := h.Jobs.Get(jobID)
+	job, ok := h.Jobs.GetOrLoad(r.Context(), h.Objects, jobID, cid)
 	if !ok {
 		httpx.WriteError(w, http.StatusNotFound, "job not found")
 		return

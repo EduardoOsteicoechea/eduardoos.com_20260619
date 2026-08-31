@@ -34,6 +34,7 @@ export type EvoiceJob = {
   ownerSafe: string;
   project: string;
   onlyFiles?: string[];
+  premium?: boolean;
   logs: string[];
   steps?: EvoiceJobStep[];
   files?: EvoiceJobFile[];
@@ -170,6 +171,26 @@ export async function uploadEvoiceDoc(
   return { name: data.name ?? file.name };
 }
 
+export async function pasteEvoiceDocText(
+  ownerSafe: string,
+  project: string,
+  text: string,
+): Promise<{ name: string; error?: string }> {
+  const result = await apiRequest<{ name: string }>(
+    EVOICE_ROUTES.projectDocsText(ownerSafe, project),
+    {
+      method: "POST",
+      body: { text },
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { name: "", error: formatApiError(result.error) };
+  }
+  return { name: result.data?.name ?? "" };
+}
+
 export async function deleteEvoiceDoc(
   ownerSafe: string,
   project: string,
@@ -226,14 +247,16 @@ export async function startEvoiceGenerate(
   ownerSafe: string,
   project: string,
   files?: string[],
+  premium = false,
 ): Promise<{ jobId: string; error?: string }> {
-  const body =
-    files && files.length > 0 ? { files } : undefined;
+  const body: { files?: string[]; premium?: boolean } = {};
+  if (files && files.length > 0) body.files = files;
+  if (premium) body.premium = true;
   const result = await apiRequest<{ jobId: string }>(
     EVOICE_ROUTES.generate(ownerSafe, project),
     {
       method: "POST",
-      body,
+      body: Object.keys(body).length ? body : premium ? { premium: true } : undefined,
       correlationId: createCorrelationId(),
       authToken: requireToken(),
     },
@@ -246,15 +269,29 @@ export async function startEvoiceGenerate(
 
 export async function fetchEvoiceJob(
   jobId: string,
-): Promise<{ job: EvoiceJob | null; error?: string }> {
+): Promise<{ job: EvoiceJob | null; error?: string; status?: number }> {
   const result = await apiRequest<EvoiceJob>(EVOICE_ROUTES.job(jobId), {
     correlationId: createCorrelationId(),
     authToken: requireToken(),
   });
   if (result.error) {
-    return { job: null, error: formatApiError(result.error) };
+    return {
+      job: null,
+      error: formatApiError(result.error),
+      status: result.error.status,
+    };
   }
-  return { job: result.data ?? null };
+  return { job: result.data ?? null, status: 200 };
+}
+
+/** Lightweight backend liveness check used before auto-resume. */
+export async function fetchBackendHealth(): Promise<boolean> {
+  try {
+    const res = await fetch("/health", { credentials: "include" });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** Authenticated audio URL (browser <audio> needs Authorization — use blob fetch). */

@@ -2,7 +2,7 @@
 
 ## Status
 
-**In progress** (2026-08-31) — follow-up: admin owner list + generate step progress.
+**Shipped follow-up** (2026-08-31) — admin owner sticky, paste text, premium DeepSeek speech, durable/resume jobs, convert progress stream.
 
 ## Problem
 
@@ -20,100 +20,88 @@ Upstream semantics: `backend/text-to-audio/HANDOUT_FOR_EC2_AGENT.md` + converter
 - Allowlist is temporary until PayPal checkout is used; keep in one shared helper (backend + frontend parity).
 - Admin bypasses entitlement and may list/open **all** users’ projects.
 
-### 1. Routes (frontend)
+### 0b. Admin owner picker (bugfix)
+- Selecting another `userSafe` in **Admin only** must stick: load that owner’s projects/docs/audios and **must not** snap back to the signed-in admin’s `userSafe`.
+- Root cause to fix: init `useEffect` must not re-run when `project` / `reloadProjects` identity changes.
+
+### 0.5 Premium speech (DeepSeek reasoning)
+- UI checkbox **Premium** on Generate (all / per-doc).
+- When on: after text extraction (OCR/docx/pdf/txt/paste) and **before** Piper/ffmpeg, send extracted text to DeepSeek reasoning (`DEEPSEEK_API_KEY`, model `DEEPSEEK_MODEL_REASONING` default `deepseek-v4-pro`) with a fixed system prompt: rewrite for clear spoken Spanish optimized for TTS (short sentences, expand abbreviations, no markdown).
+- Persist optimized text as `docs/<stem>.premium.txt` under the project and TTS that text; log `premium: optimized N→M chars`.
+- Available to anyone with evoice access (admin/allowlist/entitlement). If API key missing → fail that file with clear log (do not silent-fallback without saying so).
+
+### 1. Job death detection + resume
+- Persist each job snapshot under S3 `evoice/_jobs/{jobId}.json` (periodic + on terminal; JSON includes ownerSafe).
+- `GET /api/evoice/jobs/{jobId}`: memory first, else S3 snapshot (authz by owner/admin).
+- UI: if poll gets 404 **or** backend `/health` fails while generating: wait until health OK, then **auto-resume** by `POST generate` with `files` = docs still missing/outdated MP3 (same premium flag), and continue showing console progress.
+- Do not require human to click Generate again after a deploy/restart mid-job.
+
+### 2. Paste text source
+- UI: textarea + “Add text” → creates `docs/paste-YYYYMMDD-HHMMSS.txt` (UTF-8) via `POST .../docs/text` `{ "text": "..." }`.
+- Then appears in docs list like any other source (Generate all / per-row).
+
+### 3. Constant convert progress
+- Worker emits frequent lines during the long convert phase, at least:
+  - `FILE name state=active`
+  - `EXTRACT name pct=N`
+  - `PREMIUM name …` when premium
+  - `TTS name pct=N` (chunked)
+  - `FFMPEG name …`
+  - `FILE name state=done|failed|skipped`
+- Go maps these into `files[].progress` / `files[].detail` and overall `progress` so the Console bar moves during TTS, not only between files.
+
+### Routes (frontend)
 | Path | UI |
 |------|-----|
-| `/evoice` | Project hub for current user (ServiceGate `evoice`) |
-| Admin | Same page; owner picker lists **all platform users** (not only S3 prefixes that already exist) |
+| `/evoice` | Project hub (ServiceGate `evoice`) |
+| Admin | Owner picker lists all platform users |
 
 Nav tray: label **eVoice**, href `/evoice`, `serviceId: "evoice"`.
 
-### 2. S3 (`eduardoos20260607`, prefix `evoice/`)
+### S3 (`eduardoos20260607`, prefix `evoice/`)
 ```
-evoice/{userSafe}/                          # ensured on first API use (and empty marker)
+evoice/{userSafe}/
 evoice/{userSafe}/{project}/docs/<sources>
 evoice/{userSafe}/{project}/audios/<stem>.mp3
+evoice/_jobs/{jobId}.json
 ```
-- Bucket confirmed; EC2 role updated by human — also update `deploy/aws/ec2-iam-s3-policy.json` for repo truth.
-- Project create writes `docs/` + `audios/` placeholder keys (same pattern as handout).
-- Ignore marker name `CREATE_A_FOLDER_BY_GENERATION_PROJECT_BESIDE_THIS_ONE` if present.
-- Supported docs: `.docx` `.txt` `.pdf` (text layer) images `.png` `.jpg` `.jpeg` `.webp` `.tif` `.tiff` `.bmp` `.gif`
-- One MP3 per convertible source stem; regenerate only if missing or source newer than MP3.
+- Supported docs: `.docx` `.txt` `.pdf` images + pasted `.txt`
+- One MP3 per stem; regen if missing or source newer.
 
-### 3. API (JWT + evoice access)
+### API (JWT + evoice access)
 | Method | Path | Notes |
 |--------|------|--------|
-| GET | `/api/evoice/me` | Ensure user prefix; `{ userSafe, isAdmin }` |
-| GET | `/api/evoice/users` | Admin only — union of: all `UserStore` emails as `userSafe`, allowlisted emails, and existing S3 prefixes under `evoice/` (sorted unique) |
-| GET | `/api/evoice/projects?owner=` | List projects for owner (self or admin) |
-| POST | `/api/evoice/projects` | `{ name, owner? }` create docs+audios |
-| GET | `/api/evoice/projects/{ownerSafe}/{project}/docs` | List docs |
-| POST | `/api/evoice/projects/{ownerSafe}/{project}/docs` | Multipart upload into docs/ |
-| DELETE | `/api/evoice/projects/{ownerSafe}/{project}/docs/{name}` | Delete one doc |
-| DELETE | `/api/evoice/projects/{ownerSafe}/{project}/audios/{name}` | Delete one MP3 from audios/ |
-| GET | `/api/evoice/projects/{ownerSafe}/{project}/audios` | Playlist metadata + play URLs |
-| GET | `/api/evoice/file/{ownerSafe}/{project}/{kind}/{name}` | Stream doc or mp3 (`kind`=docs\|audios) |
-| POST | `/api/evoice/projects/{ownerSafe}/{project}/generate` | Start sandbox job → `{ jobId }`. Optional JSON body `{ "files": ["a.docx"] }` limits convert to those docs (omit/`[]` = all). Always skips a doc when its MP3 exists and is not older than the source. |
-| GET | `/api/evoice/jobs/{jobId}` | Status + planned steps + overall `progress` + per-file `files[]` + log lines |
+| GET | `/api/evoice/me` | `{ userSafe, isAdmin }` |
+| GET | `/api/evoice/users` | Admin: store ∪ allowlist ∪ S3 |
+| GET | `/api/evoice/projects?owner=` | |
+| POST | `/api/evoice/projects` | `{ name, owner? }` |
+| GET/POST/DELETE | `.../docs` | multipart upload |
+| POST | `.../docs/text` | `{ text }` paste |
+| GET/DELETE | `.../audios` | |
+| GET | `/api/evoice/file/...` | stream |
+| POST | `.../generate` | `{ files?, premium? }` |
+| GET | `/api/evoice/jobs/{jobId}` | memory or S3 |
 
-Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access (admin/allowlist/entitlement).
+### Worker
+- Disk workdir + TMPDIR; Piper/ffmpeg; Tesseract OCR; `--only`; `--premium` via Go calling DeepSeek then writing `.premium.txt` before TTS, or Python reading premium sibling.
+- Prefer: Go extracts or Python extracts; Go runs DeepSeek between extract and TTS by having Python emit EXTRACTED text… Actually cleaner: Python does extract → if premium, call HTTP to local callback OR Go wraps: download → python extract-only → deepseek → write text → python tts-only. Simplest for EC2: Python worker calls DeepSeek REST if `--premium` and env has key (same as Go).
 
-### 4. Worker (EC2 host sandbox)
-- Go handler downloads project into a **disk-backed** workdir (not RAM tmpfs): `EVOICE_WORK_DIR` if set, else `/var/tmp/evoice-jobs/{jobId}/` (never rely on `/tmp` alone — on Amazon Linux `/tmp` is often a small tmpfs and large DOCX→MP3 jobs hit `No space left on device`).
-- When spawning the Python worker, set `TMPDIR` to that same disk root so Piper/ffmpeg intermediates do not fill `/tmp`.
-- Runs Python worker adapted from `converter/scripts` (Linux TTS): prefer **Piper** Spanish voice → ffmpeg mp3; else **espeak-ng** → ffmpeg; OCR via Tesseract when images present.
-- Worker accepts optional `--only <filename>` (repeatable) so a single new upload can be converted without re-running unchanged siblings.
-- Uploads new/updated `audios/*.mp3` to S3 (after convert; partial convert failures still upload successful MP3s).
-- Job model: in-process async (status `queued`/`running`/`done`/`failed`); request returns quickly with `jobId`.
-- **Progress plan (required):** on start, backend publishes a fixed ordered `steps[]` plan and updates each step’s state as work advances. Job JSON includes:
-  - `steps`: `[{ id, label, state }]` where `state` ∈ `pending` \| `active` \| `done` \| `failed` \| `skipped`
-  - `progress`: integer 0–100 (completed weight of the plan)
-  - `currentStep`: active step id (or empty when terminal)
-  - `files`: `[{ name, state, progress, detail? }]` — per-doc convert tracking (`pending`/`active`/`done`/`skipped`/`failed`, progress 0–100)
-  - `logs`: chronological detail lines (streamed live — not only after the Python process exits)
-- Default plan steps (ids stable for UI): `prepare` → `download_docs` → `download_audios` → `convert` → `upload` → `finalize`.
-- During `convert`, worker streams per-doc lines; Go updates both overall `progress` and matching `files[]` entries.
-- Caps: timeout, max upload size; no GPU assumption.
-- Vendor/read scripts from `backend/text-to-audio/converter/scripts` where useful; Linux TTS lives under `backend/internal/evoice/worker/`.
-
-### 5. Web UI
-- Project dropdown (taller), create project, upload docs, **Generate all** + **Generate per doc row**, playlist + HTML5 audio with play/pause/stop/next and auto-advance.
-- Lead copy does **not** embed the raw `evoice/{userSafe}/` path (keep a short product sentence only).
-- **Generate + playlist layout (desktop):** one row with two columns — left **Console** (overall progress bar, step checklist with state, log); right **Playlist** (tracks + player). Stack vertically on narrow viewports.
-- **Docs list:** each row shows a per-file progress bar. Status comes from the active job’s `files[]` when present; otherwise, if `audios/{stem}.mp3` already exists for that doc, show **ready** (100%) so previously generated items are detected without re-running Generate. Each row has Generate, Delete doc, and Delete audio (when an MP3 exists). Deleting doc or audio refreshes lists and clears/resets that row’s progress indicator.
-- **Download:** each playlist track has a Download control that fetches the authenticated MP3 (`GET /api/evoice/file/.../audios/...`) and saves it locally (filename = object name). Playlist rows also expose Delete audio. Optional “Download current” next to player actions is fine; no zip/bulk required.
-- Fit Eduardo OS plain CSS (component CSS file); ServiceGate wrapper.
-- **Desktop layout inset:** same lateral padding as home — `var(--page-inline-pad)` full-bleed in the main pane (not an extra centered narrow column with larger side gutters).
-- Admin: owner picker label **Admin only**; shows the full `/api/evoice/users` list (platform users + allowlist + S3), not only the signed-in admin.
-
-### 6. Global menu icons
-- Load already present: Material Symbols Outlined in `BaseLayout.astro`.
-- Each tray nav link (primary + product + admin rows) shows a Material Symbol **to the left** of the label.
-- Icon map fixed in `navServices` / Header (Contact=mail, Homescool=school, Music=music_note, Pamphlet=description, Scrib=edit_note, eReport=assignment, eVoice=record_voice_over, Articles=article, Calvin’s=menu_book, BIM=view_in_ar, Admin users=group, Agent Sandbox=terminal, MPS=science, Church=church when enabled).
+### Web UI
+- Owner sticky; paste; Premium checkbox; auto-resume; constant convert progress; existing Console/Playlist/docs rows.
 
 ## Non-goals
-- Windows Tk / SAPI / `launch.exe` in production.
-- Real-time collab; public anonymous bucket access.
-- Training custom TTS models.
-- Shipping large Piper models in git (install/download on EC2 or document env `EVOICE_PIPER_*`).
+- Windows Tk/SAPI; mid-sentence Piper resume (resume = re-run unfinished files).
+- Separate Premium catalog SKU (toggle only for this phase).
 
 ## Acceptance
-- [x] Spec committed; catalog `evoice` + allowlist + admin bypass
-- [x] S3 layout `evoice/{userSafe}/{project}/docs|audios`; IAM policy JSON includes `evoice/`
-- [x] API + tests (memory objects); generate job + playlist play URLs
-- [x] Page `/evoice` + tray link + Material icons on all tray buttons
-- [x] FE build; commit + push
-- [x] Admin `/api/evoice/users` returns platform users ∪ allowlist ∪ S3 prefixes; owner dropdown shows more than the signed-in admin when other accounts exist
-- [x] Generate job exposes `steps` + `progress` (0–100); UI shows progress bar + step list; logs stream during convert (not only at end)
-- [x] Playlist tracks can be downloaded as MP3 via authenticated file fetch
-- [x] Generate accepts optional `files[]`; per-doc Generate in UI; skip unchanged MP3s; job exposes `files[]` progress alongside overall progress
-- [x] Docs rows detect existing `audios/{stem}.mp3`; DELETE audio API; Delete doc / Delete audio update row progress
+- [x] Prior ship items
+- [x] Admin owner selection does not snap back
+- [x] Paste textarea → docs/*.txt
+- [x] Premium generate uses DeepSeek then TTS
+- [x] Job snapshots; GET after restart; UI auto-resumes
+- [x] Convert progress streams during TTS
 
 ## Affected paths
 - `specs/044-evoice/spec.md`
-- `backend/internal/evoice/**`, `backend/internal/evoice/worker/**`
-- `backend/internal/payments/catalog.go`, `handlers.go` (access allowlist)
-- `backend/cmd/server/main.go`
-- `deploy/aws/ec2-iam-s3-policy.json`
-- `frontend/src/pages/evoice/**`, `components/Evoice/**`, `lib/evoice.ts`, `lib/payments.ts`, `lib/navServices.ts`, `lib/routeAccess.ts`, `config/routes.ts`, `components/Header/**`
-- Reference only: `backend/text-to-audio/**` (handout + scripts; not the Windows UI path)
+- `backend/internal/evoice/**`, `worker/**`
+- `frontend/src/components/Evoice/**`, `lib/evoice.ts`

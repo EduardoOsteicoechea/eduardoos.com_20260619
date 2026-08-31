@@ -133,6 +133,35 @@
   cursor: pointer;
 }
 
+.evoice__premium {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: Raleway, sans-serif;
+  font-size: 0.9rem;
+  margin-right: 0.25rem;
+}
+
+.evoice__paste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.evoice__textarea {
+  width: 100%;
+  min-height: 5.5rem;
+  padding: 0.55rem 0.7rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font-family: Raleway, sans-serif;
+  resize: vertical;
+}
+
 .evoice__list,
 .evoice__playlist {
   list-style: none;

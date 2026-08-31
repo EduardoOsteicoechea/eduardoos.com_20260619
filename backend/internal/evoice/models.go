@@ -31,6 +31,7 @@ type JobStatus struct {
 	Owner       string            `json:"ownerSafe"`
 	Project     string            `json:"project"`
 	OnlyFiles   []string          `json:"onlyFiles,omitempty"`
+	Premium     bool              `json:"premium,omitempty"`
 	Logs        []string          `json:"logs"`
 	Steps       []JobStep         `json:"steps"`
 	Files       []JobFileProgress `json:"files"`
