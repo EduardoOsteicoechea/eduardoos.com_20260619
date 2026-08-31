@@ -1,0 +1,109 @@
+/**
+ * Music upload modal (spec 043) — plain CSS, --site-* tokens.
+ */
+
+.music-upload-modal {
+  margin: auto;
+  padding: 0;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  max-width: min(22rem, calc(100vw - 2rem));
+  width: 100%;
+  box-shadow: var(--site-shadow, 0 8px 28px rgba(0, 0, 0, 0.25));
+}
+
+.music-upload-modal::backdrop {
+  background: color-mix(in srgb, var(--site-body-fg) 35%, transparent);
+}
+
+.music-upload-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem 1.1rem 1.05rem;
+  box-sizing: border-box;
+}
+
+.music-upload-modal__title {
+  margin: 0;
+  font-family: var(--font-display, Montserrat, system-ui, sans-serif);
+  font-size: var(--font-lg, 1.15rem);
+  font-weight: 600;
+  color: var(--site-body-fg);
+}
+
+.music-upload-modal__hint {
+  margin: 0;
+  font-size: var(--font-sm);
+  opacity: 0.85;
+}
+
+.music-upload-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.music-upload-modal__label {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.music-upload-modal__input {
+  min-height: var(--control_min_height, 2.25rem);
+  padding: 0.3rem 0.5rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font-size: var(--font-sm);
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.music-upload-modal__input:focus {
+  outline: 2px solid var(--site-accent);
+  outline-offset: 1px;
+}
+
+.music-upload-modal__error {
+  margin: 0;
+  font-size: var(--font-xs);
+  color: var(--site-danger, #b00020);
+}
+
+.music-upload-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}
+
+.music-upload-modal__btn {
+  min-height: var(--control_min_height, 2.25rem);
+  padding: 0.35rem 0.85rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font-size: var(--font-sm);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.music-upload-modal__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.music-upload-modal__btn--primary {
+  background: var(--site-accent);
+  border-color: var(--site-accent);
+  color: var(--site-accent-fg, var(--site-body-bg));
+}

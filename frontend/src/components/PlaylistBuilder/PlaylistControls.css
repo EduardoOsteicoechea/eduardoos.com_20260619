@@ -159,6 +159,15 @@
 }
 
 @media (min-width: 768px) {
+  /* Spec 043: desktop seek track is half the previous height. */
+  .playlist-controls__seek-wrap {
+    height: 0.5rem;
+  }
+
+  .playlist-controls__seek-fill {
+    height: 0.125rem;
+  }
+
   .playlist-controls__slider {
     max-width: 14rem;
   }

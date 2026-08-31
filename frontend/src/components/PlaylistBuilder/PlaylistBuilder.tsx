@@ -20,6 +20,7 @@ import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import PlaylistControls from "./PlaylistControls";
 import PlaylistLyrics from "./PlaylistLyrics";
 import SongRecorder from "./SongRecorder";
+import MusicHeaderMenu from "./MusicHeaderMenu";
 import { IconAddToPlaylist, IconChevronDown, IconChevronUp, IconRemove, } from "./PlaylistIcons";
 import "./PlaylistBuilder.css";
 const DRAG_MIME = "application/x-eduardoos-track-key";
@@ -727,6 +728,11 @@ export default function PlaylistBuilder() {
           void handleLoadEmusicsFile(e.target.files);
           e.target.value = "";
         }}
+      />
+
+      <MusicHeaderMenu
+        isAdmin={isAdmin}
+        onUploaded={(track) => void handleRecordedTrack(track)}
       />
 
       <SongRecorder onRecorded={(track) => void handleRecordedTrack(track)} />
