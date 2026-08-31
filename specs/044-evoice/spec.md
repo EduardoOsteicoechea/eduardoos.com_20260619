@@ -40,11 +40,13 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 **Without premium:** rest 10% | convert 80% | upload 10%.  
 **With premium:** rest 10% | extract 30% | refine DeepSeek 30% | convert audio 20% | upload 10%.
 
-### UI chrome (this slice)
-- **Remove** page heading block: “EDUARDO OS”, “eVoice” title, and lead “Documents to MP3…”.
-- Keep “Admin only” access note if present; no marketing eyebrow/title/lead.
-- **Playlist** panel stacks **under** Console (single column) — not a side-by-side grid.
-- Errors (including audio fetch failures) use **ServerErrorModal** (`openApiErrorModal` / `openServerErrorModal`) like the rest of the site — not inline red text for API/audio failures.
+### UI layout (hub)
+- Vertical gap between **Admin only** and **Project** row (≥1rem).
+- **Project** select and **New project** input share the same control height and equal width (side-by-side twin fields; Create stays beside New project).
+- Split former Docs panel into two panels:
+  1. **Add** — Upload, paste/add text, Premium toggle, Generate (selected docs; if none selected → all). Stop/Resume stay here while a job runs.
+  2. **Docs** — list of uploaded sources with checkboxes to select which to generate/regenerate; per-row Generate / Delete doc / Delete audio remain.
+- **Premium defaults to on** (DeepSeek speech + chapters).
 
 ### Audio fetch (names with spaces / parentheses)
 - **Canonical:** `GET|HEAD /api/evoice/file/{ownerSafe}/{project}/{kind}?name=<basename>`  

@@ -13,6 +13,6 @@ Feature 044: text-to-audio (eVoice) in Eduardo OS.
 - Convert progress: FILE/EXTRACT/PREMIUM/TTS/FFMPEG lines → per-file + overall progress
 - Stop generate + Resume unfinished files; DeepSeek premium uses SSE stream; weighted progress (std 80/10/10, premium 30/30/20+10+10)
 - UI: no page heading; errors via ServerErrorModal; playlist under Console
-- Premium → chapter MP3s (`{stem}.cNN-title.mp3`); audio GET uses `?name=` (spaces/parens safe)
+- UI: Add vs Docs panels; Premium default on; Project/New project equal controls; admin→project gap
 
 Spec: `specs/044-evoice/spec.md`

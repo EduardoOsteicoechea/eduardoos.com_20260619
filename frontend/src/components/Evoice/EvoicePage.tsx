@@ -111,7 +111,9 @@ function EvoiceWorkspace() {
   const [docs, setDocs] = useState<EvoiceObjectMeta[]>([]);
   const [audios, setAudios] = useState<EvoiceObjectMeta[]>([]);
   const [pasteText, setPasteText] = useState("");
-  const [premium, setPremium] = useState(false);
+  const [premium, setPremium] = useState(true);
+  const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+  const [showPaste, setShowPaste] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [steps, setSteps] = useState<EvoiceJobStep[]>([]);
   const [fileProgress, setFileProgress] = useState<EvoiceJobFile[]>([]);
@@ -167,6 +169,12 @@ function EvoiceWorkspace() {
     setDocs(d.docs);
     setAudios(a.audios);
     setTrackIndex(0);
+    setSelectedDocs((prev) => {
+      const names = new Set(
+        d.docs.filter((x) => isSourceDoc(x.name)).map((x) => x.name),
+      );
+      return prev.filter((n) => names.has(n));
+    });
     return { docs: d.docs, audios: a.audios };
   }, []);
 
@@ -431,14 +439,20 @@ function EvoiceWorkspace() {
 
   async function onGenerate(files?: string[]) {
     if (!ownerSafe || !project || busy) return;
+    const targets =
+      files && files.length > 0
+        ? files
+        : selectedDocs.length > 0
+          ? selectedDocs
+          : undefined;
     setBusy(true);
     setJobStopped(false);
     stopRequestedRef.current = false;
     setLogs(["starting…"]);
     setSteps([]);
     setFileProgress(
-      files?.length
-        ? files.map((name) => ({ name, state: "pending", progress: 0 }))
+      targets?.length
+        ? targets.map((name) => ({ name, state: "pending", progress: 0 }))
         : [],
     );
     setProgress(0);
@@ -446,7 +460,7 @@ function EvoiceWorkspace() {
     const started = await startEvoiceGenerate(
       ownerSafe,
       project,
-      files,
+      targets,
       usePremium,
     );
     if (started.error || !started.jobId) {
@@ -459,7 +473,7 @@ function EvoiceWorkspace() {
       started.jobId,
       ownerSafe,
       project,
-      files,
+      targets,
       usePremium,
     );
     setBusy(false);
@@ -581,12 +595,25 @@ function EvoiceWorkspace() {
     }
   }
 
+  function toggleDocSelected(name: string) {
+    setSelectedDocs((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
+    );
+  }
+
+  function toggleSelectAllDocs() {
+    const names = sourceDocs.map((d) => d.name);
+    setSelectedDocs((prev) =>
+      prev.length === names.length ? [] : names,
+    );
+  }
+
   const sourceDocs = docs.filter((d) => isSourceDoc(d.name));
 
   return (
     <div className="evoice">
       {isAdmin ? (
-        <label className="evoice__field">
+        <label className="evoice__field evoice__admin">
           <span>Admin only</span>
           <select
             className="evoice__select"
@@ -608,10 +635,10 @@ function EvoiceWorkspace() {
       ) : null}
 
       <div className="evoice__toolbar">
-        <label className="evoice__field evoice__field--grow">
+        <label className="evoice__field evoice__field--twin">
           <span>Project</span>
           <select
-            className="evoice__select evoice__select--tall"
+            className="evoice__select"
             value={project}
             onChange={(e) => setProject(e.target.value)}
             disabled={!projects.length}
@@ -628,7 +655,7 @@ function EvoiceWorkspace() {
           </select>
         </label>
         <form className="evoice__create" onSubmit={onCreateProject}>
-          <label className="evoice__field">
+          <label className="evoice__field evoice__field--twin">
             <span>New project</span>
             <input
               className="evoice__input"
@@ -649,19 +676,28 @@ function EvoiceWorkspace() {
         <>
           <section className="evoice__panel">
             <div className="evoice__panel-head">
-              <h2>Docs</h2>
+              <h2>Add</h2>
               <label className="btn evoice__upload">
                 Upload
                 <input type="file" hidden onChange={onUpload} disabled={busy} />
               </label>
-              <label className="evoice__premium">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setShowPaste((v) => !v)}
+                disabled={busy}
+              >
+                {showPaste ? "Hide text" : "+ Text"}
+              </button>
+              <label className="evoice__premium evoice__premium--toggle">
                 <input
                   type="checkbox"
                   checked={premium}
                   onChange={(e) => setPremium(e.target.checked)}
                   disabled={busy}
                 />
-                <span>Premium (DeepSeek speech)</span>
+                <span className="evoice__toggle-ui" aria-hidden="true" />
+                <span>Premium</span>
               </label>
               <button
                 type="button"
@@ -669,7 +705,9 @@ function EvoiceWorkspace() {
                 onClick={() => void onGenerate()}
                 disabled={busy}
               >
-                Generate all
+                {selectedDocs.length > 0
+                  ? `Generate (${selectedDocs.length})`
+                  : "Generate all"}
               </button>
               {busy ? (
                 <button
@@ -692,31 +730,53 @@ function EvoiceWorkspace() {
               ) : null}
             </div>
 
-            <form className="evoice__paste" onSubmit={onPasteText}>
-              <label className="evoice__field evoice__field--grow">
-                <span>Paste text</span>
-                <textarea
-                  className="evoice__textarea"
-                  value={pasteText}
-                  onChange={(e) => setPasteText(e.target.value)}
-                  rows={4}
-                  placeholder="Paste source text here…"
+            {showPaste ? (
+              <form className="evoice__paste" onSubmit={onPasteText}>
+                <label className="evoice__field evoice__field--grow">
+                  <span>Paste text</span>
+                  <textarea
+                    className="evoice__textarea"
+                    value={pasteText}
+                    onChange={(e) => setPasteText(e.target.value)}
+                    rows={4}
+                    placeholder="Paste source text here…"
+                    disabled={busy}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="btn"
+                  disabled={busy || !pasteText.trim()}
+                >
+                  Add text
+                </button>
+              </form>
+            ) : null}
+          </section>
+
+          <section className="evoice__panel">
+            <div className="evoice__panel-head">
+              <h2>Docs</h2>
+              {sourceDocs.length > 0 ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={toggleSelectAllDocs}
                   disabled={busy}
-                />
-              </label>
-              <button
-                type="submit"
-                className="btn"
-                disabled={busy || !pasteText.trim()}
-              >
-                Add text
-              </button>
-            </form>
+                >
+                  {selectedDocs.length === sourceDocs.length
+                    ? "Clear selection"
+                    : "Select all"}
+                </button>
+              ) : null}
+            </div>
+            <p className="evoice__hint">
+              Select docs to generate or regenerate.
+            </p>
 
             {sourceDocs.length === 0 ? (
               <p className="evoice__empty">
-                No documents yet. Upload .txt, .docx, .pdf, images, or paste
-                text.
+                No documents yet. Upload a file or add text above.
               </p>
             ) : (
               <ul className="evoice__list">
@@ -725,8 +785,18 @@ function EvoiceWorkspace() {
                   const pct = fp ? Math.max(0, Math.min(100, fp.progress)) : 0;
                   const related = audiosForDoc(d.name, audios);
                   const hasAudio = related.length > 0;
+                  const checked = selectedDocs.includes(d.name);
                   return (
                     <li key={d.key} className="evoice__doc-row">
+                      <label className="evoice__doc-check">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleDocSelected(d.name)}
+                          disabled={busy}
+                          aria-label={`Select ${d.name}`}
+                        />
+                      </label>
                       <div className="evoice__doc-main">
                         <span className="evoice__doc-name">{d.name}</span>
                         <div
@@ -770,7 +840,11 @@ function EvoiceWorkspace() {
                         className="btn"
                         onClick={() => void onDeleteDocAudios(d.name)}
                         disabled={busy || !hasAudio}
-                        title={hasAudio ? `Delete ${related.length} audio(s)` : "No audio yet"}
+                        title={
+                          hasAudio
+                            ? `Delete ${related.length} audio(s)`
+                            : "No audio yet"
+                        }
                       >
                         Delete audio
                       </button>
