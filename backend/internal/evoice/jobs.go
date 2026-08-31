@@ -1,16 +1,29 @@
 package evoice
 
 import (
+	"bufio"
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+// Fixed generate plan (spec 044) — ids are stable for the UI checklist.
+var defaultJobPlan = []JobStep{
+	{ID: "prepare", Label: "Prepare workdir", State: "pending"},
+	{ID: "download_docs", Label: "Download documents", State: "pending"},
+	{ID: "download_audios", Label: "Download existing audios", State: "pending"},
+	{ID: "convert", Label: "Convert docs → MP3", State: "pending"},
+	{ID: "upload", Label: "Upload audios to S3", State: "pending"},
+	{ID: "finalize", Label: "Finalize", State: "pending"},
+}
 
 // JobRunner converts a synced local project docs/ → audios/.
 type JobRunner interface {
@@ -70,6 +83,7 @@ func isConvertible(name string) bool {
 }
 
 // PythonRunner shells out to worker/linux_sync.py (Piper / espeak-ng / ffmpeg).
+// Stdout is streamed line-by-line so the UI sees convert progress live.
 type PythonRunner struct {
 	Python string
 	Script string
@@ -85,23 +99,41 @@ func (p PythonRunner) Run(ctx context.Context, projectDir string, logFn func(str
 		script = defaultWorkerScript()
 	}
 	cmd := exec.CommandContext(ctx, py, script, "--project-dir", projectDir)
-	cmd.Env = append(os.Environ(), "PYTHONUNBUFFERED=1")
-	out, err := cmd.CombinedOutput()
-	for _, line := range strings.Split(string(out), "\n") {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			logFn(line)
-		}
+	// Keep Piper/ffmpeg temps on the same disk as the project (not RAM /tmp).
+	tmpDir := filepath.Dir(projectDir)
+	cmd.Env = append(os.Environ(),
+		"PYTHONUNBUFFERED=1",
+		"TMPDIR="+tmpDir,
+		"TEMP="+tmpDir,
+		"TMP="+tmpDir,
+	)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return JobStats{}, err
+	}
+	cmd.Stderr = cmd.Stdout
+	if err := cmd.Start(); err != nil {
+		return JobStats{}, err
 	}
 	stats := JobStats{}
-	// Best-effort parse of STATS line: STATS docs=1 generated=1 skipped=0 failed=0
-	for _, line := range strings.Split(string(out), "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "STATS ") {
-			parseStatsLine(strings.TrimSpace(line), &stats)
+	scan := bufio.NewScanner(io.LimitReader(stdout, 8<<20))
+	scan.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scan.Scan() {
+		line := strings.TrimSpace(scan.Text())
+		if line == "" {
+			continue
+		}
+		logFn(line)
+		if strings.HasPrefix(line, "STATS ") {
+			parseStatsLine(line, &stats)
 		}
 	}
-	if err != nil {
-		return stats, err
+	waitErr := cmd.Wait()
+	if scanErr := scan.Err(); scanErr != nil && waitErr == nil {
+		return stats, scanErr
+	}
+	if waitErr != nil {
+		return stats, waitErr
 	}
 	return stats, nil
 }
@@ -166,8 +198,8 @@ func defaultWorkerScript() string {
 
 // JobStore tracks in-flight generate jobs.
 type JobStore struct {
-	mu    sync.RWMutex
-	jobs  map[string]*JobStatus
+	mu     sync.RWMutex
+	jobs   map[string]*JobStatus
 	runner JobRunner
 }
 
@@ -186,6 +218,38 @@ func resolveDefaultRunner() JobRunner {
 	return PythonRunner{}
 }
 
+// evoiceJobsBase is the disk-backed parent for job sandboxes.
+// Prefer EVOICE_WORK_DIR, then /var/tmp (Amazon Linux /tmp is often a tiny tmpfs).
+func evoiceJobsBase() string {
+	if v := strings.TrimSpace(os.Getenv("EVOICE_WORK_DIR")); v != "" {
+		return v
+	}
+	if st, err := os.Stat("/var/tmp"); err == nil && st.IsDir() {
+		return filepath.Join("/var/tmp", "evoice-jobs")
+	}
+	return filepath.Join(os.TempDir(), "evoice-jobs")
+}
+
+func cloneJobSteps(src []JobStep) []JobStep {
+	out := make([]JobStep, len(src))
+	copy(out, src)
+	return out
+}
+
+func newQueuedJob(id, ownerSafe, project string) *JobStatus {
+	steps := cloneJobSteps(defaultJobPlan)
+	return &JobStatus{
+		ID:          id,
+		State:       "queued",
+		Owner:       ownerSafe,
+		Project:     project,
+		Logs:        []string{"queued"},
+		Steps:       steps,
+		Progress:    0,
+		CurrentStep: "",
+	}
+}
+
 // Get returns a copy of the job status.
 func (s *JobStore) Get(id string) (JobStatus, bool) {
 	s.mu.RLock()
@@ -196,6 +260,7 @@ func (s *JobStore) Get(id string) (JobStatus, bool) {
 	}
 	cp := *j
 	cp.Logs = append([]string(nil), j.Logs...)
+	cp.Steps = cloneJobSteps(j.Steps)
 	if j.Stats != nil {
 		st := *j.Stats
 		cp.Stats = &st
@@ -221,20 +286,128 @@ func (s *JobStore) setState(id, state, errMsg string, stats *JobStats) {
 		j.State = state
 		j.Error = errMsg
 		j.Stats = stats
+		if state == "done" {
+			j.Progress = 100
+			j.CurrentStep = ""
+			for i := range j.Steps {
+				if j.Steps[i].State == "pending" || j.Steps[i].State == "active" {
+					j.Steps[i].State = "done"
+				}
+			}
+		}
+		if state == "failed" {
+			j.CurrentStep = ""
+			for i := range j.Steps {
+				if j.Steps[i].State == "active" {
+					j.Steps[i].State = "failed"
+				}
+			}
+		}
 	}
+}
+
+// activateStep marks stepID active, prior unfinished steps done, and refreshes progress.
+func (s *JobStore) activateStep(id, stepID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.jobs[id]
+	if !ok {
+		return
+	}
+	found := false
+	for i := range j.Steps {
+		switch {
+		case j.Steps[i].ID == stepID:
+			j.Steps[i].State = "active"
+			j.CurrentStep = stepID
+			found = true
+		case !found && (j.Steps[i].State == "pending" || j.Steps[i].State == "active"):
+			j.Steps[i].State = "done"
+		}
+	}
+	j.Progress = progressFromSteps(j.Steps)
+}
+
+func (s *JobStore) completeStep(id, stepID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.jobs[id]
+	if !ok {
+		return
+	}
+	for i := range j.Steps {
+		if j.Steps[i].ID == stepID {
+			j.Steps[i].State = "done"
+		}
+	}
+	if j.CurrentStep == stepID {
+		j.CurrentStep = ""
+	}
+	j.Progress = progressFromSteps(j.Steps)
+}
+
+func (s *JobStore) failStep(id, stepID, errMsg string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.jobs[id]
+	if !ok {
+		return
+	}
+	for i := range j.Steps {
+		if j.Steps[i].ID == stepID {
+			j.Steps[i].State = "failed"
+		}
+	}
+	j.CurrentStep = ""
+	j.State = "failed"
+	j.Error = errMsg
+	j.Progress = progressFromSteps(j.Steps)
+}
+
+func (s *JobStore) setConvertProgress(id string, done, total int) {
+	if total <= 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.jobs[id]
+	if !ok {
+		return
+	}
+	// Convert is the 4th of 6 equal-weight steps; interpolate within that band.
+	base := 0
+	stepWeight := 100 / len(j.Steps)
+	for i, st := range j.Steps {
+		if st.ID == "convert" {
+			base = i * stepWeight
+			frac := float64(done) / float64(total)
+			if frac > 1 {
+				frac = 1
+			}
+			j.Progress = base + int(frac*float64(stepWeight))
+			return
+		}
+	}
+}
+
+func progressFromSteps(steps []JobStep) int {
+	if len(steps) == 0 {
+		return 0
+	}
+	done := 0
+	for _, st := range steps {
+		if st.State == "done" || st.State == "skipped" {
+			done++
+		}
+	}
+	return (done * 100) / len(steps)
 }
 
 // Start enqueues an async generate for owner/project using Objects sync.
 func (s *JobStore) Start(ctx context.Context, objects ObjectSpace, ownerSafe, project, cid string) (string, error) {
 	id := uuid.NewString()
 	s.mu.Lock()
-	s.jobs[id] = &JobStatus{
-		ID:      id,
-		State:   "queued",
-		Owner:   ownerSafe,
-		Project: project,
-		Logs:    []string{"queued"},
-	}
+	s.jobs[id] = newQueuedJob(id, ownerSafe, project)
 	s.mu.Unlock()
 
 	go s.runJob(context.WithoutCancel(ctx), objects, id, ownerSafe, project, cid)
@@ -243,43 +416,73 @@ func (s *JobStore) Start(ctx context.Context, objects ObjectSpace, ownerSafe, pr
 
 func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSafe, project, cid string) {
 	s.setState(id, "running", "", nil)
-	s.appendLog(id, "starting sandbox sync")
 
-	workRoot := filepath.Join(os.TempDir(), "evoice-jobs", id)
+	s.activateStep(id, "prepare")
+	s.appendLog(id, "prepare: creating workdir")
+	workRoot := filepath.Join(evoiceJobsBase(), id)
+	s.appendLog(id, "prepare: workRoot="+workRoot)
 	projectDir := filepath.Join(workRoot, "project")
 	docsDir := filepath.Join(projectDir, "docs")
 	audiosDir := filepath.Join(projectDir, "audios")
 	_ = os.RemoveAll(workRoot)
 	if err := os.MkdirAll(docsDir, 0o755); err != nil {
-		s.setState(id, "failed", err.Error(), nil)
+		s.appendLog(id, "prepare failed: "+err.Error())
+		s.failStep(id, "prepare", err.Error())
 		return
 	}
 	_ = os.MkdirAll(audiosDir, 0o755)
 	defer func() { _ = os.RemoveAll(workRoot) }()
+	s.completeStep(id, "prepare")
 
-	// Download docs + existing audios (for needs_regen).
-	if err := syncPrefixToDir(ctx, objects, DocsPrefix(ownerSafe, project)+"/", docsDir, cid); err != nil {
+	s.activateStep(id, "download_docs")
+	s.appendLog(id, "download_docs: listing and fetching from S3")
+	if err := syncPrefixToDir(ctx, objects, DocsPrefix(ownerSafe, project)+"/", docsDir, cid, func(line string) {
+		s.appendLog(id, line)
+	}); err != nil {
 		s.appendLog(id, "download docs failed: "+err.Error())
-		s.setState(id, "failed", err.Error(), nil)
+		s.failStep(id, "download_docs", err.Error())
 		return
 	}
-	_ = syncPrefixToDir(ctx, objects, AudiosPrefix(ownerSafe, project)+"/", audiosDir, cid)
+	s.completeStep(id, "download_docs")
 
+	s.activateStep(id, "download_audios")
+	s.appendLog(id, "download_audios: fetching existing mp3s (for skip/regen)")
+	_ = syncPrefixToDir(ctx, objects, AudiosPrefix(ownerSafe, project)+"/", audiosDir, cid, func(line string) {
+		s.appendLog(id, line)
+	})
+	s.completeStep(id, "download_audios")
+
+	s.activateStep(id, "convert")
+	s.appendLog(id, "convert: starting TTS worker")
 	jobCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
 
+	docTotal := countConvertibleDocs(docsDir)
+	docDone := 0
 	stats, err := s.runner.Run(jobCtx, projectDir, func(line string) {
 		s.appendLog(id, line)
+		lower := strings.ToLower(line)
+		if strings.HasPrefix(lower, "gen   ") ||
+			strings.HasPrefix(lower, "skip  ") ||
+			strings.HasPrefix(lower, "fail  ") {
+			docDone++
+			s.setConvertProgress(id, docDone, max(docTotal, 1))
+		}
 	})
 	if err != nil {
 		s.appendLog(id, "runner error: "+err.Error())
+		s.failStep(id, "convert", err.Error())
 		s.setState(id, "failed", err.Error(), &stats)
 		return
 	}
+	s.completeStep(id, "convert")
 
-	// Upload audios/*.mp3
+	s.activateStep(id, "upload")
+	s.appendLog(id, "upload: writing audios/*.mp3 to S3")
 	entries, err := os.ReadDir(audiosDir)
 	if err != nil {
+		s.appendLog(id, "upload list failed: "+err.Error())
+		s.failStep(id, "upload", err.Error())
 		s.setState(id, "failed", err.Error(), &stats)
 		return
 	}
@@ -293,26 +496,55 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 			continue
 		}
 		key := AudioKey(ownerSafe, project, e.Name())
+		s.appendLog(id, "upload: "+e.Name())
 		if err := objects.PutBytes(ctx, key, body, "audio/mpeg", cid); err != nil {
 			s.appendLog(id, "upload failed "+e.Name()+": "+err.Error())
+			s.failStep(id, "upload", err.Error())
 			s.setState(id, "failed", err.Error(), &stats)
 			return
 		}
 		s.appendLog(id, "uploaded audios/"+e.Name())
 	}
+	s.completeStep(id, "upload")
+
+	s.activateStep(id, "finalize")
 	s.appendLog(id, "done")
+	s.completeStep(id, "finalize")
 	s.setState(id, "done", "", &stats)
 }
 
-func syncPrefixToDir(ctx context.Context, objects ObjectSpace, prefix, dir, cid string) error {
+func countConvertibleDocs(docsDir string) int {
+	entries, err := os.ReadDir(docsDir)
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if e.Name() != ".keep" && isConvertible(e.Name()) {
+			n++
+		}
+	}
+	return n
+}
+
+func syncPrefixToDir(ctx context.Context, objects ObjectSpace, prefix, dir, cid string, logFn func(string)) error {
 	objs, err := objects.ListObjects(ctx, prefix, cid)
 	if err != nil {
 		return err
+	}
+	if logFn != nil {
+		logFn("listed " + prefix + " → " + itoa(len(objs)) + " object(s)")
 	}
 	for _, obj := range objs {
 		name := strings.TrimPrefix(obj.Key, prefix)
 		if name == "" || name == ".keep" || strings.Contains(name, "/") {
 			continue
+		}
+		if logFn != nil {
+			logFn("fetch " + name)
 		}
 		body, ok, err := objects.GetBytes(ctx, obj.Key, cid)
 		if err != nil {
@@ -330,4 +562,8 @@ func syncPrefixToDir(ctx context.Context, objects ObjectSpace, prefix, dir, cid 
 		}
 	}
 	return nil
+}
+
+func itoa(n int) string {
+	return strconv.Itoa(n)
 }

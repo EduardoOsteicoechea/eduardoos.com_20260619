@@ -152,11 +152,13 @@ def wav_to_mp3(wav_path: Path, mp3_path: Path) -> None:
         raise RuntimeError(proc.stderr.decode("utf-8", errors="replace")[-400:] or "ffmpeg failed")
 
 
-def text_to_mp3(text: str, mp3_path: Path) -> None:
+def text_to_mp3(text: str, mp3_path: Path, tmp_parent: Path | None = None) -> None:
     text = text.strip()
     if not text:
         raise ValueError("empty text")
-    with tempfile.TemporaryDirectory(prefix="evoice-tts-") as tmp:
+    parent = tmp_parent if tmp_parent is not None else mp3_path.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="evoice-tts-", dir=str(parent)) as tmp:
         wav = Path(tmp) / "out.wav"
         try:
             text_to_wav_piper(text, wav)
@@ -178,11 +180,13 @@ def sync_project(project_dir: Path) -> dict[str, int]:
         if p.is_file() and p.name != ".keep" and p.suffix.lower() in DOC_EXTENSIONS
     )
     stats = {"docs": len(docs), "generated": 0, "skipped": 0, "failed": 0}
+    log(f"STEP convert docs={len(docs)}")
     if not docs:
         log("No convertible files in docs/")
         return stats
-    for doc in docs:
+    for idx, doc in enumerate(docs, start=1):
         mp3 = audios_dir / f"{doc.stem}.mp3"
+        log(f"STEP convert doc={idx}/{len(docs)} file={doc.name}")
         if not needs_regen(doc, mp3):
             log(f"skip  {doc.name} (mp3 up to date)")
             stats["skipped"] += 1
@@ -190,11 +194,14 @@ def sync_project(project_dir: Path) -> dict[str, int]:
         reason = "missing mp3" if not mp3.is_file() else "doc newer than mp3"
         log(f"gen   {doc.name} -> audios/{mp3.name} ({reason})")
         try:
+            log(f"extract {doc.name}")
             text = load_doc_text(doc)
             if not text.strip():
                 raise ValueError("No readable text extracted")
-            text_to_mp3(text, mp3)
+            log(f"tts    {doc.name} ({len(text)} chars)")
+            text_to_mp3(text, mp3, tmp_parent=project_dir)
             stats["generated"] += 1
+            log(f"ok     {doc.name} -> {mp3.name}")
         except Exception as exc:  # noqa: BLE001
             stats["failed"] += 1
             log(f"FAIL  {doc.name}: {exc}")

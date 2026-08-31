@@ -2,7 +2,7 @@
 
 ## Status
 
-**Ready to implement** (2026-08-31) — decisions locked with user.
+**In progress** (2026-08-31) — follow-up: admin owner list + generate step progress.
 
 ## Problem
 
@@ -24,7 +24,7 @@ Upstream semantics: `backend/text-to-audio/HANDOUT_FOR_EC2_AGENT.md` + converter
 | Path | UI |
 |------|-----|
 | `/evoice` | Project hub for current user (ServiceGate `evoice`) |
-| Admin | Same page; owner picker lists all `userSafe` prefixes under `evoice/` |
+| Admin | Same page; owner picker lists **all platform users** (not only S3 prefixes that already exist) |
 
 Nav tray: label **eVoice**, href `/evoice`, `serviceId: "evoice"`.
 
@@ -44,7 +44,7 @@ evoice/{userSafe}/{project}/audios/<stem>.mp3
 | Method | Path | Notes |
 |--------|------|--------|
 | GET | `/api/evoice/me` | Ensure user prefix; `{ userSafe, isAdmin }` |
-| GET | `/api/evoice/users` | Admin only — list `userSafe` under `evoice/` |
+| GET | `/api/evoice/users` | Admin only — union of: all `UserStore` emails as `userSafe`, allowlisted emails, and existing S3 prefixes under `evoice/` (sorted unique) |
 | GET | `/api/evoice/projects?owner=` | List projects for owner (self or admin) |
 | POST | `/api/evoice/projects` | `{ name, owner? }` create docs+audios |
 | GET | `/api/evoice/projects/{ownerSafe}/{project}/docs` | List docs |
@@ -53,22 +53,31 @@ evoice/{userSafe}/{project}/audios/<stem>.mp3
 | GET | `/api/evoice/projects/{ownerSafe}/{project}/audios` | Playlist metadata + play URLs |
 | GET | `/api/evoice/file/{ownerSafe}/{project}/{kind}/{name}` | Stream doc or mp3 (`kind`=docs\|audios) |
 | POST | `/api/evoice/projects/{ownerSafe}/{project}/generate` | Start sandbox job → `{ jobId }` |
-| GET | `/api/evoice/jobs/{jobId}` | Status + log lines |
+| GET | `/api/evoice/jobs/{jobId}` | Status + planned steps + progress + log lines |
 
 Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access (admin/allowlist/entitlement).
 
 ### 4. Worker (EC2 host sandbox)
-- Go handler downloads project (or syncs) into a temp workdir under `/tmp/evoice-jobs/{jobId}/`.
+- Go handler downloads project into a **disk-backed** workdir (not RAM tmpfs): `EVOICE_WORK_DIR` if set, else `/var/tmp/evoice-jobs/{jobId}/` (never rely on `/tmp` alone — on Amazon Linux `/tmp` is often a small tmpfs and large DOCX→MP3 jobs hit `No space left on device`).
+- When spawning the Python worker, set `TMPDIR` to that same disk root so Piper/ffmpeg intermediates do not fill `/tmp`.
 - Runs Python worker adapted from `converter/scripts` (Linux TTS): prefer **Piper** Spanish voice → ffmpeg mp3; else **espeak-ng** → ffmpeg; OCR via Tesseract when images present.
 - Uploads new/updated `audios/*.mp3` to S3.
 - Job model: in-process async (status `queued`/`running`/`done`/`failed`); request returns quickly with `jobId`.
+- **Progress plan (required):** on start, backend publishes a fixed ordered `steps[]` plan and updates each step’s state as work advances. Job JSON includes:
+  - `steps`: `[{ id, label, state }]` where `state` ∈ `pending` \| `active` \| `done` \| `failed` \| `skipped`
+  - `progress`: integer 0–100 (completed weight of the plan)
+  - `currentStep`: active step id (or empty when terminal)
+  - `logs`: chronological detail lines (streamed live — not only after the Python process exits)
+- Default plan steps (ids stable for UI): `prepare` → `download_docs` → `download_audios` → `convert` → `upload` → `finalize`.
+- During `convert`, worker streams per-doc lines; Go may refine progress within that step (e.g. docs N of M) without changing the step list shape.
 - Caps: timeout, max upload size; no GPU assumption.
 - Vendor/read scripts from `backend/text-to-audio/converter/scripts` where useful; Linux TTS lives under `backend/internal/evoice/worker/`.
 
 ### 5. Web UI
-- Project dropdown (taller), create project, upload docs, Generate (progress/log), playlist + HTML5 audio with play/pause/stop/next and auto-advance.
+- Project dropdown (taller), create project, upload docs, Generate, playlist + HTML5 audio with play/pause/stop/next and auto-advance.
+- **Generate panel:** progress bar bound to `job.progress`, checklist of `job.steps` (label + state), plus detailed `job.logs`.
 - Fit Eduardo OS plain CSS (component CSS file); ServiceGate wrapper.
-- Admin: select any userSafe before project list.
+- Admin: owner picker shows the full `/api/evoice/users` list (platform users + allowlist + S3), not only the signed-in admin.
 
 ### 6. Global menu icons
 - Load already present: Material Symbols Outlined in `BaseLayout.astro`.
@@ -87,6 +96,8 @@ Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access 
 - [x] API + tests (memory objects); generate job + playlist play URLs
 - [x] Page `/evoice` + tray link + Material icons on all tray buttons
 - [x] FE build; commit + push
+- [ ] Admin `/api/evoice/users` returns platform users ∪ allowlist ∪ S3 prefixes; owner dropdown shows more than the signed-in admin when other accounts exist
+- [ ] Generate job exposes `steps` + `progress` (0–100); UI shows progress bar + step list; logs stream during convert (not only at end)
 
 ## Affected paths
 - `specs/044-evoice/spec.md`
