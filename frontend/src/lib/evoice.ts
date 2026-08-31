@@ -345,12 +345,21 @@ export async function fetchEvoiceAudioBlobUrl(
   name: string,
 ): Promise<string> {
   const token = requireToken();
-  const res = await fetch(evoiceAudioPath(ownerSafe, project, name), {
+  const path = evoiceAudioPath(ownerSafe, project, name);
+  const res = await fetch(path, {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });
   if (!res.ok) {
-    throw new Error(`Audio fetch failed (${res.status})`);
+    let body = "";
+    try {
+      body = (await res.text()).slice(0, 300);
+    } catch {
+      /* ignore */
+    }
+    throw new Error(
+      `Audio fetch failed (${res.status}) GET ${path}${body ? ` — ${body}` : ""}`,
+    );
   }
   const blob = await res.blob();
   return URL.createObjectURL(blob);

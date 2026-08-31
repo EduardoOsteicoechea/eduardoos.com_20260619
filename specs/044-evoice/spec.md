@@ -46,11 +46,13 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 - **Playlist** panel stacks **under** Console (single column) — not a side-by-side grid.
 - Errors (including audio fetch failures) use **ServerErrorModal** (`openApiErrorModal` / `openServerErrorModal`) like the rest of the site — not inline red text for API/audio failures.
 
-### Audio fetch 404 fix
-- Route must accept basenames with spaces and parentheses: use chi wildcard  
-  `GET|HEAD /api/evoice/file/{ownerSafe}/{project}/{kind}/*` and take the name from `*`.
-- List responses may include a URL hint, but the client always builds paths with `encodeURIComponent`.
-- Unit test: upload/list/get an audio whose name contains spaces and `(1)`.
+### Audio fetch (names with spaces / parentheses)
+- **Canonical:** `GET|HEAD /api/evoice/file/{ownerSafe}/{project}/{kind}?name=<basename>`  
+  Basename is a query param so nginx/chi never split on spaces or mis-handle `()`.
+- **Legacy fallback:** path wildcard `…/{kind}/*` still accepted.
+- Delete doc/audio: `DELETE …/docs?name=` and `DELETE …/audios?name=` (path `/*` fallback kept).
+- Client always builds `?name=` with `encodeURIComponent`.
+- Unit test: fetch via query param for `2 Libro … (1).mp3`.
 
 ### Existing (still required)
 - Admin owner sticky; paste text docs; per-file generate; delete doc/audio; job S3 snapshots; stop/resume; Console logs; home lateral pad.

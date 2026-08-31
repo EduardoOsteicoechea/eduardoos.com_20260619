@@ -140,7 +140,7 @@ func TestEvoiceAPIFlow(t *testing.T) {
 		t.Fatalf("audios=%s", rec.Body.String())
 	}
 
-	req = httptest.NewRequest(http.MethodDelete, "/api/evoice/projects/"+ownerSafe+"/smoke/audios/hello.mp3", nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/evoice/projects/"+ownerSafe+"/smoke/audios?name=hello.mp3", nil)
 	req.Header.Set("Authorization", authHdr)
 	rec = httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
@@ -546,9 +546,22 @@ func TestGetFileWithSpacesAndParens(t *testing.T) {
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("get spaced audio status=%d body=%s path=%s", rec.Code, rec.Body.String(), pathURL)
+		t.Fatalf("get spaced audio (path) status=%d body=%s path=%s", rec.Code, rec.Body.String(), pathURL)
 	}
 	if !bytes.Equal(rec.Body.Bytes(), []byte("ID3spaced")) {
 		t.Fatalf("body=%q", rec.Body.Bytes())
+	}
+
+	// Canonical client shape: ?name= (matches encodeURIComponent in the browser).
+	qURL := "/api/evoice/file/" + ownerSafe + "/" + project + "/audios?name=" + url.QueryEscape(name)
+	req = httptest.NewRequest(http.MethodGet, qURL, nil)
+	req.Header.Set("Authorization", authHdr)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get spaced audio (query) status=%d body=%s path=%s", rec.Code, rec.Body.String(), qURL)
+	}
+	if !bytes.Equal(rec.Body.Bytes(), []byte("ID3spaced")) {
+		t.Fatalf("query body=%q", rec.Body.Bytes())
 	}
 }

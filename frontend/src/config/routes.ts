@@ -219,11 +219,11 @@ export const EVOICE_ROUTES = {
   projectDocsText: (ownerSafe: string, project: string) =>
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/docs/text`,
   projectDoc: (ownerSafe: string, project: string, name: string) =>
-    `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/docs/${encodeURIComponent(name)}`,
+    `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/docs?name=${encodeURIComponent(name)}`,
   projectAudios: (ownerSafe: string, project: string) =>
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/audios`,
   projectAudio: (ownerSafe: string, project: string, name: string) =>
-    `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/audios/${encodeURIComponent(name)}`,
+    `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/audios?name=${encodeURIComponent(name)}`,
   generate: (ownerSafe: string, project: string) =>
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/generate`,
   job: (jobId: string) => `/api/evoice/jobs/${encodeURIComponent(jobId)}`,
@@ -232,7 +232,7 @@ export const EVOICE_ROUTES = {
   jobResume: (jobId: string) =>
     `/api/evoice/jobs/${encodeURIComponent(jobId)}/resume`,
   file: (ownerSafe: string, project: string, kind: "docs" | "audios", name: string) =>
-    `/api/evoice/file/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/${kind}/${encodeURIComponent(name)}`,
+    `/api/evoice/file/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/${kind}?name=${encodeURIComponent(name)}`,
 } as const;
 
 export const PLAYLIST_ROUTES = {
