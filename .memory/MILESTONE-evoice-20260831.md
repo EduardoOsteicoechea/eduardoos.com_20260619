@@ -14,5 +14,7 @@ Feature 044: text-to-audio (eVoice) in Eduardo OS.
 - Stop generate + Resume unfinished files; DeepSeek premium uses SSE stream; weighted progress (std 80/10/10, premium 30/30/20+10+10)
 - UI: no page heading; errors via ServerErrorModal; playlist under Console
 - UI: Add vs Docs panels; Premium default on; Project/New project equal controls; admin→project gap
+- Admin owner switch: clear playlist immediately; ignore stale `?key=` outside project (fallback to `?name=`)
+- Docs | Playlist two-column row; Generate→Regenerate when audio present; Docs delete-doc only; red icon-only deletes
 
 Spec: `specs/044-evoice/spec.md`

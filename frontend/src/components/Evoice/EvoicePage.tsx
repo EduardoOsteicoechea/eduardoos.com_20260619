@@ -205,6 +205,22 @@ function EvoiceWorkspace() {
   }, [reloadProjects]);
 
   useEffect(() => {
+    // Clear immediately so a previous owner's playlist key cannot fire a fetch.
+    setDocs([]);
+    setAudios([]);
+    setSelectedDocs([]);
+    setTrackIndex(0);
+    setBlobUrl("");
+    setLogs([]);
+    setSteps([]);
+    setFileProgress([]);
+    setProgress(0);
+    setActiveJobId("");
+    setJobStopped(false);
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = "";
+    }
     if (ownerSafe && project) {
       void reloadDocsAudios(ownerSafe, project);
     }
@@ -220,6 +236,13 @@ function EvoiceWorkspace() {
       setBlobUrl("");
       const track = audios[trackIndex];
       if (!track || !ownerSafe || !project || !getAuthToken()) return;
+      // Guard: skip tracks whose key belongs to another owner/project.
+      if (
+        track.key &&
+        !track.key.startsWith(`evoice/${ownerSafe}/${project}/audios/`)
+      ) {
+        return;
+      }
       try {
         const url = await fetchEvoiceAudioBlobUrl(
           ownerSafe,
@@ -553,23 +576,6 @@ function EvoiceWorkspace() {
     return undefined;
   }
 
-  async function onDeleteDocAudios(docName: string) {
-    const related = audiosForDoc(docName, audios);
-    if (!ownerSafe || !project || busy || related.length === 0) return;
-    if (!window.confirm(`Delete ${related.length} audio file(s) for ${docName}?`)) return;
-    setBusy(true);
-    for (const a of related) {
-      const res = await deleteEvoiceAudio(ownerSafe, project, a.name);
-      if (res.error) {
-        showError("Delete audio", res.error);
-        setBusy(false);
-        return;
-      }
-    }
-    setBusy(false);
-    await reloadDocsAudios(ownerSafe, project);
-  }
-
   function play() {
     void audioRef.current?.play();
   }
@@ -622,6 +628,15 @@ function EvoiceWorkspace() {
               const nextOwner = e.target.value;
               setOwnerSafe(nextOwner);
               setProject("");
+              setDocs([]);
+              setAudios([]);
+              setSelectedDocs([]);
+              setTrackIndex(0);
+              setBlobUrl("");
+              if (blobUrlRef.current) {
+                URL.revokeObjectURL(blobUrlRef.current);
+                blobUrlRef.current = "";
+              }
               void reloadProjects(nextOwner);
             }}
           >
@@ -754,139 +769,100 @@ function EvoiceWorkspace() {
             ) : null}
           </section>
 
-          <section className="evoice__panel">
-            <div className="evoice__panel-head">
-              <h2>Docs</h2>
-              {sourceDocs.length > 0 ? (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={toggleSelectAllDocs}
-                  disabled={busy}
-                >
-                  {selectedDocs.length === sourceDocs.length
-                    ? "Clear selection"
-                    : "Select all"}
-                </button>
-              ) : null}
-            </div>
-            <p className="evoice__hint">
-              Select docs to generate or regenerate.
-            </p>
-
-            {sourceDocs.length === 0 ? (
-              <p className="evoice__empty">
-                No documents yet. Upload a file or add text above.
-              </p>
-            ) : (
-              <ul className="evoice__list">
-                {sourceDocs.map((d) => {
-                  const fp = progressForDoc(d.name);
-                  const pct = fp ? Math.max(0, Math.min(100, fp.progress)) : 0;
-                  const related = audiosForDoc(d.name, audios);
-                  const hasAudio = related.length > 0;
-                  const checked = selectedDocs.includes(d.name);
-                  return (
-                    <li key={d.key} className="evoice__doc-row">
-                      <label className="evoice__doc-check">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleDocSelected(d.name)}
-                          disabled={busy}
-                          aria-label={`Select ${d.name}`}
-                        />
-                      </label>
-                      <div className="evoice__doc-main">
-                        <span className="evoice__doc-name">{d.name}</span>
-                        <div
-                          className="evoice__doc-progress"
-                          role="progressbar"
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-valuenow={pct}
-                          aria-label={`Progress for ${d.name}`}
-                        >
-                          <div
-                            className={`evoice__doc-progress-bar evoice__doc-progress-bar--${fp?.state || "idle"}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        {fp ? (
-                          <span className="evoice__doc-status">
-                            {fp.state}
-                            {fp.detail ? ` — ${fp.detail}` : ""}
-                          </span>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn--primary"
-                        onClick={() => void onGenerate([d.name])}
-                        disabled={busy}
-                      >
-                        Generate
-                      </button>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() => void onDeleteDoc(d.name)}
-                        disabled={busy}
-                      >
-                        Delete doc
-                      </button>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() => void onDeleteDocAudios(d.name)}
-                        disabled={busy || !hasAudio}
-                        title={
-                          hasAudio
-                            ? `Delete ${related.length} audio(s)`
-                            : "No audio yet"
-                        }
-                      >
-                        Delete audio
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-
-          <div className="evoice__workspace evoice__workspace--stack">
-            <section className="evoice__panel evoice__panel--console">
-              <h2>Console</h2>
-              <div
-                className="evoice__progress"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={progress}
-                aria-label="Generate progress"
-              >
-                <div
-                  className="evoice__progress-bar"
-                  style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
-                />
+          <div className="evoice__workspace evoice__workspace--docs-playlist">
+            <section className="evoice__panel evoice__panel--docs">
+              <div className="evoice__panel-head">
+                <h2>Docs</h2>
+                {sourceDocs.length > 0 ? (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={toggleSelectAllDocs}
+                    disabled={busy}
+                  >
+                    {selectedDocs.length === sourceDocs.length
+                      ? "Clear selection"
+                      : "Select all"}
+                  </button>
+                ) : null}
               </div>
-              <p className="evoice__progress-label">{progress}%</p>
-              {steps.length > 0 ? (
-                <ol className="evoice__steps">
-                  {steps.map((s) => (
-                    <li
-                      key={s.id}
-                      className={`evoice__step evoice__step--${s.state || "pending"}`}
-                    >
-                      <span className="evoice__step-state">{s.state}</span>
-                      <span className="evoice__step-label">{s.label}</span>
-                    </li>
-                  ))}
-                </ol>
-              ) : null}
-              <h3 className="evoice__log-title">Log</h3>
-              <pre className="evoice__log">{logs.join("\n") || "—"}</pre>
+              <p className="evoice__hint">
+                Select docs to generate or regenerate.
+              </p>
+
+              {sourceDocs.length === 0 ? (
+                <p className="evoice__empty">
+                  No documents yet. Upload a file or add text above.
+                </p>
+              ) : (
+                <ul className="evoice__list">
+                  {sourceDocs.map((d) => {
+                    const fp = progressForDoc(d.name);
+                    const pct = fp ? Math.max(0, Math.min(100, fp.progress)) : 0;
+                    const related = audiosForDoc(d.name, audios);
+                    const hasAudio = related.length > 0;
+                    const checked = selectedDocs.includes(d.name);
+                    return (
+                      <li key={d.key} className="evoice__doc-row">
+                        <label className="evoice__doc-check">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleDocSelected(d.name)}
+                            disabled={busy}
+                            aria-label={`Select ${d.name}`}
+                          />
+                        </label>
+                        <div className="evoice__doc-main">
+                          <span className="evoice__doc-name">{d.name}</span>
+                          <div
+                            className="evoice__doc-progress"
+                            role="progressbar"
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuenow={pct}
+                            aria-label={`Progress for ${d.name}`}
+                          >
+                            <div
+                              className={`evoice__doc-progress-bar evoice__doc-progress-bar--${fp?.state || "idle"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          {fp ? (
+                            <span className="evoice__doc-status">
+                              {fp.state}
+                              {fp.detail ? ` — ${fp.detail}` : ""}
+                            </span>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn--primary"
+                          onClick={() => void onGenerate([d.name])}
+                          disabled={busy}
+                        >
+                          {hasAudio ? "Regenerate" : "Generate"}
+                        </button>
+                        <button
+                          type="button"
+                          className="evoice__icon-btn evoice__icon-btn--danger"
+                          onClick={() => void onDeleteDoc(d.name)}
+                          disabled={busy}
+                          title={`Delete document ${d.name}`}
+                          aria-label={`Delete document ${d.name}`}
+                        >
+                          <span
+                            className="material-symbols-outlined"
+                            aria-hidden="true"
+                          >
+                            delete
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </section>
 
             <section className="evoice__panel evoice__panel--playlist">
@@ -919,11 +895,18 @@ function EvoiceWorkspace() {
                         </button>
                         <button
                           type="button"
-                          className="btn"
+                          className="evoice__icon-btn evoice__icon-btn--danger"
                           onClick={() => void onDeleteAudio(a.name)}
                           disabled={busy}
+                          title={`Delete audio ${a.name}`}
+                          aria-label={`Delete audio ${a.name}`}
                         >
-                          Delete
+                          <span
+                            className="material-symbols-outlined"
+                            aria-hidden="true"
+                          >
+                            delete
+                          </span>
                         </button>
                       </li>
                     ))}
@@ -968,6 +951,39 @@ function EvoiceWorkspace() {
               )}
             </section>
           </div>
+
+          <section className="evoice__panel evoice__panel--console">
+            <h2>Console</h2>
+            <div
+              className="evoice__progress"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+              aria-label="Generate progress"
+            >
+              <div
+                className="evoice__progress-bar"
+                style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+              />
+            </div>
+            <p className="evoice__progress-label">{progress}%</p>
+            {steps.length > 0 ? (
+              <ol className="evoice__steps">
+                {steps.map((s) => (
+                  <li
+                    key={s.id}
+                    className={`evoice__step evoice__step--${s.state || "pending"}`}
+                  >
+                    <span className="evoice__step-state">{s.state}</span>
+                    <span className="evoice__step-label">{s.label}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            <h3 className="evoice__log-title">Log</h3>
+            <pre className="evoice__log">{logs.join("\n") || "—"}</pre>
+          </section>
         </>
       ) : null}
     </div>

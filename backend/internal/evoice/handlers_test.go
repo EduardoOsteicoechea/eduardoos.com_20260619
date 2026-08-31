@@ -574,4 +574,19 @@ func TestGetFileWithSpacesAndParens(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("get by key status=%d body=%s", rec.Code, rec.Body.String())
 	}
+
+	// Stale key from another owner/project must fall back to ?name= (not 400).
+	staleKey := AudioKey("other_at_example.com", "mps", name)
+	staleURL := "/api/evoice/file/" + ownerSafe + "/" + project + "/audios?name=" +
+		url.QueryEscape(name) + "&key=" + url.QueryEscape(staleKey)
+	req = httptest.NewRequest(http.MethodGet, staleURL, nil)
+	req.Header.Set("Authorization", authHdr)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stale key fallback status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if !bytes.Equal(rec.Body.Bytes(), []byte("ID3spaced")) {
+		t.Fatalf("stale key fallback body=%q", rec.Body.Bytes())
+	}
 }

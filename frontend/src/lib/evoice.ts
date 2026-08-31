@@ -330,6 +330,18 @@ export async function fetchBackendHealth(): Promise<boolean> {
   }
 }
 
+/** Only pass S3 key when it belongs to this owner/project (avoids stale admin switch). */
+export function evoiceKeyForProject(
+  ownerSafe: string,
+  project: string,
+  kind: "docs" | "audios",
+  key?: string,
+): string | undefined {
+  if (!key) return undefined;
+  const prefix = `evoice/${ownerSafe}/${project}/${kind}/`;
+  return key.startsWith(prefix) ? key : undefined;
+}
+
 /** Authenticated audio URL (browser <audio> needs Authorization — use blob fetch). */
 export function evoiceAudioPath(
   ownerSafe: string,
@@ -337,7 +349,13 @@ export function evoiceAudioPath(
   name: string,
   key?: string,
 ): string {
-  return EVOICE_ROUTES.file(ownerSafe, project, "audios", name, key);
+  return EVOICE_ROUTES.file(
+    ownerSafe,
+    project,
+    "audios",
+    name,
+    evoiceKeyForProject(ownerSafe, project, "audios", key),
+  );
 }
 
 export async function fetchEvoiceAudioBlobUrl(

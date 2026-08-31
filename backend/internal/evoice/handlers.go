@@ -444,27 +444,27 @@ func fileNameFromRequest(r *http.Request) string {
 	return sanitizeFileName(strings.TrimPrefix(chi.URLParam(r, "*"), "/"))
 }
 
-// resolveObjectKey picks S3 key from ?key= (trusted after ACL) or constructs from name.
+// resolveObjectKey picks S3 key from ?key= when it matches this owner/project;
+// otherwise builds from name (stale cross-owner keys are ignored, not rejected).
 func (h *Handler) resolveObjectKey(r *http.Request, owner, project, kind, name string) (string, error) {
+	wantPrefix := DocsPrefix(owner, project) + "/"
+	if kind == "audios" {
+		wantPrefix = AudiosPrefix(owner, project) + "/"
+	}
 	rawKey := strings.TrimSpace(r.URL.Query().Get("key"))
 	if rawKey != "" {
 		rawKey = strings.TrimPrefix(rawKey, "/")
-		if !strings.HasPrefix(rawKey, RootPrefix+"/") {
-			return "", fmt.Errorf("invalid key")
+		if strings.HasPrefix(rawKey, RootPrefix+"/") && strings.HasPrefix(rawKey, wantPrefix) {
+			base := strings.TrimPrefix(rawKey, wantPrefix)
+			if base != "" && !strings.Contains(base, "/") && ValidFileName(base) {
+				return rawKey, nil
+			}
 		}
-		// Must live under this owner's project kind prefix.
-		wantPrefix := DocsPrefix(owner, project) + "/"
-		if kind == "audios" {
-			wantPrefix = AudiosPrefix(owner, project) + "/"
-		}
-		if !strings.HasPrefix(rawKey, wantPrefix) {
-			return "", fmt.Errorf("key outside project")
-		}
-		base := strings.TrimPrefix(rawKey, wantPrefix)
-		if base == "" || strings.Contains(base, "/") || !ValidFileName(base) {
-			return "", fmt.Errorf("invalid key basename")
-		}
-		return rawKey, nil
+		// Stale playlist key from another owner/project — fall back to name.
+		log.Printf("evoice.file ignore key outside project: %s (want prefix %s)", rawKey, wantPrefix)
+	}
+	if name == "" {
+		return "", fmt.Errorf("missing name")
 	}
 	if kind == "docs" {
 		return DocKey(owner, project, name), nil

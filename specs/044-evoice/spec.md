@@ -43,18 +43,23 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 ### UI layout (hub)
 - Vertical gap between **Admin only** and **Project** row (≥1rem).
 - **Project** select and **New project** input share the same control height and equal width (side-by-side twin fields; Create stays beside New project).
-- Split former Docs panel into two panels:
+- Split former Docs panel into:
   1. **Add** — Upload, paste/add text, Premium toggle, Generate (selected docs; if none selected → all). Stop/Resume stay here while a job runs.
-  2. **Docs** — list of uploaded sources with checkboxes to select which to generate/regenerate; per-row Generate / Delete doc / Delete audio remain.
+  2. **Docs + Playlist** — one two-column section (desktop): **Docs** left, **Playlist** right, same row height (`align-items: stretch`). Stack on narrow viewports.
+- **Docs row actions:** per-row **Generate** (label **Regenerate** when audio already present for that stem) + **Delete doc** only (no Delete audio on Docs).
+- **Playlist row actions:** Download (text OK) + **Delete** for that MP3.
+- **Delete controls** (Docs delete-doc and Playlist delete-audio): **icon-only**, red (Material Symbol `delete`), with `aria-label` / `title`.
+- **Console** — full-width panel below the Docs|Playlist row.
 - **Premium defaults to on** (DeepSeek speech + chapters).
 
 ### Audio fetch (names with spaces / parentheses)
 - **Canonical:** `GET|HEAD /api/evoice/file/{ownerSafe}/{project}/{kind}?name=<basename>`  
   and/or **`?key=<full evoice/… key>`** from list metadata (preferred when the client has it — avoids any basename/key drift).
 - Basename-only fallback: if `?name=` GetObject misses, list the kind prefix and open the first object whose basename equals `name` (exact, then case-insensitive).
+- **Stale `?key=`:** if key is outside the requested owner/project prefix (e.g. admin switched users while playlist still held another owner’s key), **ignore key and use `?name=`** — do not 400 `key outside project`.
 - Delete: `DELETE …/docs?name=` / `…/audios?name=` (path `/*` fallback kept).
-- Client: playlist/play/download pass `object.key` when available; error modal includes resolved key.
-- Unit tests: query `name`, query `key`, and list-recovery after casing mismatch.
+- Client: playlist/play/download pass `object.key` only when it matches `evoice/{owner}/{project}/{kind}/`; on owner/project change, clear docs/audios/blob immediately before reload.
+- Unit tests: query `name`, query `key`, stale-key fallback, and list-recovery after casing mismatch.
 
 ### Existing (still required)
 - Admin owner sticky; paste text docs; per-file generate; delete doc/audio; job S3 snapshots; stop/resume; Console logs; home lateral pad.
@@ -68,10 +73,13 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 - [x] Stop/resume, DeepSeek SSE, weighted progress (prior slice)
 - [x] Audio GET works for names with spaces/parens (no false 404)
 - [x] Premium generate → multiple chapter MP3s; playlist shows them
-- [x] Playlist under Console (not beside)
+- [x] Docs | Playlist two-column row (Docs left, Playlist right); Console below
+- [x] Per-doc label Generate vs Regenerate when audio present; Docs has no Delete audio
+- [x] Delete (doc + playlist audio) icon-only red
 - [x] No eVoice/Eduardo OS/Documents-to-MP3 heading on the page
 - [x] Audio/API errors open ServerErrorModal
 - [x] Tests + FE build + commit/push
+- [x] Stale cross-owner `?key=` ignored (fallback to name); FE clears playlist on owner/project switch
 
 ## Affected paths
 - `specs/044-evoice/spec.md`
