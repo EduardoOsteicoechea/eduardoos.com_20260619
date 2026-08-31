@@ -170,14 +170,17 @@ def text_to_mp3(text: str, mp3_path: Path, tmp_parent: Path | None = None) -> No
         wav_to_mp3(wav, mp3_path)
 
 
-def sync_project(project_dir: Path) -> dict[str, int]:
+def sync_project(project_dir: Path, only: set[str] | None = None) -> dict[str, int]:
     docs_dir = project_dir / "docs"
     audios_dir = project_dir / "audios"
     audios_dir.mkdir(parents=True, exist_ok=True)
     docs = sorted(
         p
         for p in docs_dir.iterdir()
-        if p.is_file() and p.name != ".keep" and p.suffix.lower() in DOC_EXTENSIONS
+        if p.is_file()
+        and p.name != ".keep"
+        and p.suffix.lower() in DOC_EXTENSIONS
+        and (not only or p.name in only)
     )
     stats = {"docs": len(docs), "generated": 0, "skipped": 0, "failed": 0}
     log(f"STEP convert docs={len(docs)}")
@@ -211,12 +214,19 @@ def sync_project(project_dir: Path) -> dict[str, int]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-dir", type=Path, required=True)
+    parser.add_argument(
+        "--only",
+        action="append",
+        default=[],
+        help="Only convert this basename (repeatable). Default: all convertible docs.",
+    )
     args = parser.parse_args()
     project_dir = args.project_dir.resolve()
     if not (project_dir / "docs").is_dir():
         log(f"docs/ missing under {project_dir}")
         return 1
-    stats = sync_project(project_dir)
+    only = {n for n in args.only if n} or None
+    stats = sync_project(project_dir, only=only)
     log(
         f"STATS docs={stats['docs']} generated={stats['generated']} "
         f"skipped={stats['skipped']} failed={stats['failed']}"

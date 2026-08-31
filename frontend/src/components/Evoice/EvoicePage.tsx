@@ -24,6 +24,7 @@ import {
   fetchEvoiceUsers,
   startEvoiceGenerate,
   uploadEvoiceDoc,
+  type EvoiceJobFile,
   type EvoiceJobStep,
   type EvoiceObjectMeta,
 } from "../../lib/evoice";
@@ -49,6 +50,7 @@ function EvoiceWorkspace() {
   const [audios, setAudios] = useState<EvoiceObjectMeta[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
   const [steps, setSteps] = useState<EvoiceJobStep[]>([]);
+  const [fileProgress, setFileProgress] = useState<EvoiceJobFile[]>([]);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -197,14 +199,19 @@ function EvoiceWorkspace() {
     await reloadDocsAudios(ownerSafe, project);
   }
 
-  async function onGenerate() {
+  async function onGenerate(files?: string[]) {
     if (!ownerSafe || !project || busy) return;
     setBusy(true);
     setError("");
     setLogs(["starting…"]);
     setSteps([]);
+    setFileProgress(
+      files?.length
+        ? files.map((name) => ({ name, state: "pending", progress: 0 }))
+        : [],
+    );
     setProgress(0);
-    const started = await startEvoiceGenerate(ownerSafe, project);
+    const started = await startEvoiceGenerate(ownerSafe, project, files);
     if (started.error || !started.jobId) {
       setBusy(false);
       setError(started.error || "Could not start generate");
@@ -220,15 +227,21 @@ function EvoiceWorkspace() {
       }
       setLogs(job.logs ?? []);
       setSteps(job.steps ?? []);
+      setFileProgress(job.files ?? []);
       setProgress(typeof job.progress === "number" ? job.progress : 0);
       if (job.state === "done" || job.state === "failed") {
         if (job.state === "failed") setError(job.error || "Generate failed");
+        else if (job.error) setError(job.error);
         if (job.state === "done") setProgress(100);
         break;
       }
     }
     setBusy(false);
     await reloadDocsAudios(ownerSafe, project);
+  }
+
+  function progressForDoc(name: string): EvoiceJobFile | undefined {
+    return fileProgress.find((f) => f.name === name);
   }
 
   function play() {
@@ -344,26 +357,59 @@ function EvoiceWorkspace() {
                 onClick={() => void onGenerate()}
                 disabled={busy}
               >
-                Generate
+                Generate all
               </button>
             </div>
             {docs.length === 0 ? (
               <p className="evoice__empty">No documents yet. Upload .txt, .docx, .pdf, or images.</p>
             ) : (
               <ul className="evoice__list">
-                {docs.map((d) => (
-                  <li key={d.key}>
-                    <span>{d.name}</span>
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => void onDeleteDoc(d.name)}
-                      disabled={busy}
-                    >
-                      Delete
-                    </button>
-                  </li>
-                ))}
+                {docs.map((d) => {
+                  const fp = progressForDoc(d.name);
+                  const pct = fp ? Math.max(0, Math.min(100, fp.progress)) : 0;
+                  return (
+                    <li key={d.key} className="evoice__doc-row">
+                      <div className="evoice__doc-main">
+                        <span className="evoice__doc-name">{d.name}</span>
+                        <div
+                          className="evoice__doc-progress"
+                          role="progressbar"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={pct}
+                          aria-label={`Progress for ${d.name}`}
+                        >
+                          <div
+                            className={`evoice__doc-progress-bar evoice__doc-progress-bar--${fp?.state || "idle"}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        {fp ? (
+                          <span className="evoice__doc-status">
+                            {fp.state}
+                            {fp.detail ? ` — ${fp.detail}` : ""}
+                          </span>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        onClick={() => void onGenerate([d.name])}
+                        disabled={busy}
+                      >
+                        Generate
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => void onDeleteDoc(d.name)}
+                        disabled={busy}
+                      >
+                        Delete
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>

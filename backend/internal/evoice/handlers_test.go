@@ -133,6 +133,9 @@ func TestEvoiceAPIFlow(t *testing.T) {
 	if len(job.Steps) == 0 {
 		t.Fatal("expected planned steps")
 	}
+	if len(job.Files) == 0 {
+		t.Fatal("expected per-file progress")
+	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/evoice/projects/"+ownerSafe+"/smoke/audios", nil)
 	req.Header.Set("Authorization", authHdr)
@@ -207,4 +210,113 @@ func TestAdminListUsersIncludesStoreAndAllowlist(t *testing.T) {
 			t.Fatalf("missing %q in %v", w, body["users"])
 		}
 	}
+}
+
+func TestGenerateOnlyOneFile(t *testing.T) {
+	users := auth.NewMemoryStore()
+	_ = users.PutUser(t.Context(), auth.User{
+		Email: "owner@example.com", PasswordHash: auth.HashPassword("x"), Verified: true,
+	})
+	h := NewHandler("evoice-secret", users)
+	h.Entitlements = payments.NewStore()
+	h.Entitlements.PutEntitlements("owner@example.com", payments.BuildEntitlements([]string{"evoice"}, "monthly", 1))
+
+	r := chi.NewRouter()
+	h.Routes(r)
+	tok, _ := auth.IssueJWT("owner@example.com", "evoice-secret")
+	authHdr := "Bearer " + tok
+	ownerSafe := SafeEmailKey("owner@example.com")
+
+	body := bytes.NewBufferString(`{"name":"only"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/evoice/projects", body)
+	req.Header.Set("Authorization", authHdr)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create=%d %s", rec.Code, rec.Body.String())
+	}
+
+	for _, name := range []string{"keep.txt", "new.txt"} {
+		var buf bytes.Buffer
+		mw := multipart.NewWriter(&buf)
+		fw, _ := mw.CreateFormFile("file", name)
+		_, _ = fw.Write([]byte("hello " + name))
+		_ = mw.Close()
+		req = httptest.NewRequest(http.MethodPost, "/api/evoice/projects/"+ownerSafe+"/only/docs", &buf)
+		req.Header.Set("Authorization", authHdr)
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		rec = httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("upload %s=%d %s", name, rec.Code, rec.Body.String())
+		}
+	}
+
+	// First generate both so keep.txt has an up-to-date mp3.
+	req = httptest.NewRequest(http.MethodPost, "/api/evoice/projects/"+ownerSafe+"/only/generate", nil)
+	req.Header.Set("Authorization", authHdr)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	var gen1 map[string]string
+	_ = json.Unmarshal(rec.Body.Bytes(), &gen1)
+	waitJob(t, r, authHdr, gen1["jobId"])
+
+	// Touch only new.txt by re-uploading it (newer than mp3).
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	fw, _ := mw.CreateFormFile("file", "new.txt")
+	_, _ = fw.Write([]byte("hello new again"))
+	_ = mw.Close()
+	req = httptest.NewRequest(http.MethodPost, "/api/evoice/projects/"+ownerSafe+"/only/docs", &buf)
+	req.Header.Set("Authorization", authHdr)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/evoice/projects/"+ownerSafe+"/only/generate",
+		bytes.NewBufferString(`{"files":["new.txt"]}`))
+	req.Header.Set("Authorization", authHdr)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("generate only=%d %s", rec.Code, rec.Body.String())
+	}
+	var gen2 map[string]string
+	_ = json.Unmarshal(rec.Body.Bytes(), &gen2)
+	job := waitJob(t, r, authHdr, gen2["jobId"])
+	if len(job.OnlyFiles) != 1 || job.OnlyFiles[0] != "new.txt" {
+		t.Fatalf("onlyFiles=%v", job.OnlyFiles)
+	}
+	if len(job.Files) != 1 || job.Files[0].Name != "new.txt" {
+		t.Fatalf("files=%v", job.Files)
+	}
+}
+
+func waitJob(t *testing.T, r chi.Router, authHdr, jobID string) JobStatus {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	var job JobStatus
+	for time.Now().Before(deadline) {
+		req := httptest.NewRequest(http.MethodGet, "/api/evoice/jobs/"+jobID, nil)
+		req.Header.Set("Authorization", authHdr)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("job status=%d", rec.Code)
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &job); err != nil {
+			t.Fatal(err)
+		}
+		if job.State == "done" || job.State == "failed" {
+			if job.State != "done" {
+				t.Fatalf("job failed: %s logs=%v", job.Error, job.Logs)
+			}
+			return job
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("timeout job=%+v", job)
+	return job
 }

@@ -52,8 +52,8 @@ evoice/{userSafe}/{project}/audios/<stem>.mp3
 | DELETE | `/api/evoice/projects/{ownerSafe}/{project}/docs/{name}` | Delete one doc |
 | GET | `/api/evoice/projects/{ownerSafe}/{project}/audios` | Playlist metadata + play URLs |
 | GET | `/api/evoice/file/{ownerSafe}/{project}/{kind}/{name}` | Stream doc or mp3 (`kind`=docs\|audios) |
-| POST | `/api/evoice/projects/{ownerSafe}/{project}/generate` | Start sandbox job → `{ jobId }` |
-| GET | `/api/evoice/jobs/{jobId}` | Status + planned steps + progress + log lines |
+| POST | `/api/evoice/projects/{ownerSafe}/{project}/generate` | Start sandbox job → `{ jobId }`. Optional JSON body `{ "files": ["a.docx"] }` limits convert to those docs (omit/`[]` = all). Always skips a doc when its MP3 exists and is not older than the source. |
+| GET | `/api/evoice/jobs/{jobId}` | Status + planned steps + overall `progress` + per-file `files[]` + log lines |
 
 Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access (admin/allowlist/entitlement).
 
@@ -61,22 +61,25 @@ Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access 
 - Go handler downloads project into a **disk-backed** workdir (not RAM tmpfs): `EVOICE_WORK_DIR` if set, else `/var/tmp/evoice-jobs/{jobId}/` (never rely on `/tmp` alone — on Amazon Linux `/tmp` is often a small tmpfs and large DOCX→MP3 jobs hit `No space left on device`).
 - When spawning the Python worker, set `TMPDIR` to that same disk root so Piper/ffmpeg intermediates do not fill `/tmp`.
 - Runs Python worker adapted from `converter/scripts` (Linux TTS): prefer **Piper** Spanish voice → ffmpeg mp3; else **espeak-ng** → ffmpeg; OCR via Tesseract when images present.
-- Uploads new/updated `audios/*.mp3` to S3.
+- Worker accepts optional `--only <filename>` (repeatable) so a single new upload can be converted without re-running unchanged siblings.
+- Uploads new/updated `audios/*.mp3` to S3 (after convert; partial convert failures still upload successful MP3s).
 - Job model: in-process async (status `queued`/`running`/`done`/`failed`); request returns quickly with `jobId`.
 - **Progress plan (required):** on start, backend publishes a fixed ordered `steps[]` plan and updates each step’s state as work advances. Job JSON includes:
   - `steps`: `[{ id, label, state }]` where `state` ∈ `pending` \| `active` \| `done` \| `failed` \| `skipped`
   - `progress`: integer 0–100 (completed weight of the plan)
   - `currentStep`: active step id (or empty when terminal)
+  - `files`: `[{ name, state, progress, detail? }]` — per-doc convert tracking (`pending`/`active`/`done`/`skipped`/`failed`, progress 0–100)
   - `logs`: chronological detail lines (streamed live — not only after the Python process exits)
 - Default plan steps (ids stable for UI): `prepare` → `download_docs` → `download_audios` → `convert` → `upload` → `finalize`.
-- During `convert`, worker streams per-doc lines; Go may refine progress within that step (e.g. docs N of M) without changing the step list shape.
+- During `convert`, worker streams per-doc lines; Go updates both overall `progress` and matching `files[]` entries.
 - Caps: timeout, max upload size; no GPU assumption.
 - Vendor/read scripts from `backend/text-to-audio/converter/scripts` where useful; Linux TTS lives under `backend/internal/evoice/worker/`.
 
 ### 5. Web UI
-- Project dropdown (taller), create project, upload docs, Generate, playlist + HTML5 audio with play/pause/stop/next and auto-advance.
+- Project dropdown (taller), create project, upload docs, **Generate all** + **Generate per doc row**, playlist + HTML5 audio with play/pause/stop/next and auto-advance.
 - Lead copy does **not** embed the raw `evoice/{userSafe}/` path (keep a short product sentence only).
-- **Generate + playlist layout (desktop):** one row with two columns — left **Console** (progress bar, step checklist with state, log); right **Playlist** (tracks + player). Stack vertically on narrow viewports.
+- **Generate + playlist layout (desktop):** one row with two columns — left **Console** (overall progress bar, step checklist with state, log); right **Playlist** (tracks + player). Stack vertically on narrow viewports.
+- **Docs list:** each row shows a per-file progress bar (from `job.files`) and a Generate button for that file only.
 - **Download:** each playlist track has a Download control that fetches the authenticated MP3 (`GET /api/evoice/file/.../audios/...`) and saves it locally (filename = object name). Optional “Download current” next to player actions is fine; no zip/bulk required.
 - Fit Eduardo OS plain CSS (component CSS file); ServiceGate wrapper.
 - Admin: owner picker label **Admin only**; shows the full `/api/evoice/users` list (platform users + allowlist + S3), not only the signed-in admin.
@@ -101,6 +104,7 @@ Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access 
 - [x] Admin `/api/evoice/users` returns platform users ∪ allowlist ∪ S3 prefixes; owner dropdown shows more than the signed-in admin when other accounts exist
 - [x] Generate job exposes `steps` + `progress` (0–100); UI shows progress bar + step list; logs stream during convert (not only at end)
 - [x] Playlist tracks can be downloaded as MP3 via authenticated file fetch
+- [x] Generate accepts optional `files[]`; per-doc Generate in UI; skip unchanged MP3s; job exposes `files[]` progress alongside overall progress
 
 ## Affected paths
 - `specs/044-evoice/spec.md`

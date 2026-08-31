@@ -26,14 +26,15 @@ var defaultJobPlan = []JobStep{
 }
 
 // JobRunner converts a synced local project docs/ → audios/.
+// onlyFiles empty means all convertible docs; otherwise only those basenames.
 type JobRunner interface {
-	Run(ctx context.Context, projectDir string, logFn func(string)) (JobStats, error)
+	Run(ctx context.Context, projectDir string, onlyFiles []string, logFn func(string)) (JobStats, error)
 }
 
 // FakeRunner writes a tiny placeholder mp3 for each convertible doc (tests / no TTS).
 type FakeRunner struct{}
 
-func (FakeRunner) Run(_ context.Context, projectDir string, logFn func(string)) (JobStats, error) {
+func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, logFn func(string)) (JobStats, error) {
 	docsDir := filepath.Join(projectDir, "docs")
 	audiosDir := filepath.Join(projectDir, "audios")
 	_ = os.MkdirAll(audiosDir, 0o755)
@@ -41,6 +42,7 @@ func (FakeRunner) Run(_ context.Context, projectDir string, logFn func(string)) 
 	if err != nil {
 		return JobStats{}, err
 	}
+	allow := onlySet(onlyFiles)
 	stats := JobStats{}
 	for _, e := range entries {
 		if e.IsDir() {
@@ -48,6 +50,9 @@ func (FakeRunner) Run(_ context.Context, projectDir string, logFn func(string)) 
 		}
 		name := e.Name()
 		if name == ".keep" || !isConvertible(name) {
+			continue
+		}
+		if len(allow) > 0 && !allow[name] {
 			continue
 		}
 		stats.Docs++
@@ -68,8 +73,23 @@ func (FakeRunner) Run(_ context.Context, projectDir string, logFn func(string)) 
 			continue
 		}
 		stats.Generated++
+		logFn("ok     " + name + " -> " + stem + ".mp3")
 	}
 	return stats, nil
+}
+
+func onlySet(files []string) map[string]bool {
+	if len(files) == 0 {
+		return nil
+	}
+	m := make(map[string]bool, len(files))
+	for _, f := range files {
+		f = strings.TrimSpace(f)
+		if f != "" {
+			m[f] = true
+		}
+	}
+	return m
 }
 
 func isConvertible(name string) bool {
@@ -89,7 +109,7 @@ type PythonRunner struct {
 	Script string
 }
 
-func (p PythonRunner) Run(ctx context.Context, projectDir string, logFn func(string)) (JobStats, error) {
+func (p PythonRunner) Run(ctx context.Context, projectDir string, onlyFiles []string, logFn func(string)) (JobStats, error) {
 	py := p.Python
 	if py == "" {
 		py = "python3"
@@ -98,8 +118,14 @@ func (p PythonRunner) Run(ctx context.Context, projectDir string, logFn func(str
 	if script == "" {
 		script = defaultWorkerScript()
 	}
-	cmd := exec.CommandContext(ctx, py, script, "--project-dir", projectDir)
-	// Keep Piper/ffmpeg temps on the same disk as the project (not RAM /tmp).
+	args := []string{script, "--project-dir", projectDir}
+	for _, f := range onlyFiles {
+		f = strings.TrimSpace(f)
+		if f != "" {
+			args = append(args, "--only", f)
+		}
+	}
+	cmd := exec.CommandContext(ctx, py, args...)
 	tmpDir := filepath.Dir(projectDir)
 	cmd.Env = append(os.Environ(),
 		"PYTHONUNBUFFERED=1",
@@ -176,7 +202,6 @@ func defaultWorkerScript() string {
 	if v := strings.TrimSpace(os.Getenv("EVOICE_WORKER_SCRIPT")); v != "" {
 		return v
 	}
-	// Prefer package-relative path when binary runs from repo / deployed tree.
 	candidates := []string{
 		filepath.Join("internal", "evoice", "worker", "linux_sync.py"),
 		filepath.Join("backend", "internal", "evoice", "worker", "linux_sync.py"),
@@ -218,8 +243,6 @@ func resolveDefaultRunner() JobRunner {
 	return PythonRunner{}
 }
 
-// evoiceJobsBase is the disk-backed parent for job sandboxes.
-// Prefer EVOICE_WORK_DIR, then /var/tmp (Amazon Linux /tmp is often a tiny tmpfs).
 func evoiceJobsBase() string {
 	if v := strings.TrimSpace(os.Getenv("EVOICE_WORK_DIR")); v != "" {
 		return v
@@ -236,15 +259,24 @@ func cloneJobSteps(src []JobStep) []JobStep {
 	return out
 }
 
-func newQueuedJob(id, ownerSafe, project string) *JobStatus {
+func cloneJobFiles(src []JobFileProgress) []JobFileProgress {
+	out := make([]JobFileProgress, len(src))
+	copy(out, src)
+	return out
+}
+
+func newQueuedJob(id, ownerSafe, project string, onlyFiles []string) *JobStatus {
 	steps := cloneJobSteps(defaultJobPlan)
+	only := append([]string(nil), onlyFiles...)
 	return &JobStatus{
 		ID:          id,
 		State:       "queued",
 		Owner:       ownerSafe,
 		Project:     project,
+		OnlyFiles:   only,
 		Logs:        []string{"queued"},
 		Steps:       steps,
+		Files:       nil,
 		Progress:    0,
 		CurrentStep: "",
 	}
@@ -261,6 +293,8 @@ func (s *JobStore) Get(id string) (JobStatus, bool) {
 	cp := *j
 	cp.Logs = append([]string(nil), j.Logs...)
 	cp.Steps = cloneJobSteps(j.Steps)
+	cp.Files = cloneJobFiles(j.Files)
+	cp.OnlyFiles = append([]string(nil), j.OnlyFiles...)
 	if j.Stats != nil {
 		st := *j.Stats
 		cp.Stats = &st
@@ -294,6 +328,12 @@ func (s *JobStore) setState(id, state, errMsg string, stats *JobStats) {
 					j.Steps[i].State = "done"
 				}
 			}
+			for i := range j.Files {
+				if j.Files[i].State == "pending" || j.Files[i].State == "active" {
+					j.Files[i].State = "done"
+					j.Files[i].Progress = 100
+				}
+			}
 		}
 		if state == "failed" {
 			j.CurrentStep = ""
@@ -306,7 +346,44 @@ func (s *JobStore) setState(id, state, errMsg string, stats *JobStats) {
 	}
 }
 
-// activateStep marks stepID active, prior unfinished steps done, and refreshes progress.
+func (s *JobStore) initFiles(id string, names []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.jobs[id]
+	if !ok {
+		return
+	}
+	files := make([]JobFileProgress, 0, len(names))
+	for _, n := range names {
+		files = append(files, JobFileProgress{Name: n, State: "pending", Progress: 0})
+	}
+	j.Files = files
+}
+
+func (s *JobStore) updateFile(id, name, state string, progress int, detail string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.jobs[id]
+	if !ok {
+		return
+	}
+	for i := range j.Files {
+		if j.Files[i].Name != name {
+			continue
+		}
+		if state != "" {
+			j.Files[i].State = state
+		}
+		if progress >= 0 {
+			j.Files[i].Progress = progress
+		}
+		if detail != "" {
+			j.Files[i].Detail = detail
+		}
+		return
+	}
+}
+
 func (s *JobStore) activateStep(id, stepID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -374,7 +451,6 @@ func (s *JobStore) setConvertProgress(id string, done, total int) {
 	if !ok {
 		return
 	}
-	// Convert is the 4th of 6 equal-weight steps; interpolate within that band.
 	base := 0
 	stepWeight := 100 / len(j.Steps)
 	for i, st := range j.Steps {
@@ -403,24 +479,34 @@ func progressFromSteps(steps []JobStep) int {
 	return (done * 100) / len(steps)
 }
 
-// Start enqueues an async generate for owner/project using Objects sync.
-func (s *JobStore) Start(ctx context.Context, objects ObjectSpace, ownerSafe, project, cid string) (string, error) {
+// Start enqueues an async generate. onlyFiles empty = all docs; else those basenames only.
+func (s *JobStore) Start(ctx context.Context, objects ObjectSpace, ownerSafe, project, cid string, onlyFiles []string) (string, error) {
+	cleaned := make([]string, 0, len(onlyFiles))
+	for _, f := range onlyFiles {
+		f = sanitizeFileName(strings.TrimSpace(f))
+		if f != "" && ValidFileName(f) && isConvertible(f) {
+			cleaned = append(cleaned, f)
+		}
+	}
 	id := uuid.NewString()
 	s.mu.Lock()
-	s.jobs[id] = newQueuedJob(id, ownerSafe, project)
+	s.jobs[id] = newQueuedJob(id, ownerSafe, project, cleaned)
 	s.mu.Unlock()
 
-	go s.runJob(context.WithoutCancel(ctx), objects, id, ownerSafe, project, cid)
+	go s.runJob(context.WithoutCancel(ctx), objects, id, ownerSafe, project, cid, cleaned)
 	return id, nil
 }
 
-func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSafe, project, cid string) {
+func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSafe, project, cid string, onlyFiles []string) {
 	s.setState(id, "running", "", nil)
 
 	s.activateStep(id, "prepare")
 	s.appendLog(id, "prepare: creating workdir")
 	workRoot := filepath.Join(evoiceJobsBase(), id)
 	s.appendLog(id, "prepare: workRoot="+workRoot)
+	if len(onlyFiles) > 0 {
+		s.appendLog(id, "prepare: onlyFiles="+strings.Join(onlyFiles, ","))
+	}
 	projectDir := filepath.Join(workRoot, "project")
 	docsDir := filepath.Join(projectDir, "docs")
 	audiosDir := filepath.Join(projectDir, "audios")
@@ -452,33 +538,38 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	})
 	s.completeStep(id, "download_audios")
 
+	targets := listConvertibleDocs(docsDir, onlyFiles)
+	s.initFiles(id, targets)
+
 	s.activateStep(id, "convert")
 	s.appendLog(id, "convert: starting TTS worker")
 	jobCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
 
-	docTotal := countConvertibleDocs(docsDir)
+	docTotal := len(targets)
+	if docTotal == 0 {
+		docTotal = 1
+	}
 	docDone := 0
-	stats, err := s.runner.Run(jobCtx, projectDir, func(line string) {
+	stats, err := s.runner.Run(jobCtx, projectDir, onlyFiles, func(line string) {
 		s.appendLog(id, line)
-		lower := strings.ToLower(line)
-		if strings.HasPrefix(lower, "gen   ") ||
-			strings.HasPrefix(lower, "skip  ") ||
-			strings.HasPrefix(lower, "fail  ") {
-			docDone++
-			s.setConvertProgress(id, docDone, max(docTotal, 1))
-		}
+		s.applyConvertLogLine(id, line, &docDone, docTotal)
 	})
-	if err != nil {
+	usable := stats.Generated+stats.Skipped > 0 || countMP3(audiosDir) > 0
+	if err != nil && !usable {
 		s.appendLog(id, "runner error: "+err.Error())
 		s.failStep(id, "convert", err.Error())
 		s.setState(id, "failed", err.Error(), &stats)
 		return
 	}
+	if err != nil {
+		s.appendLog(id, "runner warning: "+err.Error()+" (continuing with partial results)")
+	}
 	s.completeStep(id, "convert")
 
 	s.activateStep(id, "upload")
 	s.appendLog(id, "upload: writing audios/*.mp3 to S3")
+	uploadAllow := uploadAllowFrom(onlyFiles, targets)
 	entries, err := os.ReadDir(audiosDir)
 	if err != nil {
 		s.appendLog(id, "upload list failed: "+err.Error())
@@ -488,6 +579,9 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".mp3") {
+			continue
+		}
+		if len(uploadAllow) > 0 && !uploadAllow[e.Name()] {
 			continue
 		}
 		body, err := os.ReadFile(filepath.Join(audiosDir, e.Name()))
@@ -510,20 +604,121 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	s.activateStep(id, "finalize")
 	s.appendLog(id, "done")
 	s.completeStep(id, "finalize")
-	s.setState(id, "done", "", &stats)
+	errMsg := ""
+	if stats.Failed > 0 {
+		errMsg = strconv.Itoa(stats.Failed) + " file(s) failed conversion"
+	}
+	final := "done"
+	if stats.Failed > 0 && stats.Generated == 0 && stats.Skipped == 0 {
+		final = "failed"
+	}
+	s.setState(id, final, errMsg, &stats)
 }
 
-func countConvertibleDocs(docsDir string) int {
+func uploadAllowFrom(onlyFiles, targets []string) map[string]bool {
+	if len(onlyFiles) == 0 {
+		return nil
+	}
+	m := make(map[string]bool, len(targets))
+	for _, t := range targets {
+		stem := strings.TrimSuffix(t, filepath.Ext(t))
+		m[stem+".mp3"] = true
+	}
+	return m
+}
+
+func (s *JobStore) applyConvertLogLine(id, line string, docDone *int, docTotal int) {
+	lower := strings.ToLower(line)
+	switch {
+	case strings.HasPrefix(lower, "step convert doc="):
+		// STEP convert doc=1/2 file=name.docx
+		name := fileFromStepLine(line)
+		if name != "" {
+			s.updateFile(id, name, "active", 10, "converting")
+		}
+	case strings.HasPrefix(lower, "extract "):
+		name := strings.TrimSpace(line[len("extract "):])
+		s.updateFile(id, name, "active", 35, "extract")
+	case strings.HasPrefix(lower, "tts    "):
+		name := firstToken(strings.TrimSpace(line[len("tts    "):]))
+		s.updateFile(id, name, "active", 65, "tts")
+	case strings.HasPrefix(lower, "gen   "):
+		name := firstToken(strings.TrimSpace(line[len("gen   "):]))
+		s.updateFile(id, name, "active", 20, "generate")
+	case strings.HasPrefix(lower, "ok     "):
+		name := firstToken(strings.TrimSpace(line[len("ok     "):]))
+		s.updateFile(id, name, "done", 100, "ok")
+		*docDone++
+		s.setConvertProgress(id, *docDone, docTotal)
+	case strings.HasPrefix(lower, "skip  "):
+		name := firstToken(strings.TrimSpace(line[len("skip  "):]))
+		s.updateFile(id, name, "skipped", 100, "up to date")
+		*docDone++
+		s.setConvertProgress(id, *docDone, docTotal)
+	case strings.HasPrefix(lower, "fail  "):
+		name := firstToken(strings.TrimSpace(line[len("FAIL  "):]))
+		detail := line
+		if i := strings.Index(line, ":"); i >= 0 {
+			detail = strings.TrimSpace(line[i+1:])
+		}
+		s.updateFile(id, name, "failed", 100, detail)
+		*docDone++
+		s.setConvertProgress(id, *docDone, docTotal)
+	}
+}
+
+func fileFromStepLine(line string) string {
+	const key = "file="
+	i := strings.Index(strings.ToLower(line), key)
+	if i < 0 {
+		return ""
+	}
+	return strings.TrimSpace(line[i+len(key):])
+}
+
+func firstToken(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	fields := strings.Fields(s)
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
+}
+
+func listConvertibleDocs(docsDir string, onlyFiles []string) []string {
 	entries, err := os.ReadDir(docsDir)
+	if err != nil {
+		return nil
+	}
+	allow := onlySet(onlyFiles)
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if name == ".keep" || !isConvertible(name) {
+			continue
+		}
+		if len(allow) > 0 && !allow[name] {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
+func countMP3(audiosDir string) int {
+	entries, err := os.ReadDir(audiosDir)
 	if err != nil {
 		return 0
 	}
 	n := 0
 	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		if e.Name() != ".keep" && isConvertible(e.Name()) {
+		if !e.IsDir() && strings.HasSuffix(strings.ToLower(e.Name()), ".mp3") {
 			n++
 		}
 	}

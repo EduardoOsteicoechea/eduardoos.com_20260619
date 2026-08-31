@@ -443,6 +443,7 @@ func (h *Handler) GetFile(w http.ResponseWriter, r *http.Request) {
 }
 
 // StartGenerate enqueues a sandbox TTS job.
+// Optional JSON body: { "files": ["a.docx"] } — omit or empty = all docs.
 func (h *Handler) StartGenerate(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	caller := auth.UserEmailFromRequest(r)
@@ -460,7 +461,22 @@ func (h *Handler) StartGenerate(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusServiceUnavailable, "jobs unavailable")
 		return
 	}
-	jobID, err := h.Jobs.Start(r.Context(), h.Objects, owner, project, cid)
+	var onlyFiles []string
+	if r.Body != nil {
+		raw, _ := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+		raw = []byte(strings.TrimSpace(string(raw)))
+		if len(raw) > 0 {
+			var body struct {
+				Files []string `json:"files"`
+			}
+			if err := json.Unmarshal(raw, &body); err != nil {
+				httpx.WriteError(w, http.StatusBadRequest, "invalid json")
+				return
+			}
+			onlyFiles = body.Files
+		}
+	}
+	jobID, err := h.Jobs.Start(r.Context(), h.Objects, owner, project, cid, onlyFiles)
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, "could not start job")
 		return

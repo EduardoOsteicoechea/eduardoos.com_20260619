@@ -141,6 +141,60 @@
   gap: 0.4rem;
 }
 
+.evoice__doc-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  font-family: Raleway, sans-serif;
+}
+
+.evoice__doc-main {
+  flex: 1 1 12rem;
+  min-width: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.evoice__doc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evoice__doc-progress {
+  height: 0.4rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  overflow: hidden;
+}
+
+.evoice__doc-progress-bar {
+  height: 100%;
+  background: var(--site-accent, #2a5a4a);
+  transition: width 0.2s ease;
+}
+
+.evoice__doc-progress-bar--failed {
+  background: #b42318;
+}
+
+.evoice__doc-progress-bar--skipped {
+  background: color-mix(in srgb, var(--site-accent, #2a5a4a) 55%, #888);
+}
+
+.evoice__doc-progress-bar--idle {
+  width: 0 !important;
+}
+
+.evoice__doc-status {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .evoice__list li {
   display: flex;
   justify-content: space-between;

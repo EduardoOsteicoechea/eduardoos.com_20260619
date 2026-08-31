@@ -21,13 +21,22 @@ export type EvoiceJobStep = {
   state: "pending" | "active" | "done" | "failed" | "skipped" | string;
 };
 
+export type EvoiceJobFile = {
+  name: string;
+  state: "pending" | "active" | "done" | "skipped" | "failed" | string;
+  progress: number;
+  detail?: string;
+};
+
 export type EvoiceJob = {
   id: string;
   state: "queued" | "running" | "done" | "failed" | string;
   ownerSafe: string;
   project: string;
+  onlyFiles?: string[];
   logs: string[];
   steps?: EvoiceJobStep[];
+  files?: EvoiceJobFile[];
   progress?: number;
   currentStep?: string;
   error?: string;
@@ -197,11 +206,15 @@ export async function fetchEvoiceAudios(
 export async function startEvoiceGenerate(
   ownerSafe: string,
   project: string,
+  files?: string[],
 ): Promise<{ jobId: string; error?: string }> {
+  const body =
+    files && files.length > 0 ? { files } : undefined;
   const result = await apiRequest<{ jobId: string }>(
     EVOICE_ROUTES.generate(ownerSafe, project),
     {
       method: "POST",
+      body,
       correlationId: createCorrelationId(),
       authToken: requireToken(),
     },
