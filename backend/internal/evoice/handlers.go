@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"path"
 	"sort"
 	"strings"
@@ -55,11 +56,11 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Get("/api/evoice/projects/{ownerSafe}/{project}/docs", h.ListDocs)
 		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/docs", h.UploadDoc)
 		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/docs/text", h.PasteDocText)
-		pr.Delete("/api/evoice/projects/{ownerSafe}/{project}/docs/{name}", h.DeleteDoc)
+		pr.Delete("/api/evoice/projects/{ownerSafe}/{project}/docs/*", h.DeleteDoc)
 		pr.Get("/api/evoice/projects/{ownerSafe}/{project}/audios", h.ListAudios)
-		pr.Delete("/api/evoice/projects/{ownerSafe}/{project}/audios/{name}", h.DeleteAudio)
-		pr.Get("/api/evoice/file/{ownerSafe}/{project}/{kind}/{name}", h.GetFile)
-		pr.Head("/api/evoice/file/{ownerSafe}/{project}/{kind}/{name}", h.GetFile)
+		pr.Delete("/api/evoice/projects/{ownerSafe}/{project}/audios/*", h.DeleteAudio)
+		pr.Get("/api/evoice/file/{ownerSafe}/{project}/{kind}/*", h.GetFile)
+		pr.Head("/api/evoice/file/{ownerSafe}/{project}/{kind}/*", h.GetFile)
 		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/generate", h.StartGenerate)
 		pr.Get("/api/evoice/jobs/{jobId}", h.GetJob)
 		pr.Post("/api/evoice/jobs/{jobId}/stop", h.StopJob)
@@ -296,7 +297,7 @@ func (h *Handler) listKind(w http.ResponseWriter, r *http.Request, kind string) 
 			Key:  o.Key,
 			Size: o.Size,
 			URL: fmt.Sprintf("/api/evoice/file/%s/%s/%s/%s",
-				owner, project, kind, path.Base(name)),
+				owner, project, kind, pathEscapeSeg(path.Base(name))),
 		}
 		if !o.LastModified.IsZero() {
 			meta.LastModified = o.LastModified.UTC().Format(time.RFC3339)
@@ -432,7 +433,10 @@ func (h *Handler) DeleteDoc(w http.ResponseWriter, r *http.Request) {
 	caller := auth.UserEmailFromRequest(r)
 	owner := chi.URLParam(r, "ownerSafe")
 	project := chi.URLParam(r, "project")
-	name := sanitizeFileName(chi.URLParam(r, "name"))
+	name := sanitizeFileName(strings.TrimPrefix(chi.URLParam(r, "*"), "/"))
+	if name == "" {
+		name = sanitizeFileName(chi.URLParam(r, "name"))
+	}
 	if !ValidProjectName(project) || !ValidFileName(name) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid path")
 		return
@@ -455,7 +459,10 @@ func (h *Handler) DeleteAudio(w http.ResponseWriter, r *http.Request) {
 	caller := auth.UserEmailFromRequest(r)
 	owner := chi.URLParam(r, "ownerSafe")
 	project := chi.URLParam(r, "project")
-	name := sanitizeFileName(chi.URLParam(r, "name"))
+	name := sanitizeFileName(strings.TrimPrefix(chi.URLParam(r, "*"), "/"))
+	if name == "" {
+		name = sanitizeFileName(chi.URLParam(r, "name"))
+	}
 	if !ValidProjectName(project) || !ValidFileName(name) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid path")
 		return
@@ -477,13 +484,14 @@ func (h *Handler) DeleteAudio(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetFile streams a docs/ or audios/ object (supports Range for audio seek).
+// Basename is the chi wildcard (*) so names with spaces/parens work (spec 044).
 func (h *Handler) GetFile(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	caller := auth.UserEmailFromRequest(r)
 	owner := chi.URLParam(r, "ownerSafe")
 	project := chi.URLParam(r, "project")
 	kind := chi.URLParam(r, "kind")
-	name := sanitizeFileName(chi.URLParam(r, "name"))
+	name := sanitizeFileName(strings.TrimPrefix(chi.URLParam(r, "*"), "/"))
 	if !ValidProjectName(project) || !ValidFileName(name) || (kind != "docs" && kind != "audios") {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid path")
 		return
@@ -670,4 +678,9 @@ func s3WriteErrorMessage(err error, fallback string) string {
 		return fallback + " (S3 AccessDenied on evoice/ — attach IAM PutObject for eduardoos20260607/evoice/*)"
 	}
 	return fallback
+}
+
+// pathEscapeSeg encodes one path segment for URL hints (spaces, parens, etc.).
+func pathEscapeSeg(s string) string {
+	return url.PathEscape(s)
 }

@@ -86,10 +86,15 @@
   display: grid;
   gap: 1rem;
   margin-bottom: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.evoice__workspace--stack {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 @media (min-width: 900px) {
-  .evoice__workspace {
+  .evoice__workspace:not(.evoice__workspace--stack) {
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
     align-items: start;
   }

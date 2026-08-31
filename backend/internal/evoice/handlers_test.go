@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -516,4 +517,38 @@ func TestStopAndResumeHTTP(t *testing.T) {
 		t.Fatalf("resume should keep premium: %v", resumed)
 	}
 	_ = waitJob(t, r, authHdr, newID)
+}
+
+func TestGetFileWithSpacesAndParens(t *testing.T) {
+	users := auth.NewMemoryStore()
+	_ = users.PutUser(t.Context(), auth.User{
+		Email: "owner@example.com", PasswordHash: auth.HashPassword("x"), Verified: true,
+	})
+	h := NewHandler("evoice-secret", users)
+	h.Entitlements = payments.NewStore()
+	h.Entitlements.PutEntitlements("owner@example.com", payments.BuildEntitlements([]string{"evoice"}, "monthly", 1))
+
+	r := chi.NewRouter()
+	h.Routes(r)
+	tok, _ := auth.IssueJWT("owner@example.com", "evoice-secret")
+	authHdr := "Bearer " + tok
+	ownerSafe := SafeEmailKey("owner@example.com")
+	project := "spaced"
+	name := "2 Libro Curso Introductorio marzo 2019 (1).mp3"
+	key := AudioKey(ownerSafe, project, name)
+	if err := h.Objects.PutBytes(t.Context(), key, []byte("ID3spaced"), "audio/mpeg", "cid"); err != nil {
+		t.Fatal(err)
+	}
+
+	pathURL := "/api/evoice/file/" + ownerSafe + "/" + project + "/audios/" + url.PathEscape(name)
+	req := httptest.NewRequest(http.MethodGet, pathURL, nil)
+	req.Header.Set("Authorization", authHdr)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get spaced audio status=%d body=%s path=%s", rec.Code, rec.Body.String(), pathURL)
+	}
+	if !bytes.Equal(rec.Body.Bytes(), []byte("ID3spaced")) {
+		t.Fatalf("body=%q", rec.Body.Bytes())
+	}
 }

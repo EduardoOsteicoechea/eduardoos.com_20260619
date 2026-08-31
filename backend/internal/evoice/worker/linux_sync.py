@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -36,10 +37,22 @@ DOC_EXTENSIONS = {
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp", ".gif"}
 
 PREMIUM_SYSTEM = (
-    "Eres un editor de guiones hablados en español. Reescribe el texto para "
-    "síntesis de voz (TTS): oraciones cortas y claras, expande abreviaturas, "
-    "quita markdown/URLs ruidosas, mantén el significado. Responde SOLO con el "
-    "texto hablado, sin títulos ni explicaciones."
+    "Eres un editor de guiones hablados en español para audiolibros. "
+    "Reescribe el texto para síntesis de voz (TTS): oraciones cortas y claras, "
+    "expande abreviaturas, quita markdown/URLs ruidosas, mantén el significado. "
+    "Divide el contenido en capítulos lógicos (introducción, secciones temáticas, cierre). "
+    "Responde SOLO con capítulos en este formato exacto (sin texto fuera de los bloques):\n"
+    '<<<CHAPTER n="1" title="Título corto">>>\n'
+    "texto hablado del capítulo...\n"
+    "<<<END>>>\n"
+    '<<<CHAPTER n="2" title="Otro título">>>\n'
+    "...\n"
+    "<<<END>>>"
+)
+
+CHAPTER_RE = re.compile(
+    r'<<<CHAPTER\s+n="(?P<n>\d+)"\s+title="(?P<title>[^"]*)"\s*>>>\s*(?P<body>.*?)\s*<<<END>>>',
+    re.IGNORECASE | re.DOTALL,
 )
 
 
@@ -51,6 +64,81 @@ def needs_regen(doc: Path, mp3: Path) -> bool:
     if not mp3.is_file():
         return True
     return doc.stat().st_mtime > mp3.stat().st_mtime
+
+
+def slug_title(title: str, max_len: int = 40) -> str:
+    raw = (title or "").strip().lower()
+    out: list[str] = []
+    for ch in raw:
+        if ch.isalnum() and ord(ch) < 128:
+            out.append(ch)
+        elif ch in " -_":
+            out.append("-")
+    slug = "".join(out)
+    while "--" in slug:
+        slug = slug.replace("--", "-")
+    slug = slug.strip("-") or "cap"
+    return slug[:max_len]
+
+
+def parse_chapters(text: str) -> list[tuple[int, str, str]]:
+    """Return list of (n, title, body). Fallback: single chapter if markers missing."""
+    found: list[tuple[int, str, str]] = []
+    for m in CHAPTER_RE.finditer(text or ""):
+        n = int(m.group("n"))
+        title = (m.group("title") or f"Capítulo {n}").strip()
+        body = (m.group("body") or "").strip()
+        if body:
+            found.append((n, title, body))
+    if found:
+        found.sort(key=lambda x: x[0])
+        return found
+    stripped = (text or "").strip()
+    if not stripped:
+        return []
+    return [(1, "Completo", stripped)]
+
+
+def chapter_mp3_name(stem: str, n: int, title: str) -> str:
+    return f"{stem}.c{n:02d}-{slug_title(title)}.mp3"
+
+
+def list_stem_audios(audios_dir: Path, stem: str) -> list[Path]:
+    out: list[Path] = []
+    mono = audios_dir / f"{stem}.mp3"
+    if mono.is_file():
+        out.append(mono)
+    prefix = f"{stem}.c"
+    for p in audios_dir.iterdir():
+        if p.is_file() and p.name.startswith(prefix) and p.suffix.lower() == ".mp3":
+            out.append(p)
+    return out
+
+
+def needs_regen_stem(doc: Path, audios_dir: Path, stem: str, *, premium: bool) -> bool:
+    existing = list_stem_audios(audios_dir, stem)
+    if not existing:
+        return True
+    if premium:
+        # Premium expects chapter files; a lone legacy stem.mp3 means regenerate.
+        chapters = [p for p in existing if f"{stem}.c" in p.name]
+        if not chapters:
+            return True
+        newest_audio = max(p.stat().st_mtime for p in chapters)
+    else:
+        mono = audios_dir / f"{stem}.mp3"
+        if not mono.is_file():
+            return True
+        newest_audio = mono.stat().st_mtime
+    return doc.stat().st_mtime > newest_audio
+
+
+def clear_stem_audios(audios_dir: Path, stem: str) -> None:
+    for p in list_stem_audios(audios_dir, stem):
+        try:
+            p.unlink()
+        except OSError:
+            pass
 
 
 def extract_txt(path: Path) -> str:
@@ -350,28 +438,42 @@ def sync_project(
         log("No convertible files in docs/")
         return stats
     for idx, doc in enumerate(docs, start=1):
-        mp3 = audios_dir / f"{doc.stem}.mp3"
+        stem = doc.stem
         log(f"FILE {doc.name} state=active")
         log(f"STEP convert doc={idx}/{len(docs)} file={doc.name}")
-        if not needs_regen(doc, mp3):
+        if not needs_regen_stem(doc, audios_dir, stem, premium=premium):
             log(f"skip  {doc.name} (mp3 up to date)")
             log(f"FILE {doc.name} state=skipped")
             stats["skipped"] += 1
             continue
-        reason = "missing mp3" if not mp3.is_file() else "doc newer than mp3"
-        log(f"gen   {doc.name} -> audios/{mp3.name} ({reason})")
+        reason = "missing/outdated audio"
+        log(f"gen   {doc.name} ({reason})")
         try:
             text = load_doc_text(doc)
             if not text.strip():
                 raise ValueError("No readable text extracted")
+            clear_stem_audios(audios_dir, stem)
             if premium:
                 text = premium_optimize(text, doc.name)
-                premium_path = docs_dir / f"{doc.stem}.premium.txt"
+                premium_path = docs_dir / f"{stem}.premium.txt"
                 premium_path.write_text(text, encoding="utf-8")
                 log(f"PREMIUM {doc.name} detail=wrote {premium_path.name}")
-            text_to_mp3(text, mp3, doc.name, tmp_parent=project_dir)
+                chapters = parse_chapters(text)
+                if not chapters:
+                    raise ValueError("premium produced no chapters")
+                log(f"PREMIUM {doc.name} detail=chapters={len(chapters)}")
+                for i, (n, title, body) in enumerate(chapters, start=1):
+                    mp3_name = chapter_mp3_name(stem, n, title)
+                    mp3 = audios_dir / mp3_name
+                    pct = int(100 * (i - 1) / max(len(chapters), 1))
+                    log(f"TTS {doc.name} pct={pct} detail=chapter {n}/{len(chapters)} {title}")
+                    text_to_mp3(body, mp3, doc.name, tmp_parent=project_dir)
+                    log(f"ok     {doc.name} -> {mp3_name}")
+            else:
+                mp3 = audios_dir / f"{stem}.mp3"
+                text_to_mp3(text, mp3, doc.name, tmp_parent=project_dir)
+                log(f"ok     {doc.name} -> {mp3.name}")
             stats["generated"] += 1
-            log(f"ok     {doc.name} -> {mp3.name}")
             log(f"FILE {doc.name} state=done")
         except Exception as exc:  # noqa: BLE001
             stats["failed"] += 1

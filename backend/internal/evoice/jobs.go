@@ -92,24 +92,41 @@ func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, 
 		}
 		stats.Docs++
 		stem := strings.TrimSuffix(name, filepath.Ext(name))
-		mp3 := filepath.Join(audiosDir, stem+".mp3")
 		docPath := filepath.Join(docsDir, name)
 		docInfo, _ := os.Stat(docPath)
-		mp3Info, mp3Err := os.Stat(mp3)
-		if mp3Err == nil && docInfo != nil && !docInfo.ModTime().After(mp3Info.ModTime()) {
+		if !fakeNeedsRegen(audiosDir, stem, premium, docInfo) {
 			logFn("skip  " + name + " (mp3 up to date)")
 			logFn("FILE " + name + " state=skipped")
 			stats.Skipped++
 			continue
 		}
+		mp3 := filepath.Join(audiosDir, stem+".mp3")
 		logFn("FILE " + name + " state=active")
 		logFn("EXTRACT " + name + " pct=50 detail=fake")
 		if premium {
 			logFn("PREMIUM " + name + " pct=20 detail=stream")
 			logFn("PREMIUM " + name + " pct=60 detail=stream")
-			logFn("PREMIUM " + name + " pct=100 detail=fake-optimized")
-			_ = os.WriteFile(filepath.Join(docsDir, stem+".premium.txt"), []byte("premium speech for "+name), 0o644)
+			logFn("PREMIUM " + name + " pct=100 detail=chapters=2")
+			marked := "<<<CHAPTER n=\"1\" title=\"Intro\">>>\nhola uno\n<<<END>>>\n" +
+				"<<<CHAPTER n=\"2\" title=\"Cuerpo\">>>\nhola dos\n<<<END>>>\n"
+			_ = os.WriteFile(filepath.Join(docsDir, stem+".premium.txt"), []byte(marked), 0o644)
+			_ = os.Remove(mp3)
+			clearLocalStemAudios(audiosDir, stem)
+			for _, ch := range []string{stem + ".c01-intro.mp3", stem + ".c02-cuerpo.mp3"} {
+				logFn("TTS " + name + " pct=50 detail=chapter " + ch)
+				if err := os.WriteFile(filepath.Join(audiosDir, ch), []byte("ID3fake-evoice"), 0o644); err != nil {
+					stats.Failed++
+					logFn("FAIL  " + name + ": " + err.Error())
+					logFn("FILE " + name + " state=failed")
+					continue
+				}
+				logFn("ok     " + name + " -> " + ch)
+			}
+			stats.Generated++
+			logFn("FILE " + name + " state=done")
+			continue
 		}
+		clearLocalStemAudios(audiosDir, stem)
 		logFn("TTS " + name + " pct=50 detail=fake")
 		logFn("gen   " + name + " -> audios/" + stem + ".mp3 (fake)")
 		if err := os.WriteFile(mp3, []byte("ID3fake-evoice"), 0o644); err != nil {
@@ -123,6 +140,67 @@ func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, 
 		logFn("FILE " + name + " state=done")
 	}
 	return stats, nil
+}
+
+func fakeNeedsRegen(audiosDir, stem string, premium bool, docInfo os.FileInfo) bool {
+	entries, err := os.ReadDir(audiosDir)
+	if err != nil {
+		return true
+	}
+	var newest time.Time
+	found := false
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		n := e.Name()
+		if !isStemAudio(n, stem) {
+			continue
+		}
+		if premium && n == stem+".mp3" {
+			continue // legacy mono does not satisfy premium
+		}
+		if !premium && strings.Contains(n, ".c") && strings.HasPrefix(n, stem+".c") {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		found = true
+		if info.ModTime().After(newest) {
+			newest = info.ModTime()
+		}
+	}
+	if !found {
+		return true
+	}
+	if docInfo == nil {
+		return false
+	}
+	return docInfo.ModTime().After(newest)
+}
+
+func isStemAudio(name, stem string) bool {
+	if name == stem+".mp3" {
+		return true
+	}
+	return strings.HasPrefix(name, stem+".c") && strings.HasSuffix(strings.ToLower(name), ".mp3")
+}
+
+func clearLocalStemAudios(audiosDir, stem string) {
+	entries, err := os.ReadDir(audiosDir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if isStemAudio(e.Name(), stem) {
+			_ = os.Remove(filepath.Join(audiosDir, e.Name()))
+		}
+	}
 }
 
 func onlySet(files []string) map[string]bool {
@@ -843,6 +921,10 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	s.activateStep(ctx, objects, id, "upload", cid)
 	s.appendLog(ctx, objects, id, "upload: writing audios/*.mp3 (+ premium.txt) to S3", cid)
 	uploadAllow := uploadAllowFrom(onlyFiles, targets)
+	for _, t := range targets {
+		stem := strings.TrimSuffix(t, filepath.Ext(t))
+		s.deleteStemAudiosFromObjects(ctx, objects, id, ownerSafe, project, stem, cid)
+	}
 	entries, err := os.ReadDir(audiosDir)
 	if err != nil {
 		s.appendLog(ctx, objects, id, "upload list failed: "+err.Error(), cid)
@@ -855,7 +937,7 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 		if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".mp3") {
 			continue
 		}
-		if len(uploadAllow) > 0 && !uploadAllow[e.Name()] {
+		if len(uploadAllow) > 0 && !mp3UploadAllowed(e.Name(), uploadAllow) {
 			continue
 		}
 		body, err := os.ReadFile(filepath.Join(audiosDir, e.Name()))
@@ -917,12 +999,60 @@ func uploadAllowFrom(onlyFiles, targets []string) map[string]bool {
 	if len(onlyFiles) == 0 {
 		return nil
 	}
-	m := make(map[string]bool, len(targets))
+	// Map of allowed exact names + stem markers (value true means stem prefix allow).
+	m := make(map[string]bool, len(targets)*2)
 	for _, t := range targets {
 		stem := strings.TrimSuffix(t, filepath.Ext(t))
 		m[stem+".mp3"] = true
+		m["stem:"+stem] = true
 	}
 	return m
+}
+
+func mp3UploadAllowed(name string, allow map[string]bool) bool {
+	if len(allow) == 0 {
+		return true
+	}
+	if allow[name] {
+		return true
+	}
+	lower := strings.ToLower(name)
+	if !strings.HasSuffix(lower, ".mp3") {
+		return false
+	}
+	base := strings.TrimSuffix(name, filepath.Ext(name))
+	// Chapter: {stem}.c01-title
+	if i := strings.Index(base, ".c"); i > 0 {
+		stem := base[:i]
+		if allow["stem:"+stem] {
+			rest := base[i+2:]
+			if len(rest) >= 2 && rest[0] >= '0' && rest[0] <= '9' {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *JobStore) deleteStemAudiosFromObjects(ctx context.Context, objects ObjectSpace, id, ownerSafe, project, stem, cid string) {
+	if objects == nil || stem == "" {
+		return
+	}
+	prefix := AudiosPrefix(ownerSafe, project) + "/"
+	objs, err := objects.ListObjects(ctx, prefix, cid)
+	if err != nil {
+		return
+	}
+	for _, o := range objs {
+		name := strings.TrimPrefix(o.Key, prefix)
+		if name == "" || strings.Contains(name, "/") {
+			continue
+		}
+		if isStemAudio(name, stem) {
+			s.appendLog(ctx, objects, id, "upload: replace prior "+name, cid)
+			_ = objects.DeleteKey(ctx, o.Key, cid)
+		}
+	}
 }
 
 func (s *JobStore) applyConvertLogLine(ctx context.Context, objects ObjectSpace, id, line string, docDone *int, docTotal int, cid string, premium bool) {

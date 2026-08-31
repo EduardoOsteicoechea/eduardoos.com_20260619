@@ -2,7 +2,7 @@
 
 ## Status
 
-**Done** (2026-08-31) — stop/resume, DeepSeek SSE stream, weighted progress (premium vs standard).
+**Done** (2026-08-31) — UI chrome cleanup, error modal, playlist stack, premium chapter MP3s, audio 404 fix.
 
 ## Problem
 
@@ -13,47 +13,61 @@ Port the `backend/text-to-audio` (evoice) product into Eduardo OS as a web surfa
 ### Access / Premium
 - Catalog `evoice`; admin OR entitlement OR allowlist (`eliasosteic@gmail.com`, `laleskavf.2una@gmail.com`).
 - **Premium** checkbox: DeepSeek reasoning rewrite before TTS; writes `docs/<stem>.premium.txt`.
-- DeepSeek calls use **`stream: true`** (SSE). Worker logs incremental `PREMIUM <file> pct=N detail=…` (and optional short `PREMIUM_DELTA` / char counts) so the UI receives analysis progress in parts — not one blocking response.
+- DeepSeek calls use **`stream: true`** (SSE). Worker logs incremental `PREMIUM <file> pct=N detail=…`.
+
+### Premium → chapter playlist
+When **premium** is on, DeepSeek must split the spoken script into **chapters**. The worker generates **one MP3 per chapter** (not a single monolithic file):
+
+- DeepSeek output format (exact markers):
+  ```
+  <<<CHAPTER n="1" title="Introducción">>>
+  …spoken text…
+  <<<END>>>
+  ```
+- Audio keys: `audios/{stem}.c{NN}-{safeTitle}.mp3` (`NN` = zero-padded chapter number; `safeTitle` = lowercase ASCII slug, max 40 chars). Example: `libro.c01-introduccion.mp3`.
+- Also write `docs/{stem}.premium.txt` containing the full marked script.
+- On premium generate for a stem: remove prior `audios/{stem}.mp3` (legacy single-file) and prior `audios/{stem}.c*.mp3` before writing new chapters.
+- Non-premium: still one `audios/{stem}.mp3`.
+- **Ready** in Docs: audio present if `{stem}.mp3` **or** any `{stem}.c*.mp3` exists.
+- Playlist lists all MP3s sorted by name (chapter files naturally group under the book stem).
 
 ### Stop + resume
-- **Stop:** `POST /api/evoice/jobs/{jobId}/stop` cancels the in-flight job context (kills worker), sets state `stopped`, persists S3 snapshot `evoice/_jobs/{jobId}.json`.
-- **Resume:** `POST /api/evoice/jobs/{jobId}/resume` (or UI “Resume”) starts a **new** generate for the same owner/project/premium with `files` = docs still missing/outdated MP3 (and any that were active when stopped). Returns `{ jobId }` of the new job. Mid-sentence Piper resume is **not** required — resume = unfinished files only.
-- UI: while generating, show **Stop**; when last job is `stopped` (or after stop), show **Resume**. Keep existing auto-resume-after-backend-death behavior.
+- **Stop:** `POST /api/evoice/jobs/{jobId}/stop` → state `stopped`, S3 snapshot.
+- **Resume:** `POST /api/evoice/jobs/{jobId}/resume` → new job for unfinished files (same premium). Mid-sentence Piper seek not required.
+- UI: **Stop generate** while running; **Resume** when stopped.
 
 ### Weighted overall progress
-Progress is **not** equal-weight steps. Use these bands (sum 100):
+**Without premium:** rest 10% | convert 80% | upload 10%.  
+**With premium:** rest 10% | extract 30% | refine DeepSeek 30% | convert audio 20% | upload 10%.
 
-**Without premium**
-| Band | Weight | Steps |
-|------|--------|--------|
-| Rest (prepare + download_docs + download_audios + finalize) | **10%** | early + finalize |
-| Convert docs → MP3 | **80%** | `convert` |
-| Upload audios to S3 | **10%** | `upload` |
+### UI chrome (this slice)
+- **Remove** page heading block: “EDUARDO OS”, “eVoice” title, and lead “Documents to MP3…”.
+- Keep “Admin only” access note if present; no marketing eyebrow/title/lead.
+- **Playlist** panel stacks **under** Console (single column) — not a side-by-side grid.
+- Errors (including audio fetch failures) use **ServerErrorModal** (`openApiErrorModal` / `openServerErrorModal`) like the rest of the site — not inline red text for API/audio failures.
 
-**With premium** (the former 80% convert band is split)
-| Band | Weight | Steps / worker phase |
-|------|--------|----------------------|
-| Rest (prepare + downloads + finalize) | **10%** | early + finalize |
-| Convert to speech (extract) | **30%** | `extract_speech` ← EXTRACT lines |
-| Refine with DeepSeek | **30%** | `refine_deepseek` ← PREMIUM stream lines |
-| Convert to audio (TTS + ffmpeg) | **20%** | `convert_audio` ← TTS/FFMPEG |
-| Upload audios to S3 | **10%** | `upload` |
-
-Job `steps[]` labels must match the plan for the job’s `premium` flag. `progress` 0–100 follows the weights above (interpolate within the active band using per-file / phase pct).
+### Audio fetch 404 fix
+- Route must accept basenames with spaces and parentheses: use chi wildcard  
+  `GET|HEAD /api/evoice/file/{ownerSafe}/{project}/{kind}/*` and take the name from `*`.
+- List responses may include a URL hint, but the client always builds paths with `encodeURIComponent`.
+- Unit test: upload/list/get an audio whose name contains spaces and `(1)`.
 
 ### Existing (still required)
-- Admin owner sticky; paste text docs; per-file generate; detect ready audios; delete doc/audio; job S3 snapshots; GET job memory-or-S3; Console/Playlist layout; home lateral pad.
+- Admin owner sticky; paste text docs; per-file generate; delete doc/audio; job S3 snapshots; stop/resume; Console logs; home lateral pad.
 
 ## Non-goals
 - Windows Tk/SAPI; true mid-utterance Piper seek-resume.
 - Separate Premium catalog SKU.
+- Nested S3 folders per book (flat `audios/` with `stem.cNN-…` naming is enough).
 
 ## Acceptance
-- [x] Stop cancels worker; job state `stopped`; snapshot persisted
-- [x] Resume generates only unfinished files (same premium)
-- [x] Premium DeepSeek uses SSE stream; PREMIUM progress lines appear before completion
-- [x] Overall progress weights match tables (non-premium 80/10/10; premium 30/30/20 + 10 + 10)
-- [x] FE Stop/Resume; tests; commit + push
+- [x] Stop/resume, DeepSeek SSE, weighted progress (prior slice)
+- [x] Audio GET works for names with spaces/parens (no false 404)
+- [x] Premium generate → multiple chapter MP3s; playlist shows them
+- [x] Playlist under Console (not beside)
+- [x] No eVoice/Eduardo OS/Documents-to-MP3 heading on the page
+- [x] Audio/API errors open ServerErrorModal
+- [x] Tests + FE build + commit/push
 
 ## Affected paths
 - `specs/044-evoice/spec.md`

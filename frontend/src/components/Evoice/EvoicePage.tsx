@@ -34,6 +34,7 @@ import {
   type EvoiceObjectMeta,
 } from "../../lib/evoice";
 import { getAuthToken } from "../../lib/auth";
+import { openServerErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import "./Evoice.css";
 
 function stemOf(name: string): string {
@@ -41,8 +42,22 @@ function stemOf(name: string): string {
   return i > 0 ? name.slice(0, i) : name;
 }
 
-function audioNameForDoc(docName: string): string {
-  return `${stemOf(docName)}.mp3`;
+/** Chapter audio for a source doc: `libro.c01-intro.mp3`. */
+function isChapterAudio(audioName: string, docStem: string): boolean {
+  return (
+    audioName.toLowerCase().endsWith(".mp3") &&
+    audioName.startsWith(`${docStem}.c`)
+  );
+}
+
+function audiosForDoc(
+  docName: string,
+  audios: EvoiceObjectMeta[],
+): EvoiceObjectMeta[] {
+  const stem = stemOf(docName);
+  return audios.filter(
+    (a) => a.name === `${stem}.mp3` || isChapterAudio(a.name, stem),
+  );
 }
 
 function isSourceDoc(name: string): boolean {
@@ -61,13 +76,15 @@ function docsNeedingAudio(
     .filter((d) => isSourceDoc(d.name))
     .filter((d) => (allow ? allow.has(d.name) : true))
     .filter((d) => {
-      const mp3 = audioNameForDoc(d.name);
-      const audio = audios.find((a) => a.name === mp3);
-      if (!audio) return true;
-      if (d.lastModified && audio.lastModified) {
-        return d.lastModified > audio.lastModified;
-      }
-      return false;
+      const related = audiosForDoc(d.name, audios);
+      if (related.length === 0) return true;
+      if (!d.lastModified) return false;
+      const newest = related.reduce((acc, a) => {
+        if (!a.lastModified) return acc;
+        return a.lastModified > acc ? a.lastModified : acc;
+      }, "");
+      if (!newest) return false;
+      return d.lastModified > newest;
     })
     .map((d) => d.name);
 }
@@ -99,7 +116,6 @@ function EvoiceWorkspace() {
   const [steps, setSteps] = useState<EvoiceJobStep[]>([]);
   const [fileProgress, setFileProgress] = useState<EvoiceJobFile[]>([]);
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [activeJobId, setActiveJobId] = useState("");
   const [jobStopped, setJobStopped] = useState(false);
@@ -111,10 +127,18 @@ function EvoiceWorkspace() {
   const projectRef = useRef(project);
   projectRef.current = project;
 
+  function showError(title: string, details: unknown) {
+    openServerErrorModal({
+      title,
+      summary: "Something went wrong in eVoice. Copy the block below if you need to report it.",
+      details,
+    });
+  }
+
   const reloadProjects = useCallback(async (owner: string) => {
     const res = await fetchEvoiceProjects(owner);
     if (res.error) {
-      setError(res.error);
+      showError("eVoice projects", res.error);
       setProjects([]);
       return;
     }
@@ -138,8 +162,8 @@ function EvoiceWorkspace() {
       fetchEvoiceDocs(owner, proj),
       fetchEvoiceAudios(owner, proj),
     ]);
-    if (d.error) setError(d.error);
-    if (a.error) setError(a.error);
+    if (d.error) showError("eVoice docs", d.error);
+    if (a.error) showError("eVoice audios", a.error);
     setDocs(d.docs);
     setAudios(a.audios);
     setTrackIndex(0);
@@ -154,7 +178,7 @@ function EvoiceWorkspace() {
       const me = await fetchEvoiceMe();
       if (cancelled) return;
       if (me.error) {
-        setError(me.error);
+        showError("eVoice me", me.error);
         return;
       }
       setIsAdmin(me.isAdmin);
@@ -197,7 +221,7 @@ function EvoiceWorkspace() {
         blobUrlRef.current = url;
         setBlobUrl(url);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not load audio");
+        showError("Audio fetch", e instanceof Error ? e.message : "Could not load audio");
       }
     })();
     return () => {
@@ -258,11 +282,11 @@ function EvoiceWorkspace() {
         }
         if (jobRes.job.state === "done" || jobRes.job.state === "failed") {
           if (jobRes.job.state === "failed") {
-            setError(jobRes.job.error || "Generate failed");
+            showError("Generate failed", jobRes.job.error || "Generate failed");
             return "failed";
           }
           if (jobRes.job.error) {
-            setError(jobRes.job.error);
+            showError("Generate", jobRes.job.error);
           }
           setProgress(100);
           setJobStopped(false);
@@ -283,7 +307,7 @@ function EvoiceWorkspace() {
           : `job poll failed (${status || "network"}) — waiting to resume…`,
       ]);
       if (!(await waitUntilHealthy())) {
-        setError("Backend unavailable; could not resume generate");
+        showError("Backend unavailable", "Could not resume generate");
         return "failed";
       }
       if (stopRequestedRef.current) {
@@ -298,7 +322,7 @@ function EvoiceWorkspace() {
         return "done";
       }
       if (resumes >= 8) {
-        setError("Too many auto-resumes; stop and retry Generate manually");
+        showError("Auto-resume limit", "Too many auto-resumes; retry Generate manually");
         return "failed";
       }
       resumes += 1;
@@ -313,7 +337,7 @@ function EvoiceWorkspace() {
         usePremium,
       );
       if (started.error || !started.jobId) {
-        setError(started.error || "Could not resume generate");
+        showError("Resume generate", started.error || "Could not resume generate");
         return "failed";
       }
       activeId = started.jobId;
@@ -329,11 +353,10 @@ function EvoiceWorkspace() {
     const name = newProject.trim();
     if (!name || busy) return;
     setBusy(true);
-    setError("");
     const res = await createEvoiceProject(name, isAdmin ? ownerSafe : undefined);
     setBusy(false);
     if (res.error) {
-      setError(res.error);
+      showError("eVoice", res.error);
       return;
     }
     setNewProject("");
@@ -346,11 +369,10 @@ function EvoiceWorkspace() {
     ev.target.value = "";
     if (!file || !ownerSafe || !project || busy) return;
     setBusy(true);
-    setError("");
     const res = await uploadEvoiceDoc(ownerSafe, project, file);
     setBusy(false);
     if (res.error) {
-      setError(res.error);
+      showError("eVoice", res.error);
       return;
     }
     await reloadDocsAudios(ownerSafe, project);
@@ -361,11 +383,10 @@ function EvoiceWorkspace() {
     const text = pasteText.trim();
     if (!text || !ownerSafe || !project || busy) return;
     setBusy(true);
-    setError("");
     const res = await pasteEvoiceDocText(ownerSafe, project, text);
     setBusy(false);
     if (res.error) {
-      setError(res.error);
+      showError("eVoice", res.error);
       return;
     }
     setPasteText("");
@@ -376,11 +397,10 @@ function EvoiceWorkspace() {
     if (!ownerSafe || !project || busy) return;
     if (!window.confirm(`Delete document ${name}?`)) return;
     setBusy(true);
-    setError("");
     const res = await deleteEvoiceDoc(ownerSafe, project, name);
     setBusy(false);
     if (res.error) {
-      setError(res.error);
+      showError("eVoice", res.error);
       return;
     }
     setFileProgress((prev) => prev.filter((f) => f.name !== name));
@@ -391,11 +411,10 @@ function EvoiceWorkspace() {
     if (!ownerSafe || !project || busy) return;
     if (!window.confirm(`Delete audio ${mp3Name}?`)) return;
     setBusy(true);
-    setError("");
     const res = await deleteEvoiceAudio(ownerSafe, project, mp3Name);
     setBusy(false);
     if (res.error) {
-      setError(res.error);
+      showError("eVoice", res.error);
       return;
     }
     const stem = stemOf(mp3Name);
@@ -406,7 +425,6 @@ function EvoiceWorkspace() {
   async function onGenerate(files?: string[]) {
     if (!ownerSafe || !project || busy) return;
     setBusy(true);
-    setError("");
     setJobStopped(false);
     stopRequestedRef.current = false;
     setLogs(["starting…"]);
@@ -426,7 +444,7 @@ function EvoiceWorkspace() {
     );
     if (started.error || !started.jobId) {
       setBusy(false);
-      setError(started.error || "Could not start generate");
+      showError("Generate", started.error || "Could not start generate");
       return;
     }
     setActiveJobId(started.jobId);
@@ -450,7 +468,7 @@ function EvoiceWorkspace() {
     setLogs((prev) => [...prev, "stop: requesting cancel…"]);
     const res = await stopEvoiceJob(activeJobId);
     if (res.error) {
-      setError(res.error);
+      showError("eVoice", res.error);
       return;
     }
     if (res.job) {
@@ -467,14 +485,13 @@ function EvoiceWorkspace() {
   async function onResumeGenerate() {
     if (!ownerSafe || !project || busy || !activeJobId) return;
     setBusy(true);
-    setError("");
     setJobStopped(false);
     stopRequestedRef.current = false;
     setLogs((prev) => [...prev, "resume: continuing unfinished files…"]);
     const resumed = await resumeEvoiceJob(activeJobId);
     if (resumed.error || !resumed.jobId) {
       setBusy(false);
-      setError(resumed.error || "Could not resume");
+      showError("Resume", resumed.error || "Could not resume");
       setJobStopped(true);
       return;
     }
@@ -503,11 +520,33 @@ function EvoiceWorkspace() {
   function progressForDoc(name: string): EvoiceJobFile | undefined {
     const live = fileProgress.find((f) => f.name === name);
     if (live) return live;
-    const mp3 = audioNameForDoc(name);
-    if (audios.some((a) => a.name === mp3)) {
-      return { name, state: "ready", progress: 100, detail: "audio present" };
+    const related = audiosForDoc(name, audios);
+    if (related.length > 0) {
+      const chapters = related.filter((a) => a.name.includes(".c")).length;
+      const detail =
+        chapters > 0
+          ? `${chapters} chapter audio(s)`
+          : "audio present";
+      return { name, state: "ready", progress: 100, detail };
     }
     return undefined;
+  }
+
+  async function onDeleteDocAudios(docName: string) {
+    const related = audiosForDoc(docName, audios);
+    if (!ownerSafe || !project || busy || related.length === 0) return;
+    if (!window.confirm(`Delete ${related.length} audio file(s) for ${docName}?`)) return;
+    setBusy(true);
+    for (const a of related) {
+      const res = await deleteEvoiceAudio(ownerSafe, project, a.name);
+      if (res.error) {
+        showError("Delete audio", res.error);
+        setBusy(false);
+        return;
+      }
+    }
+    setBusy(false);
+    await reloadDocsAudios(ownerSafe, project);
   }
 
   function play() {
@@ -528,11 +567,10 @@ function EvoiceWorkspace() {
 
   async function onDownload(name: string) {
     if (!ownerSafe || !project || busy) return;
-    setError("");
     try {
       await downloadEvoiceAudio(ownerSafe, project, name);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Download failed");
+      showError("Download", e instanceof Error ? e.message : "Download failed");
     }
   }
 
@@ -540,17 +578,6 @@ function EvoiceWorkspace() {
 
   return (
     <div className="evoice">
-      <header className="evoice__head">
-        <p className="evoice__eyebrow">Eduardo OS</p>
-        <h1 className="evoice__title">eVoice</h1>
-        <p className="evoice__lead">
-          Documents to MP3. One audio per source; regenerate when missing or
-          outdated.
-        </p>
-      </header>
-
-      {error ? <p className="evoice__error">{error}</p> : null}
-
       {isAdmin ? (
         <label className="evoice__field">
           <span>Admin only</span>
@@ -689,8 +716,8 @@ function EvoiceWorkspace() {
                 {sourceDocs.map((d) => {
                   const fp = progressForDoc(d.name);
                   const pct = fp ? Math.max(0, Math.min(100, fp.progress)) : 0;
-                  const mp3 = audioNameForDoc(d.name);
-                  const hasAudio = audios.some((a) => a.name === mp3);
+                  const related = audiosForDoc(d.name, audios);
+                  const hasAudio = related.length > 0;
                   return (
                     <li key={d.key} className="evoice__doc-row">
                       <div className="evoice__doc-main">
@@ -734,9 +761,9 @@ function EvoiceWorkspace() {
                       <button
                         type="button"
                         className="btn"
-                        onClick={() => void onDeleteAudio(mp3)}
+                        onClick={() => void onDeleteDocAudios(d.name)}
                         disabled={busy || !hasAudio}
-                        title={hasAudio ? `Delete ${mp3}` : "No audio yet"}
+                        title={hasAudio ? `Delete ${related.length} audio(s)` : "No audio yet"}
                       >
                         Delete audio
                       </button>
@@ -747,7 +774,7 @@ function EvoiceWorkspace() {
             )}
           </section>
 
-          <div className="evoice__workspace">
+          <div className="evoice__workspace evoice__workspace--stack">
             <section className="evoice__panel evoice__panel--console">
               <h2>Console</h2>
               <div
