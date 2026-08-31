@@ -45,6 +45,8 @@ export const APP_ROUTES = {
     `/ereport/${encodeURIComponent(userSafe)}/${encodeURIComponent(reportId)}`,
   ereportHub: "/ereport/hub",
   ereportWorkspace: "/ereport/workspace",
+  /** eVoice text-to-audio projects (subscription / allowlist). */
+  evoice: "/evoice",
   /** Public Calvin’s Institutes reader (S3-backed). */
   calvinsInstitutes: "/latin/calvins-institutes",
   adminUsers: "/admin/users",
@@ -205,6 +207,24 @@ export const EREPORT_ROUTES = {
     `/api/ereport/reports/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(reportId)}`,
   shares: (ownerSafe: string, reportId: string) =>
     `/api/ereport/reports/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(reportId)}/shares`,
+} as const;
+
+/** eVoice text-to-audio (JWT + evoice entitlement / allowlist / admin). */
+export const EVOICE_ROUTES = {
+  me: "/api/evoice/me",
+  users: "/api/evoice/users",
+  projects: "/api/evoice/projects",
+  projectDocs: (ownerSafe: string, project: string) =>
+    `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/docs`,
+  projectDoc: (ownerSafe: string, project: string, name: string) =>
+    `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/docs/${encodeURIComponent(name)}`,
+  projectAudios: (ownerSafe: string, project: string) =>
+    `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/audios`,
+  generate: (ownerSafe: string, project: string) =>
+    `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/generate`,
+  job: (jobId: string) => `/api/evoice/jobs/${encodeURIComponent(jobId)}`,
+  file: (ownerSafe: string, project: string, kind: "docs" | "audios", name: string) =>
+    `/api/evoice/file/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/${kind}/${encodeURIComponent(name)}`,
 } as const;
 
 export const PLAYLIST_ROUTES = {

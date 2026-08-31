@@ -17,6 +17,7 @@ import (
 	"eduardoos.nex/internal/content"
 	"eduardoos.nex/internal/documents"
 	"eduardoos.nex/internal/ereport"
+	"eduardoos.nex/internal/evoice"
 	"eduardoos.nex/internal/health"
 	"eduardoos.nex/internal/homescool"
 	"eduardoos.nex/internal/httpx"
@@ -89,6 +90,10 @@ func main() {
 	ereportHandler := ereport.NewHandler(jwtSecret, userStore)
 	ereportHandler.Objects = ereport.OpenObjectSpace(ctx)
 	ereportHandler.Entitlements = paymentsHandler.Store
+	evoiceHandler := evoice.NewHandler(jwtSecret, userStore)
+	evoiceHandler.Objects = evoice.OpenObjectSpace(ctx)
+	evoiceHandler.Entitlements = paymentsHandler.Store
+	evoiceHandler.Jobs = evoice.NewJobStore(nil) // Piper/espeak worker; EVOICE_FAKE_TTS=1 for stub
 	contactHandler := contact.NewHandler(authHandler)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
 	adminHandler.UseAuth(authHandler) // SMTP + store for bulk-register OTP mail
@@ -125,6 +130,7 @@ func main() {
 	}
 	scribHandler.Routes(r)
 	ereportHandler.Routes(r)
+	evoiceHandler.Routes(r)
 	adminHandler.Routes(r)
 	agentSandboxHandler.Routes(r)
 	// BIM IFC viewer Python sandbox (admin-only; host subprocess, no Docker).
@@ -138,12 +144,13 @@ func main() {
 	latinHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
-	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s church=%s church-groups=%s church-leaders=%s church-objects=%s scrib=%s ereport=%s epams=%s",
+	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s church=%s church-groups=%s church-leaders=%s church-objects=%s scrib=%s ereport=%s evoice=%s epams=%s",
 		userStore.BackendName(), homescoolHandler.Links.BackendName(), homescoolHandler.Tasks.BackendName(),
 		churchHandler.Catalog.BackendName(),
 		churchHandler.Groups.BackendName(), churchHandler.Leaders.BackendName(), churchHandler.Objects.BackendName(),
 		scribHandler.Objects.BackendName(),
 		ereportHandler.Objects.BackendName(),
+		evoiceHandler.Objects.BackendName(),
 		epamStore.BackendName())
 	// pass_set / pass_norm_len use normalizeSMTPPass (Unicode spaces + quotes stripped).
 	// Never log the secret itself — only lengths for operator checks (Gmail app pw = 16).

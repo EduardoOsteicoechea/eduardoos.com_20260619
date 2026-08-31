@@ -23,6 +23,8 @@
             "scrib/*",
             "ereport/",
             "ereport/*",
+            "evoice/",
+            "evoice/*",
             "agentsandbox/",
             "agentsandbox/*"
           ]
@@ -70,6 +72,12 @@
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
       "Resource": "arn:aws:s3:::eduardoos20260607/ereport/*"
+    },
+    {
+      "Sid": "S3EvoiceObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::eduardoos20260607/evoice/*"
     },
     {
       "Sid": "S3AgentSandboxObjects",

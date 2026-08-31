@@ -205,6 +205,7 @@ func (h *Handler) CheckAccess(w http.ResponseWriter, r *http.Request) {
 	hasEntitlement := HasServiceAccess(false, ents, serviceID)
 	allowed := admin || hasEntitlement
 	isHomescoolStudent := false
+	isEvoiceAllowlisted := false
 	if !allowed && serviceID == "homescool" && h.HomescoolStudents != nil {
 		ok, err := h.HomescoolStudents.IsHomescoolStudent(r.Context(), email)
 		if err != nil {
@@ -215,13 +216,19 @@ func (h *Handler) CheckAccess(w http.ResponseWriter, r *http.Request) {
 			isHomescoolStudent = true
 		}
 	}
+	// Temporary eVoice allowlist (spec 044) until PayPal entitlements are used.
+	if !allowed && serviceID == "evoice" && IsEvoiceAllowlisted(email) {
+		allowed = true
+		isEvoiceAllowlisted = true
+	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"email":                 email,
-		"service_id":            serviceID,
-		"allowed":               allowed,
-		"is_admin":              admin,
-		"has_entitlement":       hasEntitlement,
-		"is_homescool_student":  isHomescoolStudent,
+		"email":                  email,
+		"service_id":             serviceID,
+		"allowed":                allowed,
+		"is_admin":               admin,
+		"has_entitlement":        hasEntitlement,
+		"is_homescool_student":   isHomescoolStudent,
+		"is_evoice_allowlisted":  isEvoiceAllowlisted,
 	})
 }
 

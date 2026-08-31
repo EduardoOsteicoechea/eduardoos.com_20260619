@@ -1,0 +1,6 @@
+# Optional deps for the EC2 eVoice sandbox worker (spec 044).
+# System packages still required: ffmpeg, tesseract-ocr, espeak-ng (and/or piper).
+python-docx>=1.1.0
+pypdf>=4.0.0
+pytesseract>=0.3.10
+Pillow>=10.0.0

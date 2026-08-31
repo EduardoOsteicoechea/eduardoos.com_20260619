@@ -14,6 +14,7 @@ import { APP_ROUTES } from "../../config/routes";
 import {
   AUTH_SESSION_EXPIRED_EVENT,
   getAuthToken,
+  getAuthEmailFromToken,
   isPlatformAdmin,
   isAuthenticated,
   logoutUser,
@@ -58,9 +59,17 @@ interface HeaderProps {
 
 /** Platform-admin MPS product-test routes (webhook monitor + meeting probes). */
 const MPS_TEST_LINKS = [
-  { href: APP_ROUTES.apsWebhookMonitor, label: "APS webhook" },
-  { href: APP_ROUTES.mpsMeetingProbes, label: "MPS probes" },
+  { href: APP_ROUTES.apsWebhookMonitor, label: "APS webhook", icon: "sensors" },
+  { href: APP_ROUTES.mpsMeetingProbes, label: "MPS probes", icon: "science" },
 ] as const;
+
+function TrayIcon({ name }: { name: string }) {
+  return (
+    <span className="material-symbols-outlined site-header__nav-icon" aria-hidden="true">
+      {name}
+    </span>
+  );
+}
 
 interface AccountMenuProps {
   initial: string;
@@ -232,7 +241,8 @@ function MpsTestsMenu({ pathname, navClass, onNavigate }: MpsTestsMenuProps) {
         aria-haspopup="menu"
         onClick={() => setOpen((current) => !current)}
       >
-        MPS tests
+        <TrayIcon name="science" />
+        <span className="site-header__nav-label">MPS tests</span>
         <span className="site-header__services-caret" aria-hidden="true">
           {open ? "▴" : "▾"}
         </span>
@@ -244,7 +254,7 @@ function MpsTestsMenu({ pathname, navClass, onNavigate }: MpsTestsMenuProps) {
           role="menu"
           aria-label="MPS tests"
         >
-          {MPS_TEST_LINKS.map(({ href, label }) => (
+          {MPS_TEST_LINKS.map(({ href, label, icon }) => (
             <a
               key={href}
               className={`site-header__services-item${navClass(href) ? ` ${navClass(href)}` : ""}`}
@@ -252,7 +262,8 @@ function MpsTestsMenu({ pathname, navClass, onNavigate }: MpsTestsMenuProps) {
               href={href}
               onClick={() => onNavigate()}
             >
-              {label}
+              <TrayIcon name={icon} />
+              <span className="site-header__nav-label">{label}</span>
             </a>
           ))}
         </div>
@@ -458,6 +469,7 @@ export function Header({ pathname }: HeaderProps) {
     isAdmin,
     entitlements,
     isHomescoolStudent,
+    email: getAuthEmailFromToken(),
   });
   const trayLinks: TrayNavLink[] = [...PRIMARY_TRAY_LINKS, ...productLinks];
 
@@ -566,9 +578,10 @@ export function Header({ pathname }: HeaderProps) {
           </button>
         </div>
         <span className="visually-hidden">Text scale {Math.round(uiScale * 100)}%</span>
-        {trayLinks.map(({ href, label }) => (
+        {trayLinks.map(({ href, label, icon }) => (
           <a key={href} className={navClass(href)} href={href} onClick={closeMenu}>
-            {label}
+            <TrayIcon name={icon} />
+            <span className="site-header__nav-label">{label}</span>
           </a>
         ))}
         {isAdmin ? (
@@ -578,14 +591,16 @@ export function Header({ pathname }: HeaderProps) {
               href={APP_ROUTES.adminUsers}
               onClick={closeMenu}
             >
-              Admin users
+              <TrayIcon name="group" />
+              <span className="site-header__nav-label">Admin users</span>
             </a>
             <a
               className={navClass(APP_ROUTES.agentSandbox)}
               href={APP_ROUTES.agentSandbox}
               onClick={closeMenu}
             >
-              Agent Sandbox
+              <TrayIcon name="terminal" />
+              <span className="site-header__nav-label">Agent Sandbox</span>
             </a>
             <MpsTestsMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
           </>

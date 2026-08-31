@@ -1,0 +1,29 @@
+package evoice
+
+// ObjectMeta is a listed S3 object under docs/ or audios/.
+type ObjectMeta struct {
+	Name         string `json:"name"`
+	Key          string `json:"key"`
+	Size         int64  `json:"size"`
+	LastModified string `json:"lastModified,omitempty"`
+	URL          string `json:"url,omitempty"`
+}
+
+// JobStatus is the async generate job state exposed to the UI.
+type JobStatus struct {
+	ID      string   `json:"id"`
+	State   string   `json:"state"` // queued | running | done | failed
+	Owner   string   `json:"ownerSafe"`
+	Project string   `json:"project"`
+	Logs    []string `json:"logs"`
+	Error   string   `json:"error,omitempty"`
+	Stats   *JobStats `json:"stats,omitempty"`
+}
+
+// JobStats mirrors converter sync_project counters.
+type JobStats struct {
+	Docs      int `json:"docs"`
+	Generated int `json:"generated"`
+	Skipped   int `json:"skipped"`
+	Failed    int `json:"failed"`
+}

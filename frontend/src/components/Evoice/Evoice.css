@@ -1,0 +1,179 @@
+/**
+ * eVoice page — project hub + playlist (spec 044).
+ */
+
+.evoice {
+  box-sizing: border-box;
+  width: min(100%, var(--max_desktop_width, 72rem));
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2.5rem;
+  color: var(--site-body-fg);
+}
+
+.evoice__eyebrow {
+  margin: 0;
+  font-family: Raleway, sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.evoice__title {
+  margin: 0.2rem 0 0.4rem;
+  font-family: Montserrat, sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 650;
+}
+
+.evoice__lead {
+  margin: 0 0 1.25rem;
+  max-width: 42rem;
+  font-family: Raleway, sans-serif;
+  line-height: 1.45;
+  opacity: 0.9;
+}
+
+.evoice__error {
+  color: #b42318;
+  font-family: Raleway, sans-serif;
+}
+
+.evoice__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1.25rem;
+}
+
+.evoice__create {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.evoice__field {
+  display: grid;
+  gap: 0.35rem;
+  font-family: Raleway, sans-serif;
+  font-size: 0.9rem;
+}
+
+.evoice__field--grow {
+  flex: 1 1 14rem;
+}
+
+.evoice__select,
+.evoice__input {
+  min-height: var(--control_min_height, 2.5rem);
+  padding: 0.4rem 0.65rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  color: var(--site-body-fg);
+  font-family: Raleway, sans-serif;
+}
+
+.evoice__select--tall {
+  min-height: 3rem;
+  font-size: 1.05rem;
+}
+
+.evoice__panel {
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  padding: 0.9rem 1rem 1.1rem;
+  background: var(--glassed_background, var(--site-body-bg));
+  margin-bottom: 1rem;
+}
+
+.evoice__panel h2 {
+  margin: 0 0 0.75rem;
+  font-family: Montserrat, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.evoice__panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.evoice__panel-head h2 {
+  margin: 0;
+  margin-right: auto;
+}
+
+.evoice__upload {
+  cursor: pointer;
+}
+
+.evoice__list,
+.evoice__playlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.evoice__list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: Raleway, sans-serif;
+}
+
+.evoice__empty {
+  margin: 0;
+  font-family: Raleway, sans-serif;
+  opacity: 0.8;
+}
+
+.evoice__log {
+  margin: 0;
+  max-height: 12rem;
+  overflow: auto;
+  padding: 0.65rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: var(--site-body-bg);
+  font-family: Roboto, monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+}
+
+.evoice__track {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: transparent;
+  color: inherit;
+  font-family: Raleway, sans-serif;
+  cursor: pointer;
+}
+
+.evoice__track--active {
+  border-color: var(--site-accent, #2a5a4a);
+  background: color-mix(in srgb, var(--site-accent, #2a5a4a) 12%, transparent);
+}
+
+.evoice__audio {
+  width: 100%;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.evoice__player-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}

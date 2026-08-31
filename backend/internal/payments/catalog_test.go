@@ -58,3 +58,21 @@ func TestChurchManagementInCatalog(t *testing.T) {
 		t.Fatal("non-admin without entitlement must be denied")
 	}
 }
+
+func TestEvoiceCatalogAndAllowlist(t *testing.T) {
+	if !KnownService("evoice") {
+		t.Fatal("evoice must be a known service")
+	}
+	if got := MonthlyPriceUSD("evoice"); got != 1 {
+		t.Fatalf("evoice monthly=%v want 1", got)
+	}
+	if !IsEvoiceAllowlisted("eliasosteic@gmail.com") {
+		t.Fatal("eliasosteic must be allowlisted")
+	}
+	if !IsEvoiceAllowlisted("Laleskavf.2una@gmail.com") {
+		t.Fatal("laleskavf must be allowlisted (case-insensitive)")
+	}
+	if IsEvoiceAllowlisted("stranger@example.com") {
+		t.Fatal("stranger must not be allowlisted")
+	}
+}

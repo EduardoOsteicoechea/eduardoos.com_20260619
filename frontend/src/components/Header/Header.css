@@ -396,7 +396,9 @@
 }
 
 .site-header__nav a {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   width: 100%;
   color: var(--site-body-fg);
   text-decoration: none;
@@ -406,6 +408,18 @@
   letter-spacing: 0.03em;
   padding: 0.75rem 0.5rem;
   border-radius: var(--border_radius_001);
+}
+
+.site-header__nav-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  flex: 0 0 auto;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.site-header__nav-label {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .site-header__nav a:hover {
@@ -426,7 +440,7 @@
 .site-header__services-toggle {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.55rem;
   width: 100%;
   padding: 0.75rem 0.5rem;
   border: none;
@@ -445,6 +459,7 @@
 }
 
 .site-header__services-caret {
+  margin-left: auto;
   font-size: 0.75rem;
   opacity: 0.75;
 }
@@ -459,7 +474,9 @@
 }
 
 .site-header__services-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   padding: 0.55rem 0.5rem;
   border-radius: var(--border_radius_001);
   font-size: var(--font-sm);

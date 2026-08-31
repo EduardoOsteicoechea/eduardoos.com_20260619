@@ -55,7 +55,24 @@ const SUBSCRIPTION_SERVICES_ALL: SubscriptionService[] = [
     description: "Issue tracker reports (.ereport) with cloud storage and sharing.",
     monthlyUsd: 1,
   },
+  {
+    id: "evoice",
+    label: "eVoice",
+    description: "Text-to-audio projects (docs → MP3) with cloud storage under evoice/.",
+    monthlyUsd: 1,
+  },
 ];
+
+/** Temporary eVoice access until those users subscribe (spec 044). */
+export const EVOICE_ALLOWLIST_EMAILS = [
+  "eliasosteic@gmail.com",
+  "laleskavf.2una@gmail.com",
+] as const;
+
+export function isEvoiceAllowlisted(email?: string | null): boolean {
+  const e = (email ?? "").trim().toLowerCase();
+  return EVOICE_ALLOWLIST_EMAILS.some((a) => a === e);
+}
 
 /** Public subscribe catalog — church-management hidden while Church is offline. */
 export const SUBSCRIPTION_SERVICES: SubscriptionService[] = CHURCH_FEATURE_ENABLED
@@ -182,7 +199,7 @@ export function entitlementActive(row: EntitlementRecord, now = Date.now()): boo
   return Number.isFinite(until) ? until >= now : true;
 }
 
-/** Admin always allowed; otherwise requires an active entitlement for the service. */
+/** Admin always allowed; eVoice allowlist; otherwise requires an active entitlement. */
 export function hasServiceAccess(
   serviceId: string,
   entitlements: EntitlementRecord[],
@@ -190,6 +207,7 @@ export function hasServiceAccess(
   role?: string | null,
 ): boolean {
   if (isPlatformAdmin(email, role)) return true;
+  if (serviceId === "evoice" && isEvoiceAllowlisted(email)) return true;
   return entitlements.some(
     (e) => e.service_id === serviceId && entitlementActive(e),
   );

@@ -1,0 +1,10 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import EvoicePage from "../../components/Evoice/EvoicePage";
+---
+
+<BaseLayout title="eVoice — Eduardo Osteicoechea" requireAuth={true}>
+  <div class="page-shell">
+    <EvoicePage client:load />
+  </div>
+</BaseLayout>
