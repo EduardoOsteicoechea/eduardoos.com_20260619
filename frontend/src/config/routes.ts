@@ -220,6 +220,8 @@ export const EVOICE_ROUTES = {
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/docs/${encodeURIComponent(name)}`,
   projectAudios: (ownerSafe: string, project: string) =>
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/audios`,
+  projectAudio: (ownerSafe: string, project: string, name: string) =>
+    `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/audios/${encodeURIComponent(name)}`,
   generate: (ownerSafe: string, project: string) =>
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/generate`,
   job: (jobId: string) => `/api/evoice/jobs/${encodeURIComponent(jobId)}`,

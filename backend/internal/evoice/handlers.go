@@ -56,6 +56,7 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/docs", h.UploadDoc)
 		pr.Delete("/api/evoice/projects/{ownerSafe}/{project}/docs/{name}", h.DeleteDoc)
 		pr.Get("/api/evoice/projects/{ownerSafe}/{project}/audios", h.ListAudios)
+		pr.Delete("/api/evoice/projects/{ownerSafe}/{project}/audios/{name}", h.DeleteAudio)
 		pr.Get("/api/evoice/file/{ownerSafe}/{project}/{kind}/{name}", h.GetFile)
 		pr.Head("/api/evoice/file/{ownerSafe}/{project}/{kind}/{name}", h.GetFile)
 		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/generate", h.StartGenerate)
@@ -381,6 +382,33 @@ func (h *Handler) DeleteDoc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := DocKey(owner, project, name)
+	if err := h.Objects.DeleteKey(r.Context(), key, cid); err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not delete")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"deleted": true, "key": key})
+}
+
+// DeleteAudio removes one MP3 from audios/.
+func (h *Handler) DeleteAudio(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	caller := auth.UserEmailFromRequest(r)
+	owner := chi.URLParam(r, "ownerSafe")
+	project := chi.URLParam(r, "project")
+	name := sanitizeFileName(chi.URLParam(r, "name"))
+	if !ValidProjectName(project) || !ValidFileName(name) {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid path")
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(name), ".mp3") {
+		httpx.WriteError(w, http.StatusBadRequest, "audio must be .mp3")
+		return
+	}
+	if !h.canAccessOwner(r, caller, owner) {
+		httpx.WriteError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	key := AudioKey(owner, project, name)
 	if err := h.Objects.DeleteKey(r.Context(), key, cid); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, "could not delete")
 		return

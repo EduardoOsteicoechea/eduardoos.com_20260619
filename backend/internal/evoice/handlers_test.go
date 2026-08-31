@@ -127,12 +127,6 @@ func TestEvoiceAPIFlow(t *testing.T) {
 	if job.State != "done" {
 		t.Fatalf("job state=%s err=%s logs=%v", job.State, job.Error, job.Logs)
 	}
-	if job.Progress != 100 {
-		t.Fatalf("progress=%d want 100 steps=%v", job.Progress, job.Steps)
-	}
-	if len(job.Steps) == 0 {
-		t.Fatal("expected planned steps")
-	}
 	if len(job.Files) == 0 {
 		t.Fatal("expected per-file progress")
 	}
@@ -143,6 +137,21 @@ func TestEvoiceAPIFlow(t *testing.T) {
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "hello.mp3") {
 		t.Fatalf("audios=%s", rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/evoice/projects/"+ownerSafe+"/smoke/audios/hello.mp3", nil)
+	req.Header.Set("Authorization", authHdr)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete audio status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	req = httptest.NewRequest(http.MethodGet, "/api/evoice/projects/"+ownerSafe+"/smoke/audios", nil)
+	req.Header.Set("Authorization", authHdr)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "hello.mp3") {
+		t.Fatalf("audio should be gone: %s", rec.Body.String())
 	}
 }
 

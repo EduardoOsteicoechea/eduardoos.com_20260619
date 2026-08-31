@@ -13,6 +13,7 @@ import {
 import ServiceGate from "../ServiceGate/ServiceGate";
 import {
   createEvoiceProject,
+  deleteEvoiceAudio,
   deleteEvoiceDoc,
   downloadEvoiceAudio,
   fetchEvoiceAudioBlobUrl,
@@ -31,6 +32,14 @@ import {
 import { getAuthToken } from "../../lib/auth";
 import "./Evoice.css";
 
+function stemOf(name: string): string {
+  const i = name.lastIndexOf(".");
+  return i > 0 ? name.slice(0, i) : name;
+}
+
+function audioNameForDoc(docName: string): string {
+  return `${stemOf(docName)}.mp3`;
+}
 export default function EvoicePage() {
   return (
     <ServiceGate serviceId="evoice" serviceLabel="eVoice">
@@ -188,14 +197,34 @@ function EvoiceWorkspace() {
 
   async function onDeleteDoc(name: string) {
     if (!ownerSafe || !project || busy) return;
-    if (!window.confirm(`Delete ${name}?`)) return;
+    if (!window.confirm(`Delete document ${name}?`)) return;
     setBusy(true);
+    setError("");
     const res = await deleteEvoiceDoc(ownerSafe, project, name);
     setBusy(false);
     if (res.error) {
       setError(res.error);
       return;
     }
+    setFileProgress((prev) => prev.filter((f) => f.name !== name));
+    await reloadDocsAudios(ownerSafe, project);
+  }
+
+  async function onDeleteAudio(mp3Name: string) {
+    if (!ownerSafe || !project || busy) return;
+    if (!window.confirm(`Delete audio ${mp3Name}?`)) return;
+    setBusy(true);
+    setError("");
+    const res = await deleteEvoiceAudio(ownerSafe, project, mp3Name);
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    const stem = stemOf(mp3Name);
+    setFileProgress((prev) =>
+      prev.filter((f) => stemOf(f.name) !== stem),
+    );
     await reloadDocsAudios(ownerSafe, project);
   }
 
@@ -241,7 +270,13 @@ function EvoiceWorkspace() {
   }
 
   function progressForDoc(name: string): EvoiceJobFile | undefined {
-    return fileProgress.find((f) => f.name === name);
+    const live = fileProgress.find((f) => f.name === name);
+    if (live) return live;
+    const mp3 = audioNameForDoc(name);
+    if (audios.some((a) => a.name === mp3)) {
+      return { name, state: "ready", progress: 100, detail: "audio present" };
+    }
+    return undefined;
   }
 
   function play() {
@@ -367,6 +402,8 @@ function EvoiceWorkspace() {
                 {docs.map((d) => {
                   const fp = progressForDoc(d.name);
                   const pct = fp ? Math.max(0, Math.min(100, fp.progress)) : 0;
+                  const mp3 = audioNameForDoc(d.name);
+                  const hasAudio = audios.some((a) => a.name === mp3);
                   return (
                     <li key={d.key} className="evoice__doc-row">
                       <div className="evoice__doc-main">
@@ -405,7 +442,16 @@ function EvoiceWorkspace() {
                         onClick={() => void onDeleteDoc(d.name)}
                         disabled={busy}
                       >
-                        Delete
+                        Delete doc
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => void onDeleteAudio(mp3)}
+                        disabled={busy || !hasAudio}
+                        title={hasAudio ? `Delete ${mp3}` : "No audio yet"}
+                      >
+                        Delete audio
                       </button>
                     </li>
                   );
@@ -475,6 +521,14 @@ function EvoiceWorkspace() {
                           disabled={busy}
                         >
                           Download
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => void onDeleteAudio(a.name)}
+                          disabled={busy}
+                        >
+                          Delete
                         </button>
                       </li>
                     ))}

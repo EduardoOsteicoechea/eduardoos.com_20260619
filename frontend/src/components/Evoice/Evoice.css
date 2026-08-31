@@ -177,12 +177,14 @@
   transition: width 0.2s ease;
 }
 
-.evoice__doc-progress-bar--failed {
-  background: #b42318;
+.evoice__doc-progress-bar--ready,
+.evoice__doc-progress-bar--done,
+.evoice__doc-progress-bar--skipped {
+  background: color-mix(in srgb, var(--site-accent, #2a5a4a) 70%, #888);
 }
 
-.evoice__doc-progress-bar--skipped {
-  background: color-mix(in srgb, var(--site-accent, #2a5a4a) 55%, #888);
+.evoice__doc-progress-bar--failed {
+  background: #b42318;
 }
 
 .evoice__doc-progress-bar--idle {

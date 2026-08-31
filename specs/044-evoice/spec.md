@@ -50,6 +50,7 @@ evoice/{userSafe}/{project}/audios/<stem>.mp3
 | GET | `/api/evoice/projects/{ownerSafe}/{project}/docs` | List docs |
 | POST | `/api/evoice/projects/{ownerSafe}/{project}/docs` | Multipart upload into docs/ |
 | DELETE | `/api/evoice/projects/{ownerSafe}/{project}/docs/{name}` | Delete one doc |
+| DELETE | `/api/evoice/projects/{ownerSafe}/{project}/audios/{name}` | Delete one MP3 from audios/ |
 | GET | `/api/evoice/projects/{ownerSafe}/{project}/audios` | Playlist metadata + play URLs |
 | GET | `/api/evoice/file/{ownerSafe}/{project}/{kind}/{name}` | Stream doc or mp3 (`kind`=docs\|audios) |
 | POST | `/api/evoice/projects/{ownerSafe}/{project}/generate` | Start sandbox job → `{ jobId }`. Optional JSON body `{ "files": ["a.docx"] }` limits convert to those docs (omit/`[]` = all). Always skips a doc when its MP3 exists and is not older than the source. |
@@ -79,8 +80,8 @@ Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access 
 - Project dropdown (taller), create project, upload docs, **Generate all** + **Generate per doc row**, playlist + HTML5 audio with play/pause/stop/next and auto-advance.
 - Lead copy does **not** embed the raw `evoice/{userSafe}/` path (keep a short product sentence only).
 - **Generate + playlist layout (desktop):** one row with two columns — left **Console** (overall progress bar, step checklist with state, log); right **Playlist** (tracks + player). Stack vertically on narrow viewports.
-- **Docs list:** each row shows a per-file progress bar (from `job.files`) and a Generate button for that file only.
-- **Download:** each playlist track has a Download control that fetches the authenticated MP3 (`GET /api/evoice/file/.../audios/...`) and saves it locally (filename = object name). Optional “Download current” next to player actions is fine; no zip/bulk required.
+- **Docs list:** each row shows a per-file progress bar. Status comes from the active job’s `files[]` when present; otherwise, if `audios/{stem}.mp3` already exists for that doc, show **ready** (100%) so previously generated items are detected without re-running Generate. Each row has Generate, Delete doc, and Delete audio (when an MP3 exists). Deleting doc or audio refreshes lists and clears/resets that row’s progress indicator.
+- **Download:** each playlist track has a Download control that fetches the authenticated MP3 (`GET /api/evoice/file/.../audios/...`) and saves it locally (filename = object name). Playlist rows also expose Delete audio. Optional “Download current” next to player actions is fine; no zip/bulk required.
 - Fit Eduardo OS plain CSS (component CSS file); ServiceGate wrapper.
 - **Desktop layout inset:** same lateral padding as home — `var(--page-inline-pad)` full-bleed in the main pane (not an extra centered narrow column with larger side gutters).
 - Admin: owner picker label **Admin only**; shows the full `/api/evoice/users` list (platform users + allowlist + S3), not only the signed-in admin.
@@ -106,6 +107,7 @@ Authz: owner of `ownerSafe` or admin. All mutating routes require evoice access 
 - [x] Generate job exposes `steps` + `progress` (0–100); UI shows progress bar + step list; logs stream during convert (not only at end)
 - [x] Playlist tracks can be downloaded as MP3 via authenticated file fetch
 - [x] Generate accepts optional `files[]`; per-doc Generate in UI; skip unchanged MP3s; job exposes `files[]` progress alongside overall progress
+- [x] Docs rows detect existing `audios/{stem}.mp3`; DELETE audio API; Delete doc / Delete audio update row progress
 
 ## Affected paths
 - `specs/044-evoice/spec.md`

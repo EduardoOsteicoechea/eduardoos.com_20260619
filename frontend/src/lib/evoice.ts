@@ -189,6 +189,25 @@ export async function deleteEvoiceDoc(
   return {};
 }
 
+export async function deleteEvoiceAudio(
+  ownerSafe: string,
+  project: string,
+  name: string,
+): Promise<{ error?: string }> {
+  const result = await apiRequest<{ deleted: boolean }>(
+    EVOICE_ROUTES.projectAudio(ownerSafe, project, name),
+    {
+      method: "DELETE",
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { error: formatApiError(result.error) };
+  }
+  return {};
+}
+
 export async function fetchEvoiceAudios(
   ownerSafe: string,
   project: string,
