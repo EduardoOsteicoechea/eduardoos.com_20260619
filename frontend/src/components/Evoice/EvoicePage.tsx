@@ -462,12 +462,8 @@ function EvoiceWorkspace() {
 
   async function onGenerate(files?: string[]) {
     if (!ownerSafe || !project || busy) return;
-    const targets =
-      files && files.length > 0
-        ? files
-        : selectedDocs.length > 0
-          ? selectedDocs
-          : undefined;
+    // Undefined → all docs; explicit array → only those (Generate selected / per-row).
+    const targets = files && files.length > 0 ? files : undefined;
     setBusy(true);
     setJobStopped(false);
     stopRequestedRef.current = false;
@@ -689,9 +685,15 @@ function EvoiceWorkspace() {
 
       {project ? (
         <>
-          <section className="evoice__panel">
+          <section
+            className={
+              showPaste
+                ? "evoice__panel evoice__panel--uploads"
+                : "evoice__panel evoice__panel--uploads evoice__panel--compact"
+            }
+          >
             <div className="evoice__panel-head">
-              <h2>Add</h2>
+              <h2>File Uploads</h2>
               <label className="btn evoice__upload">
                 Upload
                 <input type="file" hidden onChange={onUpload} disabled={busy} />
@@ -720,9 +722,7 @@ function EvoiceWorkspace() {
                 onClick={() => void onGenerate()}
                 disabled={busy}
               >
-                {selectedDocs.length > 0
-                  ? `Generate (${selectedDocs.length})`
-                  : "Generate all"}
+                Generate all
               </button>
               {busy ? (
                 <button
@@ -802,6 +802,7 @@ function EvoiceWorkspace() {
                     const related = audiosForDoc(d.name, audios);
                     const hasAudio = related.length > 0;
                     const checked = selectedDocs.includes(d.name);
+                    const genLabel = hasAudio ? "Regenerate" : "Generate";
                     return (
                       <li key={d.key} className="evoice__doc-row">
                         <label className="evoice__doc-check">
@@ -837,11 +838,18 @@ function EvoiceWorkspace() {
                         </div>
                         <button
                           type="button"
-                          className="btn btn--primary"
+                          className="evoice__icon-btn evoice__icon-btn--accent"
                           onClick={() => void onGenerate([d.name])}
                           disabled={busy}
+                          title={`${genLabel} ${d.name}`}
+                          aria-label={`${genLabel} ${d.name}`}
                         >
-                          {hasAudio ? "Regenerate" : "Generate"}
+                          <span
+                            className="material-symbols-outlined"
+                            aria-hidden="true"
+                          >
+                            refresh
+                          </span>
                         </button>
                         <button
                           type="button"
@@ -863,6 +871,19 @@ function EvoiceWorkspace() {
                   })}
                 </ul>
               )}
+
+              <div className="evoice__panel-foot">
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={() => void onGenerate(selectedDocs)}
+                  disabled={busy || selectedDocs.length === 0}
+                >
+                  {selectedDocs.length > 0
+                    ? `Generate selected (${selectedDocs.length})`
+                    : "Generate selected"}
+                </button>
+              </div>
             </section>
 
             <section className="evoice__panel evoice__panel--playlist">
@@ -918,37 +939,76 @@ function EvoiceWorkspace() {
                     controls
                     onEnded={next}
                   />
-                  <div className="evoice__player-actions">
-                    <button type="button" className="btn" onClick={play}>
-                      Play
-                    </button>
-                    <button type="button" className="btn" onClick={pause}>
-                      Pause
-                    </button>
-                    <button type="button" className="btn" onClick={stopPlayback}>
-                      Stop
-                    </button>
-                    <button type="button" className="btn" onClick={next}>
-                      Next
-                    </button>
-                    {audios[trackIndex] ? (
-                      <button
-                        type="button"
-                        className="btn btn--primary"
-                        onClick={() =>
-                          void onDownload(
-                            audios[trackIndex].name,
-                            audios[trackIndex].key,
-                          )
-                        }
-                        disabled={busy}
-                      >
-                        Download
-                      </button>
-                    ) : null}
-                  </div>
                 </>
               )}
+              <div
+                className="evoice__panel-foot evoice__player-actions"
+                aria-label="Playlist controls"
+              >
+                <button
+                  type="button"
+                  className="evoice__icon-btn"
+                  onClick={play}
+                  disabled={audios.length === 0}
+                  title="Play playlist"
+                  aria-label="Play playlist"
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    play_arrow
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="evoice__icon-btn"
+                  onClick={pause}
+                  disabled={audios.length === 0}
+                  title="Pause playlist"
+                  aria-label="Pause playlist"
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    pause
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="evoice__icon-btn"
+                  onClick={stopPlayback}
+                  disabled={audios.length === 0}
+                  title="Stop playlist"
+                  aria-label="Stop playlist"
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    stop
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="evoice__icon-btn"
+                  onClick={next}
+                  disabled={audios.length === 0}
+                  title="Next track"
+                  aria-label="Next track"
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    skip_next
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="evoice__icon-btn evoice__icon-btn--accent"
+                  onClick={() => {
+                    const track = audios[trackIndex];
+                    if (track) void onDownload(track.name, track.key);
+                  }}
+                  disabled={busy || !audios[trackIndex]}
+                  title="Download current track"
+                  aria-label="Download current track"
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    download
+                  </span>
+                </button>
+              </div>
             </section>
           </div>
 

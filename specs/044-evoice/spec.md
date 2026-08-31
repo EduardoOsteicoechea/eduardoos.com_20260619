@@ -44,10 +44,12 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 - Vertical gap between **Admin only** and **Project** row (≥1rem).
 - **Project** select and **New project** input share the same control height and equal width (side-by-side twin fields; Create stays beside New project).
 - Split former Docs panel into:
-  1. **Add** — Upload, paste/add text, Premium toggle, Generate (selected docs; if none selected → all). Stop/Resume stay here while a job runs.
+  1. **File Uploads** (was “Add”) — Upload, paste/+ Text, Premium toggle, **Generate all** (and Stop/Resume while a job runs). When paste form is closed / no extra content, panel is compact (no large empty bottom padding).
   2. **Docs + Playlist** — one two-column section (desktop): **Docs** left, **Playlist** right, same row height (`align-items: stretch`). Stack on narrow viewports.
-- **Docs row actions:** per-row **Generate** (label **Regenerate** when audio already present for that stem) + **Delete doc** only (no Delete audio on Docs).
-- **Playlist row actions:** Download (text OK) + **Delete** for that MP3.
+- **Docs row actions:** per-row **Generate/Regenerate** as **icon-only** (Material Symbol `refresh`; `aria-label` Generate vs Regenerate) + **Delete doc** icon-only red. No Delete audio on Docs.
+- **Docs footer:** button **Generate selected** (runs only checked docs; disabled when none selected).
+- **Playlist row actions:** Download (text OK) + **Delete** icon-only red for that MP3. Per-track playback uses the native `<audio controls>` for the current track.
+- **Playlist footer controls** (playlist-level only): Play / Pause / Stop / Next / Download — all **icon-only** (`play_arrow`, `pause`, `stop`, `skip_next`, `download`), with `aria-label` / `title`. They advance/control the full playlist sequence, not a second per-track UI.
 - **Delete controls** (Docs delete-doc and Playlist delete-audio): **icon-only**, red (Material Symbol `delete`), with `aria-label` / `title`.
 - **Console** — full-width panel below the Docs|Playlist row.
 - **Premium defaults to on** (DeepSeek speech + chapters).
@@ -74,8 +76,9 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 - [x] Audio GET works for names with spaces/parens (no false 404)
 - [x] Premium generate → multiple chapter MP3s; playlist shows them
 - [x] Docs | Playlist two-column row (Docs left, Playlist right); Console below
-- [x] Per-doc label Generate vs Regenerate when audio present; Docs has no Delete audio
-- [x] Delete (doc + playlist audio) icon-only red
+- [x] Per-doc Generate/Regenerate icon-only; Docs footer Generate selected; Docs has no Delete audio
+- [x] Delete (doc + playlist audio) icon-only red; playlist transport icon-only
+- [x] File Uploads panel rename + compact when paste closed
 - [x] No eVoice/Eduardo OS/Documents-to-MP3 heading on the page
 - [x] Audio/API errors open ServerErrorModal
 - [x] Tests + FE build + commit/push

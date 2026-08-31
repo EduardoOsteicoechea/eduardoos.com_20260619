@@ -16,5 +16,6 @@ Feature 044: text-to-audio (eVoice) in Eduardo OS.
 - UI: Add vs Docs panels; Premium default on; Project/New project equal controls; admin→project gap
 - Admin owner switch: clear playlist immediately; ignore stale `?key=` outside project (fallback to `?name=`)
 - Docs | Playlist two-column row; Generate→Regenerate when audio present; Docs delete-doc only; red icon-only deletes
+- File Uploads (compact when paste closed); Docs regenerate icon-only + Generate selected footer; playlist transport icon-only
 
 Spec: `specs/044-evoice/spec.md`

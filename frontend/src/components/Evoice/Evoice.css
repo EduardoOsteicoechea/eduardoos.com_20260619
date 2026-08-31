@@ -122,6 +122,14 @@
   margin-bottom: 1rem;
 }
 
+.evoice__panel--compact {
+  padding-bottom: 0.9rem;
+}
+
+.evoice__panel--compact .evoice__panel-head {
+  margin-bottom: 0;
+}
+
 .evoice__workspace--docs-playlist > .evoice__panel {
   margin-bottom: 0;
   display: flex;
@@ -132,6 +140,15 @@
 .evoice__panel--docs .evoice__list,
 .evoice__panel--playlist .evoice__playlist {
   flex: 1 1 auto;
+}
+
+.evoice__panel-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 0.85rem;
 }
 
 .evoice__icon-btn {
@@ -152,6 +169,16 @@
 .evoice__icon-btn .material-symbols-outlined {
   font-size: 1.25rem;
   line-height: 1;
+}
+
+.evoice__icon-btn--accent {
+  color: var(--site-accent, #2a5a4a);
+  border-color: color-mix(in srgb, var(--site-accent, #2a5a4a) 45%, var(--site-border, #ccc));
+}
+
+.evoice__icon-btn--accent:hover:not(:disabled) {
+  border-color: var(--site-accent, #2a5a4a);
+  background: color-mix(in srgb, var(--site-accent, #2a5a4a) 12%, transparent);
 }
 
 .evoice__icon-btn--danger {
