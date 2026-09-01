@@ -51,10 +51,13 @@
   width: 2.25rem;
   height: 2.25rem;
   flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--site-body-fg) 28%, transparent);
   border-radius: var(--border_radius_001);
+  box-sizing: border-box;
   text-decoration: none;
   color: inherit;
   order: 1;
+  background: var(--site-surface, var(--site-body-bg));
 }
 
 .site-header__logo:hover {
@@ -99,17 +102,21 @@
 }
 
 /*
- * Phone home only: empty dynamic host still left a flex:1 void that shoved
- * avatar/menu flush differently than pamphlet (tools fill the center). Collapse
- * the empty slot so logo | bar-end matches other phone routes’ end inset.
+ * Phone home: never mounts dynamic tools. Hide the center slot entirely so
+ * logo | avatar+menu match other routes’ end inset (no flex:1 void shoving
+ * bar-end flush / differently than pamphlet with tools).
  */
 @media (max-width: 767.98px) {
-  html.page-home .site-header__dynamic-slot:has(.header-dynamic-menu-host:empty) {
+  html.page-home .site-header__dynamic-slot {
     display: none;
   }
 
+  html.page-home .site-header__bar {
+    justify-content: space-between;
+  }
+
   html.page-home .site-header__bar-end {
-    margin-left: auto;
+    margin-left: 0;
   }
 }
 
@@ -122,13 +129,14 @@
   min-height: 2.25rem;
   min-width: 2.25rem;
   padding: 0;
-  border: var(--border_001);
+  border: 1px solid color-mix(in srgb, var(--site-body-fg) 28%, transparent);
   border-radius: var(--border_radius_001);
   background: var(--site-surface, var(--site-body-bg));
   color: var(--site-body-fg);
-  box-shadow: var(--site-shadow);
+  box-shadow: none;
   cursor: pointer;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .site-header__menu:hover {
