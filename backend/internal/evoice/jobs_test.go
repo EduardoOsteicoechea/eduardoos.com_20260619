@@ -2,6 +2,9 @@ package evoice
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -110,4 +113,59 @@ func TestStopMarksStoppedAndResumeFiles(t *testing.T) {
 	}
 
 	close(release) // unblock any leftover runner
+}
+
+func TestFakeRunnerPremiumAllModalities(t *testing.T) {
+	// Spec 044: when premium is on, every convertible modality must get a .premium.txt
+	// (DeepSeek system-role prep) and chapter MP3s — not a single mono file.
+	dir := t.TempDir()
+	docs := filepath.Join(dir, "docs")
+	audios := filepath.Join(dir, "audios")
+	if err := os.MkdirAll(docs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(audios, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	modalities := []string{"paste.txt", "book.docx", "scan.pdf", "page.png"}
+	for _, name := range modalities {
+		if err := os.WriteFile(filepath.Join(docs, name), []byte("contenido de prueba"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var logs []string
+	stats, err := FakeRunner{}.Run(context.Background(), dir, nil, true, func(line string) {
+		logs = append(logs, line)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Generated != len(modalities) {
+		t.Fatalf("generated=%d want %d failed=%d logs=%v", stats.Generated, len(modalities), stats.Failed, logs)
+	}
+	for _, name := range modalities {
+		stem := strings.TrimSuffix(name, filepath.Ext(name))
+		premPath := filepath.Join(docs, stem+".premium.txt")
+		if _, err := os.Stat(premPath); err != nil {
+			t.Fatalf("missing premium sidecar for %s: %v", name, err)
+		}
+		c1 := filepath.Join(audios, stem+".c01-intro.mp3")
+		c2 := filepath.Join(audios, stem+".c02-cuerpo.mp3")
+		if _, err := os.Stat(c1); err != nil {
+			t.Fatalf("missing chapter1 for %s", name)
+		}
+		if _, err := os.Stat(c2); err != nil {
+			t.Fatalf("missing chapter2 for %s", name)
+		}
+		foundPrep := false
+		for _, line := range logs {
+			if strings.Contains(line, "PREMIUM "+name+" detail=system_role_prep") {
+				foundPrep = true
+				break
+			}
+		}
+		if !foundPrep {
+			t.Fatalf("missing system_role_prep log for %s", name)
+		}
+	}
 }

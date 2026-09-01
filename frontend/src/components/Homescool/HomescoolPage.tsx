@@ -15,10 +15,10 @@ import "../ProductDashboard/ProductDashboard.css";
 import "./Homescool.css";
 
 const MENU = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "students", label: "Students" },
-  { id: "register", label: "Register" },
-  { id: "learning", label: "Learning" },
+  { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { id: "students", label: "Students", icon: "groups" },
+  { id: "register", label: "Register", icon: "person_add" },
+  { id: "learning", label: "Learning", icon: "menu_book" },
 ];
 
 export default function HomescoolPage() {

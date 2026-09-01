@@ -19,12 +19,12 @@ import "../ProductDashboard/ProductDashboard.css";
 import "./PamphletHub.css";
 
 const PAMPHLET_VIEWS = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "recent", label: "Recent" },
-  { id: "open", label: "Open" },
-  { id: "new", label: "New" },
-  { id: "manage", label: "Manage" },
-  { id: "footers", label: "Footers" },
+  { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { id: "recent", label: "Recent", icon: "history" },
+  { id: "open", label: "Open", icon: "folder_open" },
+  { id: "new", label: "New", icon: "note_add" },
+  { id: "manage", label: "Manage", icon: "folder_managed" },
+  { id: "footers", label: "Footers", icon: "vertical_align_bottom" },
 ] as const;
 
 const PAMPHLET_CARDS = [

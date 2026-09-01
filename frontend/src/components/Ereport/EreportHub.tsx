@@ -44,11 +44,11 @@ function orgReportHref(userSafe: string, orgId: string, reportId: string): strin
 }
 
 const MENU = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "orgs", label: "Orgs" },
-  { id: "register", label: "Register" },
-  { id: "recent", label: "Recent" },
-  { id: "manage", label: "Manage" },
+  { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { id: "orgs", label: "Orgs", icon: "corporate_fare" },
+  { id: "register", label: "Register", icon: "domain_add" },
+  { id: "recent", label: "Recent", icon: "history" },
+  { id: "manage", label: "Manage", icon: "folder_managed" },
 ];
 
 export default function EreportHub() {

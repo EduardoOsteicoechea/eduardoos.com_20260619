@@ -22,13 +22,13 @@ import "../ProductDashboard/ProductDashboard.css";
 import "./MusicHub.css";
 
 const MUSIC_VIEWS = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "playlists", label: "Playlist" },
-  { id: "free", label: "Free" },
-  { id: "rec", label: "Rec" },
-  { id: "upload", label: "Up" },
-  { id: "letters", label: "Letters" },
-  { id: "manage", label: "Manage" },
+  { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { id: "playlists", label: "Playlist", icon: "queue_music" },
+  { id: "free", label: "Free", icon: "library_music" },
+  { id: "rec", label: "Rec", icon: "mic" },
+  { id: "upload", label: "Upload", icon: "upload_file" },
+  { id: "letters", label: "Letters", icon: "lyrics" },
+  { id: "manage", label: "Manage", icon: "folder_managed" },
 ] as const;
 
 const DASH_CARDS = [

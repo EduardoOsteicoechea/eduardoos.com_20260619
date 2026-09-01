@@ -37,9 +37,12 @@ DOC_EXTENSIONS = {
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp", ".gif"}
 
 PREMIUM_SYSTEM = (
-    "Eres un editor de guiones hablados en español para audiolibros. "
-    "Reescribe el texto para síntesis de voz (TTS): oraciones cortas y claras, "
-    "expande abreviaturas, quita markdown/URLs ruidosas, mantén el significado. "
+    "Eres un editor de guiones hablados en español para audiolibros / MP3. "
+    "El texto de usuario puede venir de cualquier modalidad (texto pegado, .txt, .docx, "
+    "PDF con capa de texto, PDF escaneado/OCR, o imagen OCR). "
+    "Tu trabajo es la preparación perfecta para síntesis de voz (TTS): oraciones cortas y claras, "
+    "expande abreviaturas, quita markdown/URLs/ruido OCR, corrige artefactos de extracción, "
+    "mantén el significado y el orden lógico. "
     "Divide el contenido en capítulos lógicos (introducción, secciones temáticas, cierre). "
     "Responde SOLO con capítulos en este formato exacto (sin texto fuera de los bloques):\n"
     '<<<CHAPTER n="1" title="Título corto">>>\n'
@@ -49,6 +52,9 @@ PREMIUM_SYSTEM = (
     "...\n"
     "<<<END>>>"
 )
+
+# Below this, treat PDF text-layer as sparse and fall back to page OCR.
+PDF_TEXT_MIN_CHARS = 40
 
 CHAPTER_RE = re.compile(
     r'<<<CHAPTER\s+n="(?P<n>\d+)"\s+title="(?P<title>[^"]*)"\s*>>>\s*(?P<body>.*?)\s*<<<END>>>',
@@ -162,7 +168,7 @@ def extract_docx(path: Path) -> str:
     return "\n\n".join(parts)
 
 
-def extract_pdf(path: Path) -> str:
+def extract_pdf_text_layer(path: Path) -> str:
     from pypdf import PdfReader
 
     reader = PdfReader(str(path))
@@ -174,27 +180,122 @@ def extract_pdf(path: Path) -> str:
     return "\n\n".join(parts)
 
 
-def extract_image(path: Path) -> str:
+def ocr_pil_image(image, *, name: str, page_label: str = "") -> str:
+    """Shared Tesseract path for image files and PDF page renders."""
     import pytesseract
     from PIL import Image, ImageEnhance, ImageOps
 
-    log(f"EXTRACT {path.name} pct=10 detail=open_image")
-    image = Image.open(path).convert("RGB")
-    w, h = image.size
+    tag = f"{name}{(' ' + page_label) if page_label else ''}"
+    log(f"EXTRACT {tag} pct=40 detail=preprocess")
+    rgb = image.convert("RGB")
+    w, h = rgb.size
     if max(w, h) < 2500:
-        image = image.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
-    log(f"EXTRACT {path.name} pct=40 detail=preprocess")
-    gray = ImageOps.autocontrast(ImageOps.grayscale(image))
+        rgb = rgb.resize((w * 2, h * 2), Image.Resampling.LANCZOS)
+    gray = ImageOps.autocontrast(ImageOps.grayscale(rgb))
     gray = ImageEnhance.Contrast(gray).enhance(1.4)
-    log(f"EXTRACT {path.name} pct=70 detail=tesseract")
+    log(f"EXTRACT {tag} pct=70 detail=tesseract")
     text = pytesseract.image_to_string(gray, lang="spa+eng").strip()
-    log(f"EXTRACT {path.name} pct=100 detail=chars={len(text)}")
+    log(f"EXTRACT {tag} pct=100 detail=chars={len(text)}")
     return text
 
 
+def extract_pdf_via_ocr(path: Path) -> str:
+    """Render each PDF page and OCR (scanned / image PDFs). Prefer pymupdf; else pdftoppm."""
+    name = path.name
+    log(f"EXTRACT {name} pct=10 detail=pdf_ocr_start")
+    parts: list[str] = []
+
+    try:
+        import fitz  # PyMuPDF
+
+        doc = fitz.open(str(path))
+        try:
+            total = doc.page_count
+            for i in range(total):
+                page = doc.load_page(i)
+                # ~150 DPI matrix (72*2.08 ≈ 150)
+                pix = page.get_pixmap(matrix=fitz.Matrix(2.08, 2.08), alpha=False)
+                from PIL import Image
+                import io
+
+                img = Image.open(io.BytesIO(pix.tobytes("png")))
+                text = ocr_pil_image(img, name=name, page_label=f"page={i + 1}/{total}")
+                if text:
+                    parts.append(text)
+        finally:
+            doc.close()
+        return "\n\n".join(parts)
+    except ImportError:
+        log(f"EXTRACT {name} detail=pymupdf_missing trying_pdftoppm")
+    except Exception as exc:  # noqa: BLE001
+        log(f"EXTRACT {name} detail=pymupdf_failed {exc!s}; trying_pdftoppm")
+
+    pdftoppm = shutil.which("pdftoppm")
+    if not pdftoppm:
+        raise RuntimeError(
+            "PDF image OCR needs PyMuPDF (pymupdf) or pdftoppm on PATH"
+        )
+    with tempfile.TemporaryDirectory(prefix="evoice-pdf-ocr-") as tmp:
+        tmp_path = Path(tmp)
+        prefix = tmp_path / "page"
+        proc = subprocess.run(
+            [pdftoppm, "-png", "-r", "150", str(path), str(prefix)],
+            capture_output=True,
+            check=False,
+        )
+        if proc.returncode != 0:
+            err = proc.stderr.decode("utf-8", errors="replace")[:300]
+            raise RuntimeError(f"pdftoppm failed: {err}")
+        pages = sorted(tmp_path.glob("page-*.png")) + sorted(tmp_path.glob("page*.png"))
+        # pdftoppm names: page-1.png or page1.png depending on version
+        if not pages:
+            pages = sorted(p for p in tmp_path.iterdir() if p.suffix.lower() == ".png")
+        from PIL import Image
+
+        total = len(pages)
+        for i, png in enumerate(pages, start=1):
+            img = Image.open(png)
+            text = ocr_pil_image(img, name=name, page_label=f"page={i}/{total}")
+            if text:
+                parts.append(text)
+    return "\n\n".join(parts)
+
+
+def extract_pdf(path: Path) -> str:
+    """PDF with text layer and/or image pages — always produce text for premium DeepSeek."""
+    name = path.name
+    log(f"EXTRACT {name} pct=8 detail=pdf_text_layer")
+    layer = extract_pdf_text_layer(path)
+    if len(layer.strip()) >= PDF_TEXT_MIN_CHARS:
+        log(f"EXTRACT {name} pct=100 detail=pdf_text_chars={len(layer)}")
+        return layer
+    log(
+        f"EXTRACT {name} pct=15 detail=pdf_text_sparse chars={len(layer.strip())} "
+        "fallback=ocr"
+    )
+    ocr = extract_pdf_via_ocr(path)
+    if layer.strip() and ocr.strip():
+        combined = layer.strip() + "\n\n" + ocr.strip()
+        log(f"EXTRACT {name} pct=100 detail=pdf_combined_chars={len(combined)}")
+        return combined
+    if ocr.strip():
+        log(f"EXTRACT {name} pct=100 detail=pdf_ocr_chars={len(ocr)}")
+        return ocr
+    return layer
+
+
+def extract_image(path: Path) -> str:
+    from PIL import Image
+
+    log(f"EXTRACT {path.name} pct=10 detail=open_image")
+    image = Image.open(path)
+    return ocr_pil_image(image, name=path.name)
+
+
 def load_doc_text(path: Path) -> str:
+    """Extract readable text from every supported modality (spec 044)."""
     ext = path.suffix.lower()
-    log(f"EXTRACT {path.name} pct=5 detail=start")
+    log(f"EXTRACT {path.name} pct=5 detail=start ext={ext}")
     if ext == ".txt":
         text = extract_txt(path)
         log(f"EXTRACT {path.name} pct=100 detail=chars={len(text)}")
@@ -204,16 +305,14 @@ def load_doc_text(path: Path) -> str:
         log(f"EXTRACT {path.name} pct=100 detail=chars={len(text)}")
         return text
     if ext == ".pdf":
-        text = extract_pdf(path)
-        log(f"EXTRACT {path.name} pct=100 detail=chars={len(text)}")
-        return text
+        return extract_pdf(path)
     if ext in IMAGE_EXTENSIONS:
         return extract_image(path)
     raise ValueError(f"unsupported extension: {ext}")
 
 
 def premium_optimize(text: str, name: str) -> str:
-    """DeepSeek chat completions with stream=true; emit PREMIUM progress as SSE chunks arrive."""
+    """DeepSeek chat completions with stream=true + system role; required for all modalities when --premium."""
     key = (os.environ.get("DEEPSEEK_API_KEY") or "").strip()
     if not key:
         raise RuntimeError("DEEPSEEK_API_KEY not configured for premium")
@@ -454,6 +553,8 @@ def sync_project(
                 raise ValueError("No readable text extracted")
             clear_stem_audios(audios_dir, stem)
             if premium:
+                # Mandatory: every modality's extracted text goes through DeepSeek system role.
+                log(f"PREMIUM {doc.name} detail=system_role_prep modality={doc.suffix.lower()}")
                 text = premium_optimize(text, doc.name)
                 premium_path = docs_dir / f"{stem}.premium.txt"
                 premium_path.write_text(text, encoding="utf-8")

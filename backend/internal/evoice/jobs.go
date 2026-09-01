@@ -104,6 +104,7 @@ func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, 
 		logFn("FILE " + name + " state=active")
 		logFn("EXTRACT " + name + " pct=50 detail=fake")
 		if premium {
+			logFn("PREMIUM " + name + " detail=system_role_prep modality=" + filepath.Ext(name))
 			logFn("PREMIUM " + name + " pct=20 detail=stream")
 			logFn("PREMIUM " + name + " pct=60 detail=stream")
 			logFn("PREMIUM " + name + " pct=100 detail=chapters=2")

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Done** (2026-09-01).
+**Done** (2026-09-01) — Product HDS menus are icon-only Material Symbols.
 
 ## Acceptance
 - [x] theme tokens + three breakpoint lists; no borders; Calibri/14px
@@ -11,6 +11,7 @@
 - [x] Music Upload new/v2
 - [x] eVoice crawl API + UI + tests
 - [x] FE build + commit/push
+- [x] `ProductHeaderMenu` / product HDS buttons are **icon-only** Material Symbols (always, no exception — no visible text labels)
 
 ## Problem
 
@@ -55,21 +56,21 @@ Site chrome and product hubs still use mixed `--site-*` tokens, rem drift, and b
 - Pamphlet: `/documents/pamphlet?view=dashboard|recent|open|new|manage|footers`
 
 ### Music / eVoice / Pamphlet dashboards
-As previously specified: cards + header dynamic short labels; Music Upload = new + v2 cards; eVoice crawl = validate URL → cleaner → DeepSeek TTS text → save doc (+ generate path); Pamphlet mm/px pass-through.
+As previously specified: cards + header dynamic menu; Music Upload = new + v2 cards; eVoice crawl = validate URL → cleaner → DeepSeek TTS text → save doc (+ generate path); Pamphlet mm/px pass-through.
+
+### Header Dynamic Section (HDS) — ProductHeaderMenu
+- **Always, no exception:** product hub buttons mounted in `#header-dynamic-menu-host` are **icon-only** (Google Material Symbols).
+- **Forbidden:** visible text / short-label text on those buttons (text buttons are unacceptable).
+- Each item supplies: `id`, accessible `label` (for `title` + `aria-label` only), and Material Symbol `icon` name.
+- Shared chrome: `header-dynamic-menu__btn` sizing; active view uses active/pressed styling.
+- Applies to every consumer of `ProductHeaderMenu` (eVoice, Music, Pamphlet, Homescool, eReport, …).
 
 ## Non-goals
 - Changing Scrib or Pamphlet mm/px geometry.
 - Nested path segments for hub views.
 - HTML-from-DeepSeek crawl path.
 - Extra themes beyond light/dark.
-
-## Acceptance
-- [ ] theme tokens + three breakpoint lists; no borders; Calibri/14px
-- [ ] Pamphlet + Scrib locked dimensions untouched
-- [ ] Music / eVoice / Pamphlet dashboards + `?view=` + header dynamic
-- [ ] Music Upload new/v2
-- [ ] eVoice crawl API + UI + tests
-- [ ] FE build + commit/push
+- Visible text labels on product HDS buttons.
 
 ## Affected paths
 - `specs/045-global-theme-product-dashboards/spec.md`

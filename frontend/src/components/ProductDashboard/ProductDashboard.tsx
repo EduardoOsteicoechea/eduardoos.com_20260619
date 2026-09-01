@@ -1,5 +1,6 @@
 /**
  * Product hub helpers — ?view= routing + dashboard cards + header dynamic menu (spec 045).
+ * HDS buttons are always icon-only Material Symbols (no visible text labels).
  */
 
 import {
@@ -78,9 +79,12 @@ export function DashboardGrid({
   );
 }
 
+/** HDS item: label is accessibility-only; icon is the only visible chrome. */
 export type HeaderMenuItem = {
   id: string;
   label: string;
+  /** Google Material Symbols ligature name (required — icon-only, no text). */
+  icon: string;
 };
 
 export function ProductHeaderMenu({
@@ -117,24 +121,37 @@ export function ProductHeaderMenu({
         if (node) window.__eduardoosHeaderDynamicMenu = node;
       }}
     >
-      <div className="header-dynamic-menu__inner product-dash__header-inner">
-        {items.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={
-              item.id === activeId
-                ? "product-dash__header-btn product-dash__header-btn--active"
-                : "product-dash__header-btn"
-            }
-            onClick={() => onSelect(item.id)}
-            title={item.label}
-            aria-label={item.label}
-            aria-current={item.id === activeId ? "page" : undefined}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div
+        className="header-dynamic-menu__inner header-dynamic-menu__actions product-dash__header-inner"
+        role="toolbar"
+        aria-label="Product views"
+      >
+        {items.map((item) => {
+          const active = item.id === activeId;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={
+                active
+                  ? "header-dynamic-menu__btn header-dynamic-menu__btn--active is-active"
+                  : "header-dynamic-menu__btn"
+              }
+              onClick={() => onSelect(item.id)}
+              title={item.label}
+              aria-label={item.label}
+              aria-current={active ? "page" : undefined}
+              aria-pressed={active}
+            >
+              <span
+                className="material-symbols-outlined header-dynamic-menu__icon"
+                aria-hidden="true"
+              >
+                {item.icon}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>,
     host,

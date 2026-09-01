@@ -46,14 +46,14 @@ import "./Evoice.css";
 import "../ProductDashboard/ProductDashboard.css";
 
 const EVOICE_VIEWS = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "admin", label: "Admin" },
-  { id: "upload", label: "Upload" },
-  { id: "docs", label: "Docs" },
-  { id: "audios", label: "Audios" },
-  { id: "playlists", label: "Playlist" },
-  { id: "print", label: "Print" },
-  { id: "crawl", label: "Crawl" },
+  { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+  { id: "admin", label: "Admin", icon: "admin_panel_settings" },
+  { id: "upload", label: "Upload", icon: "upload_file" },
+  { id: "docs", label: "Docs", icon: "description" },
+  { id: "audios", label: "Audios", icon: "audio_file" },
+  { id: "playlists", label: "Playlist", icon: "queue_music" },
+  { id: "print", label: "Print", icon: "print" },
+  { id: "crawl", label: "Crawl", icon: "travel_explore" },
 ] as const;
 
 const EVOICE_CARDS = [
