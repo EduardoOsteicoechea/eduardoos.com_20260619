@@ -83,9 +83,7 @@ import "./HomeProfile.css";
             profileExperience.map((job) => (
               <li class="home-profile__job">
                 <div class="home-profile__job-head">
-                  <span class="material-symbols-outlined" aria-hidden="true">
-                    {job.icon}
-                  </span>
+                  <span class="material-symbols-outlined" aria-hidden="true">{job.icon}</span>
                   <h3>
                     <span class="home-profile__org">{job.org}</span>
                     <span class="home-profile__role">{job.role}</span>
@@ -116,9 +114,7 @@ import "./HomeProfile.css";
             profileSkillCards.map((s) => (
               <li>
                 <div class="home-profile__skill-title">
-                  <span class="material-symbols-outlined" aria-hidden="true">
-                    {s.icon}
-                  </span>
+                  <span class="material-symbols-outlined" aria-hidden="true">{s.icon}</span>
                   <strong>{s.title}</strong>
                 </div>
                 <span>{s.description}</span>
@@ -142,9 +138,7 @@ import "./HomeProfile.css";
             profileFaq.map((item) => (
               <div class="home-profile__faq-card">
                 <h3>
-                  <span class="material-symbols-outlined" aria-hidden="true">
-                    {item.icon}
-                  </span>
+                  <span class="material-symbols-outlined" aria-hidden="true">{item.icon}</span>
                   <span>{item.question}</span>
                 </h3>
                 <p>{item.answer}</p>

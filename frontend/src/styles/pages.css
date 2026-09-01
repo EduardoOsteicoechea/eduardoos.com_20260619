@@ -308,12 +308,13 @@ html.page-home .home-hero__chat {
     grid-column: 3;
     position: sticky;
     z-index: 100;
-    top: 1.25rem;
+    /* Stay in the right column under the site chrome while the dossier scrolls. */
+    top: max(1.25rem, var(--header_offset, 0px));
     align-self: start;
     box-sizing: border-box;
     width: 100%;
-    height: calc(100dvh - 2.5rem);
-    max-height: calc(100dvh - 2.5rem);
+    height: calc(100dvh - 2.5rem - var(--header_offset, 0px));
+    max-height: calc(100dvh - 2.5rem - var(--header_offset, 0px));
     margin: 0;
     padding: 1.15rem 1.2rem 1.2rem;
     border: var(--border_001);
