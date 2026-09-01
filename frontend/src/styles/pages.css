@@ -104,6 +104,15 @@
   font: inherit;
 }
 
+/* Single-line inputs: exact --bmh (spec 045); textarea keeps flexible min-height. */
+.form-field input {
+  height: var(--bmh);
+  min-height: var(--bmh);
+  max-height: var(--bmh);
+  padding-block: 0;
+  padding-inline: var(--p2);
+}
+
 .form-field--error input {
   border-color: var(--site-danger);
 }

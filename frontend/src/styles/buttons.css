@@ -3,6 +3,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--m1);
+  box-sizing: border-box;
+  height: var(--bmh);
   min-height: var(--bmh);
   min-width: var(--bmw);
   max-height: var(--bmh);

@@ -12,6 +12,7 @@
 - [x] eVoice crawl API + UI + tests
 - [x] FE build + commit/push
 - [x] `ProductHeaderMenu` / product HDS buttons are **icon-only** Material Symbols (always, no exception — no visible text labels)
+- [x] Single-line inputs + selects + `.btn` share exact `--bmh` height globally (incl. eReport org forms)
 
 ## Problem
 
@@ -42,6 +43,9 @@ Site chrome and product hubs still use mixed `--site-*` tokens, rem drift, and b
 - `--bmh` / `--bmw`: `2.25rem` desktop (×0.9 tablet, ×0.8 phone).
 - `--lbw`: `4.285714rem` desktop/tablet; `0` phone.
 - `--br`: `0.215rem`.
+- **`--control_min_height` = `--bmh`** (alias; do not invent a second control height).
+- **Equal control height (global, locked):** every **single-line** text-like `input`, every `select`, and every `.btn` (all variants — primary blue, secondary gray, green/yellow/red) MUST share the **same outer height**: `height` / `min-height` / `max-height` = `var(--bmh)`, `box-sizing: border-box`, vertical padding `0` (horizontal via `--p2`). Inputs must not look shorter than the blue `.btn--primary` / `.btn--blue` buttons (eReport org forms and all other product hubs).
+- **Excluded from equal height:** `textarea`; `input[type=checkbox|radio|range|file|color|hidden]`; Pamphlet document canvas / Scrib sheet geometry (mm/px pass-through); dedicated transport/HDS icon controls that use their own size tokens (e.g. `--playlist-control-size`, header-dynamic icon buttons).
 
 ### Colors
 - Light: `--bg:#f2f3f6` `--fg:#141820`

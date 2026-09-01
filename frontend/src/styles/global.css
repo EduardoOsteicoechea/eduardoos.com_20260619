@@ -8,6 +8,40 @@
   box-sizing: border-box;
 }
 
+/**
+ * Spec 045 — single-line inputs/selects match .btn outer height (--bmh).
+ * Excludes textarea and specialty input types (checkbox/radio/range/file/…).
+ */
+input:where(
+  :not([type]),
+  [type="text"],
+  [type="email"],
+  [type="password"],
+  [type="search"],
+  [type="tel"],
+  [type="url"],
+  [type="number"],
+  [type="date"],
+  [type="datetime-local"],
+  [type="month"],
+  [type="time"],
+  [type="week"]
+),
+select {
+  box-sizing: border-box;
+  height: var(--bmh);
+  min-height: var(--bmh);
+  max-height: var(--bmh);
+  padding-block: 0;
+  padding-inline: var(--p2);
+  font: inherit;
+  line-height: 1.2;
+  border: var(--border_001, none);
+  border-radius: var(--br, var(--border_radius_001, 0.215rem));
+  background: var(--site-body-bg, var(--bg));
+  color: var(--site-body-fg, var(--fg));
+}
+
 html {
   scroll-behavior: smooth;
   /* Spec 045: absolute 14px root × A+/A− scale. */
