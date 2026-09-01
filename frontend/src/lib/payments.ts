@@ -15,6 +15,8 @@ export type SubscriptionService = {
   label: string;
   description: string;
   monthlyUsd: number;
+  /** Material Symbol ligature — matches tray icons (spec 053). */
+  icon: string;
 };
 
 /** Billable catalog — services still offered on Subscribe. */
@@ -24,42 +26,49 @@ const SUBSCRIPTION_SERVICES_ALL: SubscriptionService[] = [
     label: "Music",
     description: "Worship playlist builder and lyrics.",
     monthlyUsd: 1,
+    icon: "music_note",
   },
   {
     id: "pamphlet",
     label: "Pamphlet",
     description: "Cloud pamphlet editor and print export.",
     monthlyUsd: 1,
+    icon: "description",
   },
   {
     id: "homescool",
     label: "Homescool",
     description: "Homescool learning surface.",
     monthlyUsd: 1,
+    icon: "school",
   },
   {
     id: "church-management",
     label: "Church Management",
     description: "Register and manage churches, activities, and reports.",
     monthlyUsd: 1,
+    icon: "church",
   },
   {
     id: "scrib",
     label: "Scrib",
     description: "Layered US Letter manuscript sheets with cloud books.",
     monthlyUsd: 1,
+    icon: "edit_note",
   },
   {
     id: "ereport",
     label: "eReport",
     description: "Issue tracker reports (.ereport) with cloud storage and sharing.",
     monthlyUsd: 1,
+    icon: "assignment",
   },
   {
     id: "evoice",
     label: "eVoice",
     description: "Text-to-audio projects (docs → MP3) with cloud storage under evoice/.",
     monthlyUsd: 1,
+    icon: "record_voice_over",
   },
 ];
 

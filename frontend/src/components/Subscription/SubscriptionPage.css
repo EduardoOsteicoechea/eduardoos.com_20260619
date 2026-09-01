@@ -1,10 +1,18 @@
+/**
+ * Subscription page — left-aligned product gutters + selectable service cards (spec 053).
+ */
+
 .subscription-page {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  width: min(100%, 40rem);
-  margin: 0 auto;
-  padding: 1rem var(--page-inline-pad) 2.5rem;
+  align-items: flex-start;
+  gap: var(--m2);
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: var(--p3) var(--page-inline-pad, var(--p2)) var(--p5);
+  color: var(--fg);
 }
 
 .subscription-page--gate {
@@ -23,12 +31,13 @@
 .subscription-page__title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: var(--font-lg);
+  font-weight: 650;
 }
 
 .subscription-page__lead {
   margin: 0;
+  max-width: 40rem;
   line-height: 1.55;
   color: var(--site-meta-fg);
   font-size: var(--font-sm);
@@ -43,35 +52,47 @@
 }
 
 .subscription-page__services {
-  display: grid;
-  gap: 0.65rem;
+  width: 100%;
 }
 
+/* Card is the hit target; hide native checkbox while keeping it accessible. */
 .subscription-page__service {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  padding: 0.85rem 1rem;
-  border: var(--border_001);
-  border-radius: var(--border_radius_001);
-  background: var(--glassed_background);
+  position: relative;
   cursor: pointer;
 }
 
-.subscription-page__service--selected {
-  border-color: var(--site-accent);
+.subscription-page__service-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  overflow: hidden;
+  white-space: nowrap;
 }
 
-.subscription-page__service-desc {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: var(--font-sm);
-  color: var(--site-meta-fg);
+.subscription-page__service:hover {
+  background: color-mix(in srgb, var(--btn-blue) 12%, var(--site-surface));
+}
+
+.subscription-page__service--selected {
+  background: color-mix(in srgb, var(--btn-blue) 18%, var(--site-surface));
+}
+
+.subscription-page__service:has(.subscription-page__service-input:focus-visible) {
+  outline: 2px solid color-mix(in srgb, var(--btn-blue) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.subscription-page__service--selected:hover {
+  background: color-mix(in srgb, var(--btn-blue) 24%, var(--site-surface));
 }
 
 .subscription-page__price {
-  font-weight: 600;
-  color: var(--site-accent);
+  font-weight: 650;
+  color: var(--site-accent, var(--btn-blue));
   font-size: var(--font-sm);
 }
 
@@ -84,7 +105,9 @@
 .subscription-page__checkout {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 0.75rem;
+  width: min(100%, 28rem);
 }
 
 .subscription-page__paypal-btn {
@@ -120,10 +143,12 @@
 }
 
 .subscription-page__entitlements {
-  border: var(--border_001);
-  border-radius: var(--border_radius_001);
-  padding: 1rem;
-  background: var(--glassed_background);
+  box-sizing: border-box;
+  width: min(100%, 40rem);
+  border: none;
+  border-radius: var(--br, var(--border_radius_001));
+  padding: var(--p3);
+  background: var(--site-surface, var(--glassed_background));
 }
 
 .subscription-page__entitlements h2 {

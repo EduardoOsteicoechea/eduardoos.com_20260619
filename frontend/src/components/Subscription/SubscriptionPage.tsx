@@ -1,5 +1,6 @@
 /**
- * Minimal subscription builder: prepare JWT-backed intent + PayPal hosted button.
+ * Subscription builder: prepare JWT-backed intent + PayPal hosted button.
+ * Layout matches product dashboards — left gutters + selectable service cards (spec 053).
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -21,6 +22,7 @@ import {
   type EntitlementRecord,
   type PaymentIntentResponse,
 } from "../../lib/payments";
+import "../ProductDashboard/ProductDashboard.css";
 import "./SubscriptionPage.css";
 
 export default function SubscriptionPage() {
@@ -169,28 +171,35 @@ export default function SubscriptionPage() {
         </button>
       </div>
 
-      <div className="subscription-page__services">
+      <div className="product-dash__grid subscription-page__services" role="group" aria-label="Services">
         {SUBSCRIPTION_SERVICES.map((service) => {
           const checked = selected.includes(service.id);
           return (
             <label
               key={service.id}
-              className={`subscription-page__service${checked ? " subscription-page__service--selected" : ""}`}
+              className={
+                checked
+                  ? "product-dash__card subscription-page__service subscription-page__service--selected"
+                  : "product-dash__card subscription-page__service"
+              }
             >
               <input
+                className="subscription-page__service-input"
                 type="checkbox"
                 checked={checked}
                 onChange={() => toggleService(service.id)}
               />
-              <span>
-                <strong>
-                  {service.label}{" "}
-                  <span className="subscription-page__price">
-                    ${service.monthlyUsd}/mo
-                  </span>
-                </strong>
-                <span className="subscription-page__service-desc">{service.description}</span>
+              <span className="product-dash__card-head">
+                <span
+                  className="material-symbols-outlined product-dash__card-icon"
+                  aria-hidden="true"
+                >
+                  {service.icon}
+                </span>
+                <span className="product-dash__card-title">{service.label}</span>
               </span>
+              <span className="subscription-page__price">${service.monthlyUsd}/mo</span>
+              <span className="product-dash__card-desc">{service.description}</span>
             </label>
           );
         })}
