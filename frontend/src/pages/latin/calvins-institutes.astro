@@ -1,14 +1,28 @@
 ---
 /**
- * Calvin’s Institutes — Latin 1559 public reader (S3-backed via /api/latin/…).
+ * Legacy /latin/calvins-institutes → /dashboard/latin/calvins-institutes (spec 051).
  */
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import CalvinsInstitutesReader from "../../components/CalvinsInstitutes/CalvinsInstitutesReader";
 ---
-
-<BaseLayout
-  title="Calvin’s Institutes — Eduardo OS"
-  description="John Calvin, Institutio Christianae Religionis (1559), Latin text."
->
-  <CalvinsInstitutesReader client:load />
-</BaseLayout>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting…</title>
+    <script is:inline>
+      (function () {
+        var dest =
+          "/dashboard/latin/calvins-institutes" +
+          window.location.search +
+          window.location.hash;
+        window.location.replace(dest);
+      })();
+    </script>
+    <meta http-equiv="refresh" content="0;url=/dashboard/latin/calvins-institutes" />
+    <link rel="canonical" href="/dashboard/latin/calvins-institutes" />
+  </head>
+  <body>
+    <p>
+      <a href="/dashboard/latin/calvins-institutes">Institutes moved — continue</a>
+    </p>
+  </body>
+</html>

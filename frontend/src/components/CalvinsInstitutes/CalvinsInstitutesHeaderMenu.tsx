@@ -14,6 +14,8 @@ import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 type CalvinsInstitutesHeaderMenuProps = {
   chaptersOpen: boolean;
   onToggleChapters: () => void;
+  /** Spec 051 — return to product dashboard hub. */
+  onGoDashboard?: () => void;
 };
 
 /** List / chapters glyph — currentColor only (rail language). */
@@ -36,6 +38,7 @@ function ChaptersIcon() {
 export default function CalvinsInstitutesHeaderMenu({
   chaptersOpen,
   onToggleChapters,
+  onGoDashboard,
 }: CalvinsInstitutesHeaderMenuProps) {
   const [host, setHost] = useState<HTMLElement | null>(null);
 
@@ -91,6 +94,22 @@ export default function CalvinsInstitutesHeaderMenu({
           role="toolbar"
           aria-label="Institutes actions"
         >
+          {onGoDashboard ? (
+            <button
+              type="button"
+              className="header-dynamic-menu__btn"
+              title="Dashboard"
+              aria-label="Dashboard"
+              onClick={onGoDashboard}
+            >
+              <span
+                className="material-symbols-outlined header-dynamic-menu__icon"
+                aria-hidden="true"
+              >
+                dashboard
+              </span>
+            </button>
+          ) : null}
           <button
             type="button"
             id="btn-calvins-chapters"

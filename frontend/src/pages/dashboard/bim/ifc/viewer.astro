@@ -1,0 +1,15 @@
+---
+/**
+ * BIM IFC viewer hub — /dashboard/bim/ifc/viewer (spec 051).
+ */
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+import BimIfcViewerHub from "../../../../components/BimIfcViewer/BimIfcViewerHub";
+---
+
+<BaseLayout
+  title="BIM IFC Viewer | Eduardo OS"
+  description="Public IFC viewer (That Open) with shared library under ifcbim/library/."
+  requireAuth={false}
+>
+  <BimIfcViewerHub client:only="react" />
+</BaseLayout>

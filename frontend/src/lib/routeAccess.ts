@@ -32,18 +32,26 @@ export function isPublicPagePath(pathname: string): boolean {
   if (path === "/") return true;
   if (path.startsWith("/auth/")) return true;
   if (path === normalizePath(APP_ROUTES.contact)) return true;
-  if (path === normalizePath(APP_ROUTES.articles) || path.startsWith("/articulos/")) {
+  if (path === normalizePath(APP_ROUTES.articles) || path.startsWith(`${normalizePath(APP_ROUTES.articles)}/`)) {
+    return true;
+  }
+  // Legacy articles paths (spec 051 redirects).
+  if (path === "/articulos" || path.startsWith("/articulos/")) {
     return true;
   }
   if (
     path === normalizePath(APP_ROUTES.calvinsInstitutes) ||
-    path.startsWith(`${normalizePath(APP_ROUTES.calvinsInstitutes)}/`)
+    path.startsWith(`${normalizePath(APP_ROUTES.calvinsInstitutes)}/`) ||
+    path === "/latin/calvins-institutes" ||
+    path.startsWith("/latin/calvins-institutes/")
   ) {
     return true;
   }
   if (
     path === normalizePath(APP_ROUTES.bimIfcViewer) ||
-    path.startsWith(`${normalizePath(APP_ROUTES.bimIfcViewer)}/`)
+    path.startsWith(`${normalizePath(APP_ROUTES.bimIfcViewer)}/`) ||
+    path === "/bim/ifc/viewer" ||
+    path.startsWith("/bim/ifc/viewer/")
   ) {
     return true;
   }

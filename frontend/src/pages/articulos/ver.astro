@@ -1,38 +1,26 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import ArticleView from "../../components/Articles/ArticleView";
+/**
+ * Legacy /articulos/ver → /dashboard/articulos/ver (spec 051). Preserves ?id=.
+ */
 ---
-
-<BaseLayout
-  title="Article — Eduardo Osteicoechea"
-  description="Public pamphlet article."
->
-  <div class="page-shell" data-page="articulo-ver">
-    <ArticleView client:load />
-  </div>
-</BaseLayout>
-
-{/* Inline: inject crawl alternate links from ?id= without showing UI. */}
-<script is:inline>
-  (function () {
-    var params = new URLSearchParams(location.search);
-    var id = (params.get("id") || "").trim();
-    if (!id) return;
-    var enc = encodeURIComponent(id);
-    var alts = [
-      { id: "article-alt-html-ssr", type: "text/html", href: "/api/articles/" + enc + "/html" },
-      { id: "article-alt-text-ssr", type: "text/plain", href: "/api/articles/" + enc + "/text" },
-      { id: "article-alt-json-ssr", type: "application/json", href: "/api/articles/" + enc },
-    ];
-    for (var i = 0; i < alts.length; i++) {
-      var a = alts[i];
-      if (document.getElementById(a.id)) continue;
-      var link = document.createElement("link");
-      link.id = a.id;
-      link.rel = "alternate";
-      link.type = a.type;
-      link.href = a.href;
-      document.head.appendChild(link);
-    }
-  })();
-</script>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting…</title>
+    <script is:inline>
+      (function () {
+        var dest =
+          "/dashboard/articulos/ver" +
+          window.location.search +
+          window.location.hash;
+        window.location.replace(dest);
+      })();
+    </script>
+    <meta http-equiv="refresh" content="0;url=/dashboard/articulos/ver" />
+    <link rel="canonical" href="/dashboard/articulos/ver" />
+  </head>
+  <body>
+    <p><a href="/dashboard/articulos/ver">Article moved — continue</a></p>
+  </body>
+</html>

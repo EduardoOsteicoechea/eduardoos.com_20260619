@@ -313,7 +313,11 @@ function normalizeLibraryNameInput(raw: string): string {
     .replace(/^[-._]+|[-._]+$/g, "");
 }
 
-export default function BimIfcViewer() {
+export default function BimIfcViewer({
+  onGoDashboard,
+}: {
+  onGoDashboard?: () => void;
+} = {}) {
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
   const disposeRef = useRef<null | (() => void)>(null);
   const loadIfcRef = useRef<null | ((input: LoadIfcInput) => Promise<void>)>(null);
@@ -993,6 +997,7 @@ export default function BimIfcViewer() {
         onToggleConsole={openConsole}
         onToggleOutput={openOutput}
         onOffloadModel={() => void offloadModel()}
+        onGoDashboard={onGoDashboard}
       />
 
       <div className={`bim-ifc-viewer__stage${lightsOpen ? " bim-ifc-viewer__stage--lights-open" : ""}`}>

@@ -18,7 +18,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// publicArticlesUserID is the owner whose pamphlets appear on /articulos when
+// publicArticlesUserID is the owner whose pamphlets appear on /dashboard/articulos when
 // the request has no JWT. Override with PUBLIC_ARTICLES_USER_ID.
 func publicArticlesUserID() string {
 	return strings.TrimSpace(httpx.Env("PUBLIC_ARTICLES_USER_ID", "eduardooost@gmail.com"))
@@ -52,7 +52,7 @@ func (h *Handler) ListArticlesHTML(w http.ResponseWriter, r *http.Request) {
 	body.WriteString("<meta name=\"robots\" content=\"index,follow\">\n")
 	body.WriteString("<title>Articles — Eduardo OS</title>\n")
 	body.WriteString("<link rel=\"canonical\" href=\"")
-	body.WriteString(html.EscapeString(base + "/articulos"))
+	body.WriteString(html.EscapeString(base + "/dashboard/articulos"))
 	body.WriteString("\">\n</head>\n<body>\n<main>\n")
 	body.WriteString("<h1>Articles (pamphlets)</h1>\n")
 	body.WriteString("<p>Linear reading copies of cloud pamphlets, grouped by series and chapter. Machine formats: ")
@@ -242,7 +242,7 @@ func (h *Handler) GetArticleHTML(w http.ResponseWriter, r *http.Request) {
 	if base == "" {
 		base = "https://eduardoos.com"
 	}
-	canonical := base + "/articulos/ver?id=" + id
+	canonical := base + "/dashboard/articulos/ver?id=" + id
 	htmlDoc := article.RenderHTML(title, canonical, plain, blocks)
 	log.Printf("[correlation=%s] articles.html ok id=%s bytes=%d", cid, id, len(htmlDoc))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -269,7 +269,7 @@ func writeArticlesSeriesHTML(body *strings.Builder, tree SeriesTreeResponse, bas
 			for _, item := range ch.Items {
 				id := url.PathEscape(item.EpamID)
 				body.WriteString("<li><a href=\"")
-				body.WriteString(html.EscapeString(base + "/articulos/ver?id=" + item.EpamID))
+				body.WriteString(html.EscapeString(base + "/dashboard/articulos/ver?id=" + item.EpamID))
 				body.WriteString("\">")
 				body.WriteString(html.EscapeString(item.Title))
 				body.WriteString("</a> — <a href=\"/api/articles/")

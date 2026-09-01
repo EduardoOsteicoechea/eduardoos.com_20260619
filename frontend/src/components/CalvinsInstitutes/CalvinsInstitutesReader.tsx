@@ -39,7 +39,11 @@ function writeChaptersOpen(open: boolean): void {
   }
 }
 
-export default function CalvinsInstitutesReader() {
+export default function CalvinsInstitutesReader({
+  onGoDashboard,
+}: {
+  onGoDashboard?: () => void;
+} = {}) {
   const [chapters, setChapters] = useState<InstitutesIndexSection[]>([]);
   const [chapterKey, setChapterKey] = useState("");
   const [sectionDoc, setSectionDoc] = useState<InstitutesSection | null>(null);
@@ -138,6 +142,7 @@ export default function CalvinsInstitutesReader() {
       <CalvinsInstitutesHeaderMenu
         chaptersOpen={chaptersOpen}
         onToggleChapters={toggleChapters}
+        onGoDashboard={onGoDashboard}
       />
 
       {chaptersOpen ? (

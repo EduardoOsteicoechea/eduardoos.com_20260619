@@ -13,8 +13,10 @@ export const APP_ROUTES = {
   subscription: "/payments/subscription",
   mediaPlaylist: "/media/musica",
   pamphlet: "/documents/pamphlet",
-  articles: "/articulos",
-  article: (id: string) => `/articulos/ver?id=${encodeURIComponent(id)}`,
+  /** Public articles hub (spec 051). */
+  articles: "/dashboard/articulos",
+  article: (id: string) =>
+    `/dashboard/articulos/ver?id=${encodeURIComponent(id)}`,
   homescool: "/homescool",
   homescoolRegisterStudent: "/homescool/register-student",
   homescoolStudents: "/homescool/students",
@@ -48,11 +50,11 @@ export const APP_ROUTES = {
   /** eVoice text-to-audio projects (subscription / allowlist). */
   evoice: "/evoice",
   /** Public Calvin’s Institutes reader (S3-backed). */
-  calvinsInstitutes: "/latin/calvins-institutes",
+  calvinsInstitutes: "/dashboard/latin/calvins-institutes",
   adminUsers: "/admin/users",
   agentSandbox: "/admin/agent-sandbox",
-  /** Admin-only BIM IFC viewer (That Open + host Python console). */
-  bimIfcViewer: "/bim/ifc/viewer",
+  /** Public BIM IFC viewer (That Open + host Python console). */
+  bimIfcViewer: "/dashboard/bim/ifc/viewer",
 } as const;
 
 export const AUTH_API_ROUTES = {

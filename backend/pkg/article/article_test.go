@@ -27,7 +27,7 @@ func TestBlocksInReadingOrderIncludesFooterChrome(t *testing.T) {
 }
 
 func TestRenderHTMLHasArticleSchema(t *testing.T) {
-	html := RenderHTML("Hello", "https://eduardoos.com/articulos/ver?id=1", "Hello body", []Block{
+	html := RenderHTML("Hello", "https://eduardoos.com/dashboard/articulos/ver?id=1", "Hello body", []Block{
 		{Type: "heading_1", Content: "Hello"},
 		{Type: "paragraph", Content: "Hello body"},
 	})

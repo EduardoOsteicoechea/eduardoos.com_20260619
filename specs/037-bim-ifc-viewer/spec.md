@@ -10,7 +10,7 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
 
 ## Goals
 
-1. **Page:** `/bim/ifc/viewer` — **public** (no login required to open the page, browse, or load models). Not under `/admin/*`.
+1. **Page:** `/dashboard/bim/ifc/viewer` — **public** (no login required to open the page, browse, or load models). Hub `?view=dashboard|viewer` (spec 051). Legacy `/bim/ifc/viewer` redirects. Not under `/admin/*`.
 2. **Access matrix:**
    | Action | Who |
    |--------|-----|
@@ -67,7 +67,7 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
 ## Acceptance
 
 - [x] On open, after the viewer is ready, auto-load the first `ifcbim/library` model (by name); empty library → empty scene.
-- [x] Public user opens `/bim/ifc/viewer` without login; sees scene + Browse + Lights + Offload (when loaded).
+- [x] Public user opens `/dashboard/bim/ifc/viewer` without login; sees scene + Browse + Lights + Offload (when loaded).
 - [x] Browse modal lists `ifcbim/library/*.ifc` with **name + size + formatted date**; Load puts model in the viewer.
 - [x] Admin Upload requires a **library name** input; stores under `ifcbim/library/{name}.ifc`; **409** if name already exists (no overwrite).
 - [x] Admin Upload loads into the scene; non-admin has no Upload control; upload API returns 403 for non-admin.
@@ -86,7 +86,7 @@ Visitors need a browser IFC viewer (That Open / web-ifc) with a shared model lib
 - `specs/037-bim-ifc-viewer/spec.md`
 - `backend/internal/bim/**`
 - `backend/cmd/server/main.go` (log line only if needed)
-- `frontend/src/pages/bim/ifc/viewer.astro`
+- `frontend/src/pages/dashboard/bim/ifc/viewer.astro` (legacy redirect: `pages/bim/ifc/viewer.astro`)
 - `frontend/src/components/BimIfcViewer/**`
 - `frontend/src/config/routes.ts`, `frontend/src/lib/routeAccess.ts`
 - `frontend/src/components/Header/Header.tsx`

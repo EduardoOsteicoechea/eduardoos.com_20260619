@@ -1,33 +1,24 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import ArticlesList from "../../components/Articles/ArticlesList";
+/**
+ * Legacy /articulos → /dashboard/articulos (spec 051). Preserves query/hash.
+ */
 ---
-
-<BaseLayout
-  title="Articles — Eduardo Osteicoechea"
-  description="Public pamphlets as linear articles."
->
-  <div class="page-shell" data-page="articulos">
-    {/* Crawl discovery in static HTML (no JS needed). Clipped visually. */}
-    <nav class="articles-crawl-only" aria-hidden="true" data-crawl="articles-static">
-      <a href="/api/articles/index.html">Articles HTML index</a>
-      <a href="/api/articles">Articles JSON</a>
-      <a href="/llms.txt">llms.txt</a>
-    </nav>
-    <ArticlesList client:load />
-  </div>
-</BaseLayout>
-
-<style is:global>
-  .articles-crawl-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-</style>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting…</title>
+    <script is:inline>
+      (function () {
+        var dest =
+          "/dashboard/articulos" + window.location.search + window.location.hash;
+        window.location.replace(dest);
+      })();
+    </script>
+    <meta http-equiv="refresh" content="0;url=/dashboard/articulos" />
+    <link rel="canonical" href="/dashboard/articulos" />
+  </head>
+  <body>
+    <p><a href="/dashboard/articulos">Articles moved — continue</a></p>
+  </body>
+</html>

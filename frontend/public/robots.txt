@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
+Allow: /dashboard/articulos
+Allow: /dashboard/articulos/
 Allow: /articulos
 Allow: /articulos/
 Allow: /api/articles

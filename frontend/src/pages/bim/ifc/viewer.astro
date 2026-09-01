@@ -1,12 +1,26 @@
 ---
-import BaseLayout from "../../../layouts/BaseLayout.astro";
-import BimIfcViewer from "../../../components/BimIfcViewer/BimIfcViewer";
+/**
+ * Legacy /bim/ifc/viewer → /dashboard/bim/ifc/viewer (spec 051).
+ */
 ---
-
-<BaseLayout
-  title="BIM IFC Viewer | Eduardo OS"
-  description="Public IFC viewer (That Open) with shared library under ifcbim/library/."
-  requireAuth={false}
->
-  <BimIfcViewer client:only="react" />
-</BaseLayout>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting…</title>
+    <script is:inline>
+      (function () {
+        var dest =
+          "/dashboard/bim/ifc/viewer" +
+          window.location.search +
+          window.location.hash;
+        window.location.replace(dest);
+      })();
+    </script>
+    <meta http-equiv="refresh" content="0;url=/dashboard/bim/ifc/viewer" />
+    <link rel="canonical" href="/dashboard/bim/ifc/viewer" />
+  </head>
+  <body>
+    <p><a href="/dashboard/bim/ifc/viewer">BIM viewer moved — continue</a></p>
+  </body>
+</html>

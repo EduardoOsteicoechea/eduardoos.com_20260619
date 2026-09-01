@@ -47,7 +47,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Head("/api/media/file/*", h.GetMediaFile)
 	r.Get("/api/emusic/{slug}", h.GetEmusic)
 
-	// Public pamphlet-as-article surface for /articulos and AI crawlers.
+	// Public pamphlet-as-article surface for /dashboard/articulos and AI crawlers.
 	// More specific /text|/html routes before the bare {id} JSON route.
 	r.Get("/api/articles", h.ListArticles)
 	r.Get("/api/articles/index.html", h.ListArticlesHTML)

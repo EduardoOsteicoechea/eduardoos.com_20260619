@@ -6,7 +6,7 @@ Active (2026-08-26). Updated: **clean Barth/Niesel Latin pack** (readable Capita
 
 ## Problem
 
-Public domain Institutes text is uploaded under S3 prefix `calvin-institutes/`. Eduardo OS needs a public page at `/latin/calvins-institutes` with a Services menu link that loads the index + sections via the backend (bucket stays private).
+Public domain Institutes text is uploaded under S3 prefix `calvin-institutes/`. Eduardo OS needs a public page at `/dashboard/latin/calvins-institutes` (legacy `/latin/calvins-institutes` redirects; spec 051) with a Services menu link that loads the index + sections via the backend (bucket stays private).
 
 The corpus is **Latin-only 1559 Institutes** from the clean pack (Barth/Niesel Latin via calvin.reformation.nl). **Do not** re-detect Capita from OCR. **Do not** invent a new chapter map. English Allen assets must never appear on this Latin route.
 
@@ -54,7 +54,7 @@ Canonical Capita counts: I:18, II:17, III:25, IV:20.
 
 | Surface | Path | Auth |
 |---------|------|------|
-| FE page | `/latin/calvins-institutes` | Public |
+| FE page | `/dashboard/latin/calvins-institutes` (hub `?view=dashboard\|read`) | Public |
 | Header | Services → **Calvin’s Institutes** | Always |
 | BE index | `GET /api/latin/calvins-institutes` | Public — readiness-gated |
 | BE section | `GET /api/latin/calvins-institutes/sections/{id}` | Public |

@@ -23,6 +23,8 @@ type BimIfcHeaderMenuProps = {
   onToggleConsole: () => void;
   onToggleOutput: () => void;
   onOffloadModel: () => void;
+  /** Spec 051 — return to product dashboard hub. */
+  onGoDashboard?: () => void;
 };
 
 function MaterialIcon({ name }: { name: string }) {
@@ -61,6 +63,17 @@ export default function BimIfcHeaderMenu(props: BimIfcHeaderMenuProps) {
     >
       <div className="header-dynamic-menu__inner">
         <div className="header-dynamic-menu__actions" role="toolbar" aria-label="BIM IFC actions">
+          {props.onGoDashboard ? (
+            <button
+              type="button"
+              className="header-dynamic-menu__btn"
+              title="Dashboard"
+              aria-label="Dashboard"
+              onClick={props.onGoDashboard}
+            >
+              <MaterialIcon name="dashboard" />
+            </button>
+          ) : null}
           {props.isAdmin ? (
             <button
               type="button"
