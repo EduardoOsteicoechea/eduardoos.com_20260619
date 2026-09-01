@@ -10,7 +10,7 @@ Profile/RAG facts live in `PROFILE_CONTEXT.md` for agents but visitors only see 
 2. **Hero + dossier layout (desktop)** — shared column width: agent width equals one info column (`--home-col` in a 3-column shell). Grid:
    - Profile | Specialization (1+1)
    - Education and Training (span 2)
-   - Professional Experience: 4-column job cards
+   - Professional Experience: **3-column** job cards (desktop)
    - Skills and Stack (span 2): inner 6 skill cards with brief descriptions
    - FAQ: 3 columns
    - Focus | Contact (1+1)
