@@ -79,7 +79,7 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 - **Playlist footer controls** (playlist-level only): **Previous** / Play / Pause / Stop / **Next** / Download — all **icon-only** (`skip_previous`, `play_arrow`, `pause`, `stop`, `skip_next`, `download`), with `aria-label` / `title`.
   - **Next** advances to the next track and **automatically starts playback** of that track (after the blob loads).
   - **Previous** goes to the prior track and **automatically starts playback** of that track.
-  - Natural `ended` on the current track behaves like Next (advance + autoplay when a next track exists).
+  - Natural `ended` on the current track **must** advance to the next track and **auto-start** it (continuous playlist). Wait until the new audio is `canplay` before calling `play()` — do not stop at track boundaries while a next track exists.
 - **Delete controls** (Docs delete-doc and Playlist delete-audio): **icon-only**, red (Material Symbol `delete`), with `aria-label` / `title`.
 - **Console** — full-width panel below the active section; while generate runs, shows progress + **Stop generate**; when stopped, **Resume**.
 - **Premium defaults to on** (DeepSeek speech + chapters).
@@ -120,6 +120,7 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 - [x] Stop generate visible on Console (and Upload) while job runs; Resume when stopped
 - [x] Upload view shows read-only uploaded documents list (no generate/delete actions)
 - [x] Playlist Previous + Next icon-only; both auto-start playback of the target track
+- [x] When a track ends, the next track auto-starts (continuous playlist via canplay)
 
 ## Affected paths
 - `specs/044-evoice/spec.md`

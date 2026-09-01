@@ -156,8 +156,10 @@ function EvoiceWorkspace() {
   const [blobUrl, setBlobUrl] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef("");
-  /** When true, start playback as soon as the next track blob URL is ready. */
+  /** When true, start playback as soon as the next track blob is ready (canplay). */
   const autoplayAfterLoadRef = useRef(false);
+  const audiosLenRef = useRef(0);
+  audiosLenRef.current = audios.length;
   const stopRequestedRef = useRef(false);
   const projectRef = useRef(project);
   projectRef.current = project;
@@ -301,16 +303,37 @@ function EvoiceWorkspace() {
     };
   }, [audios, trackIndex, ownerSafe, project]);
 
-  // After Next/Previous/ended loads a new blob, auto-start that track.
+  // After Next / Previous / track-ended loads a new blob, auto-start once canplay.
   useEffect(() => {
     if (!blobUrl || !autoplayAfterLoadRef.current) return;
     const el = audioRef.current;
     if (!el) return;
-    autoplayAfterLoadRef.current = false;
-    el.currentTime = 0;
-    void el.play().catch(() => {
-      /* browser may block until a prior gesture; Next/Prev themselves are gestures */
-    });
+
+    let cancelled = false;
+    const tryPlay = () => {
+      if (cancelled || !autoplayAfterLoadRef.current) return;
+      autoplayAfterLoadRef.current = false;
+      try {
+        el.currentTime = 0;
+      } catch {
+        /* ignore seek errors on fresh src */
+      }
+      void el.play().catch(() => {
+        /* gesture/autoplay policy — user can press Play */
+      });
+    };
+
+    el.addEventListener("canplay", tryPlay, { once: true });
+    el.addEventListener("loadeddata", tryPlay, { once: true });
+    if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      tryPlay();
+    }
+
+    return () => {
+      cancelled = true;
+      el.removeEventListener("canplay", tryPlay);
+      el.removeEventListener("loadeddata", tryPlay);
+    };
   }, [blobUrl]);
 
   useEffect(() => {
@@ -648,15 +671,23 @@ function EvoiceWorkspace() {
   }
   /** Advance and auto-start the next track (also used by audio `ended`). */
   function next() {
-    if (trackIndex >= audios.length - 1) return;
-    autoplayAfterLoadRef.current = true;
-    setTrackIndex((i) => i + 1);
+    setTrackIndex((i) => {
+      if (i >= audiosLenRef.current - 1) {
+        return i;
+      }
+      autoplayAfterLoadRef.current = true;
+      return i + 1;
+    });
   }
   /** Go back and auto-start the previous track. */
   function prev() {
-    if (trackIndex <= 0) return;
-    autoplayAfterLoadRef.current = true;
-    setTrackIndex((i) => i - 1);
+    setTrackIndex((i) => {
+      if (i <= 0) {
+        return i;
+      }
+      autoplayAfterLoadRef.current = true;
+      return i - 1;
+    });
   }
 
   async function onDownload(name: string, key?: string) {
