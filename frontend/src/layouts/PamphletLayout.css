@@ -107,7 +107,7 @@ body.page-pamphlet .item-type-options button:hover {
 
 .series-tree__series-title {
   margin: 0 0 0.35rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: var(--font-sm);
   font-weight: 700;
   color: var(--site-body-fg);
@@ -115,7 +115,7 @@ body.page-pamphlet .item-type-options button:hover {
 
 .series-tree__chapter-title {
   margin: 0.35rem 0 0.25rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--font-xs);
   font-weight: 600;
   color: var(--site-muted-fg, var(--site-body-fg));

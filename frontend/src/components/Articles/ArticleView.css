@@ -21,7 +21,7 @@
 
 .article-view__h {
   margin: 0.75rem 0 0;
-  font-family: Montserrat, Raleway, sans-serif;
+  font-family: var(--font-display);
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.25;
@@ -33,7 +33,7 @@
   margin: 0 0 0.35rem;
   padding-bottom: 0.65rem;
   border-bottom: 1px solid color-mix(in srgb, var(--site-border, var(--site-body-fg)) 28%, transparent);
-  font-family: Raleway, Roboto, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.88rem;
   font-weight: 500;
   font-style: italic;
@@ -45,7 +45,7 @@
 
 .article-view__p {
   margin: 0;
-  font-family: Raleway, Roboto, sans-serif;
+  font-family: var(--font-body);
   font-size: 1.05rem;
   font-weight: 400;
   font-style: normal;

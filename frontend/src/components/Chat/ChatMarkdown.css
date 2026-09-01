@@ -24,7 +24,7 @@
 .chat-md h2,
 .chat-md h3 {
   margin: 0.55rem 0 0.35rem;
-  font-family: var(--font-display, Montserrat, sans-serif);
+  font-family: var(--font-display);
   font-weight: 700;
   line-height: 1.25;
   color: var(--site-body-fg);

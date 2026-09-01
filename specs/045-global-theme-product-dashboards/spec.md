@@ -20,7 +20,7 @@ Site chrome and product hubs still use mixed `--site-*` tokens, rem drift, and b
 ## Goals (locked)
 
 ### Typography & root
-- Font stack: `Calibri, system-ui, sans-serif`.
+- Font stack: **Kumbh Sans** (see spec 048) — `"Kumbh Sans", system-ui, sans-serif` with YOPQ 300. (Supersedes Calibri from the original 045 ship.)
 - Root font-size: **`calc(14px * var(--site-text-scale, 1))`** on `html`.
 - **Pass-through (do not rem-convert):** Pamphlet document canvas and Scrib sheet/layout that use locked **mm / px** (including 0.5px rules).
 

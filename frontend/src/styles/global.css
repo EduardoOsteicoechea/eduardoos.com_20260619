@@ -35,6 +35,9 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-body);
+  font-optical-sizing: auto;
+  font-style: normal;
+  font-variation-settings: "YOPQ" 300;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

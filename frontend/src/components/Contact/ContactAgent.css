@@ -75,7 +75,7 @@
 
 .contact-agent__title {
   margin: 0;
-  font-family: var(--font-brand, "Cormorant Garamond", Georgia, serif);
+  font-family: var(--font-brand);
   font-size: 1.45rem;
   font-weight: 600;
   letter-spacing: 0.015em;
@@ -84,7 +84,7 @@
 
 .contact-agent__blurb {
   margin: 0;
-  font-family: var(--font-body, Raleway, sans-serif);
+  font-family: var(--font-body);
   font-size: var(--font-sm);
   line-height: 1.5;
   color: var(--site-meta-fg);
@@ -111,7 +111,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: var(--font-sm);
-  font-family: var(--font-body, Raleway, sans-serif);
+  font-family: var(--font-body);
   cursor: pointer;
 }
 
@@ -147,7 +147,7 @@
   max-width: 95%;
   padding: 0.6rem 0.75rem;
   border-radius: var(--border_radius_001);
-  font-family: var(--font-body, Raleway, sans-serif);
+  font-family: var(--font-body);
   font-size: var(--font-sm);
   line-height: 1.5;
   white-space: pre-wrap;
@@ -182,7 +182,7 @@
 .contact-agent__action-note {
   margin: 0;
   font-size: var(--font-xs, 0.75rem);
-  font-family: var(--font-utility, Roboto, sans-serif);
+  font-family: var(--font-utility);
   color: var(--site-meta-fg);
 }
 
@@ -221,7 +221,7 @@
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   font: inherit;
-  font-family: var(--font-body, Raleway, sans-serif);
+  font-family: var(--font-body);
   font-size: var(--font-sm);
   line-height: 1.45;
   resize: vertical;

@@ -34,7 +34,7 @@
 
 .page-stub__brand {
   margin: 0;
-  font-family: var(--font-brand, "Cormorant Garamond", Georgia, serif);
+  font-family: var(--font-brand);
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -43,7 +43,7 @@
 
 .page-stub__title {
   margin: 0;
-  font-family: var(--font-display, Montserrat, sans-serif);
+  font-family: var(--font-display);
   font-size: 1.75rem;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -51,7 +51,7 @@
 
 .page-stub__lead {
   margin: 0;
-  font-family: var(--font-body, Raleway, sans-serif);
+  font-family: var(--font-body);
   line-height: 1.6;
   color: var(--site-meta-fg);
 }
@@ -68,7 +68,7 @@
 
 .panel__title {
   margin: 0 0 1rem;
-  font-family: var(--font-display, Montserrat, sans-serif);
+  font-family: var(--font-display);
   font-size: 1.35rem;
   font-weight: 600;
 }
@@ -209,7 +209,7 @@ html.page-home .home-hero__chat {
 
 .home-hero__brand {
   margin: 0 0 0.65rem;
-  font-family: var(--font-brand, "Cormorant Garamond", Georgia, serif);
+  font-family: var(--font-brand);
   font-size: clamp(2.35rem, 5.5vw, 3.45rem);
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -219,7 +219,7 @@ html.page-home .home-hero__chat {
 
 .home-hero__copy h1 {
   margin: 0 0 1.1rem;
-  font-family: var(--font-utility, Calibri, system-ui, sans-serif);
+  font-family: var(--font-utility);
   font-size: clamp(1.15rem, 2.4vw, 1.45rem);
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -231,7 +231,7 @@ html.page-home .home-hero__chat {
 .home-hero__lead {
   margin: 0;
   max-width: 36rem;
-  font-family: var(--font-body, Calibri, system-ui, sans-serif);
+  font-family: var(--font-body);
   font-size: var(--p2, 1rem);
   font-weight: 400;
   line-height: 1.65;
@@ -392,7 +392,7 @@ html.page-home .home-hero__chat {
 
 .contact-page__brand {
   margin: 0 0 0.4rem;
-  font-family: var(--font-brand, "Cormorant Garamond", Georgia, serif);
+  font-family: var(--font-brand);
   font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -401,7 +401,7 @@ html.page-home .home-hero__chat {
 
 .contact-page__title {
   margin: 0 0 0.75rem;
-  font-family: var(--font-display, Montserrat, sans-serif);
+  font-family: var(--font-display);
   font-size: 1.75rem;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -409,7 +409,7 @@ html.page-home .home-hero__chat {
 
 .contact-page__lead {
   margin: 0 0 0.85rem;
-  font-family: var(--font-body, Raleway, sans-serif);
+  font-family: var(--font-body);
   line-height: 1.65;
   color: var(--site-meta-fg);
 }
@@ -430,7 +430,7 @@ html.page-home .home-hero__chat {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--site-muted-fg);
-  font-family: var(--font-utility, Roboto, sans-serif);
+  font-family: var(--font-utility);
 }
 
 /* Agent column: no card chrome — same docked panel language as home. */
@@ -455,7 +455,7 @@ html.page-home .home-hero__chat {
 
 .product-page__brand {
   margin: 0;
-  font-family: var(--font-brand, "Cormorant Garamond", Georgia, serif);
+  font-family: var(--font-brand);
   font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -464,7 +464,7 @@ html.page-home .home-hero__chat {
 
 .product-page__title {
   margin: 0;
-  font-family: var(--font-display, Montserrat, sans-serif);
+  font-family: var(--font-display);
   font-size: 1.75rem;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -472,7 +472,7 @@ html.page-home .home-hero__chat {
 
 .product-page__lead {
   margin: 0;
-  font-family: var(--font-body, Raleway, sans-serif);
+  font-family: var(--font-body);
   line-height: 1.65;
   color: var(--site-meta-fg);
 }

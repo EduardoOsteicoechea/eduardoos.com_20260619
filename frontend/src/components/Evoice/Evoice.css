@@ -13,7 +13,7 @@
 
 .evoice__eyebrow {
   margin: 0;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.8rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -22,7 +22,7 @@
 
 .evoice__title {
   margin: 0.2rem 0 0.4rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(1.6rem, 3vw, 2.1rem);
   font-weight: 650;
 }
@@ -30,21 +30,21 @@
 .evoice__lead {
   margin: 0 0 1.25rem;
   max-width: 42rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   line-height: 1.45;
   opacity: 0.9;
 }
 
 .evoice__error {
   color: #b42318;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
 }
 
 .evoice__admin {
   display: grid;
   gap: 0.35rem;
   margin-bottom: 1.35rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.9rem;
 }
 
@@ -69,7 +69,7 @@
 .evoice__field {
   display: grid;
   gap: 0.35rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.9rem;
 }
 
@@ -92,7 +92,7 @@
   border-radius: var(--border_radius_001);
   background: var(--site-body-bg);
   color: var(--site-body-fg);
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.95rem;
 }
 
@@ -197,7 +197,7 @@
 
 .evoice__panel h2 {
   margin: 0 0 0.75rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 1.1rem;
   font-weight: 600;
 }
@@ -222,7 +222,7 @@
 
 .evoice__upload-docs-title {
   margin: 0 0 0.35rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 600;
 }
@@ -246,7 +246,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.9rem;
   margin-right: 0.25rem;
   cursor: pointer;
@@ -299,7 +299,7 @@
 
 .evoice__hint {
   margin: -0.25rem 0 0.75rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.85rem;
   opacity: 0.75;
 }
@@ -332,7 +332,7 @@
   border-radius: var(--border_radius_001);
   background: var(--site-body-bg);
   color: var(--site-body-fg);
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   resize: vertical;
 }
 
@@ -350,7 +350,7 @@
   flex-wrap: wrap;
   gap: 0.45rem;
   align-items: center;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
 }
 
 .evoice__doc-main {
@@ -406,12 +406,12 @@
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
 }
 
 .evoice__empty {
   margin: 0;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   opacity: 0.8;
 }
 
@@ -431,7 +431,7 @@
 
 .evoice__progress-label {
   margin: 0.35rem 0 0.75rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.85rem;
   opacity: 0.85;
 }
@@ -448,7 +448,7 @@
   display: flex;
   gap: 0.65rem;
   align-items: baseline;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.9rem;
 }
 
@@ -477,7 +477,7 @@
 
 .evoice__log-title {
   margin: 0 0 0.4rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 0.95rem;
   font-weight: 600;
 }
@@ -490,7 +490,7 @@
   border: var(--border_001);
   border-radius: var(--border_radius_001);
   background: var(--site-body-bg);
-  font-family: Roboto, monospace;
+  font-family: ui-monospace, monospace;
   font-size: 0.8rem;
   white-space: pre-wrap;
 }
@@ -514,7 +514,7 @@
   border-radius: var(--border_radius_001);
   background: transparent;
   color: inherit;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   cursor: pointer;
 }
 

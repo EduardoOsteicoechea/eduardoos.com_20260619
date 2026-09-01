@@ -13,7 +13,7 @@
 
 .profile-image-form__title {
   margin: 0;
-  font-family: var(--font-display, Montserrat, system-ui, sans-serif);
+  font-family: var(--font-display);
   font-size: var(--font-lg, 1.25rem);
   font-weight: 700;
   color: var(--site-body-fg);

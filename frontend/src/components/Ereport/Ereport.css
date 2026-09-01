@@ -12,7 +12,7 @@
 
 .ereport-hub__title {
   margin: 0.15rem 0 0.35rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(1.6rem, 3vw, 2.1rem);
   font-weight: 650;
 }
@@ -20,7 +20,7 @@
 .ereport-hub__lead {
   margin: 0;
   max-width: 40rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   line-height: 1.45;
   opacity: 0.9;
 }
@@ -30,7 +30,7 @@
   margin: 1.25rem 0;
   display: grid;
   gap: 0.4rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
 }
 
 .ereport-hub__row {
@@ -53,7 +53,7 @@
 .ereport-hub__muted {
   margin: 0 0 var(--m2, 1rem);
   opacity: 0.75;
-  font-family: var(--font-body, Calibri, system-ui, sans-serif);
+  font-family: var(--font-body);
 }
 
 .ereport-hub__form {
@@ -61,7 +61,7 @@
   gap: var(--m1, 0.75rem);
   max-width: 28rem;
   margin: 0 0 var(--m3, 1.5rem);
-  font-family: var(--font-body, Calibri, system-ui, sans-serif);
+  font-family: var(--font-body);
 }
 
 .ereport-hub__form label {
@@ -134,7 +134,7 @@
 }
 
 .ereport-hub__empty {
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   opacity: 0.8;
 }
 
@@ -144,7 +144,7 @@
 
 .ereport-hub__section h2 {
   margin: 0 0 0.75rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 1.15rem;
 }
 
@@ -174,12 +174,12 @@
 }
 
 .ereport-card__tema {
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
 }
 
 .ereport-card__meta {
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.78rem;
   opacity: 0.75;
 }
@@ -191,7 +191,7 @@
   color: var(--site-body-fg);
   cursor: pointer;
   opacity: 0.65;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.8rem;
 }
 
@@ -238,14 +238,14 @@
 
 .ereport-modal__panel h2 {
   margin: 0 0 0.55rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 1.2rem;
   font-weight: 650;
 }
 
 .ereport-modal__lead {
   margin: 0 0 0.9rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.92rem;
   line-height: 1.45;
   opacity: 0.9;
@@ -255,7 +255,7 @@
   display: grid;
   gap: 0.35rem;
   margin-bottom: 1rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
 }
 
 .ereport-modal__field input {
@@ -292,11 +292,11 @@
   border-radius: var(--border_radius_001);
   padding: 0.25rem 0.45rem;
   font-size: 0.85rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
 }
 
 .ereport-share__form {
   display: grid;
   gap: 0.35rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
 }

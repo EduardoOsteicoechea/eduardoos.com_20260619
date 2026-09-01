@@ -197,7 +197,7 @@
   background: var(--site-body-bg);
   color: var(--site-body-fg);
   font-size: 13px;
-  font-family: var(--font-utility, Roboto, system-ui, sans-serif);
+  font-family: var(--font-utility);
 }
 
 .lyrics-edit-tray__status {

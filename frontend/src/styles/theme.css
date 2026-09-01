@@ -1,6 +1,6 @@
 /**
- * Theme tokens — Eduardo OS (spec 045).
- * Root 14px × --site-text-scale; Calibri / system-ui.
+ * Theme tokens — Eduardo OS (spec 045 + 048).
+ * Root 14px × --site-text-scale; Kumbh Sans (YOPQ 300) / system-ui.
  * Spacing --m* / --p*; chrome --bmh/--bmw/--lbw/--br; colors --bg/--fg + ISO buttons.
  * Phone / tablet / desktop lists. Aliases keep --site-* working during migration.
  * Pamphlet mm/px and Scrib sheet geometry are pass-through (do not rem-convert).
@@ -68,11 +68,12 @@
   --max_desktop_width: 72rem;
   --page-inline-pad: var(--p2);
 
-  --font-brand: Calibri, system-ui, sans-serif;
-  --font-sans: Calibri, system-ui, sans-serif;
-  --font-display: Calibri, system-ui, sans-serif;
-  --font-body: Calibri, system-ui, sans-serif;
-  --font-utility: Calibri, system-ui, sans-serif;
+  --font-brand: "Kumbh Sans", system-ui, sans-serif;
+  --font-sans: "Kumbh Sans", system-ui, sans-serif;
+  --font-display: "Kumbh Sans", system-ui, sans-serif;
+  --font-body: "Kumbh Sans", system-ui, sans-serif;
+  --font-utility: "Kumbh Sans", system-ui, sans-serif;
+  --font-heading: "Kumbh Sans", system-ui, sans-serif;
 
   --font-xs: 0.75rem;
   --font-sm: 0.875rem;

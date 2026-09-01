@@ -43,7 +43,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: var(--font-sm);
-  font-family: var(--font-body, Raleway, sans-serif);
+  font-family: var(--font-body);
   cursor: pointer;
 }
 

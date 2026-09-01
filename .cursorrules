@@ -20,7 +20,7 @@
 - Routing: Nginx serves the Astro build. Errors fallback via `try_files $uri $uri/ /index.html`.
 
 ### Eduardo OS Theming (Mandatory)
-- **Fonts**: Load Montserrat, Raleway, and Roboto from Google Fonts in `BaseLayout.astro`.
+- **Fonts**: Load **Kumbh Sans** (variable, YOPQ 300) from Google Fonts in `BaseLayout.astro` / `PamphletLayout.astro` (spec 048). Material Symbols Outlined for icons.
 - **Theme tokens**: Define all colors, borders, and chrome variables in `src/styles/theme.css` using `--site-*` naming (`--site-body-bg`, `--site-body-fg`, `--site-accent`, `--site-border`, `--glassed_background`, etc.).
 - **Global shell**: `src/styles/global.css` imports `theme.css`, `buttons.css`, `headings.css`, `chrome.css`, and `pages.css`. It sets `--header_height: 60px`, `--control_min_height`, `--border_radius_001`, and `--max_desktop_width`.
 - **Dark mode**: Bootstrap theme in an inline `<script>` reading `localStorage` key `eduardoos-theme`, falling back to `prefers-color-scheme`. Toggle sets `html[data-theme]` and `html.dark`.

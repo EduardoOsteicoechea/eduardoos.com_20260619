@@ -11,7 +11,7 @@
 }
 
 .aps-webhook-monitor--denied {
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
 }
 
 .aps-webhook-monitor__head {
@@ -20,7 +20,7 @@
 
 .aps-webhook-monitor__head h1 {
   margin: 0 0 0.35rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(1.5rem, 3vw, 2rem);
   font-weight: 650;
 }
@@ -28,7 +28,7 @@
 .aps-webhook-monitor__lead {
   margin: 0 0 1rem;
   max-width: 42rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   line-height: 1.45;
   opacity: 0.9;
 }
@@ -40,7 +40,7 @@
 }
 
 .aps-webhook-monitor__meta dt {
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 0.75rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -59,7 +59,7 @@
   padding: 0.15rem 0.55rem;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.8rem;
 }
 
@@ -74,7 +74,7 @@
 
 .aps-webhook-monitor__error {
   color: #b42318;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
 }
 
 .aps-webhook-monitor__errors {
@@ -84,7 +84,7 @@
 .aps-webhook-monitor__errors h2,
 .aps-webhook-monitor__list-title {
   margin: 0 0 0.65rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 1.05rem;
   font-weight: 650;
 }
@@ -113,7 +113,7 @@
 }
 
 .aps-webhook-monitor__status {
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   padding: 1.25rem 1rem;
 }
 
@@ -126,7 +126,7 @@
 }
 
 .aps-webhook-monitor__empty {
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   opacity: 0.85;
   line-height: 1.5;
 }
@@ -143,7 +143,7 @@
   flex-wrap: wrap;
   gap: 0.65rem 1rem;
   margin-bottom: 0.5rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.78rem;
   opacity: 0.8;
 }

@@ -72,7 +72,7 @@ body:has(.calvins-institutes) > main {
 .calvins-institutes__liber-title {
   margin: 0 0 0.35rem;
   padding: 0.15rem 0.25rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 0.72rem;
   font-weight: 650;
   letter-spacing: 0.04em;
@@ -99,7 +99,7 @@ body:has(.calvins-institutes) > main {
   color: var(--site-body-fg);
   text-align: left;
   cursor: pointer;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.76rem;
   line-height: 1.25;
 }
@@ -110,7 +110,7 @@ body:has(.calvins-institutes) > main {
 }
 
 .calvins-institutes__nav-order {
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 0.68rem;
   opacity: 0.7;
 }
@@ -136,7 +136,7 @@ body:has(.calvins-institutes) > main {
 
 .calvins-institutes__meta {
   margin: 0 0 0.35rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 0.72rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -145,7 +145,7 @@ body:has(.calvins-institutes) > main {
 
 .calvins-institutes__caput {
   margin: 0 0 0.75rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 1.1rem;
   font-weight: 650;
 }
@@ -164,7 +164,7 @@ body:has(.calvins-institutes) > main {
   margin: 0 0 0.45rem;
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: Raleway, Georgia, serif;
+  font-family: var(--font-body);
   font-size: 0.95rem;
   line-height: 1.55;
 }
@@ -175,7 +175,7 @@ body:has(.calvins-institutes) > main {
 
 .calvins-institutes__status,
 .calvins-institutes__error {
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   line-height: 1.45;
   margin: 0 0 0.75rem;
 }

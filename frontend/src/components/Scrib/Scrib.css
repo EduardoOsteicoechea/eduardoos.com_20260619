@@ -16,7 +16,7 @@
 
 .scrib-dashboard__title {
   margin: 0.15rem 0 0.35rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(1.6rem, 3vw, 2.1rem);
   font-weight: 650;
 }
@@ -24,7 +24,7 @@
 .scrib-dashboard__lead {
   margin: 0;
   max-width: 40rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   line-height: 1.45;
   opacity: 0.9;
 }
@@ -36,7 +36,7 @@
 }
 
 .scrib-dashboard__label {
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.9rem;
 }
 
@@ -55,16 +55,16 @@
   border-radius: var(--border_radius_001);
   background: var(--site-body-bg);
   color: var(--site-body-fg);
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
 }
 
 .scrib-dashboard__error {
   color: #b42318;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
 }
 
 .scrib-dashboard__empty {
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   opacity: 0.8;
 }
 
@@ -90,7 +90,7 @@
 
 .scrib-book__title {
   margin: 0;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 1.15rem;
   font-weight: 600;
 }
@@ -104,7 +104,7 @@
   border-radius: var(--border_radius_001);
   background: transparent;
   color: var(--site-body-fg);
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 1.15rem;
   font-weight: 600;
   line-height: 1.3;
@@ -160,7 +160,7 @@
 }
 
 .scrib-sheet-card__name {
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 0.95rem;
 }
@@ -174,7 +174,7 @@
   border-radius: var(--border_radius_001);
   background: transparent;
   color: var(--site-body-fg);
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 0.95rem;
   line-height: 1.3;
@@ -188,7 +188,7 @@
 }
 
 .scrib-sheet-card__meta {
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.72rem;
   opacity: 0.7;
 }
@@ -196,7 +196,7 @@
 .scrib-sheet-card__open {
   align-self: flex-start;
   margin-top: 0.15rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--site-accent, var(--site-body-fg));
@@ -227,7 +227,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   color: var(--site-accent, var(--site-body-fg));
 }
@@ -371,7 +371,7 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
   min-width: 2.6rem;
   height: var(--header-dynamic-control-size, 2.25rem);
   padding: 0 0.25rem;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
   border: var(--border_001);
@@ -418,7 +418,7 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
 
 .scrib-layers-modal__head h2 {
   margin: 0;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-size: 1.1rem;
 }
 
@@ -442,7 +442,7 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
@@ -453,7 +453,7 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
   grid-template-columns: auto 1fr auto;
   gap: 0.4rem;
   align-items: center;
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-size: 0.8rem;
 }
 

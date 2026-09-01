@@ -11,7 +11,7 @@
 
 .articles__title {
   margin: 0 0 0.35rem;
-  font-family: Montserrat, Raleway, sans-serif;
+  font-family: var(--font-display);
   font-size: 1.75rem;
   font-weight: 700;
 }
@@ -48,7 +48,7 @@
 }
 
 .articles__card-title {
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
 }
 
@@ -89,7 +89,7 @@
 .articles__chapter-title {
   cursor: pointer;
   list-style: none;
-  font-family: Montserrat, sans-serif;
+  font-family: var(--font-display);
   font-weight: 650;
   letter-spacing: 0.04em;
   padding: 0.7rem 0.15rem;
@@ -113,7 +113,7 @@
 }
 
 .articles__chapter-title {
-  font-family: Raleway, sans-serif;
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: 0.95rem;
   letter-spacing: 0.02em;

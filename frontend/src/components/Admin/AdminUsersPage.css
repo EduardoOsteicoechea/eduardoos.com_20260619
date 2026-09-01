@@ -16,7 +16,7 @@
 
 .admin-users__title {
   margin: 0 0 0.5rem;
-  font-family: var(--font-display, Montserrat, sans-serif);
+  font-family: var(--font-display);
   font-size: 1.65rem;
 }
 
@@ -105,7 +105,7 @@
 .admin-users__meta {
   font-size: var(--font-xs, 0.7rem);
   color: var(--site-meta-fg);
-  font-family: var(--font-utility, Roboto, system-ui, sans-serif);
+  font-family: var(--font-utility);
 }
 
 .admin-users__facts {
@@ -304,7 +304,7 @@
   padding: 0.75rem 0.85rem;
   overflow: auto;
   max-width: 100%;
-  font-family: var(--font-utility, Roboto, ui-monospace, monospace);
+  font-family: ui-monospace, monospace;
   font-size: var(--font-xs, 0.75rem);
   line-height: 1.45;
   border: var(--border_001);
@@ -331,7 +331,7 @@
   padding: 0.65rem 0.75rem;
   box-sizing: border-box;
   resize: vertical;
-  font-family: var(--font-utility, Roboto, ui-monospace, monospace);
+  font-family: ui-monospace, monospace;
   font-size: var(--font-sm);
   line-height: 1.45;
   color: var(--site-body-fg);

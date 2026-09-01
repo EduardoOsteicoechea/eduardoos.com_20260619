@@ -28,7 +28,7 @@
 
 .music-upload-modal__title {
   margin: 0;
-  font-family: var(--font-display, Montserrat, system-ui, sans-serif);
+  font-family: var(--font-display);
   font-size: var(--font-lg, 1.15rem);
   font-weight: 600;
   color: var(--site-body-fg);
