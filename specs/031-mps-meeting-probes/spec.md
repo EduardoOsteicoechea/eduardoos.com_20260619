@@ -15,7 +15,7 @@ Removed from Eduardo OS website usage:
 | BE catalog | `GET /api/admin/aps/probes` | Unmounted + package deleted |
 | BE run | `POST /api/admin/aps/probes/{probeId}` | Unmounted + package deleted |
 | Nginx | `location ^~ /api/admin/aps/probes` | Removed |
-| Env | `PROBE_TIMEOUT_MS`, `APS_HTTP_TIMEOUT_MS`, webhook callback/secret for ingest | Dropped from website `.env.example` / deploy probe block |
+| Env | `PROBE_TIMEOUT_MS`, `APS_HTTP_TIMEOUT_MS`, webhook callback/secret for ingest, `APS_HUB_ID`, `APS_PROJECT_ID`, `APS_REGION` | Dropped from website `.env.example` / deploy (ACC hub leftovers; DA keeps `APS_CLIENT_*` / `APS_ACTIVITY_ID`) |
 
 ### Non-goals of retirement
 
