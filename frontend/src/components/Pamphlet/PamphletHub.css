@@ -1,0 +1,16 @@
+.pamphlet-hub {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100%;
+}
+
+.pamphlet-hub__hint-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--m1);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--p2) var(--page-inline-pad, var(--p2));
+  font-family: var(--font-body);
+  font-size: var(--font-sm);
+}

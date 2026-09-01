@@ -25,6 +25,7 @@ import {
   fetchEvoiceProjects,
   fetchEvoiceUsers,
   pasteEvoiceDocText,
+  crawlEvoiceDocURL,
   resumeEvoiceJob,
   startEvoiceGenerate,
   stopEvoiceJob,
@@ -35,7 +36,35 @@ import {
 } from "../../lib/evoice";
 import { getAuthToken } from "../../lib/auth";
 import { openServerErrorModal } from "../ServerErrorModal/ServerErrorModal";
+import {
+  DashboardGrid,
+  ProductHeaderMenu,
+  ProductHubShell,
+  useProductView,
+} from "../ProductDashboard/ProductDashboard";
 import "./Evoice.css";
+import "../ProductDashboard/ProductDashboard.css";
+
+const EVOICE_VIEWS = [
+  { id: "dashboard", label: "Dashboard" },
+  { id: "admin", label: "Admin" },
+  { id: "upload", label: "Upload" },
+  { id: "docs", label: "Docs" },
+  { id: "audios", label: "Audios" },
+  { id: "playlists", label: "Playlist" },
+  { id: "print", label: "Print" },
+  { id: "crawl", label: "Crawl" },
+] as const;
+
+const EVOICE_CARDS = [
+  { id: "admin", title: "Admin", description: "Switch owner (admin only)." },
+  { id: "upload", title: "Upload", description: "File uploads and paste text." },
+  { id: "docs", title: "Manage documents", description: "Select and generate docs." },
+  { id: "audios", title: "Manage audios", description: "Playlist and downloads." },
+  { id: "playlists", title: "Playlists", description: "Play generated MP3s." },
+  { id: "print", title: "Print documents", description: "Print-friendly doc list." },
+  { id: "crawl", title: "Crawl URL", description: "Fetch URL → clean → TTS doc." },
+];
 
 function stemOf(name: string): string {
   const i = name.lastIndexOf(".");
@@ -114,6 +143,8 @@ function EvoiceWorkspace() {
   const [premium, setPremium] = useState(true);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [showPaste, setShowPaste] = useState(false);
+  const [crawlUrl, setCrawlUrl] = useState("");
+  const [view, setView] = useProductView("dashboard");
   const [logs, setLogs] = useState<string[]>([]);
   const [steps, setSteps] = useState<EvoiceJobStep[]>([]);
   const [fileProgress, setFileProgress] = useState<EvoiceJobFile[]>([]);
@@ -431,6 +462,22 @@ function EvoiceWorkspace() {
     await reloadDocsAudios(ownerSafe, project);
   }
 
+  async function onCrawl(e: FormEvent) {
+    e.preventDefault();
+    const url = crawlUrl.trim();
+    if (!url || !ownerSafe || !project || busy) return;
+    setBusy(true);
+    const res = await crawlEvoiceDocURL(ownerSafe, project, url);
+    setBusy(false);
+    if (res.error) {
+      showError("Crawl", res.error);
+      return;
+    }
+    setCrawlUrl("");
+    await reloadDocsAudios(ownerSafe, project);
+    setView("docs");
+  }
+
   async function onDeleteDoc(name: string) {
     if (!ownerSafe || !project || busy) return;
     if (!window.confirm(`Delete document ${name}?`)) return;
@@ -611,10 +658,24 @@ function EvoiceWorkspace() {
   }
 
   const sourceDocs = docs.filter((d) => isSourceDoc(d.name));
+  const showWorkspace = view !== "dashboard";
 
   return (
     <div className="evoice">
-      {isAdmin ? (
+      <ProductHeaderMenu
+        menuId="evoice-product-header-menu"
+        items={[...EVOICE_VIEWS]}
+        activeId={view}
+        onSelect={setView}
+      />
+
+      {view === "dashboard" ? (
+        <ProductHubShell title="eVoice">
+          <DashboardGrid cards={EVOICE_CARDS} onSelect={setView} />
+        </ProductHubShell>
+      ) : null}
+
+      {showWorkspace && view === "admin" && isAdmin ? (
         <label className="evoice__field evoice__admin">
           <span>Admin only</span>
           <select
@@ -645,6 +706,8 @@ function EvoiceWorkspace() {
         </label>
       ) : null}
 
+      {showWorkspace ? (
+      <>
       <div className="evoice__toolbar">
         <label className="evoice__field evoice__field--twin">
           <span>Project</span>
@@ -685,6 +748,7 @@ function EvoiceWorkspace() {
 
       {project ? (
         <>
+          {view === "upload" ? (
           <section
             className={
               showPaste
@@ -768,8 +832,59 @@ function EvoiceWorkspace() {
               </form>
             ) : null}
           </section>
+          ) : null}
 
+          {view === "crawl" ? (
+            <section className="evoice__panel">
+              <h2>Crawl URL</h2>
+              <p className="evoice__hint">
+                Enter a public URL. We validate it, extract text, clean it with DeepSeek for
+                TTS, and save it as a project doc.
+              </p>
+              <form className="evoice__paste" onSubmit={(e) => void onCrawl(e)}>
+                <label className="evoice__field evoice__field--grow">
+                  <span>URL</span>
+                  <input
+                    className="evoice__input"
+                    type="url"
+                    value={crawlUrl}
+                    onChange={(e) => setCrawlUrl(e.target.value)}
+                    placeholder="https://…"
+                    disabled={busy}
+                    required
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="btn btn--blue"
+                  disabled={busy || !crawlUrl.trim()}
+                >
+                  Crawl &amp; save doc
+                </button>
+              </form>
+            </section>
+          ) : null}
+
+          {view === "print" ? (
+            <section className="evoice__panel">
+              <h2>Print documents</h2>
+              <p className="evoice__hint">Print-friendly list of source documents.</p>
+              <ul className="evoice__list">
+                {sourceDocs.map((d) => (
+                  <li key={d.key} className="evoice__doc-row">
+                    <span className="evoice__doc-name">{d.name}</span>
+                  </li>
+                ))}
+              </ul>
+              <button type="button" className="btn" onClick={() => window.print()}>
+                Print
+              </button>
+            </section>
+          ) : null}
+
+          {view === "docs" || view === "audios" || view === "playlists" ? (
           <div className="evoice__workspace evoice__workspace--docs-playlist">
+            {view === "docs" ? (
             <section className="evoice__panel evoice__panel--docs">
               <div className="evoice__panel-head">
                 <h2>Docs</h2>
@@ -885,7 +1000,9 @@ function EvoiceWorkspace() {
                 </button>
               </div>
             </section>
+            ) : null}
 
+            {view === "audios" || view === "playlists" ? (
             <section className="evoice__panel evoice__panel--playlist">
               <h2>Playlist</h2>
               {audios.length === 0 ? (
@@ -1010,7 +1127,9 @@ function EvoiceWorkspace() {
                 </button>
               </div>
             </section>
+            ) : null}
           </div>
+          ) : null}
 
           <section className="evoice__panel evoice__panel--console">
             <h2>Console</h2>
@@ -1045,6 +1164,8 @@ function EvoiceWorkspace() {
             <pre className="evoice__log">{logs.join("\n") || "—"}</pre>
           </section>
         </>
+      ) : null}
+      </>
       ) : null}
     </div>
   );

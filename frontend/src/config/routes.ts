@@ -218,6 +218,8 @@ export const EVOICE_ROUTES = {
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/docs`,
   projectDocsText: (ownerSafe: string, project: string) =>
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/docs/text`,
+  projectDocsCrawl: (ownerSafe: string, project: string) =>
+    `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/docs/crawl`,
   projectDoc: (ownerSafe: string, project: string, name: string) =>
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/docs?name=${encodeURIComponent(name)}`,
   projectAudios: (ownerSafe: string, project: string) =>

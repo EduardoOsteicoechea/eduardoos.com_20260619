@@ -57,6 +57,7 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Get("/api/evoice/projects/{ownerSafe}/{project}/docs", h.ListDocs)
 		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/docs", h.UploadDoc)
 		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/docs/text", h.PasteDocText)
+		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/docs/crawl", h.CrawlDocText)
 		pr.Delete("/api/evoice/projects/{ownerSafe}/{project}/docs", h.DeleteDoc)
 		pr.Delete("/api/evoice/projects/{ownerSafe}/{project}/docs/*", h.DeleteDoc)
 		pr.Get("/api/evoice/projects/{ownerSafe}/{project}/audios", h.ListAudios)

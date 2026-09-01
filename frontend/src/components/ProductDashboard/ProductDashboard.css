@@ -1,0 +1,97 @@
+/**
+ * Product dashboard cards + header short labels (spec 045).
+ * Borderless; spacing via margin/padding tokens.
+ */
+
+.product-dash {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--p3) var(--page-inline-pad, var(--p2)) var(--p5);
+  color: var(--fg);
+}
+
+.product-dash__title {
+  margin: 0 0 var(--m3);
+  font-family: var(--font-display);
+  font-size: var(--font-lg);
+  font-weight: 650;
+}
+
+.product-dash__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--m2);
+}
+
+.product-dash__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--m1);
+  text-align: left;
+  min-height: calc(var(--bmh) * 3);
+  padding: var(--p3);
+  border: none;
+  border-radius: var(--br);
+  background: var(--site-surface);
+  color: var(--fg);
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+
+.product-dash__card:hover {
+  background: color-mix(in srgb, var(--btn-blue) 12%, var(--site-surface));
+}
+
+.product-dash__card-title {
+  font-size: var(--font-base);
+  font-weight: 650;
+}
+
+.product-dash__card-desc {
+  font-size: var(--font-sm);
+  opacity: 0.75;
+  line-height: 1.35;
+}
+
+.product-dash__header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--m1);
+  align-items: center;
+}
+
+.product-dash__header-btn {
+  min-height: var(--bmh);
+  max-height: var(--bmh);
+  padding: 0 var(--p1);
+  border: none;
+  border-radius: var(--br);
+  background: var(--site-surface);
+  color: var(--fg);
+  font-family: var(--font-display);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.product-dash__header-btn--active,
+.product-dash__header-btn:hover {
+  background: var(--btn-blue);
+  color: var(--btn-blue-fg);
+}
+
+@media (min-width: 768px) {
+  .product-dash__header-inner {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .product-dash__header-btn {
+    width: 100%;
+    writing-mode: horizontal-tb;
+    font-size: 0.65rem;
+    padding: 0 0.15rem;
+  }
+}

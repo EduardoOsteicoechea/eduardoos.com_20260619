@@ -191,6 +191,29 @@ export async function pasteEvoiceDocText(
   return { name: result.data?.name ?? "" };
 }
 
+export async function crawlEvoiceDocURL(
+  ownerSafe: string,
+  project: string,
+  url: string,
+): Promise<{ name: string; preview?: string; error?: string }> {
+  const result = await apiRequest<{ name: string; preview?: string }>(
+    EVOICE_ROUTES.projectDocsCrawl(ownerSafe, project),
+    {
+      method: "POST",
+      body: { url },
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { name: "", error: formatApiError(result.error) };
+  }
+  return {
+    name: result.data?.name ?? "",
+    preview: result.data?.preview,
+  };
+}
+
 export async function deleteEvoiceDoc(
   ownerSafe: string,
   project: string,

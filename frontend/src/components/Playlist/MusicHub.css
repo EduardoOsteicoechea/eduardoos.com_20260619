@@ -1,0 +1,86 @@
+.music-hub__panel {
+  margin-top: var(--m2);
+}
+
+.music-hub__h {
+  margin: 0 0 var(--m2);
+  font-family: var(--font-display);
+  font-size: var(--font-lg);
+  font-weight: 650;
+}
+
+.music-hub__hint {
+  margin: 0 0 var(--m2);
+  font-size: var(--font-sm);
+  opacity: 0.8;
+}
+
+.music-hub__empty,
+.music-hub__error {
+  margin: 0 0 var(--m2);
+  font-family: var(--font-body);
+}
+
+.music-hub__error {
+  color: var(--btn-red);
+}
+
+.music-hub__upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--m2);
+}
+
+.music-hub__upload-card {
+  display: grid;
+  gap: var(--m2);
+  padding: var(--p3);
+  background: var(--site-surface);
+  border-radius: var(--br);
+}
+
+.music-hub__upload-card h3 {
+  margin: 0;
+  font-size: var(--font-base);
+}
+
+.music-hub__field {
+  display: grid;
+  gap: var(--m1);
+  font-size: var(--font-sm);
+}
+
+.music-hub__field input,
+.music-hub__field select {
+  min-height: var(--bmh);
+  padding: 0 var(--p1);
+  border: none;
+  border-radius: var(--br);
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+}
+
+.music-hub__list {
+  list-style: none;
+  margin: 0 0 var(--m2);
+  padding: 0;
+  display: grid;
+  gap: var(--m1);
+}
+
+.music-hub__list-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--m1);
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--p2);
+  background: var(--site-surface);
+  border-radius: var(--br);
+}
+
+.music-hub__meta {
+  font-size: var(--font-sm);
+  opacity: 0.7;
+}

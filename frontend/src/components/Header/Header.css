@@ -38,8 +38,8 @@
   box-sizing: border-box;
   margin: 0;
   transform: none;
-  background: var(--glassed_background, var(--site-body-bg));
-  border-bottom: var(--border_001);
+  background: var(--glassed_background, var(--bg));
+  border-bottom: none;
   backdrop-filter: blur(12px);
   overflow: visible;
 }
@@ -48,16 +48,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: var(--bmw);
+  height: var(--bmh);
   flex-shrink: 0;
-  border: 1px solid color-mix(in srgb, var(--site-body-fg) 28%, transparent);
-  border-radius: var(--border_radius_001);
+  border: none;
+  border-radius: var(--br);
   box-sizing: border-box;
   text-decoration: none;
   color: inherit;
   order: 1;
-  background: var(--site-surface, var(--site-body-bg));
+  background: var(--site-surface);
 }
 
 .site-header__logo:hover {
@@ -124,15 +124,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  min-height: 2.25rem;
-  min-width: 2.25rem;
+  width: var(--bmw);
+  height: var(--bmh);
+  min-height: var(--bmh);
+  min-width: var(--bmw);
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--site-body-fg) 28%, transparent);
-  border-radius: var(--border_radius_001);
-  background: var(--site-surface, var(--site-body-bg));
-  color: var(--site-body-fg);
+  border: none;
+  border-radius: var(--br);
+  background: var(--site-surface);
+  color: var(--fg);
   box-shadow: none;
   cursor: pointer;
   flex-shrink: 0;
@@ -140,8 +140,7 @@
 }
 
 .site-header__menu:hover {
-  border-color: var(--site-accent);
-  color: var(--site-accent);
+  color: var(--btn-blue);
 }
 
 .site-header__menu-icon {
@@ -593,15 +592,15 @@
     left: 0;
     right: auto;
     bottom: 0;
-    width: var(--header_width, 60px);
-    min-width: var(--header_width, 60px);
+    width: var(--header_width, var(--lbw));
+    min-width: var(--header_width, var(--lbw));
     /* Full-height rail — do not inherit the mobile top-bar height calc. */
     height: 100dvh;
     min-height: 100dvh;
     max-height: none;
-    padding: 0.75rem 0.35rem 0.85rem;
+    padding: var(--p2) var(--p1) var(--p2);
     border-bottom: none;
-    border-right: var(--border_001);
+    border-right: none;
     background: color-mix(in srgb, var(--site-surface) 96%, var(--site-body-bg));
     backdrop-filter: none;
     box-shadow: 1px 0 0 color-mix(in srgb, var(--site-body-fg) 3%, transparent);

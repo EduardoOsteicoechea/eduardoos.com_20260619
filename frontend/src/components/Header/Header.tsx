@@ -368,7 +368,8 @@ export function Header({ pathname }: HeaderProps) {
       const root = document.documentElement;
       const isDesktop = window.matchMedia("(min-width: 768px)").matches;
       if (isDesktop) {
-        root.style.setProperty("--header_width", "60px");
+        // Leave --header_width to theme.css (--lbw); only zero vertical chrome.
+        root.style.removeProperty("--header_width");
         root.style.setProperty("--header_height", "0px");
         root.style.setProperty("--header_safe_top", "0px");
         root.style.setProperty("--header_offset", "0px");

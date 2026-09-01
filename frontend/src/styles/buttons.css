@@ -2,45 +2,61 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  min-height: var(--control_min_height);
-  min-width: var(--control_min_width);
-  padding: 0 1rem;
-  border: var(--border_001);
-  border-radius: var(--border_radius_001);
+  gap: var(--m1);
+  min-height: var(--bmh);
+  min-width: var(--bmw);
+  max-height: var(--bmh);
+  padding: 0 var(--p2);
+  border: none;
+  border-radius: var(--br);
   background: var(--site-surface);
-  color: var(--site-body-fg);
-  font-family: var(--font-display, Montserrat, system-ui, sans-serif);
+  color: var(--fg);
+  font-family: var(--font-display);
   font-size: var(--font-base);
   font-weight: 600;
   letter-spacing: 0.01em;
   cursor: pointer;
   text-decoration: none;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease,
-    filter 0.2s ease;
+  transition: filter 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
 .btn:hover {
-  border-color: var(--site-accent);
-  color: var(--site-accent);
+  filter: brightness(0.97);
   text-decoration: none;
 }
 
-.btn--primary {
-  background: var(--site-accent);
-  border-color: var(--site-accent);
-  color: var(--site-accent-fg);
+.btn--primary,
+.btn--blue {
+  background: var(--btn-blue);
+  color: var(--btn-blue-fg);
 }
 
 a.btn--primary,
-button.btn--primary {
-  color: var(--site-accent-fg);
+button.btn--primary,
+a.btn--blue,
+button.btn--blue {
+  color: var(--btn-blue-fg);
 }
 
-.btn--primary:hover {
+.btn--primary:hover,
+.btn--blue:hover {
   filter: brightness(1.05);
-  border-color: var(--site-accent);
-  color: var(--site-accent-fg);
+  color: var(--btn-blue-fg);
+}
+
+.btn--green {
+  background: var(--btn-green);
+  color: var(--btn-green-fg);
+}
+
+.btn--yellow {
+  background: var(--btn-yellow);
+  color: var(--btn-yellow-fg);
+}
+
+.btn--red {
+  background: var(--btn-red);
+  color: var(--btn-red-fg);
 }
 
 .btn:disabled {
@@ -49,12 +65,11 @@ button.btn--primary {
   filter: none;
 }
 
-/* Home / marketing CTAs — formal tracking without forcing tool UIs */
 .home-hero__links .btn,
 .contact-page .btn,
 .product-page__cta-row .btn {
   font-size: var(--font-sm);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding-inline: 1.15rem;
+  padding-inline: var(--p2);
 }

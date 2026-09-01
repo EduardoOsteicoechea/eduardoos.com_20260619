@@ -19,8 +19,6 @@ import {
 import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import PlaylistControls from "./PlaylistControls";
 import PlaylistLyrics from "./PlaylistLyrics";
-import SongRecorder from "./SongRecorder";
-import MusicHeaderMenu from "./MusicHeaderMenu";
 import { IconAddToPlaylist, IconChevronDown, IconChevronUp, IconRemove, } from "./PlaylistIcons";
 import "./PlaylistBuilder.css";
 const DRAG_MIME = "application/x-eduardoos-track-key";
@@ -730,12 +728,7 @@ export default function PlaylistBuilder() {
         }}
       />
 
-      <MusicHeaderMenu
-        isAdmin={isAdmin}
-        onUploaded={(track) => void handleRecordedTrack(track)}
-      />
-
-      <SongRecorder onRecorded={(track) => void handleRecordedTrack(track)} />
+      {/* Upload/record live in Music hub ?view=upload|rec (spec 045). */}
 
       <div className="playlist-builder__grid">
         <section className="playlist-builder__panel playlist-builder__panel--library" aria-label="Audio library">

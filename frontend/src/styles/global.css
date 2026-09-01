@@ -10,8 +10,8 @@
 
 html {
   scroll-behavior: smooth;
-  /* Rem root — A+/A− in the nav tray adjust --site-text-scale (see lib/uiScale.ts). */
-  font-size: calc(100% * var(--site-text-scale, 1));
+  /* Spec 045: absolute 14px root × A+/A− scale. */
+  font-size: calc(14px * var(--site-text-scale, 1));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -32,9 +32,9 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: var(--site-body-bg);
-  color: var(--site-body-fg);
-  font-family: var(--font-body, var(--font-sans));
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -57,7 +57,7 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--site-focus-ring, var(--site-accent));
+  outline: 2px solid var(--site-focus-ring, var(--btn-blue));
   outline-offset: 2px;
 }
 

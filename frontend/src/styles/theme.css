@@ -1,136 +1,197 @@
 /**
- * Theme tokens — Eduardo OS Next
- * BIM/AEC blueprint vernacular elevated to gallery-atelier elegance
- * (see .cursor/skills/elegant-formal-ui + bim-aec-frontend).
- *
- * Light/dark via html[data-theme] (+ html.dark). Persist key: eduardoos-theme.
- * Signature: cool limestone / evening ink + muted steel (not purple SaaS,
- * not cream/terracotta, not neon hacker grid).
+ * Theme tokens — Eduardo OS (spec 045).
+ * Root 14px × --site-text-scale; Calibri / system-ui.
+ * Spacing --m* / --p*; chrome --bmh/--bmw/--lbw/--br; colors --bg/--fg + ISO buttons.
+ * Phone / tablet / desktop lists. Aliases keep --site-* working during migration.
+ * Pamphlet mm/px and Scrib sheet geometry are pass-through (do not rem-convert).
  */
 
 :root {
   --ui-scale: 1.5;
-  /*
-   * Mobile top bar: --header_bar_height is the content row (logo/menu).
-   * --header_height mirrors that for layout consumers; desktop zeroes it.
-   * --header_offset = content row + safe-area (notch). Never measure a fixed
-   * wrapper in JS — that returns 0 and collapses the bar.
-   */
-  --header_bar_height: 60px;
-  --header_height: 60px;
+  --site-text-scale: 1;
+
+  /* Desktop token list (overridden below for tablet/phone). */
+  --m1: 0.75rem;
+  --m2: 1.125rem;
+  --m3: 1.5rem;
+  --m4: 2.25rem;
+  --m5: 3rem;
+  --p1: 0.75rem;
+  --p2: 1.125rem;
+  --p3: 1.5rem;
+  --p4: 2.25rem;
+  --p5: 3rem;
+  --bmh: 2.25rem;
+  --bmw: 2.25rem;
+  --lbw: 4.285714rem;
+  --br: 0.215rem;
+
+  --bg: #f2f3f6;
+  --fg: #141820;
+  --btn-blue: #2563eb;
+  --btn-blue-fg: #ffffff;
+  --btn-green: #16a34a;
+  --btn-green-fg: #ffffff;
+  --btn-yellow: #ca8a04;
+  --btn-yellow-fg: #141820;
+  --btn-red: #dc2626;
+  --btn-red-fg: #ffffff;
+
+  /* Aliases for existing CSS */
+  --site-body-bg: var(--bg);
+  --site-body-fg: var(--fg);
+  --site-accent: var(--btn-blue);
+  --site-accent-fg: var(--btn-blue-fg);
+  --site-medium: color-mix(in srgb, var(--bg) 52%, var(--fg) 48%);
+  --site-medium-fg: var(--fg);
+  --site-border: transparent;
+  --glassed_background: color-mix(in srgb, var(--bg) 88%, transparent);
+  --site-surface: color-mix(in srgb, var(--bg) 92%, var(--fg) 8%);
+  --site-surface-muted: color-mix(in srgb, var(--btn-blue) 5%, var(--bg));
+  --site-muted-fg: color-mix(in srgb, var(--fg) 55%, var(--bg) 45%);
+  --site-meta-fg: color-mix(in srgb, var(--fg) 68%, var(--bg) 32%);
+  --site-danger: var(--btn-red);
+  --site-focus-ring: color-mix(in srgb, var(--btn-blue) 45%, transparent);
+  --site-shadow: none;
+  --border_001: none;
+  --site-wash-accent: color-mix(in srgb, var(--btn-blue) 10%, transparent);
+  --site-wash-ink: color-mix(in srgb, var(--fg) 2.5%, transparent);
+
+  --header_bar_height: var(--bmh);
+  --header_height: calc(var(--bmh) * 1.35);
   --header_width: 0px;
-  /* Notch / status-bar inset (iOS etc.). Zeroed on desktop so the left rail stays flush. */
   --header_safe_top: env(safe-area-inset-top, 0px);
-  /* Total vertical chrome reserved above main on mobile. */
-  --header_offset: calc(var(--header_bar_height) + var(--header_safe_top));
-  --control_min_height: 2.25rem;
-  --control_min_width: 2.25rem;
-  --border_radius_001: 3px;
+  --header_offset: calc(var(--header_height) + var(--header_safe_top));
+  --control_min_height: var(--bmh);
+  --control_min_width: var(--bmw);
+  --border_radius_001: var(--br);
   --max_desktop_width: 72rem;
-  --page-inline-pad: 15px;
+  --page-inline-pad: var(--p2);
 
-  /* Brand display · Montserrat UI · Raleway body · Roboto utility */
-  --font-brand: "Cormorant Garamond", Georgia, "Times New Roman", serif;
-  --font-sans: Montserrat, Raleway, Roboto, system-ui, sans-serif;
-  --font-display: Montserrat, system-ui, sans-serif;
-  --font-body: Raleway, Montserrat, system-ui, sans-serif;
-  --font-utility: Roboto, system-ui, sans-serif;
+  --font-brand: Calibri, system-ui, sans-serif;
+  --font-sans: Calibri, system-ui, sans-serif;
+  --font-display: Calibri, system-ui, sans-serif;
+  --font-body: Calibri, system-ui, sans-serif;
+  --font-utility: Calibri, system-ui, sans-serif;
 
-  /* Light — cool limestone atelier */
-  --site-body-bg: #f2f3f6;
-  --site-body-fg: #141820;
-  --site-accent: #3d5a80;
-  --site-accent-fg: #f7f8fa;
-  --site-medium: color-mix(in srgb, var(--site-body-bg) 52%, var(--site-body-fg) 48%);
-  --site-medium-fg: var(--site-body-fg);
-  --site-border: color-mix(in srgb, var(--site-body-fg) 14%, transparent);
-  --glassed_background: color-mix(in srgb, var(--site-body-bg) 88%, transparent);
-  --site-surface: #fafbfc;
-  --site-surface-muted: color-mix(in srgb, var(--site-accent) 5%, var(--site-body-bg));
-  --site-muted-fg: color-mix(in srgb, var(--site-body-fg) 55%, var(--site-body-bg) 45%);
-  --site-meta-fg: color-mix(in srgb, var(--site-body-fg) 68%, var(--site-body-bg) 32%);
-  --site-danger: #9b2c2c;
-  --site-focus-ring: color-mix(in srgb, var(--site-accent) 45%, transparent);
-  --site-shadow: 0 1px 0 color-mix(in srgb, var(--site-body-fg) 4%, transparent),
-    0 10px 28px color-mix(in srgb, #141820 5%, transparent);
-  --border_001: 1px solid var(--site-border);
-  --site-wash-accent: color-mix(in srgb, var(--site-accent) 10%, transparent);
-  --site-wash-ink: color-mix(in srgb, var(--site-body-fg) 2.5%, transparent);
-
-  --font-xs: 0.65rem;
-  --font-sm: 0.77rem;
-  --font-md: 0.9rem;
+  --font-xs: 0.75rem;
+  --font-sm: 0.875rem;
+  --font-md: 1rem;
   --font-base: 1rem;
   --font-lg: 1.25rem;
-  --font-xl: 1.65rem;
+  --font-xl: 1.5rem;
 
   color-scheme: light;
 }
 
+/* Phone — ×0.8, no left rail */
+@media (max-width: 767.98px) {
+  :root {
+    --m1: 0.6rem;
+    --m2: 0.9rem;
+    --m3: 1.2rem;
+    --m4: 1.8rem;
+    --m5: 2.4rem;
+    --p1: 0.6rem;
+    --p2: 0.9rem;
+    --p3: 1.2rem;
+    --p4: 1.8rem;
+    --p5: 2.4rem;
+    --bmh: 1.8rem;
+    --bmw: 1.8rem;
+    --lbw: 0;
+    --br: 0.172rem;
+    --header_width: 0px;
+    --header_height: calc(var(--bmh) * 1.35);
+    --header_bar_height: var(--bmh);
+    --header_offset: calc(var(--header_height) + var(--header_safe_top));
+    --control_min_height: var(--bmh);
+    --control_min_width: var(--bmw);
+    --page-inline-pad: var(--p2);
+  }
+}
+
+/* Tablet — ×0.9 + left rail */
+@media (min-width: 768px) and (max-width: 1099.98px) {
+  :root {
+    --m1: 0.675rem;
+    --m2: 1.0125rem;
+    --m3: 1.35rem;
+    --m4: 2.025rem;
+    --m5: 2.7rem;
+    --p1: 0.675rem;
+    --p2: 1.0125rem;
+    --p3: 1.35rem;
+    --p4: 2.025rem;
+    --p5: 2.7rem;
+    --bmh: 2.025rem;
+    --bmw: 2.025rem;
+    --lbw: 3.857143rem;
+    --br: 0.1935rem;
+    --header_height: 0px;
+    --header_bar_height: 0px;
+    --header_width: var(--lbw);
+    --header_safe_top: 0px;
+    --header_offset: 0px;
+    --control_min_height: var(--bmh);
+    --control_min_width: var(--bmw);
+    --page-inline-pad: var(--p2);
+    --ui-scale: 1.25;
+  }
+}
+
+/* Desktop — full scale + left rail */
+@media (min-width: 1100px) {
+  :root {
+    --m1: 0.75rem;
+    --m2: 1.125rem;
+    --m3: 1.5rem;
+    --m4: 2.25rem;
+    --m5: 3rem;
+    --p1: 0.75rem;
+    --p2: 1.125rem;
+    --p3: 1.5rem;
+    --p4: 2.25rem;
+    --p5: 3rem;
+    --bmh: 2.25rem;
+    --bmw: 2.25rem;
+    --lbw: 4.285714rem;
+    --br: 0.215rem;
+    --header_height: 0px;
+    --header_bar_height: 0px;
+    --header_width: var(--lbw);
+    --header_safe_top: 0px;
+    --header_offset: 0px;
+    --control_min_height: var(--bmh);
+    --control_min_width: var(--bmw);
+    --page-inline-pad: var(--p2);
+    --ui-scale: 1;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --site-body-bg: #0e1116;
-    --site-body-fg: #e8eaef;
-    --site-accent: #8fa8c8;
-    --site-accent-fg: #0e1116;
-    --site-surface: #161b24;
-    --site-surface-muted: color-mix(in srgb, var(--site-accent) 8%, var(--site-body-bg));
-    --site-border: color-mix(in srgb, var(--site-body-fg) 14%, transparent);
-    --glassed_background: color-mix(in srgb, var(--site-body-bg) 86%, transparent);
-    --site-shadow: 0 1px 0 color-mix(in srgb, #fff 3%, transparent),
-      0 14px 36px color-mix(in srgb, #000 40%, transparent);
-    --site-wash-accent: color-mix(in srgb, var(--site-accent) 9%, transparent);
-    --site-wash-ink: color-mix(in srgb, var(--site-body-fg) 2%, transparent);
+    --bg: #0e1116;
+    --fg: #e8eaef;
+    --site-surface: color-mix(in srgb, var(--bg) 88%, var(--fg) 12%);
+    --glassed_background: color-mix(in srgb, var(--bg) 86%, transparent);
     color-scheme: dark;
   }
 }
 
 html[data-theme="light"] {
-  --site-body-bg: #f2f3f6;
-  --site-body-fg: #141820;
-  --site-accent: #3d5a80;
-  --site-accent-fg: #f7f8fa;
-  --site-surface: #fafbfc;
-  --site-surface-muted: color-mix(in srgb, var(--site-accent) 5%, var(--site-body-bg));
-  --site-border: color-mix(in srgb, var(--site-body-fg) 14%, transparent);
-  --glassed_background: color-mix(in srgb, var(--site-body-bg) 88%, transparent);
-  --site-shadow: 0 1px 0 color-mix(in srgb, var(--site-body-fg) 4%, transparent),
-    0 10px 28px color-mix(in srgb, #141820 5%, transparent);
-  --site-wash-accent: color-mix(in srgb, var(--site-accent) 10%, transparent);
-  --site-wash-ink: color-mix(in srgb, var(--site-body-fg) 2.5%, transparent);
+  --bg: #f2f3f6;
+  --fg: #141820;
+  --site-surface: color-mix(in srgb, var(--bg) 92%, var(--fg) 8%);
+  --glassed_background: color-mix(in srgb, var(--bg) 88%, transparent);
   color-scheme: light;
 }
 
 html[data-theme="dark"],
 html.dark {
-  --site-body-bg: #0e1116;
-  --site-body-fg: #e8eaef;
-  --site-accent: #8fa8c8;
-  --site-accent-fg: #0e1116;
-  --site-surface: #161b24;
-  --site-surface-muted: color-mix(in srgb, var(--site-accent) 8%, var(--site-body-bg));
-  --site-border: color-mix(in srgb, var(--site-body-fg) 14%, transparent);
-  --glassed_background: color-mix(in srgb, var(--site-body-bg) 86%, transparent);
-  --site-shadow: 0 1px 0 color-mix(in srgb, #fff 3%, transparent),
-    0 14px 36px color-mix(in srgb, #000 40%, transparent);
-  --site-wash-accent: color-mix(in srgb, var(--site-accent) 9%, transparent);
-  --site-wash-ink: color-mix(in srgb, var(--site-body-fg) 2%, transparent);
+  --bg: #0e1116;
+  --fg: #e8eaef;
+  --site-surface: color-mix(in srgb, var(--bg) 88%, var(--fg) 12%);
+  --glassed_background: color-mix(in srgb, var(--bg) 86%, transparent);
   color-scheme: dark;
-}
-
-/* Desktop chrome: fixed left rail replaces the top bar. */
-@media (min-width: 768px) {
-  :root {
-    --header_height: 0px;
-    --header_bar_height: 0px;
-    --header_width: 60px;
-    --header_safe_top: 0px;
-    --header_offset: 0px;
-  }
-}
-
-@media (min-width: 1024px) {
-  :root {
-    --ui-scale: 1;
-  }
 }
