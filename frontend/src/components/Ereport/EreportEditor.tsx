@@ -20,7 +20,14 @@ import {
 import EreportHeaderMenu, { type EreportModalKind } from "./EreportHeaderMenu";
 import "./Ereport.css";
 
-const TRACKER_SRC = "/ereport-tracker.html?v=049a";
+const TRACKER_SRC = "/ereport-tracker.html?v=050a";
+
+function siteIsDark(): boolean {
+  return (
+    document.documentElement.getAttribute("data-theme") === "dark" ||
+    document.documentElement.classList.contains("dark")
+  );
+}
 
 type EditorIds = {
   ownerSafe: string;
@@ -133,11 +140,17 @@ export default function EreportEditor() {
       if (ev.origin !== window.location.origin) return;
       const d = ev.data;
       if (!d || d.source !== "ereport-tracker") return;
-      if (d.type === "booted" || d.type === "loaded") {
+      /* Boot once with cloud payload. "loaded" (incl. local file pick) only re-syncs theme —
+         never re-pushes payloadRef or a file load would be wiped by the cloud copy. */
+      if (d.type === "booted") {
         setTrackerReady(true);
         if (payloadRef.current) {
           postToTracker({ type: "load", payload: payloadRef.current });
         }
+        postToTracker({ type: "theme", dark: siteIsDark() });
+      }
+      if (d.type === "loaded") {
+        postToTracker({ type: "theme", dark: siteIsDark() });
       }
       if (d.type === "cloud-save" && ids && d.payload) {
         void (async () => {
@@ -167,10 +180,20 @@ export default function EreportEditor() {
   useEffect(() => {
     if (!trackerReady || !payloadRef.current) return;
     postToTracker({ type: "load", payload: payloadRef.current });
-    const dark =
-      document.documentElement.getAttribute("data-theme") === "dark" ||
-      document.documentElement.classList.contains("dark");
-    postToTracker({ type: "theme", dark });
+    postToTracker({ type: "theme", dark: siteIsDark() });
+  }, [trackerReady, postToTracker]);
+
+  /* Follow Header theme toggler — push into iframe whenever html theme attrs change. */
+  useEffect(() => {
+    if (!trackerReady) return;
+    const push = () => postToTracker({ type: "theme", dark: siteIsDark() });
+    push();
+    const obs = new MutationObserver(push);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme", "class"],
+    });
+    return () => obs.disconnect();
   }, [trackerReady, postToTracker]);
 
   async function onSaveTema() {

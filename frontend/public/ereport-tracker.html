@@ -701,7 +701,6 @@ body:not(.theme-dark) .item-card.is-no_aplica {
   <div class="topbar-actions">
     <button type="button" id="btn-tutorial" title="Cómo usarla" aria-label="Tutorial"><span class="material-icons">help_outline</span></button>
     <button type="button" id="btn-toggle-sidebar" title="Mostrar/ocultar sidebar" aria-label="Sidebar"><span class="material-icons">view_sidebar</span></button>
-    <button type="button" id="btn-toggle-theme" title="Tema claro/oscuro" aria-label="Tema"><span class="material-icons">dark_mode</span></button>
     <button type="button" id="btn-font-up" title="Agrandar fuente" aria-label="Agrandar fuente"><span class="material-icons">text_increase</span></button>
     <button type="button" id="btn-font-down" title="Reducir fuente" aria-label="Reducir fuente"><span class="material-icons">text_decrease</span></button>
     <button type="button" id="btn-upload-ereport" title="Cargar .ereport" aria-label="Cargar reporte"><span class="material-icons">upload_file</span></button>
@@ -756,7 +755,7 @@ body:not(.theme-dark) .item-card.is-no_aplica {
     <div class="howto-modal-body">
       <ol>
         <li>Completá <strong>Organization</strong>, <strong>Report name</strong>, <strong>fecha</strong> y <strong>número</strong>.</li>
-        <li>Usá la barra superior para tema, tamaño de fuente, cargar <strong>.ereport</strong>, limpiar, ver progreso o <strong>guardar todo</strong>.</li>
+        <li>Usá la barra superior para tamaño de fuente, cargar <strong>.ereport</strong>, limpiar, ver progreso o <strong>guardar todo</strong>. El tema claro/oscuro sigue el interruptor del menú global del sitio.</li>
         <li>El sidebar derecho navega por cada incidencia (tooltip: subartículo + nombre).</li>
         <li>Al guardar se exportan <strong>.ereport + HTML + PDF</strong>. Las imágenes van en base64 dentro del .ereport.</li>
       </ol>
@@ -919,14 +918,9 @@ function normalizeState(data) {
 }
 
 function applyTheme() {
+  /* Visual theme only — no local toggle; host / site Header drives light|dark. */
   const dark = state.theme !== "light";
   document.body.classList.toggle("theme-dark", dark);
-  const btn = document.getElementById("btn-toggle-theme");
-  if (btn) {
-    btn.classList.toggle("active", dark);
-    const icon = btn.querySelector(".material-icons");
-    if (icon) icon.textContent = dark ? "dark_mode" : "light_mode";
-  }
 }
 function setTheme(theme) {
   state.theme = theme === "light" ? "light" : "dark";
@@ -1736,6 +1730,10 @@ function loadEreportFile(file) {
       bindMeta();
       render();
       toast("Reporte .ereport cargado");
+      /* Ask host to re-apply site theme (file may carry its own theme field). */
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ source: "ereport-tracker", type: "loaded" }, "*");
+      }
     } catch (e) {
       toast(".ereport inválido: " + e.message);
     }
@@ -1765,9 +1763,6 @@ document.getElementById("btn-toggle-sidebar").onclick = () => {
     "active", document.body.classList.contains("sidebar-collapsed"));
 };
 applyTheme();
-document.getElementById("btn-toggle-theme").onclick = () => {
-  setTheme(state.theme === "dark" ? "light" : "dark");
-};
 document.getElementById("btn-font-up").onclick = () => {
   baseFontPx = Math.min(22, baseFontPx + 1);
   document.documentElement.style.fontSize = baseFontPx + "px";
@@ -1778,8 +1773,10 @@ document.getElementById("btn-font-down").onclick = () => {
 };
 document.getElementById("btn-upload-ereport").onclick = () => document.getElementById("ereport-file").click();
 document.getElementById("ereport-file").onchange = () => {
-  const f = document.getElementById("ereport-file").files[0];
+  const input = document.getElementById("ereport-file");
+  const f = input.files && input.files[0];
   if (f) loadEreportFile(f);
+  input.value = "";
 };
 document.getElementById("btn-clear-all").onclick = () => {
   if (!confirm("¿Limpiar todos los datos del reporte?")) return;

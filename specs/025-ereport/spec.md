@@ -60,6 +60,7 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
   - **Guardar en nube** — modal with confirm + status; runs collect → `PUT` cloud.
   - **Compartir** — modal to add/remove registered emails (owners only; hidden if `!canShare`).
 - Body: Issue Tracker embedded via host-bridged static HTML at **`/ereport-tracker.html`** (alias `/ereport/tracker.html`).
+- **Theme:** Tracker has **no** local light/dark button. Appearance follows the site Header theme toggler (`eduardoos-theme` / `html[data-theme]`). Host pushes `postMessage` `{ type: "theme", dark }` on boot, after payload load, and whenever the document theme attrs change.
 - **Nav sidebar dots:** color by item status — **green** `aprobado`, **red** `reprobado`, **gray** undefined/empty. Active item keeps a gold focus ring without replacing the status fill.
 - **Inline title edit (tracker):** sección máxima and subsección/grupo titles are **always `<input>` fields** styled as headings (click/focus to edit). Enter or blur commits into state; values persist in `.ereport` via `collectFromDom`.
 - Save in tracker: downloads **and** posts state to host → `PUT` cloud.

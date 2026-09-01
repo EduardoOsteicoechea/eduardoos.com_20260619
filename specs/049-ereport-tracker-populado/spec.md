@@ -2,7 +2,7 @@
 
 ## Status
 
-**Done** (2026-09-01).
+**Done** (2026-09-01). **Amend (2026-09-01):** remove tracker local theme button; follow global Header theme toggler only.
 
 ## Problem
 
@@ -22,6 +22,7 @@ Spec 046 claimed a site-token restyle; the live tracker still lacks the populado
    - Empty default embedded skeleton (generic sections), **not** the Model BA populated C20MCB content.
 4. Cache-bust iframe `?v=` in `EreportEditor.tsx`.
 5. Existing `.ereport` payloads with `sections[]` continue to load (backward compatible `normalizeState` / `normalizeItem`).
+6. **No** `#btn-toggle-theme` in the tracker topbar. Light/dark comes only from the site Header toggler via host `theme` messages (still accept `theme` in payload JSON for export compatibility, but UI theme is driven by host).
 
 ## Non-goals
 
@@ -36,6 +37,7 @@ Spec 046 claimed a site-token restyle; the live tracker still lacks the populado
 - [x] Org + report name fields still bind into payload
 - [x] Empty skeleton (no Model BA sample)
 - [x] Alias `/ereport/tracker.html` synced; cache bust; FE build; commit/push
+- [x] No local theme button; iframe follows site Header theme toggler
 
 ## Affected paths
 
