@@ -301,18 +301,19 @@
 }
 
 .home-profile__faq-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--m2);
   margin-top: 0.5rem;
-  /* Start — do not stretch cards to row height (avoids empty-column / mixed-flow look). */
-  align-items: start;
+  width: 100%;
 }
 
 .home-profile__faq-card {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
@@ -428,10 +429,6 @@
   .home-profile__skill-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-
-  .home-profile__faq-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (min-width: 960px) {
@@ -453,9 +450,5 @@
 
   .home-profile__skill-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .home-profile__faq-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
