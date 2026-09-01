@@ -13,6 +13,7 @@
 - [x] FE build + commit/push
 - [x] `ProductHeaderMenu` / product HDS buttons are **icon-only** Material Symbols (always, no exception — no visible text labels)
 - [x] Single-line inputs + selects + `.btn` share exact `--bmh` height globally (incl. eReport org forms)
+- [x] Inputs/selects/textarea use visible `--site-input-bg` (contrast vs page `--bg` in light + dark)
 
 ## Problem
 
@@ -45,7 +46,8 @@ Site chrome and product hubs still use mixed `--site-*` tokens, rem drift, and b
 - `--br`: `0.215rem`.
 - **`--control_min_height` = `--bmh`** (alias; do not invent a second control height).
 - **Equal control height (global, locked):** every **single-line** text-like `input`, every `select`, and every `.btn` (all variants — primary blue, secondary gray, green/yellow/red) MUST share the **same outer height**: `height` / `min-height` / `max-height` = `var(--bmh)`, `box-sizing: border-box`, vertical padding `0` (horizontal via `--p2`). Inputs must not look shorter than the blue `.btn--primary` / `.btn--blue` buttons (eReport org forms and all other product hubs).
-- **Excluded from equal height:** `textarea`; `input[type=checkbox|radio|range|file|color|hidden]`; Pamphlet document canvas / Scrib sheet geometry (mm/px pass-through); dedicated transport/HDS icon controls that use their own size tokens (e.g. `--playlist-control-size`, header-dynamic icon buttons).
+- **Visible input fill (global, locked):** single-line `input`, `select`, and `textarea` MUST use **`--site-input-bg`**, which is **visibly distinct from page `--bg` in both light and dark** (not transparent, not `--site-body-bg` / `--bg`). Light: solid near-white `#ffffff`. Dark: elevated mix toward `--fg` (readable field box on `#0e1116`). Product overrides must not reset inputs back to page `--bg`.
+- **Excluded from equal height:** `textarea` height may grow (min-height only); `input[type=checkbox|radio|range|file|color|hidden]`; Pamphlet document canvas / Scrib sheet geometry (mm/px pass-through); dedicated transport/HDS icon controls that use their own size tokens (e.g. `--playlist-control-size`, header-dynamic icon buttons).
 
 ### Colors
 - Light: `--bg:#f2f3f6` `--fg:#141820`

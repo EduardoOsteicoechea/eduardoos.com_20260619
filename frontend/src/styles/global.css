@@ -38,7 +38,18 @@ select {
   line-height: 1.2;
   border: var(--border_001, none);
   border-radius: var(--br, var(--border_radius_001, 0.215rem));
-  background: var(--site-body-bg, var(--bg));
+  background: var(--site-input-bg);
+  color: var(--site-body-fg, var(--fg));
+}
+
+textarea {
+  box-sizing: border-box;
+  padding: var(--p1) var(--p2);
+  font: inherit;
+  line-height: 1.4;
+  border: var(--border_001, none);
+  border-radius: var(--br, var(--border_radius_001, 0.215rem));
+  background: var(--site-input-bg);
   color: var(--site-body-fg, var(--fg));
 }
 

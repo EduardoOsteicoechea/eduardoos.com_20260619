@@ -48,6 +48,8 @@
   --glassed_background: color-mix(in srgb, var(--bg) 88%, transparent);
   --site-surface: color-mix(in srgb, var(--bg) 92%, var(--fg) 8%);
   --site-surface-muted: color-mix(in srgb, var(--btn-blue) 5%, var(--bg));
+  /* Spec 045: form fields must read as boxes — never blend into page --bg. */
+  --site-input-bg: #ffffff;
   --site-muted-fg: color-mix(in srgb, var(--fg) 55%, var(--bg) 45%);
   --site-meta-fg: color-mix(in srgb, var(--fg) 68%, var(--bg) 32%);
   --site-danger: var(--btn-red);
@@ -175,6 +177,7 @@
     --bg: #0e1116;
     --fg: #e8eaef;
     --site-surface: color-mix(in srgb, var(--bg) 88%, var(--fg) 12%);
+    --site-input-bg: color-mix(in srgb, var(--bg) 70%, var(--fg) 30%);
     --glassed_background: color-mix(in srgb, var(--bg) 86%, transparent);
     color-scheme: dark;
   }
@@ -184,6 +187,7 @@ html[data-theme="light"] {
   --bg: #f2f3f6;
   --fg: #141820;
   --site-surface: color-mix(in srgb, var(--bg) 92%, var(--fg) 8%);
+  --site-input-bg: #ffffff;
   --glassed_background: color-mix(in srgb, var(--bg) 88%, transparent);
   color-scheme: light;
 }
@@ -193,6 +197,7 @@ html.dark {
   --bg: #0e1116;
   --fg: #e8eaef;
   --site-surface: color-mix(in srgb, var(--bg) 88%, var(--fg) 12%);
+  --site-input-bg: color-mix(in srgb, var(--bg) 70%, var(--fg) 30%);
   --glassed_background: color-mix(in srgb, var(--bg) 86%, transparent);
   color-scheme: dark;
 }

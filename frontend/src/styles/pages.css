@@ -99,7 +99,7 @@
   padding: 0.4rem 0.65rem;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
-  background: var(--site-body-bg);
+  background: var(--site-input-bg);
   color: var(--site-body-fg);
   font: inherit;
 }
