@@ -1,25 +1,28 @@
 .page-shell {
+  box-sizing: border-box;
   width: min(100%, var(--max_desktop_width));
   margin: 0 auto;
-  padding: 1.5rem var(--page-inline-pad) 3rem;
+  padding: var(--p3) var(--page-inline-pad, var(--p2)) var(--p5);
 }
 
 /*
- * eVoice desktop: same lateral inset as home (`--page-inline-pad`), full
- * main-pane width — not a second centered 72rem column inside page-shell.
+ * Full-bleed product hubs: same outer gutters as .page-shell / .product-dash
+ * (spec 046). Width may be 100%; inset tokens stay shared.
  */
-.page-shell.page-shell--evoice {
+.page-shell.page-shell--evoice,
+.page-shell.page-shell--product {
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 1.5rem var(--page-inline-pad, 15px) 3rem;
+  padding: var(--p3) var(--page-inline-pad, var(--p2)) var(--p5);
   box-sizing: border-box;
 }
 
-.page-shell--wide {
-  width: min(100%, 96rem);
-  max-width: 100%;
-  padding-top: 0.5rem;
+.page-shell:has(.product-dash) {
+  padding: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .page-stub {
@@ -151,7 +154,10 @@
   border-radius: 0;
 }
 
-html.page-home .home-hero__stage,
+/*
+ * Home stacking: do NOT put z-index on .home-hero__stage — that traps
+ * position:fixed chat under .home-profile. Chat stays above the dossier.
+ */
 html.page-home .home-hero__primary,
 html.page-home .home-hero__copy {
   position: relative;
@@ -160,7 +166,7 @@ html.page-home .home-hero__copy {
 
 html.page-home .home-hero__chat {
   position: relative;
-  z-index: 1;
+  z-index: 100;
 }
 
 .home-hero__copy {
@@ -284,8 +290,8 @@ html.page-home .home-hero__chat {
 
   html.page-home .home-hero__chat {
     position: fixed;
-    /* Above .home-profile (2) and page content; below header rail (160). */
-    z-index: 50;
+    /* Above scrolling dossier and page content; below site header rail. */
+    z-index: 100;
     top: 1.25rem;
     right: var(--page-inline-pad, 15px);
     bottom: 1.25rem;

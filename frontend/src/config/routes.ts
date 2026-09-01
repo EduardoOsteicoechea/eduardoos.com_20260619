@@ -207,6 +207,24 @@ export const EREPORT_ROUTES = {
     `/api/ereport/reports/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(reportId)}`,
   shares: (ownerSafe: string, reportId: string) =>
     `/api/ereport/reports/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(reportId)}/shares`,
+  /** Org dashboard (046) — list + recent reports. */
+  orgs: "/api/ereport/orgs",
+  org: (orgId: string) => `/api/ereport/orgs/${encodeURIComponent(orgId)}`,
+  orgReports: (orgId: string) =>
+    `/api/ereport/orgs/${encodeURIComponent(orgId)}/reports`,
+  orgImport: (orgId: string) =>
+    `/api/ereport/orgs/${encodeURIComponent(orgId)}/reports/import`,
+  orgReport: (orgId: string, reportId: string) =>
+    `/api/ereport/orgs/${encodeURIComponent(orgId)}/reports/${encodeURIComponent(reportId)}`,
+  orgInvites: (orgId: string) =>
+    `/api/ereport/orgs/${encodeURIComponent(orgId)}/invites`,
+  orgReportInvites: (orgId: string, reportId: string) =>
+    `/api/ereport/orgs/${encodeURIComponent(orgId)}/reports/${encodeURIComponent(reportId)}/invites`,
+  /** Public magic-link invite (no JWT). */
+  invite: (token: string) =>
+    `/api/ereport/invite/${encodeURIComponent(token)}`,
+  inviteReport: (token: string) =>
+    `/api/ereport/invite/${encodeURIComponent(token)}/report`,
 } as const;
 
 /** eVoice text-to-audio (JWT + evoice entitlement / allowlist / admin). */

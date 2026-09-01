@@ -6,7 +6,7 @@
  */
 .homescool-workspace,
 .page-shell.page-shell--homescool-flush {
-  --homescool-gutter: 0.85rem;
+  --homescool-gutter: var(--page-inline-pad, var(--p2));
 }
 
 .homescool-workspace__nav {

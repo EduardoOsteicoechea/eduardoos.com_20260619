@@ -16,13 +16,15 @@ import (
 	"github.com/google/uuid"
 )
 
-// Handler serves JWT-protected eReport APIs.
+// Handler serves JWT-protected eReport APIs plus public magic-link invite routes.
 type Handler struct {
 	JWTSecret    string
 	Users        auth.UserStore
 	Objects      ObjectSpace
 	Entitlements *payments.Store
-	auth         *auth.Handler
+	// Mail is optional; nil skips invite email (invite JSON + link still returned).
+	Mail Mailer
+	auth *auth.Handler
 }
 
 // NewHandler wires defaults.
@@ -35,8 +37,12 @@ func NewHandler(jwtSecret string, users auth.UserStore) *Handler {
 	}
 }
 
-// Routes mounts /api/ereport/*.
+// Routes mounts /api/ereport/* (legacy flat + org-based + public invites).
 func (h *Handler) Routes(r chi.Router) {
+	// Public magic-link invites (no JWT).
+	r.Get("/api/ereport/invite/{token}", h.GetInvite)
+	r.Put("/api/ereport/invite/{token}/report", h.PutInviteReport)
+
 	r.Group(func(pr chi.Router) {
 		pr.Use(h.auth.RequireJWT)
 
@@ -47,11 +53,27 @@ func (h *Handler) Routes(r chi.Router) {
 			wr.Use(h.requireEreportCreateAccess)
 			wr.Post("/api/ereport/reports", h.CreateReport)
 			wr.Post("/api/ereport/reports/import", h.ImportReport)
+
+			// Org writes that create orgs / reports require ereport entitlement.
+			wr.Post("/api/ereport/orgs", h.CreateOrg)
+			wr.Post("/api/ereport/orgs/{orgId}/reports", h.CreateOrgReport)
+			wr.Post("/api/ereport/orgs/{orgId}/reports/import", h.ImportOrgReport)
 		})
 
 		pr.Put("/api/ereport/reports/{ownerSafe}/{reportId}", h.PutReport)
 		pr.Delete("/api/ereport/reports/{ownerSafe}/{reportId}", h.DeleteReport)
 		pr.Put("/api/ereport/reports/{ownerSafe}/{reportId}/shares", h.PutShares)
+
+		// Org dashboard + manage (JWT owner).
+		pr.Get("/api/ereport/orgs", h.GetOrgs)
+		pr.Put("/api/ereport/orgs", h.PutOrgs)
+		pr.Get("/api/ereport/orgs/{orgId}", h.GetOrg)
+		pr.Delete("/api/ereport/orgs/{orgId}", h.DeleteOrg)
+		pr.Get("/api/ereport/orgs/{orgId}/reports/{reportId}", h.GetOrgReport)
+		pr.Put("/api/ereport/orgs/{orgId}/reports/{reportId}", h.PutOrgReport)
+		pr.Delete("/api/ereport/orgs/{orgId}/reports/{reportId}", h.DeleteOrgReport)
+		pr.Post("/api/ereport/orgs/{orgId}/invites", h.CreateOrgInvite)
+		pr.Post("/api/ereport/orgs/{orgId}/reports/{reportId}/invites", h.CreateReportInvite)
 	})
 }
 

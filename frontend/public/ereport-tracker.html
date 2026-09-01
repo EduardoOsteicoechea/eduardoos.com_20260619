@@ -13,45 +13,46 @@
  */
 
 :root {
-  /* Brand */
-  --brand-primary: #1f2a30;
-  --brand-accent: #f5c518;
-  --brand-secondary: #5ec4b8;
-  --brand-ink: #2b2b2b;
-  --brand-surface: #fcfcfc;
+  /* Aligned with Eduardo OS theme tokens (045) — light */
+  --brand-primary: #141820;
+  --brand-accent: #ca8a04;
+  --brand-secondary: #2563eb;
+  --brand-ink: #141820;
+  --brand-surface: #f2f3f6;
 
   /* App chrome */
-  --bg: #d8e0e4;
-  --ink: var(--brand-ink);
+  --bg: #f2f3f6;
+  --ink: #141820;
   --muted: #5a6369;
   --card: #ffffff;
-  --line: #8a9aa3;
-  --shadow: 0 0.125rem 0 rgba(0, 0, 0, 0.08), 0 0.625rem 1.75rem rgba(0, 0, 0, 0.12);
-  --font: "Segoe UI", "Candara", "Calibri", sans-serif;
+  --line: transparent;
+  --shadow: none;
+  --font: Calibri, system-ui, sans-serif;
+  --radius: 0.215rem;
 
   /* Layout */
   --sidebar-w: 14rem;
   --topbar-h: 3.25rem;
   --base: 1rem;
 
-  /* Status */
-  --ok-bg: #e5f8f4;
-  --ok-stripe: var(--brand-secondary);
-  --fail-bg: #ffe8e6;
+  /* Status — ISO-ish */
+  --ok-bg: color-mix(in srgb, #16a34a 14%, #fff);
+  --ok-stripe: #16a34a;
+  --fail-bg: color-mix(in srgb, #dc2626 14%, #fff);
   --fail-stripe: #b42318;
   --pending-card-bg: #d5dde2;
 }
 
 body.theme-dark {
-  --bg: #101820;
-  --ink: #e8eef1;
+  --bg: #0e1116;
+  --ink: #e8eaef;
   --muted: #a8b4bb;
-  --card: #1a303c;
-  --line: #3d5a68;
-  --shadow: 0 0.125rem 0 rgba(0, 0, 0, 0.35), 0 0.625rem 1.75rem rgba(0, 0, 0, 0.45);
-  --ok-bg: #16352f;
-  --fail-bg: #3a1c1a;
-  --pending-card-bg: #1a303c;
+  --card: #161a22;
+  --line: transparent;
+  --shadow: none;
+  --ok-bg: color-mix(in srgb, #16a34a 22%, #0e1116);
+  --fail-bg: color-mix(in srgb, #dc2626 22%, #0e1116);
+  --pending-card-bg: #161a22;
 }
 
 /* ==== APP STRUCTURE ==== */

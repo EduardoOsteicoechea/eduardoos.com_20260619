@@ -13,6 +13,12 @@ import {
   type ChurchAuthorization,
   type ChurchCard,
 } from "../../lib/church";
+import {
+  DashboardGrid,
+  DashboardSection,
+  ProductHubShell,
+} from "../ProductDashboard/ProductDashboard";
+import "../ProductDashboard/ProductDashboard.css";
 import { ChurchGateShell, useChurchAuthGate } from "./ChurchGate";
 import "./Church.css";
 
@@ -91,40 +97,62 @@ export default function ChurchHubPage() {
 
   return (
     <ChurchGateShell gate={gate}>
-      <article className="church-page">
-        <p className="church-page__brand">Services</p>
-        <h1 className="church-page__title">Church</h1>
+      <ProductHubShell title="Church">
+        <DashboardSection title="Workspace">
+          <DashboardGrid
+            cards={[
+              {
+                id: "register",
+                title: "Register church",
+                description: "New iglesia under church/",
+              },
+              {
+                id: "overview",
+                title: "My overview",
+                description: "Your church dashboard",
+              },
+              {
+                id: "activity",
+                title: "My activities",
+                description: "Activity feed",
+              },
+              ...(authz?.isPlatformAdmin || authz?.canRegister
+                ? [
+                    {
+                      id: "leaders",
+                      title: "Líderes",
+                      description: "Leaders catalog",
+                    },
+                  ]
+                : []),
+              ...(authz?.isPlatformAdmin
+                ? [
+                    {
+                      id: "groups",
+                      title: "Redes / groups",
+                      description: "Group networks",
+                    },
+                  ]
+                : []),
+            ]}
+            onSelect={(id) => {
+              const map: Record<string, string> = {
+                register: APP_ROUTES.churchRegister,
+                overview: APP_ROUTES.churchOverview,
+                activity: APP_ROUTES.churchActivity,
+                leaders: APP_ROUTES.churchLeaders,
+                groups: APP_ROUTES.churchGroups,
+              };
+              if (map[id]) window.location.href = map[id];
+            }}
+          />
+        </DashboardSection>
+
+        <DashboardSection title="Browse">
         <p className="church-page__lead">
           Browse registered churches, open a detail page, or register a new iglesia
           under the S3 church/ prefix.
         </p>
-        <div className="church-page__actions">
-          {canRegister ? (
-            <a className="btn btn--primary" href={APP_ROUTES.churchRegister}>
-              Register church
-            </a>
-          ) : (
-            <a className="btn" href={APP_ROUTES.churchRegister}>
-              Register church
-            </a>
-          )}
-          <a className="btn" href={APP_ROUTES.churchOverview}>
-            My overview
-          </a>
-          <a className="btn" href={APP_ROUTES.churchActivity}>
-            My activities
-          </a>
-          {authz?.isPlatformAdmin || authz?.canRegister ? (
-            <a className="btn" href={APP_ROUTES.churchLeaders}>
-              Líderes
-            </a>
-          ) : null}
-          {authz?.isPlatformAdmin ? (
-            <a className="btn" href={APP_ROUTES.churchGroups}>
-              Redes / groups
-            </a>
-          ) : null}
-        </div>
 
         {showRequest ? (
           <div className="church-auth-banner">
@@ -196,7 +224,8 @@ export default function ChurchHubPage() {
             </li>
           ))}
         </ul>
-      </article>
+        </DashboardSection>
+      </ProductHubShell>
     </ChurchGateShell>
   );
 }

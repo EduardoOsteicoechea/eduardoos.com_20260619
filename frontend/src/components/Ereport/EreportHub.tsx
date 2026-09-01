@@ -1,32 +1,68 @@
 /**
- * eReport hub — owned + shared reports; create / import .ereport.
+ * eReport hub — org dashboard (046): orgs, register, recent, manage + invites.
  */
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { APP_ROUTES } from "../../config/routes";
-import { getAuthEmailFromToken } from "../../lib/auth";
 import { checkServiceAccess } from "../../lib/payments";
+import { getAuthEmailFromToken } from "../../lib/auth";
 import {
-  createEreport,
-  deleteEreport,
-  ereportHref,
+  createEreportOrg,
+  createOrgEreport,
+  createOrgInvite,
+  createOrgReportInvite,
+  deleteEreportOrg,
   ereportHubPrettyPath,
-  fetchEreportLibrary,
-  importEreport,
+  fetchEreportOrg,
+  fetchEreportOrgs,
+  importOrgEreport,
+  updateEreportOrgs,
+  type OrgCard,
+  type RecentReportCard,
   type ReportCard,
-  type SharedItem,
 } from "../../lib/ereport";
+import {
+  DashboardGrid,
+  DashboardSection,
+  ProductHeaderMenu,
+  ProductHubShell,
+  useProductView,
+} from "../ProductDashboard/ProductDashboard";
+import "../ProductDashboard/ProductDashboard.css";
 import "./Ereport.css";
 
 function emailToSafe(email: string): string {
   return email.trim().toLowerCase().replace(/@/g, "_at_").replace(/\//g, "_");
 }
 
+function orgReportHref(userSafe: string, orgId: string, reportId: string): string {
+  const q = new URLSearchParams({
+    user: userSafe,
+    org: orgId,
+    report: reportId,
+  });
+  return `/ereport/workspace?${q.toString()}`;
+}
+
+const MENU = [
+  { id: "dashboard", label: "Dashboard" },
+  { id: "orgs", label: "Orgs" },
+  { id: "register", label: "Register" },
+  { id: "recent", label: "Recent" },
+  { id: "manage", label: "Manage" },
+];
+
 export default function EreportHub() {
+  const [view, setView] = useProductView("dashboard");
   const [userSafe, setUserSafe] = useState("");
-  const [owned, setOwned] = useState<ReportCard[]>([]);
-  const [shared, setShared] = useState<SharedItem[]>([]);
+  const [orgs, setOrgs] = useState<OrgCard[]>([]);
+  const [recent, setRecent] = useState<RecentReportCard[]>([]);
+  const [activeOrgId, setActiveOrgId] = useState("");
+  const [orgName, setOrgName] = useState("");
+  const [reports, setReports] = useState<ReportCard[]>([]);
   const [tema, setTema] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteHours, setInviteHours] = useState(24);
+  const [inviteLink, setInviteLink] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -38,13 +74,13 @@ export default function EreportHub() {
     setError("");
     const access = await checkServiceAccess("ereport");
     setCanCreate(access.allowed);
-    const res = await fetchEreportLibrary();
+    const res = await fetchEreportOrgs();
     if (res.error) {
       setError(res.error);
     } else {
       setUserSafe(res.userSafe || emailToSafe(getAuthEmailFromToken() || ""));
-      setOwned(res.owned);
-      setShared(res.shared);
+      setOrgs(res.orgs);
+      setRecent(res.recentReports);
     }
     setLoading(false);
   }, []);
@@ -62,21 +98,53 @@ export default function EreportHub() {
     }
   }, [userSafe]);
 
-  async function onCreate(e: FormEvent) {
+  async function openOrg(orgId: string) {
+    setActiveOrgId(orgId);
+    setView("orgs");
+    setBusy(true);
+    const res = await fetchEreportOrg(orgId);
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    setReports(res.reports);
+  }
+
+  async function onRegisterOrg(e: FormEvent) {
     e.preventDefault();
     if (busy || !canCreate) return;
     setBusy(true);
-    const res = await createEreport(tema.trim() || "Sin tema");
+    const res = await createEreportOrg(orgName.trim() || "New org");
     setBusy(false);
-    if (res.error || !res.meta) {
-      setError(res.error ?? "No se pudo crear");
+    if (res.error || !res.org) {
+      setError(res.error ?? "Could not create org");
       return;
     }
-    window.location.href = ereportHref(res.meta.ownerSafe, res.meta.id);
+    setOrgName("");
+    await reload();
+    await openOrg(res.org.id);
   }
 
-  async function onFile(file: File | null) {
-    if (!file || busy || !canCreate) return;
+  async function onCreateReport(e: FormEvent) {
+    e.preventDefault();
+    if (busy || !canCreate || !activeOrgId) return;
+    setBusy(true);
+    const res = await createOrgEreport(activeOrgId, tema.trim() || "Sin tema");
+    setBusy(false);
+    if (res.error || !res.meta) {
+      setError(res.error ?? "Could not create report");
+      return;
+    }
+    window.location.href = orgReportHref(
+      res.meta.ownerSafe,
+      activeOrgId,
+      res.meta.id,
+    );
+  }
+
+  async function onImportFile(file: File | null) {
+    if (!file || busy || !canCreate || !activeOrgId) return;
     if (!/\.ereport$/i.test(file.name)) {
       setError("Solo archivos .ereport");
       return;
@@ -88,134 +156,349 @@ export default function EreportHub() {
       if (!Array.isArray(payload.sections)) {
         throw new Error("El .ereport no tiene sections[]");
       }
-      const guessedTema =
+      const guessed =
         tema.trim() ||
         String(payload.reportNumber || file.name.replace(/\.ereport$/i, "") || "Importado");
-      const res = await importEreport(guessedTema, payload);
+      const res = await importOrgEreport(activeOrgId, guessed, payload);
       if (res.error || !res.meta) {
         setError(res.error ?? "Import falló");
         setBusy(false);
         return;
       }
-      window.location.href = ereportHref(res.meta.ownerSafe, res.meta.id);
+      window.location.href = orgReportHref(
+        res.meta.ownerSafe,
+        activeOrgId,
+        res.meta.id,
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Archivo inválido");
+      setError(err instanceof Error ? err.message : "Import falló");
       setBusy(false);
     }
   }
 
-  async function onDelete(id: string) {
-    if (!userSafe || busy || !window.confirm("¿Eliminar este eReport?")) return;
+  async function onInviteOrg(e: FormEvent) {
+    e.preventDefault();
+    if (!activeOrgId || !inviteEmail.trim()) return;
     setBusy(true);
-    const res = await deleteEreport(userSafe, id);
+    const res = await createOrgInvite(
+      activeOrgId,
+      inviteEmail.trim(),
+      Math.max(1, inviteHours),
+    );
     setBusy(false);
     if (res.error) {
       setError(res.error);
       return;
     }
+    setInviteLink(res.link);
+  }
+
+  async function onInviteReport(reportId: string) {
+    const email = window.prompt("Invite email (magic link, 1 hour edit):");
+    if (!email || !activeOrgId) return;
+    setBusy(true);
+    const res = await createOrgReportInvite(activeOrgId, reportId, email.trim());
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    setInviteLink(res.link);
+    window.alert(`Invite link:\n${res.link}`);
+  }
+
+  async function toggleHide(org: OrgCard) {
+    setBusy(true);
+    await updateEreportOrgs([{ id: org.id, hidden: !org.hidden, order: org.order }]);
+    setBusy(false);
     await reload();
   }
 
+  async function moveOrg(org: OrgCard, dir: -1 | 1) {
+    const visible = [...orgs].sort((a, b) => a.order - b.order);
+    const idx = visible.findIndex((o) => o.id === org.id);
+    const swap = visible[idx + dir];
+    if (!swap) return;
+    setBusy(true);
+    await updateEreportOrgs([
+      { id: org.id, order: swap.order, hidden: org.hidden },
+      { id: swap.id, order: org.order, hidden: swap.hidden },
+    ]);
+    setBusy(false);
+    await reload();
+  }
+
+  async function onDeleteOrg(orgId: string) {
+    if (!window.confirm("Delete this org and its reports?")) return;
+    setBusy(true);
+    const res = await deleteEreportOrg(orgId);
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    if (activeOrgId === orgId) {
+      setActiveOrgId("");
+      setReports([]);
+    }
+    await reload();
+    setView("manage");
+  }
+
+  const visibleOrgs = orgs.filter((o) => !o.hidden);
+
   return (
-      <article className="ereport-hub">
-        <header className="ereport-hub__head">
-          <p className="product-page__brand">Services</p>
-          <h1 className="ereport-hub__title">eReport</h1>
-          <p className="ereport-hub__lead">
-            Issue Tracker en la nube bajo <code>ereport/</code>. Crea reportes,
-            carga <code>.ereport</code> o abre los compartidos contigo.
-          </p>
-        </header>
-
-        {canCreate ? (
-          <form className="ereport-hub__create" onSubmit={(e) => void onCreate(e)}>
-            <label htmlFor="ereport-tema">Tema del nuevo reporte</label>
-            <div className="ereport-hub__row">
-              <input
-                id="ereport-tema"
-                value={tema}
-                onChange={(e) => setTema(e.target.value)}
-                placeholder="Tema / asunto"
-                maxLength={200}
-              />
-              <button className="btn btn--primary" type="submit" disabled={busy}>
-                Nuevo eReport
-              </button>
-              <button
-                className="btn"
-                type="button"
-                disabled={busy}
-                onClick={() => fileRef.current?.click()}
-              >
-                Cargar .ereport
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".ereport"
-                hidden
-                onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
-              />
-            </div>
-          </form>
-        ) : (
-          <p className="ereport-hub__note">
-            Suscríbete a eReport para crear o importar.{" "}
-            <a href={APP_ROUTES.subscription}>Subscribe</a>
-          </p>
-        )}
-
+    <>
+      <ProductHeaderMenu
+        menuId="ereport-hub-menu"
+        items={MENU}
+        activeId={view}
+        onSelect={(id) => {
+          setView(id);
+          if (id !== "orgs") setInviteLink("");
+        }}
+      />
+      <ProductHubShell title="eReport">
         {error ? <p className="ereport-hub__error">{error}</p> : null}
-        {loading ? <p className="ereport-hub__empty">Cargando…</p> : null}
+        {loading ? <p className="ereport-hub__muted">Loading…</p> : null}
 
-        <section className="ereport-hub__section" aria-label="Mis reportes">
-          <h2>Mis eReports</h2>
-          {!loading && owned.length === 0 ? (
-            <p className="ereport-hub__empty">Aún no tienes reportes propios.</p>
-          ) : null}
-          <div className="ereport-cards">
-            {owned.map((card) => (
-              <div key={card.id} className="ereport-card">
-                <a className="ereport-card__link" href={ereportHref(userSafe, card.id)}>
-                  <span className="ereport-card__tema">{card.tema}</span>
-                  <span className="ereport-card__meta">
-                    {card.reportNumber || "sin número"} ·{" "}
-                    {card.updatedAt ? new Date(card.updatedAt).toLocaleString() : ""}
-                  </span>
-                </a>
-                <button
-                  type="button"
-                  className="ereport-card__del"
-                  onClick={() => void onDelete(card.id)}
-                  disabled={busy}
-                >
-                  Eliminar
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
+        {view === "dashboard" ? (
+          <>
+            <DashboardSection title="Orgs">
+              <DashboardGrid
+                cards={[
+                  {
+                    id: "orgs",
+                    title: "Orgs",
+                    description: `${visibleOrgs.length} visible`,
+                  },
+                  {
+                    id: "register",
+                    title: "Register org",
+                    description: "Create a client organization",
+                  },
+                ]}
+                onSelect={setView}
+              />
+            </DashboardSection>
+            <DashboardSection title="Reports">
+              <DashboardGrid
+                cards={[
+                  {
+                    id: "recent",
+                    title: "Recent reports",
+                    description: `${recent.length} recent`,
+                  },
+                  {
+                    id: "manage",
+                    title: "Manage orgs",
+                    description: "Order, hide, delete",
+                  },
+                ]}
+                onSelect={setView}
+              />
+            </DashboardSection>
+          </>
+        ) : null}
 
-        <section className="ereport-hub__section" aria-label="Compartidos">
-          <h2>Compartidos conmigo</h2>
-          {!loading && shared.length === 0 ? (
-            <p className="ereport-hub__empty">Nadie ha compartido un eReport contigo aún.</p>
-          ) : null}
-          <div className="ereport-cards">
-            {shared.map((item) => (
-              <a
-                key={`${item.ownerSafe}-${item.reportId}`}
-                className="ereport-card ereport-card--shared"
-                href={ereportHref(item.ownerSafe, item.reportId)}
+        {view === "register" ? (
+          <DashboardSection title="Register org">
+            <form className="ereport-hub__form" onSubmit={onRegisterOrg}>
+              <label>
+                Organization name
+                <input
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="Client / project org"
+                  disabled={!canCreate || busy}
+                />
+              </label>
+              <button
+                type="submit"
+                className="btn btn--primary"
+                disabled={!canCreate || busy}
               >
-                <span className="ereport-card__tema">{item.tema}</span>
-                <span className="ereport-card__meta">
-                  de {item.ownerEmail || item.ownerSafe}
-                </span>
-              </a>
-            ))}
-          </div>
-        </section>
-      </article>
+                Create org
+              </button>
+              {!canCreate ? (
+                <p className="ereport-hub__muted">eReport subscription required.</p>
+              ) : null}
+            </form>
+          </DashboardSection>
+        ) : null}
+
+        {view === "orgs" ? (
+          <DashboardSection title="Orgs">
+            <div className="ereport-hub__org-list">
+              {visibleOrgs.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  className={
+                    o.id === activeOrgId
+                      ? "product-dash__card product-dash__card--active"
+                      : "product-dash__card"
+                  }
+                  onClick={() => void openOrg(o.id)}
+                >
+                  <span className="product-dash__card-title">{o.name}</span>
+                  <span className="product-dash__card-desc">Open reports</span>
+                </button>
+              ))}
+              {visibleOrgs.length === 0 ? (
+                <p className="ereport-hub__muted">No orgs yet — register one.</p>
+              ) : null}
+            </div>
+
+            {activeOrgId ? (
+              <div className="ereport-hub__org-panel">
+                <h3 className="ereport-hub__subhead">Reports</h3>
+                <form className="ereport-hub__form" onSubmit={onCreateReport}>
+                  <label>
+                    New report tema
+                    <input
+                      value={tema}
+                      onChange={(e) => setTema(e.target.value)}
+                      disabled={!canCreate || busy}
+                    />
+                  </label>
+                  <div className="ereport-hub__row">
+                    <button
+                      type="submit"
+                      className="btn btn--primary"
+                      disabled={!canCreate || busy}
+                    >
+                      New report
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={!canCreate || busy}
+                      onClick={() => fileRef.current?.click()}
+                    >
+                      Import .ereport
+                    </button>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept=".ereport,application/json"
+                      hidden
+                      onChange={(e) => void onImportFile(e.target.files?.[0] ?? null)}
+                    />
+                  </div>
+                </form>
+
+                <ul className="ereport-hub__reports">
+                  {reports.map((r) => (
+                    <li key={r.id}>
+                      <a href={orgReportHref(userSafe, activeOrgId, r.id)}>
+                        {r.tema || r.id}
+                      </a>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => void onInviteReport(r.id)}
+                      >
+                        Invite
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+
+                <h3 className="ereport-hub__subhead">Invite to org list</h3>
+                <form className="ereport-hub__form" onSubmit={onInviteOrg}>
+                  <label>
+                    Email
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Duration (hours)
+                    <input
+                      type="number"
+                      min={1}
+                      value={inviteHours}
+                      onChange={(e) => setInviteHours(Number(e.target.value) || 1)}
+                    />
+                  </label>
+                  <button type="submit" className="btn btn--primary" disabled={busy}>
+                    Send magic link
+                  </button>
+                </form>
+                {inviteLink ? (
+                  <p className="ereport-hub__link">
+                    Link: <a href={inviteLink}>{inviteLink}</a>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </DashboardSection>
+        ) : null}
+
+        {view === "recent" ? (
+          <DashboardSection title="Recent reports">
+            <ul className="ereport-hub__reports">
+              {recent.map((r) => (
+                <li key={`${r.orgId}-${r.id}`}>
+                  <a href={orgReportHref(userSafe, r.orgId, r.id)}>
+                    {r.tema || r.id}
+                    {r.orgName ? ` · ${r.orgName}` : ""}
+                  </a>
+                </li>
+              ))}
+              {recent.length === 0 ? (
+                <p className="ereport-hub__muted">No recent org reports yet.</p>
+              ) : null}
+            </ul>
+          </DashboardSection>
+        ) : null}
+
+        {view === "manage" ? (
+          <DashboardSection title="Manage orgs">
+            <ul className="ereport-hub__manage">
+              {[...orgs]
+                .sort((a, b) => a.order - b.order)
+                .map((o) => (
+                  <li key={o.id}>
+                    <strong>
+                      {o.name}
+                      {o.hidden ? " (hidden)" : ""}
+                    </strong>
+                    <div className="ereport-hub__row">
+                      <button type="button" className="btn" onClick={() => void moveOrg(o, -1)}>
+                        Up
+                      </button>
+                      <button type="button" className="btn" onClick={() => void moveOrg(o, 1)}>
+                        Down
+                      </button>
+                      <button type="button" className="btn" onClick={() => void toggleHide(o)}>
+                        {o.hidden ? "Show" : "Hide"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--danger"
+                        onClick={() => void onDeleteOrg(o.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                ))}
+            </ul>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => setView("register")}
+            >
+              New org
+            </button>
+          </DashboardSection>
+        ) : null}
+      </ProductHubShell>
+    </>
   );
 }

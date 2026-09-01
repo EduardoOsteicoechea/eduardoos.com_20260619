@@ -1,0 +1,11 @@
+---
+/** Magic-link invite shell — token from path or ?token= */
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import EreportInvitePage from "../../../components/Ereport/EreportInvitePage";
+---
+
+<BaseLayout title="eReport invite — Eduardo Osteicoechea" requireAuth={false}>
+  <div class="page-shell page-shell--product">
+    <EreportInvitePage client:only="react" />
+  </div>
+</BaseLayout>

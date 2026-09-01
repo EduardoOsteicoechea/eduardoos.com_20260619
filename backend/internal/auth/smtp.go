@@ -60,6 +60,15 @@ func (h *Handler) SendOwnerMail(correlationID, subject, body string) error {
 	return h.sendPlainMailTraced(correlationID, to, subject, body)
 }
 
+// SendPlainMail is the public wrapper around sendPlainMail for other packages
+// (eReport invites, etc.). Nil receiver or empty SMTP_PASS logs and returns nil.
+func (h *Handler) SendPlainMail(to, subject, body string) error {
+	if h == nil {
+		return nil
+	}
+	return h.sendPlainMail(to, subject, body)
+}
+
 // sendPlainMail delivers a UTF-8 text email via Gmail SMTP when SMTP_PASS is set.
 // When SMTP_PASS is empty (typical local/dev), it logs that delivery was skipped
 // (not the body) and returns nil so register / forgot-password never crash.

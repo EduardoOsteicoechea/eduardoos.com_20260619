@@ -16,6 +16,11 @@ import {
   scribSheetHref,
   type ScribBookCard,
 } from "../../lib/scrib";
+import {
+  DashboardSection,
+  ProductHubShell,
+} from "../ProductDashboard/ProductDashboard";
+import "../ProductDashboard/ProductDashboard.css";
 import "./Scrib.css";
 
 export default function ScribDashboard() {
@@ -161,16 +166,13 @@ export default function ScribDashboard() {
 
   return (
     <ServiceGate serviceId="scrib" serviceLabel="Scrib" requireSubscription>
-      <article className="scrib-dashboard">
-        <header className="scrib-dashboard__head">
-          <p className="product-page__brand">Services</p>
-          <h1 className="scrib-dashboard__title">Scrib</h1>
-          <p className="scrib-dashboard__lead">
-            Libros de hojas US Letter con capas de manuscrito. Todo se guarda
-            bajo <code>scrib/</code> en la nube. Haz clic en el nombre de un
-            libro o una hoja para editarlo.
-          </p>
-        </header>
+      <ProductHubShell title="Scrib">
+        <DashboardSection title="Books">
+        <p className="scrib-dashboard__lead">
+          Libros de hojas US Letter con capas de manuscrito. Todo se guarda
+          bajo <code>scrib/</code> en la nube. Haz clic en el nombre de un
+          libro o una hoja para editarlo.
+        </p>
 
         <form className="scrib-dashboard__new-book" onSubmit={onCreateBook}>
           <label className="scrib-dashboard__label" htmlFor="scrib-book-name">
@@ -284,7 +286,8 @@ export default function ScribDashboard() {
             </section>
           ))}
         </div>
-      </article>
+        </DashboardSection>
+      </ProductHubShell>
     </ServiceGate>
   );
 }

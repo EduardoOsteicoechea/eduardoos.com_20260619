@@ -90,6 +90,7 @@ func main() {
 	ereportHandler := ereport.NewHandler(jwtSecret, userStore)
 	ereportHandler.Objects = ereport.OpenObjectSpace(ctx)
 	ereportHandler.Entitlements = paymentsHandler.Store
+	ereportHandler.Mail = authHandler // shared SMTP_USER / SMTP_PASS for magic-link invites
 	evoiceHandler := evoice.NewHandler(jwtSecret, userStore)
 	evoiceHandler.Objects = evoice.OpenObjectSpace(ctx)
 	evoiceHandler.Entitlements = paymentsHandler.Store

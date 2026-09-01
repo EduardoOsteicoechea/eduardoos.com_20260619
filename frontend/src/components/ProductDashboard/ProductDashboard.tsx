@@ -155,3 +155,19 @@ export function ProductHubShell({
     </div>
   );
 }
+
+/** Sectioned dashboard block — each product defines its own sections/cards. */
+export function DashboardSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="product-dash__section">
+      <h2 className="product-dash__section-title">{title}</h2>
+      {children}
+    </section>
+  );
+}

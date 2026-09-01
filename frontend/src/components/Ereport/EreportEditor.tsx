@@ -1,14 +1,16 @@
 /**
- * eReport editor — Issue Tracker iframe; host tools live in Header dynamic slot.
+ * eReport editor — Issue Tracker iframe; supports legacy flat + org reports (046).
  */
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import {
   fetchEreport,
+  fetchOrgEreport,
   putEreportShares,
   resolveEreportEditorFromLocation,
   saveEreport,
+  saveOrgEreport,
   ereportPrettyPath,
   type EreportMeta,
   type EreportPayload,
@@ -18,10 +20,22 @@ import "./Ereport.css";
 
 const TRACKER_SRC = "/ereport-tracker.html";
 
+type EditorIds = {
+  ownerSafe: string;
+  reportId: string;
+  orgId?: string;
+};
+
+function resolveEditorIds(): EditorIds | null {
+  const base = resolveEreportEditorFromLocation();
+  if (!base) return null;
+  const params = new URLSearchParams(window.location.search);
+  const orgId = params.get("org")?.trim() || undefined;
+  return { ...base, orgId };
+}
+
 export default function EreportEditor() {
-  const [ids, setIds] = useState<{ ownerSafe: string; reportId: string } | null>(
-    null,
-  );
+  const [ids, setIds] = useState<EditorIds | null>(null);
   const [meta, setMeta] = useState<EreportMeta | null>(null);
   const [tema, setTema] = useState("");
   const [shareInput, setShareInput] = useState("");
@@ -36,9 +50,9 @@ export default function EreportEditor() {
   const payloadRef = useRef<EreportPayload | null>(null);
 
   useEffect(() => {
-    const resolved = resolveEreportEditorFromLocation();
+    const resolved = resolveEditorIds();
     setIds(resolved);
-    if (resolved) {
+    if (resolved && !resolved.orgId) {
       const pretty = ereportPrettyPath(resolved.ownerSafe, resolved.reportId);
       if (window.location.pathname.replace(/\/+$/, "") !== pretty) {
         window.history.replaceState(null, "", pretty);
@@ -56,7 +70,9 @@ export default function EreportEditor() {
     }
     let cancelled = false;
     void (async () => {
-      const res = await fetchEreport(ids.ownerSafe, ids.reportId);
+      const res = ids.orgId
+        ? await fetchOrgEreport(ids.orgId, ids.reportId)
+        : await fetchEreport(ids.ownerSafe, ids.reportId);
       if (cancelled) return;
       if (res.error || !res.meta || !res.payload) {
         setError(res.error ?? "No encontrado");
@@ -72,7 +88,7 @@ export default function EreportEditor() {
     return () => {
       cancelled = true;
     };
-  }, [ids?.ownerSafe, ids?.reportId]);
+  }, [ids?.ownerSafe, ids?.reportId, ids?.orgId]);
 
   const postToTracker = useCallback((msg: Record<string, unknown>) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -80,6 +96,17 @@ export default function EreportEditor() {
       window.location.origin,
     );
   }, []);
+
+  const persist = useCallback(
+    async (body: { tema?: string; payload?: EreportPayload }) => {
+      if (!ids) return { meta: null as EreportMeta | null, error: "missing ids" };
+      if (ids.orgId) {
+        return saveOrgEreport(ids.orgId, ids.reportId, body);
+      }
+      return saveEreport(ids.ownerSafe, ids.reportId, body);
+    },
+    [ids],
+  );
 
   useEffect(() => {
     function onMessage(ev: MessageEvent) {
@@ -95,7 +122,7 @@ export default function EreportEditor() {
       if (d.type === "cloud-save" && ids && d.payload) {
         void (async () => {
           setSaving(true);
-          const res = await saveEreport(ids.ownerSafe, ids.reportId, {
+          const res = await persist({
             payload: d.payload as EreportPayload,
             tema,
           });
@@ -110,7 +137,7 @@ export default function EreportEditor() {
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [ids, tema, postToTracker]);
+  }, [ids, tema, postToTracker, persist]);
 
   useEffect(() => {
     if (!trackerReady || !payloadRef.current) return;
@@ -125,7 +152,7 @@ export default function EreportEditor() {
     if (!ids || !meta) return;
     setSaving(true);
     setError("");
-    const res = await saveEreport(ids.ownerSafe, ids.reportId, { tema });
+    const res = await persist({ tema });
     setSaving(false);
     if (res.error) setError(res.error);
     else if (res.meta) {
@@ -141,7 +168,7 @@ export default function EreportEditor() {
       if (ev.data?.source !== "ereport-tracker" || ev.data?.type !== "state") return;
       window.removeEventListener("message", handler);
       setSaving(true);
-      const res = await saveEreport(ids.ownerSafe, ids.reportId, {
+      const res = await persist({
         tema,
         payload: ev.data.payload as EreportPayload,
       });
@@ -158,7 +185,7 @@ export default function EreportEditor() {
 
   async function onAddShare(e: FormEvent) {
     e.preventDefault();
-    if (!ids || !meta || !canShare) return;
+    if (!ids || !meta || !canShare || ids.orgId) return;
     const email = shareInput.trim();
     if (!email) return;
     const emails = [...meta.sharedWith.map((s) => s.email), email];
@@ -174,7 +201,7 @@ export default function EreportEditor() {
   }
 
   async function onRemoveShare(email: string) {
-    if (!ids || !meta || !canShare) return;
+    if (!ids || !meta || !canShare || ids.orgId) return;
     const emails = meta.sharedWith.filter((s) => s.email !== email).map((s) => s.email);
     setBusyShare(true);
     setError("");
@@ -207,7 +234,7 @@ export default function EreportEditor() {
           onSaveTema={onSaveTema}
           onSaveCloud={onSaveCloud}
           saving={saving}
-          canShare={canShare}
+          canShare={canShare && !ids.orgId}
           meta={meta}
           shareInput={shareInput}
           onShareInputChange={setShareInput}

@@ -22,6 +22,7 @@ export type EreportMeta = {
   tema: string;
   reportNumber?: string;
   reportDate?: string;
+  orgId?: string;
   ownerEmail: string;
   ownerSafe: string;
   sharedWith: ShareEntry[];
@@ -42,6 +43,48 @@ export type SharedItem = {
   reportId: string;
   tema: string;
   updatedAt: string;
+};
+
+/** Org card in the owner's orgs.json index (046). */
+export type OrgCard = {
+  id: string;
+  name: string;
+  order: number;
+  hidden: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OrgMeta = {
+  id: string;
+  name: string;
+  ownerEmail: string;
+  ownerSafe: string;
+  order: number;
+  hidden: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RecentReportCard = {
+  orgId: string;
+  orgName?: string;
+  id: string;
+  tema: string;
+  reportNumber?: string;
+  updatedAt: string;
+};
+
+export type EreportInvite = {
+  token: string;
+  scope: "org" | "report";
+  ownerSafe: string;
+  orgId: string;
+  reportId?: string;
+  email: string;
+  expiresAt: string;
+  createdAt: string;
+  canEdit: boolean;
 };
 
 function requireToken(): string {
@@ -199,6 +242,334 @@ export async function putEreportShares(
       body: { emails },
       correlationId: createCorrelationId(),
       authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { meta: null, error: formatApiError(result.error) };
+  }
+  return { meta: result.data?.meta ?? null };
+}
+
+// --- Org + magic-link invite clients (046). Legacy helpers above stay for now. ---
+
+export async function fetchEreportOrgs(): Promise<{
+  userSafe: string;
+  orgs: OrgCard[];
+  recentReports: RecentReportCard[];
+  error?: string;
+}> {
+  const result = await apiRequest<{
+    userSafe: string;
+    orgs: OrgCard[];
+    recentReports: RecentReportCard[];
+  }>(EREPORT_ROUTES.orgs, {
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) {
+    return {
+      userSafe: "",
+      orgs: [],
+      recentReports: [],
+      error: formatApiError(result.error),
+    };
+  }
+  return {
+    userSafe: result.data?.userSafe ?? "",
+    orgs: result.data?.orgs ?? [],
+    recentReports: result.data?.recentReports ?? [],
+  };
+}
+
+export async function createEreportOrg(name: string): Promise<{
+  org: OrgMeta | null;
+  error?: string;
+}> {
+  const result = await apiRequest<{ org: OrgMeta }>(EREPORT_ROUTES.orgs, {
+    method: "POST",
+    body: { name },
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) {
+    return { org: null, error: formatApiError(result.error) };
+  }
+  return { org: result.data?.org ?? null };
+}
+
+export async function updateEreportOrgs(
+  orgs: Array<{ id: string; order?: number; hidden?: boolean }>,
+): Promise<{ orgs: OrgCard[]; error?: string }> {
+  const result = await apiRequest<{ orgs: OrgCard[] }>(EREPORT_ROUTES.orgs, {
+    method: "PUT",
+    body: { orgs },
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) {
+    return { orgs: [], error: formatApiError(result.error) };
+  }
+  return { orgs: result.data?.orgs ?? [] };
+}
+
+export async function fetchEreportOrg(orgId: string): Promise<{
+  org: OrgMeta | null;
+  reports: ReportCard[];
+  error?: string;
+}> {
+  const result = await apiRequest<{ org: OrgMeta; reports: ReportCard[] }>(
+    EREPORT_ROUTES.org(orgId),
+    {
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { org: null, reports: [], error: formatApiError(result.error) };
+  }
+  return {
+    org: result.data?.org ?? null,
+    reports: result.data?.reports ?? [],
+  };
+}
+
+export async function deleteEreportOrg(
+  orgId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const result = await apiRequest<{ deleted: boolean }>(EREPORT_ROUTES.org(orgId), {
+    method: "DELETE",
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) {
+    return { ok: false, error: formatApiError(result.error) };
+  }
+  return { ok: true };
+}
+
+export async function createOrgEreport(
+  orgId: string,
+  tema: string,
+): Promise<{
+  meta: EreportMeta | null;
+  payload: EreportPayload | null;
+  error?: string;
+}> {
+  const result = await apiRequest<{ meta: EreportMeta; payload: EreportPayload }>(
+    EREPORT_ROUTES.orgReports(orgId),
+    {
+      method: "POST",
+      body: { tema },
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { meta: null, payload: null, error: formatApiError(result.error) };
+  }
+  return { meta: result.data?.meta ?? null, payload: result.data?.payload ?? null };
+}
+
+export async function importOrgEreport(
+  orgId: string,
+  tema: string,
+  payload: EreportPayload,
+): Promise<{ meta: EreportMeta | null; error?: string }> {
+  const result = await apiRequest<{ meta: EreportMeta }>(EREPORT_ROUTES.orgImport(orgId), {
+    method: "POST",
+    body: { tema, payload },
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) {
+    return { meta: null, error: formatApiError(result.error) };
+  }
+  return { meta: result.data?.meta ?? null };
+}
+
+export async function fetchOrgEreport(
+  orgId: string,
+  reportId: string,
+): Promise<{
+  meta: EreportMeta | null;
+  payload: EreportPayload | null;
+  canShare: boolean;
+  isOwner: boolean;
+  error?: string;
+}> {
+  const result = await apiRequest<{
+    meta: EreportMeta;
+    payload: EreportPayload;
+    canShare?: boolean;
+    isOwner?: boolean;
+  }>(EREPORT_ROUTES.orgReport(orgId, reportId), {
+    correlationId: createCorrelationId(),
+    authToken: requireToken(),
+  });
+  if (result.error) {
+    return {
+      meta: null,
+      payload: null,
+      canShare: false,
+      isOwner: false,
+      error: formatApiError(result.error),
+    };
+  }
+  return {
+    meta: result.data?.meta ?? null,
+    payload: result.data?.payload ?? null,
+    canShare: Boolean(result.data?.canShare),
+    isOwner: Boolean(result.data?.isOwner),
+  };
+}
+
+export async function saveOrgEreport(
+  orgId: string,
+  reportId: string,
+  body: { tema?: string; payload?: EreportPayload },
+): Promise<{ meta: EreportMeta | null; error?: string }> {
+  const result = await apiRequest<{ meta: EreportMeta }>(
+    EREPORT_ROUTES.orgReport(orgId, reportId),
+    {
+      method: "PUT",
+      body,
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { meta: null, error: formatApiError(result.error) };
+  }
+  return { meta: result.data?.meta ?? null };
+}
+
+export async function deleteOrgEreport(
+  orgId: string,
+  reportId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const result = await apiRequest<{ deleted: boolean }>(
+    EREPORT_ROUTES.orgReport(orgId, reportId),
+    {
+      method: "DELETE",
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { ok: false, error: formatApiError(result.error) };
+  }
+  return { ok: true };
+}
+
+export async function createOrgInvite(
+  orgId: string,
+  email: string,
+  durationHours: number,
+): Promise<{ invite: EreportInvite | null; link: string; error?: string }> {
+  const result = await apiRequest<{ invite: EreportInvite; link: string }>(
+    EREPORT_ROUTES.orgInvites(orgId),
+    {
+      method: "POST",
+      body: { email, durationHours },
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { invite: null, link: "", error: formatApiError(result.error) };
+  }
+  return {
+    invite: result.data?.invite ?? null,
+    link: result.data?.link ?? "",
+  };
+}
+
+export async function createOrgReportInvite(
+  orgId: string,
+  reportId: string,
+  email: string,
+): Promise<{ invite: EreportInvite | null; link: string; error?: string }> {
+  const result = await apiRequest<{ invite: EreportInvite; link: string }>(
+    EREPORT_ROUTES.orgReportInvites(orgId, reportId),
+    {
+      method: "POST",
+      body: { email },
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { invite: null, link: "", error: formatApiError(result.error) };
+  }
+  return {
+    invite: result.data?.invite ?? null,
+    link: result.data?.link ?? "",
+  };
+}
+
+/** Public magic-link fetch (no JWT). Optional reportId for org-scope invites. */
+export async function fetchEreportInvite(
+  token: string,
+  reportId?: string,
+): Promise<{
+  invite: EreportInvite | null;
+  valid: boolean;
+  expired: boolean;
+  canEdit: boolean;
+  reports: ReportCard[];
+  meta: EreportMeta | null;
+  payload: EreportPayload | null;
+  error?: string;
+}> {
+  let path = EREPORT_ROUTES.invite(token);
+  if (reportId) {
+    path += `?reportId=${encodeURIComponent(reportId)}`;
+  }
+  const result = await apiRequest<{
+    invite: EreportInvite;
+    valid: boolean;
+    expired: boolean;
+    canEdit: boolean;
+    reports?: ReportCard[];
+    meta?: EreportMeta;
+    payload?: EreportPayload;
+  }>(path, {
+    correlationId: createCorrelationId(),
+  });
+  if (result.error) {
+    return {
+      invite: null,
+      valid: false,
+      expired: false,
+      canEdit: false,
+      reports: [],
+      meta: null,
+      payload: null,
+      error: formatApiError(result.error),
+    };
+  }
+  return {
+    invite: result.data?.invite ?? null,
+    valid: Boolean(result.data?.valid),
+    expired: Boolean(result.data?.expired),
+    canEdit: Boolean(result.data?.canEdit),
+    reports: result.data?.reports ?? [],
+    meta: result.data?.meta ?? null,
+    payload: result.data?.payload ?? null,
+  };
+}
+
+/** Public magic-link save (no JWT). reportId required for org-scope invites. */
+export async function saveEreportInviteReport(
+  token: string,
+  body: { payload: EreportPayload; reportId?: string; tema?: string },
+): Promise<{ meta: EreportMeta | null; error?: string }> {
+  const result = await apiRequest<{ meta: EreportMeta }>(
+    EREPORT_ROUTES.inviteReport(token),
+    {
+      method: "PUT",
+      body,
+      correlationId: createCorrelationId(),
     },
   );
   if (result.error) {

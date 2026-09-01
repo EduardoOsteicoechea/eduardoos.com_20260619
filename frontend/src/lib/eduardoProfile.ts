@@ -1,6 +1,7 @@
 /**
  * Public marketing profile facts for the home dossier + JSON-LD.
  * Keep aligned with backend/internal/contact/PROFILE_CONTEXT.md §2 (no invention).
+ * Visible dossier copy is first person; FAQ questions stay natural-language for AEO.
  * Privacy: do not volunteer birth date; residence only as Venezuela if needed.
  */
 
@@ -13,10 +14,10 @@ export const PROFILE_YOUTUBE = "https://youtube.com/@EduardoOsteicoechea";
 export const PROFILE_GITHUB = "https://github.com/EduardoOsteicoechea";
 
 export const profileWhoAnswer =
-  "Eduardo Osteicoechea is a licensed Building Architect (Universidad de Los Andes, Cum Laude), Master in BIM, and full-stack BIM–desktop–web–cloud developer. He builds Revit and AutoCAD API tools, AI integrations, and multiplatform products so AEC firms get architecture depth and software delivery in one practice.";
+  "I am a licensed Building Architect (Universidad de Los Andes, Cum Laude), a Master in BIM, and a full-stack developer across desktop, web, and cloud. I build Revit and AutoCAD API tools, ship AI integrations, and design multiplatform products — so AEC teams get architecture depth and software delivery from one practice. I am especially energized by AI-driven development: turning model intelligence into tools people can actually run.";
 
 export const profileExpertiseAnswer =
-  "He specializes in Revit and AutoCAD API tooling, custom Revit add-ins and Dynamo workflows, .NET desktop apps, and full-stack web and cloud delivery. His work connects design technology with AI integrations for clash detection, visualization, quantification, and multiplatform BIM products.";
+  "I specialize in Revit and AutoCAD API tooling, custom Revit add-ins and Dynamo workflows, .NET desktop apps, and full-stack web and cloud delivery. My work connects design technology with AI — clash detection, visualization, quantification, and multiplatform BIM products that learn from how teams actually build.";
 
 export type ProfileExperience = {
   org: string;
@@ -31,42 +32,42 @@ export const profileExperience: ProfileExperience[] = [
     role: "BIM software developer",
     period: "March 2024–present",
     summary:
-      "Supports and extends Revit add-ins (Clash Detection, Object Visualizer, Object Quantifier, 4D Simulation, Dynamo Zero Touch Nodes, Mirar, Andiamo, Itera). Built SincronizadorGPS50 (Windows Forms + SQL Server) linking Gestproject2024 and Sage50. Ships AI integrations with OpenAI, StabilityAI, and Replicate-based actions across Windows apps and Revit APIs.",
+      "I support and extend Revit add-ins (Clash Detection, Object Visualizer, Object Quantifier, 4D Simulation, Dynamo Zero Touch Nodes, Mirar, Andiamo, Itera). I built SincronizadorGPS50 (Windows Forms + SQL Server) linking Gestproject2024 and Sage50, and ship AI integrations with OpenAI, StabilityAI, and Replicate-based actions across Windows apps and Revit APIs.",
   },
   {
     org: "Freelance",
     role: "Full-stack web & UI/UX",
     period: "Late 2023 (~six months)",
     summary:
-      "Delivered sites including scalaa.com, theinspiratagroup.com, hotelbelensate.com, eduardoos.com, crintt.com, and thedalessiogroup.com — branding, design, coding, hosting, email migration, and media production.",
+      "I delivered sites including scalaa.com, theinspiratagroup.com, hotelbelensate.com, eduardoos.com, crintt.com, and thedalessiogroup.com — branding, design, coding, hosting, email migration, and media production.",
   },
   {
     org: "BIMIQs (Miami)",
     role: "BIM modeler, Revit API developer, web developer",
     period: "2023",
     summary:
-      "First employee of a US AEC consulting startup. BIM modeling, Revit families, Revit API tools (including Revit Modeler), and graphic design for bimiqs.com — one role spanning modeling, research, API, and full-stack web.",
+      "As the first employee of a US AEC consulting startup, I covered BIM modeling, Revit families, Revit API tools (including Revit Modeler), and graphic design for bimiqs.com — modeling, research, API, and full-stack web in one role.",
   },
   {
     org: "VDC Works (Miami)",
     role: "Revit BIM technician",
     period: "2023",
     summary:
-      "Documented electrical rooms and assemblies with collaborative BIM workflows and began visual programming with Revit Dynamo and Python.",
+      "I documented electrical rooms and assemblies with collaborative BIM workflows and began visual programming with Revit Dynamo and Python.",
   },
   {
     org: "Iglesia Palabra Viva",
     role: "Venezuelan missionary",
     period: "Until ~2023",
     summary:
-      "Leadership, teaching, public speaking, and counseling; parallel theology study at Integridad & Sabiduría; began writing and song creation.",
+      "Leadership, teaching, public speaking, and counseling; parallel theology study at Integridad & Sabiduría; I began writing and song creation.",
   },
   {
     org: "Galpon5",
     role: "Architectural project assistant",
     period: "2017–2018",
     summary:
-      "Modeled, documented, and rendered buildings in AutoCAD, SketchUp, V-Ray, and 3ds Max for hospitality and commercial projects including Lindo Sol Suites Hotel and Lindo Bakery.",
+      "I modeled, documented, and rendered buildings in AutoCAD, SketchUp, V-Ray, and 3ds Max for hospitality and commercial projects including Lindo Sol Suites Hotel and Lindo Bakery.",
   },
 ];
 
@@ -83,6 +84,7 @@ export const profileSkills: string[] = [
   "Parametric Revit family modeling",
   "Custom Revit add-in development",
   "AI integration in BIM workflows",
+  "AI-driven product development",
   "Cloud deployment (AWS & NGINX)",
   "Full-stack desktop & web development",
   "Remote collaboration & mentorship",
@@ -94,7 +96,7 @@ export const profileStack =
   ".NET, C#, WPF, Windows Forms, Blazor / Blazor Hybrid, .NET MAUI, Python, PHP, JavaScript, TypeScript, HTML, CSS, React, MySQL, SQLite, SQL Server, Git/GitHub, AutoCAD, Revit, Dynamo, SketchUp, Linux, Nginx, AWS, and AI tooling including StabilityAI and DeepSeek.";
 
 export const profileFocusAnswer =
-  "Eduardo is building full-stack applications (React and .NET minimal APIs where relevant), GitHub CI/CD toward AWS, and AI API integrations aimed at multiplatform AI-powered BIM products for AEC. He also operates eduardoos.com as his professional platform for documents, articles, music, church, and homescool tooling.";
+  "I am building full-stack applications (React and .NET minimal APIs where relevant), GitHub CI/CD toward AWS, and AI API integrations aimed at multiplatform AI-powered BIM products for AEC. I operate eduardoos.com as my professional platform for documents, articles, music, church, and homescool tooling — and I keep pushing AI-driven development into every product surface that benefits from it.";
 
 export type ProfileFaq = { question: string; answer: string };
 
@@ -106,7 +108,7 @@ export const profileFaq: ProfileFaq[] = [
   {
     question: "What is Eduardo OS?",
     answer:
-      "Eduardo OS is Eduardo Osteicoechea’s professional platform at eduardoos.com — services and tools spanning pamphlet documents, articles, music, church, and homescool, alongside his AEC technologist practice in BIM and full-stack software.",
+      "Eduardo OS is my professional platform at eduardoos.com — services and tools spanning pamphlet documents, articles, music, church, and homescool, alongside my practice in BIM and full-stack software with a strong focus on AI-driven development.",
   },
   {
     question: "How can I contact Eduardo Osteicoechea?",
@@ -116,7 +118,7 @@ export const profileFaq: ProfileFaq[] = [
   {
     question: "Where does Eduardo Osteicoechea live?",
     answer:
-      "Eduardo is currently residing in Venezuela. For further information, contact him by email, WhatsApp, or LinkedIn using the public channels listed on this page.",
+      "I currently reside in Venezuela. For further information, contact me by email, WhatsApp, or LinkedIn using the public channels listed on this page.",
   },
 ];
 
@@ -160,6 +162,7 @@ export function buildHomeProfileJsonLd(pageUrl: string): Record<string, unknown>
           "Revit API",
           "Architecture",
           "Full-stack software development",
+          "AI-driven development",
           "AI integrations for AEC",
         ],
         alumniOf: {
