@@ -156,6 +156,8 @@ function EvoiceWorkspace() {
   const [blobUrl, setBlobUrl] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef("");
+  /** When true, start playback as soon as the next track blob URL is ready. */
+  const autoplayAfterLoadRef = useRef(false);
   const stopRequestedRef = useRef(false);
   const projectRef = useRef(project);
   projectRef.current = project;
@@ -288,6 +290,7 @@ function EvoiceWorkspace() {
         blobUrlRef.current = url;
         setBlobUrl(url);
       } catch (e) {
+        autoplayAfterLoadRef.current = false;
         showError("Audio fetch", e instanceof Error ? e.message : "Could not load audio");
         // Drop ghost playlist entries that S3 no longer has.
         void reloadDocsAudios(ownerSafe, project);
@@ -297,6 +300,18 @@ function EvoiceWorkspace() {
       revoked = true;
     };
   }, [audios, trackIndex, ownerSafe, project]);
+
+  // After Next/Previous/ended loads a new blob, auto-start that track.
+  useEffect(() => {
+    if (!blobUrl || !autoplayAfterLoadRef.current) return;
+    const el = audioRef.current;
+    if (!el) return;
+    autoplayAfterLoadRef.current = false;
+    el.currentTime = 0;
+    void el.play().catch(() => {
+      /* browser may block until a prior gesture; Next/Prev themselves are gestures */
+    });
+  }, [blobUrl]);
 
   useEffect(() => {
     return () => {
@@ -631,8 +646,17 @@ function EvoiceWorkspace() {
       audioRef.current.currentTime = 0;
     }
   }
+  /** Advance and auto-start the next track (also used by audio `ended`). */
   function next() {
-    if (trackIndex < audios.length - 1) setTrackIndex((i) => i + 1);
+    if (trackIndex >= audios.length - 1) return;
+    autoplayAfterLoadRef.current = true;
+    setTrackIndex((i) => i + 1);
+  }
+  /** Go back and auto-start the previous track. */
+  function prev() {
+    if (trackIndex <= 0) return;
+    autoplayAfterLoadRef.current = true;
+    setTrackIndex((i) => i - 1);
   }
 
   async function onDownload(name: string, key?: string) {
@@ -831,6 +855,24 @@ function EvoiceWorkspace() {
                 </button>
               </form>
             ) : null}
+
+            <div className="evoice__upload-docs">
+              <h3 className="evoice__upload-docs-title">Uploaded documents</h3>
+              <p className="evoice__hint">
+                View only — generate and delete live under Docs.
+              </p>
+              {sourceDocs.length === 0 ? (
+                <p className="evoice__empty">No documents uploaded yet.</p>
+              ) : (
+                <ul className="evoice__list evoice__list--view-only">
+                  {sourceDocs.map((d) => (
+                    <li key={d.key} className="evoice__doc-row evoice__doc-row--view">
+                      <span className="evoice__doc-name">{d.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </section>
           ) : null}
 
@@ -1065,6 +1107,18 @@ function EvoiceWorkspace() {
                 <button
                   type="button"
                   className="evoice__icon-btn"
+                  onClick={prev}
+                  disabled={audios.length === 0 || trackIndex <= 0}
+                  title="Previous track"
+                  aria-label="Previous track"
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    skip_previous
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="evoice__icon-btn"
                   onClick={play}
                   disabled={audios.length === 0}
                   title="Play playlist"
@@ -1102,7 +1156,7 @@ function EvoiceWorkspace() {
                   type="button"
                   className="evoice__icon-btn"
                   onClick={next}
-                  disabled={audios.length === 0}
+                  disabled={audios.length === 0 || trackIndex >= audios.length - 1}
                   title="Next track"
                   aria-label="Next track"
                 >
@@ -1132,7 +1186,27 @@ function EvoiceWorkspace() {
           ) : null}
 
           <section className="evoice__panel evoice__panel--console">
-            <h2>Console</h2>
+            <div className="evoice__panel-head">
+              <h2>Console</h2>
+              {busy && activeJobId ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void onStopGenerate()}
+                >
+                  Stop generate
+                </button>
+              ) : null}
+              {!busy && jobStopped && activeJobId ? (
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={() => void onResumeGenerate()}
+                >
+                  Resume
+                </button>
+              ) : null}
+            </div>
             <div
               className="evoice__progress"
               role="progressbar"

@@ -215,6 +215,29 @@
   margin-right: auto;
 }
 
+.evoice__upload-docs {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+}
+
+.evoice__upload-docs-title {
+  margin: 0 0 0.35rem;
+  font-family: Montserrat, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.evoice__list--view-only .evoice__doc-row--view {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+}
+
+.evoice__panel--compact .evoice__upload-docs {
+  margin-top: 0.75rem;
+}
+
 .evoice__upload {
   cursor: pointer;
 }

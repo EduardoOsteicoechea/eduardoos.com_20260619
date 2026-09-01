@@ -2,7 +2,7 @@
 
 ## Status
 
-**Done** (2026-09-01) — HDS icon-only chrome; premium DeepSeek for every source modality.
+**Done** (2026-09-01) — Stop on Console; Upload docs list; playlist prev/next autoplay.
 
 ## Problem
 
@@ -54,7 +54,7 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 ### Stop + resume
 - **Stop:** `POST /api/evoice/jobs/{jobId}/stop` → state `stopped`, S3 snapshot.
 - **Resume:** `POST /api/evoice/jobs/{jobId}/resume` → new job for unfinished files (same premium). Mid-sentence Piper seek not required.
-- UI: **Stop generate** while running; **Resume** when stopped.
+- UI: **Stop generate** while a job is running — visible on the generate process chrome (**Console** progress section always when `busy` + `activeJobId`, and also on Upload actions when that panel is open). **Resume** when stopped (same places).
 
 ### Weighted overall progress
 **Without premium:** rest 10% | convert 80% | upload 10%.  
@@ -70,14 +70,18 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 - Vertical gap between **Admin only** and **Project** row (≥1rem).
 - **Project** select and **New project** input share the same control height and equal width (side-by-side twin fields; Create stays beside New project).
 - Split former Docs panel into:
-  1. **File Uploads** (was “Add”) — Upload, paste/+Text, Premium toggle, **Generate all** (and Stop/Resume while a job runs). When paste form is closed / no extra content, panel is compact (no large empty bottom padding).
+  1. **File Uploads** (`?view=upload`) — Upload, paste/+Text, Premium toggle, **Generate all** (and Stop/Resume while a job runs). When paste form is closed / no extra content, panel is compact (no large empty bottom padding).
+     - **Uploaded documents (view only):** below the upload controls, show a read-only list of current source docs (name only). **No** checkboxes, **no** Generate/Regenerate, **no** Delete in this list — browsing/confirmation only. Generation actions stay on Docs view.
   2. **Docs + Playlist** — one two-column section (desktop): **Docs** left, **Playlist** right, same row height (`align-items: stretch`). Stack on narrow viewports.
 - **Docs row actions:** per-row **Generate/Regenerate** as **icon-only** (Material Symbol `refresh`; `aria-label` Generate vs Regenerate) + **Delete doc** icon-only red. No Delete audio on Docs.
 - **Docs footer:** button **Generate selected** (runs only checked docs; disabled when none selected).
 - **Playlist row actions:** Download (text OK) + **Delete** icon-only red for that MP3. Per-track playback uses the native `<audio controls>` for the current track.
-- **Playlist footer controls** (playlist-level only): Play / Pause / Stop / Next / Download — all **icon-only** (`play_arrow`, `pause`, `stop`, `skip_next`, `download`), with `aria-label` / `title`. They advance/control the full playlist sequence, not a second per-track UI.
+- **Playlist footer controls** (playlist-level only): **Previous** / Play / Pause / Stop / **Next** / Download — all **icon-only** (`skip_previous`, `play_arrow`, `pause`, `stop`, `skip_next`, `download`), with `aria-label` / `title`.
+  - **Next** advances to the next track and **automatically starts playback** of that track (after the blob loads).
+  - **Previous** goes to the prior track and **automatically starts playback** of that track.
+  - Natural `ended` on the current track behaves like Next (advance + autoplay when a next track exists).
 - **Delete controls** (Docs delete-doc and Playlist delete-audio): **icon-only**, red (Material Symbol `delete`), with `aria-label` / `title`.
-- **Console** — full-width panel below the Docs|Playlist row.
+- **Console** — full-width panel below the active section; while generate runs, shows progress + **Stop generate**; when stopped, **Resume**.
 - **Premium defaults to on** (DeepSeek speech + chapters).
 
 ### Audio fetch (names with spaces / parentheses)
@@ -113,9 +117,10 @@ When **premium** is on, DeepSeek must split the spoken script into **chapters**.
 - [x] HDS view buttons are icon-only Material Symbols (no visible text); `title`/`aria-label` present
 - [x] Premium ON: txt / docx / PDF-text / PDF-image / image / paste all extract then DeepSeek `system` before TTS
 - [x] Scanned/image PDF OCR fallback when text layer is empty/sparse
+- [x] Stop generate visible on Console (and Upload) while job runs; Resume when stopped
+- [x] Upload view shows read-only uploaded documents list (no generate/delete actions)
+- [x] Playlist Previous + Next icon-only; both auto-start playback of the target track
 
 ## Affected paths
 - `specs/044-evoice/spec.md`
-- `specs/045-global-theme-product-dashboards/spec.md` (HDS icon-only for ProductHeaderMenu)
-- `backend/internal/evoice/**`, `worker/linux_sync.py`, `worker/requirements.txt`
-- `frontend/src/components/Evoice/**`, `ProductDashboard/**`, `lib/evoice.ts`, `config/routes.ts`
+- `frontend/src/components/Evoice/**`
