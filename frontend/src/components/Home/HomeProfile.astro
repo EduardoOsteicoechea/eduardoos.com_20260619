@@ -136,32 +136,36 @@ import "./HomeProfile.css";
         <div class="home-profile__faq-grid">
           {
             profileFaq.map((item) => (
-              <div class="home-profile__faq-card">
+              <article class="home-profile__faq-card">
                 <h3>
                   <span class="material-symbols-outlined" aria-hidden="true">{item.icon}</span>
                   <span class="home-profile__faq-q">{item.question}</span>
                 </h3>
                 {item.answerLinks && item.answerLinks.length > 0 ? (
                   <p class="home-profile__faq-answer home-profile__faq-answer--links">
-                    {item.answerLinks.map((link, i) => (
-                      <>
-                        {i > 0 ? (i === item.answerLinks!.length - 1 ? ", or " : ", ") : null}
-                        <a
-                          href={link.href}
-                          {...(link.href.startsWith("http")
-                            ? { rel: "noopener noreferrer", target: "_blank" }
-                            : {})}
-                        >
-                          {link.label}
-                        </a>
-                      </>
-                    ))}
+                    <a href={item.answerLinks[0].href}>{item.answerLinks[0].label}</a>
+                    {", "}
+                    <a
+                      href={item.answerLinks[1].href}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      {item.answerLinks[1].label}
+                    </a>
+                    {", or "}
+                    <a
+                      href={item.answerLinks[2].href}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      {item.answerLinks[2].label}
+                    </a>
                     .
                   </p>
                 ) : (
                   <p class="home-profile__faq-answer">{item.answer}</p>
                 )}
-              </div>
+              </article>
             ))
           }
         </div>

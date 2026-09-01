@@ -302,18 +302,26 @@
 
 .home-profile__faq-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--m2);
   margin-top: 0.5rem;
-  align-items: stretch;
+  /* Start — do not stretch cards to row height (avoids empty-column / mixed-flow look). */
+  align-items: start;
 }
 
 .home-profile__faq-card {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  gap: 0.45rem;
   min-width: 0;
+  max-width: 100%;
   box-sizing: border-box;
+  padding: var(--p2, 1.125rem);
+  border-radius: var(--br, 0.215rem);
+  background: color-mix(in srgb, var(--bg) 55%, var(--site-surface));
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  break-inside: avoid;
 }
 
 /* Icon + question on one lateral row (spec 050). */
@@ -323,7 +331,7 @@
   flex-wrap: nowrap;
   align-items: center;
   gap: 0.45rem;
-  margin: 0 0 0.45rem;
+  margin: 0;
   font-family: var(--font-display);
   font-size: 0.95rem;
   font-weight: 650;
@@ -346,10 +354,13 @@
 
 .home-profile__faq-answer {
   margin: 0;
+  max-width: 100%;
   font-family: var(--font-body);
   font-size: 0.9rem;
   line-height: 1.55;
   color: var(--site-meta-fg);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .home-profile__faq-answer a {
