@@ -142,7 +142,14 @@ export const profileStack =
 export const profileFocusAnswer =
   "I am building full-stack applications (React and .NET minimal APIs where relevant), GitHub CI/CD toward AWS, and AI API integrations aimed at multiplatform AI-powered BIM products for AEC. I operate eduardoos.com as my professional platform for documents, articles, music, church, and homescool tooling — and I keep pushing AI-driven development into every product surface that benefits from it.";
 
-export type ProfileFaq = { question: string; answer: string; icon: string };
+export type ProfileFaq = {
+  question: string;
+  /** Plain-text answer for JSON-LD / AEO. */
+  answer: string;
+  icon: string;
+  /** When set, home UI renders these as real links (JSON-LD still uses `answer`). */
+  answerLinks?: { label: string; href: string }[];
+};
 
 export const profileFaq: ProfileFaq[] = [
   {
@@ -161,6 +168,11 @@ export const profileFaq: ProfileFaq[] = [
     icon: "mail",
     answer:
       "Email eduardooost@gmail.com, WhatsApp +58 414 728 1033 (https://wa.me/584147281033), or LinkedIn https://www.linkedin.com/in/eduardoosteicoechea. GitHub and YouTube profiles are also public on this site.",
+    answerLinks: [
+      { label: "Email", href: `mailto:${PROFILE_EMAIL}` },
+      { label: "WhatsApp", href: PROFILE_WHATSAPP },
+      { label: "LinkedIn", href: PROFILE_LINKEDIN },
+    ],
   },
   {
     question: "Where does Eduardo Osteicoechea live?",
