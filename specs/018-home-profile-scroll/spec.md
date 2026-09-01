@@ -15,7 +15,7 @@ Profile/RAG facts live in `PROFILE_CONTEXT.md` for agents but visitors only see 
    - FAQ: 3 columns
    - Focus | Contact (1+1)
    First-person copy; AI-driven enthusiasm.
-3. **Fixed AI panel (desktop ≥960px only)** — `.home-hero__chat` stays `position: fixed` with z-index above dossier; mobile/tablet unchanged (chat hidden below 960px). **Gutter:** dossier ↔ agent uses the same `--home-gap` as Profile↔Specialization (see `specs/047-home-agent-gap-cards-icons/spec.md`). Dock title: **Talk To Assistant**.
+3. **Sticky AI panel (desktop ≥960px only)** — `.home-hero__chat` is **`position: sticky`** (not `relative` / not scrolled away) with `top` under site chrome and z-index above the dossier; it stays visible while the dossier scrolls. Mobile/tablet: chat hidden below 960px. **Gutter:** dossier ↔ agent uses the same `--home-gap` as Profile↔Specialization (see `specs/047-home-agent-gap-cards-icons/spec.md`). Dock title: **Talk To Assistant**. Do **not** set `position: relative` on `.home-hero__chat` at a higher specificity that overrides sticky.
 4. **Structured public profile** below the hero (first person on page; FAQ questions natural-language for AEO). LinkedIn included. Experience + Skills sections are flat (no section bg/padding); cards equal height; Material Symbol icons on sections and cards.
 5. **AEO/GEO** — Person+FAQPage+WebPage JSON-LD; `/llms.txt`.
 6. Visual language: plain CSS; light/dark via `--site-*` / 045 tokens.
@@ -25,6 +25,6 @@ Profile/RAG facts live in `PROFILE_CONTEXT.md` for agents but visitors only see 
 - [x] Hero has no background/portrait image; copy + agent composition only.
 - [x] Chat always paints above scrolling profile cards.
 - [x] Profile cards two-per-row; direct first-person section titles.
-- [x] Desktop AI chat fixed while profile scrolls; hidden below 960px as before.
+- [x] Desktop AI chat sticky while profile scrolls; hidden below 960px as before.
 - [x] SSR HTML contains sections + FAQ; JSON-LD `@graph` on home; LinkedIn link present.
 - [x] FE build green; commit+push.

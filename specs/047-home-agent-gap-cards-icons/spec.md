@@ -23,10 +23,10 @@
 ## Goals (locked)
 
 ### Home desktop gap (≥960px)
-- Preserve 3-column shell: dossier = 2×`--home-col` + gap; agent = 1×`--home-col`.
-- **Mandatory gutter** between dossier content right edge and agent tray left edge: exactly `--home-gap` (same token as between Profile and Specialization).
-- Do **not** size columns with `100vw` (scrollbar eats the gutter). Size from the main content width (`100%` of `.home-hero` / main pane).
-- Dossier inner and hero stage must both reserve `agent width + home-gap + home-pad` on the right so content never sits under the tray.
+- Preserve 3-column shell: dossier spans columns 1–2; agent column 3; gutters = `--home-gap`.
+- **Mandatory gutter** between dossier and agent tray: exactly `--home-gap`.
+- **Sticky agent:** `.home-hero__chat` must be `position: sticky` with an appropriate `top` so it remains in view while the dossier scrolls. Never let a broader `position: relative` rule override sticky on desktop.
+- Do **not** size columns with `100vw` (scrollbar eats the gutter).
 
 ### Agent heading
 - Shared dock title (home + contact preset): **`Talk To Assistant`** (replace `"AI agent"`).

@@ -169,8 +169,8 @@ html.page-home .home-hero__copy {
   z-index: 1;
 }
 
+/* z-index only — do NOT set position here (desktop sticky would lose to this). */
 html.page-home .home-hero__chat {
-  position: relative;
   z-index: 100;
 }
 
@@ -275,7 +275,8 @@ html.page-home .home-hero__chat {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--home-gap);
-    align-items: start;
+    /* Stretch so the agent column is as tall as the dossier (sticky needs this). */
+    align-items: stretch;
     box-sizing: border-box;
     width: 100%;
     padding-inline: var(--home-pad);
@@ -302,13 +303,13 @@ html.page-home .home-hero__chat {
     max-width: none;
   }
 
+  html.page-home .home-hero__chat,
   .home-hero__chat {
     display: flex;
     flex-direction: column;
     grid-column: 3;
     position: sticky;
     z-index: 100;
-    /* Stay in the right column under the site chrome while the dossier scrolls. */
     top: max(1.25rem, var(--header_offset, 0px));
     align-self: start;
     box-sizing: border-box;
