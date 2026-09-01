@@ -1,4 +1,4 @@
-/* Home profile dossier — readable panels over fixed portrait (elegant-formal-ui). */
+/* Home profile dossier — scrollable panels under the hero. */
 
 .home-profile {
   position: relative;
@@ -7,13 +7,7 @@
   max-width: none;
   margin: 0;
   padding: 0 0 4rem;
-  /* Solid wash so scrolling text stays legible over the fixed photo. */
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--site-body-bg) 72%, transparent) 0%,
-    color-mix(in srgb, var(--site-body-bg) 94%, transparent) 8%,
-    var(--site-body-bg) 22%
-  );
+  background: var(--site-body-bg);
 }
 
 .home-profile__inner {
@@ -218,7 +212,7 @@
 }
 
 @media (min-width: 960px) {
-  /* Sit the dossier over the portrait column; leave chat column breathing room. */
+  /* Align dossier with the hero copy column; leave chat column breathing room. */
   .home-profile__inner {
     width: min(40rem, calc((100vw - var(--header_width, 60px)) * 1.25 / 2.1 - 2rem));
     margin-left: max(var(--page-inline-pad, 15px), 1.25rem);

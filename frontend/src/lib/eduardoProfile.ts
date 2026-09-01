@@ -13,7 +13,7 @@ export const PROFILE_YOUTUBE = "https://youtube.com/@EduardoOsteicoechea";
 export const PROFILE_GITHUB = "https://github.com/EduardoOsteicoechea";
 
 export const profileWhoAnswer =
-  "Eduardo Osteicoechea is a licensed building architect, BIM specialist, and full-stack desktop, web, and cloud developer focused on AI-powered BIM solutions for the AEC industry. He bridges architecture and software so firms get one professional who can model, automate, and ship products.";
+  "Eduardo Osteicoechea is a licensed Building Architect (Universidad de Los Andes, Cum Laude), Master in BIM, and full-stack BIM–desktop–web–cloud developer. He builds Revit and AutoCAD API tools, AI integrations, and multiplatform products so AEC firms get architecture depth and software delivery in one practice.";
 
 export const profileExpertiseAnswer =
   "He specializes in Revit and AutoCAD API tooling, custom Revit add-ins and Dynamo workflows, .NET desktop apps, and full-stack web and cloud delivery. His work connects design technology with AI integrations for clash detection, visualization, quantification, and multiplatform BIM products.";
@@ -129,7 +129,7 @@ export function buildHomeProfileJsonLd(pageUrl: string): Record<string, unknown>
         "@type": "WebPage",
         "@id": `${pageUrl}#webpage`,
         url: pageUrl,
-        name: "Eduardo Osteicoechea — AEC Technologist",
+        name: "Eduardo Osteicoechea — Architect, BIM engineer, software builder",
         description: profileWhoAnswer,
         isPartOf: { "@id": `${PROFILE_SITE}/#website` },
         about: { "@id": `${pageUrl}#person` },
@@ -151,7 +151,7 @@ export function buildHomeProfileJsonLd(pageUrl: string): Record<string, unknown>
         name: "Eduardo Osteicoechea",
         url: PROFILE_SITE,
         image: `${PROFILE_SITE}/personal_photo_1080x1920_side_placed.webp`,
-        jobTitle: "AEC Technologist",
+        jobTitle: "Architect, BIM engineer, and full-stack software developer",
         description: profileWhoAnswer,
         email: PROFILE_EMAIL,
         sameAs: [PROFILE_LINKEDIN, PROFILE_GITHUB, PROFILE_YOUTUBE, PROFILE_SITE],
