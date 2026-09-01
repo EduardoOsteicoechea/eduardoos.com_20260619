@@ -8,7 +8,7 @@
 
 Port the Issue Tracker into Eduardo OS as **eReport**: subscribed users store `.ereport` JSON under S3 `ereport/`, list/open by user, set a **tema**, load from disk or cloud, and share a report with other registered users so they can view it.
 
-**Canonical tracker UI:** `frontend/public/ereport-tracker.html` (alias `frontend/public/ereport/tracker.html`). The former standalone kit folder was removed after port.
+**Canonical tracker UI:** `frontend/public/ereport-tracker.html` (alias `frontend/public/ereport/tracker.html`). UX/styles synced to populado Issue Tracker (spec 049): Material Icons topbar, sticky section/group heads, collapse, inplace editors, `no_aplica`, tutorial + progress/save modals. Host `postMessage` bridge preserved.
 
 ## Goals
 
