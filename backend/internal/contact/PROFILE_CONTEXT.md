@@ -64,7 +64,7 @@ Architecturally trained BIM specialist and full-stack software developer with a 
 
 - **Bachelor of Architecture**, Universidad de Los Andes (ULA), 2009–2017; graduated 2017 (GPA: Cum Laude). Extensive architectural design, AutoCAD, SketchUp; BIM training at an Autodesk Authorized Training Center during this period.
 - **Advanced BIM Modeling Course**, BIMMASTER.org.
-- **Artified Master** (2011) — BIM-related training; **not** a conferred Master’s degree. Do not describe Eduardo as holding a Master in BIM.
+- **Autodesk Authorized Training Center Course** (2011) — BIM-related training; **not** a conferred Master’s degree. Do not describe Eduardo as holding a Master in BIM.
 - **Theology studies**, Integridad & Sabiduría (online institute, Dominican Republic), through ~2023, alongside missionary service.
 - **Full-stack web development** self-study (2020–2023): Udemy full-stack course (HTML, CSS, JavaScript, Bootstrap, PHP, MySQL, XAMPP, hosting); also Web Dev Simplified, Kevin Powell, Bro Code, Programming with Mosh, MDN, w3schools.
 

@@ -14,7 +14,7 @@ export const PROFILE_YOUTUBE = "https://youtube.com/@EduardoOsteicoechea";
 export const PROFILE_GITHUB = "https://github.com/EduardoOsteicoechea";
 
 export const profileWhoAnswer =
-  "I am a licensed Building Architect (Universidad de Los Andes, Cum Laude) and a full-stack developer across desktop, web, and cloud, with focused BIM training (Artified Master, 2011; Advanced BIM Modeling at BIMMASTER.org). I build Revit and AutoCAD API tools, ship AI integrations, and design multiplatform products — so AEC teams get architecture depth and software delivery from one practice. I am especially energized by AI-driven development: turning model intelligence into tools people can actually run.";
+  "I am a licensed Building Architect (Universidad de Los Andes, Cum Laude) and a full-stack developer across desktop, web, and cloud, with focused BIM training (Autodesk Authorized Training Center Course, 2011; Advanced BIM Modeling at BIMMASTER.org). I build Revit and AutoCAD API tools, ship AI integrations, and design multiplatform products — so AEC teams get architecture depth and software delivery from one practice. I am especially energized by AI-driven development: turning model intelligence into tools people can actually run.";
 
 export const profileExpertiseAnswer =
   "I specialize in Revit and AutoCAD API tooling, custom Revit add-ins and Dynamo workflows, .NET desktop apps, and full-stack web and cloud delivery. My work connects design technology with AI — clash detection, visualization, quantification, and multiplatform BIM products that learn from how teams actually build.";
@@ -81,7 +81,7 @@ export const profileExperience: ProfileExperience[] = [
 
 export const profileEducation: string[] = [
   "Bachelor of Architecture, Universidad de Los Andes (ULA), 2009–2017; graduated 2017 (Cum Laude). Architectural design, AutoCAD, SketchUp; BIM training at an Autodesk Authorized Training Center.",
-  "Artified Master (2011) — BIM-related training (not a conferred Master’s degree).",
+  "Autodesk Authorized Training Center Course (2011) — BIM-related training (not a conferred Master’s degree).",
   "Advanced BIM Modeling Course, BIMMASTER.org.",
   "Theology studies, Integridad & Sabiduría (online institute, Dominican Republic), through ~2023.",
   "Full-stack web development self-study (2020–2023): HTML, CSS, JavaScript, Bootstrap, PHP, MySQL, and modern front-end practice.",

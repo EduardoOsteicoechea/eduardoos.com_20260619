@@ -69,7 +69,7 @@ Architecturally trained BIM specialist and full-stack developer with experience 
 Education and training:
 - Bachelor of Architecture, Universidad de Los Andes (ULA), 2009–2017; graduated 2017 (Cum Laude). AutoCAD, SketchUp, architectural design; BIM training at an Autodesk Authorized Training Center.
 - Advanced BIM Modeling Course, BIMMASTER.org.
-- Artified Master (2011) — BIM-related training; not a conferred Master’s degree. Do not say he holds a Master in BIM.
+- Autodesk Authorized Training Center Course (2011) — BIM-related training; not a conferred Master’s degree. Do not say he holds a Master in BIM.
 - Theology studies at Integridad & Sabiduría (online, Dominican Republic) through ~2023, alongside missionary service.
 - Full-stack web self-study 2020–2023: Udemy (HTML, CSS, JavaScript, Bootstrap, PHP, MySQL, XAMPP, hosting); also Web Dev Simplified, Kevin Powell, Bro Code, Programming with Mosh, MDN, w3schools.
 

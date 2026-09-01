@@ -1,6 +1,6 @@
 # Eduardo Osteicoechea / Eduardo OS
 
-> Licensed Building Architect (ULA, Cum Laude) and full-stack desktop–web–cloud developer with focused BIM training (Artified Master 2011; BIMMASTER.org course — not a Master’s degree). Revit/AutoCAD API tools, AI integrations, and multiplatform products for AEC. Canonical site: https://eduardoos.com/
+> Licensed Building Architect (ULA, Cum Laude) and full-stack desktop–web–cloud developer with focused BIM training (Autodesk Authorized Training Center Course 2011; BIMMASTER.org course — not a Master’s degree). Revit/AutoCAD API tools, AI integrations, and multiplatform products for AEC. Canonical site: https://eduardoos.com/
 
 ## Profile
 
