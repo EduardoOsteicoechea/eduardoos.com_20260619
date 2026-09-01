@@ -58,11 +58,13 @@ export default function HomescoolPage() {
                 id: "students",
                 title: "My students",
                 description: "Roster and learning spaces",
+                icon: "groups",
               },
               {
                 id: "register",
                 title: "Register a student",
                 description: "Enroll an existing platform user",
+                icon: "person_add",
               },
             ]}
             onSelect={go}
@@ -75,6 +77,7 @@ export default function HomescoolPage() {
                 id: "learning",
                 title: "My learning space",
                 description: "When another teacher enrolled you",
+                icon: "menu_book",
               },
             ]}
             onSelect={go}

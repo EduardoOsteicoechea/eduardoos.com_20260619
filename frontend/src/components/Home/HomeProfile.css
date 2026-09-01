@@ -1,4 +1,4 @@
-/* Home profile dossier — 3-col shell shared with AI agent (--home-col). */
+/* Home profile dossier — sits in home-hero__main (2 of 3 desktop cols, spec 047). */
 
 .home-profile {
   position: relative;
@@ -46,20 +46,46 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--home-gap, var(--m2, 1.125rem));
-  align-items: start;
+  align-items: stretch;
 }
 
 .home-profile__block {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: var(--p3, 1.5rem);
   border: none;
   border-radius: var(--br, 0.215rem);
   background: var(--site-surface);
   min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* Variation: Experience + Skills — no section chrome; cards/text only (spec 047). */
+.home-profile__block--flat {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+
+.home-profile__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.75rem;
+}
+
+.home-profile__heading .material-symbols-outlined {
+  flex: 0 0 auto;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--site-accent);
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
 .home-profile__block h2 {
-  margin: 0 0 0.75rem;
+  margin: 0;
   font-family: var(--font-display, Calibri, system-ui, sans-serif);
   font-size: clamp(1.15rem, 2.4vw, 1.35rem);
   font-weight: 650;
@@ -97,10 +123,12 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--m2);
+    align-items: stretch;
   }
 
   .home-profile__list--cols li {
     margin: 0;
+    height: 100%;
   }
 }
 
@@ -111,21 +139,42 @@
   margin: 0.75rem 0 0;
   padding: 0;
   list-style: none;
+  align-items: stretch;
 }
 
 .home-profile__job {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: var(--p2);
   border-radius: var(--br);
-  background: color-mix(in srgb, var(--site-body-bg) 65%, var(--site-surface));
+  background: var(--site-surface);
   font-family: var(--font-body, Calibri, system-ui, sans-serif);
   font-size: 0.9rem;
   line-height: 1.55;
   color: var(--site-meta-fg);
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.home-profile__job-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin: 0 0 0.2rem;
+}
+
+.home-profile__job-head .material-symbols-outlined {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--site-accent);
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
 .home-profile__job h3 {
-  margin: 0 0 0.2rem;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -160,6 +209,7 @@
   margin: 0.75rem 0 1rem;
   padding: 0;
   list-style: none;
+  align-items: stretch;
 }
 
 .home-profile__skill-grid li {
@@ -169,7 +219,23 @@
   margin: 0;
   padding: var(--p2);
   border-radius: var(--br);
-  background: color-mix(in srgb, var(--site-body-bg) 65%, var(--site-surface));
+  background: var(--site-surface);
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.home-profile__skill-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.home-profile__skill-title .material-symbols-outlined {
+  flex: 0 0 auto;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--site-accent);
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
 .home-profile__skill-grid strong {
@@ -198,14 +264,34 @@
   grid-template-columns: 1fr;
   gap: var(--m2);
   margin-top: 0.5rem;
+  align-items: stretch;
+}
+
+.home-profile__faq-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .home-profile__faq-card h3 {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
   margin: 0 0 0.4rem;
   font-family: var(--font-display, Calibri, system-ui, sans-serif);
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--site-body-fg);
+}
+
+.home-profile__faq-card h3 .material-symbols-outlined {
+  flex: 0 0 auto;
+  margin-top: 0.05rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--site-accent);
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
 .home-profile__faq-card p {
@@ -277,29 +363,16 @@
 }
 
 @media (min-width: 960px) {
-  /*
-   * 3 equal columns across the main pane: 2 for dossier + 1 for agent.
-   * Agent width === one Profile/Specialization column.
-   */
-  html.page-home {
-    --home-gap: var(--m2, 1.125rem);
-    --home-pad: var(--page-inline-pad, var(--p2));
-    --home-usable: calc(100vw - var(--header_width, 60px) - 2 * var(--home-pad));
-    --home-col: calc((var(--home-usable) - 2 * var(--home-gap)) / 3);
-  }
-
   .home-profile__inner {
-    width: calc(2 * var(--home-col) + var(--home-gap));
-    max-width: none;
-    margin-left: var(--home-pad);
-    margin-right: auto;
+    width: 100%;
+    margin: 0;
     padding-left: 0;
     padding-right: 0;
   }
 
   .home-profile__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--home-gap);
+    gap: var(--home-gap, var(--m2));
   }
 
   .home-profile__jobs {

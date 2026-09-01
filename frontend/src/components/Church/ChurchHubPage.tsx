@@ -17,6 +17,7 @@ import {
   DashboardGrid,
   DashboardSection,
   ProductHubShell,
+  type DashboardCardItem,
 } from "../ProductDashboard/ProductDashboard";
 import "../ProductDashboard/ProductDashboard.css";
 import { ChurchGateShell, useChurchAuthGate } from "./ChurchGate";
@@ -100,41 +101,48 @@ export default function ChurchHubPage() {
       <ProductHubShell title="Church">
         <DashboardSection title="Workspace">
           <DashboardGrid
-            cards={[
-              {
-                id: "register",
-                title: "Register church",
-                description: "New iglesia under church/",
-              },
-              {
-                id: "overview",
-                title: "My overview",
-                description: "Your church dashboard",
-              },
-              {
-                id: "activity",
-                title: "My activities",
-                description: "Activity feed",
-              },
-              ...(authz?.isPlatformAdmin || authz?.canRegister
-                ? [
-                    {
-                      id: "leaders",
-                      title: "Líderes",
-                      description: "Leaders catalog",
-                    },
-                  ]
-                : []),
-              ...(authz?.isPlatformAdmin
-                ? [
-                    {
-                      id: "groups",
-                      title: "Redes / groups",
-                      description: "Group networks",
-                    },
-                  ]
-                : []),
-            ]}
+            cards={
+              [
+                {
+                  id: "register",
+                  title: "Register church",
+                  description: "New iglesia under church/",
+                  icon: "add_business",
+                },
+                {
+                  id: "overview",
+                  title: "My overview",
+                  description: "Your church dashboard",
+                  icon: "dashboard",
+                },
+                {
+                  id: "activity",
+                  title: "My activities",
+                  description: "Activity feed",
+                  icon: "timeline",
+                },
+                ...(authz?.isPlatformAdmin || authz?.canRegister
+                  ? [
+                      {
+                        id: "leaders",
+                        title: "Líderes",
+                        description: "Leaders catalog",
+                        icon: "supervisor_account",
+                      },
+                    ]
+                  : []),
+                ...(authz?.isPlatformAdmin
+                  ? [
+                      {
+                        id: "groups",
+                        title: "Redes / groups",
+                        description: "Group networks",
+                        icon: "hub",
+                      },
+                    ]
+                  : []),
+              ] as DashboardCardItem[]
+            }
             onSelect={(id) => {
               const map: Record<string, string> = {
                 register: APP_ROUTES.churchRegister,

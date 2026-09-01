@@ -6,7 +6,7 @@ Contact chat was a different product from the home dock. Chrome Email/WhatsApp b
 
 ## Goals
 
-1. Shared dock preset: `alwaysShowChat`, title `"AI agent"`, `askPath` = `/api/profile/ask`, **`showDirectLinks: false`** (no chrome Email/WhatsApp).
+1. Shared dock preset: `alwaysShowChat`, title **`"Talk To Assistant"`**, `askPath` = `/api/profile/ask`, **`showDirectLinks: false`** (no chrome Email/WhatsApp).
 2. `/` and `/contact` mount that preset; only `welcomeMessage` (+ `scopeId` / `skillLabel`) differ.
 3. Contact page: full-bleed `--page-inline-pad`; agent column without card chrome.
 4. Keep contact intro + `ContactChannels` outside the agent.

@@ -31,7 +31,7 @@ export function siteAgentDockProps(surface: SiteAgentSurface) {
   return {
     alwaysShowChat: true as const,
     showDirectLinks: false as const,
-    title: "AI agent",
+    title: "Talk To Assistant",
     askPath: CONTACT_API_ROUTES.profileAsk,
     welcomeMessage:
       surface === "home" ? HOME_AGENT_WELCOME : CONTACT_AGENT_WELCOME,

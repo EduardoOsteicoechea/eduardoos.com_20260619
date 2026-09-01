@@ -24,34 +24,43 @@ const siteAgent = siteAgentDockProps("home");
   <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 
   <div class="page-shell home-hero">
-    <div class="home-hero__stage">
-      <div class="home-hero__primary">
-        <div class="home-hero__copy">
-          <p class="home-hero__brand">Eduardo Osteicoechea</p>
-          <h1>Architect. BIM engineer. Software builder.</h1>
-          <p class="home-hero__lead">
-            I am a licensed Building Architect (ULA, Cum Laude) and Master in BIM.
-            I ship Revit add-ins, .NET tools, and full-stack products — from Clash
-            Detection and Dynamo nodes at Avant Leap to AWS-hosted platforms on
-            this site. One practice that models buildings and the software that
-            runs them, with a clear drive for AI-powered development.
-          </p>
-          <div class="home-hero__links">
-            <a class="btn btn--primary" href={APP_ROUTES.contact}>Contact</a>
-            <a
-              class="btn"
-              href={PROFILE_LINKEDIN}
-              rel="noopener noreferrer"
-              target="_blank">LinkedIn</a
-            >
+    {/*
+      Desktop ≥960px: CSS grid 3 equal columns + --home-gap between them.
+      Main spans cols 1–2; Talk To Assistant tray is sticky in col 3 (spec 047).
+    */}
+    <div class="home-hero__layout">
+      <div class="home-hero__main">
+        <div class="home-hero__stage">
+          <div class="home-hero__primary">
+            <div class="home-hero__copy">
+              <p class="home-hero__brand">Eduardo Osteicoechea</p>
+              <h1>Architect. BIM engineer. Software builder.</h1>
+              <p class="home-hero__lead">
+                I am a licensed Building Architect (ULA, Cum Laude) and Master in BIM.
+                I ship Revit add-ins, .NET tools, and full-stack products — from Clash
+                Detection and Dynamo nodes at Avant Leap to AWS-hosted platforms on
+                this site. One practice that models buildings and the software that
+                runs them, with a clear drive for AI-powered development.
+              </p>
+              <div class="home-hero__links">
+                <a class="btn btn--primary" href={APP_ROUTES.contact}>Contact</a>
+                <a
+                  class="btn"
+                  href={PROFILE_LINKEDIN}
+                  rel="noopener noreferrer"
+                  target="_blank">LinkedIn</a
+                >
+              </div>
+            </div>
           </div>
         </div>
+
+        <HomeProfile />
       </div>
-      <aside class="home-hero__chat" aria-label="AI agent">
+
+      <aside class="home-hero__chat" aria-label="Talk To Assistant">
         <ContactAgent client:load {...siteAgent} />
       </aside>
     </div>
-
-    <HomeProfile />
   </div>
 </BaseLayout>

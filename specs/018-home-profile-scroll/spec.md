@@ -15,8 +15,8 @@ Profile/RAG facts live in `PROFILE_CONTEXT.md` for agents but visitors only see 
    - FAQ: 3 columns
    - Focus | Contact (1+1)
    First-person copy; AI-driven enthusiasm.
-3. **Fixed AI panel (desktop ≥960px only)** — `.home-hero__chat` stays `position: fixed` with z-index above dossier; mobile/tablet unchanged (chat hidden below 960px).
-4. **Structured public profile** below the hero (first person on page; FAQ questions natural-language for AEO). LinkedIn included.
+3. **Fixed AI panel (desktop ≥960px only)** — `.home-hero__chat` stays `position: fixed` with z-index above dossier; mobile/tablet unchanged (chat hidden below 960px). **Gutter:** dossier ↔ agent uses the same `--home-gap` as Profile↔Specialization (see `specs/047-home-agent-gap-cards-icons/spec.md`). Dock title: **Talk To Assistant**.
+4. **Structured public profile** below the hero (first person on page; FAQ questions natural-language for AEO). LinkedIn included. Experience + Skills sections are flat (no section bg/padding); cards equal height; Material Symbol icons on sections and cards.
 5. **AEO/GEO** — Person+FAQPage+WebPage JSON-LD; `/llms.txt`.
 6. Visual language: plain CSS; light/dark via `--site-*` / 045 tokens.
 

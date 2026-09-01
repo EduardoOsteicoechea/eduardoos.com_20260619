@@ -127,13 +127,22 @@
   color: var(--site-meta-fg);
 }
 
-/* —— Home: brand-first hero (copy + agent; no portrait backdrop) —— */
+/* —— Home: brand-first hero + 3-col dossier/agent shell (spec 047) —— */
 .page-shell.home-hero {
   /* Bleed to chrome: no inset gap under top bar / against left rail. */
   width: 100%;
   max-width: none;
   margin: 0;
   padding: 0;
+}
+
+.home-hero__layout {
+  display: block;
+  width: 100%;
+}
+
+.home-hero__main {
+  min-width: 0;
 }
 
 .home-hero__stage {
@@ -154,10 +163,6 @@
   border-radius: 0;
 }
 
-/*
- * Home stacking: do NOT put z-index on .home-hero__stage — that traps
- * position:fixed chat under .home-profile. Chat stays above the dossier.
- */
 html.page-home .home-hero__primary,
 html.page-home .home-hero__copy {
   position: relative;
@@ -255,19 +260,33 @@ html.page-home .home-hero__chat {
   }
 }
 
-/* Wide desktop: copy + fixed agent panel while the dossier scrolls. */
+/*
+ * Desktop ≥960px: three equal columns + --home-gap between them.
+ * Main (hero + dossier) spans 1–2; Talk To Assistant is sticky in column 3.
+ * Same gutter as Profile ↔ Specialization (no 100vw math / no flush tray).
+ */
 @media (min-width: 960px) {
   html.page-home {
     --home-gap: var(--m2, 1.125rem);
     --home-pad: var(--page-inline-pad, var(--p2));
-    --home-usable: calc(100vw - var(--header_width, 60px) - 2 * var(--home-pad));
-    --home-col: calc((var(--home-usable) - 2 * var(--home-gap)) / 3);
+  }
+
+  .home-hero__layout {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--home-gap);
+    align-items: start;
+    box-sizing: border-box;
+    width: 100%;
+    padding-inline: var(--home-pad);
+  }
+
+  .home-hero__main {
+    grid-column: 1 / 3;
+    min-width: 0;
   }
 
   .home-hero__stage {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-    gap: 0;
     min-height: 100svh;
     min-height: 100dvh;
   }
@@ -277,11 +296,25 @@ html.page-home .home-hero__chat {
     justify-content: center;
   }
 
+  .home-hero__copy {
+    padding-left: 0;
+    padding-right: 0;
+    max-width: none;
+  }
+
   .home-hero__chat {
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    margin: 1.25rem var(--page-inline-pad, 15px) 1.25rem 1.5rem;
+    grid-column: 3;
+    position: sticky;
+    z-index: 100;
+    top: 1.25rem;
+    align-self: start;
+    box-sizing: border-box;
+    width: 100%;
+    height: calc(100dvh - 2.5rem);
+    max-height: calc(100dvh - 2.5rem);
+    margin: 0;
     padding: 1.15rem 1.2rem 1.2rem;
     border: var(--border_001);
     border-radius: var(--border_radius_001, var(--br, 0.215rem));
@@ -290,25 +323,7 @@ html.page-home .home-hero__chat {
     backdrop-filter: blur(10px);
   }
 
-  /* Reserve one --home-col for the agent (same width as Profile/Specialization). */
-  html.page-home .home-hero__stage {
-    padding-right: calc(var(--home-col) + var(--home-pad) + var(--home-gap));
-  }
-
-  html.page-home .home-hero__chat {
-    position: fixed;
-    z-index: 100;
-    top: 1.25rem;
-    right: var(--home-pad);
-    bottom: 1.25rem;
-    left: auto;
-    width: var(--home-col);
-    margin: 0;
-    max-height: none;
-    box-sizing: border-box;
-  }
-
-  html.page-home .home-hero__chat .contact-agent {
+  .home-hero__chat .contact-agent {
     max-width: none;
     flex: 1 1 auto;
     height: 100%;

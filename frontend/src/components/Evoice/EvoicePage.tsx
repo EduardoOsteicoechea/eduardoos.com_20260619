@@ -57,13 +57,13 @@ const EVOICE_VIEWS = [
 ] as const;
 
 const EVOICE_CARDS = [
-  { id: "admin", title: "Admin", description: "Switch owner (admin only)." },
-  { id: "upload", title: "Upload", description: "File uploads and paste text." },
-  { id: "docs", title: "Manage documents", description: "Select and generate docs." },
-  { id: "audios", title: "Manage audios", description: "Playlist and downloads." },
-  { id: "playlists", title: "Playlists", description: "Play generated MP3s." },
-  { id: "print", title: "Print documents", description: "Print-friendly doc list." },
-  { id: "crawl", title: "Crawl URL", description: "Fetch URL → clean → TTS doc." },
+  { id: "admin", title: "Admin", description: "Switch owner (admin only).", icon: "admin_panel_settings" },
+  { id: "upload", title: "Upload", description: "File uploads and paste text.", icon: "upload_file" },
+  { id: "docs", title: "Manage documents", description: "Select and generate docs.", icon: "description" },
+  { id: "audios", title: "Manage audios", description: "Playlist and downloads.", icon: "audio_file" },
+  { id: "playlists", title: "Playlists", description: "Play generated MP3s.", icon: "queue_music" },
+  { id: "print", title: "Print documents", description: "Print-friendly doc list.", icon: "print" },
+  { id: "crawl", title: "Crawl URL", description: "Fetch URL → clean → TTS doc.", icon: "travel_explore" },
 ];
 
 function stemOf(name: string): string {

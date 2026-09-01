@@ -1,7 +1,7 @@
 ---
 /**
  * Scrollable professional dossier under the home hero.
- * Shared --home-col with the AI agent (3-column shell).
+ * Desktop: lives in home-hero__main (2 of 3 equal columns; agent sticky in col 3).
  */
 import {
   PROFILE_EMAIL,
@@ -35,17 +35,26 @@ import "./HomeProfile.css";
 
     <div class="home-profile__grid">
       <section class="home-profile__block" id="who">
-        <h2>Profile</h2>
+        <div class="home-profile__heading">
+          <span class="material-symbols-outlined" aria-hidden="true">person</span>
+          <h2>Profile</h2>
+        </div>
         <p class="home-profile__answer">{profileWhoAnswer}</p>
       </section>
 
       <section class="home-profile__block" id="expertise">
-        <h2>Specialization</h2>
+        <div class="home-profile__heading">
+          <span class="material-symbols-outlined" aria-hidden="true">architecture</span>
+          <h2>Specialization</h2>
+        </div>
         <p class="home-profile__answer">{profileExpertiseAnswer}</p>
       </section>
 
       <section class="home-profile__block home-profile__block--span-2" id="education">
-        <h2>Education and Training</h2>
+        <div class="home-profile__heading">
+          <span class="material-symbols-outlined" aria-hidden="true">school</span>
+          <h2>Education and Training</h2>
+        </div>
         <p class="home-profile__answer">
           My path combines architecture, BIM specialization, theology study, and
           deliberate full-stack self-training — so I can design buildings and ship
@@ -57,10 +66,13 @@ import "./HomeProfile.css";
       </section>
 
       <section
-        class="home-profile__block home-profile__block--span-2 home-profile__block--experience"
+        class="home-profile__block home-profile__block--span-2 home-profile__block--flat"
         id="experience"
       >
-        <h2>Professional Experience</h2>
+        <div class="home-profile__heading">
+          <span class="material-symbols-outlined" aria-hidden="true">work</span>
+          <h2>Professional Experience</h2>
+        </div>
         <p class="home-profile__answer">
           From architectural production and missionary leadership through US BIM
           consulting into AI-powered BIM product engineering at Avant Leap — with
@@ -70,10 +82,15 @@ import "./HomeProfile.css";
           {
             profileExperience.map((job) => (
               <li class="home-profile__job">
-                <h3>
-                  <span class="home-profile__org">{job.org}</span>
-                  <span class="home-profile__role">{job.role}</span>
-                </h3>
+                <div class="home-profile__job-head">
+                  <span class="material-symbols-outlined" aria-hidden="true">
+                    {job.icon}
+                  </span>
+                  <h3>
+                    <span class="home-profile__org">{job.org}</span>
+                    <span class="home-profile__role">{job.role}</span>
+                  </h3>
+                </div>
                 <p class="home-profile__period">{job.period}</p>
                 <p>{job.summary}</p>
               </li>
@@ -82,8 +99,14 @@ import "./HomeProfile.css";
         </ol>
       </section>
 
-      <section class="home-profile__block home-profile__block--span-2" id="skills">
-        <h2>Skills and Stack</h2>
+      <section
+        class="home-profile__block home-profile__block--span-2 home-profile__block--flat"
+        id="skills"
+      >
+        <div class="home-profile__heading">
+          <span class="material-symbols-outlined" aria-hidden="true">handyman</span>
+          <h2>Skills and Stack</h2>
+        </div>
         <p class="home-profile__answer">
           Six strengths I lean on daily — especially where BIM meets AI-driven
           product development.
@@ -92,7 +115,12 @@ import "./HomeProfile.css";
           {
             profileSkillCards.map((s) => (
               <li>
-                <strong>{s.title}</strong>
+                <div class="home-profile__skill-title">
+                  <span class="material-symbols-outlined" aria-hidden="true">
+                    {s.icon}
+                  </span>
+                  <strong>{s.title}</strong>
+                </div>
                 <span>{s.description}</span>
               </li>
             ))
@@ -105,12 +133,20 @@ import "./HomeProfile.css";
       </section>
 
       <section class="home-profile__block home-profile__block--span-2" id="faq">
-        <h2>FAQ</h2>
+        <div class="home-profile__heading">
+          <span class="material-symbols-outlined" aria-hidden="true">help</span>
+          <h2>FAQ</h2>
+        </div>
         <div class="home-profile__faq-grid">
           {
             profileFaq.map((item) => (
               <div class="home-profile__faq-card">
-                <h3>{item.question}</h3>
+                <h3>
+                  <span class="material-symbols-outlined" aria-hidden="true">
+                    {item.icon}
+                  </span>
+                  <span>{item.question}</span>
+                </h3>
                 <p>{item.answer}</p>
               </div>
             ))
@@ -119,12 +155,18 @@ import "./HomeProfile.css";
       </section>
 
       <section class="home-profile__block" id="focus">
-        <h2>Focus</h2>
+        <div class="home-profile__heading">
+          <span class="material-symbols-outlined" aria-hidden="true">track_changes</span>
+          <h2>Focus</h2>
+        </div>
         <p class="home-profile__answer">{profileFocusAnswer}</p>
       </section>
 
       <section class="home-profile__block" id="contact-profile">
-        <h2>Contact</h2>
+        <div class="home-profile__heading">
+          <span class="material-symbols-outlined" aria-hidden="true">contact_mail</span>
+          <h2>Contact</h2>
+        </div>
         <p class="home-profile__answer">
           Reach me on the public channels below — email, WhatsApp, or LinkedIn.
           Same canonical contacts across Eduardo OS.

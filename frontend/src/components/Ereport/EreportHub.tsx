@@ -303,11 +303,13 @@ export default function EreportHub() {
                     id: "orgs",
                     title: "Orgs",
                     description: `${visibleOrgs.length} visible`,
+                    icon: "corporate_fare",
                   },
                   {
                     id: "register",
                     title: "Register org",
                     description: "Create a client organization",
+                    icon: "domain_add",
                   },
                 ]}
                 onSelect={setView}
@@ -320,11 +322,13 @@ export default function EreportHub() {
                     id: "recent",
                     title: "Recent reports",
                     description: `${recent.length} recent`,
+                    icon: "history",
                   },
                   {
                     id: "manage",
                     title: "Manage orgs",
                     description: "Order, hide, delete",
+                    icon: "folder_managed",
                   },
                 ]}
                 onSelect={setView}

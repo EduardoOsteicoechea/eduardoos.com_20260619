@@ -32,12 +32,12 @@ const MUSIC_VIEWS = [
 ] as const;
 
 const DASH_CARDS = [
-  { id: "playlists", title: "Playlists", description: "Build and play worship playlists." },
-  { id: "free", title: "Free Select", description: "Pick any library track freely." },
-  { id: "rec", title: "Record", description: "Record a song with the mic." },
-  { id: "upload", title: "Upload", description: "New song or save a v2." },
-  { id: "letters", title: "Set letters", description: "Lyrics / .emusic letters." },
-  { id: "manage", title: "Manage Songs", description: "Browse the audio library." },
+  { id: "playlists", title: "Playlists", description: "Build and play worship playlists.", icon: "queue_music" },
+  { id: "free", title: "Free Select", description: "Pick any library track freely.", icon: "library_music" },
+  { id: "rec", title: "Record", description: "Record a song with the mic.", icon: "mic" },
+  { id: "upload", title: "Upload", description: "New song or save a v2.", icon: "upload_file" },
+  { id: "letters", title: "Set letters", description: "Lyrics / .emusic letters.", icon: "lyrics" },
+  { id: "manage", title: "Manage Songs", description: "Browse the audio library.", icon: "folder_managed" },
 ];
 
 const AUDIO_ACCEPT =

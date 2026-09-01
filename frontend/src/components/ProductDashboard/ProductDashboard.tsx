@@ -51,6 +51,8 @@ export type DashboardCardItem = {
   id: string;
   title: string;
   description?: string;
+  /** Material Symbol ligature — required on every dashboard card (spec 047). */
+  icon: string;
 };
 
 export function DashboardGrid({
@@ -69,7 +71,15 @@ export function DashboardGrid({
           className="product-dash__card"
           onClick={() => onSelect(c.id)}
         >
-          <span className="product-dash__card-title">{c.title}</span>
+          <span className="product-dash__card-head">
+            <span
+              className="material-symbols-outlined product-dash__card-icon"
+              aria-hidden="true"
+            >
+              {c.icon}
+            </span>
+            <span className="product-dash__card-title">{c.title}</span>
+          </span>
           {c.description ? (
             <span className="product-dash__card-desc">{c.description}</span>
           ) : null}

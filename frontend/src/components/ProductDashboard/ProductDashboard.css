@@ -39,6 +39,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: var(--m2);
+  align-items: stretch;
 }
 
 .product-dash__card {
@@ -48,6 +49,7 @@
   gap: var(--m1);
   text-align: left;
   min-height: calc(var(--bmh) * 3);
+  height: 100%;
   padding: var(--p3);
   border: none;
   border-radius: var(--br);
@@ -55,10 +57,26 @@
   color: var(--fg);
   cursor: pointer;
   font-family: var(--font-body);
+  box-sizing: border-box;
 }
 
 .product-dash__card:hover {
   background: color-mix(in srgb, var(--btn-blue) 12%, var(--site-surface));
+}
+
+.product-dash__card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.product-dash__card-icon {
+  flex: 0 0 auto;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--site-accent, var(--btn-blue));
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
 .product-dash__card-title {

@@ -24,6 +24,8 @@ export type ProfileExperience = {
   role: string;
   period: string;
   summary: string;
+  /** Material Symbol ligature for the job card. */
+  icon: string;
 };
 
 export const profileExperience: ProfileExperience[] = [
@@ -31,6 +33,7 @@ export const profileExperience: ProfileExperience[] = [
     org: "Avant Leap",
     role: "BIM software developer",
     period: "March 2024–present",
+    icon: "precision_manufacturing",
     summary:
       "I support and extend Revit add-ins (Clash Detection, Object Visualizer, Object Quantifier, 4D Simulation, Dynamo Zero Touch Nodes, Mirar, Andiamo, Itera). I built SincronizadorGPS50 (Windows Forms + SQL Server) linking Gestproject2024 and Sage50, and ship AI integrations with OpenAI, StabilityAI, and Replicate-based actions across Windows apps and Revit APIs.",
   },
@@ -38,6 +41,7 @@ export const profileExperience: ProfileExperience[] = [
     org: "Freelance",
     role: "Full-stack web & UI/UX",
     period: "Late 2023 (~six months)",
+    icon: "language",
     summary:
       "I delivered sites including scalaa.com, theinspiratagroup.com, hotelbelensate.com, eduardoos.com, crintt.com, and thedalessiogroup.com — branding, design, coding, hosting, email migration, and media production.",
   },
@@ -45,6 +49,7 @@ export const profileExperience: ProfileExperience[] = [
     org: "BIMIQs (Miami)",
     role: "BIM modeler, Revit API developer, web developer",
     period: "2023",
+    icon: "apartment",
     summary:
       "As the first employee of a US AEC consulting startup, I covered BIM modeling, Revit families, Revit API tools (including Revit Modeler), and graphic design for bimiqs.com — modeling, research, API, and full-stack web in one role.",
   },
@@ -52,6 +57,7 @@ export const profileExperience: ProfileExperience[] = [
     org: "VDC Works (Miami)",
     role: "Revit BIM technician",
     period: "2023",
+    icon: "engineering",
     summary:
       "I documented electrical rooms and assemblies with collaborative BIM workflows and began visual programming with Revit Dynamo and Python.",
   },
@@ -59,6 +65,7 @@ export const profileExperience: ProfileExperience[] = [
     org: "Iglesia Palabra Viva",
     role: "Venezuelan missionary",
     period: "Until ~2023",
+    icon: "church",
     summary:
       "Leadership, teaching, public speaking, and counseling; parallel theology study at Integridad & Sabiduría; I began writing and song creation.",
   },
@@ -66,6 +73,7 @@ export const profileExperience: ProfileExperience[] = [
     org: "Galpon5",
     role: "Architectural project assistant",
     period: "2017–2018",
+    icon: "architecture",
     summary:
       "I modeled, documented, and rendered buildings in AutoCAD, SketchUp, V-Ray, and 3ds Max for hospitality and commercial projects including Lindo Sol Suites Hotel and Lindo Bakery.",
   },
@@ -82,37 +90,45 @@ export const profileEducation: string[] = [
 export type ProfileSkill = {
   title: string;
   description: string;
+  /** Material Symbol ligature for the skill card. */
+  icon: string;
 };
 
 /** Six featured skills for the home skills grid (brief, CV-grounded). */
 export const profileSkillCards: ProfileSkill[] = [
   {
     title: "Revit add-ins & API",
+    icon: "extension",
     description:
       "Custom commands, families, and .NET tools that sit inside real BIM workflows.",
   },
   {
     title: "AI in BIM",
+    icon: "psychology",
     description:
       "OpenAI, StabilityAI, and Replicate wired into clash, visualize, and automate loops.",
   },
   {
     title: "AI-driven products",
+    icon: "auto_awesome",
     description:
       "I ship multiplatform tools where model intelligence becomes something teams can run.",
   },
   {
     title: "Full-stack delivery",
+    icon: "layers",
     description:
       "Desktop (.NET/WPF), web (React/TS), and cloud (AWS/Nginx) from one practice.",
   },
   {
     title: "Cloud & DevOps",
+    icon: "cloud",
     description:
       "AWS hosting, CI/CD, and durable object storage under production prefixes.",
   },
   {
     title: "Cross-discipline AEC",
+    icon: "domain",
     description:
       "Architecture depth plus software delivery — one professional who models and ships.",
   },
@@ -126,25 +142,29 @@ export const profileStack =
 export const profileFocusAnswer =
   "I am building full-stack applications (React and .NET minimal APIs where relevant), GitHub CI/CD toward AWS, and AI API integrations aimed at multiplatform AI-powered BIM products for AEC. I operate eduardoos.com as my professional platform for documents, articles, music, church, and homescool tooling — and I keep pushing AI-driven development into every product surface that benefits from it.";
 
-export type ProfileFaq = { question: string; answer: string };
+export type ProfileFaq = { question: string; answer: string; icon: string };
 
 export const profileFaq: ProfileFaq[] = [
   {
     question: "Who is Eduardo Osteicoechea?",
+    icon: "person",
     answer: profileWhoAnswer,
   },
   {
     question: "What is Eduardo OS?",
+    icon: "dns",
     answer:
       "Eduardo OS is my professional platform at eduardoos.com — services and tools spanning pamphlet documents, articles, music, church, and homescool, alongside my practice in BIM and full-stack software with a strong focus on AI-driven development.",
   },
   {
     question: "How can I contact Eduardo Osteicoechea?",
+    icon: "mail",
     answer:
       "Email eduardooost@gmail.com, WhatsApp +58 414 728 1033 (https://wa.me/584147281033), or LinkedIn https://www.linkedin.com/in/eduardoosteicoechea. GitHub and YouTube profiles are also public on this site.",
   },
   {
     question: "Where does Eduardo Osteicoechea live?",
+    icon: "location_on",
     answer:
       "I currently reside in Venezuela. For further information, contact me by email, WhatsApp, or LinkedIn using the public channels listed on this page.",
   },
