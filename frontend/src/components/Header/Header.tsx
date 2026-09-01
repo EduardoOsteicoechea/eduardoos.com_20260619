@@ -5,7 +5,8 @@
  * dynamic section centered, avatar then menu on the right. Hamburger opens
  * the nav tray from the left (after the 60px rail on desktop). Tray chrome
  * (A+ / A− / theme / close) sits in a top toolbar; product links (filtered
- * by subscription) and auth links follow. Music keeps the bottom Activity Bar
+ * by subscription, spec 052 order) and auth links follow. Admin users and
+ * Agent Sandbox stay admin-only. Music keeps the bottom Activity Bar
  * and does not register a dynamic header section.
  */
 

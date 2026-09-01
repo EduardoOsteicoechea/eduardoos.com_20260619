@@ -1,7 +1,8 @@
 /**
- * Global tray product links (spec 038 + 044).
+ * Global tray product links (spec 038 + 044 + 052).
  * Public rows are always shown. Billable rows require admin, an active
  * entitlement, allowlist (eVoice), or (Homescool only) a linked-student bypass.
+ * Admin users / Agent Sandbox stay in Header.tsx and render only for isAdmin.
  */
 
 import { APP_ROUTES } from "../config/routes";
@@ -18,10 +19,17 @@ export type TrayNavLink = {
 };
 
 export const PRIMARY_TRAY_LINKS: TrayNavLink[] = [
+  { href: APP_ROUTES.home, label: "Home", icon: "home" },
   { href: APP_ROUTES.contact, label: "Contact", icon: "mail" },
 ];
 
 export const PRODUCT_TRAY_LINKS: TrayNavLink[] = [
+  { href: APP_ROUTES.bimIfcViewer, label: "BIM IFC viewer", icon: "view_in_ar" },
+  { href: APP_ROUTES.articles, label: "Articles", icon: "article" },
+  { href: APP_ROUTES.mediaPlaylist, label: "Music", serviceId: "playlist", icon: "music_note" },
+  { href: APP_ROUTES.pamphlet, label: "Pamphlet", serviceId: "pamphlet", icon: "description" },
+  { href: APP_ROUTES.scrib, label: "Scrib", serviceId: "scrib", icon: "edit_note" },
+  { href: APP_ROUTES.calvinsInstitutes, label: "Calvin’s Institutes", icon: "menu_book" },
   { href: APP_ROUTES.homescool, label: "Homescool", serviceId: "homescool", icon: "school" },
   ...(CHURCH_FEATURE_ENABLED
     ? ([
@@ -33,14 +41,8 @@ export const PRODUCT_TRAY_LINKS: TrayNavLink[] = [
         },
       ] as TrayNavLink[])
     : []),
-  { href: APP_ROUTES.mediaPlaylist, label: "Music", serviceId: "playlist", icon: "music_note" },
-  { href: APP_ROUTES.pamphlet, label: "Pamphlet", serviceId: "pamphlet", icon: "description" },
-  { href: APP_ROUTES.scrib, label: "Scrib", serviceId: "scrib", icon: "edit_note" },
   { href: APP_ROUTES.ereport, label: "eReport", serviceId: "ereport", icon: "assignment" },
   { href: APP_ROUTES.evoice, label: "eVoice", serviceId: "evoice", icon: "record_voice_over" },
-  { href: APP_ROUTES.articles, label: "Articles", icon: "article" },
-  { href: APP_ROUTES.calvinsInstitutes, label: "Calvin’s Institutes", icon: "menu_book" },
-  { href: APP_ROUTES.bimIfcViewer, label: "BIM IFC viewer", icon: "view_in_ar" },
 ];
 
 export type NavVisibilityInput = {

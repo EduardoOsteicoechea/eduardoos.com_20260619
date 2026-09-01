@@ -24,7 +24,7 @@ Active (2026-08-30).
 
 - Remove the **Services Apps & Subscriptions** nested toggle.
 - Render those product links as **top-level tray links**, same level as Contact (same `<a>` styling).
-- **Always visible (not billable):** Contact, Articles, Calvin’s Institutes, BIM IFC viewer.
+- **Always visible (not billable):** Home, Contact, Articles, Calvin’s Institutes, BIM IFC viewer (tray order: spec 052).
 - **Subscription-gated (hide unless allowed):** Homescool (`homescool`), Music (`playlist`), Pamphlet (`pamphlet`), Scrib (`scrib`), eReport (`ereport`). Church stays behind `CHURCH_FEATURE_ENABLED` and `church-management`.
 - Allowed = platform admin **or** active entitlement for that service id. Homescool also shows for linked students (`checkServiceAccess` student bypass).
 - Logged out: gated links hidden; public links stay.

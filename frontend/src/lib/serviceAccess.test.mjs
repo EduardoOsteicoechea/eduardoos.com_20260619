@@ -176,6 +176,35 @@ describe("homescool linked student gate", () => {
   });
 });
 
+describe("tray link order (spec 052)", () => {
+  it("primary tray starts with Home then Contact", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { dirname, join } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const src = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "navServices.ts"),
+      "utf8",
+    );
+    const primary = src.split("export const PRIMARY_TRAY_LINKS")[1].split("];")[0];
+    const product = src.split("export const PRODUCT_TRAY_LINKS")[1].split("];")[0];
+    const keys = (block) =>
+      [...block.matchAll(/href: APP_ROUTES\.(\w+)/g)].map((m) => m[1]);
+    assert.deepEqual(keys(primary), ["home", "contact"]);
+    assert.deepEqual(keys(product), [
+      "bimIfcViewer",
+      "articles",
+      "mediaPlaylist",
+      "pamphlet",
+      "scrib",
+      "calvinsInstitutes",
+      "homescool",
+      "church",
+      "ereport",
+      "evoice",
+    ]);
+  });
+});
+
 describe("flattened product nav visibility (spec 038)", () => {
   function isProductNavLinkVisible(link, input) {
     if (!link.serviceId) return true;
