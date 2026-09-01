@@ -586,6 +586,89 @@ body.theme-dark .stat-box h3 { color: var(--brand-secondary); }
   .main-col { max-width: none; padding: 0; }
   .panel, .group-block, .section-block { box-shadow: none; }
 }
+
+/* —— Site chrome override (Eduardo OS 045): borderless Calibri cards —— */
+html { font-size: 14px !important; }
+body, button, input, textarea, select {
+  font-family: Calibri, system-ui, sans-serif !important;
+}
+.topbar {
+  background: var(--card, #fff) !important;
+  color: var(--ink, #141820) !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.topbar h1 { color: inherit !important; font-weight: 650 !important; }
+.topbar-actions button {
+  background: var(--bg, #f2f3f6) !important;
+  color: var(--ink, #141820) !important;
+  border: none !important;
+  border-radius: 0.215rem !important;
+}
+.topbar-actions button.btn-save-all {
+  background: #16a34a !important;
+  color: #fff !important;
+}
+.sidebar {
+  background: var(--card, #fff) !important;
+  color: var(--ink, #141820) !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.sidebar-header,
+.sidebar-footer,
+.nav-sec {
+  border: none !important;
+  color: inherit !important;
+}
+.sidebar-footer button {
+  background: var(--bg, #f2f3f6) !important;
+  color: var(--ink, #141820) !important;
+  border: none !important;
+  border-radius: 0.215rem !important;
+}
+.nav-sec-label { color: var(--muted, #5a6369) !important; }
+.nav-dot { border: none !important; border-radius: 0.215rem !important; }
+.panel,
+.section-block,
+.group-block,
+.subcontainer,
+.qa-pair,
+.footer-bar,
+.stat-box,
+.status-box,
+.modal-card {
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0.215rem !important;
+}
+.section-block > .section-title {
+  border-bottom: none !important;
+  border-radius: 0.215rem 0.215rem 0 0 !important;
+}
+.group-head {
+  border-bottom: none !important;
+  background: color-mix(in srgb, #2563eb 12%, #fff) !important;
+}
+body.theme-dark .group-head {
+  background: color-mix(in srgb, #2563eb 18%, #161a22) !important;
+}
+.qa-half + .qa-half { border-left: none !important; }
+label.field input,
+label.field textarea,
+.nombre-input,
+.moment-input,
+.col textarea,
+.btn-status {
+  border: none !important;
+  border-radius: 0.215rem !important;
+  background: var(--bg, #f2f3f6) !important;
+}
+.item-card {
+  border: none !important;
+  border-radius: 0.215rem !important;
+  background: var(--pending-card-bg, #f2f3f6) !important;
+}
 </style>
 </head>
 <body>
@@ -608,7 +691,7 @@ body.theme-dark .stat-box h3 { color: var(--brand-secondary); }
     <section class="panel howto">
       <h2>What this is</h2>
       <ol>
-        <li>Completá <strong>fecha</strong> y <strong>número de reporte</strong>.</li>
+        <li>Completá <strong>Organization</strong>, <strong>Report name</strong>, fecha y número de reporte.</li>
         <li>Usá la barra superior para tema, tamaño de fuente, cargar <strong>.ereport</strong>, limpiar o <strong>guardar todo</strong>.</li>
         <li>El sidebar derecho navega por cada incidencia (tooltip: subartículo + nombre).</li>
         <li>Al final: resumen y <strong>Guardar</strong> (.ereport + HTML + PDF). Las imágenes van en base64 dentro del .ereport.</li>

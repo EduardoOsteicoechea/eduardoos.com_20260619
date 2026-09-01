@@ -20,7 +20,7 @@ import {
 import EreportHeaderMenu, { type EreportModalKind } from "./EreportHeaderMenu";
 import "./Ereport.css";
 
-const TRACKER_SRC = "/ereport-tracker.html";
+const TRACKER_SRC = "/ereport-tracker.html?v=046c";
 
 type EditorIds = {
   ownerSafe: string;

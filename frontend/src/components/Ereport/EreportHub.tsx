@@ -395,6 +395,47 @@ export default function EreportHub() {
 
             {activeOrgId ? (
               <div className="ereport-hub__org-panel">
+                <h3 className="ereport-hub__subhead">Organization</h3>
+                <form
+                  className="ereport-hub__form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const o = orgs.find((x) => x.id === activeOrgId);
+                    if (!o) return;
+                    setRenameOrgId(activeOrgId);
+                    setRenameValue(o.name);
+                    void onRenameOrg(e);
+                  }}
+                >
+                  <label>
+                    Org name
+                    <input
+                      value={
+                        renameOrgId === activeOrgId
+                          ? renameValue
+                          : orgs.find((x) => x.id === activeOrgId)?.name || ""
+                      }
+                      onFocus={() => {
+                        const o = orgs.find((x) => x.id === activeOrgId);
+                        setRenameOrgId(activeOrgId);
+                        setRenameValue(o?.name ?? "");
+                      }}
+                      onChange={(e) => {
+                        setRenameOrgId(activeOrgId);
+                        setRenameValue(e.target.value);
+                      }}
+                      disabled={busy}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="btn"
+                    disabled={busy || !renameValue.trim()}
+                  >
+                    Save org name
+                  </button>
+                </form>
+
                 <h3 className="ereport-hub__subhead">Reports</h3>
                 <form className="ereport-hub__form" onSubmit={onCreateReport}>
                   <label>
