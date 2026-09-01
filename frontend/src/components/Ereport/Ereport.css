@@ -69,8 +69,7 @@
   gap: 0.35rem;
 }
 
-.ereport-hub__form input,
-.ereport-hub__textarea {
+.ereport-hub__form select {
   min-height: var(--bmh, var(--control_min_height, 2.25rem));
   padding: 0.4rem 0.65rem;
   border: none;

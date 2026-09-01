@@ -1,4 +1,4 @@
-/* Home profile dossier — two cards per row; below fixed AI chat. */
+/* Home profile dossier — 3-col shell shared with AI agent (--home-col). */
 
 .home-profile {
   position: relative;
@@ -45,23 +45,16 @@
 .home-profile__grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--m2, 1.125rem);
+  gap: var(--home-gap, var(--m2, 1.125rem));
   align-items: start;
-}
-
-@media (min-width: 700px) {
-  .home-profile__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 .home-profile__block {
   margin: 0;
   padding: var(--p3, 1.5rem);
   border: none;
-  border-radius: var(--br, var(--border_radius_001, 0.215rem));
+  border-radius: var(--br, 0.215rem);
   background: var(--site-surface);
-  box-shadow: none;
   min-width: 0;
 }
 
@@ -83,15 +76,13 @@
   color: var(--site-body-fg);
 }
 
-.home-profile__list,
-.home-profile__timeline {
+.home-profile__list {
   margin: 0.5rem 0 0;
   padding: 0;
   list-style: none;
 }
 
-.home-profile__list li,
-.home-profile__timeline li {
+.home-profile__list li {
   margin: 0 0 0.85rem;
   padding-left: 0.85rem;
   border-left: 2px solid color-mix(in srgb, var(--site-accent) 45%, transparent);
@@ -101,7 +92,39 @@
   color: var(--site-meta-fg);
 }
 
-.home-profile__timeline h3 {
+@media (min-width: 700px) {
+  .home-profile__list--cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--m2);
+  }
+
+  .home-profile__list--cols li {
+    margin: 0;
+  }
+}
+
+.home-profile__jobs {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--m2);
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-profile__job {
+  margin: 0;
+  padding: var(--p2);
+  border-radius: var(--br);
+  background: color-mix(in srgb, var(--site-body-bg) 65%, var(--site-surface));
+  font-family: var(--font-body, Calibri, system-ui, sans-serif);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--site-meta-fg);
+}
+
+.home-profile__job h3 {
   margin: 0 0 0.2rem;
   display: flex;
   flex-direction: column;
@@ -124,35 +147,42 @@
 .home-profile__period {
   margin: 0 0 0.35rem;
   font-family: var(--font-utility, Calibri, system-ui, sans-serif);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--site-accent);
 }
 
-.home-profile__timeline p {
-  margin: 0;
-}
-
-.home-profile__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
+.home-profile__skill-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--m2);
   margin: 0.75rem 0 1rem;
   padding: 0;
   list-style: none;
 }
 
-.home-profile__chips li {
+.home-profile__skill-grid li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
   margin: 0;
-  padding: 0.28rem 0.55rem;
-  border: none;
-  border-radius: var(--br, 0.215rem);
-  font-family: var(--font-utility, Calibri, system-ui, sans-serif);
-  font-size: 0.78rem;
-  line-height: 1.3;
+  padding: var(--p2);
+  border-radius: var(--br);
+  background: color-mix(in srgb, var(--site-body-bg) 65%, var(--site-surface));
+}
+
+.home-profile__skill-grid strong {
+  font-family: var(--font-display, Calibri, system-ui, sans-serif);
+  font-size: 0.92rem;
   color: var(--site-body-fg);
-  background: color-mix(in srgb, var(--site-body-bg) 70%, var(--site-surface));
+}
+
+.home-profile__skill-grid span {
+  font-family: var(--font-body, Calibri, system-ui, sans-serif);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--site-meta-fg);
 }
 
 .home-profile__stack {
@@ -160,6 +190,29 @@
   font-family: var(--font-body, Calibri, system-ui, sans-serif);
   font-size: 0.92rem;
   line-height: 1.6;
+  color: var(--site-meta-fg);
+}
+
+.home-profile__faq-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--m2);
+  margin-top: 0.5rem;
+}
+
+.home-profile__faq-card h3 {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-display, Calibri, system-ui, sans-serif);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--site-body-fg);
+}
+
+.home-profile__faq-card p {
+  margin: 0;
+  font-family: var(--font-body, Calibri, system-ui, sans-serif);
+  font-size: 0.9rem;
+  line-height: 1.55;
   color: var(--site-meta-fg);
 }
 
@@ -201,38 +254,63 @@
   margin: 1rem 0 0;
 }
 
-.home-profile__faq {
-  margin: 0.5rem 0 0;
-}
+@media (min-width: 700px) {
+  .home-profile__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-.home-profile__faq dt {
-  margin: 0.9rem 0 0.35rem;
-  font-family: var(--font-display, Calibri, system-ui, sans-serif);
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--site-body-fg);
-}
+  .home-profile__block--span-2 {
+    grid-column: 1 / -1;
+  }
 
-.home-profile__faq dt:first-child {
-  margin-top: 0;
-}
+  .home-profile__jobs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-.home-profile__faq dd {
-  margin: 0;
-  font-family: var(--font-body, Calibri, system-ui, sans-serif);
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: var(--site-meta-fg);
+  .home-profile__skill-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .home-profile__faq-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 960px) {
-  /* Fill the hero copy column; leave fixed chat column clear. */
+  /*
+   * 3 equal columns across the main pane: 2 for dossier + 1 for agent.
+   * Agent width === one Profile/Specialization column.
+   */
+  html.page-home {
+    --home-gap: var(--m2, 1.125rem);
+    --home-pad: var(--page-inline-pad, var(--p2));
+    --home-usable: calc(100vw - var(--header_width, 60px) - 2 * var(--home-pad));
+    --home-col: calc((var(--home-usable) - 2 * var(--home-gap)) / 3);
+  }
+
   .home-profile__inner {
-    width: calc((100vw - var(--header_width, 60px)) * 1.25 / 2.1 - 1.5rem);
+    width: calc(2 * var(--home-col) + var(--home-gap));
     max-width: none;
-    margin-left: max(var(--page-inline-pad, var(--p2)), 1.25rem);
+    margin-left: var(--home-pad);
     margin-right: auto;
     padding-left: 0;
     padding-right: 0;
+  }
+
+  .home-profile__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--home-gap);
+  }
+
+  .home-profile__jobs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .home-profile__skill-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .home-profile__faq-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

@@ -281,24 +281,38 @@ export async function fetchEreportOrgs(): Promise<{
   };
 }
 
-export async function createEreportOrg(name: string): Promise<{
+export async function createEreportOrg(
+  name: string,
+  firstReportName?: string,
+): Promise<{
   org: OrgMeta | null;
+  report: EreportMeta | null;
   error?: string;
 }> {
-  const result = await apiRequest<{ org: OrgMeta }>(EREPORT_ROUTES.orgs, {
-    method: "POST",
-    body: { name },
-    correlationId: createCorrelationId(),
-    authToken: requireToken(),
-  });
-  if (result.error) {
-    return { org: null, error: formatApiError(result.error) };
+  const body: { name: string; firstReportName?: string } = { name };
+  if (firstReportName?.trim()) {
+    body.firstReportName = firstReportName.trim();
   }
-  return { org: result.data?.org ?? null };
+  const result = await apiRequest<{ org: OrgMeta; report?: EreportMeta }>(
+    EREPORT_ROUTES.orgs,
+    {
+      method: "POST",
+      body,
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { org: null, report: null, error: formatApiError(result.error) };
+  }
+  return {
+    org: result.data?.org ?? null,
+    report: result.data?.report ?? null,
+  };
 }
 
 export async function updateEreportOrgs(
-  orgs: Array<{ id: string; order?: number; hidden?: boolean }>,
+  orgs: Array<{ id: string; name?: string; order?: number; hidden?: boolean }>,
 ): Promise<{ orgs: OrgCard[]; error?: string }> {
   const result = await apiRequest<{ orgs: OrgCard[] }>(EREPORT_ROUTES.orgs, {
     method: "PUT",

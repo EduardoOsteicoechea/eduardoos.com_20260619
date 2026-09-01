@@ -277,6 +277,56 @@ func TestInviteRejectExpired(t *testing.T) {
 	}
 }
 
+func TestOrgCreateWithFirstReportAndRename(t *testing.T) {
+	h, r, users := testRouter(t)
+	_ = h
+	_ = users.PutUser(t.Context(), auth.User{
+		Email: "owner2@example.com", PasswordHash: auth.HashPassword("x"), Verified: true,
+	})
+	tok := bearer(t, "owner2@example.com")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/ereport/orgs",
+		bytes.NewBufferString(`{"name":"Acme","firstReportName":"Sprint QA"}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var created map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &created)
+	org, _ := created["org"].(map[string]any)
+	report, _ := created["report"].(map[string]any)
+	if org == nil || report == nil {
+		t.Fatalf("expected org+report got %#v", created)
+	}
+	if report["tema"] != "Sprint QA" {
+		t.Fatalf("tema=%v", report["tema"])
+	}
+	orgID, _ := org["id"].(string)
+
+	req = httptest.NewRequest(http.MethodPut, "/api/ereport/orgs",
+		bytes.NewBufferString(`{"orgs":[{"id":"`+orgID+`","name":"Acme Renamed"}]}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("rename status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var listed map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &listed)
+	orgs, _ := listed["orgs"].([]any)
+	if len(orgs) < 1 {
+		t.Fatalf("orgs=%#v", listed)
+	}
+	first, _ := orgs[0].(map[string]any)
+	if first["name"] != "Acme Renamed" {
+		t.Fatalf("name=%v", first["name"])
+	}
+}
+
 func TestOrgKeys(t *testing.T) {
 	email := "u@x.com"
 	if got := OrgsIndexKey(email); got != "ereport/u_at_x.com/orgs.json" {

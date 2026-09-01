@@ -1,8 +1,7 @@
 ---
 /**
  * Scrollable professional dossier under the home hero.
- * Facts from eduardoProfile.ts (PROFILE_CONTEXT.md §2). Direct section titles;
- * first-person copy. Two cards per row on tablet+.
+ * Shared --home-col with the AI agent (3-column shell).
  */
 import {
   PROFILE_EMAIL,
@@ -17,7 +16,7 @@ import {
   profileExpertiseAnswer,
   profileFaq,
   profileFocusAnswer,
-  profileSkills,
+  profileSkillCards,
   profileStack,
   profileWhoAnswer,
 } from "../../lib/eduardoProfile";
@@ -45,29 +44,32 @@ import "./HomeProfile.css";
         <p class="home-profile__answer">{profileExpertiseAnswer}</p>
       </section>
 
-      <section class="home-profile__block" id="education">
+      <section class="home-profile__block home-profile__block--span-2" id="education">
         <h2>Education and Training</h2>
         <p class="home-profile__answer">
           My path combines architecture, BIM specialization, theology study, and
           deliberate full-stack self-training — so I can design buildings and ship
           the software (and AI systems) that support them.
         </p>
-        <ul class="home-profile__list">
+        <ul class="home-profile__list home-profile__list--cols">
           {profileEducation.map((item) => <li>{item}</li>)}
         </ul>
       </section>
 
-      <section class="home-profile__block" id="experience">
+      <section
+        class="home-profile__block home-profile__block--span-2 home-profile__block--experience"
+        id="experience"
+      >
         <h2>Professional Experience</h2>
         <p class="home-profile__answer">
           From architectural production and missionary leadership through US BIM
           consulting into AI-powered BIM product engineering at Avant Leap — with
           freelance full-stack delivery in between.
         </p>
-        <ol class="home-profile__timeline">
+        <ol class="home-profile__jobs">
           {
             profileExperience.map((job) => (
-              <li>
+              <li class="home-profile__job">
                 <h3>
                   <span class="home-profile__org">{job.org}</span>
                   <span class="home-profile__role">{job.role}</span>
@@ -80,20 +82,40 @@ import "./HomeProfile.css";
         </ol>
       </section>
 
-      <section class="home-profile__block" id="skills">
+      <section class="home-profile__block home-profile__block--span-2" id="skills">
         <h2>Skills and Stack</h2>
         <p class="home-profile__answer">
-          Cross-disciplinary adaptability, Revit family and add-in work,
-          AI-in-BIM workflows, cloud deployment, and full-stack desktop and web
-          delivery — with a clear bias toward AI-driven product development.
+          Six strengths I lean on daily — especially where BIM meets AI-driven
+          product development.
         </p>
-        <ul class="home-profile__chips" aria-label="Skills">
-          {profileSkills.map((s) => <li>{s}</li>)}
+        <ul class="home-profile__skill-grid" aria-label="Skills">
+          {
+            profileSkillCards.map((s) => (
+              <li>
+                <strong>{s.title}</strong>
+                <span>{s.description}</span>
+              </li>
+            ))
+          }
         </ul>
         <p class="home-profile__stack">
           <strong>Technical stack (representative):</strong>
           {profileStack}
         </p>
+      </section>
+
+      <section class="home-profile__block home-profile__block--span-2" id="faq">
+        <h2>FAQ</h2>
+        <div class="home-profile__faq-grid">
+          {
+            profileFaq.map((item) => (
+              <div class="home-profile__faq-card">
+                <h3>{item.question}</h3>
+                <p>{item.answer}</p>
+              </div>
+            ))
+          }
+        </div>
       </section>
 
       <section class="home-profile__block" id="focus">
@@ -150,20 +172,6 @@ import "./HomeProfile.css";
           >
           <a class="btn" href="/contact">Contact via Eduardo OS</a>
         </p>
-      </section>
-
-      <section class="home-profile__block" id="faq">
-        <h2>FAQ</h2>
-        <dl class="home-profile__faq">
-          {
-            profileFaq.map((item) => (
-              <>
-                <dt>{item.question}</dt>
-                <dd>{item.answer}</dd>
-              </>
-            ))
-          }
-        </dl>
       </section>
     </div>
   </div>

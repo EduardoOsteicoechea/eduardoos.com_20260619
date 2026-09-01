@@ -6,11 +6,13 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { APP_ROUTES } from "../../config/routes";
 import {
   fetchEreport,
+  fetchEreportOrg,
   fetchOrgEreport,
   putEreportShares,
   resolveEreportEditorFromLocation,
   saveEreport,
   saveOrgEreport,
+  updateEreportOrgs,
   ereportPrettyPath,
   type EreportMeta,
   type EreportPayload,
@@ -82,7 +84,18 @@ export default function EreportEditor() {
       setMeta(res.meta);
       setTema(res.meta.tema);
       setCanShare(res.canShare);
-      payloadRef.current = res.payload;
+      let orgName = "";
+      if (ids.orgId) {
+        const orgRes = await fetchEreportOrg(ids.orgId);
+        orgName = orgRes.org?.name ?? "";
+      }
+      payloadRef.current = {
+        ...res.payload,
+        reportName:
+          String(res.payload.reportName || res.meta.tema || "").trim() ||
+          res.meta.tema,
+        orgName: String(res.payload.orgName || orgName || "").trim(),
+      };
       setLoading(false);
     })();
     return () => {
@@ -100,10 +113,17 @@ export default function EreportEditor() {
   const persist = useCallback(
     async (body: { tema?: string; payload?: EreportPayload }) => {
       if (!ids) return { meta: null as EreportMeta | null, error: "missing ids" };
+      let res;
       if (ids.orgId) {
-        return saveOrgEreport(ids.orgId, ids.reportId, body);
+        res = await saveOrgEreport(ids.orgId, ids.reportId, body);
+        const orgName = String(body.payload?.orgName || "").trim();
+        if (!res.error && orgName) {
+          await updateEreportOrgs([{ id: ids.orgId, name: orgName }]);
+        }
+      } else {
+        res = await saveEreport(ids.ownerSafe, ids.reportId, body);
       }
-      return saveEreport(ids.ownerSafe, ids.reportId, body);
+      return res;
     },
     [ids],
   );
@@ -122,9 +142,14 @@ export default function EreportEditor() {
       if (d.type === "cloud-save" && ids && d.payload) {
         void (async () => {
           setSaving(true);
+          const payload = d.payload as EreportPayload;
+          const nextTema =
+            String(payload.reportName || payload.appTitle || tema || "").trim() ||
+            tema;
+          setTema(nextTema);
           const res = await persist({
-            payload: d.payload as EreportPayload,
-            tema,
+            payload,
+            tema: nextTema,
           });
           setSaving(false);
           if (res.error) setError(res.error);
@@ -168,9 +193,14 @@ export default function EreportEditor() {
       if (ev.data?.source !== "ereport-tracker" || ev.data?.type !== "state") return;
       window.removeEventListener("message", handler);
       setSaving(true);
+      const payload = ev.data.payload as EreportPayload;
+      const nextTema =
+        String(payload.reportName || payload.appTitle || tema || "").trim() ||
+        tema;
+      setTema(nextTema);
       const res = await persist({
-        tema,
-        payload: ev.data.payload as EreportPayload,
+        tema: nextTema,
+        payload,
       });
       setSaving(false);
       if (res.error) setError(res.error);

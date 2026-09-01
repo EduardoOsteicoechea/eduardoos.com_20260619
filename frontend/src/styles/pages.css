@@ -257,8 +257,15 @@ html.page-home .home-hero__chat {
 
 /* Wide desktop: copy + fixed agent panel while the dossier scrolls. */
 @media (min-width: 960px) {
+  html.page-home {
+    --home-gap: var(--m2, 1.125rem);
+    --home-pad: var(--page-inline-pad, var(--p2));
+    --home-usable: calc(100vw - var(--header_width, 60px) - 2 * var(--home-pad));
+    --home-col: calc((var(--home-usable) - 2 * var(--home-gap)) / 3);
+  }
+
   .home-hero__stage {
-    grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.85fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
     gap: 0;
     min-height: 100svh;
@@ -283,23 +290,19 @@ html.page-home .home-hero__chat {
     backdrop-filter: blur(10px);
   }
 
+  /* Reserve one --home-col for the agent (same width as Profile/Specialization). */
   html.page-home .home-hero__stage {
-    grid-template-columns: minmax(0, 1fr);
-    padding-right: calc((100vw - var(--header_width, 60px)) * 0.85 / 2.1);
+    padding-right: calc(var(--home-col) + var(--home-pad) + var(--home-gap));
   }
 
   html.page-home .home-hero__chat {
     position: fixed;
-    /* Above scrolling dossier and page content; below site header rail. */
     z-index: 100;
     top: 1.25rem;
-    right: var(--page-inline-pad, 15px);
+    right: var(--home-pad);
     bottom: 1.25rem;
-    left: calc(
-      var(--header_width, 60px) + (100vw - var(--header_width, 60px)) * 1.25 / 2.1 +
-        1.5rem
-    );
-    width: auto;
+    left: auto;
+    width: var(--home-col);
     margin: 0;
     max-height: none;
     box-sizing: border-box;

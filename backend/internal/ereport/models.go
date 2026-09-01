@@ -109,6 +109,8 @@ func EmptyPayload() map[string]any {
 	return map[string]any{
 		"reportDate":   "",
 		"reportNumber": "",
+		"reportName":   "",
+		"orgName":      "",
 		"appTitle":     "Issue Tracker",
 		"sections": []any{
 			map[string]any{

@@ -79,18 +79,46 @@ export const profileEducation: string[] = [
   "Full-stack web development self-study (2020–2023): HTML, CSS, JavaScript, Bootstrap, PHP, MySQL, and modern front-end practice.",
 ];
 
-export const profileSkills: string[] = [
-  "Cross-disciplinary adaptability",
-  "Parametric Revit family modeling",
-  "Custom Revit add-in development",
-  "AI integration in BIM workflows",
-  "AI-driven product development",
-  "Cloud deployment (AWS & NGINX)",
-  "Full-stack desktop & web development",
-  "Remote collaboration & mentorship",
-  "Technical communication",
-  "Client-focused problem solving",
+export type ProfileSkill = {
+  title: string;
+  description: string;
+};
+
+/** Six featured skills for the home skills grid (brief, CV-grounded). */
+export const profileSkillCards: ProfileSkill[] = [
+  {
+    title: "Revit add-ins & API",
+    description:
+      "Custom commands, families, and .NET tools that sit inside real BIM workflows.",
+  },
+  {
+    title: "AI in BIM",
+    description:
+      "OpenAI, StabilityAI, and Replicate wired into clash, visualize, and automate loops.",
+  },
+  {
+    title: "AI-driven products",
+    description:
+      "I ship multiplatform tools where model intelligence becomes something teams can run.",
+  },
+  {
+    title: "Full-stack delivery",
+    description:
+      "Desktop (.NET/WPF), web (React/TS), and cloud (AWS/Nginx) from one practice.",
+  },
+  {
+    title: "Cloud & DevOps",
+    description:
+      "AWS hosting, CI/CD, and durable object storage under production prefixes.",
+  },
+  {
+    title: "Cross-discipline AEC",
+    description:
+      "Architecture depth plus software delivery — one professional who models and ships.",
+  },
 ];
+
+export const profileSkills: string[] = profileSkillCards.map((s) => s.title);
 
 export const profileStack =
   ".NET, C#, WPF, Windows Forms, Blazor / Blazor Hybrid, .NET MAUI, Python, PHP, JavaScript, TypeScript, HTML, CSS, React, MySQL, SQLite, SQL Server, Git/GitHub, AutoCAD, Revit, Dynamo, SketchUp, Linux, Nginx, AWS, and AI tooling including StabilityAI and DeepSeek.";

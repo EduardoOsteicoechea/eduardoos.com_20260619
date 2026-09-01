@@ -150,11 +150,14 @@ func (h *Handler) GetOrgs(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateOrg registers a new org under the caller.
+// Optional firstReportName creates the org's first report in the same request.
 func (h *Handler) CreateOrg(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	email := auth.UserEmailFromRequest(r)
 	var body struct {
-		Name string `json:"name"`
+		Name            string `json:"name"`
+		FirstReportName string `json:"firstReportName"`
+		FirstReportTema string `json:"firstReportTema"` // alias
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid payload")
@@ -164,6 +167,10 @@ func (h *Handler) CreateOrg(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		httpx.WriteError(w, http.StatusBadRequest, "name required")
 		return
+	}
+	firstName := strings.TrimSpace(body.FirstReportName)
+	if firstName == "" {
+		firstName = strings.TrimSpace(body.FirstReportTema)
 	}
 	now := nowRFC3339()
 	id := uuid.NewString()
@@ -184,7 +191,33 @@ func (h *Handler) CreateOrg(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, s3WriteErrorMessage(err, "could not save org meta"))
 		return
 	}
-	if err := h.saveOrgLibrary(r, email, id, Library{Reports: []ReportCard{}}, cid); err != nil {
+	lib := Library{Reports: []ReportCard{}}
+	var reportMeta *Meta
+	var reportPayload map[string]any
+	if firstName != "" {
+		rid := uuid.NewString()
+		reportMeta = &Meta{
+			ID:         rid,
+			Tema:       firstName,
+			OrgID:      id,
+			OwnerEmail: email,
+			OwnerSafe:  SafeEmailKey(email),
+			SharedWith: []ShareEntry{},
+			CreatedAt:  now,
+			UpdatedAt:  now,
+		}
+		reportPayload = EmptyPayload()
+		if err := h.Objects.PutJSON(r.Context(), OrgReportMetaKey(email, id, rid), reportMeta, cid); err != nil {
+			httpx.WriteError(w, http.StatusBadGateway, s3WriteErrorMessage(err, "could not save first report meta"))
+			return
+		}
+		if err := h.Objects.PutJSON(r.Context(), OrgReportKey(email, id, rid), reportPayload, cid); err != nil {
+			httpx.WriteError(w, http.StatusBadGateway, s3WriteErrorMessage(err, "could not save first report"))
+			return
+		}
+		lib.Reports = append(lib.Reports, ReportCard{ID: rid, Tema: firstName, UpdatedAt: now})
+	}
+	if err := h.saveOrgLibrary(r, email, id, lib, cid); err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, s3WriteErrorMessage(err, "could not save org library"))
 		return
 	}
@@ -197,8 +230,13 @@ func (h *Handler) CreateOrg(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadGateway, s3WriteErrorMessage(err, "could not save orgs index"))
 		return
 	}
-	log.Printf("[correlation=%s] ereport.org.create user=%s id=%s", cid, email, id)
-	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"org": meta})
+	log.Printf("[correlation=%s] ereport.org.create user=%s id=%s first_report=%t", cid, email, id, reportMeta != nil)
+	out := map[string]any{"org": meta}
+	if reportMeta != nil {
+		out["report"] = reportMeta
+		out["payload"] = reportPayload
+	}
+	httpx.WriteJSON(w, http.StatusCreated, out)
 }
 
 // PutOrgs applies batch reorder / hide updates to the caller's orgs index.
@@ -207,9 +245,10 @@ func (h *Handler) PutOrgs(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
 	var body struct {
 		Orgs []struct {
-			ID     string `json:"id"`
-			Order  *int   `json:"order"`
-			Hidden *bool  `json:"hidden"`
+			ID     string  `json:"id"`
+			Name   *string `json:"name"`
+			Order  *int    `json:"order"`
+			Hidden *bool   `json:"hidden"`
 		} `json:"orgs"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -243,6 +282,14 @@ func (h *Handler) PutOrgs(w http.ResponseWriter, r *http.Request) {
 		if patch.Hidden != nil {
 			idx.Orgs[i].Hidden = *patch.Hidden
 		}
+		if patch.Name != nil {
+			n := strings.TrimSpace(*patch.Name)
+			if n == "" {
+				httpx.WriteError(w, http.StatusBadRequest, "org name cannot be empty")
+				return
+			}
+			idx.Orgs[i].Name = n
+		}
 		idx.Orgs[i].UpdatedAt = now
 		meta, found, mErr := h.loadOrgMeta(r, email, id, cid)
 		if mErr != nil {
@@ -252,6 +299,7 @@ func (h *Handler) PutOrgs(w http.ResponseWriter, r *http.Request) {
 		if found {
 			meta.Order = idx.Orgs[i].Order
 			meta.Hidden = idx.Orgs[i].Hidden
+			meta.Name = idx.Orgs[i].Name
 			meta.UpdatedAt = now
 			_ = h.Objects.PutJSON(r.Context(), OrgMetaKey(email, id), meta, cid)
 		}

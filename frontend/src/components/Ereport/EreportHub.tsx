@@ -58,6 +58,9 @@ export default function EreportHub() {
   const [recent, setRecent] = useState<RecentReportCard[]>([]);
   const [activeOrgId, setActiveOrgId] = useState("");
   const [orgName, setOrgName] = useState("");
+  const [firstReportName, setFirstReportName] = useState("");
+  const [renameOrgId, setRenameOrgId] = useState("");
+  const [renameValue, setRenameValue] = useState("");
   const [reports, setReports] = useState<ReportCard[]>([]);
   const [tema, setTema] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -115,15 +118,44 @@ export default function EreportHub() {
     e.preventDefault();
     if (busy || !canCreate) return;
     setBusy(true);
-    const res = await createEreportOrg(orgName.trim() || "New org");
+    const res = await createEreportOrg(
+      orgName.trim() || "New org",
+      firstReportName.trim() || "First report",
+    );
     setBusy(false);
     if (res.error || !res.org) {
       setError(res.error ?? "Could not create org");
       return;
     }
     setOrgName("");
+    setFirstReportName("");
     await reload();
+    if (res.report) {
+      window.location.href = orgReportHref(
+        res.org.ownerSafe,
+        res.org.id,
+        res.report.id,
+      );
+      return;
+    }
     await openOrg(res.org.id);
+  }
+
+  async function onRenameOrg(e: FormEvent) {
+    e.preventDefault();
+    if (!renameOrgId || !renameValue.trim()) return;
+    setBusy(true);
+    const res = await updateEreportOrgs([
+      { id: renameOrgId, name: renameValue.trim() },
+    ]);
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    setRenameOrgId("");
+    setRenameValue("");
+    await reload();
   }
 
   async function onCreateReport(e: FormEvent) {
@@ -310,6 +342,17 @@ export default function EreportHub() {
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
                   placeholder="Client / project org"
+                  required
+                  disabled={!canCreate || busy}
+                />
+              </label>
+              <label>
+                First report name
+                <input
+                  value={firstReportName}
+                  onChange={(e) => setFirstReportName(e.target.value)}
+                  placeholder="e.g. Model QA — Sprint 1"
+                  required
                   disabled={!canCreate || busy}
                 />
               </label>
@@ -318,7 +361,7 @@ export default function EreportHub() {
                 className="btn btn--primary"
                 disabled={!canCreate || busy}
               >
-                Create org
+                Create org + first report
               </button>
               {!canCreate ? (
                 <p className="ereport-hub__muted">eReport subscription required.</p>
@@ -355,10 +398,11 @@ export default function EreportHub() {
                 <h3 className="ereport-hub__subhead">Reports</h3>
                 <form className="ereport-hub__form" onSubmit={onCreateReport}>
                   <label>
-                    New report tema
+                    Report name
                     <input
                       value={tema}
                       onChange={(e) => setTema(e.target.value)}
+                      placeholder="Report name / tema"
                       disabled={!canCreate || busy}
                     />
                   </label>
@@ -459,6 +503,41 @@ export default function EreportHub() {
 
         {view === "manage" ? (
           <DashboardSection title="Manage orgs">
+            <form className="ereport-hub__form" onSubmit={onRenameOrg}>
+              <label>
+                Rename org
+                <select
+                  value={renameOrgId}
+                  onChange={(e) => {
+                    setRenameOrgId(e.target.value);
+                    const o = orgs.find((x) => x.id === e.target.value);
+                    setRenameValue(o?.name ?? "");
+                  }}
+                >
+                  <option value="">Select org…</option>
+                  {orgs.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                New name
+                <input
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  disabled={!renameOrgId || busy}
+                />
+              </label>
+              <button
+                type="submit"
+                className="btn btn--primary"
+                disabled={!renameOrgId || !renameValue.trim() || busy}
+              >
+                Save name
+              </button>
+            </form>
             <ul className="ereport-hub__manage">
               {[...orgs]
                 .sort((a, b) => a.order - b.order)
