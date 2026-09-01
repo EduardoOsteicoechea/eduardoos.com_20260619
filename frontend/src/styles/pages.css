@@ -249,6 +249,33 @@ html.page-home .home-hero__chat {
   display: none;
 }
 
+/*
+ * Shared Talk To Assistant tray chrome (home + contact).
+ * Home also uses .home-hero__chat for layout/sticky/visibility.
+ */
+.site-agent-tray {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 1.15rem 1.2rem 1.2rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001, var(--br, 0.215rem));
+  background: color-mix(in srgb, var(--site-surface) 92%, transparent);
+  box-shadow: var(--site-shadow);
+  backdrop-filter: blur(10px);
+}
+
+.site-agent-tray .contact-agent {
+  max-width: none;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
 @media (min-width: 768px) {
   .home-hero__primary {
     min-height: 100svh;
@@ -312,30 +339,22 @@ html.page-home .home-hero__chat {
     z-index: 100;
     top: max(1.25rem, var(--header_offset, 0px));
     align-self: start;
-    box-sizing: border-box;
     width: 100%;
     height: calc(100dvh - 2.5rem - var(--header_offset, 0px));
     max-height: calc(100dvh - 2.5rem - var(--header_offset, 0px));
-    margin: 0;
-    padding: 1.15rem 1.2rem 1.2rem;
-    border: var(--border_001);
-    border-radius: var(--border_radius_001, var(--br, 0.215rem));
-    background: color-mix(in srgb, var(--site-surface) 92%, transparent);
-    box-shadow: var(--site-shadow);
-    backdrop-filter: blur(10px);
-  }
-
-  .home-hero__chat .contact-agent {
-    max-width: none;
-    flex: 1 1 auto;
-    height: 100%;
-    min-height: 0;
   }
 }
 
 .contact-page {
-  display: grid;
+  display: block;
+}
+
+.contact-page__layout {
+  display: flex;
+  flex-direction: column;
   gap: 1.75rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /*
@@ -350,46 +369,8 @@ html.page-home .home-hero__chat {
   box-sizing: border-box;
 }
 
-/*
- * When the AI tray is unlocked, stretch the right column to the available
- * viewport so the chat fills top-to-bottom (compose bar stays at the bottom).
- */
-.page-shell.contact-page:has(.contact-agent--tray) {
-  box-sizing: border-box;
-  min-height: calc(100svh - var(--header_offset, var(--header_height, 0px)));
-  min-height: calc(100dvh - var(--header_offset, var(--header_height, 0px)));
-  padding-bottom: 1.5rem;
-}
-
-.contact-page__agent:has(.contact-agent--tray) {
-  display: flex;
-  flex-direction: column;
-  min-height: min(70dvh, calc(100dvh - var(--header_offset, var(--header_height, 0px)) - 10rem));
-  box-sizing: border-box;
-  padding-bottom: 0;
-}
-
-@media (min-width: 900px) {
-  .contact-page {
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
-    align-items: start;
-    column-gap: 1.5rem;
-  }
-
-  .contact-page:has(.contact-agent--tray) {
-    align-items: stretch;
-  }
-
-  .contact-page__agent:has(.contact-agent--tray) {
-    min-height: 0;
-    height: 100%;
-    align-self: stretch;
-    position: sticky;
-    top: calc(var(--header_offset, var(--header_height, 0px)) + 1.25rem);
-    max-height: calc(
-      100dvh - var(--header_offset, var(--header_height, 0px)) - 2.5rem
-    );
-  }
+.contact-page__intro {
+  min-width: 0;
 }
 
 .contact-page__brand {
@@ -435,17 +416,37 @@ html.page-home .home-hero__chat {
   font-family: var(--font-utility);
 }
 
-/* Agent column: no card chrome — same docked panel language as home. */
+/* Agent column: shared .site-agent-tray chrome (same as home). */
 .contact-page__agent {
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  min-height: min(70dvh, calc(100dvh - var(--header_offset, var(--header_height, 0px)) - 6rem));
+}
+
+@media (min-width: 960px) {
+  .page-shell.contact-page {
+    --home-gap: var(--m2, 1.125rem);
+    --home-pad: var(--page-inline-pad, var(--p2));
+    padding-inline: var(--home-pad);
+    padding-top: 1.5rem;
+    padding-bottom: 3rem;
+  }
+
+  .contact-page__layout {
+    display: grid;
+    /* Match home’s 2:1 main|agent proportions (home uses 3 equal cols, main spans 2). */
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: var(--home-gap);
+    align-items: stretch;
+  }
+
+  .contact-page__agent {
+    position: sticky;
+    z-index: 100;
+    top: max(1.25rem, var(--header_offset, 0px));
+    align-self: start;
+    height: calc(100dvh - 2.5rem - var(--header_offset, 0px));
+    max-height: calc(100dvh - 2.5rem - var(--header_offset, 0px));
+    min-height: 0;
+  }
 }
 
 .product-page {

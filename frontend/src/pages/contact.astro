@@ -10,22 +10,28 @@ const siteAgent = siteAgentDockProps("contact");
 ---
 
 <BaseLayout title="Contact — Eduardo Osteicoechea">
+  {/*
+    Same Talk To Assistant shell as home: ContactAgent + .site-agent-tray
+    (spec 021 amend). Intro + channels stay outside the tray.
+  */}
   <div class="page-shell contact-page">
-    <section class="contact-page__intro" aria-labelledby="contact-page-title">
-      <p class="contact-page__brand">Eduardo Osteicoechea</p>
-      <h1 id="contact-page-title" class="contact-page__title">Contact</h1>
-      <p class="contact-page__lead">
-        Professional inquiries in architecture, BIM, and full-stack AEC software.
-        Write directly or chat with the AI agent on this page (an agent, not Eduardo).
-      </p>
-      <ContactChannels
-        client:load
-        email={CONTACT_OWNER_EMAIL}
-        whatsappUrl={CONTACT_WHATSAPP_URL}
-      />
-    </section>
-    <div class="contact-page__agent">
-      <ContactAgent client:load {...siteAgent} />
+    <div class="contact-page__layout">
+      <section class="contact-page__intro" aria-labelledby="contact-page-title">
+        <p class="contact-page__brand">Eduardo Osteicoechea</p>
+        <h1 id="contact-page-title" class="contact-page__title">Contact</h1>
+        <p class="contact-page__lead">
+          Professional inquiries in architecture, BIM, and full-stack AEC software.
+          Write directly or chat with the AI agent on this page (an agent, not Eduardo).
+        </p>
+        <ContactChannels
+          client:load
+          email={CONTACT_OWNER_EMAIL}
+          whatsappUrl={CONTACT_WHATSAPP_URL}
+        />
+      </section>
+      <aside class="site-agent-tray contact-page__agent" aria-label="Talk To Assistant">
+        <ContactAgent client:load {...siteAgent} />
+      </aside>
     </div>
   </div>
 </BaseLayout>

@@ -8,14 +8,16 @@
   color: var(--site-body-fg);
 }
 
-/* Contact + home share the same docked agent chrome (ContactAgent--docked). */
-.contact-page__agent .contact-agent--docked {
+/* Contact + home share docked chrome inside .site-agent-tray (pages.css). */
+.contact-page__agent .contact-agent--docked,
+.site-agent-tray .contact-agent--docked {
   gap: 0.7rem;
   height: 100%;
   min-height: 0;
 }
 
-.contact-page__agent .contact-agent--docked .contact-agent__chat {
+.contact-page__agent .contact-agent--docked .contact-agent__chat,
+.site-agent-tray .contact-agent--docked .contact-agent__chat {
   flex: 1 1 auto;
   min-height: 0;
   height: auto;
