@@ -2,84 +2,34 @@
 
 ## Status
 
-Active (2026-08-25).
+**Retired (2026-09-01).** Website MPS product-test surfaces removed. Autodesk APS Design Automation (`backend/aps_app/**`) is unchanged.
 
-## Problem
+## Retirement
 
-Need an Eduardo OS endpoint that **receives Autodesk APS webhook payloads**, plus an **admin-only** page that shows arrivals in real time (for product tests / client demos). Menu link must be visible only to platform admin.
+Removed from Eduardo OS website usage:
 
-## Goals
+| Surface | Path | Disposition |
+|---------|------|-------------|
+| FE page | `/product-tests/mps/aps-webhook` | Deleted |
+| Header | **MPS tests** → APS webhook | Removed |
+| BE ingest | `GET/POST /api/aps/webhooks` | Unmounted + package deleted |
+| BE list | `GET /api/admin/aps/webhook-events` | Unmounted + package deleted |
+| BE live | `GET /api/admin/aps/webhook-events/stream` | Unmounted + package deleted |
+| Nginx | SSE location for webhook stream | Removed |
 
-### Routes
+### Non-goals of retirement
 
-| Surface | Path | Auth |
-|---------|------|------|
-| FE page | `/product-tests/mps/aps-webhook` | Platform admin only (same gate as Admin users / Agent Sandbox) |
-| Header menu | label **APS webhook** | Shown only when `isPlatformAdmin()` |
-| BE ingest | `POST /api/aps/webhooks` | **Public** (APS cannot send JWT). Optional shared secret. |
-| BE list | `GET /api/admin/aps/webhook-events` | JWT + platform admin |
-| BE live | `GET /api/admin/aps/webhook-events/stream` | JWT + platform admin, **SSE** |
+- Do **not** modify `backend/aps_app/**` or other Autodesk APS API / Design Automation code.
+- Do **not** remove APS DA credentials (`APS_CLIENT_ID`, `APS_CLIENT_SECRET`, `APS_ACTIVITY_ID`, etc.) used by Design Automation.
 
-### Live updates (answer to “¿el frontend se actualiza cuando el backend recibe?”)
+## Historical problem (archived)
 
-**Yes.** Pattern:
+Needed an Eduardo OS endpoint that received Autodesk APS webhook payloads, plus an admin-only live monitor page for product tests / client demos.
 
-1. APS (or curl) `POST`s JSON to `/api/aps/webhooks`.
-2. Backend stores the event in an in-memory ring buffer and **broadcasts** to all open SSE subscribers.
-3. Admin page opens `EventSource` (or fetch-stream with Bearer) on `/api/admin/aps/webhook-events/stream` and prepends each event to the UI without refresh.
+## Acceptance (retirement)
 
-Locked choice: **SSE** (not WebSocket). Matches Agent Sandbox / logger stream; nginx must disable buffering for the stream path.
-
-### Ingest behavior
-
-- Accept `POST` with body as raw JSON (object or array). Empty body → `400`.
-- Record: `{ id, receivedAt, correlationId, contentType, headers (subset), body (parsed or raw string), remoteAddr }`.
-- Optional secret: if env `APS_WEBHOOK_SECRET` is non-empty, require matching header `X-Aps-Webhook-Secret` (or query `secret=`); else reject `401`.
-- Respond `200` `{ "ok": true, "id": "…" }` quickly (APS expects fast ACK).
-- Extensive `log.Printf` with correlation id.
-- **Do not** run Design Automation from this MVP — receive + display only (hook for later WorkItem trigger).
-
-### Admin UI
-
-- Denied state for non-admin (same pattern as Agent Sandbox).
-- Show callback URL to copy: `{origin}/api/aps/webhooks`.
-- UI copy in **English** (labels, lead, empty state, errors).
-- **No** agent handoff prompt textarea (removed — use meeting probes + callback URL meta only).
-- Live event list: **newest POST first** (sort by `receivedAt` descending).
-- **Verbose error log** on the same page: any FE/stream/list/parse failure and any failed ingest (backend records error events) print with timestamp, source, HTTP status, body/text, and stack when available.
-- On load: fetch recent events via list endpoint, then open SSE for new ones.
-- If SSE fails (**network error** / reconnect): auto-retry with backoff and **poll** `GET /api/admin/aps/webhook-events` every 2s until live again so new POSTs still appear (newest first).
-- Verbose error log must include stream failures with URL, online flag, and HTTP body when available.
-- Plain CSS component file; Eduardo OS theme tokens.
-
-### Persistence
-
-- In-memory ring buffer, **max 100** events (process restart clears). Sufficient for product-tests.
-
-## Non-goals
-
-- Triggering Design Automation WorkItems from the webhook (later).
-- DynamoDB/S3 persistence of webhook history.
-- Non-admin access to the page or stream.
-- Restoring historical `/aps-admin` WorkItem UI.
-
-## Acceptance
-
-- [x] Spec clear; routes + SSE documented.
-- [x] `POST /api/aps/webhooks` public; optional secret; logs extensively.
-- [x] Admin list + SSE stream; FE page live-updates.
-- [x] Header link admin-only; `isAdminOnlyPagePath` includes the page.
-- [x] Nginx SSE proxy for the stream path (no buffering).
-- [x] Go tests for ingest + admin gate; FE build; commit + push.
-
-## Affected paths
-
-- `specs/030-aps-webhook-monitor/spec.md`
-- `backend/internal/apswebhook/**`
-- `backend/cmd/server/main.go`
-- `nginx/default.conf`
-- `frontend/src/pages/product-tests/mps/aps-webhook.astro`
-- `frontend/src/components/ApsWebhook/**`
-- `frontend/src/config/routes.ts`, `frontend/src/lib/routeAccess.ts`
-- `frontend/src/components/Header/Header.tsx`
-- `backend/aps_app/README.md` (pointer)
+- [x] Spec marks feature retired; no website UI or gateway routes for APS webhook monitor/ingest.
+- [x] `backend/internal/apswebhook/**` removed; not wired in `cmd/server`.
+- [x] FE page, component, header link, route constants, and admin path gate removed.
+- [x] Nginx SSE location for webhook stream removed.
+- [x] `backend/aps_app/**` untouched.

@@ -29,7 +29,7 @@ Active (2026-08-30).
 - Allowed = platform admin **or** active entitlement for that service id. Homescool also shows for linked students (`checkServiceAccess` student bypass).
 - Logged out: gated links hidden; public links stay.
 - While entitlements are loading for a non-admin signed-in user: show public links only (no flash of gated apps).
-- Admin-only rows (Admin users, Agent Sandbox, MPS tests submenu) stay as today.
+- Admin-only rows (Admin users, Agent Sandbox) stay as today. (MPS tests submenu retired — see specs 030/031.)
 - Subscribe remains in the account menu (not a nested services dropdown).
 
 ### 3. Create pamphlet by copying an existing one
@@ -49,7 +49,7 @@ Active (2026-08-30).
 
 - Changing PDF geometry, pamphlet template types, or footer profiles.
 - Making Music require a ServiceGate on the page itself (nav hide is enough for this turn).
-- Flattening the admin MPS tests submenu.
+- Flattening admin nav beyond what 030/031 retirement already removed.
 - Copying local (device-only) files that were never saved to the cloud.
 
 ## Acceptance

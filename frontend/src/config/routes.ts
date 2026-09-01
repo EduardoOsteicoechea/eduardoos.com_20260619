@@ -53,10 +53,6 @@ export const APP_ROUTES = {
   agentSandbox: "/admin/agent-sandbox",
   /** Admin-only BIM IFC viewer (That Open + host Python console). */
   bimIfcViewer: "/bim/ifc/viewer",
-  /** Admin-only APS webhook live monitor (product-tests). */
-  apsWebhookMonitor: "/product-tests/mps/aps-webhook",
-  /** Admin-only MPS meeting probes console. */
-  mpsMeetingProbes: "/product-tests/mps/meeting-probes",
 } as const;
 
 export const AUTH_API_ROUTES = {
@@ -302,10 +298,6 @@ export const ADMIN_ROUTES = {
     `/api/admin/users/${encodeURIComponent(email)}/entitlements?email=${encodeURIComponent(email)}`,
   deleteUser: (email: string) =>
     `/api/admin/users/${encodeURIComponent(email)}?email=${encodeURIComponent(email)}`,
-  apsWebhookEvents: "/api/admin/aps/webhook-events",
-  apsWebhookStream: "/api/admin/aps/webhook-events/stream",
-  apsProbes: "/api/admin/aps/probes",
-  apsProbe: (id: string) => `/api/admin/aps/probes/${encodeURIComponent(id)}`,
 } as const;
 
 /** Admin-only BIM host Python runner + shared IFC library (spec 037). */
@@ -315,11 +307,6 @@ export const BIM_ROUTES = {
   modelUpload: "/api/bim/models/upload",
   modelFile: (name: string) =>
     `/api/bim/models/file/${name.split("/").map(encodeURIComponent).join("/")}`,
-} as const;
-
-/** Public APS webhook ingest (Autodesk → Eduardo OS). */
-export const APS_WEBHOOK_ROUTES = {
-  ingest: "/api/aps/webhooks",
 } as const;
 
 /** Public Calvin’s Institutes (S3 proxy). */

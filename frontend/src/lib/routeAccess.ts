@@ -20,11 +20,7 @@ export function isAdminOnlyPagePath(pathname: string): boolean {
     path === normalizePath(APP_ROUTES.adminUsers) ||
     path.startsWith(`${normalizePath(APP_ROUTES.adminUsers)}/`) ||
     path === normalizePath(APP_ROUTES.agentSandbox) ||
-    path.startsWith(`${normalizePath(APP_ROUTES.agentSandbox)}/`) ||
-    path === normalizePath(APP_ROUTES.apsWebhookMonitor) ||
-    path.startsWith(`${normalizePath(APP_ROUTES.apsWebhookMonitor)}/`) ||
-    path === normalizePath(APP_ROUTES.mpsMeetingProbes) ||
-    path.startsWith(`${normalizePath(APP_ROUTES.mpsMeetingProbes)}/`)
+    path.startsWith(`${normalizePath(APP_ROUTES.agentSandbox)}/`)
   );
 }
 

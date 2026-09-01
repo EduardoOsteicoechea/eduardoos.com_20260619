@@ -147,11 +147,11 @@ jobs:
           APS_CLIENT_SECRET: ${{ secrets.APS_CLIENT_SECRET }}
           APS_ACTIVITY_ID: ${{ secrets.APS_ACTIVITY_ID }}
           APS_OAUTH_SCOPE: ${{ secrets.APS_OAUTH_SCOPE }}
-          APS_WEBHOOK_SECRET: ${{ secrets.APS_WEBHOOK_SECRET }}
           APS_HUB_ID: ${{ secrets.APS_HUB_ID }}
           APS_PROJECT_ID: ${{ secrets.APS_PROJECT_ID }}
           APS_REGION: ${{ secrets.APS_REGION }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
         run: |
           quote_env() {
             local val="${1-}"
@@ -215,15 +215,11 @@ jobs:
             printf 'APS_CLIENT_ID=%s\n' "$(quote_env "${APS_CLIENT_ID:-}")"
             printf 'APS_CLIENT_SECRET=%s\n' "$(quote_env "${APS_CLIENT_SECRET:-}")"
             printf 'APS_ACTIVITY_ID=%s\n' "$(quote_env "${APS_ACTIVITY_ID:-}")"
-            # Meeting probes defaults: scope always written (secret optional); hub/project/webhook secret from GitHub secrets when set.
+            # Design Automation credentials (website MPS probes / webhook ingest retired — specs 030/031).
             printf 'APS_OAUTH_SCOPE=%s\n' "$(quote_env "${APS_OAUTH_SCOPE:-code:all data:read data:write account:read}")"
-            printf 'APS_WEBHOOK_SECRET=%s\n' "$(quote_env "${APS_WEBHOOK_SECRET:-}")"
             printf 'APS_HUB_ID=%s\n' "$(quote_env "${APS_HUB_ID:-}")"
             printf 'APS_PROJECT_ID=%s\n' "$(quote_env "${APS_PROJECT_ID:-}")"
             printf 'APS_REGION=%s\n' "$(quote_env "${APS_REGION:-US}")"
-            printf 'APS_WEBHOOK_CALLBACK_URL=%s\n' "$(quote_env "${APS_WEBHOOK_CALLBACK_URL:-https://eduardoos.com/api/aps/webhooks}")"
-            printf 'PROBE_TIMEOUT_MS=%s\n' "$(quote_env "${PROBE_TIMEOUT_MS:-25000}")"
-            printf 'APS_HTTP_TIMEOUT_MS=%s\n' "$(quote_env "${APS_HTTP_TIMEOUT_MS:-20000}")"
             printf 'PAYPAL_HOSTED_BUTTON_ID=%s\n' "$(quote_env "$PAYPAL_HOSTED_BUTTON_ID")"
             printf 'PAYPAL_BUSINESS_EMAIL=%s\n' "$(quote_env "${PAYPAL_BUSINESS_EMAIL:-}")"
             printf 'PAYPAL_CHECKOUT_URL=%s\n' "$(quote_env "$PAYPAL_CHECKOUT_URL")"
@@ -232,6 +228,11 @@ jobs:
             printf 'DEEPSEEK_BASE_URL=https://api.deepseek.com\n'
             printf 'DEEPSEEK_MODEL_EXPERT=deepseek-v4-flash\n'
             printf 'DEEPSEEK_MODEL_REFREE=deepseek-v4-pro\n'
+            printf 'KIMI_API_KEY=%s\n' "$(quote_env "${KIMI_API_KEY:-}")"
+            printf 'KIMI_BASE_URL=https://api.moonshot.ai/v1\n'
+            printf 'KIMI_MODEL_REFEREE=kimi-k3\n'
+            printf 'KIMI_MODEL_EXPERT=kimi-k3\n'
+            printf 'KIMI_MODEL_CODER=kimi-k2.7-code\n'
           } > .env.production
           echo "SMTP_USER set; SMTP_PASS normalized length=${#SMTP_PASS_NORM} (spaces/quotes stripped for Gmail)"
           echo "NOTE: Updating GitHub secrets alone does not restart EC2 — this job uploads .env and restarts eduardoos.service."

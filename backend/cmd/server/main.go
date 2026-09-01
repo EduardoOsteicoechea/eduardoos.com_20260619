@@ -8,8 +8,6 @@ import (
 
 	"eduardoos.nex/internal/admin"
 	"eduardoos.nex/internal/agentsandbox"
-	"eduardoos.nex/internal/apsprobes"
-	"eduardoos.nex/internal/apswebhook"
 	"eduardoos.nex/internal/auth"
 	"eduardoos.nex/internal/bim"
 	"eduardoos.nex/internal/church"
@@ -102,8 +100,6 @@ func main() {
 	adminHandler.Mail = authHandler
 	agentSandboxHandler := agentsandbox.NewHandler(ctx, jwtSecret, userStore)
 	bimHandler := bim.NewHandler(jwtSecret, userStore)
-	apsWebhookHandler := apswebhook.NewHandler(jwtSecret, userStore, apswebhook.SecretFromEnv())
-	apsProbesHandler := apsprobes.NewHandler(jwtSecret, userStore, apsWebhookHandler)
 	latinHandler := latin.NewHandler(ctx)
 
 	r := chi.NewRouter()
@@ -137,10 +133,6 @@ func main() {
 	// BIM IFC viewer Python sandbox (admin-only; host subprocess, no Docker).
 	bimHandler.Routes(r)
 	log.Printf("bim: runtime=%s python=%s %v", bimHandler.Runtime, bimHandler.Python, bimHandler.PythonArgs)
-	// Public APS webhook ingest + admin live monitor (SSE).
-	apsWebhookHandler.Routes(r)
-	// MPS meeting probes (admin-only, isolated).
-	apsProbesHandler.Routes(r)
 	// Calvin’s Institutes reader (public S3 proxy).
 	latinHandler.Routes(r)
 

@@ -57,12 +57,6 @@ interface HeaderProps {
   pathname: string;
 }
 
-/** Platform-admin MPS product-test routes (webhook monitor + meeting probes). */
-const MPS_TEST_LINKS = [
-  { href: APP_ROUTES.apsWebhookMonitor, label: "APS webhook", icon: "sensors" },
-  { href: APP_ROUTES.mpsMeetingProbes, label: "MPS probes", icon: "science" },
-] as const;
-
 function TrayIcon({ name }: { name: string }) {
   return (
     <span className="material-symbols-outlined site-header__nav-icon" aria-hidden="true">
@@ -212,64 +206,6 @@ function AuthControls({
     content = <LoggedOutActions onNavigate={onNavigate} />;
   }
   return <div className={`site-header__auth site-header__auth--${variant}`}>{content}</div>;
-}
-
-interface MpsTestsMenuProps {
-  pathname: string;
-  navClass: (href: string) => string;
-  onNavigate: () => void;
-}
-
-/** Admin tray submenu: APS webhook monitor + MPS meeting probes. */
-function MpsTestsMenu({ pathname, navClass, onNavigate }: MpsTestsMenuProps) {
-  const mpsActive = MPS_TEST_LINKS.some(
-    ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
-  );
-  const [open, setOpen] = useState(mpsActive);
-
-  useEffect(() => {
-    setOpen(mpsActive);
-  }, [pathname, mpsActive]);
-
-  return (
-    <div className="site-header__services">
-      <button
-        type="button"
-        className={`site-header__services-toggle${mpsActive ? " is-active" : ""}`}
-        aria-expanded={open}
-        aria-controls="site-header-mps-tests-menu"
-        aria-haspopup="menu"
-        onClick={() => setOpen((current) => !current)}
-      >
-        <TrayIcon name="science" />
-        <span className="site-header__nav-label">MPS tests</span>
-        <span className="site-header__services-caret" aria-hidden="true">
-          {open ? "▴" : "▾"}
-        </span>
-      </button>
-      {open ? (
-        <div
-          id="site-header-mps-tests-menu"
-          className="site-header__services-menu"
-          role="menu"
-          aria-label="MPS tests"
-        >
-          {MPS_TEST_LINKS.map(({ href, label, icon }) => (
-            <a
-              key={href}
-              className={`site-header__services-item${navClass(href) ? ` ${navClass(href)}` : ""}`}
-              role="menuitem"
-              href={href}
-              onClick={() => onNavigate()}
-            >
-              <TrayIcon name={icon} />
-              <span className="site-header__nav-label">{label}</span>
-            </a>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 function MenuIcon({ open }: { open: boolean }) {
@@ -603,7 +539,6 @@ export function Header({ pathname }: HeaderProps) {
               <TrayIcon name="terminal" />
               <span className="site-header__nav-label">Agent Sandbox</span>
             </a>
-            <MpsTestsMenu pathname={pathname} navClass={navClass} onNavigate={closeMenu} />
           </>
         ) : null}
         {showAuth ? (
