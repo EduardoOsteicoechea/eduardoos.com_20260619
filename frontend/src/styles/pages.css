@@ -10,6 +10,7 @@
  * (spec 046). Width may be 100%; inset tokens stay shared.
  */
 .page-shell.page-shell--evoice,
+.page-shell.page-shell--wide,
 .page-shell.page-shell--product {
   width: 100%;
   max-width: none;

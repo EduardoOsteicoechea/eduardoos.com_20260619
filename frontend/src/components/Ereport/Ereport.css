@@ -1,12 +1,13 @@
 /**
  * eReport hub + editor chrome.
+ * Hub padding comes from .product-dash (spec 054).
  */
 
 .ereport-hub {
   box-sizing: border-box;
-  width: min(100%, var(--max_desktop_width, 72rem));
-  margin: 0 auto;
-  padding: 1.25rem 1rem 2.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
   color: var(--site-body-fg);
 }
 
@@ -206,15 +207,26 @@
 .ereport-editor {
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - var(--header_height, 60px));
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: calc(100dvh - var(--header_offset, var(--header_height, 60px)));
+}
+
+html.layout-editor-bleed .ereport-editor {
+  min-height: 0;
+  height: 100%;
 }
 
 .ereport-editor__frame {
   flex: 1;
   width: 100%;
-  min-height: calc(100dvh - var(--header_height, 60px));
+  min-height: calc(100dvh - var(--header_offset, var(--header_height, 60px)));
   border: 0;
   background: #d8e0e4;
+}
+
+html.layout-editor-bleed .ereport-editor__frame {
+  min-height: 0;
 }
 
 .ereport-modal {

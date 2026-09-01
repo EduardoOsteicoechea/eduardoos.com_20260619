@@ -1,12 +1,15 @@
 ---
 /**
- * Pamphlet hub — dashboard + generator mount (spec 045).
- * mm/px canvas stays in the generator (pass-through).
+ * Pamphlet hub — BaseLayout + product chrome (spec 054).
+ * Dashboard uses ProductHubShell; non-dashboard mounts the mm/px generator
+ * as a full-bleed editor exception under the same Header/rail.
  */
-import PamphletLayout from "../../layouts/PamphletLayout.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import PamphletHub from "../../components/Pamphlet/PamphletHub";
 ---
 
-<PamphletLayout title="Pamphlet — Eduardo Osteicoechea">
-  <PamphletHub client:load />
-</PamphletLayout>
+<BaseLayout title="Pamphlet — Eduardo Osteicoechea" requireAuth={true}>
+  <div class="page-shell page-shell--product" data-page="pamphlet">
+    <PamphletHub client:load />
+  </div>
+</BaseLayout>

@@ -1,9 +1,18 @@
 ---
-/** Pretty /ereport/{user}/{reportId} shell */
+/**
+ * eReport report editor — BaseLayout chrome + full-bleed tracker (spec 054).
+ * Pretty /ereport/{user}/{reportId} and /ereport/workspace shells.
+ */
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import EreportEditor from "../../../components/Ereport/EreportEditor";
 ---
 
-<BaseLayout title="eReport editor — Eduardo Osteicoechea" requireAuth={true}>
-  <EreportEditor client:only="react" />
+<BaseLayout
+  title="eReport editor — Eduardo Osteicoechea"
+  requireAuth={true}
+  pageEditorBleed={true}
+>
+  <div class="page-shell page-shell--product" data-page="ereport-editor">
+    <EreportEditor client:only="react" />
+  </div>
 </BaseLayout>

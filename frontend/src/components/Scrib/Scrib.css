@@ -1,13 +1,18 @@
 /**
  * Scrib — dashboard books + full-viewport US Letter editor.
+ * Hub padding comes from .product-dash (spec 054); do not double-pad.
  */
 
 .scrib-dashboard {
   box-sizing: border-box;
-  width: min(100%, var(--max_desktop_width, 72rem));
-  margin: 0 auto;
-  padding: 1.25rem 1rem 2.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
   color: var(--site-body-fg);
+}
+
+.product-dash .scrib-dashboard {
+  padding: 0;
 }
 
 .scrib-dashboard__head {

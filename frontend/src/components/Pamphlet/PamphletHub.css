@@ -14,3 +14,16 @@
   font-family: var(--font-body);
   font-size: var(--font-sm);
 }
+
+html.layout-editor-bleed .pamphlet-hub--editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+html.layout-editor-bleed .pamphlet-route-root,
+html.layout-editor-bleed .pamphlet-layout-workspace {
+  flex: 1 1 auto;
+  width: 100%;
+}

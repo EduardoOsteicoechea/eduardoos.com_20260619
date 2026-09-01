@@ -18,6 +18,11 @@ interface Props {
   pageHome?: boolean;
   /** Lock document scroll (Agent Sandbox: only iframe/chat trays scroll). */
   pageAgentSandbox?: boolean;
+  /**
+   * Full-bleed editor surface under Header/rail (spec 054).
+   * Only Scrib sheet, Pamphlet canvas (toggled in hub), and eReport workspace.
+   */
+  pageEditorBleed?: boolean;
 }
 
 const {
@@ -26,6 +31,7 @@ const {
   requireAuth = false,
   pageHome = false,
   pageAgentSandbox = false,
+  pageEditorBleed = false,
 } = Astro.props;
 
 const pathname = Astro.url.pathname;
@@ -34,7 +40,11 @@ const pathname = Astro.url.pathname;
 <!doctype html>
 <html
   lang="en"
-  class:list={{ "page-home": pageHome, "page-agent-sandbox": pageAgentSandbox }}
+  class:list={{
+    "page-home": pageHome,
+    "page-agent-sandbox": pageAgentSandbox,
+    "layout-editor-bleed": pageEditorBleed,
+  }}
   data-auth-check={requireAuth ? "pending" : undefined}
 >
   <head>

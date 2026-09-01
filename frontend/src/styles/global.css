@@ -135,6 +135,36 @@ body > main {
   box-sizing: border-box;
 }
 
+/**
+ * Spec 054 — editor exceptions (Scrib sheet, Pamphlet canvas, eReport workspace).
+ * Keep Header/rail; drop product gutters so the canvas fills <main>.
+ */
+html.layout-editor-bleed body > main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding-right: 0;
+  padding-bottom: 0;
+}
+
+html.layout-editor-bleed .page-shell,
+html.layout-editor-bleed .page-shell--product {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Nested pamphlet workspace must not re-apply the rail offset (main already did). */
+html.layout-editor-bleed body.page-pamphlet .pamphlet-layout-workspace {
+  width: 100%;
+  margin-left: 0;
+  min-height: calc(100dvh - var(--header_offset, var(--header_height, 0px)));
+  padding-top: 1rem;
+}
+
 /* Agent Sandbox: never scroll the document; only inner trays / iframe scroll. */
 html.page-agent-sandbox,
 html.page-agent-sandbox body {

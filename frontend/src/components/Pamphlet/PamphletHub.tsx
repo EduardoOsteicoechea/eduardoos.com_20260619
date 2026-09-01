@@ -1,5 +1,7 @@
 /**
- * Pamphlet hub — dashboard + ?view=; non-dashboard mounts the mm/px generator (spec 045).
+ * Pamphlet hub — dashboard + ?view=; non-dashboard mounts the mm/px generator
+ * (specs 045 + 054). Dashboard uses the universal product chrome; editor views
+ * toggle html.layout-editor-bleed for a full-bleed canvas under BaseLayout.
  * Generator canvas dimensions stay pass-through (do not rem-convert).
  */
 
@@ -16,7 +18,10 @@ import {
   type PamphletMountHandle,
 } from "../../lib/pamphlet-generator/src/index";
 import "../ProductDashboard/ProductDashboard.css";
+import "../../layouts/PamphletLayout.css";
 import "./PamphletHub.css";
+
+const EDITOR_BLEED_CLASS = "layout-editor-bleed";
 
 const PAMPHLET_VIEWS = [
   { id: "dashboard", label: "Dashboard", icon: "dashboard" },
@@ -47,9 +52,21 @@ function PamphletHubInner() {
   const [view, setView] = useProductView("dashboard");
   const hostRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<PamphletMountHandle | null>(null);
+  const isEditor = view !== "dashboard";
 
   useEffect(() => {
-    if (view === "dashboard") {
+    const root = document.documentElement;
+    root.classList.toggle(EDITOR_BLEED_CLASS, isEditor);
+    root.classList.toggle("page-pamphlet", isEditor);
+    document.body.classList.toggle("page-pamphlet", isEditor);
+    return () => {
+      root.classList.remove(EDITOR_BLEED_CLASS, "page-pamphlet");
+      document.body.classList.remove("page-pamphlet");
+    };
+  }, [isEditor]);
+
+  useEffect(() => {
+    if (!isEditor) {
       handleRef.current?.destroy();
       handleRef.current = null;
       if (hostRef.current) hostRef.current.innerHTML = "";
@@ -67,17 +84,17 @@ function PamphletHubInner() {
       handleRef.current?.destroy();
       handleRef.current = null;
     };
-  }, [view]);
+  }, [view, isEditor]);
 
   return (
-    <div className="pamphlet-hub">
+    <div className={isEditor ? "pamphlet-hub pamphlet-hub--editor" : "pamphlet-hub"}>
       <ProductHeaderMenu
         menuId="pamphlet-product-header-menu"
         items={[...PAMPHLET_VIEWS]}
         activeId={view}
         onSelect={setView}
       />
-      {view === "dashboard" ? (
+      {!isEditor ? (
         <ProductHubShell title="Pamphlet">
           <DashboardGrid cards={PAMPHLET_CARDS} onSelect={setView} />
         </ProductHubShell>
@@ -92,8 +109,8 @@ function PamphletHubInner() {
       <div
         ref={hostRef}
         id="pamphlet-root"
-        className="pamphlet-route-root"
-        hidden={view === "dashboard"}
+        className="pamphlet-route-root pamphlet-layout-workspace"
+        hidden={!isEditor}
       />
     </div>
   );
