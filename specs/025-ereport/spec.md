@@ -60,6 +60,8 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
   - **Guardar en nube** — modal with confirm + status; runs collect → `PUT` cloud.
   - **Compartir** — modal to add/remove registered emails (owners only; hidden if `!canShare`).
 - Body: Issue Tracker embedded via host-bridged static HTML at **`/ereport-tracker.html`** (alias `/ereport/tracker.html`).
+- **Viewport fill (locked):** Under `html.layout-editor-bleed` (spec 054), the host `.ereport-editor` + tracker iframe must occupy the full remaining window under the site Header/rail — not a short band at the top with empty page chrome below. Do **not** rely on `height: 100%` alone through Astro’s `astro-island` wrapper; use an explicit viewport height (`calc(100dvh - var(--header_offset, …))` and/or fixed inset like Scrib) so the iframe always stretches.
+- **Bug fix (2026-09-02):** Bleed CSS set `min-height: 0` / `height: 100%` on the editor and frame; the percentage chain broke at the island, so the iframe collapsed to a short strip. Restore explicit viewport sizing.
 - **Theme:** Tracker has **no** local light/dark button. Appearance follows the site Header theme toggler (`eduardoos-theme` / `html[data-theme]`). Host pushes `postMessage` `{ type: "theme", dark }` on boot, after payload load, and whenever the document theme attrs change.
 - **Nav sidebar dots:** color by item status — **green** `aprobado`, **red** `reprobado`, **gray** undefined/empty. Active item keeps a gold focus ring without replacing the status fill.
 - **Inline title edit (tracker):** sección máxima and subsección/grupo titles are **always `<input>` fields** styled as headings (click/focus to edit). Enter or blur commits into state; values persist in `.ereport` via `collectFromDom`.
@@ -93,6 +95,7 @@ IAM already allows Get/Put/Delete on `arn:aws:s3:::eduardoos20260607/ereport/*` 
 - [x] nginx pretty URLs; tests; FE build; commit + push
 - [x] Section + group headings inline-editable in tracker
 - [x] Hub / Tema / Guardar / Compartir in Header dynamic slot via modals (no chrome above iframe)
+- [x] Workspace editor iframe fills the window under Header/rail (no collapsed top strip)
 
 ## Affected paths
 - `specs/025-ereport/spec.md`

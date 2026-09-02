@@ -204,6 +204,12 @@
   opacity: 1;
 }
 
+/**
+ * Tracker host shell. Spec 025/054: under layout-editor-bleed the iframe must
+ * fill the remaining viewport. Do not use height:100% alone — Astro wraps the
+ * React island in <astro-island>, which breaks the percentage height chain and
+ * collapses the frame to a short top strip.
+ */
 .ereport-editor {
   display: flex;
   flex-direction: column;
@@ -213,12 +219,19 @@
 }
 
 html.layout-editor-bleed .ereport-editor {
+  position: fixed;
+  top: var(--header_offset, var(--header_height, 60px));
+  left: var(--header_width, 0px);
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
   min-height: 0;
-  height: 100%;
+  z-index: 1;
 }
 
 .ereport-editor__frame {
-  flex: 1;
+  flex: 1 1 auto;
   width: 100%;
   min-height: calc(100dvh - var(--header_offset, var(--header_height, 60px)));
   border: 0;
@@ -227,6 +240,7 @@ html.layout-editor-bleed .ereport-editor {
 
 html.layout-editor-bleed .ereport-editor__frame {
   min-height: 0;
+  height: 100%;
 }
 
 .ereport-modal {

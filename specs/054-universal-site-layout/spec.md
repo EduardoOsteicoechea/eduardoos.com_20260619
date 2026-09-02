@@ -40,7 +40,7 @@ These three may go **full-bleed inside `<main>`** (no product-dash title padding
 |---------|------|----------------|
 | **Pamphlet editor** | `?view=` is **not** `dashboard` (canvas / open / new / manage / footers / recent as generator mount) | `/documents/pamphlet` |
 | **Scrib sheet editor** | Sheet editing UI | `/scrib/sheet` and pretty sheet paths that mount `ScribEditor` |
-| **eReport report editor** | Issue-tracker iframe workspace | `/ereport/workspace` and pretty report paths that mount `EreportEditor` |
+| **eReport report editor** | Issue-tracker iframe workspace; host shell must size the iframe to the full remaining viewport (explicit `dvh` / fixed inset — not `%` height alone through `astro-island`) | `/ereport/workspace` and pretty report paths that mount `EreportEditor` |
 
 **Not exceptions:** Pamphlet **dashboard** (`view=dashboard` or default), Scrib **library/dashboard**, eReport **hub** (orgs/reports list), BIM viewer tool view, Calvin’s reader, Articles browse/reader — those stay on the general layout (tool UIs may drop the hub title but keep main gutters unless already flush for the canvas in 051; do not invent new shells).
 
