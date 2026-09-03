@@ -26,7 +26,7 @@ import EreportHeaderMenu, {
 } from "./EreportHeaderMenu";
 import "./Ereport.css";
 
-const TRACKER_SRC = "/ereport-tracker.html?v=051a";
+const TRACKER_SRC = "/ereport-tracker.html?v=062a";
 
 function siteIsDark(): boolean {
   return (

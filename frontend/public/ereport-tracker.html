@@ -833,6 +833,29 @@ function collapseChevron(collapsed) {
   return mi(collapsed ? "chevron_right" : "expand_more");
 }
 
+/**
+ * datetime-local only accepts YYYY-MM-DDTHH:mm. Seeds/API often store YYYY-MM-DD.
+ * Without coercion the control stays empty and collectFromDom wipes dates (spec 062).
+ */
+function toDateTimeLocalValue(raw) {
+  if (raw == null) return "";
+  const s = String(raw).trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s + "T00:00";
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+  if (m) return m[1] + "T" + m[2];
+  return s;
+}
+
+/** Persist control value; midnight date-only coercion keeps YYYY-MM-DD round-trip. */
+function fromDateTimeLocalValue(raw) {
+  const s = String(raw == null ? "" : raw).trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}T00:00(:00)?$/.test(s)) return s.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0, 16);
+  return s;
+}
+
 function normalizeItem(it) {
   const sol = it.imagesSolucion != null ? it.imagesSolucion : (it.images || []);
   return {
@@ -1032,9 +1055,9 @@ function collectFromDom() {
     if (!item) return;
     item.nombre = readInplace(card.querySelector(".inplace-nombre")).trim();
     item.incidencia = readInplace(card.querySelector(".inplace-incidencia"));
-    item.fechaIncidencia = card.querySelector(".fecha-incidencia")?.value || "";
+    item.fechaIncidencia = fromDateTimeLocalValue(card.querySelector(".fecha-incidencia")?.value);
     item.solucion = readInplace(card.querySelector(".inplace-solucion"));
-    item.fechaSolucion = card.querySelector(".fecha-solucion")?.value || "";
+    item.fechaSolucion = fromDateTimeLocalValue(card.querySelector(".fecha-solucion")?.value);
   });
 }
 
@@ -1173,7 +1196,7 @@ function renderItem(sec, grp, item) {
             ${renderInplace("textarea", "inplace-incidencia", item.incidencia || "", "Descripción de la incidencia")}
             <div class="meta-bar">
               <div class="meta-bar-time">
-                <input type="datetime-local" class="moment-input fecha-incidencia" title="Momento de la incidencia" value="${escapeAttr(item.fechaIncidencia || "")}" />
+                <input type="datetime-local" class="moment-input fecha-incidencia" title="Momento de la incidencia" value="${escapeAttr(toDateTimeLocalValue(item.fechaIncidencia))}" />
               </div>
               <div class="meta-bar-imgs">
                 <input type="file" accept="image/*" multiple class="img-input img-incidencia" title="Imágenes incidencia" />
@@ -1187,7 +1210,7 @@ function renderItem(sec, grp, item) {
             ${renderInplace("textarea", "inplace-solucion", item.solucion || "", "Qué se hizo / cómo se resolvió")}
             <div class="meta-bar">
               <div class="meta-bar-time">
-                <input type="datetime-local" class="moment-input fecha-solucion" title="Momento de la solución" value="${escapeAttr(item.fechaSolucion || "")}" />
+                <input type="datetime-local" class="moment-input fecha-solucion" title="Momento de la solución" value="${escapeAttr(toDateTimeLocalValue(item.fechaSolucion))}" />
               </div>
               <div class="meta-bar-imgs">
                 <input type="file" accept="image/*" multiple class="img-input img-sol" title="Imágenes solución" />

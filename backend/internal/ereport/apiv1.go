@@ -135,10 +135,14 @@ func (h *Handler) V1GetOrgReport(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusForbidden, "not allowed")
 		return
 	}
+	ownerSafe := SafeEmailKey(meta.OwnerEmail)
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"orgId":   orgID,
-		"meta":    meta,
-		"payload": payload,
+		"orgId":     orgID,
+		"reportId":  reportID,
+		"ownerSafe": ownerSafe,
+		"viewUrl":   OrgReportViewURL(r, ownerSafe, orgID, reportID),
+		"meta":      meta,
+		"payload":   payload,
 	})
 }
 
@@ -224,7 +228,14 @@ func (h *Handler) V1PostOrgReport(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = h.saveOrgLibrary(r, ownerEmail, orgID, lib, cid)
 
-	out := map[string]any{"orgId": orgID, "meta": meta, "payload": payload}
+	out := map[string]any{
+		"orgId":     orgID,
+		"reportId":  reportID,
+		"ownerSafe": SafeEmailKey(ownerEmail),
+		"viewUrl":   OrgReportViewURL(r, SafeEmailKey(ownerEmail), orgID, reportID),
+		"meta":      meta,
+		"payload":   payload,
+	}
 	if snapshotID != "" {
 		out["snapshotId"] = snapshotID
 	}

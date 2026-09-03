@@ -30,6 +30,16 @@ The operator must run steps **one at a time** (separate CLI commands). Do **not*
 
 ## Entitlements
 Key owner needs \`api\` + \`ereport\` (platform admin keys skip product checks). Writes only for reports **owned** by that key's user.
+Create/revoke keys only in the UI (/auth/profile or /api-keys) — never via API clients.
+
+## Canonical viewUrl (always print after get/put)
+\`{BASE}/ereport/workspace?user={ownerSafe}&org={orgId}&report={reportId}\`
+Also returned as \`viewUrl\` on GET/POST org report. End every successful run with:
+  Ver reporte: <viewUrl>
+
+## Dates (do not wipe)
+Item fields \`fechaIncidencia\` / \`fechaSolucion\` are \`YYYY-MM-DD\`, \`YYYY-MM-DDTHH:mm\`, or \`""\`.
+Full replace must preserve non-empty dates unless the operator clears them intentionally.
 
 ## Endpoints (in order)
 
@@ -49,7 +59,7 @@ Print ids + tema. Operator picks \`EDUARDOOS_REPORT_ID\`.
 
 ### Step 4 — first edit (get, then put — separate commands)
 a) GET {BASE}/api/v1/ereport/orgs/{orgId}/reports/{reportId}
-   → \`{ orgId, meta, payload }\`
+   → \`{ orgId, reportId, ownerSafe, viewUrl, meta, payload }\`
 
 b) POST {BASE}/api/v1/ereport/orgs/{orgId}/reports/{reportId}
    Content-Type: application/json
@@ -58,7 +68,7 @@ b) POST {BASE}/api/v1/ereport/orgs/{orgId}/reports/{reportId}
      "tema": "<optional>",
      "payload": { /* FULL .ereport JSON — required */ }
    }
-   Without confirmOverwrite:true → 400. May return snapshotId.
+   Without confirmOverwrite:true → 400. May return snapshotId + viewUrl.
 
 ## Deliverables
 1. \`.env.example\`:
@@ -69,7 +79,7 @@ b) POST {BASE}/api/v1/ereport/orgs/{orgId}/reports/{reportId}
 2. \`.env\` gitignored; dotenv.
 3. CLI (separate invocations): \`access\`, \`orgs\`, \`org-reports\`, \`get\`, \`put --file report.json\`
 4. Errors for 401/403/404/400/429.
-5. README: subscribe API+eReport, create key at /auth/profile; run access → orgs → org-reports → get → put.
+5. README: subscribe API+eReport, create key at /auth/profile; run access → orgs → org-reports → get → put; always print Ver reporte: <viewUrl>.
 
 Do not use browser JWT. Do not invent endpoints. Prefer org paths over legacy flat /library or /reports/{ownerSafe}/…. Optional: GET {BASE}/api/v1/docs.`;
 
@@ -239,8 +249,13 @@ export default function ApiDocsPage() {
           </li>
         </ol>
         <p className="api-docs__hint">
-          Prefer org paths. <code>/library</code> still returns <code>orgs</code> plus optional{" "}
-          <code>legacyReports</code> for old flat reports.
+          Canonical view URL:{" "}
+          <code>
+            &#123;BASE&#125;/ereport/workspace?user=&#123;ownerSafe&#125;&amp;org=&#123;orgId&#125;&amp;report=&#123;reportId&#125;
+          </code>
+          . GET/POST responses include <code>viewUrl</code>. Always end with{" "}
+          <code>Ver reporte: &lt;viewUrl&gt;</code>. Preserve{" "}
+          <code>fechaIncidencia</code> / <code>fechaSolucion</code> on full replace.
         </p>
       </section>
 

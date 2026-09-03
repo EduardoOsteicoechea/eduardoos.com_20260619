@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"eduardoos.nex/internal/apikeys"
@@ -260,5 +261,140 @@ func TestV1OrgAccessOrgsReportsEdit(t *testing.T) {
 	_ = json.Unmarshal(putRec.Body.Bytes(), &putOut)
 	if putOut["snapshotId"] == nil || putOut["snapshotId"] == "" {
 		t.Fatalf("expected snapshotId %#v", putOut)
+	}
+	if putOut["viewUrl"] == nil || putOut["viewUrl"] == "" {
+		t.Fatalf("expected viewUrl %#v", putOut)
+	}
+}
+
+// TestV1OrgReportDateRoundTrip locks fechaIncidencia/fechaSolucion through API full-replace (spec 062).
+func TestV1OrgReportDateRoundTrip(t *testing.T) {
+	users := auth.NewMemoryStore()
+	_ = users.PutUser(context.Background(), auth.User{
+		Email: "dates@x.com", PasswordHash: auth.HashPassword("x"), Verified: true,
+	})
+	ents := payments.NewStore()
+	ents.PutEntitlements("dates@x.com", payments.BuildEntitlements([]string{"api", "ereport"}, "monthly", 1))
+
+	eh := NewHandler("ereport-secret", users)
+	eh.Entitlements = ents
+	keys := apikeys.NewMemoryStore()
+	ah := apikeys.NewHandler("ereport-secret", users, keys, ents)
+
+	r := chi.NewRouter()
+	eh.Routes(r)
+	ah.Routes(r)
+	ah.MountV1(r, func(vr chi.Router) {
+		vr.Use(ah.RequireProductAccess("ereport"))
+		eh.RoutesV1(vr)
+	})
+
+	ownerTok := bearer(t, "dates@x.com")
+	orgReq := httptest.NewRequest(http.MethodPost, "/api/ereport/orgs",
+		bytes.NewBufferString(`{"name":"Date Org"}`))
+	orgReq.Header.Set("Authorization", "Bearer "+ownerTok)
+	orgReq.Header.Set("Content-Type", "application/json")
+	orgRec := httptest.NewRecorder()
+	r.ServeHTTP(orgRec, orgReq)
+	if orgRec.Code != http.StatusCreated {
+		t.Fatalf("org create=%d %s", orgRec.Code, orgRec.Body.String())
+	}
+	var orgCreated map[string]any
+	_ = json.Unmarshal(orgRec.Body.Bytes(), &orgCreated)
+	orgID := orgCreated["org"].(map[string]any)["id"].(string)
+
+	repReq := httptest.NewRequest(http.MethodPost, "/api/ereport/orgs/"+orgID+"/reports",
+		bytes.NewBufferString(`{"tema":"Dates"}`))
+	repReq.Header.Set("Authorization", "Bearer "+ownerTok)
+	repReq.Header.Set("Content-Type", "application/json")
+	repRec := httptest.NewRecorder()
+	r.ServeHTTP(repRec, repReq)
+	if repRec.Code != http.StatusCreated {
+		t.Fatalf("report create=%d %s", repRec.Code, repRec.Body.String())
+	}
+	var repCreated map[string]any
+	_ = json.Unmarshal(repRec.Body.Bytes(), &repCreated)
+	reportID := repCreated["meta"].(map[string]any)["id"].(string)
+
+	ck := httptest.NewRequest(http.MethodPost, "/api/apikeys", bytes.NewBufferString(`{"label":"dates"}`))
+	ck.Header.Set("Authorization", "Bearer "+ownerTok)
+	ckRec := httptest.NewRecorder()
+	r.ServeHTTP(ckRec, ck)
+	var keyOut struct {
+		Key string `json:"key"`
+	}
+	_ = json.Unmarshal(ckRec.Body.Bytes(), &keyOut)
+
+	payload := map[string]any{
+		"reportNumber": "DATE-1",
+		"sections": []any{
+			map[string]any{
+				"id": "s1",
+				"groups": []any{
+					map[string]any{
+						"id": "g1",
+						"items": []any{
+							map[string]any{
+								"id":               "ce-3143-03",
+								"status":           "reprobado",
+								"nombre":           "Tablet",
+								"incidencia":       "broken",
+								"solucion":         "fixed",
+								"fechaIncidencia":  "2026-08-31",
+								"fechaSolucion":    "2026-09-01",
+								"images":           []any{},
+								"imagesIncidencia": []any{},
+								"imagesSolucion":   []any{},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	body, _ := json.Marshal(map[string]any{"confirmOverwrite": true, "payload": payload})
+	putReq := httptest.NewRequest(http.MethodPost,
+		"/api/v1/ereport/orgs/"+orgID+"/reports/"+reportID,
+		bytes.NewReader(body))
+	putReq.Header.Set("Authorization", "Bearer "+keyOut.Key)
+	putReq.Header.Set("Content-Type", "application/json")
+	putReq.Host = "eduardoos.com"
+	putReq.Header.Set("X-Forwarded-Proto", "https")
+	putRec := httptest.NewRecorder()
+	r.ServeHTTP(putRec, putReq)
+	if putRec.Code != http.StatusOK {
+		t.Fatalf("put=%d %s", putRec.Code, putRec.Body.String())
+	}
+	var putOut map[string]any
+	_ = json.Unmarshal(putRec.Body.Bytes(), &putOut)
+	vu, _ := putOut["viewUrl"].(string)
+	if !strings.Contains(vu, "dates_at_x.com") || !strings.Contains(vu, orgID) || !strings.Contains(vu, reportID) {
+		t.Fatalf("viewUrl=%v", putOut["viewUrl"])
+	}
+
+	getReq := httptest.NewRequest(http.MethodGet,
+		"/api/v1/ereport/orgs/"+orgID+"/reports/"+reportID, nil)
+	getReq.Header.Set("Authorization", "Bearer "+keyOut.Key)
+	getRec := httptest.NewRecorder()
+	r.ServeHTTP(getRec, getReq)
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("get=%d %s", getRec.Code, getRec.Body.String())
+	}
+	var getOut struct {
+		Payload map[string]any `json:"payload"`
+		ViewURL string         `json:"viewUrl"`
+	}
+	_ = json.Unmarshal(getRec.Body.Bytes(), &getOut)
+	if getOut.ViewURL == "" {
+		t.Fatal("missing viewUrl on GET")
+	}
+	secs, _ := getOut.Payload["sections"].([]any)
+	sec0, _ := secs[0].(map[string]any)
+	grps, _ := sec0["groups"].([]any)
+	g0, _ := grps[0].(map[string]any)
+	items, _ := g0["items"].([]any)
+	it0, _ := items[0].(map[string]any)
+	if it0["fechaIncidencia"] != "2026-08-31" || it0["fechaSolucion"] != "2026-09-01" {
+		t.Fatalf("dates stripped: %#v", it0)
 	}
 }

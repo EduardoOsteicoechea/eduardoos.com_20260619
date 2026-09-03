@@ -74,6 +74,7 @@ func BuildDocsCatalog() DocsCatalog {
 		},
 		OwnerSafe: "Lowercase email with @ replaced by _at_ (e.g. you@example.com → you_at_example.com)",
 		KeyPolicy: "API keys are created, listed, and revoked only in the Eduardo OS UI (Profile or API keys page). Key lifecycle is not part of the external API.",
+		// viewUrl formula is documented on org get/post route summaries (spec 062).
 		Routes: []DocsRoute{
 			{
 				Method:  http.MethodGet,
@@ -106,7 +107,8 @@ func BuildDocsCatalog() DocsCatalog {
 				Method:       http.MethodGet,
 				Path:         "/api/v1/ereport/orgs/{orgId}/reports/{reportId}",
 				Auth:         "api_key",
-				Summary:      "Step 4a — read one org report (meta + full payload).",
+				Summary:      "Step 4a — read one org report (meta + full payload + viewUrl).",
+				Requirements: "Response includes viewUrl, ownerSafe, orgId, reportId. Dates fechaIncidencia/fechaSolucion round-trip as sent.",
 			},
 			{
 				Method:       http.MethodPost,
@@ -114,7 +116,7 @@ func BuildDocsCatalog() DocsCatalog {
 				Auth:         "api_key",
 				Summary:      "Step 4b — full-replace org report after snapshot.",
 				Body:         `{"confirmOverwrite":true,"tema":"optional","payload":{ /* full .ereport JSON */ }}`,
-				Requirements: "confirmOverwrite must be JSON true. payload required.",
+				Requirements: "confirmOverwrite must be JSON true. payload required. Response includes viewUrl. Preserve item dates on replace.",
 			},
 			{
 				Method:       http.MethodGet,
