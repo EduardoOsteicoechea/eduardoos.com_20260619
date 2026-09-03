@@ -74,3 +74,13 @@ On routes with multiple dynamic controls (e.g. Pamphlet with 11 action buttons),
    - `.header-dynamic-menu__actions`: add `padding-block: 0.25rem; padding-inline: 0.15rem`.
    - Phone HDS drawer: also widen by +10px (`calc(var(--chrome-control-size, 2.25rem) + 1.5rem + 10px)`) to provide consistent clearance.
 
+## Amendment 2026-09-03f — phone HDS drawer viewport positioning
+
+### Problem
+On phone, the HDS lateral drawer (and its backdrop) were nested inside `.site-header__bar`, which uses `backdrop-filter`. That creates a fixed-position containing block the height of the top bar only, so `bottom: 0` collapsed the drawer and the backdrop never covered the page — unlike `.site-header__nav`, which is a sibling of the bar and works correctly.
+
+### Fix
+1. On phone only, portal the HDS host + backdrop to `document.body` (toggle stays in the header bar).
+2. Phone-layer CSS mirrors existing drawer rules; use explicit `height: calc(100dvh - …)` instead of relying on `bottom: 0`.
+3. Re-dispatch `eduardoos:hds-host-ready` when the phone layer mounts so product portals re-attach.
+

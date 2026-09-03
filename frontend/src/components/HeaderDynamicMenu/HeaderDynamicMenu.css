@@ -231,7 +231,8 @@
 
   .header-dynamic-menu-shell--has-tools .header-dynamic-menu__phone-backdrop:not([hidden]),
   .header-dynamic-menu-shell:has(.header-dynamic-menu-host--phone-open)
-    .header-dynamic-menu__phone-backdrop:not([hidden]) {
+    .header-dynamic-menu__phone-backdrop:not([hidden]),
+  .header-dynamic-menu-phone-layer--open .header-dynamic-menu__phone-backdrop:not([hidden]) {
     display: block;
     position: fixed;
     inset: 0;
@@ -242,7 +243,8 @@
 
   .header-dynamic-menu-shell--has-tools .header-dynamic-menu-host:not(:empty),
   .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty))
-    .header-dynamic-menu-host:not(:empty) {
+    .header-dynamic-menu-host:not(:empty),
+  .header-dynamic-menu-phone-layer--has-tools .header-dynamic-menu-host:not(:empty) {
     position: fixed;
     top: calc(
       var(--header_bar_height, var(--chrome-control-size, 60px)) +
@@ -250,7 +252,7 @@
     );
     left: 0;
     right: auto;
-    bottom: 0;
+    bottom: auto;
     z-index: 155;
     display: flex;
     flex-direction: column;
@@ -259,6 +261,16 @@
     width: calc(var(--chrome-control-size, 2.25rem) + 1.5rem + 10px);
     min-width: calc(var(--chrome-control-size, 2.25rem) + 1.5rem + 10px);
     max-width: min(40vw, 8.5rem);
+    height: calc(
+      100dvh -
+        var(--header_bar_height, var(--chrome-control-size, 60px)) -
+        var(--header_safe_top, env(safe-area-inset-top, 0px))
+    );
+    max-height: calc(
+      100dvh -
+        var(--header_bar_height, var(--chrome-control-size, 60px)) -
+        var(--header_safe_top, env(safe-area-inset-top, 0px))
+    );
     margin: 0;
     padding: 0.75rem 0.65rem 1rem;
     overflow-x: hidden;
@@ -273,13 +285,18 @@
 
   .header-dynamic-menu-shell--has-tools
     .header-dynamic-menu-host.header-dynamic-menu-host--phone-open:not(:empty),
-  .header-dynamic-menu-host.header-dynamic-menu-host--phone-open:not(:empty) {
+  .header-dynamic-menu-host.header-dynamic-menu-host--phone-open:not(:empty),
+  .header-dynamic-menu-phone-layer--open
+    .header-dynamic-menu-host.header-dynamic-menu-host--phone-open:not(:empty) {
     transform: translateX(0);
     pointer-events: auto;
   }
 
   .header-dynamic-menu-shell--has-tools .header-dynamic-menu-host:not(:empty) .header-dynamic-menu__btn,
   .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty))
+    .header-dynamic-menu-host:not(:empty)
+    .header-dynamic-menu__btn,
+  .header-dynamic-menu-phone-layer--has-tools
     .header-dynamic-menu-host:not(:empty)
     .header-dynamic-menu__btn {
     background: var(--site-surface);
@@ -291,14 +308,17 @@
   .header-dynamic-menu-shell--has-tools .header-dynamic-menu__inner,
   .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty)) .header-dynamic-menu,
   .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty))
-    .header-dynamic-menu__inner {
+    .header-dynamic-menu__inner,
+  .header-dynamic-menu-phone-layer--has-tools .header-dynamic-menu,
+  .header-dynamic-menu-phone-layer--has-tools .header-dynamic-menu__inner {
     height: 100%;
     width: 100%;
   }
 
   .header-dynamic-menu-shell--has-tools .header-dynamic-menu__actions,
   .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty))
-    .header-dynamic-menu__actions {
+    .header-dynamic-menu__actions,
+  .header-dynamic-menu-phone-layer--has-tools .header-dynamic-menu__actions {
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;

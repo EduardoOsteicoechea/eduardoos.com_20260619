@@ -18,6 +18,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import "./HeaderDynamicMenu.css";
 
 /** Stable DOM id for vanilla / island mounts (pamphlet-generator shell). */
@@ -88,10 +89,16 @@ export function useHeaderDynamicHost(menuId: string): HTMLElement | null {
   return host;
 }
 
+function readIsPhone(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia(PHONE_DRAWER_MQ).matches;
+}
+
 export default function HeaderDynamicMenu() {
   const hostRef = useRef<HTMLDivElement>(null);
   const [hasTools, setHasTools] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
+  const [isPhone, setIsPhone] = useState(readIsPhone);
 
   const syncHasTools = useCallback(() => {
     const host = hostRef.current;
@@ -131,11 +138,17 @@ export default function HeaderDynamicMenu() {
   useEffect(() => {
     const mq = window.matchMedia(PHONE_DRAWER_MQ);
     const onChange = () => {
+      setIsPhone(mq.matches);
       if (!mq.matches) setPhoneOpen(false);
     };
+    onChange();
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new Event(HDS_HOST_READY_EVENT));
+  }, [isPhone]);
 
   useEffect(() => {
     if (!phoneOpen) return;
@@ -148,38 +161,73 @@ export default function HeaderDynamicMenu() {
 
   const closePhone = () => setPhoneOpen(false);
 
-  return (
+  const hostNode = (
     <div
-      className={`header-dynamic-menu-shell${phoneOpen ? " header-dynamic-menu-shell--phone-open" : ""}${
-        hasTools ? " header-dynamic-menu-shell--has-tools" : ""
-      }`}
-    >
-      <button
-        type="button"
-        className="header-dynamic-menu__phone-toggle"
-        aria-expanded={phoneOpen}
-        aria-controls={HEADER_DYNAMIC_MENU_HOST_ID}
-        aria-label={phoneOpen ? "Close tools" : "Open tools"}
-        title={phoneOpen ? "Close tools" : "Open tools"}
-        hidden={!hasTools}
-        onClick={() => setPhoneOpen((v) => !v)}
+      ref={hostRef}
+      id={HEADER_DYNAMIC_MENU_HOST_ID}
+      className={`header-dynamic-menu-host${phoneOpen ? " header-dynamic-menu-host--phone-open" : ""}`}
+      data-header-dynamic-menu-host=""
+    />
+  );
+
+  const backdropNode = (
+    <div
+      className="header-dynamic-menu__phone-backdrop"
+      hidden={!phoneOpen}
+      aria-hidden="true"
+      onClick={closePhone}
+    />
+  );
+
+  /*
+   * Phone: portal drawer + backdrop to body. They must not stay inside
+   * .site-header__bar — backdrop-filter there makes fixed + bottom:0 collapse
+   * to the bar height (main nav tray is a bar sibling and does not hit this).
+   */
+  const phoneDrawerLayer =
+    isPhone &&
+    typeof document !== "undefined" &&
+    createPortal(
+      <div
+        className={`header-dynamic-menu-phone-layer${
+          phoneOpen ? " header-dynamic-menu-phone-layer--open" : ""
+        }${hasTools ? " header-dynamic-menu-phone-layer--has-tools" : ""}`}
       >
-        <span className="material-symbols-outlined" aria-hidden="true">
-          {phoneOpen ? "close" : "tune"}
-        </span>
-      </button>
+        {backdropNode}
+        {hostNode}
+      </div>,
+      document.body,
+    );
+
+  return (
+    <>
       <div
-        className="header-dynamic-menu__phone-backdrop"
-        hidden={!phoneOpen}
-        aria-hidden="true"
-        onClick={closePhone}
-      />
-      <div
-        ref={hostRef}
-        id={HEADER_DYNAMIC_MENU_HOST_ID}
-        className={`header-dynamic-menu-host${phoneOpen ? " header-dynamic-menu-host--phone-open" : ""}`}
-        data-header-dynamic-menu-host=""
-      />
-    </div>
+        className={`header-dynamic-menu-shell${phoneOpen ? " header-dynamic-menu-shell--phone-open" : ""}${
+          hasTools ? " header-dynamic-menu-shell--has-tools" : ""
+        }`}
+      >
+        <button
+          type="button"
+          className="header-dynamic-menu__phone-toggle"
+          aria-expanded={phoneOpen}
+          aria-controls={HEADER_DYNAMIC_MENU_HOST_ID}
+          aria-label={phoneOpen ? "Close tools" : "Open tools"}
+          title={phoneOpen ? "Close tools" : "Open tools"}
+          hidden={!hasTools}
+          onClick={() => setPhoneOpen((v) => !v)}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">
+            {phoneOpen ? "close" : "tune"}
+          </span>
+        </button>
+        {!isPhone ? (
+          <>
+            {backdropNode}
+            {hostNode}
+          </>
+        ) : null}
+      </div>
+      {phoneDrawerLayer}
+    </>
   );
 }
