@@ -1,15 +1,13 @@
 /**
- * Scrib Institutes panel — Liber → Caput number → paragraph number → text
- * (spec 056 drill-down). Clipboard copy only.
+ * Scrib Institutes panel — Liber tabs → Caput number chips → paragraph number
+ * chips → plain text only (no Copy buttons). Spec 056.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import {
   chapterNavLabel,
-  copyTextToClipboard,
   fetchParagraphChapter,
   fetchParagraphIndex,
-  formatChapterClipboard,
   groupChaptersByLiber,
   type ParagraphChapterDoc,
   type ParagraphIndexChapter,
@@ -30,7 +28,6 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
   const [selected, setSelected] = useState<ParagraphIndexChapter | null>(null);
   const [doc, setDoc] = useState<ParagraphChapterDoc | null>(null);
   const [selectedParaOrder, setSelectedParaOrder] = useState<number | null>(null);
-  const [copyHint, setCopyHint] = useState("");
 
   const groups = useMemo(() => groupChaptersByLiber(chapters), [chapters]);
   const bookEntries = useMemo(() => {
@@ -53,7 +50,6 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
     let cancelled = false;
     setLoadingIndex(true);
     setError("");
-    setCopyHint("");
     setSelected(null);
     setDoc(null);
     setSelectedParaOrder(null);
@@ -87,7 +83,6 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
     let cancelled = false;
     setLoadingChapter(true);
     setError("");
-    setCopyHint("");
     setSelectedParaOrder(null);
     void (async () => {
       try {
@@ -108,15 +103,6 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
   }, [open, selected]);
 
   if (!open) return null;
-
-  async function onCopy(text: string, label: string) {
-    try {
-      await copyTextToClipboard(text);
-      setCopyHint(`Copied ${label}`);
-    } catch {
-      setCopyHint("Copy failed");
-    }
-  }
 
   return (
     <div
@@ -139,11 +125,6 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
 
         <div className="scrib-institutes-modal__scroll">
           {error ? <p className="scrib-institutes-modal__error">{error}</p> : null}
-          {copyHint ? (
-            <p className="scrib-institutes-modal__hint" aria-live="polite">
-              {copyHint}
-            </p>
-          ) : null}
 
           {loadingIndex ? (
             <p className="scrib-institutes-modal__status">Loading Capita…</p>
@@ -174,8 +155,11 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
               </div>
 
               <section className="scrib-institutes-modal__step" aria-label="Chapter">
-                <p className="scrib-institutes-modal__step-label">Chapter</p>
-                <div className="scrib-institutes-modal__chips" role="listbox" aria-label="Caput number">
+                <div
+                  className="scrib-institutes-modal__chips scrib-institutes-modal__chips--chapters"
+                  role="listbox"
+                  aria-label="Caput number"
+                >
                   {bookEntries.map((entry) => {
                     const label = chapterNavLabel(entry);
                     return (
@@ -197,24 +181,19 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
                     );
                   })}
                 </div>
-                {selected ? (
-                  <p className="scrib-institutes-modal__step-meta" title={selected.heading}>
-                    {selected.id} — {selected.heading}
-                  </p>
-                ) : (
-                  <p className="scrib-institutes-modal__status">Select a chapter number.</p>
-                )}
+                {!selected ? (
+                  <p className="scrib-institutes-modal__status">Select a chapter.</p>
+                ) : null}
               </section>
 
               {selected ? (
                 <section className="scrib-institutes-modal__step" aria-label="Paragraph">
-                  <p className="scrib-institutes-modal__step-label">Paragraph</p>
                   {loadingChapter ? (
                     <p className="scrib-institutes-modal__status">Loading paragraphs…</p>
                   ) : (
                     <>
                       <div
-                        className="scrib-institutes-modal__chips"
+                        className="scrib-institutes-modal__chips scrib-institutes-modal__chips--paras"
                         role="listbox"
                         aria-label="Paragraph number"
                       >
@@ -235,21 +214,8 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
                           </button>
                         ))}
                       </div>
-                      {doc ? (
-                        <button
-                          type="button"
-                          className="btn scrib-institutes-modal__copy-chapter"
-                          onClick={() =>
-                            void onCopy(formatChapterClipboard(doc), `chapter ${doc.id}`)
-                          }
-                        >
-                          Copy chapter
-                        </button>
-                      ) : null}
-                      {!selectedParaOrder ? (
-                        <p className="scrib-institutes-modal__status">
-                          Select a paragraph number.
-                        </p>
+                      {selectedParaOrder == null ? (
+                        <p className="scrib-institutes-modal__status">Select a paragraph.</p>
                       ) : null}
                     </>
                   )}
@@ -258,16 +224,7 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
 
               {activeParagraph ? (
                 <section className="scrib-institutes-modal__text" aria-live="polite">
-                  <div className="scrib-institutes-modal__para-head">
-                    <code>{activeParagraph.id}</code>
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => void onCopy(activeParagraph.text, activeParagraph.id)}
-                    >
-                      Copy
-                    </button>
-                  </div>
+                  <p className="scrib-institutes-modal__text-id">{activeParagraph.id}</p>
                   <p className="scrib-institutes-modal__text-body">{activeParagraph.text}</p>
                 </section>
               ) : null}
