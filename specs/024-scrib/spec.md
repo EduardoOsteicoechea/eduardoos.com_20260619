@@ -27,7 +27,7 @@ Need a subscribed app **Scrib**: books of ruled US Letter sheets with layered SV
 
 ### 4. Sheet geometry
 - **Portrait US Letter:** width **215.9 mm**, height **279.4 mm**.
-- Background: `/documento_generado_columnas_v2.jpg` — `object-fit: fill` (or equivalent) so the image **exactly** covers the sheet box (no letterboxing).
+- Background: `/documento_generado_columnas_v3.jpg` — `object-fit: fill` (or equivalent) so the image **exactly** covers the sheet box (no letterboxing). Light sheet = white paper + gray rules; dark site theme continues to invert the background + SVG layers (print still disables invert).
 - Sheet centered in the viewport; editor chrome outside the transform; **no page scroll** in draw mode (overflow hidden on editor root).
 
 ### 5–7. Layers (SVG, z-index ascending)
@@ -118,7 +118,7 @@ Editor header offers an **Institutes** control that opens a modal to pick Liber 
 - [x] Dynamic header offers fullscreen; its fixed upper-right exit control and Escape both restore the normal viewport
 - [x] Dark mode inverts the ruled background image
 - [x] Slow or rapid autosaves preserve all completed strokes and never apply stale server responses over newer local changes
-- [x] Fullscreen exit is a red icon-only X control; dark mode inverts the background and SVG layers; Scrib uses the v2 column background
+- [x] Fullscreen exit is a red icon-only X control; dark mode inverts the background and SVG layers; Scrib uses the v3 column background
 - [x] Fullscreen preserves zoom/pan, retains all Scrib tools, and can toggle the visible header sidebar
 - [x] Dynamic header Print prints only the current sheet, portrait US Letter, with live layer opacities; chrome/zoom hidden; no dark invert on print
 - [ ] Institutes modal: pick Caput → copy paragraph / chapter text to clipboard (spec 056)
