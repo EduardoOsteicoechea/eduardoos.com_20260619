@@ -14,9 +14,38 @@ import (
 
 // RoutesV1 mounts API-key eReport endpoints under /api/v1/ereport/* .
 // Caller must already wrap with apikeys RequireAPIKey + rate limit + product gate.
+// Ordered client flow (spec 058): access → library → get/post report.
 func (h *Handler) RoutesV1(r chi.Router) {
+	r.Get("/api/v1/ereport/access", h.V1Access)
+	r.Get("/api/v1/ereport/library", h.V1Library)
 	r.Get("/api/v1/ereport/reports/{ownerSafe}/{reportId}", h.V1GetReport)
 	r.Post("/api/v1/ereport/reports/{ownerSafe}/{reportId}", h.V1PostReport)
+}
+
+// V1Access is step 1: confirms the API key can use eReport (middleware already gated).
+func (h *Handler) V1Access(w http.ResponseWriter, r *http.Request) {
+	email := auth.UserEmailFromRequest(r)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"allowed":   true,
+		"service":   "ereport",
+		"email":     email,
+		"ownerSafe": SafeEmailKey(email),
+	})
+}
+
+// V1Library is step 2: lists reports owned by the key holder (not shared).
+func (h *Handler) V1Library(w http.ResponseWriter, r *http.Request) {
+	cid := httpx.CorrelationFromRequest(r)
+	email := auth.UserEmailFromRequest(r)
+	lib, err := h.loadLibrary(r, email, cid)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadGateway, "could not load library")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"ownerSafe": SafeEmailKey(email),
+		"reports":   lib.Reports,
+	})
 }
 
 // apiOwnsReport is true only when the key owner's email matches meta.OwnerEmail

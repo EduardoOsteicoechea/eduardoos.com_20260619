@@ -20,9 +20,9 @@ External developers (and API subscribers) need a single place that documents Bea
   - Auth: `Authorization: Bearer eos_live_…`
   - Rate limit: 60/min/key → 429 + `Retry-After`
   - Key management (JWT `/api/apikeys`) — create/list/revoke overview
-  - eReport v1: GET + POST with `confirmOverwrite`, ownership, snapshot behavior
+  - eReport v1 **ordered flow** (spec 058): access → library → get/post with `confirmOverwrite`
   - How to form `ownerSafe` (email → lowercase, `@` → `_at_`)
-  - Copyable **agent prompt** for scaffolding a client script + `.env` in another repo
+  - Copyable **agent prompt** for scaffolding a client script + `.env` in another repo (CLI commands one at a time)
 - Links: Profile (keys), Subscription
 
 ### 2. Backend route

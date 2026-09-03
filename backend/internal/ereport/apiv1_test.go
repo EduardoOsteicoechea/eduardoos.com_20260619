@@ -65,6 +65,36 @@ func TestV1PostRequiresConfirmOverwriteAndSnapshots(t *testing.T) {
 	}
 	_ = json.Unmarshal(ckRec.Body.Bytes(), &keyOut)
 
+	// Step 1 — access
+	acc := httptest.NewRequest(http.MethodGet, "/api/v1/ereport/access", nil)
+	acc.Header.Set("Authorization", "Bearer "+keyOut.Key)
+	accRec := httptest.NewRecorder()
+	r.ServeHTTP(accRec, acc)
+	if accRec.Code != http.StatusOK {
+		t.Fatalf("access=%d %s", accRec.Code, accRec.Body.String())
+	}
+	var accOut map[string]any
+	_ = json.Unmarshal(accRec.Body.Bytes(), &accOut)
+	if accOut["allowed"] != true || accOut["ownerSafe"] != ownerSafe {
+		t.Fatalf("access body=%#v", accOut)
+	}
+
+	// Step 2 — library
+	lib := httptest.NewRequest(http.MethodGet, "/api/v1/ereport/library", nil)
+	lib.Header.Set("Authorization", "Bearer "+keyOut.Key)
+	libRec := httptest.NewRecorder()
+	r.ServeHTTP(libRec, lib)
+	if libRec.Code != http.StatusOK {
+		t.Fatalf("library=%d %s", libRec.Code, libRec.Body.String())
+	}
+	var libOut struct {
+		Reports []ReportCard `json:"reports"`
+	}
+	_ = json.Unmarshal(libRec.Body.Bytes(), &libOut)
+	if len(libOut.Reports) < 1 || libOut.Reports[0].ID != id {
+		t.Fatalf("library=%#v", libOut)
+	}
+
 	// Reject without confirmOverwrite
 	bad := httptest.NewRequest(http.MethodPost,
 		"/api/v1/ereport/reports/"+ownerSafe+"/"+id,
