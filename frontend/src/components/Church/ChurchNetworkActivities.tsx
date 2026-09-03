@@ -169,7 +169,7 @@ function PhotoLightbox(props: {
         {src ? (
           <img src={src} alt={`Foto ${index + 1}`} className="church-net-lightbox__img" />
         ) : (
-          <p className="church-empty">Cargando…</p>
+          <ViewLoading label="Loading" />
         )}
         <div className="church-net-lightbox__actions">
           <button type="button" className="btn" onClick={onPrev}>
@@ -296,7 +296,7 @@ function LocalActivitiesSurface(props: {
         {selectedActivity.description ? (
           <p className="church-panel__block">{selectedActivity.description}</p>
         ) : null}
-        {loading ? <p className="church-empty">Loading…</p> : null}
+        {loading ? <ViewLoading label="Loading" /> : null}
         {error ? <p className="church-empty">{error}</p> : null}
         {!loading && occurrences.length === 0 ? (
           <p className="church-empty">Sin registros aún.</p>
@@ -328,7 +328,7 @@ function LocalActivitiesSurface(props: {
 
   return (
     <div className="church-net">
-      {loading ? <p className="church-empty">Loading…</p> : null}
+      {loading ? <ViewLoading label="Loading" /> : null}
       {error ? <p className="church-empty">{error}</p> : null}
       {!loading && activities.length === 0 ? (
         <p className="church-empty">No hay actividades de red aún.</p>
@@ -943,7 +943,7 @@ function NetworkRollupSurface(props: {
         {selected.description ? (
           <p className="church-panel__block">{selected.description}</p>
         ) : null}
-        {loading ? <p className="church-empty">Loading…</p> : null}
+        {loading ? <ViewLoading label="Loading" /> : null}
         {error ? <p className="church-empty">{error}</p> : null}
         {rollup.map((church) => (
           <section key={church.churchId} className="church-section church-net-rollup-section">
@@ -1001,7 +1001,7 @@ function NetworkRollupSurface(props: {
         </form>
       ) : null}
 
-      {loading ? <p className="church-empty">Loading…</p> : null}
+      {loading ? <ViewLoading label="Loading" /> : null}
       {error ? <p className="church-empty">{error}</p> : null}
       {!loading && activities.length === 0 ? (
         <p className="church-empty">No hay actividades de red aún.</p>

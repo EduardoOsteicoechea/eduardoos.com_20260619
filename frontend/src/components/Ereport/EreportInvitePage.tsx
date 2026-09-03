@@ -13,6 +13,7 @@ import {
   DashboardSection,
   ProductHubShell,
 } from "../ProductDashboard/ProductDashboard";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import "../ProductDashboard/ProductDashboard.css";
 import "./Ereport.css";
 
@@ -101,7 +102,7 @@ export default function EreportInvitePage() {
 
   return (
     <ProductHubShell title="eReport invite">
-      {loading ? <p className="ereport-hub__muted">Loading invite…</p> : null}
+      {loading ? <ViewLoading label="Loading invite" /> : null}
       {error ? <p className="ereport-hub__error">{error}</p> : null}
       {expired ? (
         <p className="ereport-hub__error">This invite has expired.</p>

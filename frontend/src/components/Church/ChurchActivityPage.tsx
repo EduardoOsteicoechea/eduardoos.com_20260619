@@ -4,6 +4,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../../config/routes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import {
   fetchMyChurchActivities,
   postActivityReport,
@@ -88,7 +89,7 @@ export default function ChurchActivityPage() {
           </a>
         </div>
 
-        {loading ? <p className="church-empty">Loading…</p> : null}
+        {loading ? <ViewLoading label="Loading" /> : null}
         {error ? <p className="church-empty">{error}</p> : null}
         {!loading && rows.length === 0 ? (
           <p className="church-empty">No authorized activities yet.</p>

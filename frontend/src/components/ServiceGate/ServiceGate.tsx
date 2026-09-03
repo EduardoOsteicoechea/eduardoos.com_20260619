@@ -13,6 +13,7 @@ import {
   fetchMyEntitlements,
   hasServiceAccess,
 } from "../../lib/payments";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import "./ServiceGate.css";
 
 interface ServiceGateProps {
@@ -83,7 +84,7 @@ export default function ServiceGate({
   }, [serviceId, requireSubscription]);
 
   if (state === "loading") {
-    return <p className="service-gate__status">Checking subscription…</p>;
+    return <ViewLoading label="Checking subscription" />;
   }
 
   if (state === "signin") {

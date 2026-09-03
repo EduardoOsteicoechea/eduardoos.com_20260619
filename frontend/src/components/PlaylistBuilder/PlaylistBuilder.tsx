@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuthEmailFromToken, isApsAdminEmail } from "../../lib/auth";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import { ensureEmusicForLibrary, ensureEmusicForTrack } from "../../lib/emusicCloud";
 import {
     buildEmusicsBundle,
@@ -98,7 +99,7 @@ export default function PlaylistBuilder() {
             }
             setUrlByKey(map);
             await refreshOfflineCount(tracks.map((track) => track.key));
-            // Show the selectable queue immediately — no separate "create playlist" step.
+            // Show the selectable queue immediately â€” no separate "create playlist" step.
             setActiveTracks((current) =>
                 current.length > 0 ? current : tracks.map((track) => track.key),
             );
@@ -124,7 +125,7 @@ export default function PlaylistBuilder() {
                 setActiveTracks((current) =>
                     current.length > 0 ? current : tracks.map((track) => track.key),
                 );
-                setMessage(`Biblioteca offline: ${tracks.length} pistas desde .emusics / caché local.`);
+                setMessage(`Biblioteca offline: ${tracks.length} pistas desde .emusics / cachÃ© local.`);
                 return;
             }
             throw err;
@@ -166,7 +167,7 @@ export default function PlaylistBuilder() {
             audio.removeAttribute("src");
             return;
         }
-        // Same track already loaded — keep position (pause/resume must not reload).
+        // Same track already loaded â€” keep position (pause/resume must not reload).
         if (
             loadedTrackKeyRef.current === currentTrackKey &&
             audio.src &&
@@ -196,7 +197,7 @@ export default function PlaylistBuilder() {
             });
             return;
         }
-        // Local session files play from blob: URLs only — never cached offline.
+        // Local session files play from blob: URLs only â€” never cached offline.
         if (isLocalTrackKey(currentTrackKey)) {
             clearBlobUrl();
             playbackSourceKindRef.current = "local_blob";
@@ -346,7 +347,7 @@ export default function PlaylistBuilder() {
             if (tracks.includes(track.key)) return tracks;
             return [...tracks, track.key];
         });
-        // Select after append — use functional update against the ref snapshot.
+        // Select after append â€” use functional update against the ref snapshot.
         setCurrentIndex(() => {
             const keys = activeTracksRef.current;
             const existing = keys.indexOf(track.key);
@@ -361,20 +362,20 @@ export default function PlaylistBuilder() {
             if (idx >= 0) setCurrentIndex(idx);
         });
 
-        setMessage(`Grabación en lista: ${trackDisplayName(track.key)}`);
+        setMessage(`GrabaciÃ³n en lista: ${trackDisplayName(track.key)}`);
         setError("");
         try {
             const ensured = await ensureEmusicForTrack(track.key);
             if (ensured?.created) {
                 setMessage(
-                    `Grabación en lista: ${trackDisplayName(track.key)} · letras .emusic listas para editar.`,
+                    `GrabaciÃ³n en lista: ${trackDisplayName(track.key)} Â· letras .emusic listas para editar.`,
                 );
             }
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             openApiErrorModal(message, {
                 title: "Letras .emusic",
-                summary: "La grabación entró en la lista, pero no se pudo crear/abrir .emusic.",
+                summary: "La grabaciÃ³n entrÃ³ en la lista, pero no se pudo crear/abrir .emusic.",
             });
         }
         void refreshOfflineCount([...library.map((item) => item.key), track.key]);
@@ -403,7 +404,7 @@ export default function PlaylistBuilder() {
     async function permanentlyRemoveLibraryTrack(item: AudioLibraryItem) {
         const label = trackDisplayName(item.key);
         const ok = window.confirm(
-            `¿Eliminar permanentemente «${label}» de la biblioteca?\n\n` +
+            `Â¿Eliminar permanentemente Â«${label}Â» de la biblioteca?\n\n` +
                 "El archivo de audio se conserva en S3; solo se quita de la lista.",
         );
         if (!ok) return;
@@ -429,7 +430,7 @@ export default function PlaylistBuilder() {
             const message = err instanceof Error ? err.message : String(err);
             openApiErrorModal(message, {
                 title: "Eliminar de la biblioteca",
-                summary: "DELETE /api/media/audio/library rechazó la eliminación (admin + S3).",
+                summary: "DELETE /api/media/audio/library rechazÃ³ la eliminaciÃ³n (admin + S3).",
             });
         }
     }
@@ -519,7 +520,7 @@ export default function PlaylistBuilder() {
         const audio = audioRef.current;
         if (!audio || !currentTrackKey)
             return;
-        // Resume in place when this track is already loaded (pause → play).
+        // Resume in place when this track is already loaded (pause â†’ play).
         const alreadyLoaded =
             loadedTrackKeyRef.current === currentTrackKey && Boolean(audio.src) && !audio.error;
         if (!alreadyLoaded) {
@@ -713,7 +714,7 @@ export default function PlaylistBuilder() {
         setDuration(audio.duration);
     }
     return (<div className="playlist-builder">
-      {loading && <p className="playlist-builder__status">Loading library…</p>}
+      {loading && <ViewLoading label="Loading library" />}
       {error && <p className="playlist-builder__status playlist-builder__status--error">{error}</p>}
       {message && <p className="playlist-builder__status">{message}</p>}
 
@@ -765,8 +766,8 @@ export default function PlaylistBuilder() {
           </ul>
         </section>
 
-        <section className="playlist-builder__panel" aria-label="Lista de reproducción">
-          <h2>Lista de reproducción ({activeTracks.length})</h2>
+        <section className="playlist-builder__panel" aria-label="Lista de reproducciÃ³n">
+          <h2>Lista de reproducciÃ³n ({activeTracks.length})</h2>
           <div className={`playlist-builder__dropzone${dropActive ? " playlist-builder__dropzone--over" : ""}`} onDragOver={(e) => {
             e.preventDefault();
             setDropActive(true);

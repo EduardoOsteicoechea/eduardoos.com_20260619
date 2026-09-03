@@ -5,6 +5,7 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { APP_ROUTES } from "../../config/routes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import { isAuthenticated } from "../../lib/auth";
 import {
   fetchUserProfile,
@@ -75,7 +76,7 @@ export default function ProfileImageForm() {
   }
 
   if (loading) {
-    return <p className="profile-image-form__status">Loading profile…</p>;
+    return <ViewLoading label="Loading profile" />;
   }
 
   return (
@@ -125,7 +126,7 @@ export default function ProfileImageForm() {
       {message ? <p className="profile-image-form__ok">{message}</p> : null}
 
       <button type="submit" className="btn btn--primary" disabled={uploading}>
-        {uploading ? "Uploading…" : "Save photo"}
+        {uploading ? "Uploadingâ€¦" : "Save photo"}
       </button>
     </form>
   );

@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { BIM_ROUTES } from "../../config/routes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import { getAuthToken, isPlatformAdmin } from "../../lib/auth";
 import { resolveTheme } from "../../lib/theme";
 import BimIfcHeaderMenu from "./BimIfcHeaderMenu";
@@ -39,13 +40,13 @@ type LightSettings = {
   shadowsEnabled: boolean;
   /** Shadow map edge length (That Open ShadowedScene resolution). */
   shadowMapSize: number;
-  /** Shadow bias (typically 0 … -0.005). */
+  /** Shadow bias (typically 0 â€¦ -0.005). */
   shadowBias: number;
 };
 
 /**
  * Nominal SimpleScene._defaultConfig values for sidebar / Reset (documentation).
- * First paint does NOT post-apply these — original viewer was plain setup() only.
+ * First paint does NOT post-apply these â€” original viewer was plain setup() only.
  */
 const LEGACY_DIR = { x: 5, y: 10, z: 3 };
 const SUN_DISTANCE = Math.hypot(LEGACY_DIR.x, LEGACY_DIR.y, LEGACY_DIR.z);
@@ -61,7 +62,7 @@ function sunDirectionFromAngles(elevationDeg: number, azimuthDeg: number, radius
   );
 }
 
-/** User-locked light preset (live panel 2026-08-29) — Reset restores this. */
+/** User-locked light preset (live panel 2026-08-29) â€” Reset restores this. */
 const DEFAULT_LIGHTS: LightSettings = {
   ambientIntensity: 2.85,
   ambientColor: "#ffffff",
@@ -75,7 +76,7 @@ const DEFAULT_LIGHTS: LightSettings = {
 };
 
 const SHADOW_MAP_SIZES = [512, 1024, 2048, 4096] as const;
-/** Soft bone (light) / cool grey-blue (dark) — spec 037, follows site theme. */
+/** Soft bone (light) / cool grey-blue (dark) â€” spec 037, follows site theme. */
 const VIEWPORT_BG_LIGHT = "#e8e0d4";
 const VIEWPORT_BG_DARK = "#141820";
 
@@ -85,7 +86,7 @@ function viewportBgForTheme(): string {
   const attr = html.getAttribute("data-theme");
   if (attr === "dark" || html.classList.contains("dark")) return VIEWPORT_BG_DARK;
   if (attr === "light") return VIEWPORT_BG_LIGHT;
-  // Bootstrap may not have set data-theme yet — match resolveTheme.
+  // Bootstrap may not have set data-theme yet â€” match resolveTheme.
   return resolveTheme() === "dark" ? VIEWPORT_BG_DARK : VIEWPORT_BG_LIGHT;
 }
 
@@ -114,7 +115,7 @@ function isOpaqueMesh(mesh: THREE.Mesh) {
 /**
  * Opaque fragment meshes cast + receive (That Open ShadowedScene / Fragments samples).
  * Also marks materials needsUpdate so shaders recompile with USE_SHADOWMAP after a
- * SimpleScene→ShadowedScene switch (model often first drew with shadowMap off).
+ * SimpleSceneâ†’ShadowedScene switch (model often first drew with shadowMap off).
  */
 function enableMeshShadows(root: THREE.Object3D) {
   root.traverse((obj) => {
@@ -187,7 +188,7 @@ function applySimpleLightConfig(
 /**
  * ShadowedScene light apply: intensity/color via config setters (safe).
  * Sun direction must update the config value used by recomputeShadows WITHOUT
- * copying onto cascade lights — DirectionalLightConfig.position stomps CSM
+ * copying onto cascade lights â€” DirectionalLightConfig.position stomps CSM
  * positions and, combined with That Open's in-flight updateShadows lock, can
  * leave shadows broken after rapid sun slider moves.
  */
@@ -328,7 +329,7 @@ export default function BimIfcViewer({
   const [ready, setReady] = useState(false);
   const [viewerReady, setViewerReady] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [status, setStatus] = useState("Initializing viewer…");
+  const [status, setStatus] = useState("Initializing viewerâ€¦");
   const [ifc, setIfc] = useState<IfcMeta>({ name: "", sizeBytes: 0, loaded: false });
   const [uploadOpen, setUploadOpen] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
@@ -415,7 +416,7 @@ export default function BimIfcViewer({
         const workerUrl = await OBC.FragmentsManager.getWorker();
         const fragments = components.get(OBC.FragmentsManager);
         fragments.init(workerUrl);
-        // Fragments LOD/culling on camera move — not updateShadows (too hot).
+        // Fragments LOD/culling on camera move â€” not updateShadows (too hot).
         world.camera.controls.addEventListener("update", () => {
           void fragments.core.update();
         });
@@ -506,7 +507,7 @@ export default function BimIfcViewer({
           const dir = sunDirForSettings(settings);
           const prev = world.scene as AnyScene;
 
-          // Terrain / street models need a longer camera far for CSM distance —
+          // Terrain / street models need a longer camera far for CSM distance â€”
           // keep it modest so a failed depth pass cannot balloon the frustum to 10km.
           if ("far" in world.camera.three && typeof world.camera.three.far === "number") {
             if (world.camera.three.far < 2000) world.camera.three.far = 2000;
@@ -545,7 +546,7 @@ export default function BimIfcViewer({
             syncDistanceRendererCamera(next, world.camera.three);
             applyFragmentShadowFlags();
             requestShadowUpdate(next);
-            // Tiles may finish streaming a frame later — refresh flags + CSM again.
+            // Tiles may finish streaming a frame later â€” refresh flags + CSM again.
             void fragments.core.update(true).then(() => {
               applyFragmentShadowFlags();
               const scene = world.scene as AnyScene;
@@ -590,7 +591,7 @@ export default function BimIfcViewer({
           requestShadowUpdate(prev);
         };
 
-        // Camera rest refreshes cascaded shadows (not every "update" — too hot).
+        // Camera rest refreshes cascaded shadows (not every "update" â€” too hot).
         world.camera.controls.addEventListener("rest", () => {
           const scene = world.scene as AnyScene;
           if (isShadowed(scene) && scene.shadowsEnabled) {
@@ -603,7 +604,7 @@ export default function BimIfcViewer({
         lightsApiRef.current = {
           apply: (settings, opts) => {
             if (opts?.resetOriginal) {
-              // Reset → user-locked preset (shadows on), not bare SimpleScene.
+              // Reset â†’ user-locked preset (shadows on), not bare SimpleScene.
               ensureShadowedScene(DEFAULT_LIGHTS, true);
               return;
             }
@@ -645,11 +646,11 @@ export default function BimIfcViewer({
           for (const modelId of existingIds) {
             await fragments.core.disposeModel(modelId);
           }
-          setStatus(`Converting ${input.name}…`);
+          setStatus(`Converting ${input.name}â€¦`);
           await ifcLoader.load(input.data, false, input.name.replace(/\.[^.]+$/, "") || "model", {
             processData: {
               progressCallback: (progress: number) => {
-                setStatus(`Converting ${input.name}… ${Math.round(progress * 100)}%`);
+                setStatus(`Converting ${input.name}â€¦ ${Math.round(progress * 100)}%`);
               },
             },
           });
@@ -687,7 +688,7 @@ export default function BimIfcViewer({
             /* ignore dispose races */
           }
         };
-        setStatus("Loading library…");
+        setStatus("Loading libraryâ€¦");
         setViewerReady(true);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -718,7 +719,7 @@ export default function BimIfcViewer({
     if (!uploadFile || !loadIfcRef.current) return;
     const stem = normalizeLibraryNameInput(uploadName);
     if (!LIBRARY_NAME_PATTERN.test(stem)) {
-      setStatus("Library name: 2–120 chars; start with a letter/number; only . _ - allowed.");
+      setStatus("Library name: 2â€“120 chars; start with a letter/number; only . _ - allowed.");
       return;
     }
     setUploading(true);
@@ -760,7 +761,7 @@ export default function BimIfcViewer({
 
   const refreshLibrary = useCallback(async () => {
     setLibraryLoading(true);
-    setLibraryStatus("Loading library…");
+    setLibraryStatus("Loading libraryâ€¦");
     try {
       const res = await fetch(BIM_ROUTES.models);
       const data = (await res.json()) as { models?: LibraryModel[]; error?: string };
@@ -782,7 +783,7 @@ export default function BimIfcViewer({
 
   const loadLibraryModel = useCallback(async (model: LibraryModel) => {
     if (!loadIfcRef.current) return;
-    setLibraryStatus(`Fetching ${model.name}…`);
+    setLibraryStatus(`Fetching ${model.name}â€¦`);
     try {
       const res = await fetch(model.url);
       if (!res.ok) {
@@ -805,7 +806,7 @@ export default function BimIfcViewer({
       );
       if (!ok) return;
       setDeletingKey(model.key);
-      setLibraryStatus(`Deleting ${model.name}…`);
+      setLibraryStatus(`Deleting ${model.name}â€¦`);
       try {
         const token = getAuthToken().trim();
         const res = await fetch(model.url || BIM_ROUTES.modelFile(model.name), {
@@ -853,7 +854,7 @@ export default function BimIfcViewer({
           return;
         }
         if (!loadIfcRef.current) return;
-        setStatus(`Loading ${first.name}…`);
+        setStatus(`Loading ${first.name}â€¦`);
         const fileRes = await fetch(first.url);
         if (cancelled) return;
         if (!fileRes.ok) {
@@ -880,7 +881,7 @@ export default function BimIfcViewer({
 
   const runPython = useCallback(async () => {
     setRunning(true);
-    setOutput("Running…");
+    setOutput("Runningâ€¦");
     try {
       const token = getAuthToken().trim();
       const res = await fetch(BIM_ROUTES.pythonRun, {
@@ -966,7 +967,7 @@ export default function BimIfcViewer({
   const offloadModel = useCallback(async () => {
     if (!ifc.loaded || !offloadIfcRef.current) return;
     try {
-      setStatus("Offloading model…");
+      setStatus("Offloading modelâ€¦");
       await offloadIfcRef.current();
       setIfc({ name: "", sizeBytes: 0, loaded: false });
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -978,7 +979,7 @@ export default function BimIfcViewer({
   }, [ifc.loaded]);
 
   if (!ready) {
-    return <p className="bim-ifc-viewer__gate">Loading viewer…</p>;
+    return <ViewLoading label="Loading viewer" />;
   }
 
   return (
@@ -1078,7 +1079,7 @@ export default function BimIfcViewer({
                 value={lights.sunElevation}
                 onChange={(e) => patchLights({ sunElevation: Number(e.target.value) })}
               />
-              <span className="bim-ifc-viewer__field-val">{lights.sunElevation.toFixed(1)}°</span>
+              <span className="bim-ifc-viewer__field-val">{lights.sunElevation.toFixed(1)}Â°</span>
             </label>
             <label className="bim-ifc-viewer__field">
               <span>Azimuth</span>
@@ -1090,7 +1091,7 @@ export default function BimIfcViewer({
                 value={lights.sunAzimuth}
                 onChange={(e) => patchLights({ sunAzimuth: Number(e.target.value) })}
               />
-              <span className="bim-ifc-viewer__field-val">{lights.sunAzimuth.toFixed(0)}°</span>
+              <span className="bim-ifc-viewer__field-val">{lights.sunAzimuth.toFixed(0)}Â°</span>
             </label>
           </fieldset>
 
@@ -1159,7 +1160,7 @@ export default function BimIfcViewer({
               </button>
             </header>
             <p className="bim-ifc-viewer__hint">
-              Admin only. Stores as <code>ifcbim/library/&#123;name&#125;.ifc</code>. Names must be unique — duplicates
+              Admin only. Stores as <code>ifcbim/library/&#123;name&#125;.ifc</code>. Names must be unique â€” duplicates
               are rejected.
             </p>
             <label className="bim-ifc-viewer__field bim-ifc-viewer__field--stack">
@@ -1200,7 +1201,7 @@ export default function BimIfcViewer({
               />
             </label>
             <p className="bim-ifc-viewer__meta" role="status">
-              {uploading ? "Uploading…" : status}
+              {uploading ? "Uploadingâ€¦" : status}
             </p>
             <div className="bim-ifc-viewer__modal-actions">
               <button
@@ -1209,7 +1210,7 @@ export default function BimIfcViewer({
                 disabled={uploading || !uploadFile || !LIBRARY_NAME_PATTERN.test(normalizeLibraryNameInput(uploadName))}
                 onClick={() => void onFile()}
               >
-                {uploading ? "Uploading…" : "Upload & load"}
+                {uploading ? "Uploadingâ€¦" : "Upload & load"}
               </button>
             </div>
           </div>
@@ -1230,7 +1231,7 @@ export default function BimIfcViewer({
             </p>
             <div className="bim-ifc-viewer__modal-actions bim-ifc-viewer__modal-actions--start">
               <button type="button" className="btn" disabled={libraryLoading} onClick={() => void refreshLibrary()}>
-                {libraryLoading ? "Refreshing…" : "Refresh"}
+                {libraryLoading ? "Refreshingâ€¦" : "Refresh"}
               </button>
             </div>
             {libraryStatus ? <p className="bim-ifc-viewer__meta">{libraryStatus}</p> : null}
@@ -1241,7 +1242,7 @@ export default function BimIfcViewer({
                     <span className="bim-ifc-viewer__library-name">{model.name}</span>
                     <span className="bim-ifc-viewer__library-sub">
                       {formatLibraryDate(model.lastModified) || "Date unknown"}
-                      {model.sizeHuman ? ` · ${model.sizeHuman}` : ""}
+                      {model.sizeHuman ? ` Â· ${model.sizeHuman}` : ""}
                     </span>
                   </div>
                   <div className="bim-ifc-viewer__library-actions">
@@ -1259,7 +1260,7 @@ export default function BimIfcViewer({
                         disabled={deletingKey === model.key}
                         onClick={() => void deleteLibraryModel(model)}
                       >
-                        {deletingKey === model.key ? "Deleting…" : "Delete"}
+                        {deletingKey === model.key ? "Deletingâ€¦" : "Delete"}
                       </button>
                     ) : null}
                   </div>
@@ -1280,7 +1281,7 @@ export default function BimIfcViewer({
               </button>
             </header>
             <p className="bim-ifc-viewer__hint">
-              Runs on the host under <code>backend/bim/bim_runtime</code>. Empty code →{" "}
+              Runs on the host under <code>backend/bim/bim_runtime</code>. Empty code â†’{" "}
               <code>hello_world.py</code>. IFC file stays in the browser; metadata is posted as{" "}
               <code>BIM_IFC_ARGS</code>.
             </p>
@@ -1297,7 +1298,7 @@ export default function BimIfcViewer({
             />
             <div className="bim-ifc-viewer__modal-actions">
               <button type="button" className="btn btn--primary" disabled={running} onClick={() => void runPython()}>
-                {running ? "Running…" : "Run"}
+                {running ? "Runningâ€¦" : "Run"}
               </button>
             </div>
           </div>

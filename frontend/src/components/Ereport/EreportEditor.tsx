@@ -24,6 +24,7 @@ import EreportHeaderMenu, {
   type EreportModalKind,
   type EreportTrackerCommand,
 } from "./EreportHeaderMenu";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import "./Ereport.css";
 
 const TRACKER_SRC = "/ereport-tracker.html?v=062a";
@@ -320,7 +321,7 @@ export default function EreportEditor() {
   }
 
   if (loading) {
-    return <p className="ereport-hub__empty">Cargando eReport…</p>;
+    return <ViewLoading label="Loading eReport" />;
   }
 
   if (error && !meta) {

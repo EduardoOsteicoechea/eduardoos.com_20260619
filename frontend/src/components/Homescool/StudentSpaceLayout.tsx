@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import {
   HOMESCOOL_FOLDERS,
   HOMESCOOL_STUDENT_FOLDERS,
@@ -292,7 +293,7 @@ export default function StudentSpaceLayout({
           />
         ) : (
           <>
-            {loading ? <p className="homescool-empty">Loading folder…</p> : null}
+            {loading ? <ViewLoading label="Loading folder" /> : null}
             {!loading && objects.length === 0 ? (
               <p className="homescool-empty">This folder is empty. The space is ready for uploads.</p>
             ) : null}

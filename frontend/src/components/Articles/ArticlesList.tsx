@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { APP_ROUTES, ARTICLE_ROUTES } from "../../config/routes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import { fetchArticles, type ArticlesListResponse } from "../../lib/articles";
 import type { EpamRecord } from "../../lib/epams";
 import { groupEpamsBySeries } from "../../lib/seriesTree";
 import "./Articles.css";
 
 /**
- * Visually hidden crawl discovery — clipped from the viewport but still in the
+ * Visually hidden crawl discovery â€” clipped from the viewport but still in the
  * DOM so AI/search crawlers can follow HTML / text / JSON / llms.txt.
  */
 function CrawlOnlyLinks({ items }: { items: EpamRecord[] }) {
@@ -42,7 +43,7 @@ function ArticleCard({ item }: { item: EpamRecord | { epamId: string; title: str
           "date" in item ? item.date : undefined,
         ]
           .filter(Boolean)
-          .join(" · ")}
+          .join(" Â· ")}
       </span>
     </a>
   );
@@ -81,7 +82,7 @@ export default function ArticlesList() {
           to browse.
         </p>
       </header>
-      {loading && <p className="articles__status">Loading…</p>}
+      {loading && <ViewLoading label="Loading" />}
       {error && <p className="articles__error">{error}</p>}
       {!loading && !error && items.length === 0 && (
         <p className="articles__status">

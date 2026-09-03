@@ -14,6 +14,7 @@ import {
   type InstitutesIndexSection,
   type InstitutesSection,
 } from "../../lib/calvinsInstitutes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import CalvinsInstitutesHeaderMenu from "./CalvinsInstitutesHeaderMenu";
 import "./CalvinsInstitutes.css";
 
@@ -148,7 +149,7 @@ export default function CalvinsInstitutesReader({
       {chaptersOpen ? (
         <aside className="calvins-institutes__aside" aria-label="Capita">
           {loadingIndex ? (
-            <p className="calvins-institutes__status">Loading…</p>
+            <ViewLoading label="Loading" />
           ) : (
             <nav className="calvins-institutes__nav">
               {liberGroups.map((group) => (
@@ -187,7 +188,7 @@ export default function CalvinsInstitutesReader({
 
       <section className="calvins-institutes__main">
         {error ? <p className="calvins-institutes__error">{error}</p> : null}
-        {loadingSection ? <p className="calvins-institutes__status">Loading…</p> : null}
+        {loadingSection ? <ViewLoading label="Loading" /> : null}
         {activeChapter && sectionDoc && !loadingSection ? (
           <>
             <p className="calvins-institutes__meta">{readerTitle}</p>

@@ -4,6 +4,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../../config/routes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import {
   churchDetailHref,
   createChurchActivity,
@@ -101,7 +102,7 @@ export default function ChurchOverviewPage() {
           </a>
         </div>
 
-        {loading ? <p className="church-empty">Loading overview…</p> : null}
+        {loading ? <ViewLoading label="Loading overview" /> : null}
         {error ? <p className="church-empty">{error}</p> : null}
 
         {!loading && data && data.churches.length === 0 ? (

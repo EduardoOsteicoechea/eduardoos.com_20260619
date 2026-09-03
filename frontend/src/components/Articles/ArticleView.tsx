@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { APP_ROUTES, ARTICLE_ROUTES } from "../../config/routes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import { fetchArticle, type ArticleBlock } from "../../lib/articles";
 import "./ArticleView.css";
 
@@ -107,7 +108,7 @@ export default function ArticleView() {
     };
   }, [title, plainText]);
 
-  // Machine formats stay in <head> / clipped nav — not shown in the reading UI.
+  // Machine formats stay in <head> / clipped nav â€” not shown in the reading UI.
   useEffect(() => {
     if (!epamId) return;
     const cleanups = [
@@ -123,7 +124,7 @@ export default function ArticleView() {
   if (loading) {
     return (
       <div className="article-view">
-        <p className="article-view__status">Loading article…</p>
+        <ViewLoading label="Loading article" />
       </div>
     );
   }
@@ -131,7 +132,7 @@ export default function ArticleView() {
   return (
     <div className="article-view">
       <a className="article-view__back" href={APP_ROUTES.articles}>
-        ← Articles
+        â† Articles
       </a>
       <article className="article-view__sheet" itemScope itemType="https://schema.org/Article">
         <meta itemProp="headline" content={title} />

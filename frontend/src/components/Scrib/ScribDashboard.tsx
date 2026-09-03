@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import ServiceGate from "../ServiceGate/ServiceGate";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import {
   createScribBook,
   createScribSheet,
@@ -195,7 +196,7 @@ export default function ScribDashboard() {
         </form>
 
         {error ? <p className="scrib-dashboard__error">{error}</p> : null}
-        {loading ? <p className="scrib-dashboard__empty">Cargando…</p> : null}
+        {loading ? <ViewLoading label="Loading" /> : null}
 
         {!loading && books.length === 0 ? (
           <p className="scrib-dashboard__empty">

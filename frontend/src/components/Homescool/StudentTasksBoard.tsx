@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import {
   formatFrequencyLabel,
   formatStudyAreas,
@@ -110,7 +111,7 @@ export default function StudentTasksBoard({
         <h2 className="homescool-workspace__aside-title">Pending tasks</h2>
       )}
       {status ? <p className="homescool-form__status">{status}</p> : null}
-      {loading ? <p className="homescool-empty">Loading tasks…</p> : null}
+      {loading ? <ViewLoading label="Loading tasks" /> : null}
       {!loading && tasks.length === 0 ? (
         <p className="homescool-empty">No pending tasks right now.</p>
       ) : null}

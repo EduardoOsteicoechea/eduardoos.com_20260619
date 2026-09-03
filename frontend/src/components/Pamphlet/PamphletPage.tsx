@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import { isAuthenticated } from "../../lib/auth";
 import {
   createEpam,
@@ -143,10 +144,10 @@ export default function PamphletPage() {
             disabled={busy}
             onClick={() => void handleCreate()}
           >
-            {busy ? "Working…" : "Create pamphlet"}
+            {busy ? "Workingâ€¦" : "Create pamphlet"}
           </button>
         </header>
-        {loading ? <p className="pamphlet-page__status">Loading…</p> : null}
+        {loading ? <ViewLoading label="Loading" /> : null}
         {error ? <p className="pamphlet-page__error">{error}</p> : null}
         {message ? <p className="pamphlet-page__status">{message}</p> : null}
         {!loading && items.length === 0 ? (
@@ -162,7 +163,7 @@ export default function PamphletPage() {
               >
                 <span className="pamphlet-page__item-title">{item.title || item.id}</span>
                 <span className="pamphlet-page__item-meta">
-                  {[item.id.slice(0, 8), item.updatedAt].filter(Boolean).join(" · ")}
+                  {[item.id.slice(0, 8), item.updatedAt].filter(Boolean).join(" Â· ")}
                 </span>
               </button>
             </li>

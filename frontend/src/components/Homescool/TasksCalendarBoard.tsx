@@ -13,6 +13,7 @@
 
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 
 import FullCalendar from "@fullcalendar/react";
 
@@ -242,7 +243,7 @@ export default function TasksCalendarBoard({
 
       ) : null}
 
-      {loading ? <p className="homescool-empty">Loading calendar…</p> : null}
+      {loading ? <ViewLoading label="Loading calendar" /> : null}
 
       {!loading && events.length === 0 ? (
 

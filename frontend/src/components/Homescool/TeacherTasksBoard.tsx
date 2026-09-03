@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import {
   HOMESCOOL_MAX_SCORE,
   archiveStudentTask,
@@ -95,7 +96,7 @@ export default function TeacherTasksBoard({ studentSlug, onChanged }: Props) {
         Four boards for this student. Open an Accionada card to validate or reject with a score (1–
         {HOMESCOOL_MAX_SCORE}).
       </p>
-      {loading ? <p className="homescool-empty">Loading boards…</p> : null}
+      {loading ? <ViewLoading label="Loading boards" /> : null}
       <div className="homescool-kanban">
         {BOARD_ORDER.map((status) => (
           <section key={status} className="homescool-kanban__col" aria-label={taskStatusLabel(status)}>

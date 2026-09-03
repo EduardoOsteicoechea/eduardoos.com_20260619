@@ -1,10 +1,10 @@
 /**
- * Admin users dashboard — list accounts, roles, registration dates, services.
+ * Admin users dashboard â€” list accounts, roles, registration dates, services.
  * Visible only to eduardooost@gmail.com (platform admin). Delete requires
  * an accessible confirm dialog; self / platform admin cannot be deleted.
  *
  * Spec: every failed API call opens ServerErrorModal (copyable). Access check
- * must never hang on “Checking access…”.
+ * must never hang on â€œChecking accessâ€¦â€.
  */
 
 import {
@@ -16,6 +16,7 @@ import {
   type MouseEvent,
 } from "react";
 import { APP_ROUTES } from "../../config/routes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import {
   approveChurchAuth,
   bulkRegisterUsers,
@@ -43,7 +44,7 @@ import "./AdminUsersPage.css";
 type Gate = "checking" | "allowed" | "denied";
 
 const BULK_JSON_SAMPLE = `[
-  { "name": "Ana Pérez", "email": "ana@example.com", "password": "changeme12" },
+  { "name": "Ana PÃ©rez", "email": "ana@example.com", "password": "changeme12" },
   { "nombre": "Luis Ruiz", "correo": "luis@example.com", "contrasena": "changeme12" }
 ]`;
 
@@ -99,7 +100,7 @@ export default function AdminUsersPage() {
     }
 
     const allowed = applyGate();
-    // Safety net: never leave “Checking access…” forever.
+    // Safety net: never leave â€œChecking accessâ€¦â€ forever.
     const unlock = window.setTimeout(() => {
       setGate((prev) => (prev === "checking" ? "denied" : prev));
     }, 1500);
@@ -119,7 +120,7 @@ export default function AdminUsersPage() {
         const msg = err instanceof Error ? err.message : "Could not load users";
         setError(msg);
         openApiErrorModal(msg, {
-          title: "Admin users — server error",
+          title: "Admin users â€” server error",
           summary: "Admin users failed to load. Copy the block below when reporting.",
         });
       }
@@ -210,7 +211,7 @@ export default function AdminUsersPage() {
       const msg = err instanceof Error ? err.message : "Delete failed";
       setError(msg);
       openApiErrorModal(msg, {
-        title: "Admin users — server error",
+        title: "Admin users â€” server error",
         summary: "Could not delete user. Copy the block below when reporting.",
       });
     } finally {
@@ -231,7 +232,7 @@ export default function AdminUsersPage() {
       const msg = err instanceof Error ? err.message : "Save failed";
       setError(msg);
       openApiErrorModal(msg, {
-        title: "Admin users — server error",
+        title: "Admin users â€” server error",
         summary: "Could not update entitlements. Copy the block below when reporting.",
       });
     } finally {
@@ -258,7 +259,7 @@ export default function AdminUsersPage() {
       const msg = err instanceof Error ? err.message : "Decision failed";
       setError(msg);
       openApiErrorModal(msg, {
-        title: "Admin users — server error",
+        title: "Admin users â€” server error",
         summary: "Could not update church authorization. Copy the block below when reporting.",
       });
     } finally {
@@ -297,7 +298,7 @@ export default function AdminUsersPage() {
       try {
         parsed = JSON.parse(trimmed) as unknown;
       } catch {
-        throw new Error("Invalid JSON — expected an array or { \"users\": [...] }.");
+        throw new Error("Invalid JSON â€” expected an array or { \"users\": [...] }.");
       }
       let rows: unknown = parsed;
       if (
@@ -323,7 +324,7 @@ export default function AdminUsersPage() {
           "correo",
           "password",
           "contrasena",
-          "contraseña",
+          "contraseÃ±a",
         ]) {
           if (typeof o[key] === "string") out[key] = o[key] as string;
         }
@@ -339,7 +340,7 @@ export default function AdminUsersPage() {
       const msg = err instanceof Error ? err.message : "Bulk register failed";
       setError(msg);
       openApiErrorModal(msg, {
-        title: "Admin users — bulk register error",
+        title: "Admin users â€” bulk register error",
         summary: "Could not bulk-register users. Copy the block below when reporting.",
       });
     } finally {
@@ -349,14 +350,14 @@ export default function AdminUsersPage() {
   }
 
   if (gate === "checking") {
-    return <p className="admin-users__status">Checking access…</p>;
+    return <p className="admin-users__status">Checking accessâ€¦</p>;
   }
 
   if (gate === "denied") {
     return (
       <section className="admin-users admin-users--denied" aria-labelledby="admin-denied-title">
         <h1 id="admin-denied-title" className="admin-users__title">
-          Admin — Users
+          Admin â€” Users
         </h1>
         <p className="admin-users__lead">
           This dashboard is restricted to the platform admin (
@@ -386,7 +387,7 @@ export default function AdminUsersPage() {
       {error ? <p className="admin-users__error">{error}</p> : null}
       {message ? <p className="admin-users__status">{message}</p> : null}
       {loadingList ? (
-        <p className="admin-users__status">Loading accounts…</p>
+        <ViewLoading label="Loading accounts" />
       ) : null}
 
       <section
@@ -400,7 +401,7 @@ export default function AdminUsersPage() {
           Paste or upload a JSON array. Each row needs email + password (min 8
           chars); name is optional. Aliases:{" "}
           <code>nombre</code>, <code>correo</code>, <code>contrasena</code> /{" "}
-          <code>contraseña</code>. Accounts are created like normal register
+          <code>contraseÃ±a</code>. Accounts are created like normal register
           (unverified) and each receives a confirmation OTP email. Failures are
           reported per row without aborting the batch. Max 100 users.
         </p>
@@ -434,7 +435,7 @@ export default function AdminUsersPage() {
             disabled={bulkBusy || busy}
             onClick={() => void submitBulkRegister()}
           >
-            {bulkBusy ? "Registering…" : "Submit bulk register"}
+            {bulkBusy ? "Registeringâ€¦" : "Submit bulk register"}
           </button>
         </div>
         {bulkSummary ? (
@@ -453,11 +454,11 @@ export default function AdminUsersPage() {
               >
                 <span className="admin-users__email">
                   {row.email || `(row ${row.index})`}
-                  {row.name ? ` · ${row.name}` : ""}
+                  {row.name ? ` Â· ${row.name}` : ""}
                 </span>
                 <span className="admin-users__meta">
                   {row.status}
-                  {row.reason ? ` — ${row.reason}` : ""}
+                  {row.reason ? ` â€” ${row.reason}` : ""}
                 </span>
               </li>
             ))}
@@ -480,13 +481,13 @@ export default function AdminUsersPage() {
                 >
                   <span className="admin-users__email">{row.email}</span>
                   <span className="admin-users__meta">
-                    {row.name ? `${row.name} · ` : ""}
+                    {row.name ? `${row.name} Â· ` : ""}
                     {row.role}
-                    {row.verified ? "" : " · unverified"} ·{" "}
+                    {row.verified ? "" : " Â· unverified"} Â·{" "}
                     {row.createdAt
                       ? new Date(row.createdAt).toLocaleString()
                       : "no date"}
-                    {" · "}
+                    {" Â· "}
                     {row.serviceIds.length
                       ? row.serviceIds.join(", ")
                       : "no services"}
@@ -513,7 +514,7 @@ export default function AdminUsersPage() {
 
         <section className="admin-users__panel" aria-label="Entitlements editor">
           <h2 className="admin-users__section-title">
-            {selected ? `Services — ${selected.email}` : "Select a user"}
+            {selected ? `Services â€” ${selected.email}` : "Select a user"}
           </h2>
           {!selected ? (
             <p className="admin-users__status">
@@ -531,7 +532,7 @@ export default function AdminUsersPage() {
                   <dd>
                     {selected.createdAt
                       ? new Date(selected.createdAt).toLocaleString()
-                      : "—"}
+                      : "â€”"}
                   </dd>
                 </div>
                 <div>
@@ -559,7 +560,7 @@ export default function AdminUsersPage() {
                     return (
                       <li key={svc.id} className="admin-users__service-row" role="row">
                         <span className="admin-users__service-label" role="cell">
-                          <strong>{svc.label}</strong> — ${svc.monthly_usd}/mo
+                          <strong>{svc.label}</strong> â€” ${svc.monthly_usd}/mo
                           <em>{svc.description}</em>
                         </span>
                         <label
@@ -571,7 +572,7 @@ export default function AdminUsersPage() {
                               : "Effective access from entitlements"
                           }
                         >
-                          <span className="visually-hidden">Access — {svc.label}</span>
+                          <span className="visually-hidden">Access â€” {svc.label}</span>
                           <input
                             type="checkbox"
                             checked={accessOn}
@@ -581,7 +582,7 @@ export default function AdminUsersPage() {
                         </label>
                         <label className="admin-users__service-check" role="cell">
                           <span className="visually-hidden">
-                            Subscription — {svc.label}
+                            Subscription â€” {svc.label}
                           </span>
                           <input
                             type="checkbox"
@@ -601,7 +602,7 @@ export default function AdminUsersPage() {
                 disabled={busy}
                 onClick={() => void saveEntitlements()}
               >
-                {busy ? "Saving…" : "Save entitlements"}
+                {busy ? "Savingâ€¦" : "Save entitlements"}
               </button>
             </>
           )}
@@ -629,7 +630,7 @@ export default function AdminUsersPage() {
                 <div className="admin-users__church-auth-meta">
                   <span className="admin-users__email">{req.email}</span>
                   <span className="admin-users__meta">
-                    Requested {req.requestedAt || "—"} · {req.status}
+                    Requested {req.requestedAt || "â€”"} Â· {req.status}
                   </span>
                 </div>
                 <div className="admin-users__church-auth-actions">
@@ -690,7 +691,7 @@ export default function AdminUsersPage() {
             disabled={busy || !pendingDelete}
             onClick={() => void confirmDelete()}
           >
-            {busy ? "Deleting…" : "Delete"}
+            {busy ? "Deletingâ€¦" : "Delete"}
           </button>
         </div>
       </dialog>

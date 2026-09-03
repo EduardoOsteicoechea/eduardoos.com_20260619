@@ -5,6 +5,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { APP_ROUTES } from "../../config/routes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import {
   churchDetailHref,
   fetchChurchAuthorization,
@@ -211,7 +212,7 @@ export default function ChurchHubPage() {
           </button>
         </form>
 
-        {loading ? <p className="church-empty">Loading churches…</p> : null}
+        {loading ? <ViewLoading label="Loading churches" /> : null}
         {error ? <p className="church-empty">{error}</p> : null}
         {!loading && !error && churches.length === 0 ? (
           <p className="church-empty">No churches found yet.</p>

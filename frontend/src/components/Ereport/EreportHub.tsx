@@ -28,6 +28,7 @@ import {
   ProductHubShell,
   useProductView,
 } from "../ProductDashboard/ProductDashboard";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import "../ProductDashboard/ProductDashboard.css";
 import "./Ereport.css";
 
@@ -333,7 +334,7 @@ export default function EreportHub() {
           </p>
         ) : null}
         {error ? <p className="ereport-hub__error">{error}</p> : null}
-        {loading ? <p className="ereport-hub__muted">Loading…</p> : null}
+        {loading ? <ViewLoading label="Loading eReport" /> : null}
 
         {view === "dashboard" ? (
           <>
