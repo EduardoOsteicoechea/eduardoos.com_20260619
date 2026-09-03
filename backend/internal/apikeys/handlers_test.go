@@ -172,8 +172,8 @@ func TestDocsPublic(t *testing.T) {
 	if strings.TrimSpace(cat.KeyPolicy) == "" {
 		t.Fatal("expected keyPolicy (UI-only keys)")
 	}
-	if !strings.Contains(cat.Skill, "skills/eduardoos-ereport") {
-		t.Fatalf("expected skill URL, got %q", cat.Skill)
+	if !strings.Contains(cat.Skill, "eduardoos-ereport-connector") && !strings.Contains(cat.Skill, "skills/eduardoos-ereport") {
+		t.Fatalf("expected connector/skill URL, got %q", cat.Skill)
 	}
 	raw := rec.Body.String()
 	if strings.Contains(raw, "keyManagement") || strings.Contains(raw, `"/api/apikeys"`) {

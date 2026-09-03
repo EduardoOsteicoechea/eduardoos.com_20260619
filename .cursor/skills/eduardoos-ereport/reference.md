@@ -1,4 +1,4 @@
-# eReport API reference (skill companion)
+# eReport API reference (connector)
 
 Base default: `https://eduardoos.com`  
 Auth: `Authorization: Bearer eos_live_…`
@@ -10,11 +10,9 @@ Auth: `Authorization: Bearer eos_live_…`
 3. `GET /api/v1/ereport/orgs/{orgId}/reports`  
 4. `GET /api/v1/ereport/orgs/{orgId}/reports/{reportId}` → `viewUrl`, `payload`, …  
 5. `POST /api/v1/ereport/orgs/{orgId}/reports/{reportId}`  
-   Body: `{ "confirmOverwrite": true, "payload": { /* full .ereport */ }, "tema"?: "…" }`
+   Body: `{ "confirmOverwrite": true, "payload": { /* full */ }, "tema"?: "…" }`
 
-Alias: `GET /api/v1/ereport/library` → prefer `/orgs` flow.  
-Catalog: `GET /api/v1/docs` (no auth).  
-Keys: UI only — not part of external API.
+Catalog: `GET /api/v1/docs` (no auth). Keys: UI only.
 
 ## viewUrl
 
@@ -22,11 +20,5 @@ Keys: UI only — not part of external API.
 
 ## Item fields
 
-Under `sections[].groups[].items[]`:
-
-- `id`, `status` (`aprobado` | `reprobado` | `no_aplica`)
-- `nombre`, `incidencia`, `solucion`
-- `fechaIncidencia`, `fechaSolucion` (`YYYY-MM-DD`, `YYYY-MM-DDTHH:mm`, or `""`)
-- `images`, `imagesIncidencia`, `imagesSolucion`
-
-Keep chrome from get when present: `appTitle`, `orgName`, `reportName`, `collapse`, `theme`.
+`id`, `status` (`aprobado`|`reprobado`|`no_aplica`), `nombre`, `incidencia`, `solucion`,
+`fechaIncidencia`, `fechaSolucion`, `images`, `imagesIncidencia`, `imagesSolucion`.

@@ -1,9 +1,10 @@
 /**
- * Teacher roster — lists students registered by the signed-in user.
+ * Teacher roster â€” lists students registered by the signed-in user.
  */
 
 import { useEffect, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import {
   listHomescoolStudents,
   studentWorkspaceHref,
@@ -51,7 +52,7 @@ export default function StudentsListPage() {
             Hub
           </a>
         </div>
-        {loading ? <p className="homescool-empty">Loading students…</p> : null}
+        {loading ? <ViewLoading label="Loading students" /> : null}
         {error ? <p className="homescool-empty">{error}</p> : null}
         {!loading && !error && students.length === 0 ? (
           <p className="homescool-empty">No students registered yet.</p>
@@ -62,7 +63,7 @@ export default function StudentsListPage() {
               <div>
                 <div className="homescool-student-list__email">{s.studentEmail}</div>
                 <div className="homescool-student-list__meta">
-                  {s.s3Prefix} · since {s.createdAt.slice(0, 10)}
+                  {s.s3Prefix} Â· since {s.createdAt.slice(0, 10)}
                 </div>
               </div>
               <a className="btn btn--primary" href={studentWorkspaceHref(s.studentSlug)}>

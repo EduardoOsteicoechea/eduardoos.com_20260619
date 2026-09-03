@@ -1,5 +1,5 @@
 /**
- * API docs page (specs 057 + 061 + 062 + 063) — routes, downloadable skill, short agent prompt.
+ * API docs page (specs 057–064) — routes, .ereport connector sidecar, short agent prompt.
  */
 
 import { useEffect, useState } from "react";
@@ -8,28 +8,39 @@ import { apiRequest, formatApiError } from "../../lib/api";
 import { createCorrelationId } from "../../lib/correlation";
 import "./ApiDocsPage.css";
 
-/** Public Cursor skill package (static files under /skills/…). */
+/** Public skill mirror (fallback). Canonical install = GitHub → `.ereport/`. */
+export const EREPORT_CONNECTOR_REPO =
+  "https://github.com/EduardoOsteicoechea/eduardoos-ereport-connector";
 export const EREPORT_SKILL_BASE = "/skills/eduardoos-ereport";
 export const EREPORT_SKILL_URL = `${EREPORT_SKILL_BASE}/SKILL.md`;
 export const EREPORT_SKILL_CAVEATS_URL = `${EREPORT_SKILL_BASE}/CAVEATS.md`;
 
 /**
- * Short prompt: install the downloadable skill, then run Modes A/B/C.
- * Prefer this over scaffolding a full client from scratch (spec 063).
+ * Skill-first prompt: clone connector as silent `.ereport/` sidecar, then Modes A/B/C.
  */
 export const EREPORT_API_CLIENT_AGENT_PROMPT = `You are working with Eduardo OS eReport via the public API.
 
-## Install first (required)
-1. Read caveats: https://eduardoos.com/skills/eduardoos-ereport/CAVEATS.md
-2. Install the Cursor skill into THIS repo:
-   Copy https://eduardoos.com/skills/eduardoos-ereport/ into
-   .cursor/skills/eduardoos-ereport/  (SKILL.md, CAVEATS.md, reference.md)
-3. Invoke skill name: eduardoos-ereport
-4. Follow SKILL.md modes A / B / C for the user task below.
+## Install first (keeps the host repo clean)
+From the project root, install the OSS connector as a silent sidecar directory named .ereport
+(NOT a *.ereport report file — a folder):
+
+  git clone --depth 1 ${EREPORT_CONNECTOR_REPO}.git .ereport
+
+Or Windows PowerShell:
+  irm https://raw.githubusercontent.com/EduardoOsteicoechea/eduardoos-ereport-connector/main/install.ps1 | iex
+
+Then wire the Cursor skill (installers do this):
+  .ereport/skill/eduardoos-ereport/  →  .cursor/skills/eduardoos-ereport/
+
+Read: .ereport/skill/eduardoos-ereport/CAVEATS.md
+Invoke skill name: eduardoos-ereport
+CLI: python .ereport/ereport_client.py <access|orgs|org-reports|get|put>
+
+Add to host .gitignore: .ereport/.env and .ereport/report.payload.json
 
 ## Caveats (do not skip)
 - put is FULL payload replace (always get → merge → put). Not a patch API.
-- API rate limit: 60 requests/minute/key (429 + Retry-After). Skill download is static.
+- API rate limit: 60 requests/minute/key (429 + Retry-After).
 - Create/revoke keys only in the UI (/auth/profile or /api-keys). Never print the key.
 - Writes: owned reports only; entitlements api + ereport.
 - Preserve fechaIncidencia / fechaSolucion and untouched items.
@@ -37,12 +48,10 @@ export const EREPORT_API_CLIENT_AGENT_PROMPT = `You are working with Eduardo OS 
   viewUrl = {BASE}/ereport/workspace?user={ownerSafe}&org={orgId}&report={reportId}
 
 ## Task
-<USER TASK HERE — e.g. ingest this QA doc into org X report Y as open issues>
+<USER TASK HERE>
 
-## Optional CLI
-If the repo has scripts/eduardoos-ereport/ereport_client.py, use its access/orgs/org-reports/get/put commands one at a time. Else call the HTTP endpoints in reference.md.
-
-Do not invent endpoints. Prefer org paths. Catalog: GET https://eduardoos.com/api/v1/docs`;
+Do not invent endpoints. Prefer org paths. Catalog: GET https://eduardoos.com/api/v1/docs
+Repo: ${EREPORT_CONNECTOR_REPO}`;
 
 type DocsCatalog = {
   version?: string;
@@ -221,58 +230,72 @@ export default function ApiDocsPage() {
       </section>
 
       <section className="api-docs__section" aria-labelledby="api-docs-skill">
-        <h2 id="api-docs-skill">Downloadable Cursor skill</h2>
+        <h2 id="api-docs-skill">Connector + Cursor skill (cleanest host repo)</h2>
         <p className="api-docs__lead">
-          Good use case: teach an agent in <em>any</em> repo to open, update, or extend eReport
-          issues from whatever complaints data it can parse — via the public, rate-limited API.
-          Install the skill, then give a concrete task (do not treat put as a patch API).
+          Clone the open-source connector as a silent sidecar folder{" "}
+          <code>.ereport/</code> at your project root (not a <code>*.ereport</code> file). Your
+          app stays clean; agents use the CLI + skill inside that folder.
         </p>
         <div className="api-docs__cards">
+          <article className="api-docs__card">
+            <div className="api-docs__card-top">
+              <span className="api-docs__method api-docs__method--get">Clone</span>
+              <code className="api-docs__card-path">.ereport/</code>
+            </div>
+            <p className="api-docs__card-summary">
+              Canonical:{" "}
+              <a href={EREPORT_CONNECTOR_REPO} target="_blank" rel="noreferrer">
+                eduardoos-ereport-connector
+              </a>
+            </p>
+            <pre className="api-docs__card-body">
+              <code>{`git clone --depth 1 ${EREPORT_CONNECTOR_REPO}.git .ereport`}</code>
+            </pre>
+            <p className="api-docs__hint">
+              Installers also copy the skill to <code>.cursor/skills/eduardoos-ereport/</code>.
+              Suggested gitignore: <code>.ereport/.env</code>,{" "}
+              <code>.ereport/report.payload.json</code>.
+            </p>
+          </article>
           <article className="api-docs__card">
             <div className="api-docs__card-top">
               <span className="api-docs__method api-docs__method--get">Skill</span>
               <code className="api-docs__card-path">eduardoos-ereport</code>
             </div>
             <p className="api-docs__card-summary">
-              Modes A (website), B (get/put), C (ingest any parseable doc → merge → put).
+              Modes A (website), B (get/put), C (ingest any parseable doc → merge → put). Mirror
+              download if you cannot clone:
             </p>
             <ul className="api-docs__skill-links">
               <li>
                 <a href={EREPORT_SKILL_URL} download>
-                  Download SKILL.md
+                  SKILL.md
                 </a>
               </li>
               <li>
                 <a href={EREPORT_SKILL_CAVEATS_URL} download>
-                  Download CAVEATS.md
+                  CAVEATS.md
                 </a>
               </li>
               <li>
                 <a href={`${EREPORT_SKILL_BASE}/reference.md`} download>
-                  Download reference.md
+                  reference.md
                 </a>
               </li>
             </ul>
-            <p className="api-docs__hint">
-              Install path: <code>.cursor/skills/eduardoos-ereport/</code> — then invoke by skill
-              name. Public URL:{" "}
-              <a href={EREPORT_SKILL_URL}>https://eduardoos.com{EREPORT_SKILL_URL}</a>
-            </p>
           </article>
         </div>
         <p className="api-docs__hint">
-          <strong>Caveats for downloaders:</strong> full replace only; 60 req/min/key; keys UI-only;
-          owned reports; preserve dates; always end with <code>Ver reporte: &lt;viewUrl&gt;</code>.
-          Details in CAVEATS.md.
+          <strong>Caveats:</strong> full replace only; 60 req/min/key; keys UI-only; owned reports;
+          preserve dates; always <code>Ver reporte: &lt;viewUrl&gt;</code>.
         </p>
       </section>
 
       <section className="api-docs__section" aria-labelledby="api-docs-prompt">
-        <h2 id="api-docs-prompt">Agent prompt (skill-first)</h2>
+        <h2 id="api-docs-prompt">Agent prompt (connector-first)</h2>
         <p className="api-docs__lead">
-          Prefer installing the skill above. Copy this short prompt into another coding agent; it
-          tells them to install <code>eduardoos-ereport</code> and follow CAVEATS — not to invent a
-          parallel API.
+          Copy this into another coding agent. It installs <code>.ereport/</code>, wires the skill,
+          and follows CAVEATS — it should not invent a parallel API or pollute your tree.
         </p>
         <div className="api-docs__actions">
           <button type="button" className="btn btn--primary" onClick={() => void copyPrompt()}>

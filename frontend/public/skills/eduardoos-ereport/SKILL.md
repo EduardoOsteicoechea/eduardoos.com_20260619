@@ -4,24 +4,26 @@ description: >-
   Sync Eduardo OS eReport org reports via the public rate-limited API: open or
   edit issues on the website, get/put full payloads with an API key, and ingest
   any parseable complaints document into sections/groups/items. Use when the
-  user mentions eReport, Issue Tracker, eduardoos-ereport, eos_live_ keys,
+  user mentions eReport, Issue Tracker, .ereport connector, eos_live_ keys,
   org reports, or mapping QA/quejas into a remote report.
 disable-model-invocation: true
 ---
 
 # Eduardo OS eReport API skill
 
+**Install location:** project sidecar **`.ereport/`** (this connector repo).  
 **Before first run:** read [CAVEATS.md](CAVEATS.md).  
 **Endpoints / payload:** [reference.md](reference.md).  
-**Optional CLI:** `scripts/eduardoos-ereport/ereport_client.py` (this monorepo) or any client that follows the same order.
+**CLI:** `.ereport/ereport_client.py` (from project root: `python .ereport/ereport_client.py …`).
 
-Public skill URL: `https://eduardoos.com/skills/eduardoos-ereport/SKILL.md`
+Repo: https://github.com/EduardoOsteicoechea/eduardoos-ereport-connector  
+Docs: https://eduardoos.com/api-docs
 
 ## When to use
 
 - Open / update / extend issues in an **owned** org report from chat, files, or pasted data
 - Wire a repo agent to `access → orgs → org-reports → get → put`
-- Ingest QA/complaints docs (HTML, JSON, md, spreadsheets, paste) into the live report
+- Ingest QA/complaints docs into the live report
 
 ## Modes (pick one)
 
@@ -33,49 +35,43 @@ Public skill URL: `https://eduardoos.com/skills/eduardoos-ereport/SKILL.md`
 
 If the report is not open on the site: **Mode A first**, then B or C.
 
-### Mode A (non-technical steps for the user)
+### Mode A (non-technical)
 
 1. Sign in at https://eduardoos.com  
 2. Open eReport → organization → report (or create one)  
-3. Copy **Org ID** + **Report ID** (workspace URL `org` / `report` query, or CLI `orgs` / `org-reports`)  
+3. Copy **Org ID** + **Report ID**  
 4. Create API key only in UI: `/auth/profile` or `/api-keys`  
-5. Put key + ids in `.env` (gitignored). Say “report is open” to the agent.
+5. Put key + ids in `.ereport/.env` (gitignored). Say “report is open”.
 
 ### Mode B (API)
 
-Env: `EDUARDOOS_BASE_URL`, `EDUARDOOS_API_KEY`, `EDUARDOOS_ORG_ID`, `EDUARDOOS_REPORT_ID`.
+```bash
+python .ereport/ereport_client.py access
+python .ereport/ereport_client.py orgs
+python .ereport/ereport_client.py org-reports
+python .ereport/ereport_client.py get
+python .ereport/ereport_client.py put --file .ereport/report.payload.json
+```
 
-Order (separate calls): `access` → `orgs` → `org-reports` → `get` → edit → `put` with `confirmOverwrite: true` and **full** payload.
-
-### Mode C (any parseable data → issues)
+### Mode C
 
 1. Confirm org/report (Mode A if needed).  
 2. `get` current payload.  
 3. Parse user data; map to items (`reprobado` = open).  
-4. **Merge in place** — never put a payload that only contains new issues.  
-5. `put`; verify; print open ids.
-
-Status map: open/fail/blocked → `reprobado`; done/pass/fixed → `aprobado`; N/A → `no_aplica`.
+4. **Merge in place** — never put a thin payload of only new issues.  
+5. `put`; print open ids + `Ver reporte: <viewUrl>`.
 
 ## Hard rules
 
 1. Never print the API key.  
-2. `put` is **full replace** — always `get` first, merge, then `put`.  
+2. `put` is **full replace** — always `get` first.  
 3. Preserve `fechaIncidencia` / `fechaSolucion` and untouched items.  
-4. Honor **60 req/min/key** (429 + `Retry-After`).  
-5. End every successful mutation with:  
-   `Ver reporte: <viewUrl>`  
-   Canonical: `{BASE}/ereport/workspace?user={ownerSafe}&org={orgId}&report={reportId}`
+4. Honor **60 req/min/key**.  
+5. End with `Ver reporte: <viewUrl>`.
 
-## Install (downloaders)
+## Host-repo install (cleanest)
 
-Copy this folder to the target project:
-
-```text
-.cursor/skills/eduardoos-ereport/
-  SKILL.md
-  CAVEATS.md
-  reference.md
+```bash
+git clone --depth 1 https://github.com/EduardoOsteicoechea/eduardoos-ereport-connector.git .ereport
+# wire skill into .cursor/skills/eduardoos-ereport (see install.sh / install.ps1)
 ```
-
-Then invoke the skill by name (`eduardoos-ereport`) and give a concrete task.

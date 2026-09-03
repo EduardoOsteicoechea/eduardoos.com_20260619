@@ -1,11 +1,12 @@
 /**
- * Student learning view — same folder cards; Folders sidebar toggles from
+ * Student learning view â€” same folder cards; Folders sidebar toggles from
  * Header Dynamic Menu (persisted in localStorage).
  * Content is scoped to relationships where the JWT user is the student.
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import {
   listHomescoolLearning,
   listLearningFolder,
@@ -64,7 +65,7 @@ export default function LearningPage() {
             Hub
           </a>
         </div>
-        {loading ? <p className="homescool-empty">Loading learning space…</p> : null}
+        {loading ? <ViewLoading label="Loading learning space" /> : null}
         {!loading && error && links.length === 0 ? (
           <article className="product-page">
             <p className="product-page__brand">Homescool</p>

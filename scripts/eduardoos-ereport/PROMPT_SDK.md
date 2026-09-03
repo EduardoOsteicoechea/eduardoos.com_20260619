@@ -1,48 +1,24 @@
-# PROMPT-SDK — eReport (site + API)
+# PROMPT-SDK — points at `.ereport` connector
 
-**Preferred:** install the downloadable Cursor skill, then invoke it.
-
-| File | URL |
-|------|-----|
-| Skill | https://eduardoos.com/skills/eduardoos-ereport/SKILL.md |
-| Caveats (downloaders) | https://eduardoos.com/skills/eduardoos-ereport/CAVEATS.md |
-| Reference | https://eduardoos.com/skills/eduardoos-ereport/reference.md |
-
-Install into `.cursor/skills/eduardoos-ereport/`. Product page: `/api-docs`.
-
-Audience: (1) non-technical operators (2) coding agents.
-
-Tool (optional): `ereport_client.py` + `.env` in this folder.
-
-Choose **one mode** at a time (full detail in the skill):
-
-| Mode | Purpose |
-|------|---------|
-| **A** | Open & edit on the website |
-| **B** | Sync via API (`get` → edit → `put`) |
-| **C** | Ingest a complaints document → open issues → `put` |
-
-If the report is **not** open on the site: Mode A first, then B or C.
-
-## Copy-paste prompt (skill-first)
-
-```
-Install and follow the Eduardo OS skill eduardoos-ereport:
-  https://eduardoos.com/skills/eduardoos-ereport/
-Read CAVEATS.md first. Then: <USER TASK HERE>
-End with Ver reporte: <viewUrl>
-```
-
-## Quick Mode B CLI (this repo)
+**Preferred install** (host repo stays clean):
 
 ```bash
-cd scripts/eduardoos-ereport
-copy .env.example .env
-python ereport_client.py access
-python ereport_client.py orgs
-python ereport_client.py org-reports
-python ereport_client.py get
-python ereport_client.py put --file report.payload.json
+git clone --depth 1 https://github.com/EduardoOsteicoechea/eduardoos-ereport-connector.git .ereport
 ```
 
-Never commit `.env`. See prompts/01 (dates) and prompts/02 (viewUrl) for escalation notes.
+Wire skill: `.ereport/skill/eduardoos-ereport/` → `.cursor/skills/eduardoos-ereport/`  
+(or run `install.ps1` / `install.sh` from the connector).
+
+| Resource | URL |
+|----------|-----|
+| Connector | https://github.com/EduardoOsteicoechea/eduardoos-ereport-connector |
+| Caveats | `.ereport/skill/eduardoos-ereport/CAVEATS.md` |
+| Product docs | https://eduardoos.com/api-docs |
+
+## Copy-paste
+
+```
+Install Eduardo OS connector as .ereport/ (sidecar), read CAVEATS, invoke skill eduardoos-ereport.
+Task: <USER TASK>
+End with Ver reporte: <viewUrl>
+```

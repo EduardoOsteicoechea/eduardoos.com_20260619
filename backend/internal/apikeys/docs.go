@@ -75,7 +75,7 @@ func BuildDocsCatalog() DocsCatalog {
 		},
 		OwnerSafe: "Lowercase email with @ replaced by _at_ (e.g. you@example.com → you_at_example.com)",
 		KeyPolicy: "API keys are created, listed, and revoked only in the Eduardo OS UI (Profile or API keys page). Key lifecycle is not part of the external API.",
-		Skill:     "https://eduardoos.com/skills/eduardoos-ereport/ — Cursor skill (read CAVEATS.md). Prefer over long copy-paste prompts. API rate limit 60/min/key.",
+		Skill: "https://github.com/EduardoOsteicoechea/eduardoos-ereport-connector — clone as .ereport/ sidecar; skill + CLI. Caveats in skill/CAVEATS.md. API rate limit 60/min/key. Mirror: https://eduardoos.com/skills/eduardoos-ereport/",
 		Routes: []DocsRoute{
 			{
 				Method:  http.MethodGet,
