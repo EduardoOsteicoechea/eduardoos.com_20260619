@@ -79,7 +79,7 @@ func TestV1PostRequiresConfirmOverwriteAndSnapshots(t *testing.T) {
 		t.Fatalf("access body=%#v", accOut)
 	}
 
-	// Step 2 — library
+	// Step 2 — library now returns orgs + legacyReports
 	lib := httptest.NewRequest(http.MethodGet, "/api/v1/ereport/library", nil)
 	lib.Header.Set("Authorization", "Bearer "+keyOut.Key)
 	libRec := httptest.NewRecorder()
@@ -88,10 +88,11 @@ func TestV1PostRequiresConfirmOverwriteAndSnapshots(t *testing.T) {
 		t.Fatalf("library=%d %s", libRec.Code, libRec.Body.String())
 	}
 	var libOut struct {
-		Reports []ReportCard `json:"reports"`
+		Orgs          []OrgCard    `json:"orgs"`
+		LegacyReports []ReportCard `json:"legacyReports"`
 	}
 	_ = json.Unmarshal(libRec.Body.Bytes(), &libOut)
-	if len(libOut.Reports) < 1 || libOut.Reports[0].ID != id {
+	if len(libOut.LegacyReports) < 1 || libOut.LegacyReports[0].ID != id {
 		t.Fatalf("library=%#v", libOut)
 	}
 
@@ -150,5 +151,114 @@ func TestV1PostRequiresConfirmOverwriteAndSnapshots(t *testing.T) {
 	r.ServeHTTP(getRec, get)
 	if getRec.Code != http.StatusOK {
 		t.Fatalf("v1 get=%d", getRec.Code)
+	}
+}
+
+func TestV1OrgAccessOrgsReportsEdit(t *testing.T) {
+	users := auth.NewMemoryStore()
+	_ = users.PutUser(context.Background(), auth.User{
+		Email: "owner@example.com", PasswordHash: auth.HashPassword("x"), Verified: true,
+	})
+	ents := payments.NewStore()
+	ents.PutEntitlements("owner@example.com", payments.BuildEntitlements([]string{"api", "ereport"}, "monthly", 1))
+
+	eh := NewHandler("ereport-secret", users)
+	eh.Entitlements = ents
+	keys := apikeys.NewMemoryStore()
+	ah := apikeys.NewHandler("ereport-secret", users, keys, ents)
+
+	r := chi.NewRouter()
+	eh.Routes(r)
+	ah.Routes(r)
+	ah.MountV1(r, func(vr chi.Router) {
+		vr.Use(ah.RequireProductAccess("ereport"))
+		eh.RoutesV1(vr)
+	})
+
+	ownerTok := bearer(t, "owner@example.com")
+	// Create org + report via JWT
+	orgReq := httptest.NewRequest(http.MethodPost, "/api/ereport/orgs",
+		bytes.NewBufferString(`{"name":"Acme"}`))
+	orgReq.Header.Set("Authorization", "Bearer "+ownerTok)
+	orgReq.Header.Set("Content-Type", "application/json")
+	orgRec := httptest.NewRecorder()
+	r.ServeHTTP(orgRec, orgReq)
+	if orgRec.Code != http.StatusCreated {
+		t.Fatalf("org create=%d %s", orgRec.Code, orgRec.Body.String())
+	}
+	var orgCreated map[string]any
+	_ = json.Unmarshal(orgRec.Body.Bytes(), &orgCreated)
+	orgID := orgCreated["org"].(map[string]any)["id"].(string)
+
+	repReq := httptest.NewRequest(http.MethodPost, "/api/ereport/orgs/"+orgID+"/reports",
+		bytes.NewBufferString(`{"tema":"Website en tablet"}`))
+	repReq.Header.Set("Authorization", "Bearer "+ownerTok)
+	repReq.Header.Set("Content-Type", "application/json")
+	repRec := httptest.NewRecorder()
+	r.ServeHTTP(repRec, repReq)
+	if repRec.Code != http.StatusCreated {
+		t.Fatalf("org report create=%d %s", repRec.Code, repRec.Body.String())
+	}
+	var repCreated map[string]any
+	_ = json.Unmarshal(repRec.Body.Bytes(), &repCreated)
+	reportID := repCreated["meta"].(map[string]any)["id"].(string)
+
+	ck := httptest.NewRequest(http.MethodPost, "/api/apikeys", bytes.NewBufferString(`{"label":"org-bot"}`))
+	ck.Header.Set("Authorization", "Bearer "+ownerTok)
+	ckRec := httptest.NewRecorder()
+	r.ServeHTTP(ckRec, ck)
+	var keyOut struct {
+		Key string `json:"key"`
+	}
+	_ = json.Unmarshal(ckRec.Body.Bytes(), &keyOut)
+
+	// Step 2 — orgs
+	orgsReq := httptest.NewRequest(http.MethodGet, "/api/v1/ereport/orgs", nil)
+	orgsReq.Header.Set("Authorization", "Bearer "+keyOut.Key)
+	orgsRec := httptest.NewRecorder()
+	r.ServeHTTP(orgsRec, orgsReq)
+	if orgsRec.Code != http.StatusOK {
+		t.Fatalf("orgs=%d %s", orgsRec.Code, orgsRec.Body.String())
+	}
+	var orgsOut struct {
+		Orgs []OrgCard `json:"orgs"`
+	}
+	_ = json.Unmarshal(orgsRec.Body.Bytes(), &orgsOut)
+	if len(orgsOut.Orgs) < 1 || orgsOut.Orgs[0].ID != orgID {
+		t.Fatalf("orgs=%#v", orgsOut)
+	}
+
+	// Step 3 — org reports
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/ereport/orgs/"+orgID+"/reports", nil)
+	listReq.Header.Set("Authorization", "Bearer "+keyOut.Key)
+	listRec := httptest.NewRecorder()
+	r.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("org reports=%d %s", listRec.Code, listRec.Body.String())
+	}
+	var listOut struct {
+		Reports []ReportCard `json:"reports"`
+	}
+	_ = json.Unmarshal(listRec.Body.Bytes(), &listOut)
+	if len(listOut.Reports) < 1 || listOut.Reports[0].ID != reportID {
+		t.Fatalf("org reports=%#v", listOut)
+	}
+
+	// Step 4 — put with confirmOverwrite
+	putBody := `{"confirmOverwrite":true,"payload":{"reportNumber":"7","sections":[]}}`
+	putReq := httptest.NewRequest(http.MethodPost,
+		"/api/v1/ereport/orgs/"+orgID+"/reports/"+reportID,
+		bytes.NewBufferString(putBody))
+	putReq.Header.Set("Authorization", "Bearer "+keyOut.Key)
+	putReq.Header.Set("Content-Type", "application/json")
+	putRec := httptest.NewRecorder()
+	r.ServeHTTP(putRec, putReq)
+	if putRec.Code != http.StatusOK {
+		t.Fatalf("org put=%d %s", putRec.Code, putRec.Body.String())
+	}
+	var putOut map[string]any
+	_ = json.Unmarshal(putRec.Body.Bytes(), &putOut)
+	if putOut["snapshotId"] == nil || putOut["snapshotId"] == "" {
+		t.Fatalf("expected snapshotId %#v", putOut)
 	}
 }

@@ -10,13 +10,9 @@ External clients jumped straight to report GET/POST. Operators need a **strict o
 
 ## Goals
 
-### Ordered eReport v1 steps (API key)
+### Ordered eReport v1 steps (API key) — superseded by 060 for discovery
 
-| Step | Action | Method + path | Success shape |
-|------|--------|---------------|---------------|
-| **1** | Check access | `GET /api/v1/ereport/access` | `{ allowed: true, service: "ereport", email, ownerSafe }` |
-| **2** | List available reports | `GET /api/v1/ereport/library` | `{ ownerSafe, reports: [{ id, tema, reportNumber, updatedAt }] }` — **owned only** |
-| **3** | First edit | `GET` then `POST /api/v1/ereport/reports/{ownerSafe}/{reportId}` | Existing 055 replace rules (`confirmOverwrite: true`) |
+Primary discovery is now **orgs → org reports** (spec 060). Flat `library` / `reports/{ownerSafe}/…` remain for legacy flat reports only.
 
 - Same auth/entitlement gate as other `/api/v1/ereport/*` (`api` + `ereport`, or admin key).
 - Client tooling / docs / agent prompt **must** expose CLI commands that run these steps **separately** (`access`, `library`, `get`, `put`) — never one mega-command that skips 1–2.

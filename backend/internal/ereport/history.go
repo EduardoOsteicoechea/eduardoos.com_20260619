@@ -100,6 +100,69 @@ func (h *Handler) saveSnapshotBeforeReplace(
 	return id, nil
 }
 
+func (h *Handler) loadOrgHistoryIndex(ctx context.Context, ownerEmail, orgID, reportID, cid string) (HistoryIndex, error) {
+	var idx HistoryIndex
+	ok, err := h.Objects.GetJSON(ctx, OrgHistoryIndexKey(ownerEmail, orgID, reportID), &idx, cid)
+	if err != nil {
+		return HistoryIndex{}, err
+	}
+	if !ok || idx.Items == nil {
+		idx.Items = []HistoryCard{}
+	}
+	return idx, nil
+}
+
+func (h *Handler) saveOrgHistoryIndex(ctx context.Context, ownerEmail, orgID, reportID string, idx HistoryIndex, cid string) error {
+	if idx.Items == nil {
+		idx.Items = []HistoryCard{}
+	}
+	return h.Objects.PutJSON(ctx, OrgHistoryIndexKey(ownerEmail, orgID, reportID), idx, cid)
+}
+
+// saveOrgSnapshotBeforeReplace archives the current org-report payload before API replace.
+func (h *Handler) saveOrgSnapshotBeforeReplace(
+	ctx context.Context,
+	ownerEmail, orgID, reportID, tema, source, keyPrefix string,
+	payload map[string]any,
+	cid string,
+) (string, error) {
+	if payload == nil {
+		return "", nil
+	}
+	id := uuid.NewString()
+	snap := Snapshot{
+		ID:        id,
+		CreatedAt: nowRFC3339(),
+		Source:    source,
+		KeyPrefix: keyPrefix,
+		Tema:      tema,
+		Payload:   payload,
+	}
+	if err := h.Objects.PutJSON(ctx, OrgHistorySnapshotKey(ownerEmail, orgID, reportID, id), snap, cid); err != nil {
+		return "", err
+	}
+	idx, err := h.loadOrgHistoryIndex(ctx, ownerEmail, orgID, reportID, cid)
+	if err != nil {
+		return "", err
+	}
+	idx.Items = append([]HistoryCard{{
+		ID:        snap.ID,
+		CreatedAt: snap.CreatedAt,
+		Source:    snap.Source,
+		KeyPrefix: snap.KeyPrefix,
+		Tema:      snap.Tema,
+	}}, idx.Items...)
+	for len(idx.Items) > MaxHistorySnapshots {
+		old := idx.Items[len(idx.Items)-1]
+		idx.Items = idx.Items[:len(idx.Items)-1]
+		_ = h.Objects.DeleteKey(ctx, OrgHistorySnapshotKey(ownerEmail, orgID, reportID, old.ID), cid)
+	}
+	if err := h.saveOrgHistoryIndex(ctx, ownerEmail, orgID, reportID, idx, cid); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
 // ListHistory returns snapshot cards for the report owner/admin (JWT).
 func (h *Handler) ListHistory(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)

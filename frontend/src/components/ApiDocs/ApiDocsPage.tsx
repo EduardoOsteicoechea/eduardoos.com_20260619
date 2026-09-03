@@ -13,12 +13,13 @@ export const EREPORT_API_CLIENT_AGENT_PROMPT = `You are implementing a small sta
 
 ## Goal
 Create a script (Node.js or Python — pick one and stick to it) plus a \`.env\` file.
-The operator must run **three steps one at a time** (separate CLI commands). Do **not** combine them into a single command that skips ahead.
+The operator must run steps **one at a time** (separate CLI commands). Do **not** combine them.
 
-## Required order (one at a time)
+## Required order (matches the eReport hub: Orgs → reports)
 1. \`access\` — check that the API key can use eReport
-2. \`library\` — list owned reports available to edit
-3. \`get\` / \`put\` — read then full-replace **one** report (first edit)
+2. \`orgs\` — list owned organizations
+3. \`org-reports\` — list reports inside one org (to obtain report ids)
+4. \`get\` / \`put\` — read then full-replace **one** org report
 
 ## Base URL & auth
 - Base URL from env \`EDUARDOOS_BASE_URL\` (default \`https://eduardoos.com\`, no trailing slash).
@@ -27,54 +28,50 @@ The operator must run **three steps one at a time** (separate CLI commands). Do 
 - Optional: send \`X-Correlation-ID\` as a UUID for tracing.
 - Rate limit: 60 requests/minute/key; on HTTP 429 honor \`Retry-After\`.
 
-## Entitlements (already configured on Eduardo OS — do not implement billing)
-The key owner must have active subscriptions: \`api\` + \`ereport\` (platform admin keys skip product checks). Writes only work for reports **owned** by that key's user.
+## Entitlements
+Key owner needs \`api\` + \`ereport\` (platform admin keys skip product checks). Writes only for reports **owned** by that key's user.
 
 ## Endpoints (in order)
 
 ### Step 1 — check access
 GET {BASE}/api/v1/ereport/access
 → \`{ allowed: true, service: "ereport", email, ownerSafe }\`
-Exit non-zero on 401/403. Print ownerSafe so the operator can set \`EDUARDOOS_OWNER_SAFE\` if empty.
 
-### Step 2 — list available reports
-GET {BASE}/api/v1/ereport/library
-→ \`{ ownerSafe, reports: [{ id, tema, reportNumber, updatedAt }] }\`
-Print a simple table. Operator picks a report id for step 3 (env \`EDUARDOOS_REPORT_ID\` or CLI flag).
+### Step 2 — list orgs
+GET {BASE}/api/v1/ereport/orgs
+→ \`{ ownerSafe, orgs: [{ id, name, order, updatedAt }] }\`
+Print a table. Operator picks \`EDUARDOOS_ORG_ID\` (or CLI flag).
 
-### Step 3 — first edit (get, then put — still separate commands)
-a) GET {BASE}/api/v1/ereport/reports/{ownerSafe}/{reportId}
-   → \`{ meta, payload }\` — save payload to a file for editing if useful.
+### Step 3 — list reports in that org
+GET {BASE}/api/v1/ereport/orgs/{orgId}/reports
+→ \`{ orgId, orgName, reports: [{ id, tema, reportNumber, updatedAt }] }\`
+Print ids + tema. Operator picks \`EDUARDOOS_REPORT_ID\`.
 
-b) POST {BASE}/api/v1/ereport/reports/{ownerSafe}/{reportId}
+### Step 4 — first edit (get, then put — separate commands)
+a) GET {BASE}/api/v1/ereport/orgs/{orgId}/reports/{reportId}
+   → \`{ orgId, meta, payload }\`
+
+b) POST {BASE}/api/v1/ereport/orgs/{orgId}/reports/{reportId}
    Content-Type: application/json
-   Body MUST include:
    {
      "confirmOverwrite": true,
-     "tema": "<optional string>",
-     "payload": { /* FULL Issue Tracker .ereport JSON object — required */ }
+     "tema": "<optional>",
+     "payload": { /* FULL .ereport JSON — required */ }
    }
-   Without \`confirmOverwrite: true\` the API returns 400.
-   Successful replace may return \`snapshotId\`.
-
-ownerSafe = lowercase email with \`@\` → \`_at_\` (also returned by step 1). Example: \`you@example.com\` → \`you_at_example.com\`.
+   Without confirmOverwrite:true → 400. May return snapshotId.
 
 ## Deliverables
-1. \`.env.example\` with:
+1. \`.env.example\`:
    EDUARDOOS_BASE_URL=https://eduardoos.com
    EDUARDOOS_API_KEY=
-   EDUARDOOS_OWNER_SAFE=
+   EDUARDOOS_ORG_ID=
    EDUARDOOS_REPORT_ID=
-2. \`.env\` gitignored; load via dotenv.
-3. CLI commands (separate invocations):
-   - \`access\`
-   - \`library\`
-   - \`get\` — uses OWNER_SAFE + REPORT_ID
-   - \`put --file report.json\` — POST with confirmOverwrite true
-4. Clear errors for 401/403/404/400/429.
-5. Short README: create key at https://eduardoos.com/auth/profile after API + eReport subscribe; run access → library → get → put in that order.
+2. \`.env\` gitignored; dotenv.
+3. CLI (separate invocations): \`access\`, \`orgs\`, \`org-reports\`, \`get\`, \`put --file report.json\`
+4. Errors for 401/403/404/400/429.
+5. README: subscribe API+eReport, create key at /auth/profile; run access → orgs → org-reports → get → put.
 
-Do not use browser JWT. Do not call org-scoped eReport paths. Do not invent other endpoints. Optional public smoke: GET {BASE}/api/v1/docs (no auth).`;
+Do not use browser JWT. Do not invent endpoints. Prefer org paths over legacy flat /library or /reports/{ownerSafe}/…. Optional: GET {BASE}/api/v1/docs.`;
 
 type DocsCatalog = {
   version?: string;
@@ -244,23 +241,25 @@ export default function ApiDocsPage() {
       </section>
 
       <section className="api-docs__section" aria-labelledby="api-docs-ereport">
-        <h2 id="api-docs-ereport">eReport flow (one step at a time)</h2>
+        <h2 id="api-docs-ereport">eReport flow (orgs → reports → edit)</h2>
         <ol>
           <li>
-            <code>GET /api/v1/ereport/access</code> — confirm the key can use eReport; note{" "}
-            <code>ownerSafe</code>.
+            <code>GET /api/v1/ereport/access</code> — confirm the key can use eReport.
           </li>
           <li>
-            <code>GET /api/v1/ereport/library</code> — list owned reports; pick an{" "}
-            <code>id</code>.
+            <code>GET /api/v1/ereport/orgs</code> — list organizations (same as the hub Orgs cards).
           </li>
           <li>
-            <code>GET</code> then <code>POST …/reports/&#123;ownerSafe&#125;/&#123;reportId&#125;</code> with{" "}
-            <code>confirmOverwrite: true</code> and the <strong>full</strong> payload (first edit).
+            <code>GET /api/v1/ereport/orgs/&#123;orgId&#125;/reports</code> — list report ids under that org.
+          </li>
+          <li>
+            <code>GET</code> then <code>POST …/orgs/&#123;orgId&#125;/reports/&#123;reportId&#125;</code> with{" "}
+            <code>confirmOverwrite: true</code> and the <strong>full</strong> payload.
           </li>
         </ol>
         <p className="api-docs__hint">
-          Server snapshots the previous version on POST; restore from the editor Historial modal.
+          Prefer org paths. <code>/library</code> still returns <code>orgs</code> plus optional{" "}
+          <code>legacyReports</code> for old flat reports.
         </p>
       </section>
 
