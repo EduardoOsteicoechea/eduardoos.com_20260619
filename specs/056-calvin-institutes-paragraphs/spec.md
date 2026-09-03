@@ -134,15 +134,13 @@ On the Scrib **sheet editor** (subscription-gated page):
    - **Desktop:** fixed top-right, width **20vw** (20% of screen), scrollable body.
    - **Tablet:** same as desktop (top-right, **20vw**).
    - **Mobile:** fixed top, width **100%**, height **20vh** (20% of screen height), scrollable body.
-4. Flow:
-   - Liber tabs or grouped list (I–IV).
-   - Select a Caput (chapter) → load chapter JSON via the new API.
-   - List paragraphs with id badge (`I.XI.3`) + text preview.
-5. Actions:
-   - **Copy** on each paragraph → `navigator.clipboard.writeText(paragraph.text)`.
-   - **Copy chapter** → all paragraph texts joined with `\n\n` (same display separation).
-6. Backdrop click / Cerrar closes the panel.
-7. Non-goal: pasting into SVG layers — **clipboard only**.
+4. **Drill-down flow (mandatory):**
+   1. Liber tabs (I–IV).
+   2. **Chapter number** picker (compact chips / numbers for Capita in that Liber; PRELIMINARY shown as its own chip). Selecting a Caput loads that chapter JSON.
+   3. **Paragraph number** picker appears **only after** a Caput is selected (chips for `1..N` / ids’ order).
+   4. **Text** for the **selected paragraph only** appears **below** the paragraph picker (not the full chapter dump). Copy applies to that paragraph (optional: keep “Copy chapter” near the Caput once loaded).
+5. Backdrop click / Cerrar closes the panel.
+6. Non-goal: pasting into SVG layers — **clipboard only**.
 
 ### FE clients
 
@@ -164,7 +162,7 @@ On the Scrib **sheet editor** (subscription-gated page):
 - [x] Builder + unit tests produce stable ids/`\n\n` segments from fixtures
 - [x] New S3 prefix contract documented; old prefix never written by this feature
 - [x] Public paragraph index + chapter APIs readiness-gated; 032 Capita tests still pass
-- [x] Scrib editor: Institutes panel → pick Caput → copy paragraph / copy chapter to clipboard
+- [x] Scrib editor: Institutes panel drill-down Liber → Caput number → paragraph number → one paragraph text + copy
 - [x] Institutes panel placement: desktop/tablet top-right 20vw; mobile top 100% × 20vh
 - [x] FE build passes when frontend changes ship
 - [ ] Parallel pack uploaded to S3 `calvin-institutes-paragraphs/` (ops; outside this commit)

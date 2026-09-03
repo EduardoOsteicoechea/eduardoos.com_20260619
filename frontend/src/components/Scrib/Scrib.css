@@ -543,58 +543,27 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
   color: var(--site-accent);
 }
 
-.scrib-institutes-modal__body {
+.scrib-institutes-modal__step {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.5rem;
-  min-height: 0;
-  flex: 1;
-  overflow: hidden;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+  min-width: 0;
 }
 
-.scrib-institutes-modal__nav {
-  overflow: auto;
-  max-height: 28vh;
-  border-right: none;
-  border-bottom: var(--border_001);
-  padding-right: 0;
-  padding-bottom: 0.45rem;
-}
-
-.scrib-institutes-modal__nav ul {
-  list-style: none;
+.scrib-institutes-modal__step-label {
   margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.25rem;
-}
-
-.scrib-institutes-modal__caput {
-  width: 100%;
-  text-align: left;
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.35rem 0.4rem;
-  border: var(--border_001);
-  border-radius: var(--border_radius_001);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.scrib-institutes-modal__caput.is-active {
-  border-color: var(--site-accent);
-}
-
-.scrib-institutes-modal__caput-id {
   font-family: var(--font-display);
+  font-size: 0.72rem;
   font-weight: 600;
-  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.75;
 }
 
-.scrib-institutes-modal__caput-heading {
-  font-size: 0.65rem;
-  line-height: 1.25;
+.scrib-institutes-modal__step-meta {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.3;
   opacity: 0.8;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -602,43 +571,46 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
   overflow: hidden;
 }
 
-.scrib-institutes-modal__reader {
+.scrib-institutes-modal__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  max-height: 22vh;
   overflow: auto;
-  min-height: 0;
-  flex: 1;
+  padding: 0.1rem 0;
 }
 
-.scrib-institutes-modal__reader-head {
-  display: grid;
-  gap: 0.35rem;
-  margin-bottom: 0.55rem;
-}
-
-.scrib-institutes-modal__reader-head h3 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 0.9rem;
-  line-height: 1.3;
-}
-
-.scrib-institutes-modal__meta {
-  margin: 0;
-  font-size: 0.7rem;
-  opacity: 0.75;
-}
-
-.scrib-institutes-modal__paras {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.scrib-institutes-modal__para {
+.scrib-institutes-modal__chip {
+  min-width: 1.85rem;
+  min-height: 1.85rem;
+  padding: 0 0.4rem;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
-  padding: 0.45rem 0.5rem;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.scrib-institutes-modal__chip.is-active {
+  border-color: var(--site-accent);
+  color: var(--site-accent);
+}
+
+.scrib-institutes-modal__copy-chapter {
+  justify-self: start;
+  font-size: 0.75rem;
+}
+
+.scrib-institutes-modal__text {
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  padding: 0.5rem 0.55rem;
+  display: grid;
+  gap: 0.4rem;
+  min-height: 0;
 }
 
 .scrib-institutes-modal__para-head {
@@ -646,18 +618,19 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
   align-items: center;
   justify-content: space-between;
   gap: 0.4rem;
-  margin-bottom: 0.3rem;
 }
 
 .scrib-institutes-modal__para-head code {
   font-size: 0.7rem;
 }
 
-.scrib-institutes-modal__para p {
+.scrib-institutes-modal__text-body {
   margin: 0;
   white-space: pre-wrap;
-  font-size: 0.78rem;
-  line-height: 1.4;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  max-height: 28vh;
+  overflow: auto;
 }
 
 /* Tablet: same top-right 20vw dock as desktop */
@@ -685,18 +658,12 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
     border-radius: 0;
   }
 
-  .scrib-institutes-modal__body {
-    grid-template-columns: minmax(0, 9rem) 1fr;
-    min-height: 0;
+  .scrib-institutes-modal__chips {
+    max-height: 6vh;
   }
 
-  .scrib-institutes-modal__nav {
-    max-height: none;
-    height: 100%;
-    border-bottom: none;
-    border-right: var(--border_001);
-    padding-bottom: 0;
-    padding-right: 0.35rem;
+  .scrib-institutes-modal__text-body {
+    max-height: 6vh;
   }
 }
 
