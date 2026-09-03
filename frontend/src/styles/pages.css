@@ -238,9 +238,17 @@ html.page-home .home-hero__chat {
   color: var(--site-accent);
 }
 
+/* Two lead paragraphs with a clear vertical gap (spec 018). */
+.home-hero__leads {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m3, 1.5rem);
+  max-width: 36rem;
+}
+
 .home-hero__lead {
   margin: 0;
-  max-width: 36rem;
+  max-width: none;
   font-family: var(--font-body);
   font-size: var(--p2, 1rem);
   font-weight: 400;
