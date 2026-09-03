@@ -66,7 +66,7 @@
   display: grid;
   grid-template-columns: 1fr;
   /* Wider gap between dossier data sections (spec 018). */
-  gap: calc(var(--m4, 2.25rem) * 3);
+  gap: calc(var(--m4, 2.25rem) * 4);
   align-items: stretch;
 }
 
@@ -83,7 +83,7 @@
   box-sizing: border-box;
 }
 
-/* Variation: Experience + Skills — no section chrome; cards/text only (spec 047). */
+/* Variation: Education + Experience + Skills + FAQ — no section chrome; cards/text only. */
 .home-profile__block--flat {
   padding: 0;
   background: transparent;
@@ -124,32 +124,32 @@
 }
 
 .home-profile__list {
-  margin: 0.5rem 0 0;
+  margin: 0.75rem 0 0;
   padding: 0;
   list-style: none;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--m2);
+  align-items: stretch;
 }
 
 .home-profile__list li {
-  margin: 0 0 0.85rem;
-  padding-left: 0.85rem;
+  margin: 0;
+  padding: var(--p2);
+  border-radius: var(--br);
+  background: var(--site-surface);
   border-left: 2px solid color-mix(in srgb, var(--site-accent) 45%, transparent);
   font-family: var(--font-body);
   font-size: 0.95rem;
   line-height: 1.6;
   color: var(--site-meta-fg);
+  height: 100%;
+  box-sizing: border-box;
 }
 
 @media (min-width: 700px) {
   .home-profile__list--cols {
-    display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--m2);
-    align-items: stretch;
-  }
-
-  .home-profile__list--cols li {
-    margin: 0;
-    height: 100%;
   }
 }
 
@@ -442,7 +442,7 @@
 
   .home-profile__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: calc(var(--m4, 2.25rem) * 3);
+    gap: calc(var(--m4, 2.25rem) * 4);
   }
 
   .home-profile__jobs {
