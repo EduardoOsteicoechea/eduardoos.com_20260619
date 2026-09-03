@@ -19,8 +19,9 @@ External developers (and API subscribers) need a single place that documents Bea
   - How to get access (`api` + product entitlements; admin key)
   - Auth: `Authorization: Bearer eos_live_…`
   - Rate limit: 60/min/key → 429 + `Retry-After`
-  - Key management (JWT `/api/apikeys`) — create/list/revoke overview
-  - eReport v1 **ordered flow** (spec 058): access → library → get/post with `confirmOverwrite`
+  - **API keys: UI only** (Profile / API keys pages) — do **not** document `/api/apikeys` as external API (spec 061)
+  - Each external route as a **card** (not a table) — spec 061
+  - eReport v1 **org flow** (spec 060): access → orgs → org reports → get/post with `confirmOverwrite`
   - How to form `ownerSafe` (email → lowercase, `@` → `_at_`)
   - Copyable **agent prompt** for scaffolding a client script + `.env` in another repo (CLI commands one at a time)
 - Links: Profile (keys), Subscription
@@ -36,7 +37,7 @@ External developers (and API subscribers) need a single place that documents Bea
 
 ## Non-goals
 - OpenAPI/Swagger UI
-- Documenting every JWT product route (only external `/api/v1/*` + key CRUD overview)
+- Documenting JWT product routes or key CRUD as external API (keys = UI only; see 061)
 - Interactive “try it” console
 
 ## Acceptance

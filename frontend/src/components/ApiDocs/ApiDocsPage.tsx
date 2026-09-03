@@ -76,15 +76,8 @@ Do not use browser JWT. Do not invent endpoints. Prefer org paths over legacy fl
 type DocsCatalog = {
   version?: string;
   title?: string;
+  keyPolicy?: string;
   routes?: Array<{
-    method: string;
-    path: string;
-    auth: string;
-    summary: string;
-    body?: string;
-    requirements?: string;
-  }>;
-  keyManagement?: Array<{
     method: string;
     path: string;
     auth: string;
@@ -97,6 +90,47 @@ type DocsCatalog = {
   auth?: { header?: string; scheme?: string; keyPrefix?: string; notes?: string };
   ownerSafe?: string;
 };
+
+function RouteCard({
+  row,
+}: {
+  row: {
+    method: string;
+    path: string;
+    auth: string;
+    summary: string;
+    body?: string;
+    requirements?: string;
+  };
+}) {
+  const methodClass = `api-docs__method api-docs__method--${row.method.toLowerCase()}`;
+  return (
+    <article className="api-docs__card">
+      <div className="api-docs__card-top">
+        <span className={methodClass}>{row.method}</span>
+        <code className="api-docs__card-path">{row.path}</code>
+      </div>
+      <p className="api-docs__card-summary">{row.summary}</p>
+      <dl className="api-docs__card-meta">
+        <div>
+          <dt>Auth</dt>
+          <dd>{row.auth}</dd>
+        </div>
+        {row.requirements ? (
+          <div>
+            <dt>Requirements</dt>
+            <dd>{row.requirements}</dd>
+          </div>
+        ) : null}
+      </dl>
+      {row.body ? (
+        <pre className="api-docs__card-body">
+          <code>{row.body}</code>
+        </pre>
+      ) : null}
+    </article>
+  );
+}
 
 export default function ApiDocsPage() {
   const [catalog, setCatalog] = useState<DocsCatalog | null>(null);
@@ -136,8 +170,9 @@ export default function ApiDocsPage() {
       <h1 className="api-docs__title">API docs</h1>
       <p className="api-docs__lead">
         External apps call Eduardo OS with a long-lived API key (not a browser session). Subscribe to{" "}
-        <a href={APP_ROUTES.subscription}>API</a> (+ the product you call), create a key on{" "}
-        <a href={APP_ROUTES.profile}>Profile</a>, then use <code>Authorization: Bearer</code>.
+        <a href={APP_ROUTES.subscription}>API</a> (+ the product you call), create a key in the{" "}
+        <a href={APP_ROUTES.profile}>Profile</a> or <a href={APP_ROUTES.apiKeys}>API keys</a> UI, then
+        use <code>Authorization: Bearer</code>.
       </p>
 
       <section className="api-docs__section" aria-labelledby="api-docs-auth">
@@ -165,79 +200,25 @@ export default function ApiDocsPage() {
         {error ? <p className="api-docs__error">{error}</p> : null}
       </section>
 
+      <section className="api-docs__section" aria-labelledby="api-docs-keys">
+        <h2 id="api-docs-keys">API keys (UI only)</h2>
+        <p className="api-docs__lead">
+          {catalog?.keyPolicy ??
+            "Create, list, and revoke API keys only in the signed-in UI. Key lifecycle is not part of the external API."}{" "}
+          Use <a href={APP_ROUTES.profile}>Profile</a> or <a href={APP_ROUTES.apiKeys}>API keys</a>.
+        </p>
+      </section>
+
       <section className="api-docs__section" aria-labelledby="api-docs-routes">
         <h2 id="api-docs-routes">External routes</h2>
-        <div className="api-docs__table-wrap">
-          <table className="api-docs__table">
-            <thead>
-              <tr>
-                <th>Method</th>
-                <th>Path</th>
-                <th>Auth</th>
-                <th>Summary</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(catalog?.routes ?? []).map((row) => (
-                <tr key={`${row.method}:${row.path}`}>
-                  <td>
-                    <code>{row.method}</code>
-                  </td>
-                  <td>
-                    <code>{row.path}</code>
-                  </td>
-                  <td>{row.auth}</td>
-                  <td>
-                    {row.summary}
-                    {row.body ? (
-                      <>
-                        <br />
-                        <code className="api-docs__body">{row.body}</code>
-                      </>
-                    ) : null}
-                    {row.requirements ? (
-                      <>
-                        <br />
-                        <span className="api-docs__req">{row.requirements}</span>
-                      </>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="api-docs__cards">
+          {(catalog?.routes ?? []).map((row) => (
+            <RouteCard key={`${row.method}:${row.path}`} row={row} />
+          ))}
         </div>
         <p className="api-docs__hint">
           Machine-readable catalog: <code>GET {API_DOCS_ROUTE}</code> (no auth).
         </p>
-      </section>
-
-      <section className="api-docs__section" aria-labelledby="api-docs-keys">
-        <h2 id="api-docs-keys">Key management (browser JWT)</h2>
-        <div className="api-docs__table-wrap">
-          <table className="api-docs__table">
-            <thead>
-              <tr>
-                <th>Method</th>
-                <th>Path</th>
-                <th>Summary</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(catalog?.keyManagement ?? []).map((row) => (
-                <tr key={`${row.method}:${row.path}`}>
-                  <td>
-                    <code>{row.method}</code>
-                  </td>
-                  <td>
-                    <code>{row.path}</code>
-                  </td>
-                  <td>{row.summary}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </section>
 
       <section className="api-docs__section" aria-labelledby="api-docs-ereport">

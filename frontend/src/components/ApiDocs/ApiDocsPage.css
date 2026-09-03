@@ -1,5 +1,6 @@
 /**
- * API docs — plain CSS, product dashboard chrome (spec 057).
+ * API docs — plain CSS, product dashboard chrome (specs 057 + 061).
+ * Each external route is a card for scanability.
  */
 
 .api-docs {
@@ -50,45 +51,107 @@
   margin-top: 0.35rem;
 }
 
-.api-docs__table-wrap {
-  overflow-x: auto;
+.api-docs__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: 0.85rem;
+}
+
+.api-docs__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.9rem 1rem;
   border: 1px solid var(--site-border, #ccc);
   border-radius: var(--border_radius_001, 4px);
-}
-
-.api-docs__table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.api-docs__table th,
-.api-docs__table td {
-  padding: 0.55rem 0.75rem;
-  text-align: left;
-  vertical-align: top;
-  border-bottom: 1px solid var(--site-border, #ddd);
-}
-
-.api-docs__table th {
   background: var(--glassed_background, transparent);
-  font-weight: 600;
+  min-height: 100%;
 }
 
-.api-docs__table tr:last-child td {
-  border-bottom: none;
+.api-docs__card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
 }
 
-.api-docs__body,
-.api-docs__req {
-  display: inline-block;
-  margin-top: 0.35rem;
-  font-size: 0.8rem;
+.api-docs__method {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.25rem;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--site-border, #ccc);
+  border-radius: var(--border_radius_001, 4px);
+  color: var(--site-body-fg);
+}
+
+.api-docs__method--get {
+  border-color: color-mix(in srgb, var(--site-accent, #3b82f6) 55%, var(--site-border, #ccc));
+  color: var(--site-accent, #3b82f6);
+}
+
+.api-docs__method--post {
+  border-color: color-mix(in srgb, #16a34a 50%, var(--site-border, #ccc));
+  color: #16a34a;
+}
+
+.api-docs__method--delete {
+  border-color: color-mix(in srgb, #b00020 45%, var(--site-border, #ccc));
+  color: #b00020;
+}
+
+.api-docs__card-path {
+  font-size: 0.85rem;
   word-break: break-word;
+  color: var(--site-body-fg);
 }
 
-.api-docs__req {
-  opacity: 0.85;
+.api-docs__card-summary {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.api-docs__card-meta {
+  margin: 0;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.api-docs__card-meta div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.api-docs__card-meta dt {
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+}
+
+.api-docs__card-meta dd {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.api-docs__card-body {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--site-border, #ddd);
+  border-radius: var(--border_radius_001, 4px);
+  background: color-mix(in srgb, var(--site-body-bg, #111) 88%, var(--site-body-fg, #fff) 12%);
+  color: var(--site-body-fg);
 }
 
 .api-docs__hint {

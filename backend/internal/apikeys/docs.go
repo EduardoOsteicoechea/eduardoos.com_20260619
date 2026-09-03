@@ -8,17 +8,18 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// DocsCatalog is the public machine-readable API surface (spec 057).
+// DocsCatalog is the public machine-readable API surface (specs 057 + 061).
+// Key create/list/revoke is UI-only and is intentionally omitted (no keyManagement).
 type DocsCatalog struct {
-	Version      string         `json:"version"`
-	Title        string         `json:"title"`
-	BaseHint     string         `json:"baseHint"`
-	Auth         DocsAuth       `json:"auth"`
-	RateLimit    DocsRateLimit  `json:"rateLimit"`
+	Version      string           `json:"version"`
+	Title        string           `json:"title"`
+	BaseHint     string           `json:"baseHint"`
+	Auth         DocsAuth         `json:"auth"`
+	RateLimit    DocsRateLimit    `json:"rateLimit"`
 	Entitlements DocsEntitlements `json:"entitlements"`
-	OwnerSafe    string         `json:"ownerSafe"`
-	Routes       []DocsRoute    `json:"routes"`
-	KeyMgmt      []DocsRoute    `json:"keyManagement"`
+	OwnerSafe    string           `json:"ownerSafe"`
+	KeyPolicy    string           `json:"keyPolicy"`
+	Routes       []DocsRoute      `json:"routes"`
 }
 
 // DocsAuth describes Bearer API-key auth.
@@ -61,7 +62,7 @@ func BuildDocsCatalog() DocsCatalog {
 			Header:    "Authorization",
 			Scheme:    "Bearer",
 			KeyPrefix: SecretPrefix,
-			Notes:     "Create keys at /auth/profile after subscribing to api. Secret shown once. Platform admin must still create a key; admin bypasses product entitlements after auth.",
+			Notes:     "Create keys only in the signed-in UI (/auth/profile or /api-keys) after subscribing to api. Secret shown once. Never create/revoke keys from external API clients. Platform admin must still create a key; admin bypasses product entitlements after auth.",
 		},
 		RateLimit: DocsRateLimit{
 			RequestsPerMinute: DefaultRateLimit,
@@ -72,6 +73,7 @@ func BuildDocsCatalog() DocsCatalog {
 			Notes:      "Non-admin: active api entitlement plus the target product (e.g. ereport). Scope follows the key owner's subscriptions at request time. Writes only for reports owned by the key owner.",
 		},
 		OwnerSafe: "Lowercase email with @ replaced by _at_ (e.g. you@example.com → you_at_example.com)",
+		KeyPolicy: "API keys are created, listed, and revoked only in the Eduardo OS UI (Profile or API keys page). Key lifecycle is not part of the external API.",
 		Routes: []DocsRoute{
 			{
 				Method:  http.MethodGet,
@@ -119,29 +121,6 @@ func BuildDocsCatalog() DocsCatalog {
 				Path:         "/api/v1/ereport/library",
 				Auth:         "api_key",
 				Summary:      "Alias: orgs + legacyReports (prefer /orgs flow).",
-			},
-		},
-		KeyMgmt: []DocsRoute{
-			{
-				Method:       http.MethodGet,
-				Path:         "/api/apikeys",
-				Auth:         "jwt",
-				Summary:      "List key metadata for the signed-in user (no secrets).",
-				Requirements: "Browser JWT; api entitlement or admin.",
-			},
-			{
-				Method:       http.MethodPost,
-				Path:         "/api/apikeys",
-				Auth:         "jwt",
-				Summary:      "Create a key; response includes plaintext secret once.",
-				Body:         `{"label":"my-bot"}`,
-				Requirements: "Non-empty label.",
-			},
-			{
-				Method:       http.MethodDelete,
-				Path:         "/api/apikeys/{id}",
-				Auth:         "jwt",
-				Summary:      "Revoke a key immediately.",
 			},
 		},
 	}

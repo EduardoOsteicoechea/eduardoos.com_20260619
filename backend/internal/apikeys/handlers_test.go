@@ -169,6 +169,13 @@ func TestDocsPublic(t *testing.T) {
 	if cat.RateLimit.RequestsPerMinute != DefaultRateLimit {
 		t.Fatalf("rate=%d", cat.RateLimit.RequestsPerMinute)
 	}
+	if strings.TrimSpace(cat.KeyPolicy) == "" {
+		t.Fatal("expected keyPolicy (UI-only keys)")
+	}
+	raw := rec.Body.String()
+	if strings.Contains(raw, "keyManagement") || strings.Contains(raw, "/api/apikeys") {
+		t.Fatalf("key CRUD must not appear in public docs catalog: %s", raw)
+	}
 }
 
 func httpxWriteOK(w http.ResponseWriter, payload any) {
