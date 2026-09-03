@@ -27,15 +27,20 @@ When staging/committing/pushing work that includes changes under:
 - `frontend/**`
 - and/or `.github/workflows/deploy.yml` / `deploy/ec2/*frontend*` when those changes affect how the FE artifact is built or published
 
-the agent or developer **MUST**, before `git push`:
+the agent or developer **MUST**, before `git push`, compile successfully. **Local / agent** install policy (see also `specs/060-agent-dep-hygiene/spec.md`):
+
+1. If `frontend/node_modules` is missing → `cd frontend && npm install`
+2. Else if this turn changed `frontend/package.json` or `frontend/package-lock.json` → `cd frontend && npm install`
+3. Else → **reuse** existing `node_modules` (skip install)
+4. Then always:
 
 ```bash
-cd frontend && npm ci && npm run build
+cd frontend && npm run build
 ```
 
-(Use `npm ci` when `package-lock.json` is present; otherwise `npm install`.)
-
-- If the build **fails**, **do not push**. Fix and re-run until green.
+- **Do not** use local `npm ci` (that command deletes `node_modules`; it is **CI-only** on GHA below).
+- **Do not** delete `node_modules`, run `npm cache clean`, or otherwise “repair” the tree unless the human explicitly asks (spec 060).
+- If the build **fails**, **do not push**. Fix source and re-run until green — do not auto-clean.
 - If the push is **frontend-only** or mixed with FE changes, this gate applies even when tests were already run earlier in the turn.
 - Backend-only / nginx-only / docs-only pushes: skip this gate.
 
@@ -53,7 +58,7 @@ cd frontend && npm ci && npm run build
 
 ## Acceptance
 
-- [ ] Push with `frontend/**` changes runs local `npm run build` successfully before push (agent/human).
+- [x] Push with `frontend/**` changes runs local `npm run build` successfully before push (agent/human); local agents reuse `node_modules` / `npm install` only when needed (spec 060) — not `npm ci`.
 - [ ] Failed local build blocks push.
 - [ ] CI still builds on the runner and publishes the tarball; EC2 logs show publish, not `astro build`.
 - [ ] `frontend/dist` remains untracked.

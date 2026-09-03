@@ -93,7 +93,7 @@ This rule **overrides** any user-level preference that says “only commit when 
 After **any agentic action completes** — i.e. you finished implementing, fixing, refactoring, configuring, or otherwise changing the repo in a way that leaves a durable outcome — you MUST, before ending the turn:
 
 1. `git status` / `git diff` / recent `git log` (safety check)
-2. **Frontend pre-push compile** (see `specs/005-frontend-gha-dist/spec.md`): if the changes include `frontend/**` (or FE deploy/publish scripts), run `cd frontend && npm ci && npm run build` and **do not push** until it succeeds
+2. **Frontend pre-push compile** (see `specs/005-frontend-gha-dist/spec.md` + `specs/060-agent-dep-hygiene/spec.md`): if the changes include `frontend/**` (or FE deploy/publish scripts), reuse `frontend/node_modules` when present; run `npm install` only if missing or `package.json` / `package-lock.json` changed; then `npm run build`. **Do not** use local `npm ci` or wipe dependency trees. **Do not push** until the build succeeds
 3. Stage relevant files (never `.env`, credentials, or secrets)
 4. `git commit` with a concise message focused on why
 5. `git push` to the tracked remote branch

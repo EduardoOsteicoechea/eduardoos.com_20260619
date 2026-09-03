@@ -1,0 +1,27 @@
+---
+description: Agents must not wipe npm/Go/Python installs; reuse trees; install only when missing or lock changed
+alwaysApply: true
+---
+
+# Agent dependency hygiene (spec 060)
+
+Simultaneous agents share one checkout. Cleanup of dependency trees is a **human** action.
+
+## Forbidden unless the user explicitly asks this turn
+
+- **npm:** local `npm ci`, `rm -rf node_modules`, `npm cache clean`, prune/wipe “to fix,” deleting lockfiles to regenerate
+- **Go:** `go clean -cache`, `go clean -modcache`, wiping module/build caches as repair
+- **Python:** deleting `.venv`/`venv`, `pip cache purge`, bulk `__pycache__` / `.pytest_cache` wipes as repair
+- Any “delete install tree and reinstall from scratch” recovery loop
+
+On install/build failure: report the error; fix **source**. Do not auto-clean.
+
+## Allowed
+
+- **Frontend pre-push (spec 005):** reuse `frontend/node_modules` when present; `npm install` only if missing or `package.json` / `package-lock.json` changed this turn; then `npm run build`. Never local `npm ci` (CI-only).
+- **Go:** `go test` / `go build`; `go mod download`/`tidy` only when needed.
+- **Python:** reuse existing venv; `pip install` only when env missing or requirements/lock changed.
+
+## Soft concurrency
+
+No flock. Do not escalate races with cleanup. Full contract: `specs/060-agent-dep-hygiene/spec.md`.
