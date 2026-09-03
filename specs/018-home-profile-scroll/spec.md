@@ -17,7 +17,7 @@ Profile/RAG facts live in `PROFILE_CONTEXT.md` for agents but visitors only see 
    - FAQ: stacked / lateral cards per 050; flat section
    - Focus | Contact (1+1)
    First-person copy; AI-driven enthusiasm.
-5. **Sticky AI panel (desktop ≥960px only)** — `.home-hero__chat` is **`position: sticky`** (not `relative` / not scrolled away) with `top` under site chrome and z-index above the dossier; it stays visible while the dossier scrolls. Mobile/tablet: chat hidden below 960px. **Gutter:** dossier ↔ agent uses the same `--home-gap` as before (see `specs/047-home-agent-gap-cards-icons/spec.md`). Dock title: **Talk To Assistant**. Do **not** set `position: relative` on `.home-hero__chat` at a higher specificity that overrides sticky.
+5. **Sticky AI panel (desktop ≥960px only)** — `.home-hero__chat` is **`position: sticky`** (not `relative` / not scrolled away) with `top` under site chrome and z-index above the dossier; it stays visible while the dossier scrolls. Mobile/tablet: chat hidden below 960px. **Gutter:** dossier ↔ agent uses the same `--home-gap` as before (see `specs/047-home-agent-gap-cards-icons/spec.md`). Dock title: **Talk To Assistant**. Do **not** set `position: relative` on `.home-hero__chat` at a higher specificity that overrides sticky. **Bottom inset:** sticky agent clears the viewport bottom by **`--home-agent-inset` (1.25rem)**; `.home-profile` **`padding-bottom`** uses the **same token** so when scrolled to the end, the dossier bottom gap matches the agent↔screen-bottom gap.
 6. **Structured public profile** below the hero (first person on page; FAQ questions natural-language for AEO). LinkedIn included. Education + Experience + Skills (+ FAQ) sections are flat (no section bg/padding); item cards equal height with `--site-surface`; Material Symbol icons on sections and cards.
 7. **AEO/GEO** — Person+FAQPage+WebPage JSON-LD; `/llms.txt`.
 8. Visual language: plain CSS; light/dark via `--site-*` / 045 tokens.
@@ -33,3 +33,4 @@ Profile/RAG facts live in `PROFILE_CONTEXT.md` for agents but visitors only see 
 - [x] Hero lead is **two** paragraphs with a visible gap (≥`--m3`); tone is professional / relaxed / accessible.
 - [x] Dossier `.home-profile__grid` row-gap is `calc(var(--m4) * 4)`; column-gap is `0` (no lateral gap between paired sections).
 - [x] Education and Training is flat like Experience/Skills: no section bg/padding; each list item uses `--site-surface`.
+- [x] Dossier `.home-profile` padding-bottom equals sticky agent bottom inset (`--home-agent-inset`).

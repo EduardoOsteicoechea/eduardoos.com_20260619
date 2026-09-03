@@ -314,6 +314,8 @@ html.page-home .home-hero__chat {
   html.page-home {
     --home-gap: var(--m2, 1.125rem);
     --home-pad: var(--page-inline-pad, var(--p2));
+    /* Sticky agent top/bottom clear of viewport edge; dossier bottom matches (spec 018). */
+    --home-agent-inset: 1.25rem;
   }
 
   .home-hero__layout {
@@ -355,11 +357,20 @@ html.page-home .home-hero__chat {
     grid-column: 3;
     position: sticky;
     z-index: 100;
-    top: max(1.25rem, var(--header_offset, 0px));
+    top: max(var(--home-agent-inset), var(--header_offset, 0px));
     align-self: start;
     width: 100%;
-    height: calc(100dvh - 2.5rem - var(--header_offset, 0px));
-    max-height: calc(100dvh - 2.5rem - var(--header_offset, 0px));
+    height: calc(
+      100dvh - (2 * var(--home-agent-inset)) - var(--header_offset, 0px)
+    );
+    max-height: calc(
+      100dvh - (2 * var(--home-agent-inset)) - var(--header_offset, 0px)
+    );
+  }
+
+  /* Match agent↔screen-bottom gap when the dossier is scrolled to the end. */
+  html.page-home .home-profile {
+    padding-bottom: var(--home-agent-inset);
   }
 }
 
