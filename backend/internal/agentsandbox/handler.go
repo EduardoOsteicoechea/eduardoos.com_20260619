@@ -822,27 +822,18 @@ func (h *Handler) Ask(w http.ResponseWriter, r *http.Request) {
 	logf("info", "Phase 1: editing story.md (app memory) before codegen.", map[string]any{
 		"prevStoryChars": len(prevStory), "model": model,
 	})
-	storySystem := `You are the product story editor for an Agent Sandbox site.
-Update the durable app story (Markdown) to incorporate the admin request.
-Output ONLY:
-
-<<<STORY>>>
-…full revised story markdown…
-<<<END>>>
-
-Do not emit HTML/CSS/JS or <<<ARTIFACTS>>>. Keep the story concrete: goals, pages, data, UX, constraints.
-If CRAWL_RESULT is present, fold relevant facts into the story.`
+	storySystem := storyPhaseSystemPrompt()
 	storyUser := fmt.Sprintf("Current story.md:\n%s\n\nAdmin request:\n%s\nAllowed docs hosts: %s%s",
 		prevStory, req.Message, strings.Join(req.Allowlist, ", "), crawlBlock)
 
 	var storyRaw strings.Builder
-	err = deepSeekReasoningStream(r.Context(), model, thinking, effort, storySystem, storyUser, func(delta string) {
+	err = llmAskStream(r.Context(), model, thinking, effort, storySystem, storyUser, func(delta string) {
 		storyRaw.WriteString(delta)
 	}, nil, func(stage, msg string) {
 		logf("info", msg, map[string]any{"stage": stage, "phase": "story"})
 	})
 	if err != nil {
-		logf("error", "Story phase DeepSeek failed.", map[string]any{"error": err.Error()})
+		logf("error", "Story phase LLM failed.", map[string]any{"error": err.Error(), "model": model})
 		writeSSE("error", map[string]string{"error": "story phase: " + err.Error()})
 		return
 	}
@@ -866,19 +857,7 @@ If CRAWL_RESULT is present, fold relevant facts into the story.`
 	writeSSE("progress", map[string]any{"percent": 22, "phase": "story", "knownTotalBytes": false})
 
 	// ——— Phase 2: codegen from story ———
-	system := `You are an AI senior web developer.
-Write the admin-facing answer first as Markdown only. Never put JSON in the Markdown reply.
-After the Markdown, on its own lines, append exactly:
-
-<<<ARTIFACTS>>>
-{"files":[{"name":"index.html","text":"..."}],"tabs":[{"id":"home","label":"Home","file":"index.html"}]}
-<<<END>>>
-
-Implement ONLY what the provided story.md requires (plus CRAWL_RESULT facts if present). Do not invent requirements absent from the story.
-Do NOT emit or overwrite story.md in artifacts (story is already saved).
-Rules: flat file names only; allowed text: .html,.css,.js,.json,.txt,.svg,.md,.py; binary .pdf,.docx,.xlsx and images .png,.jpg,.jpeg,.webp,.gif must use base64 with "encoding":"base64".
-.py is downloadable only — never executed. Prefer inline static data (no fetch('data.json') in srcDoc preview).
-No shell, credentials, or server code. One minimal global CSS using rem.`
+	system := codegenPhaseSystemPrompt()
 
 	user := fmt.Sprintf("story.md (source of truth):\n%s\n\nAdmin request (context):\n%s\nAllowed docs hosts: %s%s",
 		storyText, req.Message, strings.Join(req.Allowlist, ", "), crawlBlock)
@@ -906,9 +885,9 @@ No shell, credentials, or server code. One minimal global CSS using rem.`
 		})
 	}
 	emitProgress("request")
-	logf("info", "Phase 2: codegen from story.md (DeepSeek stream).", map[string]any{"model": model})
+	logf("info", "Phase 2: codegen from story.md (LLM stream).", map[string]any{"model": model})
 
-	err = deepSeekReasoningStream(r.Context(), model, thinking, effort, system, user, func(delta string) {
+	err = llmAskStream(r.Context(), model, thinking, effort, system, user, func(delta string) {
 		full.WriteString(delta)
 		if artifactsStarted {
 			return
@@ -924,7 +903,7 @@ No shell, credentials, or server code. One minimal global CSS using rem.`
 				tokenCount++
 				if !firstTokenLogged {
 					firstTokenLogged = true
-					logf("info", "First Markdown token received from DeepSeek.", map[string]any{"chars": len(piece)})
+					logf("info", "First Markdown token received from LLM.", map[string]any{"chars": len(piece), "model": model})
 				}
 			}
 			logf("info", "Detected <<<ARTIFACTS>>> marker — Markdown stream ends; collecting file JSON.", map[string]any{
@@ -943,7 +922,7 @@ No shell, credentials, or server code. One minimal global CSS using rem.`
 		tokenCount++
 		if !firstTokenLogged {
 			firstTokenLogged = true
-			logf("info", "First Markdown token received from DeepSeek.", map[string]any{"chars": len(safe)})
+			logf("info", "First Markdown token received from LLM.", map[string]any{"chars": len(safe), "model": model})
 		}
 		emitProgress("content")
 	}, func(rc string) {
@@ -952,14 +931,14 @@ No shell, credentials, or server code. One minimal global CSS using rem.`
 	}, func(stage, msg string) {
 		logf("info", msg, map[string]any{"stage": stage, "phase": "code"})
 		switch stage {
-		case "deepseek.response":
+		case "deepseek.response", "kimi.response":
 			emitProgress("connected")
-		case "deepseek.reasoning", "deepseek.heartbeat":
+		case "deepseek.reasoning", "deepseek.heartbeat", "kimi.reasoning", "kimi.heartbeat":
 			emitProgress("reasoning")
 		}
 	})
 	if err != nil {
-		logf("error", "Codegen DeepSeek stream failed.", map[string]any{"error": err.Error(), "tokensEmitted": tokenCount})
+		logf("error", "Codegen LLM stream failed.", map[string]any{"error": err.Error(), "tokensEmitted": tokenCount, "model": model})
 		writeSSE("error", map[string]string{"error": err.Error()})
 		return
 	}
@@ -1060,20 +1039,6 @@ func splitArtifacts(raw string) (markdown, artifactsJSON string) {
 		artifactsJSON = strings.TrimSpace(artifactsJSON)
 	}
 	return markdown, artifactsJSON
-}
-
-func resolveAskModel(req askRequest) string {
-	m := strings.TrimSpace(strings.ToLower(req.Model))
-	switch m {
-	case "deepseek-v4-flash", "deepseek-v4-pro":
-		return m
-	case "flash":
-		return "deepseek-v4-flash"
-	case "pro", "medium", "reasoner", "reasoning":
-		return "deepseek-v4-pro"
-	default:
-		return httpx.Env("DEEPSEEK_MODEL_REASONING", "deepseek-v4-pro")
-	}
 }
 
 func resolveThinking(req askRequest) string {
