@@ -989,6 +989,11 @@ function activateInplace(el, onCommit) {
   el.appendChild(field);
   field.focus();
   field.select();
+  field.addEventListener("input", () => {
+    if (typeof window.__ereportScheduleCloudSave === "function") {
+      window.__ereportScheduleCloudSave();
+    }
+  });
   let done = false;
   const finish = () => {
     if (done) return;
@@ -1709,6 +1714,9 @@ function loadEreportFile(file) {
       bindMeta();
       render();
       toast("Reporte .ereport cargado");
+      if (typeof window.__ereportScheduleCloudSave === "function") {
+        window.__ereportScheduleCloudSave();
+      }
       /* Ask host to re-apply site theme (file may carry its own theme field). */
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({ source: "ereport-tracker", type: "loaded" }, "*");
@@ -1892,8 +1900,9 @@ updateStatus();
       } catch (e) {
         emit("error", { message: String(e && e.message ? e.message : e) });
       }
-    }, 700);
+    }, 500);
   }
+  window.__ereportScheduleCloudSave = scheduleCloudSave;
 
   var origUpdateStatus = updateStatus;
   updateStatus = function () {

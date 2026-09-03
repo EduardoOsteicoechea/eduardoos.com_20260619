@@ -28,7 +28,7 @@ import { bumpUiScale, resolveUiScale } from "../../lib/uiScale";
 import { ViewLoading } from "../ViewLoading/ViewLoading";
 import "./Ereport.css";
 
-const TRACKER_SRC = "/ereport-tracker.html?v=063a";
+const TRACKER_SRC = "/ereport-tracker.html?v=063b";
 
 function siteIsDark(): boolean {
   return (
@@ -206,7 +206,7 @@ export default function EreportEditor() {
         window.clearTimeout(autoSaveTimerRef.current);
         autoSaveTimerRef.current = window.setTimeout(() => {
           void runCloudPersist(d.payload as EreportPayload);
-        }, 250);
+        }, 100);
       }
       if (d.type === "error") {
         setError(String(d.message || "Tracker error"));
