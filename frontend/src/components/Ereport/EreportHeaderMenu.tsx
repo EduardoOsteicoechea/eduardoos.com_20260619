@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { APP_ROUTES } from "../../config/routes";
 import type { EreportHistoryCard, EreportMeta } from "../../lib/ereport";
 import { useHeaderDynamicHost } from "../HeaderDynamicMenu/HeaderDynamicMenu";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 import "./Ereport.css";
 
@@ -415,7 +416,7 @@ export default function EreportHeaderMenu(props: EreportHeaderMenuProps) {
                 Instantáneas guardadas antes de un reemplazo vía API (o restore). Máximo 50.
               </p>
               {props.historyLoading ? (
-                <p className="ereport-hub__empty">Cargando historial…</p>
+                <ViewLoading compact label="Cargando historial" />
               ) : props.historyItems.length === 0 ? (
                 <p className="ereport-hub__empty">Sin instantáneas todavía.</p>
               ) : (

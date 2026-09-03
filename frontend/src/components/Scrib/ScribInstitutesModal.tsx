@@ -16,6 +16,7 @@ import {
   type ParagraphIndexChapter,
   type ParagraphUnit,
 } from "../../lib/calvinsInstitutesParagraphs";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 
 const NAV_STORAGE_KEY = "eduardoos-scrib-institutes-nav";
 
@@ -204,7 +205,7 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
           {error ? <p className="scrib-institutes-modal__error">{error}</p> : null}
 
           {loadingIndex ? (
-            <p className="scrib-institutes-modal__status">Loading Capita…</p>
+            <ViewLoading compact label="Loading Capita" />
           ) : (
             <>
               <div className="scrib-institutes-modal__libers" role="tablist" aria-label="Libri">
@@ -271,7 +272,7 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
               {selected ? (
                 <section className="scrib-institutes-modal__step" aria-label="Paragraph">
                   {loadingChapter ? (
-                    <p className="scrib-institutes-modal__status">Loading paragraphs…</p>
+                    <ViewLoading compact label="Loading paragraphs" />
                   ) : (
                     <>
                       <div

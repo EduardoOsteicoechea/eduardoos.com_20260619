@@ -17,6 +17,7 @@ import { ensureEmusicForTrack, saveEmusicToCloud } from "../../lib/emusicCloud";
 import { getAuthEmailFromToken, isApsAdminEmail } from "../../lib/auth";
 import { isLocalTrackKey, trackDisplayName } from "../../lib/mediaLibrary";
 import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import LyricsStructureEditor from "./LyricsStructureEditor";
 import "./PlaylistLyrics.css";
 
@@ -255,7 +256,7 @@ export default function PlaylistLyrics({ trackKey, currentTime }: PlaylistLyrics
                 {!trackKey ? (
                     <p className="playlist-lyrics__empty">Selecciona o reproduce una canción.</p>
                 ) : status === "loading" ? (
-                    <p className="playlist-lyrics__empty">Cargando…</p>
+                    <ViewLoading compact label="Cargando" />
                 ) : status === "missing" ? (
                     <p className="playlist-lyrics__empty">
                         {trackKey && isLocalTrackKey(trackKey) ? (

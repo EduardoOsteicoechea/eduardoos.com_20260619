@@ -11,6 +11,7 @@ import {
   type ApiKeyRecord,
 } from "../../lib/apikeys";
 import { checkServiceAccess } from "../../lib/payments";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import "./ProfileApiKeys.css";
 
 export default function ProfileApiKeys() {
@@ -100,7 +101,7 @@ export default function ProfileApiKeys() {
   }
 
   if (loading) {
-    return <p className="profile-api-keys__status">Checking API access…</p>;
+    return <ViewLoading label="Checking API access" />;
   }
 
   if (!allowed) {

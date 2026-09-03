@@ -1,5 +1,6 @@
 import "./style.css";
 import "../../../components/HeaderDynamicMenu/HeaderDynamicMenu.css";
+import "../../../components/ViewLoading/ViewLoading.css";
 import { renderShell } from "./shell";
 
 /** Must match HeaderDynamicMenu host id (Header always renders this empty slot). */
@@ -1594,14 +1595,40 @@ function syncOpenCloudDeleteConfirm(): void {
     openCloudDeleteConfirm.hidden = checked === 0;
 }
 
+function setHintText(el: HTMLElement, text: string): void {
+    el.hidden = false;
+    el.className = "create-modal-hint";
+    el.removeAttribute("role");
+    el.removeAttribute("aria-live");
+    el.removeAttribute("aria-busy");
+    el.textContent = text;
+}
+
+/** Spec 065 — Material Symbols spinner in pamphlet modal hints. */
+function setHintLoading(el: HTMLElement, label: string): void {
+    el.hidden = false;
+    el.className = "create-modal-hint view-loading view-loading--compact";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.setAttribute("aria-busy", "true");
+    el.innerHTML =
+        `<span class="material-symbols-outlined view-loading__icon" aria-hidden="true">progress_activity</span>` +
+        `<span class="view-loading__label"></span>`;
+    const labelEl = el.querySelector(".view-loading__label");
+    if (labelEl) labelEl.textContent = label;
+}
+
 function setOpenCloudSelectMode(on: boolean): void {
     if (openCloudIntent === "copy") return;
     openCloudSelectMode = on;
     openCloudDeleteToggle.classList.toggle("is-active", on);
     openCloudDeleteToggle.setAttribute("aria-pressed", on ? "true" : "false");
-    openCloudHint.textContent = on
-        ? "Marca los panfletos a borrar, luego confirma abajo."
-        : "Selecciona un .epam asociado a tu cuenta.";
+    setHintText(
+        openCloudHint,
+        on
+            ? "Marca los panfletos a borrar, luego confirma abajo."
+            : "Selecciona un .epam asociado a tu cuenta.",
+    );
     openCloudList.querySelectorAll<HTMLElement>(".open-cloud-list__row").forEach((row) => {
         const check = row.querySelector<HTMLInputElement>("input.open-cloud-list__check");
         const card = row.querySelector<HTMLButtonElement>(".open-cloud-list__card");
@@ -1717,18 +1744,21 @@ function appendCloudPamphletRow(parent: HTMLElement, item: EpamSeriesTreeItem): 
 function renderOpenCloudTree(tree: EpamSeriesTreeResponse): void {
     openCloudList.replaceChildren();
     if (tree.count === 0) {
-        openCloudHint.textContent = "No hay panfletos en la nube para esta cuenta.";
+        setHintText(openCloudHint, "No hay panfletos en la nube para esta cuenta.");
         const empty = document.createElement("p");
         empty.className = "open-cloud-list__empty";
         empty.textContent = "Save a pamphlet with “Save to cloud”.";
         openCloudList.appendChild(empty);
         return;
     }
-    openCloudHint.textContent = openCloudSelectMode
-        ? "Marca los panfletos a borrar, luego confirma abajo."
-        : openCloudIntent === "copy"
-          ? "Elige el panfleto a copiar. Se crea uno nuevo con otro nombre e id; el original no se borra."
-          : "Selecciona un .epam asociado a tu cuenta. Copy never deletes the original.";
+    setHintText(
+        openCloudHint,
+        openCloudSelectMode
+            ? "Marca los panfletos a borrar, luego confirma abajo."
+            : openCloudIntent === "copy"
+              ? "Elige el panfleto a copiar. Se crea uno nuevo con otro nombre e id; el original no se borra."
+              : "Selecciona un .epam asociado a tu cuenta. Copy never deletes the original.",
+    );
     for (const seriesNode of tree.series) {
         const seriesEl = document.createElement("details");
         seriesEl.className = "open-cloud-list__series";
@@ -1758,7 +1788,7 @@ function renderOpenCloudTree(tree: EpamSeriesTreeResponse): void {
 }
 
 async function reloadOpenCloudList(): Promise<void> {
-    openCloudHint.textContent = "Cargando…";
+    setHintLoading(openCloudHint, "Cargando");
     const tree = await fetchEpamSeriesTree();
     renderOpenCloudTree(tree);
 }
@@ -1879,16 +1909,16 @@ function closeSeriesModal(): void {
 async function refreshSeriesTree(activeEpamId: string | null): Promise<void> {
     seriesTreeEl.replaceChildren();
     seriesTreeHint.hidden = false;
-    seriesTreeHint.textContent = "Loading tree…";
+    setHintLoading(seriesTreeHint, "Loading tree");
     if (!getAuthToken() || !isAuthenticated()) {
-        seriesTreeHint.textContent = "Sign in to browse your series tree from the cloud.";
+        setHintText(seriesTreeHint, "Sign in to browse your series tree from the cloud.");
         return;
     }
     try {
         const tree = await fetchEpamSeriesTree();
         seriesTreeEl.replaceChildren();
         if (tree.count === 0) {
-            seriesTreeHint.textContent = "No cloud pamphlets yet — save one to grow the tree.";
+            setHintText(seriesTreeHint, "No cloud pamphlets yet — save one to grow the tree.");
             return;
         }
         seriesTreeHint.hidden = true;
@@ -1947,7 +1977,7 @@ async function refreshSeriesTree(activeEpamId: string | null): Promise<void> {
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         seriesTreeHint.hidden = false;
-        seriesTreeHint.textContent = `Could not load series tree: ${message}`;
+        setHintText(seriesTreeHint, `Could not load series tree: ${message}`);
         openApiErrorModal(message, {
             title: "Series tree error",
             summary: "Could not load series → chapters → pamphlet from the server.",

@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import ServiceGate from "../ServiceGate/ServiceGate";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import ScribHeaderMenu, { type ScribToolMode } from "./ScribHeaderMenu";
 import ScribInstitutesModal from "./ScribInstitutesModal";
 import {
@@ -538,7 +539,7 @@ export default function ScribEditor() {
         onUndo={() => void onUndo()}
       />
 
-      {loading ? <p className="scrib-dashboard__empty">Cargando hoja…</p> : null}
+      {loading ? <ViewLoading label="Cargando hoja" /> : null}
       {error ? <p className="scrib-dashboard__error">{error}</p> : null}
 
       {sheet ? (

@@ -200,7 +200,7 @@ export function renderShell(_menuIconSrc?: string): string {
       <input id="series-modal-chapter" name="series_chapter" type="text" required autocomplete="off" />
     </label>
     <div id="series-tree" class="series-tree" role="tree" aria-label="Series tree"></div>
-    <p class="create-modal-hint" id="series-tree-hint">Loading tree…</p>
+    <p class="create-modal-hint" id="series-tree-hint"></p>
     <div class="create-modal-actions">
       <button type="button" id="series-modal-cancel">Cancel</button>
       <button type="submit" id="series-modal-save">Save series</button>

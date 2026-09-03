@@ -350,7 +350,7 @@ export default function AdminUsersPage() {
   }
 
   if (gate === "checking") {
-    return <p className="admin-users__status">Checking accessâ€¦</p>;
+    return <ViewLoading label="Checking access" />;
   }
 
   if (gate === "denied") {

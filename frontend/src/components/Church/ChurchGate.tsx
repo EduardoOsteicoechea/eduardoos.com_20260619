@@ -11,6 +11,7 @@ import {
   requestChurchAuthorization,
   type ChurchAuthorization,
 } from "../../lib/church";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import "./Church.css";
 
 type Gate = "checking" | "allowed" | "signin";
@@ -117,7 +118,7 @@ export function ChurchGateShell({
   if (gate === "checking") {
     return (
       <div className="church-gate">
-        <p className="church-gate__text">Checking access…</p>
+        <ViewLoading label="Checking access" />
       </div>
     );
   }
@@ -151,7 +152,7 @@ export function ChurchRegisterGateShell({
   if (gate === "checking") {
     return (
       <div className="church-gate">
-        <p className="church-gate__text">Checking authorization…</p>
+        <ViewLoading label="Checking authorization" />
       </div>
     );
   }

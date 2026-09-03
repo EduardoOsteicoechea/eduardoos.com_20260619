@@ -34,6 +34,7 @@ import {
   validateOptionalEmail,
   validateOptionalPhone,
 } from "../../lib/validation";
+import { ViewLoading } from "../ViewLoading/ViewLoading";
 import "./Church.css";
 
 type Gate = "checking" | "allowed" | "denied" | "signin";
@@ -308,7 +309,7 @@ export default function ChurchLeadersPage() {
   if (gate === "checking") {
     return (
       <div className="church-gate">
-        <p className="church-gate__text">Checking access…</p>
+        <ViewLoading label="Checking access" />
       </div>
     );
   }

@@ -17,6 +17,16 @@
   text-align: center;
 }
 
+.view-loading--compact {
+  min-height: 6rem;
+  padding: var(--p2, 1.125rem);
+  gap: var(--m1, 0.75rem);
+}
+
+.view-loading--compact .view-loading__icon {
+  font-size: 1.75rem;
+}
+
 .view-loading__icon {
   display: block;
   font-size: 2.25rem;
