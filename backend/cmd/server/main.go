@@ -8,6 +8,7 @@ import (
 
 	"eduardoos.nex/internal/admin"
 	"eduardoos.nex/internal/agentsandbox"
+	"eduardoos.nex/internal/apikeys"
 	"eduardoos.nex/internal/auth"
 	"eduardoos.nex/internal/bim"
 	"eduardoos.nex/internal/church"
@@ -89,6 +90,7 @@ func main() {
 	ereportHandler.Objects = ereport.OpenObjectSpace(ctx)
 	ereportHandler.Entitlements = paymentsHandler.Store
 	ereportHandler.Mail = authHandler // shared SMTP_USER / SMTP_PASS for magic-link invites
+	apikeysHandler := apikeys.NewHandler(jwtSecret, userStore, apikeys.OpenStore(ctx), paymentsHandler.Store)
 	evoiceHandler := evoice.NewHandler(jwtSecret, userStore)
 	evoiceHandler.Objects = evoice.OpenObjectSpace(ctx)
 	evoiceHandler.Entitlements = paymentsHandler.Store
@@ -127,6 +129,14 @@ func main() {
 	}
 	scribHandler.Routes(r)
 	ereportHandler.Routes(r)
+	apikeysHandler.Routes(r)
+	// External product APIs (Bearer API key, not JWT) — spec 055.
+	apikeysHandler.MountV1(r, func(vr chi.Router) {
+		vr.Group(func(er chi.Router) {
+			er.Use(apikeysHandler.RequireProductAccess("ereport"))
+			ereportHandler.RoutesV1(er)
+		})
+	})
 	evoiceHandler.Routes(r)
 	adminHandler.Routes(r)
 	agentSandboxHandler.Routes(r)
@@ -137,8 +147,8 @@ func main() {
 	latinHandler.Routes(r)
 
 	log.Printf("eduardoos-next backend listening on %s (prod tree uses :3000)", addr)
-	log.Printf("stores: auth=%s homescool=%s homescool-tasks=%s church=%s church-groups=%s church-leaders=%s church-objects=%s scrib=%s ereport=%s evoice=%s epams=%s",
-		userStore.BackendName(), homescoolHandler.Links.BackendName(), homescoolHandler.Tasks.BackendName(),
+	log.Printf("stores: auth=%s apikeys=%s homescool=%s homescool-tasks=%s church=%s church-groups=%s church-leaders=%s church-objects=%s scrib=%s ereport=%s evoice=%s epams=%s",
+		userStore.BackendName(), apikeysHandler.Keys.BackendName(), homescoolHandler.Links.BackendName(), homescoolHandler.Tasks.BackendName(),
 		churchHandler.Catalog.BackendName(),
 		churchHandler.Groups.BackendName(), churchHandler.Leaders.BackendName(), churchHandler.Objects.BackendName(),
 		scribHandler.Objects.BackendName(),

@@ -70,6 +70,13 @@ const SUBSCRIPTION_SERVICES_ALL: SubscriptionService[] = [
     monthlyUsd: 1,
     icon: "record_voice_over",
   },
+  {
+    id: "api",
+    label: "API",
+    description: "Create API keys and call product APIs from external apps.",
+    monthlyUsd: 3,
+    icon: "key",
+  },
 ];
 
 /** Temporary eVoice access until those users subscribe (spec 044). */

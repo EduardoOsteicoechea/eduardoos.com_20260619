@@ -1,17 +1,29 @@
 /**
  * eReport editor tools — portal into #header-dynamic-menu-host.
- * Hub / Tema / Guardar / Compartir open modals so the tracker topbar stays flush.
+ * Tracker topbar actions + Hub / Tema / Guardar / Compartir / Historial live here
+ * so the iframe has no own chrome bar (spec 025 §4 amend 2026-09-03).
  */
 
 import { useLayoutEffect, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { APP_ROUTES } from "../../config/routes";
-import type { EreportMeta } from "../../lib/ereport";
+import type { EreportHistoryCard, EreportMeta } from "../../lib/ereport";
 import { HEADER_DYNAMIC_MENU_HOST_ID } from "../HeaderDynamicMenu/HeaderDynamicMenu";
 import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 import "./Ereport.css";
 
-export type EreportModalKind = "hub" | "tema" | "save" | "share" | null;
+export type EreportModalKind = "hub" | "tema" | "save" | "share" | "historial" | null;
+
+/** Commands forwarded to the Issue Tracker iframe via postMessage. */
+export type EreportTrackerCommand =
+  | "tutorial"
+  | "toggle-sidebar"
+  | "font-up"
+  | "font-down"
+  | "upload"
+  | "clear-all"
+  | "progress"
+  | "save-export";
 
 type EreportHeaderMenuProps = {
   ownerSafe: string;
@@ -21,6 +33,13 @@ type EreportHeaderMenuProps = {
   onSaveCloud: () => void | Promise<void>;
   saving: boolean;
   canShare: boolean;
+  /** Owner-only API overwrite history (flat reports). */
+  canHistory: boolean;
+  historyItems: EreportHistoryCard[];
+  historyLoading: boolean;
+  onLoadHistory: () => void | Promise<void>;
+  onRestoreHistory: (snapshotId: string) => void | Promise<void>;
+  historyBusy: boolean;
   meta: EreportMeta | null;
   shareInput: string;
   onShareInputChange: (v: string) => void;
@@ -31,7 +50,18 @@ type EreportHeaderMenuProps = {
   modal: EreportModalKind;
   onOpenModal: (m: EreportModalKind) => void;
   onCloseModal: () => void;
+  /** Tracker tools formerly in the iframe topbar. */
+  onTrackerCommand: (command: EreportTrackerCommand) => void;
+  sidebarCollapsed: boolean;
 };
+
+function MsIcon({ name }: { name: string }) {
+  return (
+    <span className="material-symbols-outlined header-dynamic-menu__icon" aria-hidden>
+      {name}
+    </span>
+  );
+}
 
 function IconHub() {
   return (
@@ -74,6 +104,17 @@ function IconShare() {
   );
 }
 
+function IconHistory() {
+  return (
+    <svg className="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 117 7 6.9 6.9 0 01-4.05-1.3l-1.43 1.45A9 9 0 1013 3zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"
+      />
+    </svg>
+  );
+}
+
 export default function EreportHeaderMenu(props: EreportHeaderMenuProps) {
   const [host, setHost] = useState<HTMLElement | null>(null);
 
@@ -104,6 +145,80 @@ export default function EreportHeaderMenu(props: EreportHeaderMenuProps) {
     >
       <div className="header-dynamic-menu__inner">
         <div className="header-dynamic-menu__actions" role="toolbar" aria-label="eReport actions">
+          <button
+            type="button"
+            className="header-dynamic-menu__btn"
+            title="Cómo usarla"
+            aria-label="Tutorial"
+            onClick={() => props.onTrackerCommand("tutorial")}
+          >
+            <MsIcon name="help" />
+          </button>
+          <button
+            type="button"
+            className={`header-dynamic-menu__btn${props.sidebarCollapsed ? " header-dynamic-menu__btn--active is-active" : ""}`}
+            title="Mostrar/ocultar sidebar"
+            aria-label="Sidebar"
+            aria-pressed={props.sidebarCollapsed}
+            onClick={() => props.onTrackerCommand("toggle-sidebar")}
+          >
+            <MsIcon name="view_sidebar" />
+          </button>
+          <button
+            type="button"
+            className="header-dynamic-menu__btn"
+            title="Agrandar fuente"
+            aria-label="Agrandar fuente"
+            onClick={() => props.onTrackerCommand("font-up")}
+          >
+            <MsIcon name="text_increase" />
+          </button>
+          <button
+            type="button"
+            className="header-dynamic-menu__btn"
+            title="Reducir fuente"
+            aria-label="Reducir fuente"
+            onClick={() => props.onTrackerCommand("font-down")}
+          >
+            <MsIcon name="text_decrease" />
+          </button>
+          <button
+            type="button"
+            className="header-dynamic-menu__btn"
+            title="Cargar .ereport"
+            aria-label="Cargar reporte"
+            onClick={() => props.onTrackerCommand("upload")}
+          >
+            <MsIcon name="upload_file" />
+          </button>
+          <button
+            type="button"
+            className="header-dynamic-menu__btn"
+            title="Limpiar todo"
+            aria-label="Limpiar todo"
+            onClick={() => props.onTrackerCommand("clear-all")}
+          >
+            <MsIcon name="delete_sweep" />
+          </button>
+          <button
+            type="button"
+            className="header-dynamic-menu__btn"
+            title="Progreso / qué falta"
+            aria-label="Progreso"
+            onClick={() => props.onTrackerCommand("progress")}
+          >
+            <MsIcon name="checklist" />
+          </button>
+          <button
+            type="button"
+            className="header-dynamic-menu__btn ereport-hds-save"
+            title="Guardar y descargar todo (.ereport + HTML + PDF)"
+            aria-label="Guardar todo"
+            onClick={() => props.onTrackerCommand("save-export")}
+          >
+            <MsIcon name="save" />
+          </button>
+
           <button
             type="button"
             className={`header-dynamic-menu__btn${props.modal === "hub" ? " header-dynamic-menu__btn--active is-active" : ""}`}
@@ -149,6 +264,23 @@ export default function EreportHeaderMenu(props: EreportHeaderMenuProps) {
               onClick={() => props.onOpenModal(props.modal === "share" ? null : "share")}
             >
               <IconShare />
+            </button>
+          ) : null}
+          {props.canHistory ? (
+            <button
+              type="button"
+              className={`header-dynamic-menu__btn${props.modal === "historial" ? " header-dynamic-menu__btn--active is-active" : ""}`}
+              title="Historial"
+              aria-label="Historial de versiones API"
+              aria-haspopup="dialog"
+              aria-expanded={props.modal === "historial"}
+              onClick={() => {
+                const next = props.modal === "historial" ? null : "historial";
+                props.onOpenModal(next);
+                if (next === "historial") void props.onLoadHistory();
+              }}
+            >
+              <IconHistory />
             </button>
           ) : null}
         </div>
@@ -283,6 +415,52 @@ export default function EreportHeaderMenu(props: EreportHeaderMenuProps) {
               <div className="ereport-modal__actions">
                 <button type="button" className="btn btn--primary" onClick={props.onCloseModal}>
                   Listo
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          {props.modal === "historial" ? (
+            <>
+              <h2 id="ereport-modal-title">Historial API</h2>
+              <p className="ereport-modal__lead">
+                Instantáneas guardadas antes de un reemplazo vía API (o restore). Máximo 50.
+              </p>
+              {props.historyLoading ? (
+                <p className="ereport-hub__empty">Cargando historial…</p>
+              ) : props.historyItems.length === 0 ? (
+                <p className="ereport-hub__empty">Sin instantáneas todavía.</p>
+              ) : (
+                <ul className="ereport-share__list">
+                  {props.historyItems.map((item) => (
+                    <li key={item.id}>
+                      <div>
+                        <strong>{item.tema || "Sin tema"}</strong>
+                        <span>
+                          {" "}
+                          · {item.source}
+                          {item.keyPrefix ? ` · ${item.keyPrefix}` : ""} · {item.createdAt}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={props.historyBusy}
+                        onClick={() => void props.onRestoreHistory(item.id)}
+                      >
+                        Restaurar
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {props.error ? <p className="ereport-hub__error">{props.error}</p> : null}
+              <div className="ereport-modal__actions">
+                <button type="button" className="btn" onClick={() => void props.onLoadHistory()}>
+                  Actualizar
+                </button>
+                <button type="button" className="btn btn--primary" onClick={props.onCloseModal}>
+                  Cerrar
                 </button>
               </div>
             </>

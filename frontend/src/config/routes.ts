@@ -205,6 +205,12 @@ export const EREPORT_ROUTES = {
     `/api/ereport/reports/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(reportId)}`,
   shares: (ownerSafe: string, reportId: string) =>
     `/api/ereport/reports/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(reportId)}/shares`,
+  history: (ownerSafe: string, reportId: string) =>
+    `/api/ereport/reports/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(reportId)}/history`,
+  historySnapshot: (ownerSafe: string, reportId: string, snapshotId: string) =>
+    `/api/ereport/reports/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(reportId)}/history/${encodeURIComponent(snapshotId)}`,
+  historyRestore: (ownerSafe: string, reportId: string, snapshotId: string) =>
+    `/api/ereport/reports/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(reportId)}/history/${encodeURIComponent(snapshotId)}/restore`,
   /** Org dashboard (046) — list + recent reports. */
   orgs: "/api/ereport/orgs",
   org: (orgId: string) => `/api/ereport/orgs/${encodeURIComponent(orgId)}`,
@@ -285,6 +291,13 @@ export const PAYMENT_ROUTES = {
   entitlementsPreview: "/api/subscriptions/entitlements/preview",
   access: "/api/subscriptions/access",
   catalog: "/api/subscriptions/catalog",
+} as const;
+
+/** API keys (JWT; requires api entitlement or admin) — spec 055. */
+export const APIKEYS_ROUTES = {
+  list: "/api/apikeys",
+  create: "/api/apikeys",
+  revoke: (id: string) => `/api/apikeys/${encodeURIComponent(id)}`,
 } as const;
 
 export const ADMIN_ROUTES = {

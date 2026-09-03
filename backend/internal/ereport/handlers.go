@@ -64,6 +64,11 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Delete("/api/ereport/reports/{ownerSafe}/{reportId}", h.DeleteReport)
 		pr.Put("/api/ereport/reports/{ownerSafe}/{reportId}/shares", h.PutShares)
 
+		// API overwrite history (spec 055) — owner/admin JWT.
+		pr.Get("/api/ereport/reports/{ownerSafe}/{reportId}/history", h.ListHistory)
+		pr.Get("/api/ereport/reports/{ownerSafe}/{reportId}/history/{snapshotId}", h.GetHistorySnapshot)
+		pr.Post("/api/ereport/reports/{ownerSafe}/{reportId}/history/{snapshotId}/restore", h.RestoreHistorySnapshot)
+
 		// Org dashboard + manage (JWT owner).
 		pr.Get("/api/ereport/orgs", h.GetOrgs)
 		pr.Put("/api/ereport/orgs", h.PutOrgs)

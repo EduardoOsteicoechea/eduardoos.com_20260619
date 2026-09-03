@@ -2,7 +2,7 @@
 
 ## Status
 
-**Spec draft — awaiting confirmation of remaining defaults** (see § Decisions still open). Do not implement until those are locked.
+**Ready to implement** (2026-09-03) — all decisions locked (user confirmed).
 
 ## Problem
 
@@ -102,7 +102,7 @@ Content-Type: application/json
 - Update meta (`updatedAt`, optional `tema`, reportNumber/date from payload when present) and touch library card like JWT `PUT`.
 - Response: `{ meta, payload, snapshotId? }` on success.
 
-**Optional read (proposed default — confirm):**
+**Read (locked):**
 
 ```
 GET /api/v1/ereport/reports/{ownerSafe}/{reportId}
@@ -123,7 +123,7 @@ ereport/{ownerSafe}/reports/{reportId}/history-index.json
 ```
 
 - Snapshot object: `{ id, createdAt, source: "api", keyPrefix?, tema, payload }` (payload = **previous** version).
-- Retention default: keep **last 50** snapshots per report; prune oldest on insert.
+- Retention: keep **last 50** snapshots per report; prune oldest on insert.
 - JWT editor (and owner) can **list** and **restore** via authenticated (JWT) routes:
 
 | Method | Path | Notes |
@@ -157,14 +157,14 @@ ereport/{ownerSafe}/reports/{reportId}/history-index.json
 
 ## Acceptance
 
-- [ ] Catalog `api` at $3/mo; subscribe + admin grant work.
-- [ ] Profile: create (label, secret once), list, revoke; secrets hashed at rest.
-- [ ] `Authorization: Bearer` on `/api/v1/*`; JWT key CRUD on `/api/apikeys`.
-- [ ] Non-admin needs `api` + `ereport` for eReport v1 POST; admin needs key only.
-- [ ] POST full replace requires `confirmOverwrite: true`; rejects otherwise.
-- [ ] Each API replace snapshots previous payload; history modal list + restore for owner.
-- [ ] Rate limit 60/min/key → 429.
-- [ ] Owned reports only; tests (Go) + FE build; commit + push.
+- [x] Catalog `api` at $3/mo; subscribe + admin grant work.
+- [x] Profile: create (label, secret once), list, revoke; secrets hashed at rest.
+- [x] `Authorization: Bearer` on `/api/v1/*`; JWT key CRUD on `/api/apikeys`.
+- [x] Non-admin needs `api` + `ereport` for eReport v1 POST; admin needs key only.
+- [x] POST full replace requires `confirmOverwrite: true`; rejects otherwise.
+- [x] Each API replace snapshots previous payload; history modal list + restore for owner.
+- [x] Rate limit 60/min/key → 429.
+- [x] Owned reports only; tests (Go) + FE build; commit + push.
 
 ## Affected paths (expected)
 
@@ -178,13 +178,11 @@ ereport/{ownerSafe}/reports/{reportId}/history-index.json
 - `frontend/src/components/Ereport/**` (Historial modal + header menu)
 - `frontend/src/config/routes.ts`, subscription UI labels
 
-## Decisions still open (confirm before code)
+## Locked decisions (2026-09-03)
 
-Reply yes/adjust:
-
-1. **GET** `/api/v1/ereport/reports/{ownerSafe}/{reportId}` in v1? **Proposed: yes.**
-2. **History retention:** last **50** snapshots per report? **Proposed: 50.**
-3. **Admin API write:** only admin’s **own** reports (no cross-user)? **Proposed: own only** (as written above).
-4. **Org reports:** out of v1 API? **Proposed: yes, out.**
-5. **Overwrite flag name:** `confirmOverwrite: true`? **Proposed: keep.**
-6. **Rate limit:** **60 / minute / key**? **Proposed: keep.**
+1. GET `/api/v1/ereport/reports/{ownerSafe}/{reportId}` — **yes**.
+2. History retention — **50** snapshots per report.
+3. Admin API write — **own reports only** (no cross-user).
+4. Org reports — **out of v1**.
+5. Overwrite flag — **`confirmOverwrite: true`**.
+6. Rate limit — **60 / minute / key**.

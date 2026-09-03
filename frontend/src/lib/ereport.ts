@@ -250,6 +250,63 @@ export async function putEreportShares(
   return { meta: result.data?.meta ?? null };
 }
 
+export type EreportHistoryCard = {
+  id: string;
+  createdAt: string;
+  source: string;
+  keyPrefix?: string;
+  tema: string;
+};
+
+export type EreportSnapshot = EreportHistoryCard & {
+  payload: EreportPayload;
+};
+
+export async function listEreportHistory(
+  ownerSafe: string,
+  reportId: string,
+): Promise<{ items: EreportHistoryCard[]; error?: string }> {
+  const result = await apiRequest<{ items: EreportHistoryCard[] }>(
+    EREPORT_ROUTES.history(ownerSafe, reportId),
+    {
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { items: [], error: formatApiError(result.error) };
+  }
+  return { items: result.data?.items ?? [] };
+}
+
+export async function restoreEreportHistory(
+  ownerSafe: string,
+  reportId: string,
+  snapshotId: string,
+): Promise<{
+  meta: EreportMeta | null;
+  payload: EreportPayload | null;
+  error?: string;
+}> {
+  const result = await apiRequest<{ meta: EreportMeta; payload: EreportPayload }>(
+    EREPORT_ROUTES.historyRestore(ownerSafe, reportId, snapshotId),
+    {
+      method: "POST",
+      correlationId: createCorrelationId(),
+      authToken: requireToken(),
+    },
+  );
+  if (result.error) {
+    return { meta: null, payload: null, error: formatApiError(result.error) };
+  }
+  return {
+    meta: result.data?.meta ?? null,
+    payload: result.data?.payload ?? null,
+  };
+}
+
+/** Org dashboard helpers below — keep existing exports. */
+
 // --- Org + magic-link invite clients (046). Legacy helpers above stay for now. ---
 
 export async function fetchEreportOrgs(): Promise<{

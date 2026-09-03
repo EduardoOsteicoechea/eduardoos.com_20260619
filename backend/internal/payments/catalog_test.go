@@ -59,6 +59,24 @@ func TestChurchManagementInCatalog(t *testing.T) {
 	}
 }
 
+func TestAPICatalog(t *testing.T) {
+	if !KnownService("api") {
+		t.Fatal("api must be a known service")
+	}
+	if got := MonthlyPriceUSD("api"); got != 3 {
+		t.Fatalf("api monthly=%v want 3", got)
+	}
+	if !HasServiceAccess(true, nil, "api") {
+		t.Fatal("admin should access api")
+	}
+	if HasServiceAccess(false, nil, "api") {
+		t.Fatal("non-admin without entitlement must be denied api")
+	}
+	if got := QuoteTotalUSD([]string{"api", "ereport"}, "monthly"); got != 4 {
+		t.Fatalf("api+ereport monthly=%v want 4", got)
+	}
+}
+
 func TestEvoiceCatalogAndAllowlist(t *testing.T) {
 	if !KnownService("evoice") {
 		t.Fatal("evoice must be a known service")

@@ -8,19 +8,25 @@ import {
   fetchEreport,
   fetchEreportOrg,
   fetchOrgEreport,
+  listEreportHistory,
   putEreportShares,
   resolveEreportEditorFromLocation,
+  restoreEreportHistory,
   saveEreport,
   saveOrgEreport,
   updateEreportOrgs,
   ereportPrettyPath,
+  type EreportHistoryCard,
   type EreportMeta,
   type EreportPayload,
 } from "../../lib/ereport";
-import EreportHeaderMenu, { type EreportModalKind } from "./EreportHeaderMenu";
+import EreportHeaderMenu, {
+  type EreportModalKind,
+  type EreportTrackerCommand,
+} from "./EreportHeaderMenu";
 import "./Ereport.css";
 
-const TRACKER_SRC = "/ereport-tracker.html?v=050a";
+const TRACKER_SRC = "/ereport-tracker.html?v=051a";
 
 function siteIsDark(): boolean {
   return (
@@ -55,6 +61,9 @@ export default function EreportEditor() {
   const [busyShare, setBusyShare] = useState(false);
   const [trackerReady, setTrackerReady] = useState(false);
   const [modal, setModal] = useState<EreportModalKind>(null);
+  const [historyItems, setHistoryItems] = useState<EreportHistoryCard[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyBusy, setHistoryBusy] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const payloadRef = useRef<EreportPayload | null>(null);
 
@@ -264,6 +273,41 @@ export default function EreportEditor() {
     else if (res.meta) setMeta(res.meta);
   }
 
+  async function onLoadHistory() {
+    if (!ids || ids.orgId) return;
+    setHistoryLoading(true);
+    setError("");
+    const res = await listEreportHistory(ids.ownerSafe, ids.reportId);
+    setHistoryLoading(false);
+    if (res.error) setError(res.error);
+    else setHistoryItems(res.items);
+  }
+
+  async function onRestoreHistory(snapshotId: string) {
+    if (!ids || ids.orgId) return;
+    if (
+      !window.confirm(
+        "¿Restaurar esta versión? Se guarda una instantánea del estado actual antes de reemplazar.",
+      )
+    ) {
+      return;
+    }
+    setHistoryBusy(true);
+    setError("");
+    const res = await restoreEreportHistory(ids.ownerSafe, ids.reportId, snapshotId);
+    setHistoryBusy(false);
+    if (res.error || !res.meta || !res.payload) {
+      setError(res.error ?? "No se pudo restaurar");
+      return;
+    }
+    setMeta(res.meta);
+    setTema(res.meta.tema);
+    payloadRef.current = res.payload;
+    postToTracker({ type: "load", payload: res.payload });
+    await onLoadHistory();
+    setModal(null);
+  }
+
   if (loading) {
     return <p className="ereport-hub__empty">Cargando eReport…</p>;
   }
@@ -288,6 +332,12 @@ export default function EreportEditor() {
           onSaveCloud={onSaveCloud}
           saving={saving}
           canShare={canShare && !ids.orgId}
+          canHistory={canShare && !ids.orgId}
+          historyItems={historyItems}
+          historyLoading={historyLoading}
+          onLoadHistory={onLoadHistory}
+          onRestoreHistory={onRestoreHistory}
+          historyBusy={historyBusy}
           meta={meta}
           shareInput={shareInput}
           onShareInputChange={setShareInput}

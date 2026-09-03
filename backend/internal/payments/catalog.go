@@ -23,6 +23,7 @@ var ServiceCatalog = []ServiceInfo{
 	{ID: "scrib", Label: "Scrib", Description: "Layered US Letter manuscript sheets with cloud books.", MonthlyUSD: 1},
 	{ID: "ereport", Label: "eReport", Description: "Issue tracker reports (.ereport) with cloud storage and sharing.", MonthlyUSD: 1},
 	{ID: "evoice", Label: "eVoice", Description: "Text-to-audio projects (docs → MP3) with cloud storage under evoice/.", MonthlyUSD: 1},
+	{ID: "api", Label: "API", Description: "Create API keys and call product APIs from external apps.", MonthlyUSD: 3},
 }
 
 // EvoiceAllowlistEmails are temporary access grants until those users subscribe (spec 044).

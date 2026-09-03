@@ -1,10 +1,12 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ProfileImageForm from "../../components/ProfileImageForm/ProfileImageForm";
+import ProfileApiKeys from "../../components/ProfileApiKeys/ProfileApiKeys";
 ---
 
 <BaseLayout title="Profile — Eduardo OS" requireAuth={true}>
   <div class="page-shell page-shell--product">
     <ProfileImageForm client:load />
+    <ProfileApiKeys client:load />
   </div>
 </BaseLayout>
