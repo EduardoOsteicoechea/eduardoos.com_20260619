@@ -337,15 +337,22 @@ html.layout-editor-bleed .ereport-editor__frame {
   font-family: var(--font-body);
 }
 
-/* Tracker “save export” in HDS — green accent matching former topbar save. */
-.header-dynamic-menu__btn.ereport-hds-save {
+/* Cloud save in HDS — green accent; download export stays regular chrome (spec 025). */
+.header-dynamic-menu__btn.ereport-hds-cloud-save {
   background: #2e7d32;
   color: #fff;
   border-color: #2e7d32;
 }
 
-.header-dynamic-menu__btn.ereport-hds-save:hover:not(:disabled) {
+.header-dynamic-menu__btn.ereport-hds-cloud-save:hover:not(:disabled) {
   filter: brightness(1.08);
   background: #2e7d32;
+  color: #fff;
+}
+
+.header-dynamic-menu__btn.ereport-hds-cloud-save.header-dynamic-menu__btn--active,
+.header-dynamic-menu__btn.ereport-hds-cloud-save.is-active {
+  background: #1b5e20;
+  border-color: #1b5e20;
   color: #fff;
 }

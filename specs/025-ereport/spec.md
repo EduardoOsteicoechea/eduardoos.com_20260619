@@ -63,11 +63,11 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
      - Upload `.ereport` (`upload`) — triggers hidden file input in iframe
      - Clear all (`clear-all`) — confirm + reset in iframe
      - Progress (`progress`) — opens progress modal in iframe
-     - Save export (`save-export`) — opens save modal → download `.ereport`+HTML+PDF + cloud-save bridge (accent/green styling allowed)
+     - Download export (`save-export`) — opens save modal → download `.ereport`+HTML+PDF (+ cloud-save bridge). **Regular HDS chrome** (not green); Material icon **`download`**.
   2. **Host tools** (modals on the page):
      - **Hub** — CTA to leave to the owner hub
      - **Tema** — tema text field (blur/save writes meta)
-     - **Guardar en nube** — confirm + status; runs collect → `PUT` cloud
+     - **Guardar en nube** — confirm + status; runs collect → `PUT` cloud. **Only this HDS control is green** (class `ereport-hds-cloud-save`).
      - **Compartir** — add/remove registered emails (owners only; hidden if `!canShare`)
      - **Historial** — API overwrite snapshots (owners only when enabled)
 - Body: Issue Tracker embedded via host-bridged static HTML at **`/ereport-tracker.html`** (alias `/ereport/tracker.html`).
@@ -76,7 +76,7 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
 - **Theme:** Tracker has **no** local light/dark button. Appearance follows the site Header theme toggler (`eduardoos-theme` / `html[data-theme]`). Host pushes `postMessage` `{ type: "theme", dark }` on boot, after payload load, and whenever the document theme attrs change.
 - **Nav sidebar dots:** color by item status — **green** `aprobado`, **red** `reprobado`, **gray** undefined/empty. Active item keeps a gold focus ring without replacing the status fill.
 - **Inline title edit (tracker):** sección máxima and subsección/grupo titles are **always `<input>` fields** styled as headings (click/focus to edit). Enter or blur commits into state; values persist in `.ereport` via `collectFromDom`.
-- Save export from HDS: downloads **and** posts state to host → `PUT` cloud.
+- Save export from HDS: downloads (download icon, regular chrome) and may bridge to cloud; **green accent is only on Guardar en nube**.
 - Cloud save also from header modal and when tracker `saveAll` completes (bridge).
 - Owner: full edit + share. Shared user: **view + edit body** (not delete report / not manage shares). Non-owner non-shared: 403.
 

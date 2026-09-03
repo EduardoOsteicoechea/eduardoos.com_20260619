@@ -211,12 +211,12 @@ export default function EreportHeaderMenu(props: EreportHeaderMenuProps) {
           </button>
           <button
             type="button"
-            className="header-dynamic-menu__btn ereport-hds-save"
-            title="Guardar y descargar todo (.ereport + HTML + PDF)"
-            aria-label="Guardar todo"
+            className="header-dynamic-menu__btn"
+            title="Descargar (.ereport + HTML + PDF)"
+            aria-label="Descargar reporte"
             onClick={() => props.onTrackerCommand("save-export")}
           >
-            <MsIcon name="save" />
+            <MsIcon name="download" />
           </button>
 
           <button
@@ -243,7 +243,7 @@ export default function EreportHeaderMenu(props: EreportHeaderMenuProps) {
           </button>
           <button
             type="button"
-            className={`header-dynamic-menu__btn${props.modal === "save" ? " header-dynamic-menu__btn--active is-active" : ""}`}
+            className={`header-dynamic-menu__btn ereport-hds-cloud-save${props.modal === "save" ? " header-dynamic-menu__btn--active is-active" : ""}`}
             title="Guardar en nube"
             aria-label="Guardar en nube"
             aria-haspopup="dialog"
