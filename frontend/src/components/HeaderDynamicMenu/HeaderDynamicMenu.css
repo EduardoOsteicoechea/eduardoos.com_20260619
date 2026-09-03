@@ -1,9 +1,66 @@
 /**
  * Header Dynamic Menu — tools live inside Header chrome (not a second top bar).
- * Desktop: vertical stack in the left rail. Mobile: horizontal row in the
- * bar center slot. Icons use currentColor / --site-* for light/dark.
+ * Desktop/tablet: vertical stack in the left rail.
+ * Phone (spec 062): single tune toggle → left lateral drawer of HDS actions.
  * Empty host stays invisible until a route mounts controls into it.
  */
+
+.header-dynamic-menu-shell {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.header-dynamic-menu-shell:not(.header-dynamic-menu-shell--has-tools) {
+  display: none;
+}
+
+.header-dynamic-menu__phone-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--chrome-control-size, var(--bmw));
+  height: var(--chrome-control-size, var(--bmh));
+  min-width: var(--chrome-control-size, var(--bmw));
+  min-height: var(--chrome-control-size, var(--bmh));
+  padding: 0;
+  border: 1px solid var(--site-input-border, color-mix(in srgb, var(--site-body-fg) 18%, transparent));
+  border-radius: var(--border_radius_001);
+  background: var(--site-surface);
+  color: var(--site-body-fg);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.header-dynamic-menu__phone-toggle .material-symbols-outlined {
+  font-size: calc(var(--chrome-control-size, 2.25rem) * 0.56);
+  line-height: 1;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.header-dynamic-menu__phone-toggle:hover {
+  border-color: var(--site-accent);
+  color: var(--site-accent);
+}
+
+.header-dynamic-menu-shell--phone-open .header-dynamic-menu__phone-toggle,
+.header-dynamic-menu__phone-toggle[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--site-accent) 18%, var(--site-body-bg));
+  border-color: var(--site-accent);
+  color: var(--site-accent);
+}
+
+.header-dynamic-menu__phone-backdrop {
+  display: none;
+}
 
 .header-dynamic-menu-host:empty {
   display: none;
@@ -148,13 +205,95 @@
 
 @media (prefers-reduced-motion: reduce) {
   .header-dynamic-menu__btn,
-  .header-dynamic-menu__tray {
+  .header-dynamic-menu__tray,
+  .header-dynamic-menu-host {
     transition: none;
   }
 }
 
-/* Desktop: stacked controls inside the 60px left rail */
+/*
+ * Phone only (spec 062): one toggle in the bar; HDS actions live in a left
+ * lateral drawer under the top chrome (same idea as the main nav tray).
+ */
+@media (max-width: 767.98px) {
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__phone-toggle {
+    display: inline-flex;
+  }
+
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__phone-backdrop:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 145;
+    background: color-mix(in srgb, var(--site-body-fg) 28%, transparent);
+    cursor: pointer;
+  }
+
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu-host:not(:empty) {
+    position: fixed;
+    top: var(
+      --header_offset,
+      calc(var(--header_bar_height, 60px) + var(--header_safe_top, env(safe-area-inset-top, 0px)))
+    );
+    left: 0;
+    right: auto;
+    bottom: 0;
+    z-index: 155;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: min(4.75rem, 28vw);
+    max-width: 28vw;
+    margin: 0;
+    padding: 0.65rem 0.45rem 1rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: var(--site-surface, var(--site-body-bg));
+    border-right: var(--border_001);
+    box-shadow: var(--site-shadow);
+    transform: translateX(-105%);
+    transition: transform 0.18s ease-out;
+    pointer-events: none;
+  }
+
+  .header-dynamic-menu-shell--has-tools
+    .header-dynamic-menu-host.header-dynamic-menu-host--phone-open:not(:empty) {
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu,
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__inner {
+    height: 100%;
+    width: 100%;
+  }
+
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__actions {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.45rem;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-block: 0.15rem;
+  }
+}
+
+/* Desktop/tablet: stacked controls inside the left rail */
 @media (min-width: 768px) {
+  .header-dynamic-menu-shell {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .header-dynamic-menu__phone-toggle,
+  .header-dynamic-menu__phone-backdrop {
+    display: none !important;
+  }
+
   .header-dynamic-menu__inner {
     align-items: center;
   }
@@ -179,6 +318,7 @@
 }
 
 @media print {
+  .header-dynamic-menu-shell,
   .header-dynamic-menu-host,
   .header-dynamic-menu {
     display: none !important;

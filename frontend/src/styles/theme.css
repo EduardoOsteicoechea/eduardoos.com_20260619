@@ -10,9 +10,9 @@
   /*
    * Header / HDS icon scale only (not page .btn / inputs).
    * Phone-first default; tablet/desktop media override.
-   * Spec 045 amendment 2026-09-03: phone ×2, tablet ×4/3, desktop ×1.
+   * Spec 045 + 062: phone ×4/3, tablet ×4/3, desktop ×1.
    */
-  --ui-scale: 2;
+  --ui-scale: calc(4 / 3);
   --site-text-scale: 1;
 
   /* Desktop token list (overridden below for tablet/phone). */
@@ -96,10 +96,10 @@
   color-scheme: light;
 }
 
-/* Phone — page tokens ×0.8; header chrome × --ui-scale 2; no left rail */
+/* Phone — page tokens ×0.8; header chrome × --ui-scale 4/3 (spec 062); no left rail */
 @media (max-width: 767.98px) {
   :root {
-    --ui-scale: 2;
+    --ui-scale: calc(4 / 3);
     --m1: 0.6rem;
     --m2: 0.9rem;
     --m3: 1.2rem;

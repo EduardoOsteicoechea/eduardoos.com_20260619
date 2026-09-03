@@ -208,11 +208,18 @@ html.page-home body {
       transparent 1px
     );
   background-size: auto, auto, 100% 72px;
-  background-attachment: fixed;
+  /* Spec 062: fixed attachment janks mobile scroll / CWV; scroll on small viewports. */
+  background-attachment: scroll;
   background-position:
     var(--header_width) var(--header_offset, var(--header_height)),
     var(--header_width) var(--header_offset, var(--header_height)),
     var(--header_width) var(--header_offset, var(--header_height));
+}
+
+@media (min-width: 1100px) {
+  html.page-home body {
+    background-attachment: fixed;
+  }
 }
 
 /* Tablet home: wash accent from the right-top (matches right-top face crop). */

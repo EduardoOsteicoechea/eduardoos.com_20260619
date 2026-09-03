@@ -16,7 +16,7 @@
 - [x] Inputs/selects/textarea use visible `--site-input-bg` (contrast vs page `--bg` in light + dark)
 - [x] Dark `--site-input-bg` is a clearly elevated field plate (not near-`--bg`); product CSS must not paint inputs with `--site-body-bg` / `--bg`
 - [x] eReport hub: `ProductHeaderMenu` HDS stays visible on every `?view=`; Dashboard icon + in-page Back return to dashboard
-- [x] Phone header + HDS icon buttons use `--ui-scale: 2` via `--chrome-control-size` (2× prior too-small chrome)
+- [x] Phone header + HDS icon buttons use `--ui-scale: calc(4 / 3)` via `--chrome-control-size` (spec 062: was 2, reduced 1.5×)
 - [x] Tablet header rail + HDS icon buttons use `--ui-scale: calc(4 / 3)` (correct 0.75× undersize)
 - [x] Desktop chrome unchanged (`--ui-scale: 1`); page `.btn` / inputs still `--bmh` only
 
@@ -60,7 +60,7 @@ After the 045 rem shrink, site **header** and **header icon buttons** rendered ~
 
 | Breakpoint | `--ui-scale` | Chrome control size |
 |---|---|---|
-| Phone (max 767.98px) | `2` | `calc(var(--bmh) * 2)` |
+| Phone (max 767.98px) | `calc(4 / 3)` | `calc(var(--bmh) * 4 / 3)` (spec 062; was `2`) |
 | Tablet (768–1099.98px) | `calc(4 / 3)` | `calc(var(--bmh) * 4 / 3)` |
 | Desktop (min 1100px) | `1` | `var(--bmh)` |
 

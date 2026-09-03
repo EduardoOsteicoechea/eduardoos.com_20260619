@@ -57,7 +57,8 @@
   text-decoration: none;
   color: inherit;
   order: 1;
-  background: var(--site-surface);
+  /* Spec 062: icon-only — no surface plate behind the favicon. */
+  background: transparent;
 }
 
 .site-header__logo:hover {
