@@ -65,8 +65,9 @@
 .home-profile__grid {
   display: grid;
   grid-template-columns: 1fr;
-  /* Wider gap between dossier data sections (spec 018). */
-  gap: calc(var(--m4, 2.25rem) * 4);
+  /* Vertical gap only between dossier rows (spec 018); no lateral gutter. */
+  row-gap: calc(var(--m4, 2.25rem) * 4);
+  column-gap: 0;
   align-items: stretch;
 }
 
@@ -442,7 +443,8 @@
 
   .home-profile__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: calc(var(--m4, 2.25rem) * 4);
+    row-gap: calc(var(--m4, 2.25rem) * 4);
+    column-gap: 0;
   }
 
   .home-profile__jobs {
