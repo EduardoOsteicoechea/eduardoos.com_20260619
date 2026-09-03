@@ -316,4 +316,8 @@ export const LATIN_API_ROUTES = {
   institutesIndex: "/api/latin/calvins-institutes",
   institutesSection: (id: string) =>
     `/api/latin/calvins-institutes/sections/${encodeURIComponent(id)}`,
+  /** Parallel paragraph pack (spec 056) — book → chapter → paragraph. */
+  institutesParagraphsIndex: "/api/latin/calvins-institutes/paragraphs",
+  institutesParagraphChapter: (book: string, chapter: string) =>
+    `/api/latin/calvins-institutes/paragraphs/chapters/${encodeURIComponent(book)}/${encodeURIComponent(chapter)}`,
 } as const;

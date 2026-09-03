@@ -94,11 +94,16 @@ scrib/{userSafe}/books/{bookId}/sheets/{sheetId}/sheet.json
 
 Gateway mounts `internal/scrib` like church/homescool.
 
+### 14. Institutes chapter-copy modal (spec 056)
+
+Editor header offers an **Institutes** control that opens a modal to pick Liber → Caput from the parallel paragraph pack and **copy** paragraph (or whole chapter) text to the clipboard. Clipboard only — no paste-into-layer in this turn. Details: `specs/056-calvin-institutes-paragraphs/spec.md`.
+
 ## Non-goals (MVP)
 - Multi-user collaboration / sharing sheets across users
 - Server-side PDF export (browser print of the live sheet is in scope)
 - Per-layer stroke colors / text typing tools (draw-only)
 - Offline-first IndexedDB
+- Auto-insert Institutes text into SVG layers (clipboard copy is in scope via 056)
 
 ## Acceptance
 - [x] Catalog `scrib` + subscription UI + gate
@@ -116,6 +121,7 @@ Gateway mounts `internal/scrib` like church/homescool.
 - [x] Fullscreen exit is a red icon-only X control; dark mode inverts the background and SVG layers; Scrib uses the v2 column background
 - [x] Fullscreen preserves zoom/pan, retains all Scrib tools, and can toggle the visible header sidebar
 - [x] Dynamic header Print prints only the current sheet, portrait US Letter, with live layer opacities; chrome/zoom hidden; no dark invert on print
+- [ ] Institutes modal: pick Caput → copy paragraph / chapter text to clipboard (spec 056)
 
 ## Affected paths
 - `specs/024-scrib/spec.md`

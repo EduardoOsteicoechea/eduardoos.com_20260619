@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { APP_ROUTES } from "../../config/routes";
 import ServiceGate from "../ServiceGate/ServiceGate";
 import ScribHeaderMenu, { type ScribToolMode } from "./ScribHeaderMenu";
+import ScribInstitutesModal from "./ScribInstitutesModal";
 import {
   fetchScribSheet,
   resolveScribSheetFromLocation,
@@ -102,6 +103,7 @@ export default function ScribEditor() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<ScribToolMode>("zoom");
   const [layersOpen, setLayersOpen] = useState(false);
+  const [institutesOpen, setInstitutesOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
@@ -505,8 +507,13 @@ export default function ScribEditor() {
         onSelectErase={() => setMode("erase")}
         onEnterFullscreen={() => void enterFullscreen()}
         onOpenLayers={() => setLayersOpen(true)}
+        onOpenInstitutes={() => {
+          setLayersOpen(false);
+          setInstitutesOpen(true);
+        }}
         onPrint={() => {
           setLayersOpen(false);
+          setInstitutesOpen(false);
           setDraftPath("");
           // Let the modal unmount and print styles settle before the dialog opens.
           requestAnimationFrame(() => {
@@ -693,6 +700,11 @@ export default function ScribEditor() {
           </div>
         </div>
       ) : null}
+
+      <ScribInstitutesModal
+        open={institutesOpen}
+        onClose={() => setInstitutesOpen(false)}
+      />
     </ServiceGate>
   );
 }

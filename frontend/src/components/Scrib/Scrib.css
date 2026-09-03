@@ -466,6 +466,175 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
   width: 100%;
 }
 
+/* —— Institutes Capita copy modal (spec 056) —— */
+.scrib-institutes-modal__panel {
+  width: min(100%, 52rem);
+  max-height: min(92dvh, 44rem);
+}
+
+.scrib-institutes-modal__error {
+  color: var(--site-danger, #b00020);
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem;
+}
+
+.scrib-institutes-modal__hint,
+.scrib-institutes-modal__status {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.scrib-institutes-modal__libers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.scrib-institutes-modal__liber {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  min-height: var(--control_min_height, 2.25rem);
+  padding: 0 0.7rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.scrib-institutes-modal__liber.is-active {
+  border-color: var(--site-accent);
+  color: var(--site-accent);
+}
+
+.scrib-institutes-modal__body {
+  display: grid;
+  grid-template-columns: minmax(9rem, 14rem) 1fr;
+  gap: 0.75rem;
+  min-height: 16rem;
+}
+
+.scrib-institutes-modal__nav {
+  overflow: auto;
+  max-height: min(60dvh, 28rem);
+  border-right: var(--border_001);
+  padding-right: 0.5rem;
+}
+
+.scrib-institutes-modal__nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.scrib-institutes-modal__caput {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.4rem 0.45rem;
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.scrib-institutes-modal__caput.is-active {
+  border-color: var(--site-accent);
+}
+
+.scrib-institutes-modal__caput-id {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.scrib-institutes-modal__caput-heading {
+  font-size: 0.7rem;
+  line-height: 1.25;
+  opacity: 0.8;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.scrib-institutes-modal__reader {
+  overflow: auto;
+  max-height: min(60dvh, 28rem);
+}
+
+.scrib-institutes-modal__reader-head {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.scrib-institutes-modal__reader-head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.scrib-institutes-modal__meta {
+  margin: 0;
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.scrib-institutes-modal__paras {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.scrib-institutes-modal__para {
+  border: var(--border_001);
+  border-radius: var(--border_radius_001);
+  padding: 0.55rem 0.6rem;
+}
+
+.scrib-institutes-modal__para-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.scrib-institutes-modal__para-head code {
+  font-size: 0.75rem;
+}
+
+.scrib-institutes-modal__para p {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 40rem) {
+  .scrib-institutes-modal__body {
+    grid-template-columns: 1fr;
+  }
+
+  .scrib-institutes-modal__nav {
+    border-right: none;
+    border-bottom: var(--border_001);
+    padding-right: 0;
+    padding-bottom: 0.5rem;
+    max-height: 10rem;
+  }
+}
+
 /* —— Print: only the current sheet, portrait US Letter, live layer opacities —— */
 @media print {
   @page {
@@ -496,6 +665,7 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
   #header-dynamic-menu-host,
   .header-dynamic-menu,
   .scrib-layers-modal,
+  .scrib-institutes-modal,
   .scrib-fullscreen-controls,
   .scrib-save-hint,
   .scrib-stroke-widget {

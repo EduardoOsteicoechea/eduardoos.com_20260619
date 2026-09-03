@@ -45,6 +45,8 @@ type Handler struct {
 	S3     objectAPI
 	Bucket string
 	Prefix string
+	// ParaPrefix is the parallel paragraph pack (spec 056); never the Capita prefix.
+	ParaPrefix string
 }
 
 // institutesIndex is the S3 index.json shape for the Latin 1559 corpus.
@@ -71,7 +73,8 @@ type institutesIndexEntry struct {
 // NewHandler builds a handler using S3_BUCKET and optional CALVIN_INSTITUTES_S3_PREFIX.
 func NewHandler(ctx context.Context) *Handler {
 	h := &Handler{
-		Prefix: strings.Trim(httpx.Env("CALVIN_INSTITUTES_S3_PREFIX", "calvin-institutes"), "/"),
+		Prefix:     strings.Trim(httpx.Env("CALVIN_INSTITUTES_S3_PREFIX", "calvin-institutes"), "/"),
+		ParaPrefix: strings.Trim(httpx.Env("CALVIN_INSTITUTES_PARAGRAPHS_S3_PREFIX", "calvin-institutes-paragraphs"), "/"),
 	}
 	bucket := strings.TrimSpace(httpx.Env("S3_BUCKET", ""))
 	if bucket == "" {
@@ -95,6 +98,7 @@ func NewHandler(ctx context.Context) *Handler {
 func (h *Handler) Routes(r chi.Router) {
 	r.Get("/api/latin/calvins-institutes", h.Index)
 	r.Get("/api/latin/calvins-institutes/sections/{id}", h.Section)
+	h.mountParagraphRoutes(r)
 }
 
 // Index streams calvin-institutes/index.json after readiness checks.

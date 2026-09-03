@@ -24,6 +24,7 @@ type ScribHeaderMenuProps = {
   onSelectErase: () => void;
   onEnterFullscreen: () => void;
   onOpenLayers: () => void;
+  onOpenInstitutes: () => void;
   onUndo: () => void;
   onPrint: () => void;
 };
@@ -99,6 +100,17 @@ function IconUndo() {
   return (
     <svg className="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="0 0 24 24" aria-hidden>
       <path fill="currentColor" d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" />
+    </svg>
+  );
+}
+
+function IconInstitutes() {
+  return (
+    <svg className="header-dynamic-menu__icon header-dynamic-menu__icon--svg" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M4 4h16v2H4V4zm0 4h10v2H4V8zm0 4h16v2H4v-2zm0 4h10v2H4v-2zm0 4h16v2H4v-2z"
+      />
     </svg>
   );
 }
@@ -224,6 +236,15 @@ export default function ScribHeaderMenu(props: ScribHeaderMenuProps) {
             onClick={props.onOpenLayers}
           >
             <IconLayers />
+          </button>
+          <button
+            type="button"
+            className="header-dynamic-menu__btn"
+            title="Institutes — copiar Caput"
+            aria-label="Abrir modal de Institutes para copiar Capita"
+            onClick={props.onOpenInstitutes}
+          >
+            <IconInstitutes />
           </button>
           <button
             type="button"
