@@ -66,7 +66,7 @@
   display: grid;
   grid-template-columns: 1fr;
   /* Wider gap between dossier data sections (spec 018). */
-  gap: var(--m3, 1.5rem);
+  gap: var(--m4, 2.25rem);
   align-items: stretch;
 }
 
@@ -442,7 +442,7 @@
 
   .home-profile__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--m3, 1.5rem);
+    gap: var(--m4, 2.25rem);
   }
 
   .home-profile__jobs {
