@@ -1,9 +1,12 @@
 package apikeys
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"eduardoos.nex/internal/auth"
 	"eduardoos.nex/internal/httpx"
@@ -11,6 +14,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
+
+// storeOpTimeout bounds Dynamo/memory store calls so nginx never waits into HTML 502.
+const storeOpTimeout = 5 * time.Second
 
 // Handler serves JWT key CRUD and exposes middleware for /api/v1/*.
 type Handler struct {
@@ -75,12 +81,19 @@ func (h *Handler) requireManageAccess(next http.Handler) http.Handler {
 	})
 }
 
+func (h *Handler) withStoreTimeout(parent context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(parent, storeOpTimeout)
+}
+
 // ListKeys returns metadata for the caller's keys (no secrets).
 func (h *Handler) ListKeys(w http.ResponseWriter, r *http.Request) {
 	email := auth.UserEmailFromRequest(r)
-	recs, err := h.Keys.ListByOwner(r.Context(), email)
+	ctx, cancel := h.withStoreTimeout(r.Context())
+	defer cancel()
+	recs, err := h.Keys.ListByOwner(ctx, email)
 	if err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, "could not list api keys")
+		log.Printf("apikeys.ListKeys email=%s backend=%s err=%v", email, h.Keys.BackendName(), err)
+		httpx.WriteError(w, http.StatusServiceUnavailable, "could not list api keys (store timeout or unavailable)")
 		return
 	}
 	out := make([]PublicView, 0, len(recs))
@@ -110,8 +123,11 @@ func (h *Handler) CreateKey(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := h.Keys.Create(r.Context(), rec); err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, "could not save api key")
+	ctx, cancel := h.withStoreTimeout(r.Context())
+	defer cancel()
+	if err := h.Keys.Create(ctx, rec); err != nil {
+		log.Printf("apikeys.CreateKey email=%s backend=%s err=%v", email, h.Keys.BackendName(), err)
+		httpx.WriteError(w, http.StatusServiceUnavailable, "could not save api key (store timeout or unavailable)")
 		return
 	}
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{
@@ -128,9 +144,12 @@ func (h *Handler) RevokeKey(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "id required")
 		return
 	}
-	rec, ok, err := h.Keys.Revoke(r.Context(), email, id)
+	ctx, cancel := h.withStoreTimeout(r.Context())
+	defer cancel()
+	rec, ok, err := h.Keys.Revoke(ctx, email, id)
 	if err != nil {
-		httpx.WriteError(w, http.StatusBadGateway, "could not revoke api key")
+		log.Printf("apikeys.RevokeKey email=%s id=%s backend=%s err=%v", email, id, h.Keys.BackendName(), err)
+		httpx.WriteError(w, http.StatusServiceUnavailable, "could not revoke api key (store timeout or unavailable)")
 		return
 	}
 	if !ok {

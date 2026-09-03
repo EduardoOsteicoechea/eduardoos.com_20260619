@@ -12,6 +12,13 @@
   border-top: 1px solid var(--site-border, #ccc);
 }
 
+/* Standalone /api-keys page: no top border when it is the only section. */
+.product-dash > .profile-api-keys:first-child,
+.page-shell--product > .profile-api-keys:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+
 .profile-api-keys__title {
   margin: 0;
   font-family: var(--font-display);

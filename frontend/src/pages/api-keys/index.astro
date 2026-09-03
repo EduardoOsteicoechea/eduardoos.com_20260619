@@ -1,0 +1,10 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ProfileApiKeys from "../../components/ProfileApiKeys/ProfileApiKeys";
+---
+
+<BaseLayout title="API keys — Eduardo OS" requireAuth={true}>
+  <div class="page-shell page-shell--product product-dash">
+    <ProfileApiKeys client:load />
+  </div>
+</BaseLayout>

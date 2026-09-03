@@ -13,6 +13,8 @@ export const APP_ROUTES = {
   subscription: "/payments/subscription",
   /** External API documentation (spec 057). */
   apiDocs: "/api-docs",
+  /** API key management UI (spec 059). */
+  apiKeys: "/api-keys",
   mediaPlaylist: "/media/musica",
   pamphlet: "/documents/pamphlet",
   /** Public articles hub (spec 051). */
@@ -196,6 +198,8 @@ export const SCRIB_ROUTES = {
     `/api/scrib/books/${encodeURIComponent(bookId)}/sheets`,
   sheet: (bookId: string, sheetId: string) =>
     `/api/scrib/books/${encodeURIComponent(bookId)}/sheets/${encodeURIComponent(sheetId)}`,
+  /** Client-captured light grayscale sheet → US Letter PDF download (spec 024). */
+  printPdf: "/api/scrib/print/pdf",
 } as const;
 
 /** eReport Issue Tracker cloud library (JWT + ereport entitlement for create). */

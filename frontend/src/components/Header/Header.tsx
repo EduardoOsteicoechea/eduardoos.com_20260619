@@ -30,6 +30,7 @@ import { applyUiScale, bumpUiScale, resolveUiScale, type UiScale } from "../../l
 import HeaderDynamicMenu from "../HeaderDynamicMenu/HeaderDynamicMenu";
 import {
   PRIMARY_TRAY_LINKS,
+  isProductNavLinkVisible,
   visibleProductNavLinks,
   type TrayNavLink,
 } from "../../lib/navServices";
@@ -403,13 +404,18 @@ export function Header({ pathname }: HeaderProps) {
   }, [menuOpen]);
 
   const showAuth = clientReady;
-  const productLinks: TrayNavLink[] = visibleProductNavLinks({
+  const navVisibility = {
     isAdmin,
     entitlements,
     isHomescoolStudent,
     email: getAuthEmailFromToken(),
-  });
-  const trayLinks: TrayNavLink[] = [...PRIMARY_TRAY_LINKS, ...productLinks];
+  };
+  const productLinks: TrayNavLink[] = visibleProductNavLinks(navVisibility);
+  // Primary may include entitlement-gated rows (e.g. API keys — spec 059).
+  const primaryLinks = PRIMARY_TRAY_LINKS.filter((link) =>
+    isProductNavLinkVisible(link, navVisibility),
+  );
+  const trayLinks: TrayNavLink[] = [...primaryLinks, ...productLinks];
 
   return (
     <header className={`site-header${menuOpen ? " site-header--open" : ""}`}>

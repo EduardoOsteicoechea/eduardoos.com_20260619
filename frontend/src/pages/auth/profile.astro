@@ -7,6 +7,8 @@ import ProfileApiKeys from "../../components/ProfileApiKeys/ProfileApiKeys";
 <BaseLayout title="Profile — Eduardo OS" requireAuth={true}>
   <div class="page-shell page-shell--product">
     <ProfileImageForm client:load />
-    <ProfileApiKeys client:load />
+    <div id="api-keys">
+      <ProfileApiKeys client:load />
+    </div>
   </div>
 </BaseLayout>

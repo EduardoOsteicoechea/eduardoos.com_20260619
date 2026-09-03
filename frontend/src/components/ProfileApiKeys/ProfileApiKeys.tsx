@@ -105,7 +105,7 @@ export default function ProfileApiKeys() {
 
   if (!allowed) {
     return (
-      <section className="profile-api-keys" aria-label="API keys">
+      <section className="profile-api-keys" aria-label="API keys" id="api-keys">
         <h2 className="profile-api-keys__title">API keys</h2>
         <p className="profile-api-keys__lead">
           Subscribe to the <strong>API</strong> plan ($3/mo) to create keys for external apps.{" "}
@@ -118,7 +118,7 @@ export default function ProfileApiKeys() {
   }
 
   return (
-    <section className="profile-api-keys" aria-label="API keys">
+    <section className="profile-api-keys" aria-label="API keys" id="api-keys">
       <h2 className="profile-api-keys__title">API keys</h2>
       <p className="profile-api-keys__lead">
         Keys authenticate with <code>Authorization: Bearer eos_live_…</code>. Scope follows your
