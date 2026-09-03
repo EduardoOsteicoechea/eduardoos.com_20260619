@@ -20,7 +20,7 @@
 
 ### 2. Docs layout — one card per action
 - On `/api-docs`, render each entry in `routes` as a **card** (not a table): method badge, path, auth, summary, optional body/requirements.
-- Plain CSS in `ApiDocsPage.css`; use site tokens (`--site-border`, `--glassed_background`, `--border_radius_001`).
+- Plain CSS in `ApiDocsPage.css`; use site tokens (`--site-border`, `--site-surface` card background, `--border_radius_001`).
 - Responsive grid/stack so cards are easy to scan on desktop and mobile.
 
 ## Non-goals

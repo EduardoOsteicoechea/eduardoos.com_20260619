@@ -64,7 +64,8 @@
   padding: 0.9rem 1rem;
   border: 1px solid var(--site-border, #ccc);
   border-radius: var(--border_radius_001, 4px);
-  background: var(--glassed_background, transparent);
+  /* Solid card plate (same token as product-dash cards) — not transparent glass. */
+  background: var(--site-surface, var(--glassed_background));
   min-height: 100%;
 }
 
