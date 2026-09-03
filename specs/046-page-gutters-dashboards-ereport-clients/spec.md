@@ -21,12 +21,17 @@
 
 ### eReport dashboard (initial)
 Cards/sections:
-- **Orgs** (list / open) — selected org shows **Reports** list: open, invite, **delete report** (browser confirm first; owner/admin; `DELETE /api/ereport/orgs/{orgId}/reports/{reportId}`)
+- **Orgs** (list / open) — pick an org, then a **second card row** for that org:
+  - **Edit org** — rename
+  - **Reports** — create/import, list (open, per-report invite, **delete** after confirm)
+  - **Invite** — org-list magic link (email + duration)
 - **Register org**
 - **Recent reports**
 - **Manage orgs** (order, delete org, hide, rename, new, etc.)
 
-**Delete report (2026-09-03):** From Orgs → Reports, each report has **Delete**. Confirm with `window.confirm` (clear copy naming the report). On success, remove from the org library UI and refresh. Shared/invite viewers cannot delete.
+**Orgs sub-cards (2026-09-03):** After selecting an org, do **not** dump edit + reports + invite forms in one scroll. Show three `DashboardGrid` cards (**Edit org**, **Reports**, **Invite**); each opens its panel. Back returns to the three cards (then Back to dashboard / HDS returns to hub).
+
+**Delete report (2026-09-03):** From Orgs → Reports panel, each report has **Delete**. Confirm with `window.confirm` (clear copy naming the report). On success, remove from the org library UI and refresh. Shared/invite viewers cannot delete.
 
 ### Gutters
 Canonical product page outer inset:
@@ -61,6 +66,7 @@ Canonical product page outer inset:
 - [x] Product entry routes have sectioned ProductDashboard cards (Homescool, Church, Scrib hub, eReport; Music/eVoice/Pamphlet prior)
 - [x] eReport org dashboard + magic invites (list duration modal; report = 1h edit) + tracker site-styled
 - [x] Orgs → Reports: delete report after confirm (owner/admin)
+- [x] Orgs → selected org: Edit org / Reports / Invite as cards (not one stacked form)
 - [x] Home: chat on top; 2 cards/row; direct first-person sections with AI enthusiasm
 - [x] Tests + FE build + commit/push
 

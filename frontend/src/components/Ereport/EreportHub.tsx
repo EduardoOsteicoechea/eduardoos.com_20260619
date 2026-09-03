@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { checkServiceAccess } from "../../lib/payments";
 import { getAuthEmailFromToken } from "../../lib/auth";
-  import {
+import {
   createEreportOrg,
   createOrgEreport,
   createOrgInvite,
@@ -44,6 +44,8 @@ function orgReportHref(userSafe: string, orgId: string, reportId: string): strin
   return `/ereport/workspace?${q.toString()}`;
 }
 
+type OrgPanel = "" | "edit" | "reports" | "invite";
+
 const MENU = [
   { id: "dashboard", label: "Dashboard", icon: "dashboard" },
   { id: "orgs", label: "Orgs", icon: "corporate_fare" },
@@ -58,6 +60,7 @@ export default function EreportHub() {
   const [orgs, setOrgs] = useState<OrgCard[]>([]);
   const [recent, setRecent] = useState<RecentReportCard[]>([]);
   const [activeOrgId, setActiveOrgId] = useState("");
+  const [orgPanel, setOrgPanel] = useState<OrgPanel>("");
   const [orgName, setOrgName] = useState("");
   const [firstReportName, setFirstReportName] = useState("");
   const [renameOrgId, setRenameOrgId] = useState("");
@@ -104,6 +107,8 @@ export default function EreportHub() {
 
   async function openOrg(orgId: string) {
     setActiveOrgId(orgId);
+    setOrgPanel("");
+    setInviteLink("");
     setView("orgs");
     setBusy(true);
     const res = await fetchEreportOrg(orgId);
@@ -305,7 +310,10 @@ export default function EreportHub() {
         activeId={view}
         onSelect={(id) => {
           setView(id);
-          if (id !== "orgs") setInviteLink("");
+          if (id !== "orgs") {
+            setOrgPanel("");
+            setInviteLink("");
+          }
         }}
       />
       <ProductHubShell title="eReport">
@@ -316,6 +324,7 @@ export default function EreportHub() {
               className="btn"
               onClick={() => {
                 setView("dashboard");
+                setOrgPanel("");
                 setInviteLink("");
               }}
             >
@@ -420,8 +429,18 @@ export default function EreportHub() {
                   }
                   onClick={() => void openOrg(o.id)}
                 >
-                  <span className="product-dash__card-title">{o.name}</span>
-                  <span className="product-dash__card-desc">Open reports</span>
+                  <span className="product-dash__card-head">
+                    <span
+                      className="material-symbols-outlined product-dash__card-icon"
+                      aria-hidden="true"
+                    >
+                      corporate_fare
+                    </span>
+                    <span className="product-dash__card-title">{o.name}</span>
+                  </span>
+                  <span className="product-dash__card-desc">
+                    {o.id === activeOrgId ? "Selected" : "Select org"}
+                  </span>
                 </button>
               ))}
               {visibleOrgs.length === 0 ? (
@@ -431,140 +450,205 @@ export default function EreportHub() {
 
             {activeOrgId ? (
               <div className="ereport-hub__org-panel">
-                <h3 className="ereport-hub__subhead">Organization</h3>
-                <form
-                  className="ereport-hub__form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const o = orgs.find((x) => x.id === activeOrgId);
-                    if (!o) return;
-                    setRenameOrgId(activeOrgId);
-                    setRenameValue(o.name);
-                    void onRenameOrg(e);
-                  }}
-                >
-                  <label>
-                    Org name
-                    <input
-                      value={
-                        renameOrgId === activeOrgId
-                          ? renameValue
-                          : orgs.find((x) => x.id === activeOrgId)?.name || ""
-                      }
-                      onFocus={() => {
-                        const o = orgs.find((x) => x.id === activeOrgId);
-                        setRenameOrgId(activeOrgId);
-                        setRenameValue(o?.name ?? "");
-                      }}
-                      onChange={(e) => {
-                        setRenameOrgId(activeOrgId);
-                        setRenameValue(e.target.value);
-                      }}
-                      disabled={busy}
-                    />
-                  </label>
-                  <button
-                    type="submit"
-                    className="btn"
-                    disabled={busy || !renameValue.trim()}
-                  >
-                    Save org name
-                  </button>
-                </form>
+                <h3 className="ereport-hub__subhead">
+                  {orgs.find((x) => x.id === activeOrgId)?.name || "Organization"}
+                </h3>
 
-                <h3 className="ereport-hub__subhead">Reports</h3>
-                <form className="ereport-hub__form" onSubmit={onCreateReport}>
-                  <label>
-                    Report name
-                    <input
-                      value={tema}
-                      onChange={(e) => setTema(e.target.value)}
-                      placeholder="Report name / tema"
-                      disabled={!canCreate || busy}
-                    />
-                  </label>
-                  <div className="ereport-hub__row">
-                    <button
-                      type="submit"
-                      className="btn btn--primary"
-                      disabled={!canCreate || busy}
-                    >
-                      New report
-                    </button>
+                {!orgPanel ? (
+                  <DashboardGrid
+                    cards={[
+                      {
+                        id: "edit",
+                        title: "Edit org",
+                        description: "Rename this organization",
+                        icon: "edit",
+                      },
+                      {
+                        id: "reports",
+                        title: "Reports",
+                        description: `${reports.length} report${reports.length === 1 ? "" : "s"}`,
+                        icon: "description",
+                      },
+                      {
+                        id: "invite",
+                        title: "Invite",
+                        description: "Magic link to the org list",
+                        icon: "mail",
+                      },
+                    ]}
+                    onSelect={(id) => setOrgPanel(id as OrgPanel)}
+                  />
+                ) : (
+                  <p className="ereport-hub__back">
                     <button
                       type="button"
                       className="btn"
-                      disabled={!canCreate || busy}
-                      onClick={() => fileRef.current?.click()}
+                      onClick={() => {
+                        setOrgPanel("");
+                        setInviteLink("");
+                      }}
                     >
-                      Import .ereport
+                      Back to org cards
                     </button>
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept=".ereport,application/json"
-                      hidden
-                      onChange={(e) => void onImportFile(e.target.files?.[0] ?? null)}
-                    />
-                  </div>
-                </form>
+                  </p>
+                )}
 
-                <ul className="ereport-hub__reports">
-                  {reports.map((r) => (
-                    <li key={r.id}>
-                      <a href={orgReportHref(userSafe, activeOrgId, r.id)}>
-                        {r.tema || r.id}
-                      </a>
+                {orgPanel === "edit" ? (
+                  <form
+                    className="ereport-hub__form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const o = orgs.find((x) => x.id === activeOrgId);
+                      if (!o) return;
+                      setRenameOrgId(activeOrgId);
+                      setRenameValue(
+                        renameOrgId === activeOrgId ? renameValue : o.name,
+                      );
+                      void onRenameOrg(e);
+                    }}
+                  >
+                    <label>
+                      Org name
+                      <input
+                        value={
+                          renameOrgId === activeOrgId
+                            ? renameValue
+                            : orgs.find((x) => x.id === activeOrgId)?.name || ""
+                        }
+                        onFocus={() => {
+                          const o = orgs.find((x) => x.id === activeOrgId);
+                          setRenameOrgId(activeOrgId);
+                          setRenameValue(o?.name ?? "");
+                        }}
+                        onChange={(e) => {
+                          setRenameOrgId(activeOrgId);
+                          setRenameValue(e.target.value);
+                        }}
+                        disabled={busy}
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      className="btn btn--primary"
+                      disabled={busy || !renameValue.trim()}
+                    >
+                      Save org name
+                    </button>
+                  </form>
+                ) : null}
+
+                {orgPanel === "reports" ? (
+                  <>
+                    <form className="ereport-hub__form" onSubmit={onCreateReport}>
+                      <label>
+                        Report name
+                        <input
+                          value={tema}
+                          onChange={(e) => setTema(e.target.value)}
+                          placeholder="Report name / tema"
+                          disabled={!canCreate || busy}
+                        />
+                      </label>
                       <div className="ereport-hub__row">
+                        <button
+                          type="submit"
+                          className="btn btn--primary"
+                          disabled={!canCreate || busy}
+                        >
+                          New report
+                        </button>
                         <button
                           type="button"
                           className="btn"
-                          disabled={busy}
-                          onClick={() => void onInviteReport(r.id)}
+                          disabled={!canCreate || busy}
+                          onClick={() => fileRef.current?.click()}
                         >
-                          Invite
+                          Import .ereport
                         </button>
-                        <button
-                          type="button"
-                          className="btn btn--danger"
-                          disabled={busy}
-                          onClick={() => void onDeleteReport(r.id, r.tema || r.id)}
-                        >
-                          Delete
-                        </button>
+                        <input
+                          ref={fileRef}
+                          type="file"
+                          accept=".ereport,application/json"
+                          hidden
+                          onChange={(e) =>
+                            void onImportFile(e.target.files?.[0] ?? null)
+                          }
+                        />
                       </div>
-                    </li>
-                  ))}
-                </ul>
+                    </form>
 
-                <h3 className="ereport-hub__subhead">Invite to org list</h3>
-                <form className="ereport-hub__form" onSubmit={onInviteOrg}>
-                  <label>
-                    Email
-                    <input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Duration (hours)
-                    <input
-                      type="number"
-                      min={1}
-                      value={inviteHours}
-                      onChange={(e) => setInviteHours(Number(e.target.value) || 1)}
-                    />
-                  </label>
-                  <button type="submit" className="btn btn--primary" disabled={busy}>
-                    Send magic link
-                  </button>
-                </form>
-                {inviteLink ? (
-                  <p className="ereport-hub__link">
-                    Link: <a href={inviteLink}>{inviteLink}</a>
-                  </p>
+                    <ul className="ereport-hub__reports">
+                      {reports.map((r) => (
+                        <li key={r.id}>
+                          <a href={orgReportHref(userSafe, activeOrgId, r.id)}>
+                            {r.tema || r.id}
+                          </a>
+                          <div className="ereport-hub__row">
+                            <button
+                              type="button"
+                              className="btn"
+                              disabled={busy}
+                              onClick={() => void onInviteReport(r.id)}
+                            >
+                              Invite
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn--danger"
+                              disabled={busy}
+                              onClick={() =>
+                                void onDeleteReport(r.id, r.tema || r.id)
+                              }
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                      {reports.length === 0 ? (
+                        <p className="ereport-hub__muted">No reports yet.</p>
+                      ) : null}
+                    </ul>
+                  </>
+                ) : null}
+
+                {orgPanel === "invite" ? (
+                  <>
+                    <form className="ereport-hub__form" onSubmit={onInviteOrg}>
+                      <label>
+                        Email
+                        <input
+                          type="email"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                          required
+                        />
+                      </label>
+                      <label>
+                        Duration (hours)
+                        <input
+                          type="number"
+                          min={1}
+                          value={inviteHours}
+                          onChange={(e) =>
+                            setInviteHours(Number(e.target.value) || 1)
+                          }
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="btn btn--primary"
+                        disabled={busy}
+                      >
+                        Send magic link
+                      </button>
+                    </form>
+                    {inviteLink ? (
+                      <p className="ereport-hub__link">
+                        Link: <a href={inviteLink}>{inviteLink}</a>
+                      </p>
+                    ) : null}
+                  </>
                 ) : null}
               </div>
             ) : null}
