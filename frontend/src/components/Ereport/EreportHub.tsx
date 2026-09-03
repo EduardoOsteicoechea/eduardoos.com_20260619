@@ -50,7 +50,8 @@ type OrgPanel = "" | "edit" | "reports" | "invite";
 const MENU = [
   { id: "dashboard", label: "Dashboard", icon: "dashboard" },
   { id: "orgs", label: "Orgs", icon: "corporate_fare" },
-  { id: "register", label: "Register", icon: "domain_add" },
+  { id: "register", label: "New org", icon: "domain_add" },
+  { id: "new-report", label: "New report", icon: "post_add" },
   { id: "recent", label: "Recent", icon: "history" },
   { id: "manage", label: "Manage", icon: "folder_managed" },
 ];
@@ -68,6 +69,8 @@ export default function EreportHub() {
   const [renameValue, setRenameValue] = useState("");
   const [reports, setReports] = useState<ReportCard[]>([]);
   const [tema, setTema] = useState("");
+  const [reportOrgId, setReportOrgId] = useState("");
+  const [newReportTema, setNewReportTema] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteHours, setInviteHours] = useState(24);
   const [inviteLink, setInviteLink] = useState("");
@@ -182,8 +185,38 @@ export default function EreportHub() {
     );
   }
 
+  async function onCreateReportInSelectedOrg(e: FormEvent) {
+    e.preventDefault();
+    const targetOrgId = reportOrgId || activeOrgId;
+    if (busy || !canCreate || !targetOrgId) {
+      if (!targetOrgId) setError("Select an organization from the dropdown.");
+      return;
+    }
+    setBusy(true);
+    const res = await createOrgEreport(
+      targetOrgId,
+      newReportTema.trim() || "Sin tema",
+    );
+    setBusy(false);
+    if (res.error || !res.meta) {
+      setError(res.error ?? "Could not create report");
+      return;
+    }
+    setNewReportTema("");
+    window.location.href = orgReportHref(
+      res.meta.ownerSafe,
+      targetOrgId,
+      res.meta.id,
+    );
+  }
+
   async function onImportFile(file: File | null) {
-    if (!file || busy || !canCreate || !activeOrgId) return;
+    const targetOrgId =
+      view === "new-report" ? reportOrgId || activeOrgId : activeOrgId;
+    if (!file || busy || !canCreate || !targetOrgId) {
+      if (!targetOrgId) setError("Select an organization from the dropdown.");
+      return;
+    }
     if (!/\.ereport$/i.test(file.name)) {
       setError("Solo archivos .ereport");
       return;
@@ -196,9 +229,13 @@ export default function EreportHub() {
         throw new Error("El .ereport no tiene sections[]");
       }
       const guessed =
-        tema.trim() ||
-        String(payload.reportNumber || file.name.replace(/\.ereport$/i, "") || "Importado");
-      const res = await importOrgEreport(activeOrgId, guessed, payload);
+        (view === "new-report" ? newReportTema.trim() : tema.trim()) ||
+        String(
+          payload.reportNumber ||
+            file.name.replace(/\.ereport$/i, "") ||
+            "Importado",
+        );
+      const res = await importOrgEreport(targetOrgId, guessed, payload);
       if (res.error || !res.meta) {
         setError(res.error ?? "Import falló");
         setBusy(false);
@@ -206,7 +243,7 @@ export default function EreportHub() {
       }
       window.location.href = orgReportHref(
         res.meta.ownerSafe,
-        activeOrgId,
+        targetOrgId,
         res.meta.id,
       );
     } catch (err) {
@@ -349,7 +386,7 @@ export default function EreportHub() {
                   },
                   {
                     id: "register",
-                    title: "Register org",
+                    title: "+ New org",
                     description: "Create a client organization",
                     icon: "domain_add",
                   },
@@ -367,6 +404,19 @@ export default function EreportHub() {
                     icon: "history",
                   },
                   {
+                    id: "new-report",
+                    title: "+ New report",
+                    description: "Create report in an org",
+                    icon: "post_add",
+                  },
+                ]}
+                onSelect={setView}
+              />
+            </DashboardSection>
+            <DashboardSection title="Manage">
+              <DashboardGrid
+                cards={[
+                  {
                     id: "manage",
                     title: "Manage orgs",
                     description: "Order, hide, delete",
@@ -380,7 +430,7 @@ export default function EreportHub() {
         ) : null}
 
         {view === "register" ? (
-          <DashboardSection title="Register org">
+          <DashboardSection title="New org">
             <form className="ereport-hub__form" onSubmit={onRegisterOrg}>
               <label>
                 Organization name
@@ -411,6 +461,90 @@ export default function EreportHub() {
               </button>
               {!canCreate ? (
                 <p className="ereport-hub__muted">eReport subscription required.</p>
+              ) : null}
+            </form>
+          </DashboardSection>
+        ) : null}
+
+        {view === "new-report" ? (
+          <DashboardSection title="New report">
+            <form
+              className="ereport-hub__form"
+              onSubmit={onCreateReportInSelectedOrg}
+            >
+              <label>
+                Organization
+                <select
+                  value={reportOrgId || activeOrgId || ""}
+                  onChange={(e) => setReportOrgId(e.target.value)}
+                  required
+                  disabled={!canCreate || busy || visibleOrgs.length === 0}
+                >
+                  <option value="">Select an organization…</option>
+                  {visibleOrgs.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Report name
+                <input
+                  value={newReportTema}
+                  onChange={(e) => setNewReportTema(e.target.value)}
+                  placeholder="Report name / tema (e.g. Model QA — Sprint 1)"
+                  required
+                  disabled={!canCreate || busy}
+                />
+              </label>
+              <div className="ereport-hub__row">
+                <button
+                  type="submit"
+                  className="btn btn--primary"
+                  disabled={
+                    !canCreate ||
+                    busy ||
+                    !(reportOrgId || activeOrgId) ||
+                    !newReportTema.trim()
+                  }
+                >
+                  Create report
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={!canCreate || busy || !(reportOrgId || activeOrgId)}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  Import .ereport
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".ereport,application/json"
+                  hidden
+                  onChange={(e) =>
+                    void onImportFile(e.target.files?.[0] ?? null)
+                  }
+                />
+              </div>
+              {visibleOrgs.length === 0 ? (
+                <p className="ereport-hub__muted">
+                  No organizations found.{" "}
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setView("register")}
+                  >
+                    Register an org first
+                  </button>
+                </p>
+              ) : null}
+              {!canCreate ? (
+                <p className="ereport-hub__muted">
+                  eReport subscription required.
+                </p>
               ) : null}
             </form>
           </DashboardSection>
