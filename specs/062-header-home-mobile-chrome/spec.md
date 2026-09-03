@@ -12,6 +12,7 @@
 
 1. **Phone chrome scale** — set `--ui-scale` on phone (`max-width: 767.98px`) from `2` to **`calc(4 / 3)`** so `--chrome-control-size` / `--header-dynamic-control-size` shrink by **1.5×**. Tablet (`4/3`) and desktop (`1`) stay as in 045. Page `.btn` / inputs remain on `--bmh` only.
 2. **Logo** — `.site-header__logo` has **no fill background** (transparent). Hover may use a light wash only; no `--site-surface` plate.
+2b. **Phone menu button (amendment 2026-09-03c)** — on phone only (`max-width: 767.98px`), `.site-header__menu` (hamburger) has **transparent** background (no `--site-surface` plate). Tablet/desktop rail may keep surface fill.
 3. **Phone HDS drawer (phone only)** — in the header dynamic slot, when HDS content is mounted:
    - Show a **single toggle button** (Material Symbol, e.g. `tune` / `more_horiz`) sized like other chrome controls.
    - Closed: HDS action buttons are **not** laid out in the top bar (no horizontal overflow row).
@@ -31,6 +32,7 @@
 
 - [x] Phone chrome controls ≈ 1.5× smaller than pre-fix (`--ui-scale: 4/3`).
 - [x] Logo has no opaque/surface background.
+- [x] Phone hamburger `.site-header__menu` has no background (transparent).
 - [x] Phone with HDS: one toggle → lateral tools panel; closed bar stays clean.
 - [x] Tablet/desktop HDS layout unchanged.
 - [x] Home mobile scroll no longer uses fixed background attachment.

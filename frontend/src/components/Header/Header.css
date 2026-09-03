@@ -119,6 +119,15 @@
   html.page-home .site-header__bar-end {
     margin-left: 0;
   }
+
+  /* Spec 062c: phone hamburger — icon only, no surface plate. */
+  .site-header__menu {
+    background: transparent;
+  }
+
+  .site-header__menu:hover {
+    background: color-mix(in srgb, var(--site-accent) 12%, transparent);
+  }
 }
 
 .site-header__menu {
