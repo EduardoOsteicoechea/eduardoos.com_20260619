@@ -35,7 +35,7 @@
 - [x] Tablet/desktop HDS layout unchanged.
 - [x] Home mobile scroll no longer uses fixed background attachment.
 - [x] Auth gate code paths untouched.
-- [ ] FE build green; commit + push.
+- [x] FE build green; commit + push.
 
 ## Affected paths
 
