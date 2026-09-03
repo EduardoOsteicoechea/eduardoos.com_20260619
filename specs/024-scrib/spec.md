@@ -48,7 +48,7 @@ Each layer = one SVG with `viewBox="0 0 215.9 279.4"` (mm units) sized exactly t
 Dynamic header host (`#header-dynamic-menu-host`):
 
 1. **Dashboard** — navigate `/scrib`
-2. **Zoom mode** — the default editor mode; bordered view; wheel / pinch zoom; pointer drag pans. Its control selects zoom without implicitly enabling drawing.
+2. **Zoom mode** — the default editor mode; bordered view; wheel / pinch zoom; pointer drag pans. Its control selects zoom without implicitly enabling drawing. The zoom accent border MUST paint **above** the sheet (and any transformed stage), never underneath the hoja — use a non-interactive overlay (`::after` / equivalent) with a z-index above `.scrib-stage` / `.scrib-page`, not a plain `outline` that children can cover.
 3. **Draw mode** — replaces the former Pen only toggle. Drawing is possible only while this control is selected, and accepts only `pointerType === "pen"` (stylus / Apple Pencil / S Pen). Finger, palm, and mouse never create strokes.
 4. **Fullscreen** — enters native browser fullscreen for the Scrib document without resetting its zoom or pan transform. The existing header tools remain usable for Zoom, Draw, Eraser, Layers, Undo, and stroke size. While fullscreen is active, a red icon-only close button with an X and an adjacent icon-only sidebar visibility toggle are fixed at the upper-right. The sidebar is visible initially; hiding it expands the viewport. Exiting with the browser Escape control also restores the regular editor and visible sidebar.
 5. **Stroke +** — increase stroke width (mm); show current size
@@ -131,6 +131,7 @@ Pick Liber → Caput → copy paragraph / chapter to clipboard. Details: `specs/
 - [x] Header tools as listed; autosave on pointer up
 - [x] S3 under `scrib/`; tests for keys/handlers; FE build; commit + push
 - [x] Zoom is the default; Draw and Eraser require a stylus and no other tool creates or removes paths
+- [x] Zoom mode accent border stays visible above the sheet (not covered by the hoja / stage transform)
 - [x] Layers modal closes when its backdrop is clicked
 - [x] Dynamic header offers fullscreen; its fixed upper-right exit control and Escape both restore the normal viewport
 - [x] Dark mode inverts the ruled background image

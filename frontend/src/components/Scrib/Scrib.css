@@ -269,9 +269,19 @@ body:has(.scrib-viewport) {
 }
 
 .scrib-viewport--zoom {
-  outline: 2px solid var(--site-accent, #2a6f97);
-  outline-offset: -2px;
+  /* Border via ::after so the accent ring stays above the sheet/stage
+     (plain outline paints under transformed .scrib-page children). */
   cursor: grab;
+}
+
+.scrib-viewport--zoom::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  box-sizing: border-box;
+  border: 2px solid var(--site-accent, #2a6f97);
+  pointer-events: none;
 }
 
 .scrib-viewport--zoom:active {
@@ -716,6 +726,10 @@ html.scrib-fullscreen--header-hidden .scrib-viewport {
     background: transparent !important;
     outline: none !important;
     visibility: visible !important;
+  }
+
+  .scrib-viewport--zoom::after {
+    display: none !important;
   }
 
   .scrib-stage {
