@@ -149,6 +149,28 @@ func TestRateLimit(t *testing.T) {
 	}
 }
 
+func TestDocsPublic(t *testing.T) {
+	h := NewHandler("test-secret", auth.NewMemoryStore(), NewMemoryStore(), nil)
+	r := chi.NewRouter()
+	h.RoutesPublicDocs(r)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/docs", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var cat DocsCatalog
+	if err := json.Unmarshal(rec.Body.Bytes(), &cat); err != nil {
+		t.Fatal(err)
+	}
+	if cat.Version != "1" || len(cat.Routes) < 2 {
+		t.Fatalf("catalog=%+v", cat)
+	}
+	if cat.RateLimit.RequestsPerMinute != DefaultRateLimit {
+		t.Fatalf("rate=%d", cat.RateLimit.RequestsPerMinute)
+	}
+}
+
 func httpxWriteOK(w http.ResponseWriter, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

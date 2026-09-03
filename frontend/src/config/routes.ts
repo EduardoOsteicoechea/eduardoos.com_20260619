@@ -11,6 +11,8 @@ export const APP_ROUTES = {
   resetPassword: "/auth/reset-password",
   profile: "/auth/profile",
   subscription: "/payments/subscription",
+  /** External API documentation (spec 057). */
+  apiDocs: "/api-docs",
   mediaPlaylist: "/media/musica",
   pamphlet: "/documents/pamphlet",
   /** Public articles hub (spec 051). */
@@ -292,6 +294,9 @@ export const PAYMENT_ROUTES = {
   access: "/api/subscriptions/access",
   catalog: "/api/subscriptions/catalog",
 } as const;
+
+/** Public external API catalog (no auth). */
+export const API_DOCS_ROUTE = "/api/v1/docs" as const;
 
 /** API keys (JWT; requires api entitlement or admin) — spec 055. */
 export const APIKEYS_ROUTES = {

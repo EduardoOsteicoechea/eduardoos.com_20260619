@@ -110,6 +110,8 @@ export default function ProfileApiKeys() {
         <p className="profile-api-keys__lead">
           Subscribe to the <strong>API</strong> plan ($3/mo) to create keys for external apps.{" "}
           <a href={APP_ROUTES.subscription}>Open subscriptions</a>
+          {" · "}
+          <a href={APP_ROUTES.apiDocs}>API docs</a>
         </p>
       </section>
     );
@@ -120,7 +122,8 @@ export default function ProfileApiKeys() {
       <h2 className="profile-api-keys__title">API keys</h2>
       <p className="profile-api-keys__lead">
         Keys authenticate with <code>Authorization: Bearer eos_live_…</code>. Scope follows your
-        active subscriptions (e.g. eReport). The secret is shown <strong>once</strong> at creation.
+        active subscriptions (e.g. eReport). The secret is shown <strong>once</strong> at creation.{" "}
+        <a href={APP_ROUTES.apiDocs}>Full API docs</a>
       </p>
       <p className="profile-api-keys__example">
         Example eReport replace:

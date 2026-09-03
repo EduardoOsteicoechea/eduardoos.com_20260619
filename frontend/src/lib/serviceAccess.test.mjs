@@ -189,7 +189,7 @@ describe("tray link order (spec 052)", () => {
     const product = src.split("export const PRODUCT_TRAY_LINKS")[1].split("];")[0];
     const keys = (block) =>
       [...block.matchAll(/href: APP_ROUTES\.(\w+)/g)].map((m) => m[1]);
-    assert.deepEqual(keys(primary), ["home", "contact"]);
+    assert.deepEqual(keys(primary), ["home", "contact", "apiDocs"]);
     assert.deepEqual(keys(product), [
       "bimIfcViewer",
       "articles",

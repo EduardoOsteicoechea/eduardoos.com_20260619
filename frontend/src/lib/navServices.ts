@@ -21,6 +21,7 @@ export type TrayNavLink = {
 export const PRIMARY_TRAY_LINKS: TrayNavLink[] = [
   { href: APP_ROUTES.home, label: "Home", icon: "home" },
   { href: APP_ROUTES.contact, label: "Contact", icon: "mail" },
+  { href: APP_ROUTES.apiDocs, label: "API docs", icon: "terminal" },
 ];
 
 export const PRODUCT_TRAY_LINKS: TrayNavLink[] = [

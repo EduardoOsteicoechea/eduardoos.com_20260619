@@ -1,0 +1,10 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ApiDocsPage from "../../components/ApiDocs/ApiDocsPage";
+---
+
+<BaseLayout title="API docs — Eduardo OS">
+  <div class="page-shell page-shell--product product-dash">
+    <ApiDocsPage client:load />
+  </div>
+</BaseLayout>

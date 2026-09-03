@@ -130,6 +130,7 @@ func main() {
 	scribHandler.Routes(r)
 	ereportHandler.Routes(r)
 	apikeysHandler.Routes(r)
+	apikeysHandler.RoutesPublicDocs(r)
 	// External product APIs (Bearer API key, not JWT) — spec 055.
 	apikeysHandler.MountV1(r, func(vr chi.Router) {
 		vr.Group(func(er chi.Router) {

@@ -1,0 +1,122 @@
+/**
+ * API docs — plain CSS, product dashboard chrome (spec 057).
+ */
+
+.api-docs {
+  max-width: var(--max_desktop_width, 72rem);
+  padding: 0 0 2.5rem;
+}
+
+.api-docs__brand {
+  margin: 0 0 0.35rem;
+  font-size: var(--font-sm, 0.9rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.api-docs__title {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 700;
+  color: var(--site-body-fg);
+}
+
+.api-docs__lead {
+  margin: 0 0 1.25rem;
+  max-width: 42rem;
+  line-height: 1.5;
+  font-size: var(--font-sm, 0.95rem);
+}
+
+.api-docs__section {
+  margin: 0 0 1.75rem;
+}
+
+.api-docs__section h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.15rem;
+}
+
+.api-docs__section ul,
+.api-docs__section ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.55;
+}
+
+.api-docs__section li + li {
+  margin-top: 0.35rem;
+}
+
+.api-docs__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--site-border, #ccc);
+  border-radius: var(--border_radius_001, 4px);
+}
+
+.api-docs__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.api-docs__table th,
+.api-docs__table td {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--site-border, #ddd);
+}
+
+.api-docs__table th {
+  background: var(--glassed_background, transparent);
+  font-weight: 600;
+}
+
+.api-docs__table tr:last-child td {
+  border-bottom: none;
+}
+
+.api-docs__body,
+.api-docs__req {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  word-break: break-word;
+}
+
+.api-docs__req {
+  opacity: 0.85;
+}
+
+.api-docs__hint {
+  margin: 0.65rem 0 0;
+  font-size: var(--font-sm, 0.9rem);
+  opacity: 0.85;
+}
+
+.api-docs__error {
+  color: #b00020;
+  font-size: var(--font-sm, 0.9rem);
+}
+
+.api-docs__actions {
+  margin: 0 0 0.75rem;
+}
+
+.api-docs__prompt {
+  margin: 0;
+  padding: 1rem;
+  max-height: 28rem;
+  overflow: auto;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--site-border, #ccc);
+  border-radius: var(--border_radius_001, 4px);
+  background: var(--glassed_background, transparent);
+  color: var(--site-body-fg);
+}
