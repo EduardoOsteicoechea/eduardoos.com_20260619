@@ -551,10 +551,33 @@
   display: none;
 }
 
+/* Matching full-width outlined controls so Register / Log in align as a pair. */
 .site-header__auth--nav .site-header__auth-link,
 .site-header__auth--nav .site-header__action {
-  width: 100%;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  max-height: none;
+  min-height: var(--chrome-control-size, 2.25rem);
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--site-medium) !important;
+  border-radius: var(--border_radius_001);
+  background: transparent !important;
+  color: var(--site-body-fg) !important;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.site-header__auth--nav .site-header__auth-link:hover,
+.site-header__auth--nav .site-header__action:hover {
+  border-color: var(--site-accent) !important;
+  background: color-mix(in srgb, var(--site-accent) 12%, transparent) !important;
+  text-decoration: none;
 }
 
 .site-header__auth--bar .site-header__auth-link,

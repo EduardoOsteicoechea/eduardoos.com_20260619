@@ -81,6 +81,7 @@ Production Eduardo OS works but the monorepo is hard to evolve. We need a clean 
 - **Mobile:** horizontal top bar (`--header_height: 60px`). Left = favicon → home; **center = Header Dynamic Menu** (when registered; `overflow-x: auto` if buttons do not fit); right = avatar then menu. Tray opens from the left below the bar.
 - Layout shells (`BaseLayout`, `PamphletLayout`) and `global.css` offset content with `--header_height` / `--header_width` so blueprint wash and full-bleed editors do not sit under the rail. Do **not** reserve a second full-width top toolbar over main content.
 - Tray still hosts primary links, Services dropdown, Theme toggle, and logged-out auth links.
+- **Logged-out tray auth:** Register and Log in are a matching pair — same full-width control box (height, padding, border, centered label). Neither may look like a bare text link while the other is an outlined button.
 - **Header Dynamic Menu** (optional per-route): a **section inside Header chrome**, not a separate bar over the page. Host: `frontend/src/components/HeaderDynamicMenu/` (`#header-dynamic-menu-host` inside `Header`). Empty host is hidden; a route mounts its tool buttons into the host. **Desktop:** after avatar + separator in the left rail (vertical stack). **Mobile:** center slot between logo and avatar/menu (horizontal row, `overflow-x: auto`). Used by **Pamphlet** (`/documents/pamphlet`). Music does **not** register tools here. Tokens / icons: `--site-*` + `currentColor` (legible light/dark).
 
 ### Global Activity Bar (chrome)
