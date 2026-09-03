@@ -1,13 +1,18 @@
 /**
  * Theme tokens — Eduardo OS (spec 045 + 048).
  * Root 14px × --site-text-scale; Kumbh Sans (YOPQ 300) / system-ui.
- * Spacing --m* / --p*; chrome --bmh/--bmw/--lbw/--br; colors --bg/--fg + ISO buttons.
+ * Spacing --m* / --p*; form chrome --bmh/--bmw; header icon chrome × --ui-scale.
  * Phone / tablet / desktop lists. Aliases keep --site-* working during migration.
  * Pamphlet mm/px and Scrib sheet geometry are pass-through (do not rem-convert).
  */
 
 :root {
-  --ui-scale: 1.5;
+  /*
+   * Header / HDS icon scale only (not page .btn / inputs).
+   * Phone-first default; tablet/desktop media override.
+   * Spec 045 amendment 2026-09-03: phone ×2, tablet ×4/3, desktop ×1.
+   */
+  --ui-scale: 2;
   --site-text-scale: 1;
 
   /* Desktop token list (overridden below for tablet/phone). */
@@ -59,8 +64,11 @@
   --site-wash-accent: color-mix(in srgb, var(--btn-blue) 10%, transparent);
   --site-wash-ink: color-mix(in srgb, var(--fg) 2.5%, transparent);
 
-  --header_bar_height: var(--bmh);
-  --header_height: calc(var(--bmh) * 1.35);
+  /* Header + HDS icon hit targets (separate from form --bmh). */
+  --chrome-control-size: calc(var(--bmh) * var(--ui-scale));
+  --header-dynamic-control-size: var(--chrome-control-size);
+  --header_bar_height: var(--chrome-control-size);
+  --header_height: calc(var(--chrome-control-size) * 1.35);
   --header_width: 0px;
   --header_safe_top: env(safe-area-inset-top, 0px);
   --header_offset: calc(var(--header_height) + var(--header_safe_top));
@@ -87,9 +95,10 @@
   color-scheme: light;
 }
 
-/* Phone — ×0.8, no left rail */
+/* Phone — page tokens ×0.8; header chrome × --ui-scale 2; no left rail */
 @media (max-width: 767.98px) {
   :root {
+    --ui-scale: 2;
     --m1: 0.6rem;
     --m2: 0.9rem;
     --m3: 1.2rem;
@@ -104,9 +113,11 @@
     --bmw: 1.8rem;
     --lbw: 0;
     --br: 0.172rem;
+    --chrome-control-size: calc(var(--bmh) * var(--ui-scale));
+    --header-dynamic-control-size: var(--chrome-control-size);
     --header_width: 0px;
-    --header_height: calc(var(--bmh) * 1.35);
-    --header_bar_height: var(--bmh);
+    --header_bar_height: var(--chrome-control-size);
+    --header_height: calc(var(--chrome-control-size) * 1.35);
     --header_offset: calc(var(--header_height) + var(--header_safe_top));
     --control_min_height: var(--bmh);
     --control_min_width: var(--bmw);
@@ -114,9 +125,10 @@
   }
 }
 
-/* Tablet — ×0.9 + left rail */
+/* Tablet — page tokens ×0.9; header chrome × 4/3; left rail fits chrome */
 @media (min-width: 768px) and (max-width: 1099.98px) {
   :root {
+    --ui-scale: calc(4 / 3);
     --m1: 0.675rem;
     --m2: 1.0125rem;
     --m3: 1.35rem;
@@ -129,7 +141,9 @@
     --p5: 2.7rem;
     --bmh: 2.025rem;
     --bmw: 2.025rem;
-    --lbw: 3.857143rem;
+    --chrome-control-size: calc(var(--bmh) * var(--ui-scale));
+    --header-dynamic-control-size: var(--chrome-control-size);
+    --lbw: calc(3.857143rem * var(--ui-scale));
     --br: 0.1935rem;
     --header_height: 0px;
     --header_bar_height: 0px;
@@ -139,13 +153,13 @@
     --control_min_height: var(--bmh);
     --control_min_width: var(--bmw);
     --page-inline-pad: var(--p2);
-    --ui-scale: 1.25;
   }
 }
 
-/* Desktop — full scale + left rail */
+/* Desktop — full page tokens; header chrome ×1; left rail */
 @media (min-width: 1100px) {
   :root {
+    --ui-scale: 1;
     --m1: 0.75rem;
     --m2: 1.125rem;
     --m3: 1.5rem;
@@ -158,6 +172,8 @@
     --p5: 3rem;
     --bmh: 2.25rem;
     --bmw: 2.25rem;
+    --chrome-control-size: calc(var(--bmh) * var(--ui-scale));
+    --header-dynamic-control-size: var(--chrome-control-size);
     --lbw: 4.285714rem;
     --br: 0.215rem;
     --header_height: 0px;
@@ -168,7 +184,6 @@
     --control_min_height: var(--bmh);
     --control_min_width: var(--bmw);
     --page-inline-pad: var(--p2);
-    --ui-scale: 1;
   }
 }
 

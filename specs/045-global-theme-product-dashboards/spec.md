@@ -14,6 +14,9 @@
 - [x] `ProductHeaderMenu` / product HDS buttons are **icon-only** Material Symbols (always, no exception — no visible text labels)
 - [x] Single-line inputs + selects + `.btn` share exact `--bmh` height globally (incl. eReport org forms)
 - [x] Inputs/selects/textarea use visible `--site-input-bg` (contrast vs page `--bg` in light + dark)
+- [x] Phone header + HDS icon buttons use `--ui-scale: 2` via `--chrome-control-size` (2× prior too-small chrome)
+- [x] Tablet header rail + HDS icon buttons use `--ui-scale: calc(4 / 3)` (correct 0.75× undersize)
+- [x] Desktop chrome unchanged (`--ui-scale: 1`); page `.btn` / inputs still `--bmh` only
 
 ## Problem
 
@@ -42,12 +45,29 @@ Site chrome and product hubs still use mixed `--site-*` tokens, rem drift, and b
 
 ### Control / chrome
 - `--bmh` / `--bmw`: `2.25rem` desktop (×0.9 tablet, ×0.8 phone).
-- `--lbw`: `4.285714rem` desktop/tablet; `0` phone.
+- `--lbw`: `4.285714rem` desktop; tablet scales with chrome (see below); `0` phone.
 - `--br`: `0.215rem`.
 - **`--control_min_height` = `--bmh`** (alias; do not invent a second control height).
 - **Equal control height (global, locked):** every **single-line** text-like `input`, every `select`, and every `.btn` (all variants — primary blue, secondary gray, green/yellow/red) MUST share the **same outer height**: `height` / `min-height` / `max-height` = `var(--bmh)`, `box-sizing: border-box`, vertical padding `0` (horizontal via `--p2`). Inputs must not look shorter than the blue `.btn--primary` / `.btn--blue` buttons (eReport org forms and all other product hubs).
 - **Visible input fill (global, locked):** single-line `input`, `select`, and `textarea` MUST use **`--site-input-bg`**, which is **visibly distinct from page `--bg` in both light and dark** (not transparent, not `--site-body-bg` / `--bg`). Light: solid near-white `#ffffff`. Dark: elevated mix toward `--fg` (readable field box on `#0e1116`). Product overrides must not reset inputs back to page `--bg`.
 - **Excluded from equal height:** `textarea` height may grow (min-height only); `input[type=checkbox|radio|range|file|color|hidden]`; Pamphlet document canvas / Scrib sheet geometry (mm/px pass-through); dedicated transport/HDS icon controls that use their own size tokens (e.g. `--playlist-control-size`, header-dynamic icon buttons).
+
+### Header + icon chrome scale (amendment 2026-09-03)
+
+After the 045 rem shrink, site **header** and **header icon buttons** rendered ~0.5× (phone) and ~0.75× (tablet) of intended touch size. Restore via `--ui-scale` applied **only** to site chrome — not to page `--m*`/`--p*`, not to form `.btn` / inputs (`--bmh` stays as above).
+
+| Breakpoint | `--ui-scale` | Chrome control size |
+|---|---|---|
+| Phone (max 767.98px) | `2` | `calc(var(--bmh) * 2)` |
+| Tablet (768–1099.98px) | `calc(4 / 3)` | `calc(var(--bmh) * 4 / 3)` |
+| Desktop (min 1100px) | `1` | `var(--bmh)` |
+
+- **`--chrome-control-size`** = `calc(var(--bmh) * var(--ui-scale))`.
+- **`--header-dynamic-control-size`** = `--chrome-control-size` (HDS / ProductHeaderMenu icon buttons).
+- Phone top bar: `--header_bar_height` = `--chrome-control-size`; `--header_height` = `calc(var(--chrome-control-size) * 1.35)`; `--header_offset` includes safe-area.
+- Logo, hamburger, avatar, and HDS icon buttons all use `--chrome-control-size` (not raw `--bmh`).
+- Tablet/desktop left rail: `--lbw` / `--header_width` must fit chrome controls + horizontal pad (scale tablet rail with `--ui-scale`).
+- **Non-goal of this amendment:** changing Pamphlet mm/px sheet geometry or pamphlet `zoom: 0.5` edit-tray compensation.
 
 ### Colors
 - Light: `--bg:#f2f3f6` `--fg:#141820`
