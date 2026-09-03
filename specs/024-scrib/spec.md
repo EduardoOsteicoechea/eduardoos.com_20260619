@@ -56,7 +56,12 @@ Dynamic header host (`#header-dynamic-menu-host`):
 7. **Eraser** — toggle; erases only on active layer and accepts only `pointerType === "pen"`; finger, palm, and mouse never erase. Prefer deleting path hits under brush; MVP: freehand eraser that removes path points within radius of active layer paths.
 8. **Layers modal** — per layer: opacity slider (0–1), radio to set **sole** active layer. Clicking the backdrop outside its panel closes it and persists its current values.
 9. **Undo** — revert last stroke/erase action on active layer (in-memory stack + persist after undo)
-10. **Print** — icon in dynamic header; opens the browser print dialog for **only the current sheet** (ruled background + SVG layers). Print uses each layer’s **current opacity** (same visibility as the editor). Geometry: **portrait US Letter** (`@page size: letter`, 215.9×279.4 mm), no zoom/pan transform, no editor chrome / header / modals. Screen dark-mode invert is **disabled** for print so ink stays dark on the ruled page. Browser print only — not a server PDF.
+10. **Print (server PDF)** — icon in dynamic header downloads a **portrait US Letter PDF** of the current sheet:
+   - Client captures the sheet **as drawn** (background + layers at live opacities), **without** dark-mode invert (always light paper look), converts the raster to **grayscale**, and `POST`s it to the Scrib backend.
+   - Backend (`backend/internal/scrib` + raw PDF helper) wraps the image full-bleed on one US Letter page (`215.9 × 279.4 mm`) and returns `application/pdf`.
+   - FE triggers a **file download** (no `window.print()`).
+   - Goal: pixel-faithful to the on-screen sheet geometry/strokes; output always light grayscale.
+
 
 Default mode = **zoom** on active layer. Stroke color: **`#141820`** (site ink) all layers for MVP.
 
@@ -93,16 +98,25 @@ scrib/{userSafe}/books/{bookId}/sheets/{sheetId}/sheet.json
 | GET | `/api/scrib/books/{bookId}/sheets/{sheetId}` |
 | PUT | `/api/scrib/books/{bookId}/sheets/{sheetId}` full sheet body |
 | DELETE | `/api/scrib/books/{bookId}/sheets/{sheetId}` |
+| POST | `/api/scrib/print/pdf` `{ imageBase64 }` JPEG/PNG (data URL or raw base64) → `application/pdf` download |
 
 Gateway mounts `internal/scrib` like church/homescool.
 
 ### 14. Institutes chapter-copy modal (spec 056)
 
-Editor header offers an **Institutes** control that opens a modal to pick Liber → Caput from the parallel paragraph pack and **copy** paragraph (or whole chapter) text to the clipboard. Clipboard only — no paste-into-layer in this turn. Details: `specs/056-calvin-institutes-paragraphs/spec.md`.
+Editor header offers an **Institutes** control that opens a docked Capita panel (not a centered dialog):
+
+| Viewport | Placement |
+|----------|-----------|
+| Desktop | Top-right, **20%** of viewport width |
+| Tablet | Top-right, **20%** of viewport width |
+| Mobile | Top, **100%** width × **20%** viewport height |
+
+Pick Liber → Caput → copy paragraph / chapter to clipboard. Details: `specs/056-calvin-institutes-paragraphs/spec.md`.
 
 ## Non-goals (MVP)
 - Multi-user collaboration / sharing sheets across users
-- Server-side PDF export (browser print of the live sheet is in scope)
+- Browser `window.print()` for Scrib sheets (replaced by server PDF download)
 - Per-layer stroke colors / text typing tools (draw-only)
 - Offline-first IndexedDB
 - Auto-insert Institutes text into SVG layers (clipboard copy is in scope via 056)
@@ -123,11 +137,11 @@ Editor header offers an **Institutes** control that opens a modal to pick Liber 
 - [x] Slow or rapid autosaves preserve all completed strokes and never apply stale server responses over newer local changes
 - [x] Fullscreen exit is a red icon-only X control; dark mode inverts the background and SVG layers; Scrib uses the v3 column background
 - [x] Fullscreen preserves zoom/pan, retains all Scrib tools, and can toggle the visible header sidebar
-- [x] Dynamic header Print prints only the current sheet, portrait US Letter, with live layer opacities; chrome/zoom hidden; no dark invert on print
-- [ ] Institutes modal: pick Caput → copy paragraph / chapter text to clipboard (spec 056)
+- [x] Print downloads a server-built US Letter PDF (client light grayscale capture → `/api/scrib/print/pdf`); no `window.print()`
+- [x] Institutes modal: docked top-right 20% (desktop/tablet); mobile full-width × 20% height; copy Caput text (spec 056)
 
 ## Affected paths
-- `specs/024-scrib/spec.md`
-- `backend/internal/payments/catalog.go`, `backend/internal/scrib/**`, gateway wire
-- `frontend/src/lib/payments.ts`, `routeAccess.ts`, Header, pages `/scrib/**`, components `Scrib/**`
+- `specs/024-scrib/spec.md`, `specs/056-calvin-institutes-paragraphs/spec.md`
+- `backend/internal/scrib/**`, `backend/pkg/pdf/**` (Scrib print helper)
+- `frontend/src/lib/scrib.ts`, `frontend/src/config/routes.ts`, `frontend/src/components/Scrib/**`
 - `nginx/default.conf`

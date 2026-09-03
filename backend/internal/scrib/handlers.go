@@ -49,6 +49,7 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Get("/api/scrib/books/{bookId}/sheets/{sheetId}", h.GetSheet)
 		pr.Put("/api/scrib/books/{bookId}/sheets/{sheetId}", h.PutSheet)
 		pr.Delete("/api/scrib/books/{bookId}/sheets/{sheetId}", h.DeleteSheet)
+		pr.Post("/api/scrib/print/pdf", h.PrintPDF)
 	})
 }
 

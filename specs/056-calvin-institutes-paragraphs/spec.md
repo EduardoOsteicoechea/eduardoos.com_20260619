@@ -128,18 +128,21 @@ Pack is **built offline** from a local copy of the 032 section files (or downloa
 
 On the Scrib **sheet editor** (subscription-gated page):
 
-1. Header Dynamic Menu gains an **Institutes** control (opens modal; distinct from Layers).
-2. Modal title: Institutes / Capita.
-3. Flow:
+1. Header Dynamic Menu gains an **Institutes** control (opens panel; distinct from Layers).
+2. Panel title: Institutes / Capita.
+3. **Placement (mandatory):**
+   - **Desktop:** fixed top-right, width **20vw** (20% of screen), scrollable body.
+   - **Tablet:** same as desktop (top-right, **20vw**).
+   - **Mobile:** fixed top, width **100%**, height **20vh** (20% of screen height), scrollable body.
+4. Flow:
    - Liber tabs or grouped list (I–IV).
    - Select a Caput (chapter) → load chapter JSON via the new API.
    - List paragraphs with id badge (`I.XI.3`) + text preview.
-4. Actions:
+5. Actions:
    - **Copy** on each paragraph → `navigator.clipboard.writeText(paragraph.text)`.
    - **Copy chapter** → all paragraph texts joined with `\n\n` (same display separation).
-5. Backdrop click / Cerrar closes the modal (same pattern as Layers).
-6. Print CSS hides this modal like Layers.
-7. Non-goal this turn: pasting into SVG layers or auto-inserting strokes — **clipboard only**.
+6. Backdrop click / Cerrar closes the panel.
+7. Non-goal: pasting into SVG layers — **clipboard only**.
 
 ### FE clients
 
@@ -161,7 +164,8 @@ On the Scrib **sheet editor** (subscription-gated page):
 - [x] Builder + unit tests produce stable ids/`\n\n` segments from fixtures
 - [x] New S3 prefix contract documented; old prefix never written by this feature
 - [x] Public paragraph index + chapter APIs readiness-gated; 032 Capita tests still pass
-- [x] Scrib editor: Institutes modal → pick Caput → copy paragraph / copy chapter to clipboard
+- [x] Scrib editor: Institutes panel → pick Caput → copy paragraph / copy chapter to clipboard
+- [x] Institutes panel placement: desktop/tablet top-right 20vw; mobile top 100% × 20vh
 - [x] FE build passes when frontend changes ship
 - [ ] Parallel pack uploaded to S3 `calvin-institutes-paragraphs/` (ops; outside this commit)
 

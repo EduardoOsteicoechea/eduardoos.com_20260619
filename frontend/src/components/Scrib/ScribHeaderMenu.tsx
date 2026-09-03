@@ -249,8 +249,8 @@ export default function ScribHeaderMenu(props: ScribHeaderMenuProps) {
           <button
             type="button"
             className="header-dynamic-menu__btn"
-            title="Imprimir hoja"
-            aria-label="Imprimir hoja actual en US Letter vertical"
+            title="Descargar PDF de la hoja"
+            aria-label="Descargar PDF US Letter en escala de grises clara"
             onClick={props.onPrint}
           >
             <IconPrint />

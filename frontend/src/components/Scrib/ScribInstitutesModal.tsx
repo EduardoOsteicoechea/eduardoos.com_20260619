@@ -120,6 +120,7 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
           </button>
         </header>
 
+        <div className="scrib-institutes-modal__scroll">
         {error ? <p className="scrib-institutes-modal__error">{error}</p> : null}
         {copyHint ? (
           <p className="scrib-institutes-modal__hint" aria-live="polite">
@@ -225,6 +226,7 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );

@@ -24,6 +24,7 @@ import {
   type StrokePath,
   scribSheetPrettyPath,
 } from "../../lib/scrib";
+import { downloadScribSheetPdf } from "../../lib/scribPrint";
 import "./Scrib.css";
 
 const STROKE_MIN = 0.1;
@@ -515,10 +516,23 @@ export default function ScribEditor() {
           setLayersOpen(false);
           setInstitutesOpen(false);
           setDraftPath("");
-          // Let the modal unmount and print styles settle before the dialog opens.
-          requestAnimationFrame(() => {
-            window.print();
-          });
+          const el = sheetRef.current;
+          const current = sheetSnapshotRef.current;
+          if (!el || !current) {
+            setError("Sheet not ready to print.");
+            return;
+          }
+          void (async () => {
+            try {
+              setError("");
+              setSaving(true);
+              await downloadScribSheetPdf(el, current);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "Print PDF failed");
+            } finally {
+              setSaving(false);
+            }
+          })();
         }}
         onUndo={() => void onUndo()}
       />
