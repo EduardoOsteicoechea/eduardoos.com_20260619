@@ -63,9 +63,10 @@
   min-width: var(--header-dynamic-control-size, var(--chrome-control-size, 2.25rem));
   min-height: var(--header-dynamic-control-size, var(--chrome-control-size, 2.25rem));
   padding: 0;
-  border: var(--border_001);
+  border: 1px solid var(--site-input-border, color-mix(in srgb, var(--site-body-fg) 18%, transparent));
   border-radius: var(--border_radius_001);
-  background: var(--site-body-bg);
+  /* Elevated plate so HDS stays visible on the rail/bar (spec 045). */
+  background: var(--site-surface);
   color: var(--site-body-fg);
   cursor: pointer;
 }

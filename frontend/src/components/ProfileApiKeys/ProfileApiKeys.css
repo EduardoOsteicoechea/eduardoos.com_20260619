@@ -62,9 +62,9 @@
   min-height: var(--bmh, var(--control_min_height, 2.5rem));
   box-sizing: border-box;
   padding: 0 var(--p2, 0.75rem);
-  border: 1px solid var(--site-border, #ccc);
+  border: 1px solid var(--site-input-border, var(--site-border, #ccc));
   border-radius: var(--border_radius_001, 4px);
-  background: var(--site-body-bg, #fff);
+  background: var(--site-input-bg);
   color: var(--site-body-fg);
 }
 

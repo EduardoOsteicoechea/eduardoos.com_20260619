@@ -36,7 +36,7 @@ select {
   padding-inline: var(--p2);
   font: inherit;
   line-height: 1.2;
-  border: var(--border_001, none);
+  border: 1px solid var(--site-input-border, color-mix(in srgb, var(--fg) 18%, transparent));
   border-radius: var(--br, var(--border_radius_001, 0.215rem));
   background: var(--site-input-bg);
   color: var(--site-body-fg, var(--fg));
@@ -47,10 +47,16 @@ textarea {
   padding: var(--p1) var(--p2);
   font: inherit;
   line-height: 1.4;
-  border: var(--border_001, none);
+  border: 1px solid var(--site-input-border, color-mix(in srgb, var(--fg) 18%, transparent));
   border-radius: var(--br, var(--border_radius_001, 0.215rem));
   background: var(--site-input-bg);
   color: var(--site-body-fg, var(--fg));
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--site-meta-fg, var(--site-muted-fg, var(--fg)));
+  opacity: 0.72;
 }
 
 html {

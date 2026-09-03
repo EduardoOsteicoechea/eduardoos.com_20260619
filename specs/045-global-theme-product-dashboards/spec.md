@@ -14,6 +14,8 @@
 - [x] `ProductHeaderMenu` / product HDS buttons are **icon-only** Material Symbols (always, no exception — no visible text labels)
 - [x] Single-line inputs + selects + `.btn` share exact `--bmh` height globally (incl. eReport org forms)
 - [x] Inputs/selects/textarea use visible `--site-input-bg` (contrast vs page `--bg` in light + dark)
+- [x] Dark `--site-input-bg` is a clearly elevated field plate (not near-`--bg`); product CSS must not paint inputs with `--site-body-bg` / `--bg`
+- [x] eReport hub: `ProductHeaderMenu` HDS stays visible on every `?view=`; Dashboard icon + in-page Back return to dashboard
 - [x] Phone header + HDS icon buttons use `--ui-scale: 2` via `--chrome-control-size` (2× prior too-small chrome)
 - [x] Tablet header rail + HDS icon buttons use `--ui-scale: calc(4 / 3)` (correct 0.75× undersize)
 - [x] Desktop chrome unchanged (`--ui-scale: 1`); page `.btn` / inputs still `--bmh` only
@@ -49,7 +51,7 @@ Site chrome and product hubs still use mixed `--site-*` tokens, rem drift, and b
 - `--br`: `0.215rem`.
 - **`--control_min_height` = `--bmh`** (alias; do not invent a second control height).
 - **Equal control height (global, locked):** every **single-line** text-like `input`, every `select`, and every `.btn` (all variants — primary blue, secondary gray, green/yellow/red) MUST share the **same outer height**: `height` / `min-height` / `max-height` = `var(--bmh)`, `box-sizing: border-box`, vertical padding `0` (horizontal via `--p2`). Inputs must not look shorter than the blue `.btn--primary` / `.btn--blue` buttons (eReport org forms and all other product hubs).
-- **Visible input fill (global, locked):** single-line `input`, `select`, and `textarea` MUST use **`--site-input-bg`**, which is **visibly distinct from page `--bg` in both light and dark** (not transparent, not `--site-body-bg` / `--bg`). Light: solid near-white `#ffffff`. Dark: elevated mix toward `--fg` (readable field box on `#0e1116`). Product overrides must not reset inputs back to page `--bg`.
+- **Visible input fill (global, locked):** single-line `input`, `select`, and `textarea` MUST use **`--site-input-bg`**, which is **visibly distinct from page `--bg` in both light and dark** (not transparent, not `--site-body-bg` / `--bg`, not `--glassed_background`). Light: solid `#ffffff`. Dark: elevated plate **`#252a33`** (or equivalent mix ≥ ~35% `--fg` into `--bg`) so fields read as boxes on `#0e1116`. Inputs also get a light edge (`1px` mix of `--fg` at ~20% opacity) even when `--border_001` is `none` site-wide. Placeholders use `--site-meta-fg` at readable opacity. **Forbidden:** product/component CSS resetting input `background` to `--site-body-bg` / `--bg` (e.g. API keys, Scrib book form).
 - **Excluded from equal height:** `textarea` height may grow (min-height only); `input[type=checkbox|radio|range|file|color|hidden]`; Pamphlet document canvas / Scrib sheet geometry (mm/px pass-through); dedicated transport/HDS icon controls that use their own size tokens (e.g. `--playlist-control-size`, header-dynamic icon buttons).
 
 ### Header + icon chrome scale (amendment 2026-09-03)
@@ -89,7 +91,9 @@ As previously specified: cards + header dynamic menu; Music Upload = new + v2 ca
 - **Forbidden:** visible text / short-label text on those buttons (text buttons are unacceptable).
 - Each item supplies: `id`, accessible `label` (for `title` + `aria-label` only), and Material Symbol `icon` name.
 - Shared chrome: `header-dynamic-menu__btn` sizing; active view uses active/pressed styling.
+- **Visible HDS controls:** inactive HDS buttons use **`--site-surface`** fill (not page `--bg`) so they stay readable on the header rail / bar; icons use `--site-body-fg`.
 - Applies to every consumer of `ProductHeaderMenu` (eVoice, Music, Pamphlet, Homescool, eReport, …).
+- **eReport hub:** HDS remains mounted on every hub `?view=` (dashboard, orgs, register, recent, manage). First item is **Dashboard**. When `view !== dashboard`, the hub page also shows an in-content **Back to dashboard** control so users are never stuck without chrome.
 
 ## Non-goals
 - Changing Scrib or Pamphlet mm/px geometry.

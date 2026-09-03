@@ -291,6 +291,20 @@ export default function EreportHub() {
         }}
       />
       <ProductHubShell title="eReport">
+        {view !== "dashboard" ? (
+          <p className="ereport-hub__back">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setView("dashboard");
+                setInviteLink("");
+              }}
+            >
+              Back to dashboard
+            </button>
+          </p>
+        ) : null}
         {error ? <p className="ereport-hub__error">{error}</p> : null}
         {loading ? <p className="ereport-hub__muted">Loading…</p> : null}
 

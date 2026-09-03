@@ -11,6 +11,10 @@
   color: var(--site-body-fg);
 }
 
+.ereport-hub__back {
+  margin: 0 0 var(--m2, 1rem);
+}
+
 .ereport-hub__title {
   margin: 0.15rem 0 0.35rem;
   font-family: var(--font-display);
@@ -47,7 +51,7 @@
   min-height: var(--bmh);
   max-height: var(--bmh);
   padding: 0 var(--p2);
-  border: var(--border_001);
+  border: 1px solid var(--site-input-border, color-mix(in srgb, var(--fg) 18%, transparent));
   border-radius: var(--br, var(--border_radius_001));
   background: var(--site-input-bg);
   color: var(--site-body-fg);
@@ -77,7 +81,7 @@
   min-height: var(--bmh);
   max-height: var(--bmh);
   padding: 0 var(--p2);
-  border: none;
+  border: 1px solid var(--site-input-border, color-mix(in srgb, var(--fg) 18%, transparent));
   border-radius: var(--br, 0.215rem);
   background: var(--site-input-bg);
   color: var(--site-body-fg);
