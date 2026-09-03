@@ -24,6 +24,8 @@ Need a subscribed app **Scrib**: books of ruled US Letter sheets with layered SV
 
 **Editable names (2026-08-26):** On the dashboard, **book name** and **sheet name** are inline-editable. Blur or Enter persists (book: `PUT /api/scrib/books/{bookId}` `{ name }`; sheet: load sheet → update `name` → `PUT` full sheet). Empty names are rejected / restored. Opening a sheet remains a separate control so editing the name does not navigate away.
 
+**Sheet card chrome (2026-09-03):** Each dashboard sheet (and “+ Nueva hoja”) uses an elevated **`--site-surface`** background (not page `--site-body-bg`) so cards stay readable against dark/light page and book containers.
+
 
 ### 4. Sheet geometry
 - **Portrait US Letter:** width **215.9 mm**, height **279.4 mm**.
@@ -108,6 +110,7 @@ Editor header offers an **Institutes** control that opens a modal to pick Liber 
 ## Acceptance
 - [x] Catalog `scrib` + subscription UI + gate
 - [x] Dashboard books/sheets CRUD
+- [x] Dashboard sheet cards use `--site-surface` so they contrast with the page/book background
 - [x] Dashboard: book name and sheet name are editable and persist
 - [x] Editor route with exact Letter portrait + background image fit
 - [x] Six SVG layers; one active; opacity; draw/erase/undo; zoom/pan mode

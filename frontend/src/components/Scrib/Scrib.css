@@ -139,7 +139,8 @@
   min-height: 7.5rem;
   border: var(--border_001);
   border-radius: var(--border_radius_001);
-  background: var(--site-body-bg);
+  /* Elevated surface so sheets read clearly on page/book bg (spec 024). */
+  background: var(--site-surface);
   overflow: hidden;
 }
 
