@@ -9,8 +9,8 @@
 }
 
 /**
- * Spec 045 — single-line inputs/selects match .btn outer height (--bmh).
- * Excludes textarea and specialty input types (checkbox/radio/range/file/…).
+ * Spec 045 + 063 — single-line inputs/selects match .btn outer height (--bmh)
+ * and absolute --font-base (16px @ scale 1). Excludes textarea and specialty types.
  */
 input:where(
   :not([type]),
@@ -34,10 +34,11 @@ select {
   max-height: var(--bmh);
   padding-block: 0;
   padding-inline: var(--p2);
-  font: inherit;
+  font-family: var(--font-body);
+  font-size: var(--font-base);
   line-height: 1.2;
   border: 1px solid var(--site-input-border, color-mix(in srgb, var(--fg) 18%, transparent));
-  border-radius: var(--br, var(--border_radius_001, 0.215rem));
+  border-radius: var(--br, var(--border_radius_001));
   background: var(--site-input-bg);
   color: var(--site-body-fg, var(--fg));
 }
@@ -45,10 +46,11 @@ select {
 textarea {
   box-sizing: border-box;
   padding: var(--p1) var(--p2);
-  font: inherit;
+  font-family: var(--font-body);
+  font-size: var(--font-base);
   line-height: 1.4;
   border: 1px solid var(--site-input-border, color-mix(in srgb, var(--fg) 18%, transparent));
-  border-radius: var(--br, var(--border_radius_001, 0.215rem));
+  border-radius: var(--br, var(--border_radius_001));
   background: var(--site-input-bg);
   color: var(--site-body-fg, var(--fg));
 }
@@ -61,8 +63,8 @@ textarea::placeholder {
 
 html {
   scroll-behavior: smooth;
-  /* Spec 045: absolute 14px root × A+/A− scale. */
-  font-size: calc(14px * var(--site-text-scale, 1));
+  /* Spec 063: absolute 16px root × A+/A− scale. */
+  font-size: calc(16px * var(--site-text-scale, 1));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -100,7 +102,7 @@ body {
   font-family: "Material Symbols Outlined", sans-serif;
   font-weight: normal;
   font-style: normal;
-  font-size: 1.25rem;
+  font-size: var(--font-lg);
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
@@ -113,8 +115,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Body type uses rem → inherits the scaled html root from --site-text-scale.
-   Do not set font-size on html here or A+/A− has no effect. */
+/* Spec 063: body uses absolute --font-base (16px @ scale 1). */
 body {
   font-size: var(--font-base);
 }

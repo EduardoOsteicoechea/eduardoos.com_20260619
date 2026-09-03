@@ -5,7 +5,7 @@
 **Done** (2026-09-01) — Product HDS menus are icon-only Material Symbols.
 
 ## Acceptance
-- [x] theme tokens + three breakpoint lists; no borders; Calibri/14px
+- [x] theme tokens + three breakpoint lists; no borders; Kumbh / **16px root** (spec 063; was Calibri/14px)
 - [x] Pamphlet + Scrib locked dimensions untouched
 - [x] Music / eVoice / Pamphlet dashboards + `?view=` + header dynamic
 - [x] Music Upload new/v2
@@ -18,7 +18,7 @@
 - [x] eReport hub: `ProductHeaderMenu` HDS stays visible on every `?view=`; Dashboard icon + in-page Back return to dashboard
 - [x] Phone header + HDS icon buttons use `--ui-scale: calc(4 / 3)` via `--chrome-control-size` (spec 062: was 2, reduced 1.5×)
 - [x] Tablet header rail + HDS icon buttons use `--ui-scale: calc(4 / 3)` (correct 0.75× undersize)
-- [x] Desktop chrome unchanged (`--ui-scale: 1`); page `.btn` / inputs still `--bmh` only
+- [x] Desktop chrome `--ui-scale: 1`; page `.btn` / inputs use absolute `--bmh` (spec 063 — not shrunk on phone/tablet)
 
 ## Problem
 
@@ -28,29 +28,30 @@ Site chrome and product hubs still use mixed `--site-*` tokens, rem drift, and b
 
 ### Typography & root
 - Font stack: **Kumbh Sans** (see spec 048) — `"Kumbh Sans", system-ui, sans-serif` with YOPQ 300. (Supersedes Calibri from the original 045 ship.)
-- Root font-size: **`calc(14px * var(--site-text-scale, 1))`** on `html`.
+- Root font-size: **`calc(16px * var(--site-text-scale, 1))`** on `html` (spec **063**; was 14px).
+- **Absolute type + control sizes (spec 063):** `--font-*`, `--bmh`, `--bmw`, and `--br` are **px-based** (`calc(Npx * var(--site-text-scale, 1))`) and **identical on phone / tablet / desktop**. Breakpoint blocks MUST NOT override them. Default body type is **16px** at scale `1`.
 - **Pass-through (do not rem-convert):** Pamphlet document canvas and Scrib sheet/layout that use locked **mm / px** (including 0.5px rules).
 
-### Spacing tokens (same scale for `--m*` and `--p*`)
+### Spacing tokens (same scale for `--m*` and `--p*` — layout only; may still shrink by breakpoint)
 
-| Token | Desktop rem |
+| Token | Desktop rem (@ 16px root) |
 |---|---|
-| `--m1` / `--p1` | `0.75rem` |
-| `--m2` / `--p2` | `1.125rem` |
-| `--m3` / `--p3` | `1.5rem` |
-| `--m4` / `--p4` | `2.25rem` |
-| `--m5` / `--p5` | `3rem` |
+| `--m1` / `--p1` | `0.75rem` (12px) |
+| `--m2` / `--p2` | `1.125rem` (18px) |
+| `--m3` / `--p3` | `1.5rem` (24px) |
+| `--m4` / `--p4` | `2.25rem` (36px) |
+| `--m5` / `--p5` | `3rem` (48px) |
 
-- Tablet (768–1099.98px): ×0.9 of desktop.
-- Phone (max 767.98px): ×0.8 of desktop; `--lbw: 0`.
+- Tablet (768–1099.98px): ×0.9 of desktop for **`--m*` / `--p*` only**.
+- Phone (max 767.98px): ×0.8 of desktop for **`--m*` / `--p*` only**; `--lbw: 0`.
 - Desktop (min 1100px): full table; `--lbw: 4.285714rem`.
 
 ### Control / chrome
-- `--bmh` / `--bmw`: `2.25rem` desktop (×0.9 tablet, ×0.8 phone).
+- **`--bmh` / `--bmw`:** `calc(36px * var(--site-text-scale, 1))` on **all** breakpoints (spec 063; was `2.25rem` desktop / ×0.9 tablet / ×0.8 phone).
 - `--lbw`: `4.285714rem` desktop; tablet scales with chrome (see below); `0` phone.
-- `--br`: `0.215rem`.
+- **`--br`:** `calc(3.44px * var(--site-text-scale, 1))` absolute (all breakpoints).
 - **`--control_min_height` = `--bmh`** (alias; do not invent a second control height).
-- **Equal control height (global, locked):** every **single-line** text-like `input`, every `select`, and every `.btn` (all variants — primary blue, secondary gray, green/yellow/red) MUST share the **same outer height**: `height` / `min-height` / `max-height` = `var(--bmh)`, `box-sizing: border-box`, vertical padding `0` (horizontal via `--p2`). Inputs must not look shorter than the blue `.btn--primary` / `.btn--blue` buttons (eReport org forms and all other product hubs).
+- **Equal control height (global, locked):** every **single-line** text-like `input`, every `select`, and every `.btn` (all variants — primary blue, secondary gray, green/yellow/red) MUST share the **same outer height**: `height` / `min-height` / `max-height` = `var(--bmh)`, **`font-size: var(--font-base)`** (16px at scale 1), `box-sizing: border-box`, vertical padding `0` (horizontal via `--p2`). Inputs must not look shorter than the blue `.btn--primary` / `.btn--blue` buttons (eReport org forms and all other product hubs).
 - **Visible input fill (global, locked):** single-line `input`, `select`, and `textarea` MUST use **`--site-input-bg`**, which is **visibly distinct from page `--bg` in both light and dark** (not transparent, not `--site-body-bg` / `--bg`, not `--glassed_background`). Light: solid `#ffffff`. Dark: elevated plate **`#252a33`** (or equivalent mix ≥ ~35% `--fg` into `--bg`) so fields read as boxes on `#0e1116`. Inputs also get a light edge (`1px` mix of `--fg` at ~20% opacity) even when `--border_001` is `none` site-wide. Placeholders use `--site-meta-fg` at readable opacity. **Forbidden:** product/component CSS resetting input `background` to `--site-body-bg` / `--bg` (e.g. API keys, Scrib book form).
 - **Excluded from equal height:** `textarea` height may grow (min-height only); `input[type=checkbox|radio|range|file|color|hidden]`; Pamphlet document canvas / Scrib sheet geometry (mm/px pass-through); dedicated transport/HDS icon controls that use their own size tokens (e.g. `--playlist-control-size`, header-dynamic icon buttons).
 

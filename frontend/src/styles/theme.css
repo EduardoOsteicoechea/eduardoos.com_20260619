@@ -1,9 +1,8 @@
 /**
- * Theme tokens — Eduardo OS (spec 045 + 048).
- * Root 14px × --site-text-scale; Kumbh Sans (YOPQ 300) / system-ui.
- * Spacing --m* / --p*; form chrome --bmh/--bmw; header icon chrome × --ui-scale.
- * Phone / tablet / desktop lists. Aliases keep --site-* working during migration.
- * Pamphlet mm/px and Scrib sheet geometry are pass-through (do not rem-convert).
+ * Theme tokens — Eduardo OS (spec 045 + 048 + 063).
+ * Root 16px × --site-text-scale; Kumbh Sans (YOPQ 300) / system-ui.
+ * Absolute font / bmh / bmw / br (all breakpoints). Spacing m/p tokens may shrink.
+ * Header icon chrome × --ui-scale. Pamphlet/Scrib mm/px pass-through.
  */
 
 :root {
@@ -14,7 +13,20 @@
   --ui-scale: calc(4 / 3);
   --site-text-scale: 1;
 
-  /* Desktop token list (overridden below for tablet/phone). */
+  /* Spec 063 — absolute type (identical phone/tablet/desktop; A+/A− via scale). */
+  --font-xs: calc(12px * var(--site-text-scale, 1));
+  --font-sm: calc(14px * var(--site-text-scale, 1));
+  --font-md: calc(16px * var(--site-text-scale, 1));
+  --font-base: calc(16px * var(--site-text-scale, 1));
+  --font-lg: calc(20px * var(--site-text-scale, 1));
+  --font-xl: calc(24px * var(--site-text-scale, 1));
+
+  /* Spec 063 — absolute form chrome (not shrunk by breakpoint). */
+  --bmh: calc(36px * var(--site-text-scale, 1));
+  --bmw: calc(36px * var(--site-text-scale, 1));
+  --br: calc(3.44px * var(--site-text-scale, 1));
+
+  /* Desktop spacing list (phone/tablet may shrink m/p tokens only). */
   --m1: 0.75rem;
   --m2: 1.125rem;
   --m3: 1.5rem;
@@ -25,10 +37,7 @@
   --p3: 1.5rem;
   --p4: 2.25rem;
   --p5: 3rem;
-  --bmh: 2.25rem;
-  --bmw: 2.25rem;
   --lbw: 4.285714rem;
-  --br: 0.215rem;
 
   --bg: #f2f3f6;
   --fg: #141820;
@@ -86,17 +95,10 @@
   --font-utility: "Kumbh Sans", system-ui, sans-serif;
   --font-heading: "Kumbh Sans", system-ui, sans-serif;
 
-  --font-xs: 0.75rem;
-  --font-sm: 0.875rem;
-  --font-md: 1rem;
-  --font-base: 1rem;
-  --font-lg: 1.25rem;
-  --font-xl: 1.5rem;
-
   color-scheme: light;
 }
 
-/* Phone — page tokens ×0.8; header chrome × --ui-scale 4/3 (spec 062); no left rail */
+/* Phone — spacing ×0.8 only; absolute type/controls unchanged (spec 063); no left rail */
 @media (max-width: 767.98px) {
   :root {
     --ui-scale: calc(4 / 3);
@@ -110,10 +112,7 @@
     --p3: 1.2rem;
     --p4: 1.8rem;
     --p5: 2.4rem;
-    --bmh: 1.8rem;
-    --bmw: 1.8rem;
     --lbw: 0;
-    --br: 0.172rem;
     --chrome-control-size: calc(var(--bmh) * var(--ui-scale));
     --header-dynamic-control-size: var(--chrome-control-size);
     --header_width: 0px;
@@ -126,7 +125,7 @@
   }
 }
 
-/* Tablet — page tokens ×0.9; header chrome × 4/3; left rail fits chrome */
+/* Tablet — spacing ×0.9 only; absolute type/controls unchanged; left rail fits chrome */
 @media (min-width: 768px) and (max-width: 1099.98px) {
   :root {
     --ui-scale: calc(4 / 3);
@@ -140,12 +139,9 @@
     --p3: 1.35rem;
     --p4: 2.025rem;
     --p5: 2.7rem;
-    --bmh: 2.025rem;
-    --bmw: 2.025rem;
     --chrome-control-size: calc(var(--bmh) * var(--ui-scale));
     --header-dynamic-control-size: var(--chrome-control-size);
     --lbw: calc(3.857143rem * var(--ui-scale));
-    --br: 0.1935rem;
     --header_height: 0px;
     --header_bar_height: 0px;
     --header_width: var(--lbw);
@@ -157,7 +153,7 @@
   }
 }
 
-/* Desktop — full page tokens; header chrome ×1; left rail */
+/* Desktop — full spacing; chrome ×1; left rail */
 @media (min-width: 1100px) {
   :root {
     --ui-scale: 1;
@@ -171,12 +167,9 @@
     --p3: 1.5rem;
     --p4: 2.25rem;
     --p5: 3rem;
-    --bmh: 2.25rem;
-    --bmw: 2.25rem;
     --chrome-control-size: calc(var(--bmh) * var(--ui-scale));
     --header-dynamic-control-size: var(--chrome-control-size);
     --lbw: 4.285714rem;
-    --br: 0.215rem;
     --header_height: 0px;
     --header_bar_height: 0px;
     --header_width: var(--lbw);

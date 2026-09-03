@@ -17,6 +17,7 @@
   font-size: var(--font-base);
   font-weight: 600;
   letter-spacing: 0.01em;
+  line-height: 1.2;
   cursor: pointer;
   text-decoration: none;
   transition: filter 0.15s ease, background-color 0.15s ease, color 0.15s ease;
