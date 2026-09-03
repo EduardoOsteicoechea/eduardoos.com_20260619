@@ -57,3 +57,20 @@ Phone drawer buttons were effectively invisible (surface-on-surface, drawer too 
 2. Phone: `--header_height` = `--chrome-control-size` (same as bar row); `--header_offset` = bar + safe-area so `.site-header__nav` flush under the bar.
 
 Auth gate unchanged.
+
+## Amendment 2026-09-03e — lateral header rail +10px & HDS padding
+
+### Problem
+On routes with multiple dynamic controls (e.g. Pamphlet with 11 action buttons), `.site-header__dynamic-slot` overflows vertically and shows a scrollbar. Because the lateral rail width was constrained to ~68.5px with 24px of rail padding, the internal width was only ~44.5px. A 36px button left less than 8px for the scrollbar, causing the buttons to collide with the scrollbar on the right and the container edge on the left with zero padding.
+
+### Fixes
+1. **Widen lateral rail (`--lbw` / `--header_width`) by +10px**:
+   - `:root` default: `--lbw: calc(4.285714rem + 10px)`
+   - Tablet: `--lbw: calc(calc(3.857143rem * var(--ui-scale)) + 10px)`
+   - Desktop: `--lbw: calc(4.285714rem + 10px)`
+   - Fallbacks in `Header.css` updated to `calc(60px + 10px)`.
+2. **Add padding in Header Dynamic Section**:
+   - `.site-header__dynamic-slot`: add `padding: 0.25rem 0.2rem` and `box-sizing: border-box`.
+   - `.header-dynamic-menu__actions`: add `padding-block: 0.25rem; padding-inline: 0.15rem`.
+   - Phone HDS drawer: also widen by +10px (`calc(var(--chrome-control-size, 2.25rem) + 1.5rem + 10px)`) to provide consistent clearance.
+

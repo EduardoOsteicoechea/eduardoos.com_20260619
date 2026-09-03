@@ -37,7 +37,7 @@
   --p3: 1.5rem;
   --p4: 2.25rem;
   --p5: 3rem;
-  --lbw: 4.285714rem;
+  --lbw: calc(4.285714rem + 10px);
 
   --bg: #f2f3f6;
   --fg: #141820;
@@ -141,7 +141,7 @@
     --p5: 2.7rem;
     --chrome-control-size: calc(var(--bmh) * var(--ui-scale));
     --header-dynamic-control-size: var(--chrome-control-size);
-    --lbw: calc(3.857143rem * var(--ui-scale));
+    --lbw: calc(calc(3.857143rem * var(--ui-scale)) + 10px);
     --header_height: 0px;
     --header_bar_height: 0px;
     --header_width: var(--lbw);
@@ -169,7 +169,7 @@
     --p5: 3rem;
     --chrome-control-size: calc(var(--bmh) * var(--ui-scale));
     --header-dynamic-control-size: var(--chrome-control-size);
-    --lbw: 4.285714rem;
+    --lbw: calc(4.285714rem + 10px);
     --header_height: 0px;
     --header_bar_height: 0px;
     --header_width: var(--lbw);
