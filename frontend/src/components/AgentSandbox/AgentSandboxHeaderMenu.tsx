@@ -3,9 +3,9 @@
  * Sidebar, Sites, chat history, files editor, agent console.
  */
 
-import { useLayoutEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { HEADER_DYNAMIC_MENU_HOST_ID } from "../HeaderDynamicMenu/HeaderDynamicMenu";
+import { useHeaderDynamicHost } from "../HeaderDynamicMenu/HeaderDynamicMenu";
 import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 
 type AgentSandboxHeaderMenuProps = {
@@ -88,19 +88,7 @@ function IconSettings() {
 }
 
 export default function AgentSandboxHeaderMenu(props: AgentSandboxHeaderMenuProps) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
-
-  useLayoutEffect(() => {
-    const el = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
-    setHost(el);
-    if (!el) return;
-    return () => {
-      const registered = window.__eduardoosHeaderDynamicMenu;
-      if (registered?.id === "agent-sandbox-header-menu") {
-        window.__eduardoosHeaderDynamicMenu = null;
-      }
-    };
-  }, []);
+  const host = useHeaderDynamicHost("agent-sandbox-header-menu");
 
   if (!host) return null;
 

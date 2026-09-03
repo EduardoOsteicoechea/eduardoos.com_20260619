@@ -2,10 +2,10 @@
  * Scrib editor header tools — portal into #header-dynamic-menu-host.
  */
 
-import { useLayoutEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { APP_ROUTES } from "../../config/routes";
-import { HEADER_DYNAMIC_MENU_HOST_ID } from "../HeaderDynamicMenu/HeaderDynamicMenu";
+import { useHeaderDynamicHost } from "../HeaderDynamicMenu/HeaderDynamicMenu";
 import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 
 export type ScribToolMode = "draw" | "zoom" | "erase";
@@ -127,19 +127,7 @@ function IconPrint() {
 }
 
 export default function ScribHeaderMenu(props: ScribHeaderMenuProps) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
-
-  useLayoutEffect(() => {
-    const el = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
-    setHost(el);
-    if (!el) return;
-    return () => {
-      const registered = window.__eduardoosHeaderDynamicMenu;
-      if (registered?.id === "scrib-header-menu") {
-        window.__eduardoosHeaderDynamicMenu = null;
-      }
-    };
-  }, []);
+  const host = useHeaderDynamicHost("scrib-header-menu");
 
   if (!host) return null;
 

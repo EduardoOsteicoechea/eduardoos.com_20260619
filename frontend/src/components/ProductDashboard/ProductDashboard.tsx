@@ -6,12 +6,11 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useState,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { HEADER_DYNAMIC_MENU_HOST_ID } from "../HeaderDynamicMenu/HeaderDynamicMenu";
+import { useHeaderDynamicHost } from "../HeaderDynamicMenu/HeaderDynamicMenu";
 import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 import "./ProductDashboard.css";
 
@@ -108,18 +107,7 @@ export function ProductHeaderMenu({
   onSelect: (id: string) => void;
   menuId: string;
 }) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
-
-  useLayoutEffect(() => {
-    const el = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
-    setHost(el);
-    return () => {
-      const registered = window.__eduardoosHeaderDynamicMenu;
-      if (registered?.id === menuId) {
-        window.__eduardoosHeaderDynamicMenu = null;
-      }
-    };
-  }, [menuId]);
+  const host = useHeaderDynamicHost(menuId);
 
   if (!host) return null;
 

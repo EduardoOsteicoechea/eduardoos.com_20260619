@@ -304,12 +304,12 @@
   display: none !important;
 }
 
-/* Mobile: tray from the left, below the top bar (includes safe-area). */
+/* Mobile: tray from the left, flush under the top bar (spec 062b — no 1.35 gap). */
 .site-header__nav {
   position: fixed;
-  top: var(
-    --header_offset,
-    calc(var(--header_bar_height, 60px) + var(--header_safe_top, env(safe-area-inset-top, 0px)))
+  top: calc(
+    var(--header_bar_height, var(--chrome-control-size, 60px)) +
+      var(--header_safe_top, env(safe-area-inset-top, 0px))
   );
   left: 0;
   right: auto;

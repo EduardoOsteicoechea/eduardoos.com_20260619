@@ -4,11 +4,11 @@
  * so the iframe has no own chrome bar (spec 025 §4 amend 2026-09-03).
  */
 
-import { useLayoutEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { APP_ROUTES } from "../../config/routes";
 import type { EreportHistoryCard, EreportMeta } from "../../lib/ereport";
-import { HEADER_DYNAMIC_MENU_HOST_ID } from "../HeaderDynamicMenu/HeaderDynamicMenu";
+import { useHeaderDynamicHost } from "../HeaderDynamicMenu/HeaderDynamicMenu";
 import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 import "./Ereport.css";
 
@@ -116,19 +116,7 @@ function IconHistory() {
 }
 
 export default function EreportHeaderMenu(props: EreportHeaderMenuProps) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
-
-  useLayoutEffect(() => {
-    const el = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
-    setHost(el);
-    if (!el) return;
-    return () => {
-      const registered = window.__eduardoosHeaderDynamicMenu;
-      if (registered?.id === "ereport-header-menu") {
-        window.__eduardoosHeaderDynamicMenu = null;
-      }
-    };
-  }, []);
+  const host = useHeaderDynamicHost("ereport-header-menu");
 
   const hubHref = props.meta
     ? APP_ROUTES.ereportUser(props.meta.ownerSafe)

@@ -8,9 +8,8 @@
 
 :root {
   /*
-   * Header / HDS icon scale only (not page .btn / inputs).
-   * Phone-first default; tablet/desktop media override.
    * Spec 045 + 062: phone ×4/3, tablet ×4/3, desktop ×1.
+   * Spec 062b: phone --header_height equals bar row (no ×1.35 gap).
    */
   --ui-scale: calc(4 / 3);
   --site-text-scale: 1;
@@ -69,7 +68,8 @@
   --chrome-control-size: calc(var(--bmh) * var(--ui-scale));
   --header-dynamic-control-size: var(--chrome-control-size);
   --header_bar_height: var(--chrome-control-size);
-  --header_height: calc(var(--chrome-control-size) * 1.35);
+  /* Spec 062b: phone bar row == offset (no 1.35 gap under chrome / nav tray). */
+  --header_height: var(--chrome-control-size);
   --header_width: 0px;
   --header_safe_top: env(safe-area-inset-top, 0px);
   --header_offset: calc(var(--header_height) + var(--header_safe_top));
@@ -118,7 +118,7 @@
     --header-dynamic-control-size: var(--chrome-control-size);
     --header_width: 0px;
     --header_bar_height: var(--chrome-control-size);
-    --header_height: calc(var(--chrome-control-size) * 1.35);
+    --header_height: var(--chrome-control-size);
     --header_offset: calc(var(--header_height) + var(--header_safe_top));
     --control_min_height: var(--bmh);
     --control_min_width: var(--bmw);

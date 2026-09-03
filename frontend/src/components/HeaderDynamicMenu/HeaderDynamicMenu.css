@@ -18,7 +18,10 @@
   gap: 0.25rem;
 }
 
-.header-dynamic-menu-shell:not(.header-dynamic-menu-shell--has-tools) {
+/* Hide empty shell; :has covers portal mounts even if React hasTools lags. */
+.header-dynamic-menu-shell:not(.header-dynamic-menu-shell--has-tools):not(
+    :has(.header-dynamic-menu-host:not(:empty))
+  ) {
   display: none;
 }
 
@@ -38,6 +41,10 @@
   color: var(--site-body-fg);
   cursor: pointer;
   box-sizing: border-box;
+}
+
+.header-dynamic-menu__phone-toggle[hidden] {
+  display: none !important;
 }
 
 .header-dynamic-menu__phone-toggle .material-symbols-outlined {
@@ -216,11 +223,15 @@
  * lateral drawer under the top chrome (same idea as the main nav tray).
  */
 @media (max-width: 767.98px) {
-  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__phone-toggle {
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__phone-toggle:not([hidden]),
+  .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty))
+    .header-dynamic-menu__phone-toggle:not([hidden]) {
     display: inline-flex;
   }
 
-  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__phone-backdrop:not([hidden]) {
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__phone-backdrop:not([hidden]),
+  .header-dynamic-menu-shell:has(.header-dynamic-menu-host--phone-open)
+    .header-dynamic-menu__phone-backdrop:not([hidden]) {
     display: block;
     position: fixed;
     inset: 0;
@@ -229,7 +240,9 @@
     cursor: pointer;
   }
 
-  .header-dynamic-menu-shell--has-tools .header-dynamic-menu-host:not(:empty) {
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu-host:not(:empty),
+  .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty))
+    .header-dynamic-menu-host:not(:empty) {
     position: fixed;
     top: var(
       --header_offset,
@@ -257,18 +270,24 @@
   }
 
   .header-dynamic-menu-shell--has-tools
-    .header-dynamic-menu-host.header-dynamic-menu-host--phone-open:not(:empty) {
+    .header-dynamic-menu-host.header-dynamic-menu-host--phone-open:not(:empty),
+  .header-dynamic-menu-host.header-dynamic-menu-host--phone-open:not(:empty) {
     transform: translateX(0);
     pointer-events: auto;
   }
 
   .header-dynamic-menu-shell--has-tools .header-dynamic-menu,
-  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__inner {
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__inner,
+  .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty)) .header-dynamic-menu,
+  .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty))
+    .header-dynamic-menu__inner {
     height: 100%;
     width: 100%;
   }
 
-  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__actions {
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu__actions,
+  .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty))
+    .header-dynamic-menu__actions {
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;

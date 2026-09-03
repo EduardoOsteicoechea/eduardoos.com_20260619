@@ -66,7 +66,7 @@ After the 045 rem shrink, site **header** and **header icon buttons** rendered ~
 
 - **`--chrome-control-size`** = `calc(var(--bmh) * var(--ui-scale))`.
 - **`--header-dynamic-control-size`** = `--chrome-control-size` (HDS / ProductHeaderMenu icon buttons).
-- Phone top bar: `--header_bar_height` = `--chrome-control-size`; `--header_height` = `calc(var(--chrome-control-size) * 1.35)`; `--header_offset` includes safe-area.
+- Phone top bar: `--header_bar_height` = `--chrome-control-size`; `--header_height` = `--chrome-control-size` (spec 062b: flush with bar; was ×1.35); `--header_offset` includes safe-area.
 - Logo, hamburger, avatar, and HDS icon buttons all use `--chrome-control-size` (not raw `--bmh`).
 - Tablet/desktop left rail: `--lbw` / `--header_width` must fit chrome controls + horizontal pad (scale tablet rail with `--ui-scale`).
 - **Non-goal of this amendment:** changing Pamphlet mm/px sheet geometry or pamphlet `zoom: 0.5` edit-tray compensation.

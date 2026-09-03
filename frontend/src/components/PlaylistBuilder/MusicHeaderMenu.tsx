@@ -9,7 +9,7 @@ import {
   uploadWorshipRecording,
   type AudioLibraryItem,
 } from "../../lib/mediaLibrary";
-import { HEADER_DYNAMIC_MENU_HOST_ID } from "../HeaderDynamicMenu/HeaderDynamicMenu";
+import { useHeaderDynamicHost } from "../HeaderDynamicMenu/HeaderDynamicMenu";
 import { openApiErrorModal } from "../ServerErrorModal/ServerErrorModal";
 import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 import "./MusicHeaderMenu.css";
@@ -37,7 +37,7 @@ function IconUpload() {
 const AUDIO_ACCEPT = "audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/mp4,audio/aac,audio/ogg,audio/webm,.mp3,.wav,.m4a,.aac,.ogg,.webm";
 
 export default function MusicHeaderMenu({ isAdmin, onUploaded }: MusicHeaderMenuProps) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
+  const host = useHeaderDynamicHost("music-header-menu");
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -45,18 +45,6 @@ export default function MusicHeaderMenu({ isAdmin, onUploaded }: MusicHeaderMenu
   const [hint, setHint] = useState("");
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useLayoutEffect(() => {
-    const el = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
-    setHost(el);
-    if (!el) return;
-    return () => {
-      const registered = window.__eduardoosHeaderDynamicMenu;
-      if (registered?.id === "music-header-menu") {
-        window.__eduardoosHeaderDynamicMenu = null;
-      }
-    };
-  }, []);
 
   useLayoutEffect(() => {
     const dialog = dialogRef.current;

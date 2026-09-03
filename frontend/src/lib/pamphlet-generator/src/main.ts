@@ -174,15 +174,6 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     const itemTypeCancelBtn = requireElement<HTMLButtonElement>("#item-type-cancel");
     const headerMenu = requireElement<HTMLElement>("#pamphlet-header-menu");
 
-    // Mount tools into Header Dynamic Menu host (inside Header rail / mobile bar).
-    const menuHost = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
-    window.__eduardoosHeaderDynamicMenu = headerMenu;
-    if (menuHost) {
-        menuHost.replaceChildren(headerMenu);
-    } else {
-        document.body.append(headerMenu);
-    }
-
     type ViewMode = "desktop" | "mobile";
     /** Narrow / phone viewports start in stacked mobile layout (letter sheet is desktop-only). */
     const mobileViewportMq = window.matchMedia("(max-width: 900px)");
@@ -203,6 +194,40 @@ export function mountPamphletGenerator(host: HTMLElement): PamphletMountHandle {
     ): void {
         target.addEventListener(type, listener, options);
         disposers.push(() => target.removeEventListener(type, listener, options));
+    }
+
+    // Mount tools into Header Dynamic Menu host (inside Header rail / mobile bar).
+    // Header is client:only — retry until the host exists (spec 062b).
+    const HDS_HOST_READY = "eduardoos:hds-host-ready";
+    window.__eduardoosHeaderDynamicMenu = headerMenu;
+    function mountHeaderMenu(): boolean {
+        const menuHost = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
+        if (!menuHost) return false;
+        if (headerMenu.parentElement !== menuHost) {
+            menuHost.replaceChildren(headerMenu);
+        }
+        return true;
+    }
+    if (!mountHeaderMenu()) {
+        document.body.append(headerMenu);
+        const onReady = () => {
+            if (mountHeaderMenu()) {
+                window.removeEventListener(HDS_HOST_READY, onReady);
+                window.clearInterval(hdsRetry);
+                window.clearTimeout(hdsGiveUp);
+            }
+        };
+        const hdsRetry = window.setInterval(onReady, 50);
+        const hdsGiveUp = window.setTimeout(() => {
+            window.clearInterval(hdsRetry);
+            window.removeEventListener(HDS_HOST_READY, onReady);
+        }, 8000);
+        window.addEventListener(HDS_HOST_READY, onReady);
+        disposers.push(() => {
+            window.clearInterval(hdsRetry);
+            window.clearTimeout(hdsGiveUp);
+            window.removeEventListener(HDS_HOST_READY, onReady);
+        });
     }
 
 function updatePrintAvailability(): void {

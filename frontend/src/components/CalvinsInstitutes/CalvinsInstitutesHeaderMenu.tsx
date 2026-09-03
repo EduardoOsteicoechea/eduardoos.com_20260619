@@ -6,9 +6,9 @@
  * the host exists, then portal the toggler into the dynamic section.
  */
 
-import { useLayoutEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { HEADER_DYNAMIC_MENU_HOST_ID } from "../HeaderDynamicMenu/HeaderDynamicMenu";
+import { useHeaderDynamicHost } from "../HeaderDynamicMenu/HeaderDynamicMenu";
 import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 
 type CalvinsInstitutesHeaderMenuProps = {
@@ -40,42 +40,7 @@ export default function CalvinsInstitutesHeaderMenu({
   onToggleChapters,
   onGoDashboard,
 }: CalvinsInstitutesHeaderMenuProps) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
-
-  useLayoutEffect(() => {
-    let cancelled = false;
-    let intervalId = 0;
-    let timeoutId = 0;
-
-    function attach() {
-      const el = document.getElementById(HEADER_DYNAMIC_MENU_HOST_ID);
-      if (!el || cancelled) return false;
-      setHost(el);
-      return true;
-    }
-
-    if (!attach()) {
-      intervalId = window.setInterval(() => {
-        if (attach()) {
-          window.clearInterval(intervalId);
-          window.clearTimeout(timeoutId);
-        }
-      }, 50);
-      timeoutId = window.setTimeout(() => {
-        window.clearInterval(intervalId);
-      }, 8000);
-    }
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-      window.clearTimeout(timeoutId);
-      const registered = window.__eduardoosHeaderDynamicMenu;
-      if (registered?.id === "calvins-institutes-header-menu") {
-        window.__eduardoosHeaderDynamicMenu = null;
-      }
-    };
-  }, []);
+  const host = useHeaderDynamicHost("calvins-institutes-header-menu");
 
   if (!host) return null;
 

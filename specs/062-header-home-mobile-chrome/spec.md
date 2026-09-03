@@ -37,13 +37,14 @@
 - [x] Auth gate code paths untouched.
 - [x] FE build green; commit + push.
 
-## Affected paths
+## Amendment 2026-09-03b — phone HDS toggle visibility + nav gap
 
-- `specs/062-header-home-mobile-chrome/spec.md`
-- `specs/045-global-theme-product-dashboards/spec.md` (amend phone `--ui-scale` table)
-- `frontend/src/styles/theme.css`
-- `frontend/src/styles/global.css` (home background-attachment)
-- `frontend/src/components/Header/Header.css` (logo)
-- `frontend/src/components/HeaderDynamicMenu/HeaderDynamicMenu.tsx`
-- `frontend/src/components/HeaderDynamicMenu/HeaderDynamicMenu.css`
-- `.memory/MILESTONE-*.md`
+### Problems
+1. Phone HDS tune toggle / drawer often never appeared (Header `client:only` vs product islands: host lookup one-shot → portal never mounts → `hasTools` stays false).
+2. Phone main nav tray sat below a gap under the top bar because `--header_offset` used `--header_height` (= chrome × 1.35) while the bar height uses `--header_bar_height` (= chrome × 1).
+
+### Fixes
+1. Shared `useHeaderDynamicHost` with retry until `#header-dynamic-menu-host` exists; ProductHeaderMenu + other HDS portals use it. Phone toggle visibility also via CSS `:has(.header-dynamic-menu-host:not(:empty))` (not only React state).
+2. Phone: `--header_height` = `--chrome-control-size` (same as bar row); `--header_offset` = bar + safe-area so `.site-header__nav` flush under the bar.
+
+Auth gate unchanged.
