@@ -5,12 +5,13 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { checkServiceAccess } from "../../lib/payments";
 import { getAuthEmailFromToken } from "../../lib/auth";
-import {
+  import {
   createEreportOrg,
   createOrgEreport,
   createOrgInvite,
   createOrgReportInvite,
   deleteEreportOrg,
+  deleteOrgEreport,
   ereportHubPrettyPath,
   fetchEreportOrg,
   fetchEreportOrgs,
@@ -277,6 +278,23 @@ export default function EreportHub() {
     setView("manage");
   }
 
+  async function onDeleteReport(reportId: string, label: string) {
+    if (!activeOrgId || busy) return;
+    const name = label.trim() || reportId;
+    if (!window.confirm(`Delete report “${name}”? This cannot be undone.`)) return;
+    setBusy(true);
+    setError("");
+    const res = await deleteOrgEreport(activeOrgId, reportId);
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    setReports((prev) => prev.filter((r) => r.id !== reportId));
+    await reload();
+    if (activeOrgId) await openOrg(activeOrgId);
+  }
+
   const visibleOrgs = orgs.filter((o) => !o.hidden);
 
   return (
@@ -497,13 +515,24 @@ export default function EreportHub() {
                       <a href={orgReportHref(userSafe, activeOrgId, r.id)}>
                         {r.tema || r.id}
                       </a>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() => void onInviteReport(r.id)}
-                      >
-                        Invite
-                      </button>
+                      <div className="ereport-hub__row">
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={busy}
+                          onClick={() => void onInviteReport(r.id)}
+                        >
+                          Invite
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--danger"
+                          disabled={busy}
+                          onClick={() => void onDeleteReport(r.id, r.tema || r.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>

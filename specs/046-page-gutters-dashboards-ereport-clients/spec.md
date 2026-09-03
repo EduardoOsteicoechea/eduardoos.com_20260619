@@ -21,10 +21,12 @@
 
 ### eReport dashboard (initial)
 Cards/sections:
-- **Orgs** (list / open)
+- **Orgs** (list / open) — selected org shows **Reports** list: open, invite, **delete report** (browser confirm first; owner/admin; `DELETE /api/ereport/orgs/{orgId}/reports/{reportId}`)
 - **Register org**
 - **Recent reports**
-- **Manage orgs** (order, delete, hide, new, etc.)
+- **Manage orgs** (order, delete org, hide, rename, new, etc.)
+
+**Delete report (2026-09-03):** From Orgs → Reports, each report has **Delete**. Confirm with `window.confirm` (clear copy naming the report). On success, remove from the org library UI and refresh. Shared/invite viewers cannot delete.
 
 ### Gutters
 Canonical product page outer inset:
@@ -58,6 +60,7 @@ Canonical product page outer inset:
 - [x] Gutters unified; Homescool uses site tokens
 - [x] Product entry routes have sectioned ProductDashboard cards (Homescool, Church, Scrib hub, eReport; Music/eVoice/Pamphlet prior)
 - [x] eReport org dashboard + magic invites (list duration modal; report = 1h edit) + tracker site-styled
+- [x] Orgs → Reports: delete report after confirm (owner/admin)
 - [x] Home: chat on top; 2 cards/row; direct first-person sections with AI enthusiasm
 - [x] Tests + FE build + commit/push
 

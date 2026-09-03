@@ -83,6 +83,35 @@ func TestOrgCreateAndReportUnderOrg(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("get report status=%d body=%s", rec.Code, rec.Body.String())
 	}
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/ereport/orgs/"+orgID+"/reports/"+reportID, nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete report status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/ereport/orgs/"+orgID, nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get org after delete status=%d", rec.Code)
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &detail)
+	reports, _ = detail["reports"].([]any)
+	if len(reports) != 0 {
+		t.Fatalf("reports after delete=%#v", reports)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/ereport/orgs/"+orgID+"/reports/"+reportID, nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("get deleted report want 404 got %d body=%s", rec.Code, rec.Body.String())
+	}
 	_ = h
 }
 
