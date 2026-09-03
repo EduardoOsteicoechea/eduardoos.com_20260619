@@ -39,7 +39,14 @@
 - [x] Auth gate code paths untouched.
 - [x] FE build green; commit + push.
 
-## Amendment 2026-09-03b — phone HDS toggle visibility + nav gap
+## Amendment 2026-09-03d — phone HDS drawer buttons visible
+
+Phone drawer buttons were effectively invisible (surface-on-surface, drawer too narrow vs `--chrome-control-size`). Fixes:
+
+- Drawer background `--site-body-bg`; HDS buttons keep `--site-surface` + stronger edge.
+- Drawer width at least `calc(var(--chrome-control-size) + 1.5rem)`.
+- Do **not** auto-close the drawer when an HDS action is pressed (close via toggle / backdrop / Escape only).
+
 
 ### Problems
 1. Phone HDS tune toggle / drawer often never appeared (Header `client:only` vs product islands: host lookup one-shot → portal never mounts → `hasTools` stays false).

@@ -25,6 +25,7 @@ type ScribHeaderMenuProps = {
   onEnterFullscreen: () => void;
   onOpenLayers: () => void;
   onOpenInstitutes: () => void;
+  institutesOpen?: boolean;
   onUndo: () => void;
   onPrint: () => void;
 };
@@ -227,9 +228,14 @@ export default function ScribHeaderMenu(props: ScribHeaderMenuProps) {
           </button>
           <button
             type="button"
-            className="header-dynamic-menu__btn"
-            title="Institutes — copiar Caput"
-            aria-label="Abrir modal de Institutes para copiar Capita"
+            className={`header-dynamic-menu__btn${props.institutesOpen ? " header-dynamic-menu__btn--active is-active" : ""}`}
+            title={props.institutesOpen ? "Cerrar Institutes" : "Institutes — Capita"}
+            aria-label={
+              props.institutesOpen
+                ? "Cerrar panel de Institutes"
+                : "Abrir panel de Institutes por Capita"
+            }
+            aria-pressed={Boolean(props.institutesOpen)}
             onClick={props.onOpenInstitutes}
           >
             <IconInstitutes />

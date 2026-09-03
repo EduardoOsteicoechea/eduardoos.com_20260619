@@ -1,6 +1,9 @@
 /**
  * Scrib Institutes panel — Liber tabs → Caput number chips → paragraph number
  * chips → plain text only (no Copy buttons). Spec 056.
+ *
+ * Nav state (Liber / Caput / paragraph) persists across toggle and in
+ * localStorage (`eduardoos-scrib-institutes-nav`) — amendment 2026-09-03.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -14,20 +17,58 @@ import {
   type ParagraphUnit,
 } from "../../lib/calvinsInstitutesParagraphs";
 
+const NAV_STORAGE_KEY = "eduardoos-scrib-institutes-nav";
+
+type StoredNav = {
+  activeBook: string;
+  chapterId: string | null;
+  paraOrder: number | null;
+};
+
+function readStoredNav(): StoredNav | null {
+  try {
+    const raw = localStorage.getItem(NAV_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredNav;
+    if (!parsed || typeof parsed.activeBook !== "string") return null;
+    return {
+      activeBook: parsed.activeBook,
+      chapterId: typeof parsed.chapterId === "string" ? parsed.chapterId : null,
+      paraOrder: typeof parsed.paraOrder === "number" ? parsed.paraOrder : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredNav(nav: StoredNav): void {
+  try {
+    localStorage.setItem(NAV_STORAGE_KEY, JSON.stringify(nav));
+  } catch {
+    /* private mode */
+  }
+}
+
 type ScribInstitutesModalProps = {
   open: boolean;
   onClose: () => void;
 };
 
 export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesModalProps) {
+  const stored = useMemo(() => readStoredNav(), []);
   const [loadingIndex, setLoadingIndex] = useState(false);
   const [loadingChapter, setLoadingChapter] = useState(false);
   const [error, setError] = useState("");
   const [chapters, setChapters] = useState<ParagraphIndexChapter[]>([]);
-  const [activeBook, setActiveBook] = useState("I");
+  const [activeBook, setActiveBook] = useState(stored?.activeBook ?? "I");
   const [selected, setSelected] = useState<ParagraphIndexChapter | null>(null);
   const [doc, setDoc] = useState<ParagraphChapterDoc | null>(null);
-  const [selectedParaOrder, setSelectedParaOrder] = useState<number | null>(null);
+  const [selectedParaOrder, setSelectedParaOrder] = useState<number | null>(
+    stored?.paraOrder ?? null,
+  );
+  const [pendingChapterId, setPendingChapterId] = useState<string | null>(
+    stored?.chapterId ?? null,
+  );
 
   const groups = useMemo(() => groupChaptersByLiber(chapters), [chapters]);
   const bookEntries = useMemo(() => {
@@ -46,20 +87,42 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
   }, [paragraphs, selectedParaOrder]);
 
   useEffect(() => {
-    if (!open) return;
+    writeStoredNav({
+      activeBook,
+      chapterId: selected?.id ?? pendingChapterId,
+      paraOrder: selectedParaOrder,
+    });
+  }, [activeBook, selected, pendingChapterId, selectedParaOrder]);
+
+  /* Load index once (or when empty) — do not wipe selection on every open. */
+  useEffect(() => {
+    if (!open || chapters.length > 0) return;
     let cancelled = false;
     setLoadingIndex(true);
     setError("");
-    setSelected(null);
-    setDoc(null);
-    setSelectedParaOrder(null);
     void (async () => {
       try {
         const idx = await fetchParagraphIndex();
         if (cancelled) return;
-        setChapters(idx.chapters ?? []);
-        const firstBook = groupChaptersByLiber(idx.chapters ?? [])[0]?.book ?? "I";
-        setActiveBook(firstBook);
+        const list = idx.chapters ?? [];
+        setChapters(list);
+        const grouped = groupChaptersByLiber(list);
+        const nav = readStoredNav();
+        const book =
+          nav?.activeBook && grouped.some((g) => g.book === nav.activeBook)
+            ? nav.activeBook
+            : grouped[0]?.book ?? "I";
+        setActiveBook(book);
+        if (nav?.chapterId) {
+          const match = list.find((c) => c.id === nav.chapterId) ?? null;
+          if (match) {
+            setSelected(match);
+            setPendingChapterId(match.id);
+            if (typeof nav.paraOrder === "number") {
+              setSelectedParaOrder(nav.paraOrder);
+            }
+          }
+        }
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Failed to load Institutes index");
@@ -72,22 +135,36 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, chapters.length]);
+
+  /* After index is warm and we only have a pending id, resolve selection. */
+  useEffect(() => {
+    if (!pendingChapterId || selected || chapters.length === 0) return;
+    const match = chapters.find((c) => c.id === pendingChapterId) ?? null;
+    if (match) setSelected(match);
+  }, [pendingChapterId, selected, chapters]);
 
   useEffect(() => {
     if (!open || !selected) {
-      setDoc(null);
-      setSelectedParaOrder(null);
+      if (!selected) setDoc(null);
       return;
     }
     let cancelled = false;
     setLoadingChapter(true);
     setError("");
-    setSelectedParaOrder(null);
     void (async () => {
       try {
         const chapterDoc = await fetchParagraphChapter(selected.book, selected.chapter);
-        if (!cancelled) setDoc(chapterDoc);
+        if (cancelled) return;
+        setDoc(chapterDoc);
+        const nav = readStoredNav();
+        if (
+          nav?.chapterId === selected.id &&
+          typeof nav.paraOrder === "number" &&
+          chapterDoc.paragraphs?.some((p) => p.order === nav.paraOrder)
+        ) {
+          setSelectedParaOrder(nav.paraOrder);
+        }
       } catch (e) {
         if (!cancelled) {
           setDoc(null);
@@ -145,6 +222,7 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
                     onClick={() => {
                       setActiveBook(g.book);
                       setSelected(null);
+                      setPendingChapterId(null);
                       setDoc(null);
                       setSelectedParaOrder(null);
                     }}
@@ -174,7 +252,11 @@ export default function ScribInstitutesModal({ open, onClose }: ScribInstitutesM
                             ? "scrib-institutes-modal__chip is-active"
                             : "scrib-institutes-modal__chip"
                         }
-                        onClick={() => setSelected(entry)}
+                        onClick={() => {
+                          setSelected(entry);
+                          setPendingChapterId(entry.id);
+                          setSelectedParaOrder(null);
+                        }}
                       >
                         {label}
                       </button>

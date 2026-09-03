@@ -146,19 +146,6 @@ export default function HeaderDynamicMenu() {
     return () => document.removeEventListener("keydown", onKey);
   }, [phoneOpen]);
 
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host || !phoneOpen) return;
-    const onClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest("button.header-dynamic-menu__btn")) {
-        window.setTimeout(() => setPhoneOpen(false), 0);
-      }
-    };
-    host.addEventListener("click", onClick);
-    return () => host.removeEventListener("click", onClick);
-  }, [phoneOpen]);
-
   const closePhone = () => setPhoneOpen(false);
 
   return (

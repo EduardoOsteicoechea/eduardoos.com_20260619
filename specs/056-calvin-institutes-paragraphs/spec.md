@@ -164,8 +164,13 @@ On the Scrib **sheet editor** (subscription-gated page):
 - [x] Public paragraph index + chapter APIs readiness-gated; 032 Capita tests still pass
 - [x] Scrib editor: Institutes panel Liber → Caput chips → paragraph chips → plain text (no Copy buttons)
 - [x] Institutes panel placement: desktop/tablet top-right 20vw; mobile top 100% × 20vh
+- [x] Institutes nav state (Liber / Caput / paragraph) persists across panel toggle + `localStorage` key `eduardoos-scrib-institutes-nav` (amendment 2026-09-03); HDS Institutes control **toggles** open/closed
 - [x] FE build passes when frontend changes ship
 - [ ] Parallel pack uploaded to S3 `calvin-institutes-paragraphs/` (ops; outside this commit)
+
+## Amendment 2026-09-03 — persist Institutes selection on toggle
+
+When the Scrib Institutes panel closes and reopens (HDS toggle or Cerrar), restore the last **Liber**, **Caput**, and **paragraph** selection. Persist to `localStorage` (`eduardoos-scrib-institutes-nav`: `{ activeBook, chapterId, paraOrder }`). Do **not** reset selection every time `open` becomes true. Index fetch runs when chapters are empty, not on every open. HDS Institutes button toggles the panel and reflects pressed/active while open.
 
 ## Affected paths
 

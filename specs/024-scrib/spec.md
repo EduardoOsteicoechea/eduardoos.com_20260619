@@ -112,7 +112,7 @@ Editor header offers an **Institutes** control that opens a docked Capita panel 
 | Tablet | Top-right, **20%** of viewport width |
 | Mobile | Top, **100%** width × **20%** viewport height |
 
-Pick Liber → Caput → copy paragraph / chapter to clipboard. Details: `specs/056-calvin-institutes-paragraphs/spec.md`.
+Pick Liber → Caput → paragraph text. **Persist nav** (Liber / Caput / paragraph) across panel toggle via `localStorage` `eduardoos-scrib-institutes-nav`; HDS Institutes control toggles open/closed (spec 056 amendment 2026-09-03). Details: `specs/056-calvin-institutes-paragraphs/spec.md`.
 
 ## Non-goals (MVP)
 - Multi-user collaboration / sharing sheets across users

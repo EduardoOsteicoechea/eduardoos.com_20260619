@@ -508,9 +508,10 @@ export default function ScribEditor() {
         onSelectErase={() => setMode("erase")}
         onEnterFullscreen={() => void enterFullscreen()}
         onOpenLayers={() => setLayersOpen(true)}
+        institutesOpen={institutesOpen}
         onOpenInstitutes={() => {
           setLayersOpen(false);
-          setInstitutesOpen(true);
+          setInstitutesOpen((v) => !v);
         }}
         onPrint={() => {
           setLayersOpen(false);

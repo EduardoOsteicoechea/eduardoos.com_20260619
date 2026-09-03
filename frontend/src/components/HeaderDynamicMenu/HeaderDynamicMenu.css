@@ -244,9 +244,9 @@
   .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty))
     .header-dynamic-menu-host:not(:empty) {
     position: fixed;
-    top: var(
-      --header_offset,
-      calc(var(--header_bar_height, 60px) + var(--header_safe_top, env(safe-area-inset-top, 0px)))
+    top: calc(
+      var(--header_bar_height, var(--chrome-control-size, 60px)) +
+        var(--header_safe_top, env(safe-area-inset-top, 0px))
     );
     left: 0;
     right: auto;
@@ -255,15 +255,17 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    width: min(4.75rem, 28vw);
-    max-width: 28vw;
+    /* Spec 062d: fit chrome buttons; contrast vs page (not surface-on-surface). */
+    width: calc(var(--chrome-control-size, 2.25rem) + 1.5rem);
+    min-width: calc(var(--chrome-control-size, 2.25rem) + 1.5rem);
+    max-width: min(40vw, 8rem);
     margin: 0;
-    padding: 0.65rem 0.45rem 1rem;
+    padding: 0.75rem 0.55rem 1rem;
     overflow-x: hidden;
     overflow-y: auto;
-    background: var(--site-surface, var(--site-body-bg));
-    border-right: var(--border_001);
-    box-shadow: var(--site-shadow);
+    background: var(--site-body-bg, var(--bg));
+    border-right: 1px solid var(--site-input-border, color-mix(in srgb, var(--fg) 18%, transparent));
+    box-shadow: 4px 0 16px color-mix(in srgb, var(--fg) 12%, transparent);
     transform: translateX(-105%);
     transition: transform 0.18s ease-out;
     pointer-events: none;
@@ -274,6 +276,15 @@
   .header-dynamic-menu-host.header-dynamic-menu-host--phone-open:not(:empty) {
     transform: translateX(0);
     pointer-events: auto;
+  }
+
+  .header-dynamic-menu-shell--has-tools .header-dynamic-menu-host:not(:empty) .header-dynamic-menu__btn,
+  .header-dynamic-menu-shell:has(.header-dynamic-menu-host:not(:empty))
+    .header-dynamic-menu-host:not(:empty)
+    .header-dynamic-menu__btn {
+    background: var(--site-surface);
+    border-color: color-mix(in srgb, var(--site-body-fg) 28%, transparent);
+    color: var(--site-body-fg);
   }
 
   .header-dynamic-menu-shell--has-tools .header-dynamic-menu,
