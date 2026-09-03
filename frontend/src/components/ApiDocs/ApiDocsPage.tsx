@@ -1,5 +1,5 @@
 /**
- * API docs page (spec 057) — human-readable external API reference + client agent prompt.
+ * API docs page (specs 057 + 061 + 062 + 063) — routes, downloadable skill, short agent prompt.
  */
 
 import { useEffect, useState } from "react";
@@ -8,80 +8,41 @@ import { apiRequest, formatApiError } from "../../lib/api";
 import { createCorrelationId } from "../../lib/correlation";
 import "./ApiDocsPage.css";
 
-/** Exact prompt for scaffolding an eReport API client in another repo. */
-export const EREPORT_API_CLIENT_AGENT_PROMPT = `You are implementing a small standalone client for Eduardo OS eReport external API.
+/** Public Cursor skill package (static files under /skills/…). */
+export const EREPORT_SKILL_BASE = "/skills/eduardoos-ereport";
+export const EREPORT_SKILL_URL = `${EREPORT_SKILL_BASE}/SKILL.md`;
+export const EREPORT_SKILL_CAVEATS_URL = `${EREPORT_SKILL_BASE}/CAVEATS.md`;
 
-## Goal
-Create a script (Node.js or Python — pick one and stick to it) plus a \`.env\` file.
-The operator must run steps **one at a time** (separate CLI commands). Do **not** combine them.
+/**
+ * Short prompt: install the downloadable skill, then run Modes A/B/C.
+ * Prefer this over scaffolding a full client from scratch (spec 063).
+ */
+export const EREPORT_API_CLIENT_AGENT_PROMPT = `You are working with Eduardo OS eReport via the public API.
 
-## Required order (matches the eReport hub: Orgs → reports)
-1. \`access\` — check that the API key can use eReport
-2. \`orgs\` — list owned organizations
-3. \`org-reports\` — list reports inside one org (to obtain report ids)
-4. \`get\` / \`put\` — read then full-replace **one** org report
+## Install first (required)
+1. Read caveats: https://eduardoos.com/skills/eduardoos-ereport/CAVEATS.md
+2. Install the Cursor skill into THIS repo:
+   Copy https://eduardoos.com/skills/eduardoos-ereport/ into
+   .cursor/skills/eduardoos-ereport/  (SKILL.md, CAVEATS.md, reference.md)
+3. Invoke skill name: eduardoos-ereport
+4. Follow SKILL.md modes A / B / C for the user task below.
 
-## Base URL & auth
-- Base URL from env \`EDUARDOOS_BASE_URL\` (default \`https://eduardoos.com\`, no trailing slash).
-- API key from env \`EDUARDOOS_API_KEY\` (value looks like \`eos_live_<hex>\`).
-- Every authenticated request: header \`Authorization: Bearer <EDUARDOOS_API_KEY>\`.
-- Optional: send \`X-Correlation-ID\` as a UUID for tracing.
-- Rate limit: 60 requests/minute/key; on HTTP 429 honor \`Retry-After\`.
+## Caveats (do not skip)
+- put is FULL payload replace (always get → merge → put). Not a patch API.
+- API rate limit: 60 requests/minute/key (429 + Retry-After). Skill download is static.
+- Create/revoke keys only in the UI (/auth/profile or /api-keys). Never print the key.
+- Writes: owned reports only; entitlements api + ereport.
+- Preserve fechaIncidencia / fechaSolucion and untouched items.
+- End with: Ver reporte: <viewUrl>
+  viewUrl = {BASE}/ereport/workspace?user={ownerSafe}&org={orgId}&report={reportId}
 
-## Entitlements
-Key owner needs \`api\` + \`ereport\` (platform admin keys skip product checks). Writes only for reports **owned** by that key's user.
-Create/revoke keys only in the UI (/auth/profile or /api-keys) — never via API clients.
+## Task
+<USER TASK HERE — e.g. ingest this QA doc into org X report Y as open issues>
 
-## Canonical viewUrl (always print after get/put)
-\`{BASE}/ereport/workspace?user={ownerSafe}&org={orgId}&report={reportId}\`
-Also returned as \`viewUrl\` on GET/POST org report. End every successful run with:
-  Ver reporte: <viewUrl>
+## Optional CLI
+If the repo has scripts/eduardoos-ereport/ereport_client.py, use its access/orgs/org-reports/get/put commands one at a time. Else call the HTTP endpoints in reference.md.
 
-## Dates (do not wipe)
-Item fields \`fechaIncidencia\` / \`fechaSolucion\` are \`YYYY-MM-DD\`, \`YYYY-MM-DDTHH:mm\`, or \`""\`.
-Full replace must preserve non-empty dates unless the operator clears them intentionally.
-
-## Endpoints (in order)
-
-### Step 1 — check access
-GET {BASE}/api/v1/ereport/access
-→ \`{ allowed: true, service: "ereport", email, ownerSafe }\`
-
-### Step 2 — list orgs
-GET {BASE}/api/v1/ereport/orgs
-→ \`{ ownerSafe, orgs: [{ id, name, order, updatedAt }] }\`
-Print a table. Operator picks \`EDUARDOOS_ORG_ID\` (or CLI flag).
-
-### Step 3 — list reports in that org
-GET {BASE}/api/v1/ereport/orgs/{orgId}/reports
-→ \`{ orgId, orgName, reports: [{ id, tema, reportNumber, updatedAt }] }\`
-Print ids + tema. Operator picks \`EDUARDOOS_REPORT_ID\`.
-
-### Step 4 — first edit (get, then put — separate commands)
-a) GET {BASE}/api/v1/ereport/orgs/{orgId}/reports/{reportId}
-   → \`{ orgId, reportId, ownerSafe, viewUrl, meta, payload }\`
-
-b) POST {BASE}/api/v1/ereport/orgs/{orgId}/reports/{reportId}
-   Content-Type: application/json
-   {
-     "confirmOverwrite": true,
-     "tema": "<optional>",
-     "payload": { /* FULL .ereport JSON — required */ }
-   }
-   Without confirmOverwrite:true → 400. May return snapshotId + viewUrl.
-
-## Deliverables
-1. \`.env.example\`:
-   EDUARDOOS_BASE_URL=https://eduardoos.com
-   EDUARDOOS_API_KEY=
-   EDUARDOOS_ORG_ID=
-   EDUARDOOS_REPORT_ID=
-2. \`.env\` gitignored; dotenv.
-3. CLI (separate invocations): \`access\`, \`orgs\`, \`org-reports\`, \`get\`, \`put --file report.json\`
-4. Errors for 401/403/404/400/429.
-5. README: subscribe API+eReport, create key at /auth/profile; run access → orgs → org-reports → get → put; always print Ver reporte: <viewUrl>.
-
-Do not use browser JWT. Do not invent endpoints. Prefer org paths over legacy flat /library or /reports/{ownerSafe}/…. Optional: GET {BASE}/api/v1/docs.`;
+Do not invent endpoints. Prefer org paths. Catalog: GET https://eduardoos.com/api/v1/docs`;
 
 type DocsCatalog = {
   version?: string;
@@ -259,11 +220,59 @@ export default function ApiDocsPage() {
         </p>
       </section>
 
-      <section className="api-docs__section" aria-labelledby="api-docs-prompt">
-        <h2 id="api-docs-prompt">Agent prompt (other repo)</h2>
+      <section className="api-docs__section" aria-labelledby="api-docs-skill">
+        <h2 id="api-docs-skill">Downloadable Cursor skill</h2>
         <p className="api-docs__lead">
-          Paste this into another coding agent to generate a <code>.env</code> + CLI that calls the
-          eReport API.
+          Good use case: teach an agent in <em>any</em> repo to open, update, or extend eReport
+          issues from whatever complaints data it can parse — via the public, rate-limited API.
+          Install the skill, then give a concrete task (do not treat put as a patch API).
+        </p>
+        <div className="api-docs__cards">
+          <article className="api-docs__card">
+            <div className="api-docs__card-top">
+              <span className="api-docs__method api-docs__method--get">Skill</span>
+              <code className="api-docs__card-path">eduardoos-ereport</code>
+            </div>
+            <p className="api-docs__card-summary">
+              Modes A (website), B (get/put), C (ingest any parseable doc → merge → put).
+            </p>
+            <ul className="api-docs__skill-links">
+              <li>
+                <a href={EREPORT_SKILL_URL} download>
+                  Download SKILL.md
+                </a>
+              </li>
+              <li>
+                <a href={EREPORT_SKILL_CAVEATS_URL} download>
+                  Download CAVEATS.md
+                </a>
+              </li>
+              <li>
+                <a href={`${EREPORT_SKILL_BASE}/reference.md`} download>
+                  Download reference.md
+                </a>
+              </li>
+            </ul>
+            <p className="api-docs__hint">
+              Install path: <code>.cursor/skills/eduardoos-ereport/</code> — then invoke by skill
+              name. Public URL:{" "}
+              <a href={EREPORT_SKILL_URL}>https://eduardoos.com{EREPORT_SKILL_URL}</a>
+            </p>
+          </article>
+        </div>
+        <p className="api-docs__hint">
+          <strong>Caveats for downloaders:</strong> full replace only; 60 req/min/key; keys UI-only;
+          owned reports; preserve dates; always end with <code>Ver reporte: &lt;viewUrl&gt;</code>.
+          Details in CAVEATS.md.
+        </p>
+      </section>
+
+      <section className="api-docs__section" aria-labelledby="api-docs-prompt">
+        <h2 id="api-docs-prompt">Agent prompt (skill-first)</h2>
+        <p className="api-docs__lead">
+          Prefer installing the skill above. Copy this short prompt into another coding agent; it
+          tells them to install <code>eduardoos-ereport</code> and follow CAVEATS — not to invent a
+          parallel API.
         </p>
         <div className="api-docs__actions">
           <button type="button" className="btn btn--primary" onClick={() => void copyPrompt()}>

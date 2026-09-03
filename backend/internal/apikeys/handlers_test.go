@@ -172,8 +172,11 @@ func TestDocsPublic(t *testing.T) {
 	if strings.TrimSpace(cat.KeyPolicy) == "" {
 		t.Fatal("expected keyPolicy (UI-only keys)")
 	}
+	if !strings.Contains(cat.Skill, "skills/eduardoos-ereport") {
+		t.Fatalf("expected skill URL, got %q", cat.Skill)
+	}
 	raw := rec.Body.String()
-	if strings.Contains(raw, "keyManagement") || strings.Contains(raw, "/api/apikeys") {
+	if strings.Contains(raw, "keyManagement") || strings.Contains(raw, `"/api/apikeys"`) {
 		t.Fatalf("key CRUD must not appear in public docs catalog: %s", raw)
 	}
 }

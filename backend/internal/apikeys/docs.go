@@ -19,6 +19,7 @@ type DocsCatalog struct {
 	Entitlements DocsEntitlements `json:"entitlements"`
 	OwnerSafe    string           `json:"ownerSafe"`
 	KeyPolicy    string           `json:"keyPolicy"`
+	Skill        string           `json:"skill,omitempty"`
 	Routes       []DocsRoute      `json:"routes"`
 }
 
@@ -74,7 +75,7 @@ func BuildDocsCatalog() DocsCatalog {
 		},
 		OwnerSafe: "Lowercase email with @ replaced by _at_ (e.g. you@example.com → you_at_example.com)",
 		KeyPolicy: "API keys are created, listed, and revoked only in the Eduardo OS UI (Profile or API keys page). Key lifecycle is not part of the external API.",
-		// viewUrl formula is documented on org get/post route summaries (spec 062).
+		Skill:     "https://eduardoos.com/skills/eduardoos-ereport/ — Cursor skill (read CAVEATS.md). Prefer over long copy-paste prompts. API rate limit 60/min/key.",
 		Routes: []DocsRoute{
 			{
 				Method:  http.MethodGet,

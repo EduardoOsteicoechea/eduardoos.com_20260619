@@ -1,8 +1,18 @@
-# eReport external API client (spec 062)
+# eReport external API client (spec 062 + 063)
 
 Python CLI for Eduardo OS org-scoped eReport API.
 
-## Setup
+## Downloadable Cursor skill (preferred for agents)
+
+| File | URL |
+|------|-----|
+| SKILL.md | https://eduardoos.com/skills/eduardoos-ereport/SKILL.md |
+| CAVEATS.md | https://eduardoos.com/skills/eduardoos-ereport/CAVEATS.md |
+| reference.md | https://eduardoos.com/skills/eduardoos-ereport/reference.md |
+
+Install under `.cursor/skills/eduardoos-ereport/`. Docs: `/api-docs`.
+
+## Setup (CLI)
 
 ```bash
 cd scripts/eduardoos-ereport
@@ -30,7 +40,7 @@ Canonical view URL:
 
 | File | Purpose |
 |------|---------|
-| [PROMPT_SDK.md](./PROMPT_SDK.md) | Modes A/B/C for operators + coding agents |
+| [PROMPT_SDK.md](./PROMPT_SDK.md) | Modes A/B/C index → skill |
 | [prompts/01-api-agent-fechas-al-subir.md](./prompts/01-api-agent-fechas-al-subir.md) | Date round-trip investigation |
 | [prompts/02-api-agent-mejorar-instrucciones-y-url.md](./prompts/02-api-agent-mejorar-instrucciones-y-url.md) | Instructions + viewUrl |
 
