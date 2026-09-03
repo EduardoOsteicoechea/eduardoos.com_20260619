@@ -6,8 +6,8 @@ Profile/RAG facts live in `PROFILE_CONTEXT.md` for agents but visitors only see 
 
 ## Goals
 
-1. **Hero first viewport** — brand name, one headline, **two short lead paragraphs** (credentials / practice), Contact (+ LinkedIn) CTAs, agent panel on desktop. **No hero portrait / background photo.** Chat panel stays **always on top** of the scrolling dossier (no stacking-context trap).
-2. **Hero lead tone & spacing** — copy is professional, relaxed, and accessible (plain language; still first-person; facts unchanged). Paragraphs are separate `<p>` elements inside `.home-hero__leads` with a clear vertical gap (`--m3` / ≥1.5rem). Do **not** keep one dense lead blob.
+1. **Hero first viewport** — brand name, one headline, **two short punch paragraphs** (who I am / what I focus on), Contact (+ LinkedIn) CTAs, agent panel on desktop. **No hero portrait / background photo.** Chat panel stays **always on top** of the scrolling dossier (no stacking-context trap). CV detail (ULA, courses, employers) lives in the dossier below — not in the hero punch.
+2. **Hero lead tone & spacing** — punchy, professional, relaxed: licensed Building Architect + BIM training + AEC/AI career; then AI-powered tools/workflows for AEC productivity. First-person. Separate `<p>`s in `.home-hero__leads` with gap `--m3`. No dense CV blob in the hero.
 3. **Dossier data-section gap** — `.home-profile__grid` gap between Profile, Specialization, and other dossier blocks is **`--m3` (1.5rem)** (was `--m2` / `--home-gap`). Agent↔dossier gutter may still use `--home-gap` per 047.
 4. **Hero + dossier layout (desktop)** — shared column width: agent width equals one info column (`--home-col` in a 3-column shell). Grid:
    - Profile | Specialization (1+1)
