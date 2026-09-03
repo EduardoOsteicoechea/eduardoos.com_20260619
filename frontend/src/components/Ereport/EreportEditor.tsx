@@ -64,6 +64,7 @@ export default function EreportEditor() {
   const [historyItems, setHistoryItems] = useState<EreportHistoryCard[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyBusy, setHistoryBusy] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const payloadRef = useRef<EreportPayload | null>(null);
 
@@ -125,6 +126,16 @@ export default function EreportEditor() {
       window.location.origin,
     );
   }, []);
+
+  const onTrackerCommand = useCallback(
+    (command: EreportTrackerCommand) => {
+      if (command === "toggle-sidebar") {
+        setSidebarCollapsed((v) => !v);
+      }
+      postToTracker({ type: "command", command });
+    },
+    [postToTracker],
+  );
 
   const persist = useCallback(
     async (body: { tema?: string; payload?: EreportPayload }) => {
@@ -348,6 +359,8 @@ export default function EreportEditor() {
           modal={modal}
           onOpenModal={setModal}
           onCloseModal={() => setModal(null)}
+          onTrackerCommand={onTrackerCommand}
+          sidebarCollapsed={sidebarCollapsed}
         />
       ) : null}
 

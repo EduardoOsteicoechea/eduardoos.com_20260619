@@ -332,3 +332,16 @@ html.layout-editor-bleed .ereport-editor__frame {
   gap: 0.35rem;
   font-family: var(--font-body);
 }
+
+/* Tracker “save export” in HDS — green accent matching former topbar save. */
+.header-dynamic-menu__btn.ereport-hds-save {
+  background: #2e7d32;
+  color: #fff;
+  border-color: #2e7d32;
+}
+
+.header-dynamic-menu__btn.ereport-hds-save:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: #2e7d32;
+  color: #fff;
+}

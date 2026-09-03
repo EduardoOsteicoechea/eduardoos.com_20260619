@@ -53,19 +53,30 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
 - Click card → editor.
 
 ### 4. Editor
-- **No host chrome above the iframe.** Hub / Tema / Guardar en nube / Compartir live in the site **Header dynamic slot** (`#header-dynamic-menu-host`), same pattern as Scrib/Homescool/Pamphlet.
-- Each of those four actions **opens a modal** over the page so the Issue Tracker’s own topbar stays flush under the site header:
-  - **Hub** — modal with CTA to leave to the owner hub.
-  - **Tema** — modal with tema text field (blur/save writes meta).
-  - **Guardar en nube** — modal with confirm + status; runs collect → `PUT` cloud.
-  - **Compartir** — modal to add/remove registered emails (owners only; hidden if `!canShare`).
+- **No host chrome above the iframe.** All editor tools live in the site **Header dynamic slot** (`#header-dynamic-menu-host`), same pattern as Scrib/Homescool/Pamphlet.
+- **No Issue Tracker topbar** inside the iframe. The former `.topbar` (“Issue Tracker” title + icon row) is **removed**. Meta fields (Organization, Report name, Fecha, Número) stay in the edit body.
+- **HDS icon groups** (icon-only; Material Symbols or SVG; `title`/`aria-label` required):
+  1. **Tracker tools** (host → iframe `postMessage` `{ target: "ereport-tracker", type: "command", command }`):
+     - Tutorial (`tutorial`) — opens howto modal in iframe
+     - Toggle sidebar (`toggle-sidebar`)
+     - Font up / down (`font-up` / `font-down`)
+     - Upload `.ereport` (`upload`) — triggers hidden file input in iframe
+     - Clear all (`clear-all`) — confirm + reset in iframe
+     - Progress (`progress`) — opens progress modal in iframe
+     - Save export (`save-export`) — opens save modal → download `.ereport`+HTML+PDF + cloud-save bridge (accent/green styling allowed)
+  2. **Host tools** (modals on the page):
+     - **Hub** — CTA to leave to the owner hub
+     - **Tema** — tema text field (blur/save writes meta)
+     - **Guardar en nube** — confirm + status; runs collect → `PUT` cloud
+     - **Compartir** — add/remove registered emails (owners only; hidden if `!canShare`)
+     - **Historial** — API overwrite snapshots (owners only when enabled)
 - Body: Issue Tracker embedded via host-bridged static HTML at **`/ereport-tracker.html`** (alias `/ereport/tracker.html`).
 - **Viewport fill (locked):** Under `html.layout-editor-bleed` (spec 054), the host `.ereport-editor` + tracker iframe must occupy the full remaining window under the site Header/rail — not a short band at the top with empty page chrome below. Do **not** rely on `height: 100%` alone through Astro’s `astro-island` wrapper; use an explicit viewport height (`calc(100dvh - var(--header_offset, …))` and/or fixed inset like Scrib) so the iframe always stretches.
 - **Bug fix (2026-09-02):** Bleed CSS set `min-height: 0` / `height: 100%` on the editor and frame; the percentage chain broke at the island, so the iframe collapsed to a short strip. Restore explicit viewport sizing.
 - **Theme:** Tracker has **no** local light/dark button. Appearance follows the site Header theme toggler (`eduardoos-theme` / `html[data-theme]`). Host pushes `postMessage` `{ type: "theme", dark }` on boot, after payload load, and whenever the document theme attrs change.
 - **Nav sidebar dots:** color by item status — **green** `aprobado`, **red** `reprobado`, **gray** undefined/empty. Active item keeps a gold focus ring without replacing the status fill.
 - **Inline title edit (tracker):** sección máxima and subsección/grupo titles are **always `<input>` fields** styled as headings (click/focus to edit). Enter or blur commits into state; values persist in `.ereport` via `collectFromDom`.
-- Save in tracker: downloads **and** posts state to host → `PUT` cloud.
+- Save export from HDS: downloads **and** posts state to host → `PUT` cloud.
 - Cloud save also from header modal and when tracker `saveAll` completes (bridge).
 - Owner: full edit + share. Shared user: **view + edit body** (not delete report / not manage shares). Non-owner non-shared: 403.
 
@@ -96,6 +107,8 @@ IAM already allows Get/Put/Delete on `arn:aws:s3:::eduardoos20260607/ereport/*` 
 - [x] Section + group headings inline-editable in tracker
 - [x] Hub / Tema / Guardar / Compartir in Header dynamic slot via modals (no chrome above iframe)
 - [x] Workspace editor iframe fills the window under Header/rail (no collapsed top strip)
+- [x] Tracker topbar removed; former topbar icons live in HDS and drive iframe via `command` postMessage
+- [x] Meta panel (org / report name / date / number) remains in the edit body
 
 ## Affected paths
 - `specs/025-ereport/spec.md`

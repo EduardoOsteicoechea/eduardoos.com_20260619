@@ -26,7 +26,7 @@
   --inverse-ink: #ffffff;
   --font: "Segoe UI", "Candara", "Calibri", sans-serif;
   --sidebar-w: 24.5rem;
-  --topbar-h: 3.25rem;
+  --topbar-h: 0rem;
   --base: 1rem;
   --sticky-sec-h: 3.5rem;
   --sticky-sub-h: 2.75rem;
@@ -65,45 +65,13 @@ body {
 }
 body.sidebar-collapsed { --sidebar-w: 0rem; }
 
-.topbar {
-  position: sticky; top: 0; z-index: 45;
-  height: var(--topbar-h);
-  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-  padding: 0 0.75rem 0 1rem;
-  background: var(--bg);
-  color: var(--ink);
-  border-bottom: 0.1875rem solid var(--line);
-  box-shadow: var(--shadow);
-}
-.topbar h1 {
-  margin: 0; font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.topbar-actions { display: flex; align-items: center; gap: 0.35rem; flex-wrap: nowrap; }
-.topbar-actions button {
-  width: 2.1rem; height: 2.1rem; padding: 0;
-  background: transparent;
-  color: var(--ink);
-  border: 0.0625rem solid color-mix(in srgb, var(--ink) 45%, transparent);
-  border-radius: var(--radius); cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 1rem; line-height: 1;
-}
-.topbar-actions button:hover { background: color-mix(in srgb, var(--ink) 12%, transparent); }
-.topbar-actions button.active { background: var(--warning); color: #000; border-color: var(--warning); }
-.topbar-actions button.btn-save-all {
-  background: var(--success);
-  color: #fff;
-  border-color: var(--success);
-  font-weight: 700;
-}
-.topbar-actions button.btn-save-all:hover { filter: brightness(1.08); }
+/* Topbar removed (spec 025/049 amend 2026-09-03) — tools live in site HDS. */
 #ereport-file { display: none; }
 
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--sidebar-w);
-  min-height: calc(100vh - var(--topbar-h));
+  min-height: 100vh;
   transition: grid-template-columns .2s ease;
 }
 .main-col {
@@ -120,8 +88,8 @@ body.sidebar-collapsed .sidebar {
 
 .sidebar {
   position: sticky;
-  top: var(--topbar-h);
-  height: calc(100vh - var(--topbar-h));
+  top: 0;
+  height: 100vh;
   width: var(--sidebar-w);
   background: var(--bg);
   color: var(--ink);
@@ -284,7 +252,7 @@ button.has-label { gap: 0.35rem; }
 
 .section-block {
   margin-top: 1.75rem;
-  scroll-margin-top: calc(var(--topbar-h) + 0.75rem);
+  scroll-margin-top: 0.75rem;
   border: none;
   background: transparent;
   box-shadow: none;
@@ -655,7 +623,6 @@ body:not(.theme-dark) .item-card.is-no_aplica {
   font-size: 1.25rem; line-height: 1; vertical-align: middle;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.topbar-actions .material-icons { font-size: 1.2rem; }
 .collapse-toggle .material-icons { font-size: 1.1rem; }
 .btn-status .material-icons { font-size: 1.15rem; }
 .item-top .material-icons, .group-actions .material-icons, .section-actions .material-icons { font-size: 1.05rem; }
@@ -696,20 +663,8 @@ body:not(.theme-dark) .item-card.is-no_aplica {
 </style>
 </head>
 <body class="theme-dark">
-<header class="topbar">
-  <h1>Issue Tracker</h1>
-  <div class="topbar-actions">
-    <button type="button" id="btn-tutorial" title="Cómo usarla" aria-label="Tutorial"><span class="material-icons">help_outline</span></button>
-    <button type="button" id="btn-toggle-sidebar" title="Mostrar/ocultar sidebar" aria-label="Sidebar"><span class="material-icons">view_sidebar</span></button>
-    <button type="button" id="btn-font-up" title="Agrandar fuente" aria-label="Agrandar fuente"><span class="material-icons">text_increase</span></button>
-    <button type="button" id="btn-font-down" title="Reducir fuente" aria-label="Reducir fuente"><span class="material-icons">text_decrease</span></button>
-    <button type="button" id="btn-upload-ereport" title="Cargar .ereport" aria-label="Cargar reporte"><span class="material-icons">upload_file</span></button>
-    <button type="button" id="btn-clear-all" title="Limpiar todo" aria-label="Limpiar todo"><span class="material-icons">delete_sweep</span></button>
-    <button type="button" id="btn-progress" title="Progreso / qué falta" aria-label="Progreso"><span class="material-icons">checklist</span></button>
-    <button type="button" id="btn-save-top" class="btn-save-all" title="Guardar y descargar todo (.ereport + HTML + PDF)" aria-label="Guardar todo"><span class="material-icons">save</span></button>
-    <input type="file" id="ereport-file" accept=".ereport" />
-  </div>
-</header>
+<!-- Topbar removed — tools mount in site HDS; keep hidden file input for upload command. -->
+<input type="file" id="ereport-file" accept=".ereport" />
 
 <div class="layout">
   <div class="main-col">
@@ -755,7 +710,7 @@ body:not(.theme-dark) .item-card.is-no_aplica {
     <div class="howto-modal-body">
       <ol>
         <li>Completá <strong>Organization</strong>, <strong>Report name</strong>, <strong>fecha</strong> y <strong>número</strong>.</li>
-        <li>Usá la barra superior para tamaño de fuente, cargar <strong>.ereport</strong>, limpiar, ver progreso o <strong>guardar todo</strong>. El tema claro/oscuro sigue el interruptor del menú global del sitio.</li>
+        <li>Usá los iconos del menú superior del sitio para tamaño de fuente, cargar <strong>.ereport</strong>, limpiar, ver progreso o <strong>guardar todo</strong>. El tema claro/oscuro sigue el interruptor del menú global del sitio.</li>
         <li>El sidebar derecho navega por cada incidencia (tooltip: subartículo + nombre).</li>
         <li>Al guardar se exportan <strong>.ereport + HTML + PDF</strong>. Las imágenes van en base64 dentro del .ereport.</li>
       </ol>
@@ -947,17 +902,11 @@ function bindMeta() {
   n.value = state.reportNumber || "";
   if (rn) rn.value = state.reportName || state.appTitle || "";
   if (on) on.value = state.orgName || "";
-  const title = document.querySelector(".topbar h1");
-  if (title) {
-    const label = (state.reportName || state.appTitle || "").trim();
-    title.textContent = label || "Issue Tracker";
-  }
   d.onchange = () => { state.reportDate = d.value; updateStatus(); };
   n.oninput = () => { state.reportNumber = n.value; updateStatus(); };
   if (rn) rn.oninput = () => {
     state.reportName = rn.value;
     state.appTitle = rn.value;
-    if (title) title.textContent = rn.value.trim() || "Issue Tracker";
     updateStatus();
   };
   if (on) on.oninput = () => { state.orgName = on.value; updateStatus(); };
@@ -1353,8 +1302,7 @@ function renderNavRail() {
 }
 
 function scrollSpyTopOffset() {
-  const bar = document.querySelector(".topbar");
-  return (bar ? bar.getBoundingClientRect().bottom : 52) + 6;
+  return 58;
 }
 
 function updateActiveNav() {
@@ -1757,28 +1705,21 @@ function emptyLikeEmbedded() {
 
 let baseFontPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 12;
 
-document.getElementById("btn-toggle-sidebar").onclick = () => {
+function toggleSidebar() {
   document.body.classList.toggle("sidebar-collapsed");
-  document.getElementById("btn-toggle-sidebar").classList.toggle(
-    "active", document.body.classList.contains("sidebar-collapsed"));
-};
-applyTheme();
-document.getElementById("btn-font-up").onclick = () => {
+}
+function fontUp() {
   baseFontPx = Math.min(22, baseFontPx + 1);
   document.documentElement.style.fontSize = baseFontPx + "px";
-};
-document.getElementById("btn-font-down").onclick = () => {
+}
+function fontDown() {
   baseFontPx = Math.max(8, baseFontPx - 1);
   document.documentElement.style.fontSize = baseFontPx + "px";
-};
-document.getElementById("btn-upload-ereport").onclick = () => document.getElementById("ereport-file").click();
-document.getElementById("ereport-file").onchange = () => {
-  const input = document.getElementById("ereport-file");
-  const f = input.files && input.files[0];
-  if (f) loadEreportFile(f);
-  input.value = "";
-};
-document.getElementById("btn-clear-all").onclick = () => {
+}
+function triggerUpload() {
+  document.getElementById("ereport-file").click();
+}
+function clearAllReport() {
   if (!confirm("¿Limpiar todos los datos del reporte?")) return;
   state = emptyLikeEmbedded();
   seedCollapsedHierarchy();
@@ -1786,6 +1727,14 @@ document.getElementById("btn-clear-all").onclick = () => {
   bindMeta();
   render();
   toast("Reporte limpiado");
+}
+
+applyTheme();
+document.getElementById("ereport-file").onchange = () => {
+  const input = document.getElementById("ereport-file");
+  const f = input.files && input.files[0];
+  if (f) loadEreportFile(f);
+  input.value = "";
 };
 function closeModal(id) {
   const el = document.getElementById(id);
@@ -1822,13 +1771,25 @@ function openProgressModal(mode) {
   openModalById("progress-modal");
 }
 
-document.getElementById("btn-tutorial").onclick = () => openModalById("howto-modal");
+/** Host HDS → iframe command bridge (spec 025 §4). */
+function runHostCommand(command) {
+  switch (command) {
+    case "tutorial": openModalById("howto-modal"); break;
+    case "toggle-sidebar": toggleSidebar(); break;
+    case "font-up": fontUp(); break;
+    case "font-down": fontDown(); break;
+    case "upload": triggerUpload(); break;
+    case "clear-all": clearAllReport(); break;
+    case "progress": openProgressModal("info"); break;
+    case "save-export": openProgressModal("save"); break;
+    default: break;
+  }
+}
+
 document.getElementById("howto-close").onclick = () => closeModal("howto-modal");
 document.getElementById("howto-modal").addEventListener("click", (e) => {
   if (e.target.id === "howto-modal") closeModal("howto-modal");
 });
-document.getElementById("btn-progress").onclick = () => openProgressModal("info");
-document.getElementById("btn-save-top").onclick = () => openProgressModal("save");
 document.getElementById("progress-close").onclick = () => closeProgressModal();
 document.getElementById("progress-modal").addEventListener("click", (e) => {
   if (e.target.id === "progress-modal") closeProgressModal();
@@ -1886,6 +1847,13 @@ updateStatus();
     }
     if (d.type === "theme") {
       setTheme(d.dark ? "dark" : "light");
+    }
+    if (d.type === "command" && d.command) {
+      try {
+        runHostCommand(String(d.command));
+      } catch (e) {
+        emit("error", { message: String(e && e.message ? e.message : e) });
+      }
     }
   });
   emit("booted", {});

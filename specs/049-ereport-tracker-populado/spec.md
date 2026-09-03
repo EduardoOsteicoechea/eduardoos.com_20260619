@@ -4,6 +4,8 @@
 
 **Done** (2026-09-01). **Amend (2026-09-01):** remove tracker local theme button; follow global Header theme toggler only.
 
+**Amend (2026-09-03):** Move tracker topbar action icons into the site **Header Dynamic Section (HDS)**; **remove** the iframe `.topbar` (“Issue Tracker” title bar). Meta fields stay. Host sends `{ target: "ereport-tracker", type: "command", command }` for tutorial / sidebar / font± / upload / clear / progress / save-export. See spec 025 §4.
+
 ## Problem
 
 `frontend/public/ereport-tracker.html` (the eReport **report** editor iframe) is still an older fork. Canonical QA UI/UX lives in:
