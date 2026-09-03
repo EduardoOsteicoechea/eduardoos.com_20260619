@@ -78,6 +78,8 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
 - **Inline title edit (tracker):** sección máxima and subsección/grupo titles are **always `<input>` fields** styled as headings (click/focus to edit). Enter or blur commits into state; values persist in `.ereport` via `collectFromDom`.
 - Save export from HDS: downloads (download icon, regular chrome) and may bridge to cloud; **green accent is only on Guardar en nube**.
 - Cloud save also from header modal and when tracker `saveAll` completes (bridge).
+- **Auto cloud save (2026-09-03):** any edit in the tracker (meta, inplace fields, status, images, collapse state) debounces to `cloud-save` → host `PUT` without opening the Guardar modal.
+- **Global type scale (2026-09-03, spec 063):** tracker root `html` uses `calc(16px * var(--site-text-scale))`; internal sizes stay in **rem** so proportions are unchanged. Host pushes `text-scale` on boot and when A+/A− changes; HDS font up/down bumps site scale on the host.
 - Owner: full edit + share. Shared user: **view + edit body** (not delete report / not manage shares). Non-owner non-shared: 403.
 
 ### 5. API (JWT)
@@ -109,6 +111,8 @@ IAM already allows Get/Put/Delete on `arn:aws:s3:::eduardoos20260607/ereport/*` 
 - [x] Workspace editor iframe fills the window under Header/rail (no collapsed top strip)
 - [x] Tracker topbar removed; former topbar icons live in HDS and drive iframe via `command` postMessage
 - [x] Meta panel (org / report name / date / number) remains in the edit body
+- [x] Tracker fields use site global type scale (16px × `--site-text-scale`); internal rem ratios preserved
+- [x] Tracker edits auto-save to cloud (debounced) without opening Guardar modal
 
 ## Affected paths
 - `specs/025-ereport/spec.md`

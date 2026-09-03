@@ -24,10 +24,11 @@ import EreportHeaderMenu, {
   type EreportModalKind,
   type EreportTrackerCommand,
 } from "./EreportHeaderMenu";
+import { bumpUiScale, resolveUiScale } from "../../lib/uiScale";
 import { ViewLoading } from "../ViewLoading/ViewLoading";
 import "./Ereport.css";
 
-const TRACKER_SRC = "/ereport-tracker.html?v=062a";
+const TRACKER_SRC = "/ereport-tracker.html?v=063a";
 
 function siteIsDark(): boolean {
   return (
@@ -68,6 +69,7 @@ export default function EreportEditor() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const payloadRef = useRef<EreportPayload | null>(null);
+  const autoSaveTimerRef = useRef(0);
 
   useEffect(() => {
     const resolved = resolveEditorIds();
@@ -128,16 +130,6 @@ export default function EreportEditor() {
     );
   }, []);
 
-  const onTrackerCommand = useCallback(
-    (command: EreportTrackerCommand) => {
-      if (command === "toggle-sidebar") {
-        setSidebarCollapsed((v) => !v);
-      }
-      postToTracker({ type: "command", command });
-    },
-    [postToTracker],
-  );
-
   const persist = useCallback(
     async (body: { tema?: string; payload?: EreportPayload }) => {
       if (!ids) return { meta: null as EreportMeta | null, error: "missing ids" };
@@ -156,6 +148,41 @@ export default function EreportEditor() {
     [ids],
   );
 
+  const onTrackerCommand = useCallback(
+    (command: EreportTrackerCommand) => {
+      if (command === "toggle-sidebar") {
+        setSidebarCollapsed((v) => !v);
+      }
+      if (command === "font-up" || command === "font-down") {
+        const next = bumpUiScale(command === "font-up" ? 1 : -1);
+        postToTracker({ type: "text-scale", scale: next });
+        return;
+      }
+      postToTracker({ type: "command", command });
+    },
+    [postToTracker],
+  );
+
+  const runCloudPersist = useCallback(
+    async (payload: EreportPayload) => {
+      if (!ids) return;
+      payloadRef.current = payload;
+      const nextTema =
+        String(payload.reportName || payload.appTitle || tema || "").trim() || tema;
+      setTema(nextTema);
+      setSaving(true);
+      setError("");
+      const res = await persist({
+        payload,
+        tema: nextTema,
+      });
+      setSaving(false);
+      if (res.error) setError(res.error);
+      else if (res.meta) setMeta(res.meta);
+    },
+    [ids, persist, tema],
+  );
+
   useEffect(() => {
     function onMessage(ev: MessageEvent) {
       if (ev.origin !== window.location.origin) return;
@@ -169,26 +196,17 @@ export default function EreportEditor() {
           postToTracker({ type: "load", payload: payloadRef.current });
         }
         postToTracker({ type: "theme", dark: siteIsDark() });
+        postToTracker({ type: "text-scale", scale: resolveUiScale() });
       }
       if (d.type === "loaded") {
         postToTracker({ type: "theme", dark: siteIsDark() });
+        postToTracker({ type: "text-scale", scale: resolveUiScale() });
       }
       if (d.type === "cloud-save" && ids && d.payload) {
-        void (async () => {
-          setSaving(true);
-          const payload = d.payload as EreportPayload;
-          const nextTema =
-            String(payload.reportName || payload.appTitle || tema || "").trim() ||
-            tema;
-          setTema(nextTema);
-          const res = await persist({
-            payload,
-            tema: nextTema,
-          });
-          setSaving(false);
-          if (res.error) setError(res.error);
-          else if (res.meta) setMeta(res.meta);
-        })();
+        window.clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = window.setTimeout(() => {
+          void runCloudPersist(d.payload as EreportPayload);
+        }, 250);
       }
       if (d.type === "error") {
         setError(String(d.message || "Tracker error"));
@@ -196,26 +214,48 @@ export default function EreportEditor() {
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [ids, tema, postToTracker, persist]);
+  }, [ids, postToTracker, runCloudPersist]);
 
   useEffect(() => {
     if (!trackerReady || !payloadRef.current) return;
     postToTracker({ type: "load", payload: payloadRef.current });
     postToTracker({ type: "theme", dark: siteIsDark() });
+    postToTracker({ type: "text-scale", scale: resolveUiScale() });
   }, [trackerReady, postToTracker]);
 
   /* Follow Header theme toggler — push into iframe whenever html theme attrs change. */
   useEffect(() => {
     if (!trackerReady) return;
-    const push = () => postToTracker({ type: "theme", dark: siteIsDark() });
-    push();
-    const obs = new MutationObserver(push);
+    const pushTheme = () => postToTracker({ type: "theme", dark: siteIsDark() });
+    pushTheme();
+    const obs = new MutationObserver(pushTheme);
     obs.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["data-theme", "class"],
     });
     return () => obs.disconnect();
   }, [trackerReady, postToTracker]);
+
+  /* Follow site A+/A− — push text scale into iframe when --site-text-scale changes. */
+  useEffect(() => {
+    if (!trackerReady) return;
+    const pushScale = () =>
+      postToTracker({ type: "text-scale", scale: resolveUiScale() });
+    pushScale();
+    const obs = new MutationObserver(pushScale);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["style"],
+    });
+    return () => obs.disconnect();
+  }, [trackerReady, postToTracker]);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(autoSaveTimerRef.current);
+    },
+    [],
+  );
 
   async function onSaveTema() {
     if (!ids || !meta) return;
@@ -236,22 +276,8 @@ export default function EreportEditor() {
     const handler = async (ev: MessageEvent) => {
       if (ev.data?.source !== "ereport-tracker" || ev.data?.type !== "state") return;
       window.removeEventListener("message", handler);
-      setSaving(true);
-      const payload = ev.data.payload as EreportPayload;
-      const nextTema =
-        String(payload.reportName || payload.appTitle || tema || "").trim() ||
-        tema;
-      setTema(nextTema);
-      const res = await persist({
-        tema: nextTema,
-        payload,
-      });
-      setSaving(false);
-      if (res.error) setError(res.error);
-      else if (res.meta) {
-        setMeta(res.meta);
-        setModal(null);
-      }
+      await runCloudPersist(ev.data.payload as EreportPayload);
+      setModal(null);
     };
     window.addEventListener("message", handler);
     postToTracker({ type: "collect" });

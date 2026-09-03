@@ -32,8 +32,13 @@
   --sticky-sub-h: 2.75rem;
   --radius: 3px;
   --section-head-bg: #dcdcdc;
+  /* Spec 063: match site root (16px × scale); rem children keep proportions. */
+  --site-text-scale: 1;
 }
-html { font-size: 12px; scroll-behavior: smooth; }
+html {
+  font-size: calc(16px * var(--site-text-scale, 1));
+  scroll-behavior: smooth;
+}
 body.theme-dark {
   --bg: #000000;
   --ink: #ffffff;
@@ -226,8 +231,11 @@ body.sidebar-collapsed .sidebar {
 .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 label.field { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; color: var(--muted); }
 label.field input, label.field textarea, .nombre-input,
-.inplace input, .inplace textarea {
-  font: inherit; color: var(--ink);
+.inplace input, .inplace textarea,
+.group-title-input {
+  font: inherit;
+  font-size: 1rem;
+  color: var(--ink);
   border: 0.0625rem solid var(--line); border-radius: var(--radius);
   padding: 0.5rem 0.65rem; background: var(--card);
 }
@@ -1726,18 +1734,49 @@ function emptyLikeEmbedded() {
   return normalizeState(data);
 }
 
-let baseFontPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 12;
+var TEXT_SCALE_STEPS = [0.85, 0.925, 1, 1.075, 1.15, 1.25, 1.4];
+
+function nearestTextScale(value) {
+  var best = 1;
+  var bestDist = Number.POSITIVE_INFINITY;
+  for (var i = 0; i < TEXT_SCALE_STEPS.length; i += 1) {
+    var step = TEXT_SCALE_STEPS[i];
+    var dist = Math.abs(step - value);
+    if (dist < bestDist) {
+      best = step;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+function readSiteTextScale() {
+  var raw = getComputedStyle(document.documentElement).getPropertyValue("--site-text-scale").trim();
+  var n = parseFloat(raw);
+  return nearestTextScale(Number.isFinite(n) ? n : 1);
+}
+
+function applySiteTextScale(scale) {
+  document.documentElement.style.setProperty(
+    "--site-text-scale",
+    String(nearestTextScale(Number(scale) || 1)),
+  );
+}
 
 function toggleSidebar() {
   document.body.classList.toggle("sidebar-collapsed");
 }
 function fontUp() {
-  baseFontPx = Math.min(22, baseFontPx + 1);
-  document.documentElement.style.fontSize = baseFontPx + "px";
+  var cur = readSiteTextScale();
+  var idx = TEXT_SCALE_STEPS.indexOf(cur);
+  if (idx < 0) idx = TEXT_SCALE_STEPS.indexOf(1);
+  applySiteTextScale(TEXT_SCALE_STEPS[Math.min(TEXT_SCALE_STEPS.length - 1, idx + 1)]);
 }
 function fontDown() {
-  baseFontPx = Math.max(8, baseFontPx - 1);
-  document.documentElement.style.fontSize = baseFontPx + "px";
+  var cur = readSiteTextScale();
+  var idx = TEXT_SCALE_STEPS.indexOf(cur);
+  if (idx < 0) idx = TEXT_SCALE_STEPS.indexOf(1);
+  applySiteTextScale(TEXT_SCALE_STEPS[Math.max(0, idx - 1)]);
 }
 function triggerUpload() {
   document.getElementById("ereport-file").click();
@@ -1833,21 +1872,47 @@ updateStatus();
 <script>
 /* Eduardo OS host bridge — cloud save + load from parent iframe */
 (function () {
+  var autoSaveEnabled = false;
+  var cloudSaveTimer = 0;
+
   function emit(type, extra) {
     if (window.parent && window.parent !== window) {
       window.parent.postMessage(Object.assign({ source: "ereport-tracker", type: type }, extra || {}), "*");
     }
   }
+
+  function scheduleCloudSave() {
+    if (!autoSaveEnabled) return;
+    if (!window.parent || window.parent === window) return;
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = setTimeout(function () {
+      try {
+        collectFromDom();
+        emit("cloud-save", { payload: structuredClone(state) });
+      } catch (e) {
+        emit("error", { message: String(e && e.message ? e.message : e) });
+      }
+    }, 700);
+  }
+
+  var origUpdateStatus = updateStatus;
+  updateStatus = function () {
+    origUpdateStatus.apply(this, arguments);
+    scheduleCloudSave();
+  };
+
   var origSaveAll = saveAll;
   saveAll = async function () {
     try { collectFromDom(); } catch (e) {}
     emit("cloud-save", { payload: structuredClone(state) });
     return origSaveAll.apply(this, arguments);
   };
+
   window.addEventListener("message", function (ev) {
     var d = ev.data;
     if (!d || d.target !== "ereport-tracker") return;
     if (d.type === "load") {
+      autoSaveEnabled = false;
       try {
         state = normalizeState(d.payload || {});
         if (state.collapse == null) seedCollapsedHierarchy();
@@ -1855,6 +1920,7 @@ updateStatus();
         applyTheme();
         bindMeta();
         render();
+        autoSaveEnabled = true;
         emit("loaded", {});
       } catch (e) {
         emit("error", { message: String(e && e.message ? e.message : e) });
@@ -1870,6 +1936,9 @@ updateStatus();
     }
     if (d.type === "theme") {
       setTheme(d.dark ? "dark" : "light");
+    }
+    if (d.type === "text-scale") {
+      applySiteTextScale(Number(d.scale) || 1);
     }
     if (d.type === "command" && d.command) {
       try {
