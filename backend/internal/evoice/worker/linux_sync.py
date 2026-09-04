@@ -39,7 +39,7 @@ IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp", "
 PREMIUM_SYSTEM = (
     "Eres un editor de guiones hablados en español para audiolibros / MP3. "
     "El texto de usuario puede venir de cualquier modalidad (texto pegado, .txt, .docx, "
-    "PDF con capa de texto, PDF escaneado/OCR, o imagen OCR). "
+    "PDF con capa de texto, PDF escaneado/OCR/visión, o imagen). "
     "Tu trabajo es la preparación perfecta para síntesis de voz (TTS): oraciones cortas y claras, "
     "expande abreviaturas, quita markdown/URLs/ruido OCR, corrige artefactos de extracción, "
     "mantén el significado y el orden lógico. "
@@ -53,8 +53,19 @@ PREMIUM_SYSTEM = (
     "<<<END>>>"
 )
 
+VISION_PAGE_PROMPT = (
+    "Extrae TODO el texto legible de esta página de documento. "
+    "Conserva el orden de lectura. No inventes contenido. "
+    "Responde solo con el texto plano de la página."
+)
+
 # Below this, treat PDF text-layer as sparse and fall back to page OCR.
 PDF_TEXT_MIN_CHARS = 40
+VISION_DPI = 200
+VERSION_AUDIO_RE = re.compile(
+    r"^(?P<stem>.+)\.v(?P<ver>\d+)(?:\.c\d+-.*)?\.mp3$",
+    re.IGNORECASE,
+)
 
 CHAPTER_RE = re.compile(
     r'<<<CHAPTER\s+n="(?P<n>\d+)"\s+title="(?P<title>[^"]*)"\s*>>>\s*(?P<body>.*?)\s*<<<END>>>',
@@ -105,8 +116,39 @@ def parse_chapters(text: str) -> list[tuple[int, str, str]]:
     return [(1, "Completo", stripped)]
 
 
-def chapter_mp3_name(stem: str, n: int, title: str) -> str:
-    return f"{stem}.c{n:02d}-{slug_title(title)}.mp3"
+def chapter_mp3_name(stem: str, n: int, title: str, version: int = 0) -> str:
+    slug = slug_title(title)
+    if version and version > 0:
+        return f"{stem}.v{version}.c{n:02d}-{slug}.mp3"
+    return f"{stem}.c{n:02d}-{slug}.mp3"
+
+
+def next_audio_version(audios_dir: Path, stem: str) -> int:
+    max_v = 0
+    if not audios_dir.is_dir():
+        return 1
+    for p in audios_dir.iterdir():
+        if not p.is_file() or p.suffix.lower() != ".mp3":
+            continue
+        m = VERSION_AUDIO_RE.match(p.name)
+        if not m or m.group("stem") != stem:
+            continue
+        max_v = max(max_v, int(m.group("ver")))
+    return max_v + 1
+
+
+def content_percent_instruction(pct: int) -> str:
+    if pct >= 100:
+        return ""
+    return (
+        f"\nIMPORTANTE: sintetiza el contenido para que el guion hablado resultante "
+        f"tenga aproximadamente el {pct}% del conteo de palabras del texto original. "
+        "Conserva ideas clave y el orden lógico; no inventes hechos."
+    )
+
+
+def deepseek_system_for(pct: int) -> str:
+    return PREMIUM_SYSTEM + content_percent_instruction(pct)
 
 
 def list_stem_audios(audios_dir: Path, stem: str) -> list[Path]:
@@ -311,18 +353,18 @@ def load_doc_text(path: Path) -> str:
     raise ValueError(f"unsupported extension: {ext}")
 
 
-def premium_optimize(text: str, name: str) -> str:
-    """DeepSeek chat completions with stream=true + system role; required for all modalities when --premium."""
+def premium_optimize(text: str, name: str, content_percent: int = 100) -> str:
+    """DeepSeek chat completions with stream=true + system role; required when DeepSeek runs."""
     key = (os.environ.get("DEEPSEEK_API_KEY") or "").strip()
     if not key:
         raise RuntimeError("DEEPSEEK_API_KEY not configured for premium")
     model = (os.environ.get("DEEPSEEK_MODEL_REASONING") or "deepseek-v4-pro").strip()
     base = (os.environ.get("DEEPSEEK_BASE_URL") or "https://api.deepseek.com").rstrip("/")
-    log(f"PREMIUM {name} pct=5 detail=deepseek_stream_start model={model}")
+    log(f"PREMIUM {name} pct=5 detail=deepseek_stream_start model={model} contentPercent={content_percent}")
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": PREMIUM_SYSTEM},
+            {"role": "system", "content": deepseek_system_for(content_percent)},
             {"role": "user", "content": text[:120000]},
         ],
         "temperature": 0.3,
@@ -381,6 +423,146 @@ def premium_optimize(text: str, name: str) -> str:
         raise RuntimeError("deepseek returned empty content")
     log(f"PREMIUM {name} pct=100 detail=optimized {len(text)}→{len(content)} chars")
     return content
+
+
+def vision_image_to_text(image_path: Path, name: str, page_label: str = "") -> str:
+    """One page image → DeepSeek Vision (spec 069)."""
+    key = (os.environ.get("DEEPSEEK_API_KEY") or "").strip()
+    if not key:
+        raise RuntimeError("DEEPSEEK_API_KEY not configured for super premium vision")
+    model = (
+        os.environ.get("DEEPSEEK_MODEL_VISION") or "deepseek-v4-flash-vision-exp"
+    ).strip()
+    base = (os.environ.get("DEEPSEEK_BASE_URL") or "https://api.deepseek.com").rstrip("/")
+    tag = f"{name}{(' ' + page_label) if page_label else ''}"
+    log(f"VISION {tag} pct=10 detail=encode")
+    import base64
+
+    raw = image_path.read_bytes()
+    b64 = base64.standard_b64encode(raw).decode("ascii")
+    mime = "image/png"
+    if image_path.suffix.lower() in {".jpg", ".jpeg"}:
+        mime = "image/jpeg"
+    elif image_path.suffix.lower() == ".webp":
+        mime = "image/webp"
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": VISION_PAGE_PROMPT},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime};base64,{b64}"},
+                    },
+                ],
+            }
+        ],
+        "temperature": 0.1,
+        "stream": False,
+    }
+    req = urllib.request.Request(
+        f"{base}/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+        },
+        method="POST",
+    )
+    log(f"VISION {tag} pct=40 detail=request model={model}")
+    try:
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            body = json.loads(resp.read().decode("utf-8", errors="replace"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:400]
+        raise RuntimeError(f"vision HTTP {exc.code}: {detail}") from exc
+    text = (
+        body.get("choices", [{}])[0]
+        .get("message", {})
+        .get("content", "")
+        or ""
+    ).strip()
+    log(f"VISION {tag} pct=100 detail=chars={len(text)}")
+    return text
+
+
+def render_pdf_pages(path: Path, dpi: int = VISION_DPI) -> list[Path]:
+    """Rasterize PDF pages to temp PNGs @ dpi. Caller must clean temp dir parent."""
+    pages: list[Path] = []
+    tmp = Path(tempfile.mkdtemp(prefix="evoice-vision-"))
+    try:
+        import fitz
+
+        doc = fitz.open(str(path))
+        try:
+            zoom = dpi / 72.0
+            mat = fitz.Matrix(zoom, zoom)
+            for i in range(doc.page_count):
+                pix = doc.load_page(i).get_pixmap(matrix=mat, alpha=False)
+                out = tmp / f"page-{i + 1:04d}.png"
+                pix.save(str(out))
+                pages.append(out)
+        finally:
+            doc.close()
+        return pages
+    except ImportError:
+        pass
+    except Exception as exc:  # noqa: BLE001
+        log(f"VISION {path.name} detail=pymupdf_failed {exc!s}")
+    pdftoppm = shutil.which("pdftoppm")
+    if not pdftoppm:
+        raise RuntimeError("PDF vision needs pymupdf or pdftoppm")
+    prefix = tmp / "page"
+    proc = subprocess.run(
+        [pdftoppm, "-png", "-r", str(dpi), str(path), str(prefix)],
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        err = proc.stderr.decode("utf-8", errors="replace")[:300]
+        raise RuntimeError(f"pdftoppm failed: {err}")
+    found = sorted(tmp.glob("page*.png"))
+    if not found:
+        raise RuntimeError("pdftoppm produced no pages")
+    return found
+
+
+def extract_via_vision(path: Path) -> str:
+    """Super Premium extract: PDF/images → Vision one page at a time."""
+    name = path.name
+    ext = path.suffix.lower()
+    log(f"VISION {name} pct=5 detail=start ext={ext}")
+    parts: list[str] = []
+    tmp_dirs: list[Path] = []
+    try:
+        if ext == ".pdf":
+            pages = render_pdf_pages(path, VISION_DPI)
+            if pages:
+                tmp_dirs.append(pages[0].parent)
+            total = len(pages)
+            for i, pg in enumerate(pages, start=1):
+                text = vision_image_to_text(pg, name, page_label=f"page={i}/{total}")
+                if text:
+                    parts.append(text)
+        elif ext in IMAGE_EXTENSIONS:
+            text = vision_image_to_text(path, name)
+            if text:
+                parts.append(text)
+        else:
+            raise ValueError(f"vision unsupported: {ext}")
+    finally:
+        for d in tmp_dirs:
+            shutil.rmtree(d, ignore_errors=True)
+    joined = "\n\n".join(parts)
+    log(f"VISION {name} pct=100 detail=chars={len(joined)}")
+    return joined
+
+
+def super_allowed(path: Path) -> bool:
+    ext = path.suffix.lower()
+    return ext in {".pdf", ".docx"} | IMAGE_EXTENSIONS
 
 
 def find_ffmpeg() -> str:
@@ -517,8 +699,17 @@ def sync_project(
     project_dir: Path,
     only: set[str] | None = None,
     *,
-    premium: bool = False,
+    mode: str = "standard",
+    content_percent: int = 100,
 ) -> dict[str, int]:
+    mode = (mode or "standard").strip().lower()
+    if mode in {"super", "superpremium", "super-premium"}:
+        mode = "super_premium"
+    if mode not in {"standard", "premium", "super_premium"}:
+        mode = "standard"
+    if content_percent not in {100, 75, 50, 25, 10, 5}:
+        content_percent = 100
+    use_deepseek = mode in {"premium", "super_premium"} or content_percent < 100
     docs_dir = project_dir / "docs"
     audios_dir = project_dir / "audios"
     audios_dir.mkdir(parents=True, exist_ok=True)
@@ -528,11 +719,12 @@ def sync_project(
         if p.is_file()
         and p.name != ".keep"
         and not p.name.endswith(".premium.txt")
+        and not p.name.endswith(".vision.txt")
         and p.suffix.lower() in DOC_EXTENSIONS
         and (not only or p.name in only)
     )
     stats = {"docs": len(docs), "generated": 0, "skipped": 0, "failed": 0}
-    log(f"STEP convert docs={len(docs)} premium={int(premium)}")
+    log(f"STEP convert docs={len(docs)} mode={mode} contentPercent={content_percent}")
     if not docs:
         log("No convertible files in docs/")
         return stats
@@ -540,40 +732,50 @@ def sync_project(
         stem = doc.stem
         log(f"FILE {doc.name} state=active")
         log(f"STEP convert doc={idx}/{len(docs)} file={doc.name}")
-        if not needs_regen_stem(doc, audios_dir, stem, premium=premium):
-            log(f"skip  {doc.name} (mp3 up to date)")
-            log(f"FILE {doc.name} state=skipped")
-            stats["skipped"] += 1
-            continue
-        reason = "missing/outdated audio"
-        log(f"gen   {doc.name} ({reason})")
+        ver = next_audio_version(audios_dir, stem)
+        log(f"gen   {doc.name} (version=v{ver})")
         try:
-            text = load_doc_text(doc)
+            if mode == "super_premium":
+                if doc.suffix.lower() == ".txt":
+                    raise ValueError("super_premium not allowed for .txt")
+                if not super_allowed(doc):
+                    raise ValueError(f"super_premium unsupported for {doc.suffix}")
+                if doc.suffix.lower() == ".docx":
+                    text = load_doc_text(doc)
+                else:
+                    text = extract_via_vision(doc)
+                    vision_path = docs_dir / f"{stem}.v{ver}.vision.txt"
+                    vision_path.write_text(text, encoding="utf-8")
+                    log(f"VISION {doc.name} detail=wrote {vision_path.name}")
+            else:
+                text = load_doc_text(doc)
             if not text.strip():
                 raise ValueError("No readable text extracted")
-            clear_stem_audios(audios_dir, stem)
-            if premium:
-                # Mandatory: every modality's extracted text goes through DeepSeek system role.
-                log(f"PREMIUM {doc.name} detail=system_role_prep modality={doc.suffix.lower()}")
-                text = premium_optimize(text, doc.name)
-                premium_path = docs_dir / f"{stem}.premium.txt"
+            if use_deepseek:
+                log(
+                    f"PREMIUM {doc.name} detail=system_role_prep modality={doc.suffix.lower()} "
+                    f"mode={mode}"
+                )
+                text = premium_optimize(text, doc.name, content_percent)
+                premium_path = docs_dir / f"{stem}.v{ver}.premium.txt"
                 premium_path.write_text(text, encoding="utf-8")
                 log(f"PREMIUM {doc.name} detail=wrote {premium_path.name}")
                 chapters = parse_chapters(text)
                 if not chapters:
-                    raise ValueError("premium produced no chapters")
+                    raise ValueError("deepseek produced no chapters")
                 log(f"PREMIUM {doc.name} detail=chapters={len(chapters)}")
                 for i, (n, title, body) in enumerate(chapters, start=1):
-                    mp3_name = chapter_mp3_name(stem, n, title)
+                    mp3_name = chapter_mp3_name(stem, n, title, version=ver)
                     mp3 = audios_dir / mp3_name
                     pct = int(100 * (i - 1) / max(len(chapters), 1))
                     log(f"TTS {doc.name} pct={pct} detail=chapter {n}/{len(chapters)} {title}")
                     text_to_mp3(body, mp3, doc.name, tmp_parent=project_dir)
                     log(f"ok     {doc.name} -> {mp3_name}")
             else:
-                mp3 = audios_dir / f"{stem}.mp3"
+                mp3_name = f"{stem}.v{ver}.mp3"
+                mp3 = audios_dir / mp3_name
                 text_to_mp3(text, mp3, doc.name, tmp_parent=project_dir)
-                log(f"ok     {doc.name} -> {mp3.name}")
+                log(f"ok     {doc.name} -> {mp3_name}")
             stats["generated"] += 1
             log(f"FILE {doc.name} state=done")
         except Exception as exc:  # noqa: BLE001
@@ -595,7 +797,18 @@ def main() -> int:
     parser.add_argument(
         "--premium",
         action="store_true",
-        help="Optimize extracted text with DeepSeek reasoning before TTS.",
+        help="Legacy: same as --mode premium.",
+    )
+    parser.add_argument(
+        "--mode",
+        default="",
+        help="standard | premium | super_premium (spec 069).",
+    )
+    parser.add_argument(
+        "--content-percent",
+        type=int,
+        default=100,
+        help="Target spoken length as %% of original word count (100/75/50/25/10/5).",
     )
     args = parser.parse_args()
     project_dir = args.project_dir.resolve()
@@ -603,7 +816,15 @@ def main() -> int:
         log(f"docs/ missing under {project_dir}")
         return 1
     only = {n for n in args.only if n} or None
-    stats = sync_project(project_dir, only=only, premium=bool(args.premium))
+    mode = (args.mode or "").strip().lower()
+    if not mode:
+        mode = "premium" if args.premium else "standard"
+    stats = sync_project(
+        project_dir,
+        only=only,
+        mode=mode,
+        content_percent=int(args.content_percent),
+    )
     log(
         f"STATS docs={stats['docs']} generated={stats['generated']} "
         f"skipped={stats['skipped']} failed={stats['failed']}"

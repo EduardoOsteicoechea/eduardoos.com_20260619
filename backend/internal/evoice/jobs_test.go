@@ -52,11 +52,11 @@ type gateRunner struct {
 	release chan struct{}
 }
 
-func (g gateRunner) Run(ctx context.Context, projectDir string, onlyFiles []string, premium bool, logFn func(string)) (JobStats, error) {
+func (g gateRunner) Run(ctx context.Context, projectDir string, onlyFiles []string, opts GenerateOpts, logFn func(string)) (JobStats, error) {
 	close(g.started)
 	select {
 	case <-g.release:
-		return FakeRunner{}.Run(ctx, projectDir, onlyFiles, premium, logFn)
+		return FakeRunner{}.Run(ctx, projectDir, onlyFiles, opts, logFn)
 	case <-ctx.Done():
 		return JobStats{}, ctx.Err()
 	}
@@ -74,7 +74,7 @@ func TestStopMarksStoppedAndResumeFiles(t *testing.T) {
 	project := "demo"
 	_ = mem.PutBytes(context.Background(), DocKey(owner, project, "a.txt"), []byte("hola"), "text/plain", cid)
 
-	id, err := store.Start(context.Background(), mem, owner, project, cid, []string{"a.txt"}, false)
+	id, err := store.Start(context.Background(), mem, owner, project, cid, []string{"a.txt"}, GenerateOpts{Mode: ModeStandard, ContentPercent: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestFakeRunnerPremiumAllModalities(t *testing.T) {
 		}
 	}
 	var logs []string
-	stats, err := FakeRunner{}.Run(context.Background(), dir, nil, true, func(line string) {
+	stats, err := FakeRunner{}.Run(context.Background(), dir, nil, GenerateOpts{Mode: ModePremium, ContentPercent: 100}, func(line string) {
 		logs = append(logs, line)
 	})
 	if err != nil {
@@ -145,12 +145,12 @@ func TestFakeRunnerPremiumAllModalities(t *testing.T) {
 	}
 	for _, name := range modalities {
 		stem := strings.TrimSuffix(name, filepath.Ext(name))
-		premPath := filepath.Join(docs, stem+".premium.txt")
+		premPath := filepath.Join(docs, stem+".v1.premium.txt")
 		if _, err := os.Stat(premPath); err != nil {
 			t.Fatalf("missing premium sidecar for %s: %v", name, err)
 		}
-		c1 := filepath.Join(audios, stem+".c01-intro.mp3")
-		c2 := filepath.Join(audios, stem+".c02-cuerpo.mp3")
+		c1 := filepath.Join(audios, stem+".v1.c01-intro.mp3")
+		c2 := filepath.Join(audios, stem+".v1.c02-cuerpo.mp3")
 		if _, err := os.Stat(c1); err != nil {
 			t.Fatalf("missing chapter1 for %s", name)
 		}

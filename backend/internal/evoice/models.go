@@ -30,9 +30,11 @@ type JobStatus struct {
 	State       string            `json:"state"` // queued | running | done | failed | stopped
 	Owner       string            `json:"ownerSafe"`
 	Project     string            `json:"project"`
-	OnlyFiles   []string          `json:"onlyFiles,omitempty"`
-	Premium     bool              `json:"premium,omitempty"`
-	Logs        []string          `json:"logs"`
+	OnlyFiles      []string          `json:"onlyFiles,omitempty"`
+	Premium        bool              `json:"premium,omitempty"` // legacy: true when DeepSeek runs
+	Mode           string            `json:"mode,omitempty"`    // standard | premium | super_premium
+	ContentPercent int               `json:"contentPercent,omitempty"`
+	Logs           []string          `json:"logs"`
 	Steps       []JobStep         `json:"steps"`
 	Files       []JobFileProgress `json:"files"`
 	Progress    int               `json:"progress"` // 0–100

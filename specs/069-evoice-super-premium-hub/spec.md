@@ -2,7 +2,20 @@
 
 ## Status
 
-**Locked** (2026-09-04) — ready for Phase 1/2.
+**Implemented** (2026-09-04) — Super Premium Vision path, content %, versioned audios, collapsible hub UI.
+
+## Acceptance
+
+- [x] Radios Standard / Premium / Super Premium; default Standard
+- [x] Super: PDF/images Vision@200dpi 1-page/req → format/% → TTS → `vN`; docx Super without Vision
+- [x] Content % on all modes; 100% = no shorten instruction
+- [x] Versioned MP3s; Legacy bucket for old names
+- [x] Collapsible Upload / Docs+console / Playlists; 80vh + Show more
+- [x] Playback selection rules as locked
+- [x] Delete doc ≠ delete audio
+- [x] Generate API `mode` + `contentPercent`
+- [x] No view HDS; admin = top owner dropdown; crawl = upload modality; print = selected-doc prepared-speech action
+- [x] Tests + FE build + commit/push
 
 ## Problem
 
@@ -142,16 +155,16 @@ Job snapshot stores `mode` + `contentPercent` for resume.
 
 ## Acceptance
 
-- [ ] Radios Standard / Premium / Super Premium; default Standard
-- [ ] Super: PDF/images Vision@200dpi 1-page/req → format/% → TTS → `vN`; docx Super without Vision
-- [ ] Content % on all modes; 100% = no shorten instruction
-- [ ] Versioned MP3s; Legacy bucket for old names
-- [ ] Collapsible Upload / Docs+console / Playlists; 80vh + Show more
-- [ ] Playback selection rules as locked
-- [ ] Delete doc ≠ delete audio
-- [ ] Generate API `mode` + `contentPercent`
-- [ ] No view HDS; admin = top owner dropdown; crawl = upload modality; print = selected-doc prepared-speech action
-- [ ] Tests + FE build + commit/push
+- [x] Radios Standard / Premium / Super Premium; default Standard
+- [x] Super: PDF/images Vision@200dpi 1-page/req → format/% → TTS → `vN`; docx Super without Vision
+- [x] Content % on all modes; 100% = no shorten instruction
+- [x] Versioned MP3s; Legacy bucket for old names
+- [x] Collapsible Upload / Docs+console / Playlists; 80vh + Show more
+- [x] Playback selection rules as locked
+- [x] Delete doc ≠ delete audio
+- [x] Generate API `mode` + `contentPercent`
+- [x] No view HDS; admin = top owner dropdown; crawl = upload modality; print = selected-doc prepared-speech action
+- [x] Tests + FE build + commit/push
 
 ## Affected paths
 

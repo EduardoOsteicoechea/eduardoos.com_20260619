@@ -28,6 +28,8 @@ export type EvoiceJobFile = {
   detail?: string;
 };
 
+export type EvoiceGenerateMode = "standard" | "premium" | "super_premium";
+
 export type EvoiceJob = {
   id: string;
   state: "queued" | "running" | "done" | "failed" | "stopped" | string;
@@ -35,6 +37,8 @@ export type EvoiceJob = {
   project: string;
   onlyFiles?: string[];
   premium?: boolean;
+  mode?: EvoiceGenerateMode | string;
+  contentPercent?: number;
   logs: string[];
   steps?: EvoiceJobStep[];
   files?: EvoiceJobFile[];
@@ -270,16 +274,25 @@ export async function startEvoiceGenerate(
   ownerSafe: string,
   project: string,
   files?: string[],
-  premium = false,
+  mode: EvoiceGenerateMode = "standard",
+  contentPercent = 100,
 ): Promise<{ jobId: string; error?: string }> {
-  const body: { files?: string[]; premium?: boolean } = {};
+  const body: {
+    files?: string[];
+    mode: EvoiceGenerateMode;
+    contentPercent: number;
+    premium?: boolean;
+  } = {
+    mode,
+    contentPercent,
+  };
   if (files && files.length > 0) body.files = files;
-  if (premium) body.premium = true;
+  if (mode === "premium" || mode === "super_premium") body.premium = true;
   const result = await apiRequest<{ jobId: string }>(
     EVOICE_ROUTES.generate(ownerSafe, project),
     {
       method: "POST",
-      body: Object.keys(body).length ? body : premium ? { premium: true } : undefined,
+      body,
       correlationId: createCorrelationId(),
       authToken: requireToken(),
     },
@@ -323,11 +336,20 @@ export async function stopEvoiceJob(
 
 export async function resumeEvoiceJob(
   jobId: string,
-): Promise<{ jobId: string; files?: string[]; premium?: boolean; error?: string }> {
+): Promise<{
+  jobId: string;
+  files?: string[];
+  premium?: boolean;
+  mode?: string;
+  contentPercent?: number;
+  error?: string;
+}> {
   const result = await apiRequest<{
     jobId: string;
     files?: string[];
     premium?: boolean;
+    mode?: string;
+    contentPercent?: number;
   }>(EVOICE_ROUTES.jobResume(jobId), {
     method: "POST",
     correlationId: createCorrelationId(),
@@ -340,7 +362,41 @@ export async function resumeEvoiceJob(
     jobId: result.data?.jobId ?? "",
     files: result.data?.files,
     premium: result.data?.premium,
+    mode: result.data?.mode,
+    contentPercent: result.data?.contentPercent,
   };
+}
+
+/** Fetch a docs file (e.g. prepared speech) as text for print. */
+export async function fetchEvoiceDocText(
+  ownerSafe: string,
+  project: string,
+  name: string,
+  key?: string,
+): Promise<{ text: string; error?: string }> {
+  try {
+    const token = requireToken();
+    const path = EVOICE_ROUTES.file(
+      ownerSafe,
+      project,
+      "docs",
+      name,
+      evoiceKeyForProject(ownerSafe, project, "docs", key),
+    );
+    const res = await fetch(path, {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
+    });
+    if (!res.ok) {
+      return { text: "", error: `Doc fetch failed (${res.status})` };
+    }
+    return { text: await res.text() };
+  } catch (e) {
+    return {
+      text: "",
+      error: e instanceof Error ? e.message : "Doc fetch failed",
+    };
+  }
 }
 
 /** Lightweight backend liveness check used before auto-resume. */

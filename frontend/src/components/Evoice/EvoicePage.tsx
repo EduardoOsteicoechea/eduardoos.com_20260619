@@ -1,10 +1,12 @@
 /**
- * eVoice hub — projects, docs upload/paste, generate jobs, playlist (spec 044).
+ * eVoice hub — single-page collapsible workspace (spec 069).
+ * Upload · Documents (+ console) · Playlists with versioned audio.
  */
 
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -15,10 +17,10 @@ import {
   createEvoiceProject,
   deleteEvoiceAudio,
   deleteEvoiceDoc,
-  downloadEvoiceAudio,
   fetchBackendHealth,
   fetchEvoiceAudioBlobUrl,
   fetchEvoiceAudios,
+  fetchEvoiceDocText,
   fetchEvoiceDocs,
   fetchEvoiceJob,
   fetchEvoiceMe,
@@ -30,69 +32,143 @@ import {
   startEvoiceGenerate,
   stopEvoiceJob,
   uploadEvoiceDoc,
+  type EvoiceGenerateMode,
   type EvoiceJobFile,
   type EvoiceJobStep,
   type EvoiceObjectMeta,
 } from "../../lib/evoice";
 import { getAuthToken } from "../../lib/auth";
 import { openServerErrorModal } from "../ServerErrorModal/ServerErrorModal";
-import {
-  DashboardGrid,
-  ProductHeaderMenu,
-  ProductHubShell,
-  useProductView,
-} from "../ProductDashboard/ProductDashboard";
 import "./Evoice.css";
-import "../ProductDashboard/ProductDashboard.css";
 
-const EVOICE_VIEWS = [
-  { id: "dashboard", label: "Dashboard", icon: "dashboard" },
-  { id: "admin", label: "Admin", icon: "admin_panel_settings" },
-  { id: "upload", label: "Upload", icon: "upload_file" },
-  { id: "docs", label: "Docs", icon: "description" },
-  { id: "audios", label: "Audios", icon: "audio_file" },
-  { id: "playlists", label: "Playlist", icon: "queue_music" },
-  { id: "print", label: "Print", icon: "print" },
-  { id: "crawl", label: "Crawl", icon: "travel_explore" },
-] as const;
-
-const EVOICE_CARDS = [
-  { id: "admin", title: "Admin", description: "Switch owner (admin only).", icon: "admin_panel_settings" },
-  { id: "upload", title: "Upload", description: "File uploads and paste text.", icon: "upload_file" },
-  { id: "docs", title: "Manage documents", description: "Select and generate docs.", icon: "description" },
-  { id: "audios", title: "Manage audios", description: "Playlist and downloads.", icon: "audio_file" },
-  { id: "playlists", title: "Playlists", description: "Play generated MP3s.", icon: "queue_music" },
-  { id: "print", title: "Print documents", description: "Print-friendly doc list.", icon: "print" },
-  { id: "crawl", title: "Crawl URL", description: "Fetch URL → clean → TTS doc.", icon: "travel_explore" },
+const CONTENT_PERCENTS = [100, 75, 50, 25, 10, 5] as const;
+const GENERATE_MODES: { id: EvoiceGenerateMode; label: string }[] = [
+  { id: "standard", label: "Standard" },
+  { id: "premium", label: "Premium" },
+  { id: "super_premium", label: "Super Premium" },
 ];
+
+const SUPER_PREMIUM_EXT = /\.(pdf|png|jpe?g|webp|tiff?|bmp|gif|docx)$/i;
 
 function stemOf(name: string): string {
   const i = name.lastIndexOf(".");
   return i > 0 ? name.slice(0, i) : name;
 }
 
-/** Chapter audio for a source doc: `libro.c01-intro.mp3`. */
-function isChapterAudio(audioName: string, docStem: string): boolean {
-  return (
-    audioName.toLowerCase().endsWith(".mp3") &&
-    audioName.startsWith(`${docStem}.c`)
-  );
+function trackId(a: EvoiceObjectMeta): string {
+  return a.key || a.name;
 }
 
-function audiosForDoc(
-  docName: string,
-  audios: EvoiceObjectMeta[],
-): EvoiceObjectMeta[] {
-  const stem = stemOf(docName);
-  return audios.filter(
-    (a) => a.name === `${stem}.mp3` || isChapterAudio(a.name, stem),
-  );
+/** Doc stem parsed from an audio filename (versioned or legacy). */
+function audioDocStem(audioName: string): string {
+  const base = audioName.replace(/\.mp3$/i, "");
+  const vMatch = base.match(/^(.+?)\.v\d+(?:\.|$)/i);
+  if (vMatch) return vMatch[1];
+  const cMatch = base.match(/^(.+?)\.c\d+/i);
+  if (cMatch) return cMatch[1];
+  return stemOf(audioName);
+}
+
+/** Version number or "legacy" for pre-version MP3s. */
+function audioVersion(audioName: string): number | "legacy" {
+  const m =
+    audioName.match(/\.v(\d+)\./i) || audioName.match(/\.v(\d+)\.mp3$/i);
+  return m ? parseInt(m[1], 10) : "legacy";
 }
 
 function isSourceDoc(name: string): boolean {
   const lower = name.toLowerCase();
-  if (lower.endsWith(".premium.txt")) return false;
+  if (lower.endsWith(".premium.txt") || lower.endsWith(".vision.txt")) {
+    return false;
+  }
   return /\.(docx|txt|pdf|png|jpe?g|webp|tiff?|bmp|gif)$/i.test(name);
+}
+
+function audiosForDocStem(
+  docStem: string,
+  audios: EvoiceObjectMeta[],
+): EvoiceObjectMeta[] {
+  return audios.filter((a) => audioDocStem(a.name) === docStem);
+}
+
+function sortTracks(tracks: EvoiceObjectMeta[]): EvoiceObjectMeta[] {
+  return [...tracks].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+}
+
+type VersionBucket = {
+  version: number | "legacy";
+  label: string;
+  tracks: EvoiceObjectMeta[];
+};
+
+type DocPlaylist = {
+  stem: string;
+  sourceDoc?: EvoiceObjectMeta;
+  buckets: VersionBucket[];
+  allTracks: EvoiceObjectMeta[];
+};
+
+function buildDocPlaylists(
+  docs: EvoiceObjectMeta[],
+  audios: EvoiceObjectMeta[],
+): DocPlaylist[] {
+  const stems = new Set<string>();
+  for (const d of docs.filter((x) => isSourceDoc(x.name))) {
+    stems.add(stemOf(d.name));
+  }
+  for (const a of audios) {
+    stems.add(audioDocStem(a.name));
+  }
+
+  const sourceByStem = new Map<string, EvoiceObjectMeta>();
+  for (const d of docs.filter((x) => isSourceDoc(x.name))) {
+    sourceByStem.set(stemOf(d.name), d);
+  }
+
+  return [...stems]
+    .sort((a, b) => a.localeCompare(b))
+    .map((stem) => {
+      const related = audiosForDocStem(stem, audios);
+      const byVersion = new Map<number | "legacy", EvoiceObjectMeta[]>();
+      for (const a of related) {
+        const v = audioVersion(a.name);
+        const list = byVersion.get(v) ?? [];
+        list.push(a);
+        byVersion.set(v, list);
+      }
+
+      const numericVersions = [...byVersion.keys()]
+        .filter((v): v is number => v !== "legacy")
+        .sort((a, b) => a - b);
+
+      const buckets: VersionBucket[] = numericVersions.map((v) => ({
+        version: v,
+        label: `Version v${v}`,
+        tracks: sortTracks(byVersion.get(v) ?? []),
+      }));
+
+      const legacy = byVersion.get("legacy");
+      if (legacy?.length) {
+        buckets.push({
+          version: "legacy",
+          label: "Legacy",
+          tracks: sortTracks(legacy),
+        });
+      }
+
+      const allTracks: EvoiceObjectMeta[] = [];
+      for (const b of buckets) {
+        allTracks.push(...b.tracks);
+      }
+
+      return {
+        stem,
+        sourceDoc: sourceByStem.get(stem),
+        buckets,
+        allTracks,
+      };
+    })
+    .filter((p) => p.buckets.length > 0 || p.sourceDoc);
 }
 
 function docsNeedingAudio(
@@ -105,7 +181,7 @@ function docsNeedingAudio(
     .filter((d) => isSourceDoc(d.name))
     .filter((d) => (allow ? allow.has(d.name) : true))
     .filter((d) => {
-      const related = audiosForDoc(d.name, audios);
+      const related = audiosForDocStem(stemOf(d.name), audios);
       if (related.length === 0) return true;
       if (!d.lastModified) return false;
       const newest = related.reduce((acc, a) => {
@@ -118,8 +194,174 @@ function docsNeedingAudio(
     .map((d) => d.name);
 }
 
+function findLatestPremiumTxt(
+  docStem: string,
+  docs: EvoiceObjectMeta[],
+): EvoiceObjectMeta | null {
+  let best: EvoiceObjectMeta | null = null;
+  let bestN = -1;
+  const prefix = `${docStem}.v`;
+  for (const d of docs) {
+    const lower = d.name.toLowerCase();
+    if (!lower.endsWith(".premium.txt")) continue;
+    if (!d.name.startsWith(prefix)) continue;
+    const rest = d.name.slice(prefix.length);
+    const m = rest.match(/^(\d+)\.premium\.txt$/i);
+    if (!m) continue;
+    const n = parseInt(m[1], 10);
+    if (n > bestN) {
+      bestN = n;
+      best = d;
+    }
+  }
+  return best;
+}
+
+function filterSuperPremiumTargets(files: string[]): {
+  ok: string[];
+  rejected: string[];
+} {
+  const ok: string[] = [];
+  const rejected: string[] = [];
+  for (const f of files) {
+    if (SUPER_PREMIUM_EXT.test(f)) ok.push(f);
+    else rejected.push(f);
+  }
+  return { ok, rejected };
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function CollapsibleSection({
+  id,
+  title,
+  open,
+  onToggle,
+  children,
+  className,
+}: {
+  id: string;
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={`evoice__section${className ? ` ${className}` : ""}${open ? " evoice__section--open" : " evoice__section--closed"}`}
+    >
+      <button
+        type="button"
+        className="evoice__section-head"
+        aria-expanded={open}
+        aria-controls={`${id}-body`}
+        onClick={onToggle}
+      >
+        <span
+          className="material-symbols-outlined evoice__chevron"
+          aria-hidden="true"
+        >
+          expand_more
+        </span>
+        <h2>{title}</h2>
+      </button>
+      {open ? (
+        <div id={`${id}-body`} className="evoice__section-body">
+          {children}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function TransportBar({
+  label,
+  disabled,
+  onPlay,
+  onPause,
+  onStop,
+  onPrev,
+  onNext,
+  canPrev,
+  canNext,
+}: {
+  label: string;
+  disabled?: boolean;
+  onPlay: () => void;
+  onPause: () => void;
+  onStop: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  canPrev: boolean;
+  canNext: boolean;
+}) {
+  return (
+    <div className="evoice__transport" aria-label={label}>
+      <button
+        type="button"
+        className="evoice__icon-btn"
+        onClick={onPrev}
+        disabled={disabled || !canPrev}
+        title="Previous"
+        aria-label={`${label} previous`}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">
+          skip_previous
+        </span>
+      </button>
+      <button
+        type="button"
+        className="evoice__icon-btn"
+        onClick={onPlay}
+        disabled={disabled}
+        title="Play"
+        aria-label={`${label} play`}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">
+          play_arrow
+        </span>
+      </button>
+      <button
+        type="button"
+        className="evoice__icon-btn"
+        onClick={onPause}
+        disabled={disabled}
+        title="Pause"
+        aria-label={`${label} pause`}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">
+          pause
+        </span>
+      </button>
+      <button
+        type="button"
+        className="evoice__icon-btn"
+        onClick={onStop}
+        disabled={disabled}
+        title="Stop"
+        aria-label={`${label} stop`}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">
+          stop
+        </span>
+      </button>
+      <button
+        type="button"
+        className="evoice__icon-btn"
+        onClick={onNext}
+        disabled={disabled || !canNext}
+        title="Next"
+        aria-label={`${label} next`}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">
+          skip_next
+        </span>
+      </button>
+    </div>
+  );
 }
 
 export default function EvoicePage() {
@@ -140,11 +382,17 @@ function EvoiceWorkspace() {
   const [docs, setDocs] = useState<EvoiceObjectMeta[]>([]);
   const [audios, setAudios] = useState<EvoiceObjectMeta[]>([]);
   const [pasteText, setPasteText] = useState("");
-  const [premium, setPremium] = useState(true);
-  const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [showPaste, setShowPaste] = useState(false);
   const [crawlUrl, setCrawlUrl] = useState("");
-  const [view, setView] = useProductView("dashboard");
+  const [generateMode, setGenerateMode] = useState<EvoiceGenerateMode>("standard");
+  const [contentPercent, setContentPercent] = useState<number>(100);
+  const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+  const [checkedTracks, setCheckedTracks] = useState<Set<string>>(new Set());
+  const [uploadOpen, setUploadOpen] = useState(true);
+  const [docsOpen, setDocsOpen] = useState(true);
+  const [playlistsOpen, setPlaylistsOpen] = useState(true);
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [expandedHeight, setExpandedHeight] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [steps, setSteps] = useState<EvoiceJobStep[]>([]);
   const [fileProgress, setFileProgress] = useState<EvoiceJobFile[]>([]);
@@ -152,22 +400,39 @@ function EvoiceWorkspace() {
   const [busy, setBusy] = useState(false);
   const [activeJobId, setActiveJobId] = useState("");
   const [jobStopped, setJobStopped] = useState(false);
+  const [queue, setQueue] = useState<EvoiceObjectMeta[]>([]);
   const [trackIndex, setTrackIndex] = useState(0);
   const [blobUrl, setBlobUrl] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef("");
-  /** When true, start playback as soon as the next track blob is ready (canplay). */
   const autoplayAfterLoadRef = useRef(false);
-  const audiosLenRef = useRef(0);
-  audiosLenRef.current = audios.length;
+  const queueLenRef = useRef(0);
+  queueLenRef.current = queue.length;
   const stopRequestedRef = useRef(false);
   const projectRef = useRef(project);
   projectRef.current = project;
 
+  const sourceDocs = useMemo(
+    () => docs.filter((d) => isSourceDoc(d.name)),
+    [docs],
+  );
+  const docPlaylists = useMemo(
+    () => buildDocPlaylists(docs, audios),
+    [docs, audios],
+  );
+  const globalTrackOrder = useMemo(() => {
+    const all: EvoiceObjectMeta[] = [];
+    for (const dp of docPlaylists) {
+      all.push(...dp.allTracks);
+    }
+    return all;
+  }, [docPlaylists]);
+
   function showError(title: string, details: unknown) {
     openServerErrorModal({
       title,
-      summary: "Something went wrong in eVoice. Copy the block below if you need to report it.",
+      summary:
+        "Something went wrong in eVoice. Copy the block below if you need to report it.",
       details,
     });
   }
@@ -204,17 +469,24 @@ function EvoiceWorkspace() {
     setDocs(d.docs);
     setAudios(a.audios);
     setTrackIndex(0);
+    setQueue([]);
     setSelectedDocs((prev) => {
       const names = new Set(
         d.docs.filter((x) => isSourceDoc(x.name)).map((x) => x.name),
       );
       return prev.filter((n) => names.has(n));
     });
+    setCheckedTracks((prev) => {
+      const ids = new Set(a.audios.map(trackId));
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (ids.has(id)) next.add(id);
+      }
+      return next;
+    });
     return { docs: d.docs, audios: a.audios };
   }, []);
 
-  // One-shot init — must NOT re-run when project/reloadProjects identity changes
-  // (that was snapping admin owner back to the signed-in admin).
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -240,10 +512,11 @@ function EvoiceWorkspace() {
   }, [reloadProjects]);
 
   useEffect(() => {
-    // Clear immediately so a previous owner's playlist key cannot fire a fetch.
     setDocs([]);
     setAudios([]);
     setSelectedDocs([]);
+    setCheckedTracks(new Set());
+    setQueue([]);
     setTrackIndex(0);
     setBlobUrl("");
     setLogs([]);
@@ -269,9 +542,8 @@ function EvoiceWorkspace() {
         blobUrlRef.current = "";
       }
       setBlobUrl("");
-      const track = audios[trackIndex];
+      const track = queue[trackIndex];
       if (!track || !ownerSafe || !project || !getAuthToken()) return;
-      // Guard: skip tracks whose key belongs to another owner/project.
       if (
         track.key &&
         !track.key.startsWith(`evoice/${ownerSafe}/${project}/audios/`)
@@ -293,17 +565,18 @@ function EvoiceWorkspace() {
         setBlobUrl(url);
       } catch (e) {
         autoplayAfterLoadRef.current = false;
-        showError("Audio fetch", e instanceof Error ? e.message : "Could not load audio");
-        // Drop ghost playlist entries that S3 no longer has.
+        showError(
+          "Audio fetch",
+          e instanceof Error ? e.message : "Could not load audio",
+        );
         void reloadDocsAudios(ownerSafe, project);
       }
     })();
     return () => {
       revoked = true;
     };
-  }, [audios, trackIndex, ownerSafe, project]);
+  }, [queue, trackIndex, ownerSafe, project, reloadDocsAudios]);
 
-  // After Next / Previous / track-ended loads a new blob, auto-start once canplay.
   useEffect(() => {
     if (!blobUrl || !autoplayAfterLoadRef.current) return;
     const el = audioRef.current;
@@ -316,10 +589,10 @@ function EvoiceWorkspace() {
       try {
         el.currentTime = 0;
       } catch {
-        /* ignore seek errors on fresh src */
+        /* ignore */
       }
       void el.play().catch(() => {
-        /* gesture/autoplay policy — user can press Play */
+        /* gesture policy */
       });
     };
 
@@ -342,6 +615,55 @@ function EvoiceWorkspace() {
     };
   }, []);
 
+  function buildScopeQueue(tracks: EvoiceObjectMeta[]): EvoiceObjectMeta[] {
+    const checkedInScope = tracks.filter((t) => checkedTracks.has(trackId(t)));
+    if (checkedInScope.length > 0) return checkedInScope;
+    return tracks;
+  }
+
+  function startPlayback(tracks: EvoiceObjectMeta[]) {
+    const effective = buildScopeQueue(tracks);
+    if (effective.length === 0) return;
+    setQueue(effective);
+    setTrackIndex(0);
+    autoplayAfterLoadRef.current = true;
+  }
+
+  function play() {
+    if (queue.length === 0 && globalTrackOrder.length > 0) {
+      startPlayback(globalTrackOrder);
+      return;
+    }
+    void audioRef.current?.play();
+  }
+
+  function pause() {
+    audioRef.current?.pause();
+  }
+
+  function stopPlayback() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }
+
+  function next() {
+    setTrackIndex((i) => {
+      if (i >= queueLenRef.current - 1) return i;
+      autoplayAfterLoadRef.current = true;
+      return i + 1;
+    });
+  }
+
+  function prev() {
+    setTrackIndex((i) => {
+      if (i <= 0) return i;
+      autoplayAfterLoadRef.current = true;
+      return i - 1;
+    });
+  }
+
   async function waitUntilHealthy(): Promise<boolean> {
     for (let i = 0; i < 45; i++) {
       if (await fetchBackendHealth()) return true;
@@ -360,14 +682,13 @@ function EvoiceWorkspace() {
     owner: string,
     proj: string,
     onlyFiles: string[] | undefined,
-    usePremium: boolean,
+    mode: EvoiceGenerateMode,
+    pct: number,
   ): Promise<"done" | "failed" | "stopped"> {
     let activeId = jobId;
     let resumes = 0;
     for (;;) {
-      if (stopRequestedRef.current) {
-        return "stopped";
-      }
+      if (stopRequestedRef.current) return "stopped";
       await sleep(600);
       let jobRes: Awaited<ReturnType<typeof fetchEvoiceJob>>;
       try {
@@ -402,10 +723,7 @@ function EvoiceWorkspace() {
         continue;
       }
 
-      // Job missing (404) or unreachable — wait for health, then auto-resume unfinished files.
-      if (stopRequestedRef.current) {
-        return "stopped";
-      }
+      if (stopRequestedRef.current) return "stopped";
       const status = jobRes.status ?? 0;
       setLogs((prev) => [
         ...prev.slice(-400),
@@ -417,9 +735,7 @@ function EvoiceWorkspace() {
         showError("Backend unavailable", "Could not resume generate");
         return "failed";
       }
-      if (stopRequestedRef.current) {
-        return "stopped";
-      }
+      if (stopRequestedRef.current) return "stopped";
       const fresh = await reloadDocsAudios(owner, proj);
       const unfinished = docsNeedingAudio(fresh.docs, fresh.audios, onlyFiles);
       if (unfinished.length === 0) {
@@ -435,13 +751,14 @@ function EvoiceWorkspace() {
       resumes += 1;
       setLogs((prev) => [
         ...prev,
-        `resume #${resumes}: generating ${unfinished.length} file(s)${usePremium ? " (premium)" : ""}`,
+        `resume #${resumes}: generating ${unfinished.length} file(s) (${mode}, ${pct}%)`,
       ]);
       const started = await startEvoiceGenerate(
         owner,
         proj,
         unfinished,
-        usePremium,
+        mode,
+        pct,
       );
       if (started.error || !started.jobId) {
         showError("Resume generate", started.error || "Could not resume generate");
@@ -513,20 +830,31 @@ function EvoiceWorkspace() {
     }
     setCrawlUrl("");
     await reloadDocsAudios(ownerSafe, project);
-    setView("docs");
   }
 
-  async function onDeleteDoc(name: string) {
-    if (!ownerSafe || !project || busy) return;
-    if (!window.confirm(`Delete document ${name}?`)) return;
-    setBusy(true);
-    const res = await deleteEvoiceDoc(ownerSafe, project, name);
-    setBusy(false);
-    if (res.error) {
-      showError("eVoice", res.error);
+  async function onDeleteSelectedDocs() {
+    if (!ownerSafe || !project || busy || selectedDocs.length === 0) return;
+    if (
+      !window.confirm(
+        `Delete ${selectedDocs.length} document(s)? Audio files will remain.`,
+      )
+    ) {
       return;
     }
-    setFileProgress((prev) => prev.filter((f) => f.name !== name));
+    setBusy(true);
+    for (const name of selectedDocs) {
+      const res = await deleteEvoiceDoc(ownerSafe, project, name);
+      if (res.error) {
+        setBusy(false);
+        showError("eVoice", res.error);
+        return;
+      }
+    }
+    setBusy(false);
+    setFileProgress((prev) =>
+      prev.filter((f) => !selectedDocs.includes(f.name)),
+    );
+    setSelectedDocs([]);
     await reloadDocsAudios(ownerSafe, project);
   }
 
@@ -540,15 +868,41 @@ function EvoiceWorkspace() {
       showError("eVoice", res.error);
       return;
     }
-    const stem = stemOf(mp3Name);
-    setFileProgress((prev) => prev.filter((f) => stemOf(f.name) !== stem));
     await reloadDocsAudios(ownerSafe, project);
+  }
+
+  function resolveGenerateTargets(explicit?: string[]): string[] | undefined {
+    if (explicit && explicit.length > 0) return explicit;
+    if (selectedDocs.length > 0) return selectedDocs;
+    return undefined;
   }
 
   async function onGenerate(files?: string[]) {
     if (!ownerSafe || !project || busy) return;
-    // Undefined → all docs; explicit array → only those (Generate selected / per-row).
-    const targets = files && files.length > 0 ? files : undefined;
+    let targets = resolveGenerateTargets(files);
+    const mode = generateMode;
+    const pct = contentPercent;
+
+    if (mode === "super_premium") {
+      const candidate =
+        targets ?? sourceDocs.map((d) => d.name);
+      const { ok, rejected } = filterSuperPremiumTargets(candidate);
+      if (rejected.length > 0 && ok.length === 0) {
+        showError(
+          "Super Premium",
+          `Super Premium is only for PDF, images, and DOCX. Plain text files cannot use this mode: ${rejected.join(", ")}`,
+        );
+        return;
+      }
+      if (rejected.length > 0) {
+        setLogs((prev) => [
+          ...prev,
+          `Super Premium: skipping non-eligible files: ${rejected.join(", ")}`,
+        ]);
+        targets = ok.length > 0 ? ok : undefined;
+      }
+    }
+
     setBusy(true);
     setJobStopped(false);
     stopRequestedRef.current = false;
@@ -560,12 +914,14 @@ function EvoiceWorkspace() {
         : [],
     );
     setProgress(0);
-    const usePremium = premium;
+    if (consoleOpen === false) setConsoleOpen(true);
+
     const started = await startEvoiceGenerate(
       ownerSafe,
       project,
       targets,
-      usePremium,
+      mode,
+      pct,
     );
     if (started.error || !started.jobId) {
       setBusy(false);
@@ -578,12 +934,11 @@ function EvoiceWorkspace() {
       ownerSafe,
       project,
       targets,
-      usePremium,
+      mode,
+      pct,
     );
     setBusy(false);
-    if (outcome === "stopped") {
-      setJobStopped(true);
-    }
+    if (outcome === "stopped") setJobStopped(true);
     await reloadDocsAudios(ownerSafe, project);
   }
 
@@ -627,76 +982,93 @@ function EvoiceWorkspace() {
         files.map((name) => ({ name, state: "pending", progress: 0 })),
       );
     }
-    const usePremium = resumed.premium ?? premium;
+    const mode =
+      (resumed.mode as EvoiceGenerateMode | undefined) ??
+      generateMode;
+    const pct = resumed.contentPercent ?? contentPercent;
+    if (resumed.mode) setGenerateMode(mode);
+    if (resumed.contentPercent != null) setContentPercent(pct);
+
     const outcome = await pollUntilDone(
       resumed.jobId,
       ownerSafe,
       project,
       files,
-      usePremium,
+      mode,
+      pct,
     );
     setBusy(false);
-    if (outcome === "stopped") {
-      setJobStopped(true);
-    }
+    if (outcome === "stopped") setJobStopped(true);
     await reloadDocsAudios(ownerSafe, project);
+  }
+
+  async function onPrintPreparedSpeech() {
+    if (!ownerSafe || !project || selectedDocs.length === 0) {
+      window.alert("Select at least one document to print prepared speech.");
+      return;
+    }
+    const sections: string[] = [];
+    const missing: string[] = [];
+
+    for (const docName of selectedDocs) {
+      const stem = stemOf(docName);
+      const premiumDoc = findLatestPremiumTxt(stem, docs);
+      if (!premiumDoc) {
+        missing.push(docName);
+        continue;
+      }
+      const res = await fetchEvoiceDocText(
+        ownerSafe,
+        project,
+        premiumDoc.name,
+        premiumDoc.key,
+      );
+      if (res.error || !res.text.trim()) {
+        missing.push(docName);
+        continue;
+      }
+      sections.push(
+        `<section><h2>${escapeHtml(docName)}</h2><pre>${escapeHtml(res.text)}</pre></section>`,
+      );
+    }
+
+    if (sections.length === 0) {
+      showError(
+        "Prepared speech unavailable",
+        missing.length
+          ? `No prepared speech found for: ${missing.join(", ")}`
+          : "No prepared speech files available for the selected documents.",
+      );
+      return;
+    }
+
+    const win = window.open("", "_blank", "noopener,noreferrer,width=800,height=900");
+    if (!win) {
+      showError("Print", "Pop-up blocked. Allow pop-ups to print prepared speech.");
+      return;
+    }
+    win.document.write(`<!DOCTYPE html><html><head><title>Prepared speech</title>
+<style>
+body{font-family:Georgia,serif;line-height:1.5;margin:1.5rem;color:#111}
+h2{font-size:1.1rem;margin:1.5rem 0 0.5rem;border-bottom:1px solid #ccc}
+pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
+</style></head><body>${sections.join("")}</body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
   }
 
   function progressForDoc(name: string): EvoiceJobFile | undefined {
     const live = fileProgress.find((f) => f.name === name);
     if (live) return live;
-    const related = audiosForDoc(name, audios);
+    const related = audiosForDocStem(stemOf(name), audios);
     if (related.length > 0) {
-      const chapters = related.filter((a) => a.name.includes(".c")).length;
+      const chapters = related.filter((a) => /\.c\d+/i.test(a.name)).length;
       const detail =
-        chapters > 0
-          ? `${chapters} chapter audio(s)`
-          : "audio present";
+        chapters > 0 ? `${chapters} chapter audio(s)` : "audio present";
       return { name, state: "ready", progress: 100, detail };
     }
     return undefined;
-  }
-
-  function play() {
-    void audioRef.current?.play();
-  }
-  function pause() {
-    audioRef.current?.pause();
-  }
-  function stopPlayback() {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-  }
-  /** Advance and auto-start the next track (also used by audio `ended`). */
-  function next() {
-    setTrackIndex((i) => {
-      if (i >= audiosLenRef.current - 1) {
-        return i;
-      }
-      autoplayAfterLoadRef.current = true;
-      return i + 1;
-    });
-  }
-  /** Go back and auto-start the previous track. */
-  function prev() {
-    setTrackIndex((i) => {
-      if (i <= 0) {
-        return i;
-      }
-      autoplayAfterLoadRef.current = true;
-      return i - 1;
-    });
-  }
-
-  async function onDownload(name: string, key?: string) {
-    if (!ownerSafe || !project || busy) return;
-    try {
-      await downloadEvoiceAudio(ownerSafe, project, name, key);
-    } catch (e) {
-      showError("Download", e instanceof Error ? e.message : "Download failed");
-    }
   }
 
   function toggleDocSelected(name: string) {
@@ -712,27 +1084,25 @@ function EvoiceWorkspace() {
     );
   }
 
-  const sourceDocs = docs.filter((d) => isSourceDoc(d.name));
-  const showWorkspace = view !== "dashboard";
+  function toggleTrackChecked(a: EvoiceObjectMeta) {
+    const id = trackId(a);
+    setCheckedTracks((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const queueHasTracks = queue.length > 0;
+  const canPrev = trackIndex > 0;
+  const canNext = trackIndex < queue.length - 1;
 
   return (
     <div className="evoice">
-      <ProductHeaderMenu
-        menuId="evoice-product-header-menu"
-        items={[...EVOICE_VIEWS]}
-        activeId={view}
-        onSelect={setView}
-      />
-
-      {view === "dashboard" ? (
-        <ProductHubShell title="eVoice">
-          <DashboardGrid cards={EVOICE_CARDS} onSelect={setView} />
-        </ProductHubShell>
-      ) : null}
-
-      {showWorkspace && view === "admin" && isAdmin ? (
+      {isAdmin ? (
         <label className="evoice__field evoice__admin">
-          <span>Admin only</span>
+          <span>Owner (admin)</span>
           <select
             className="evoice__select"
             value={ownerSafe}
@@ -743,6 +1113,8 @@ function EvoiceWorkspace() {
               setDocs([]);
               setAudios([]);
               setSelectedDocs([]);
+              setCheckedTracks(new Set());
+              setQueue([]);
               setTrackIndex(0);
               setBlobUrl("");
               if (blobUrlRef.current) {
@@ -761,8 +1133,6 @@ function EvoiceWorkspace() {
         </label>
       ) : null}
 
-      {showWorkspace ? (
-      <>
       <div className="evoice__toolbar">
         <label className="evoice__field evoice__field--twin">
           <span>Project</span>
@@ -803,120 +1173,60 @@ function EvoiceWorkspace() {
 
       {project ? (
         <>
-          {view === "upload" ? (
-          <section
+          <div
             className={
-              showPaste
-                ? "evoice__panel evoice__panel--uploads"
-                : "evoice__panel evoice__panel--uploads evoice__panel--compact"
+              expandedHeight
+                ? "evoice__sections evoice__sections--expanded"
+                : "evoice__sections"
             }
           >
-            <div className="evoice__panel-head">
-              <h2>File Uploads</h2>
-              <label className="btn evoice__upload">
-                Upload
-                <input type="file" hidden onChange={onUpload} disabled={busy} />
-              </label>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => setShowPaste((v) => !v)}
-                disabled={busy}
-              >
-                {showPaste ? "Hide text" : "+ Text"}
-              </button>
-              <label className="evoice__premium evoice__premium--toggle">
-                <input
-                  type="checkbox"
-                  checked={premium}
-                  onChange={(e) => setPremium(e.target.checked)}
-                  disabled={busy}
-                />
-                <span className="evoice__toggle-ui" aria-hidden="true" />
-                <span>Premium</span>
-              </label>
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={() => void onGenerate()}
-                disabled={busy}
-              >
-                Generate all
-              </button>
-              {busy ? (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => void onStopGenerate()}
-                  disabled={!activeJobId}
-                >
-                  Stop generate
-                </button>
-              ) : null}
-              {!busy && jobStopped && activeJobId ? (
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={() => void onResumeGenerate()}
-                >
-                  Resume
-                </button>
-              ) : null}
-            </div>
-
-            {showPaste ? (
-              <form className="evoice__paste" onSubmit={onPasteText}>
-                <label className="evoice__field evoice__field--grow">
-                  <span>Paste text</span>
-                  <textarea
-                    className="evoice__textarea"
-                    value={pasteText}
-                    onChange={(e) => setPasteText(e.target.value)}
-                    rows={4}
-                    placeholder="Paste source text here…"
-                    disabled={busy}
-                  />
+            <CollapsibleSection
+              id="evoice-upload"
+              title="Upload"
+              open={uploadOpen}
+              onToggle={() => setUploadOpen((v) => !v)}
+            >
+              <div className="evoice__upload-row">
+                <label className="btn evoice__upload">
+                  Upload file
+                  <input type="file" hidden onChange={onUpload} disabled={busy} />
                 </label>
                 <button
-                  type="submit"
+                  type="button"
                   className="btn"
-                  disabled={busy || !pasteText.trim()}
+                  onClick={() => setShowPaste((v) => !v)}
+                  disabled={busy}
                 >
-                  Add text
+                  {showPaste ? "Hide paste" : "Paste text"}
                 </button>
-              </form>
-            ) : null}
+              </div>
 
-            <div className="evoice__upload-docs">
-              <h3 className="evoice__upload-docs-title">Uploaded documents</h3>
-              <p className="evoice__hint">
-                View only — generate and delete live under Docs.
-              </p>
-              {sourceDocs.length === 0 ? (
-                <p className="evoice__empty">No documents uploaded yet.</p>
-              ) : (
-                <ul className="evoice__list evoice__list--view-only">
-                  {sourceDocs.map((d) => (
-                    <li key={d.key} className="evoice__doc-row evoice__doc-row--view">
-                      <span className="evoice__doc-name">{d.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </section>
-          ) : null}
+              {showPaste ? (
+                <form className="evoice__paste" onSubmit={onPasteText}>
+                  <label className="evoice__field evoice__field--grow">
+                    <span>Paste text</span>
+                    <textarea
+                      className="evoice__textarea"
+                      value={pasteText}
+                      onChange={(e) => setPasteText(e.target.value)}
+                      rows={4}
+                      placeholder="Paste source text here…"
+                      disabled={busy}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="btn"
+                    disabled={busy || !pasteText.trim()}
+                  >
+                    Add text
+                  </button>
+                </form>
+              ) : null}
 
-          {view === "crawl" ? (
-            <section className="evoice__panel">
-              <h2>Crawl URL</h2>
-              <p className="evoice__hint">
-                Enter a public URL. We validate it, extract text, clean it with DeepSeek for
-                TTS, and save it as a project doc.
-              </p>
-              <form className="evoice__paste" onSubmit={(e) => void onCrawl(e)}>
+              <form className="evoice__paste evoice__crawl" onSubmit={(e) => void onCrawl(e)}>
                 <label className="evoice__field evoice__field--grow">
-                  <span>URL</span>
+                  <span>Crawl URL</span>
                   <input
                     className="evoice__input"
                     type="url"
@@ -924,7 +1234,6 @@ function EvoiceWorkspace() {
                     onChange={(e) => setCrawlUrl(e.target.value)}
                     placeholder="https://…"
                     disabled={busy}
-                    required
                   />
                 </label>
                 <button
@@ -932,346 +1241,380 @@ function EvoiceWorkspace() {
                   className="btn btn--blue"
                   disabled={busy || !crawlUrl.trim()}
                 >
-                  Crawl &amp; save doc
+                  Crawl &amp; save
                 </button>
               </form>
-            </section>
-          ) : null}
-
-          {view === "print" ? (
-            <section className="evoice__panel">
-              <h2>Print documents</h2>
-              <p className="evoice__hint">Print-friendly list of source documents.</p>
-              <ul className="evoice__list">
-                {sourceDocs.map((d) => (
-                  <li key={d.key} className="evoice__doc-row">
-                    <span className="evoice__doc-name">{d.name}</span>
-                  </li>
-                ))}
-              </ul>
-              <button type="button" className="btn" onClick={() => window.print()}>
-                Print
-              </button>
-            </section>
-          ) : null}
-
-          {view === "docs" || view === "audios" || view === "playlists" ? (
-          <div className="evoice__workspace evoice__workspace--docs-playlist">
-            {view === "docs" ? (
-            <section className="evoice__panel evoice__panel--docs">
-              <div className="evoice__panel-head">
-                <h2>Docs</h2>
-                {sourceDocs.length > 0 ? (
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={toggleSelectAllDocs}
-                    disabled={busy}
-                  >
-                    {selectedDocs.length === sourceDocs.length
-                      ? "Clear selection"
-                      : "Select all"}
-                  </button>
-                ) : null}
-              </div>
               <p className="evoice__hint">
-                Select docs to generate or regenerate.
+                Upload files, paste text, or crawl a public URL into this project.
               </p>
+            </CollapsibleSection>
 
-              {sourceDocs.length === 0 ? (
-                <p className="evoice__empty">
-                  No documents yet. Upload a file or add text above.
-                </p>
-              ) : (
-                <ul className="evoice__list">
-                  {sourceDocs.map((d) => {
-                    const fp = progressForDoc(d.name);
-                    const pct = fp ? Math.max(0, Math.min(100, fp.progress)) : 0;
-                    const related = audiosForDoc(d.name, audios);
-                    const hasAudio = related.length > 0;
-                    const checked = selectedDocs.includes(d.name);
-                    const genLabel = hasAudio ? "Regenerate" : "Generate";
-                    return (
-                      <li key={d.key} className="evoice__doc-row">
-                        <label className="evoice__doc-check">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleDocSelected(d.name)}
-                            disabled={busy}
-                            aria-label={`Select ${d.name}`}
-                          />
-                        </label>
-                        <div className="evoice__doc-main">
-                          <span className="evoice__doc-name">{d.name}</span>
-                          <div
-                            className="evoice__doc-progress"
-                            role="progressbar"
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-valuenow={pct}
-                            aria-label={`Progress for ${d.name}`}
-                          >
-                            <div
-                              className={`evoice__doc-progress-bar evoice__doc-progress-bar--${fp?.state || "idle"}`}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          {fp ? (
-                            <span className="evoice__doc-status">
-                              {fp.state}
-                              {fp.detail ? ` — ${fp.detail}` : ""}
-                            </span>
-                          ) : null}
-                        </div>
-                        <button
-                          type="button"
-                          className="evoice__icon-btn evoice__icon-btn--accent"
-                          onClick={() => void onGenerate([d.name])}
-                          disabled={busy}
-                          title={`${genLabel} ${d.name}`}
-                          aria-label={`${genLabel} ${d.name}`}
-                        >
-                          <span
-                            className="material-symbols-outlined"
-                            aria-hidden="true"
-                          >
-                            refresh
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="evoice__icon-btn evoice__icon-btn--danger"
-                          onClick={() => void onDeleteDoc(d.name)}
-                          disabled={busy}
-                          title={`Delete document ${d.name}`}
-                          aria-label={`Delete document ${d.name}`}
-                        >
-                          <span
-                            className="material-symbols-outlined"
-                            aria-hidden="true"
-                          >
-                            delete
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-
-              <div className="evoice__panel-foot">
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={() => void onGenerate(selectedDocs)}
-                  disabled={busy || selectedDocs.length === 0}
-                >
-                  {selectedDocs.length > 0
-                    ? `Generate selected (${selectedDocs.length})`
-                    : "Generate selected"}
-                </button>
-              </div>
-            </section>
-            ) : null}
-
-            {view === "audios" || view === "playlists" ? (
-            <section className="evoice__panel evoice__panel--playlist">
-              <h2>Playlist</h2>
-              {audios.length === 0 ? (
-                <p className="evoice__empty">No audios yet. Generate from docs.</p>
-              ) : (
-                <>
-                  <ol className="evoice__playlist">
-                    {audios.map((a, i) => (
-                      <li key={a.key} className="evoice__playlist-item">
-                        <button
-                          type="button"
-                          className={
-                            i === trackIndex
-                              ? "evoice__track evoice__track--active"
-                              : "evoice__track"
-                          }
-                          onClick={() => setTrackIndex(i)}
-                        >
-                          {a.name}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn"
-                          onClick={() => void onDownload(a.name, a.key)}
-                          disabled={busy}
-                        >
-                          Download
-                        </button>
-                        <button
-                          type="button"
-                          className="evoice__icon-btn evoice__icon-btn--danger"
-                          onClick={() => void onDeleteAudio(a.name)}
-                          disabled={busy}
-                          title={`Delete audio ${a.name}`}
-                          aria-label={`Delete audio ${a.name}`}
-                        >
-                          <span
-                            className="material-symbols-outlined"
-                            aria-hidden="true"
-                          >
-                            delete
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ol>
-                  <audio
-                    ref={audioRef}
-                    className="evoice__audio"
-                    src={blobUrl || undefined}
-                    controls
-                    onEnded={next}
-                  />
-                </>
-              )}
-              <div
-                className="evoice__panel-foot evoice__player-actions"
-                aria-label="Playlist controls"
-              >
-                <button
-                  type="button"
-                  className="evoice__icon-btn"
-                  onClick={prev}
-                  disabled={audios.length === 0 || trackIndex <= 0}
-                  title="Previous track"
-                  aria-label="Previous track"
-                >
-                  <span className="material-symbols-outlined" aria-hidden="true">
-                    skip_previous
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="evoice__icon-btn"
-                  onClick={play}
-                  disabled={audios.length === 0}
-                  title="Play playlist"
-                  aria-label="Play playlist"
-                >
-                  <span className="material-symbols-outlined" aria-hidden="true">
-                    play_arrow
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="evoice__icon-btn"
-                  onClick={pause}
-                  disabled={audios.length === 0}
-                  title="Pause playlist"
-                  aria-label="Pause playlist"
-                >
-                  <span className="material-symbols-outlined" aria-hidden="true">
-                    pause
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="evoice__icon-btn"
-                  onClick={stopPlayback}
-                  disabled={audios.length === 0}
-                  title="Stop playlist"
-                  aria-label="Stop playlist"
-                >
-                  <span className="material-symbols-outlined" aria-hidden="true">
-                    stop
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="evoice__icon-btn"
-                  onClick={next}
-                  disabled={audios.length === 0 || trackIndex >= audios.length - 1}
-                  title="Next track"
-                  aria-label="Next track"
-                >
-                  <span className="material-symbols-outlined" aria-hidden="true">
-                    skip_next
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="evoice__icon-btn evoice__icon-btn--accent"
-                  onClick={() => {
-                    const track = audios[trackIndex];
-                    if (track) void onDownload(track.name, track.key);
-                  }}
-                  disabled={busy || !audios[trackIndex]}
-                  title="Download current track"
-                  aria-label="Download current track"
-                >
-                  <span className="material-symbols-outlined" aria-hidden="true">
-                    download
-                  </span>
-                </button>
-              </div>
-            </section>
-            ) : null}
-          </div>
-          ) : null}
-
-          <section className="evoice__panel evoice__panel--console">
-            <div className="evoice__panel-head">
-              <h2>Console</h2>
-              {busy && activeJobId ? (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => void onStopGenerate()}
-                >
-                  Stop generate
-                </button>
-              ) : null}
-              {!busy && jobStopped && activeJobId ? (
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={() => void onResumeGenerate()}
-                >
-                  Resume
-                </button>
-              ) : null}
-            </div>
-            <div
-              className="evoice__progress"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progress}
-              aria-label="Generate progress"
+            <CollapsibleSection
+              id="evoice-docs"
+              title="Documents"
+              open={docsOpen}
+              onToggle={() => setDocsOpen((v) => !v)}
+              className={consoleOpen ? "evoice__section--with-console" : undefined}
             >
               <div
-                className="evoice__progress-bar"
-                style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+                className={
+                  consoleOpen
+                    ? "evoice__docs-console"
+                    : "evoice__docs-console evoice__docs-console--solo"
+                }
+              >
+                <div className="evoice__docs-main">
+                  <div className="evoice__panel-head">
+                    {sourceDocs.length > 0 ? (
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={toggleSelectAllDocs}
+                        disabled={busy}
+                      >
+                        {selectedDocs.length === sourceDocs.length
+                          ? "Clear selection"
+                          : "Select all"}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className={`btn${consoleOpen ? " btn--primary" : ""}`}
+                      onClick={() => setConsoleOpen((v) => !v)}
+                    >
+                      {consoleOpen ? "Hide console" : "Show console"}
+                    </button>
+                  </div>
+                  <p className="evoice__hint">
+                    Select source documents, then generate MP3, print prepared speech, or delete.
+                  </p>
+
+                  {sourceDocs.length === 0 ? (
+                    <p className="evoice__empty">No source documents yet.</p>
+                  ) : (
+                    <ul className="evoice__list">
+                      {sourceDocs.map((d) => {
+                        const fp = progressForDoc(d.name);
+                        const pct = fp
+                          ? Math.max(0, Math.min(100, fp.progress))
+                          : 0;
+                        const checked = selectedDocs.includes(d.name);
+                        return (
+                          <li key={d.key} className="evoice__doc-row">
+                            <label className="evoice__doc-check">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleDocSelected(d.name)}
+                                disabled={busy}
+                                aria-label={`Select ${d.name}`}
+                              />
+                            </label>
+                            <div className="evoice__doc-main">
+                              <span className="evoice__doc-name">{d.name}</span>
+                              <div
+                                className="evoice__doc-progress"
+                                role="progressbar"
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-valuenow={pct}
+                              >
+                                <div
+                                  className={`evoice__doc-progress-bar evoice__doc-progress-bar--${fp?.state || "idle"}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              {fp ? (
+                                <span className="evoice__doc-status">
+                                  {fp.state}
+                                  {fp.detail ? ` — ${fp.detail}` : ""}
+                                </span>
+                              ) : null}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  <div className="evoice__action-bar">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => void onDeleteSelectedDocs()}
+                      disabled={busy || selectedDocs.length === 0}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => void onGenerate()}
+                      disabled={busy}
+                    >
+                      Generate MP3
+                      {selectedDocs.length > 0
+                        ? ` (${selectedDocs.length})`
+                        : ""}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => void onPrintPreparedSpeech()}
+                      disabled={busy || selectedDocs.length === 0}
+                    >
+                      Print prepared speech
+                    </button>
+
+                    <fieldset className="evoice__mode-fieldset">
+                      <legend>Mode</legend>
+                      {GENERATE_MODES.map((m) => (
+                        <label key={m.id} className="evoice__radio">
+                          <input
+                            type="radio"
+                            name="evoice-mode"
+                            value={m.id}
+                            checked={generateMode === m.id}
+                            onChange={() => setGenerateMode(m.id)}
+                            disabled={busy}
+                          />
+                          <span>{m.label}</span>
+                        </label>
+                      ))}
+                    </fieldset>
+
+                    <label className="evoice__field evoice__field--inline">
+                      <span>Content %</span>
+                      <select
+                        className="evoice__select evoice__select--compact"
+                        value={contentPercent}
+                        onChange={(e) =>
+                          setContentPercent(Number(e.target.value))
+                        }
+                        disabled={busy}
+                      >
+                        {CONTENT_PERCENTS.map((p) => (
+                          <option key={p} value={p}>
+                            {p}%
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {busy ? (
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => void onStopGenerate()}
+                        disabled={!activeJobId}
+                      >
+                        Stop
+                      </button>
+                    ) : null}
+                    {!busy && jobStopped && activeJobId ? (
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        onClick={() => void onResumeGenerate()}
+                      >
+                        Resume
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                {consoleOpen ? (
+                  <aside className="evoice__console">
+                    <h3 className="evoice__console-title">Console</h3>
+                    <div
+                      className="evoice__progress"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={progress}
+                    >
+                      <div
+                        className="evoice__progress-bar"
+                        style={{
+                          width: `${Math.max(0, Math.min(100, progress))}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="evoice__progress-label">{progress}%</p>
+                    {steps.length > 0 ? (
+                      <ol className="evoice__steps">
+                        {steps.map((s) => (
+                          <li
+                            key={s.id}
+                            className={`evoice__step evoice__step--${s.state || "pending"}`}
+                          >
+                            <span className="evoice__step-state">{s.state}</span>
+                            <span className="evoice__step-label">{s.label}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : null}
+                    <h4 className="evoice__log-title">Log</h4>
+                    <pre className="evoice__log">{logs.join("\n") || "—"}</pre>
+                  </aside>
+                ) : null}
+              </div>
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              id="evoice-playlists"
+              title="Playlists"
+              open={playlistsOpen}
+              onToggle={() => setPlaylistsOpen((v) => !v)}
+            >
+              <TransportBar
+                label="Global playlist"
+                disabled={globalTrackOrder.length === 0}
+                onPlay={() => startPlayback(globalTrackOrder)}
+                onPause={pause}
+                onStop={stopPlayback}
+                onPrev={prev}
+                onNext={next}
+                canPrev={queueHasTracks && canPrev}
+                canNext={queueHasTracks && canNext}
               />
-            </div>
-            <p className="evoice__progress-label">{progress}%</p>
-            {steps.length > 0 ? (
-              <ol className="evoice__steps">
-                {steps.map((s) => (
-                  <li
-                    key={s.id}
-                    className={`evoice__step evoice__step--${s.state || "pending"}`}
-                  >
-                    <span className="evoice__step-state">{s.state}</span>
-                    <span className="evoice__step-label">{s.label}</span>
-                  </li>
-                ))}
-              </ol>
-            ) : null}
-            <h3 className="evoice__log-title">Log</h3>
-            <pre className="evoice__log">{logs.join("\n") || "—"}</pre>
-          </section>
+
+              {globalTrackOrder.length === 0 ? (
+                <p className="evoice__empty">No audios yet. Generate from documents.</p>
+              ) : (
+                <div className="evoice__playlist-tree">
+                  {docPlaylists
+                    .filter((dp) => dp.buckets.length > 0)
+                    .map((dp) => (
+                      <article key={dp.stem} className="evoice__doc-group">
+                        <header className="evoice__doc-group-head">
+                          <h3 className="evoice__doc-group-title">
+                            {dp.sourceDoc?.name ?? dp.stem}
+                          </h3>
+                          <TransportBar
+                            label={`Document ${dp.stem}`}
+                            disabled={dp.allTracks.length === 0}
+                            onPlay={() => startPlayback(dp.allTracks)}
+                            onPause={pause}
+                            onStop={stopPlayback}
+                            onPrev={prev}
+                            onNext={next}
+                            canPrev={queueHasTracks && canPrev}
+                            canNext={queueHasTracks && canNext}
+                          />
+                        </header>
+
+                        {dp.buckets.map((bucket) => (
+                          <div
+                            key={`${dp.stem}-${bucket.version}`}
+                            className="evoice__version-block"
+                          >
+                            <header className="evoice__version-head">
+                              <h4>{bucket.label}</h4>
+                              <TransportBar
+                                label={`${dp.stem} ${bucket.label}`}
+                                disabled={bucket.tracks.length === 0}
+                                onPlay={() => startPlayback(bucket.tracks)}
+                                onPause={pause}
+                                onStop={stopPlayback}
+                                onPrev={prev}
+                                onNext={next}
+                                canPrev={queueHasTracks && canPrev}
+                                canNext={queueHasTracks && canNext}
+                              />
+                            </header>
+                            <ul className="evoice__track-list">
+                              {bucket.tracks.map((t) => {
+                                const id = trackId(t);
+                                const active =
+                                  queueHasTracks &&
+                                  queue[trackIndex]?.name === t.name &&
+                                  trackId(queue[trackIndex]) === id;
+                                return (
+                                  <li key={id} className="evoice__track-row">
+                                    <label className="evoice__doc-check">
+                                      <input
+                                        type="checkbox"
+                                        checked={checkedTracks.has(id)}
+                                        onChange={() => toggleTrackChecked(t)}
+                                        aria-label={`Select ${t.name}`}
+                                      />
+                                    </label>
+                                    <button
+                                      type="button"
+                                      className={
+                                        active
+                                          ? "evoice__track evoice__track--active"
+                                          : "evoice__track"
+                                      }
+                                      onClick={() => {
+                                        const idx = queue.findIndex(
+                                          (q) => trackId(q) === id,
+                                        );
+                                        if (idx >= 0) {
+                                          setTrackIndex(idx);
+                                        } else {
+                                          startPlayback([t]);
+                                        }
+                                      }}
+                                    >
+                                      {t.name}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="evoice__icon-btn evoice__icon-btn--danger"
+                                      onClick={() => void onDeleteAudio(t.name)}
+                                      disabled={busy}
+                                      title={`Delete ${t.name}`}
+                                      aria-label={`Delete ${t.name}`}
+                                    >
+                                      <span
+                                        className="material-symbols-outlined"
+                                        aria-hidden="true"
+                                      >
+                                        delete
+                                      </span>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        ))}
+                      </article>
+                    ))}
+                </div>
+              )}
+
+              <audio
+                ref={audioRef}
+                className="evoice__audio"
+                src={blobUrl || undefined}
+                controls
+                onEnded={next}
+              />
+            </CollapsibleSection>
+          </div>
+
+          <div className="evoice__expand-row">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setExpandedHeight((v) => !v)}
+            >
+              {expandedHeight ? "Collapse workspace" : "Show more"}
+            </button>
+          </div>
         </>
-      ) : null}
-      </>
       ) : null}
     </div>
   );
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

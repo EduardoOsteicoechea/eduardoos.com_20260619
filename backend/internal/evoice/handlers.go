@@ -625,7 +625,7 @@ func (h *Handler) GetFile(w http.ResponseWriter, r *http.Request) {
 }
 
 // StartGenerate enqueues a sandbox TTS job.
-// Optional JSON body: { "files": ["a.docx"], "premium": true } — omit files = all docs.
+// Optional JSON: { "files": ["a.docx"], "mode": "premium", "contentPercent": 100, "premium": true }.
 func (h *Handler) StartGenerate(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	caller := auth.UserEmailFromRequest(r)
@@ -644,29 +644,40 @@ func (h *Handler) StartGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var onlyFiles []string
-	premium := false
+	opts := GenerateOpts{Mode: ModeStandard, ContentPercent: 100}
 	if r.Body != nil {
 		raw, _ := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 		raw = []byte(strings.TrimSpace(string(raw)))
 		if len(raw) > 0 {
 			var body struct {
-				Files   []string `json:"files"`
-				Premium bool     `json:"premium"`
+				Files          []string `json:"files"`
+				Premium        bool     `json:"premium"`
+				Mode           string   `json:"mode"`
+				ContentPercent int      `json:"contentPercent"`
 			}
 			if err := json.Unmarshal(raw, &body); err != nil {
 				httpx.WriteError(w, http.StatusBadRequest, "invalid json")
 				return
 			}
 			onlyFiles = body.Files
-			premium = body.Premium
+			opts.Mode = NormalizeMode(body.Mode, body.Premium)
+			opts.ContentPercent = NormalizeContentPercent(body.ContentPercent)
+			if body.ContentPercent == 0 && !strings.Contains(string(raw), "contentPercent") {
+				opts.ContentPercent = 100
+			}
 		}
 	}
-	jobID, err := h.Jobs.Start(r.Context(), h.Objects, owner, project, cid, onlyFiles, premium)
+	jobID, err := h.Jobs.Start(r.Context(), h.Objects, owner, project, cid, onlyFiles, opts)
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, "could not start job")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusAccepted, map[string]any{"jobId": jobID, "premium": premium})
+	httpx.WriteJSON(w, http.StatusAccepted, map[string]any{
+		"jobId":          jobID,
+		"premium":        opts.PremiumCompat(),
+		"mode":           opts.Mode,
+		"contentPercent": opts.ContentPercent,
+	})
 }
 
 // GetJob returns generate job status + logs (memory first, else S3 snapshot).
@@ -742,16 +753,25 @@ func (h *Handler) ResumeJob(w http.ResponseWriter, r *http.Request) {
 	if len(files) == 0 && len(job.OnlyFiles) > 0 {
 		files = append([]string(nil), job.OnlyFiles...)
 	}
-	newID, err := h.Jobs.Start(r.Context(), h.Objects, job.Owner, job.Project, cid, files, job.Premium)
+	opts := GenerateOpts{
+		Mode:           NormalizeMode(job.Mode, job.Premium),
+		ContentPercent: NormalizeContentPercent(job.ContentPercent),
+	}
+	if job.ContentPercent == 0 {
+		opts.ContentPercent = 100
+	}
+	newID, err := h.Jobs.Start(r.Context(), h.Objects, job.Owner, job.Project, cid, files, opts)
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadGateway, "could not resume job")
 		return
 	}
 	httpx.WriteJSON(w, http.StatusAccepted, map[string]any{
-		"jobId":   newID,
-		"premium": job.Premium,
-		"files":   files,
-		"resumedFrom": jobID,
+		"jobId":          newID,
+		"premium":        opts.PremiumCompat(),
+		"mode":           opts.Mode,
+		"contentPercent": opts.ContentPercent,
+		"files":          files,
+		"resumedFrom":    jobID,
 	})
 }
 

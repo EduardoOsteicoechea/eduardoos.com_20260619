@@ -136,11 +136,11 @@ func TestEvoiceAPIFlow(t *testing.T) {
 	req.Header.Set("Authorization", authHdr)
 	rec = httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "hello.mp3") {
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "hello.v1.mp3") {
 		t.Fatalf("audios=%s", rec.Body.String())
 	}
 
-	req = httptest.NewRequest(http.MethodDelete, "/api/evoice/projects/"+ownerSafe+"/smoke/audios?name=hello.mp3", nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/evoice/projects/"+ownerSafe+"/smoke/audios?name=hello.v1.mp3", nil)
 	req.Header.Set("Authorization", authHdr)
 	rec = httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
@@ -151,7 +151,7 @@ func TestEvoiceAPIFlow(t *testing.T) {
 	req.Header.Set("Authorization", authHdr)
 	rec = httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "hello.mp3") {
+	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "hello.v1.mp3") {
 		t.Fatalf("audio should be gone: %s", rec.Body.String())
 	}
 }

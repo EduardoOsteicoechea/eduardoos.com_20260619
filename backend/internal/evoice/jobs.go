@@ -61,15 +61,14 @@ func jobPlan(premium bool) []JobStep {
 
 // JobRunner converts a synced local project docs/ → audios/.
 // onlyFiles empty means all convertible docs; otherwise only those basenames.
-// premium asks the worker to DeepSeek-optimize speech before TTS.
 type JobRunner interface {
-	Run(ctx context.Context, projectDir string, onlyFiles []string, premium bool, logFn func(string)) (JobStats, error)
+	Run(ctx context.Context, projectDir string, onlyFiles []string, opts GenerateOpts, logFn func(string)) (JobStats, error)
 }
 
 // FakeRunner writes a tiny placeholder mp3 for each convertible doc (tests / no TTS).
 type FakeRunner struct{}
 
-func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, premium bool, logFn func(string)) (JobStats, error) {
+func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, opts GenerateOpts, logFn func(string)) (JobStats, error) {
 	docsDir := filepath.Join(projectDir, "docs")
 	audiosDir := filepath.Join(projectDir, "audios")
 	_ = os.MkdirAll(audiosDir, 0o755)
@@ -79,6 +78,7 @@ func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, 
 	}
 	allow := onlySet(onlyFiles)
 	stats := JobStats{}
+	deep := opts.UsesDeepSeek()
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
@@ -87,33 +87,33 @@ func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, 
 		if name == ".keep" || !isConvertible(name) {
 			continue
 		}
+		if strings.Contains(name, ".v") && (strings.HasSuffix(name, ".premium.txt") || strings.HasSuffix(name, ".vision.txt")) {
+			continue
+		}
 		if len(allow) > 0 && !allow[name] {
 			continue
 		}
 		stats.Docs++
 		stem := strings.TrimSuffix(name, filepath.Ext(name))
-		docPath := filepath.Join(docsDir, name)
-		docInfo, _ := os.Stat(docPath)
-		if !fakeNeedsRegen(audiosDir, stem, premium, docInfo) {
-			logFn("skip  " + name + " (mp3 up to date)")
-			logFn("FILE " + name + " state=skipped")
-			stats.Skipped++
-			continue
-		}
-		mp3 := filepath.Join(audiosDir, stem+".mp3")
+		ver := NextAudioVersion(audiosDir, stem)
 		logFn("FILE " + name + " state=active")
 		logFn("EXTRACT " + name + " pct=50 detail=fake")
-		if premium {
-			logFn("PREMIUM " + name + " detail=system_role_prep modality=" + filepath.Ext(name))
+		if opts.IsSuper() {
+			logFn("VISION " + name + " pct=50 detail=fake_page")
+			visionPath := filepath.Join(docsDir, stem+".v"+itoa(ver)+".vision.txt")
+			_ = os.WriteFile(visionPath, []byte("vision text"), 0o644)
+		}
+		if deep {
+			logFn("PREMIUM " + name + " detail=system_role_prep modality=" + filepath.Ext(name) + " mode=" + opts.Mode)
 			logFn("PREMIUM " + name + " pct=20 detail=stream")
-			logFn("PREMIUM " + name + " pct=60 detail=stream")
 			logFn("PREMIUM " + name + " pct=100 detail=chapters=2")
 			marked := "<<<CHAPTER n=\"1\" title=\"Intro\">>>\nhola uno\n<<<END>>>\n" +
 				"<<<CHAPTER n=\"2\" title=\"Cuerpo\">>>\nhola dos\n<<<END>>>\n"
-			_ = os.WriteFile(filepath.Join(docsDir, stem+".premium.txt"), []byte(marked), 0o644)
-			_ = os.Remove(mp3)
-			clearLocalStemAudios(audiosDir, stem)
-			for _, ch := range []string{stem + ".c01-intro.mp3", stem + ".c02-cuerpo.mp3"} {
+			_ = os.WriteFile(filepath.Join(docsDir, stem+".v"+itoa(ver)+".premium.txt"), []byte(marked), 0o644)
+			for _, ch := range []string{
+				stem + ".v" + itoa(ver) + ".c01-intro.mp3",
+				stem + ".v" + itoa(ver) + ".c02-cuerpo.mp3",
+			} {
 				logFn("TTS " + name + " pct=50 detail=chapter " + ch)
 				if err := os.WriteFile(filepath.Join(audiosDir, ch), []byte("ID3fake-evoice"), 0o644); err != nil {
 					stats.Failed++
@@ -127,17 +127,16 @@ func (FakeRunner) Run(_ context.Context, projectDir string, onlyFiles []string, 
 			logFn("FILE " + name + " state=done")
 			continue
 		}
-		clearLocalStemAudios(audiosDir, stem)
+		mp3 := stem + ".v" + itoa(ver) + ".mp3"
 		logFn("TTS " + name + " pct=50 detail=fake")
-		logFn("gen   " + name + " -> audios/" + stem + ".mp3 (fake)")
-		if err := os.WriteFile(mp3, []byte("ID3fake-evoice"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(audiosDir, mp3), []byte("ID3fake-evoice"), 0o644); err != nil {
 			stats.Failed++
 			logFn("FAIL  " + name + ": " + err.Error())
 			logFn("FILE " + name + " state=failed")
 			continue
 		}
 		stats.Generated++
-		logFn("ok     " + name + " -> " + stem + ".mp3")
+		logFn("ok     " + name + " -> " + mp3)
 		logFn("FILE " + name + " state=done")
 	}
 	return stats, nil
@@ -239,7 +238,7 @@ type PythonRunner struct {
 	Script string
 }
 
-func (p PythonRunner) Run(ctx context.Context, projectDir string, onlyFiles []string, premium bool, logFn func(string)) (JobStats, error) {
+func (p PythonRunner) Run(ctx context.Context, projectDir string, onlyFiles []string, opts GenerateOpts, logFn func(string)) (JobStats, error) {
 	py := p.Python
 	if py == "" {
 		py = "python3"
@@ -248,15 +247,17 @@ func (p PythonRunner) Run(ctx context.Context, projectDir string, onlyFiles []st
 	if script == "" {
 		script = defaultWorkerScript()
 	}
-	args := []string{script, "--project-dir", projectDir}
+	args := []string{
+		script,
+		"--project-dir", projectDir,
+		"--mode", opts.Mode,
+		"--content-percent", strconv.Itoa(opts.ContentPercent),
+	}
 	for _, f := range onlyFiles {
 		f = strings.TrimSpace(f)
 		if f != "" {
 			args = append(args, "--only", f)
 		}
-	}
-	if premium {
-		args = append(args, "--premium")
 	}
 	cmd := exec.CommandContext(ctx, py, args...)
 	tmpDir := filepath.Dir(projectDir)
@@ -403,20 +404,22 @@ func cloneJobFiles(src []JobFileProgress) []JobFileProgress {
 	return out
 }
 
-func newQueuedJob(id, ownerSafe, project string, onlyFiles []string, premium bool) *JobStatus {
+func newQueuedJob(id, ownerSafe, project string, onlyFiles []string, opts GenerateOpts) *JobStatus {
 	only := append([]string(nil), onlyFiles...)
 	return &JobStatus{
-		ID:          id,
-		State:       "queued",
-		Owner:       ownerSafe,
-		Project:     project,
-		OnlyFiles:   only,
-		Premium:     premium,
-		Logs:        []string{"queued"},
-		Steps:       jobPlan(premium),
-		Files:       nil,
-		Progress:    0,
-		CurrentStep: "",
+		ID:             id,
+		State:          "queued",
+		Owner:          ownerSafe,
+		Project:        project,
+		OnlyFiles:      only,
+		Premium:        opts.PremiumCompat(),
+		Mode:           opts.Mode,
+		ContentPercent: opts.ContentPercent,
+		Logs:           []string{"queued"},
+		Steps:          jobPlan(opts.UsesDeepSeek()),
+		Files:          nil,
+		Progress:       0,
+		CurrentStep:    "",
 	}
 }
 
@@ -512,6 +515,7 @@ func (s *JobStore) appendLog(ctx context.Context, objects ObjectSpace, id, line,
 		strings.HasPrefix(strings.ToUpper(line), "TTS ") ||
 		strings.HasPrefix(strings.ToUpper(line), "PREMIUM ") ||
 		strings.HasPrefix(strings.ToUpper(line), "EXTRACT ") ||
+		strings.HasPrefix(strings.ToUpper(line), "VISION ") ||
 		strings.HasPrefix(strings.ToUpper(line), "FFMPEG ") ||
 		strings.HasPrefix(line, "STATS ")) {
 		s.persistSnapshot(ctx, objects, id, cid)
@@ -751,7 +755,9 @@ func weightedProgress(premium bool, steps []JobStep, activeStepID string, active
 }
 
 // Start enqueues an async generate. onlyFiles empty = all docs; else those basenames only.
-func (s *JobStore) Start(ctx context.Context, objects ObjectSpace, ownerSafe, project, cid string, onlyFiles []string, premium bool) (string, error) {
+func (s *JobStore) Start(ctx context.Context, objects ObjectSpace, ownerSafe, project, cid string, onlyFiles []string, opts GenerateOpts) (string, error) {
+	opts.Mode = NormalizeMode(opts.Mode, false)
+	opts.ContentPercent = NormalizeContentPercent(opts.ContentPercent)
 	cleaned := make([]string, 0, len(onlyFiles))
 	for _, f := range onlyFiles {
 		f = sanitizeFileName(strings.TrimSpace(f))
@@ -762,12 +768,12 @@ func (s *JobStore) Start(ctx context.Context, objects ObjectSpace, ownerSafe, pr
 	id := uuid.NewString()
 	jobCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	s.mu.Lock()
-	s.jobs[id] = newQueuedJob(id, ownerSafe, project, cleaned, premium)
+	s.jobs[id] = newQueuedJob(id, ownerSafe, project, cleaned, opts)
 	s.cancels[id] = cancel
 	s.mu.Unlock()
 	s.persistSnapshot(ctx, objects, id, cid)
 
-	go s.runJob(jobCtx, objects, id, ownerSafe, project, cid, cleaned, premium)
+	go s.runJob(jobCtx, objects, id, ownerSafe, project, cid, cleaned, opts)
 	return id, nil
 }
 
@@ -821,16 +827,15 @@ func ResumeFiles(job JobStatus) []string {
 	return out
 }
 
-func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSafe, project, cid string, onlyFiles []string, premium bool) {
+func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSafe, project, cid string, onlyFiles []string, opts GenerateOpts) {
+	premium := opts.UsesDeepSeek()
 	s.setState(ctx, objects, id, "running", "", cid, nil)
 
 	s.activateStep(ctx, objects, id, "prepare", cid)
 	s.appendLog(ctx, objects, id, "prepare: creating workdir", cid)
 	workRoot := filepath.Join(evoiceJobsBase(), id)
 	s.appendLog(ctx, objects, id, "prepare: workRoot="+workRoot, cid)
-	if premium {
-		s.appendLog(ctx, objects, id, "prepare: premium=1 (DeepSeek speech)", cid)
-	}
+	s.appendLog(ctx, objects, id, "prepare: mode="+opts.Mode+" contentPercent="+strconv.Itoa(opts.ContentPercent), cid)
 	if len(onlyFiles) > 0 {
 		s.appendLog(ctx, objects, id, "prepare: onlyFiles="+strings.Join(onlyFiles, ","), cid)
 	}
@@ -861,7 +866,7 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	s.completeStep(ctx, objects, id, "download_docs", cid)
 
 	s.activateStep(ctx, objects, id, "download_audios", cid)
-	s.appendLog(ctx, objects, id, "download_audios: fetching existing mp3s (for skip/regen)", cid)
+	s.appendLog(ctx, objects, id, "download_audios: fetching existing mp3s (for versioning)", cid)
 	_ = syncPrefixToDir(ctx, objects, AudiosPrefix(ownerSafe, project)+"/", audiosDir, cid, func(line string) {
 		s.appendLog(ctx, objects, id, line, cid)
 	})
@@ -884,7 +889,8 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 		docTotal = 1
 	}
 	docDone := 0
-	stats, err := s.runner.Run(jobCtx, projectDir, onlyFiles, premium, func(line string) {
+	beforeAudios := listMP3Names(audiosDir)
+	stats, err := s.runner.Run(jobCtx, projectDir, onlyFiles, opts, func(line string) {
 		s.appendLog(ctx, objects, id, line, cid)
 		s.applyConvertLogLine(ctx, objects, id, line, &docDone, docTotal, cid, premium)
 	})
@@ -920,47 +926,41 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	}
 
 	s.activateStep(ctx, objects, id, "upload", cid)
-	s.appendLog(ctx, objects, id, "upload: writing audios/*.mp3 (+ premium.txt) to S3", cid)
+	s.appendLog(ctx, objects, id, "upload: writing new audios/*.mp3 (+ versioned sidecars) to S3", cid)
 	uploadAllow := uploadAllowFrom(onlyFiles, targets)
-	for _, t := range targets {
-		stem := strings.TrimSuffix(t, filepath.Ext(t))
-		s.deleteStemAudiosFromObjects(ctx, objects, id, ownerSafe, project, stem, cid)
-	}
-	entries, err := os.ReadDir(audiosDir)
-	if err != nil {
-		s.appendLog(ctx, objects, id, "upload list failed: "+err.Error(), cid)
-		s.failStep(ctx, objects, id, "upload", err.Error(), cid)
-		s.setState(ctx, objects, id, "failed", err.Error(), cid, &stats)
-		s.clearCancel(id)
-		return
-	}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".mp3") {
+	// Spec 069: do not delete prior versions — upload only files created this run.
+	newAudios := listMP3NamesExcept(audiosDir, beforeAudios)
+	for _, name := range newAudios {
+		if len(uploadAllow) > 0 && !mp3UploadAllowed(name, uploadAllow) {
 			continue
 		}
-		if len(uploadAllow) > 0 && !mp3UploadAllowed(e.Name(), uploadAllow) {
-			continue
-		}
-		body, err := os.ReadFile(filepath.Join(audiosDir, e.Name()))
+		body, err := os.ReadFile(filepath.Join(audiosDir, name))
 		if err != nil {
 			s.appendLog(ctx, objects, id, "read mp3 failed: "+err.Error(), cid)
 			continue
 		}
-		key := AudioKey(ownerSafe, project, e.Name())
-		s.appendLog(ctx, objects, id, "upload: "+e.Name(), cid)
+		key := AudioKey(ownerSafe, project, name)
+		s.appendLog(ctx, objects, id, "upload: "+name, cid)
 		if err := objects.PutBytes(ctx, key, body, "audio/mpeg", cid); err != nil {
-			s.appendLog(ctx, objects, id, "upload failed "+e.Name()+": "+err.Error(), cid)
+			s.appendLog(ctx, objects, id, "upload failed "+name+": "+err.Error(), cid)
 			s.failStep(ctx, objects, id, "upload", err.Error(), cid)
 			s.setState(ctx, objects, id, "failed", err.Error(), cid, &stats)
 			s.clearCancel(id)
 			return
 		}
-		s.appendLog(ctx, objects, id, "uploaded audios/"+e.Name(), cid)
+		s.appendLog(ctx, objects, id, "uploaded audios/"+name, cid)
 	}
-	// Upload premium speech sidecars written by the worker.
+	beforeDocs := listSidecarNames(docsDir)
 	docEntries, _ := os.ReadDir(docsDir)
 	for _, e := range docEntries {
-		if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".premium.txt") {
+		if e.IsDir() {
+			continue
+		}
+		n := strings.ToLower(e.Name())
+		if !strings.HasSuffix(n, ".premium.txt") && !strings.HasSuffix(n, ".vision.txt") {
+			continue
+		}
+		if beforeDocs[e.Name()] {
 			continue
 		}
 		body, err := os.ReadFile(filepath.Join(docsDir, e.Name()))
@@ -986,6 +986,84 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	}
 	s.setState(ctx, objects, id, final, errMsg, cid, &stats)
 	s.clearCancel(id)
+}
+
+func listMP3Names(audiosDir string) map[string]bool {
+	out := map[string]bool{}
+	entries, err := os.ReadDir(audiosDir)
+	if err != nil {
+		return out
+	}
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(strings.ToLower(e.Name()), ".mp3") {
+			out[e.Name()] = true
+		}
+	}
+	return out
+}
+
+func listMP3NamesExcept(audiosDir string, except map[string]bool) []string {
+	entries, err := os.ReadDir(audiosDir)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".mp3") {
+			continue
+		}
+		if except[e.Name()] {
+			continue
+		}
+		out = append(out, e.Name())
+	}
+	return out
+}
+
+func listSidecarNames(docsDir string) map[string]bool {
+	out := map[string]bool{}
+	entries, err := os.ReadDir(docsDir)
+	if err != nil {
+		return out
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		n := strings.ToLower(e.Name())
+		if strings.HasSuffix(n, ".premium.txt") || strings.HasSuffix(n, ".vision.txt") {
+			out[e.Name()] = true
+		}
+	}
+	return out
+}
+
+// listNewVersionAudios kept for tests / helpers.
+func listNewVersionAudios(audiosDir string, targets []string) []string {
+	entries, err := os.ReadDir(audiosDir)
+	if err != nil {
+		return nil
+	}
+	stems := map[string]bool{}
+	for _, t := range targets {
+		stems[strings.TrimSuffix(t, filepath.Ext(t))] = true
+	}
+	var out []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".mp3") {
+			continue
+		}
+		name := e.Name()
+		stem, _, ok := ParseAudioVersion(name)
+		if !ok {
+			continue
+		}
+		if len(stems) > 0 && !stems[stem] {
+			continue
+		}
+		out = append(out, name)
+	}
+	return out
 }
 
 func (s *JobStore) clearCancel(id string) {
@@ -1017,12 +1095,15 @@ func mp3UploadAllowed(name string, allow map[string]bool) bool {
 	if allow[name] {
 		return true
 	}
+	if stem, _, ok := ParseAudioVersion(name); ok {
+		return allow["stem:"+stem]
+	}
 	lower := strings.ToLower(name)
 	if !strings.HasSuffix(lower, ".mp3") {
 		return false
 	}
 	base := strings.TrimSuffix(name, filepath.Ext(name))
-	// Chapter: {stem}.c01-title
+	// Legacy chapter: {stem}.c01-title
 	if i := strings.Index(base, ".c"); i > 0 {
 		stem := base[:i]
 		if allow["stem:"+stem] {
@@ -1090,7 +1171,7 @@ func (s *JobStore) applyConvertLogLine(ctx context.Context, objects ObjectSpace,
 		}
 		s.updateFile(id, name, state, pct, state)
 		s.persistSnapshot(ctx, objects, id, cid)
-	case "EXTRACT", "PREMIUM", "TTS", "FFMPEG":
+	case "EXTRACT", "PREMIUM", "TTS", "FFMPEG", "VISION":
 		if len(fields) < 2 {
 			return
 		}
@@ -1102,7 +1183,7 @@ func (s *JobStore) applyConvertLogLine(ctx context.Context, objects ObjectSpace,
 		}
 		if premium {
 			switch kind {
-			case "EXTRACT":
+			case "EXTRACT", "VISION":
 				s.activateStep(ctx, objects, id, "extract_speech", cid)
 			case "PREMIUM":
 				s.activateStep(ctx, objects, id, "refine_deepseek", cid)
@@ -1111,8 +1192,8 @@ func (s *JobStore) applyConvertLogLine(ctx context.Context, objects ObjectSpace,
 			}
 		}
 		// Map phase-local pct into file bar (extract ~0–37, refine ~37–75, audio ~75–99).
-		phaseBase := map[string]int{"EXTRACT": 0, "PREMIUM": 37, "TTS": 75, "FFMPEG": 90}[kind]
-		phaseSpan := map[string]int{"EXTRACT": 37, "PREMIUM": 38, "TTS": 15, "FFMPEG": 9}[kind]
+		phaseBase := map[string]int{"EXTRACT": 0, "VISION": 0, "PREMIUM": 37, "TTS": 75, "FFMPEG": 90}[kind]
+		phaseSpan := map[string]int{"EXTRACT": 37, "VISION": 37, "PREMIUM": 38, "TTS": 15, "FFMPEG": 9}[kind]
 		if pct < 0 {
 			pct = 0
 		}
