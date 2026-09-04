@@ -89,14 +89,24 @@ Naming:
 
 1. **Project** — project select + new project create.
 2. **Upload** — modality buttons (Upload file / Paste text / Crawl); panel for the active modality only.
-3. **Documents** — list; action bar: icon-only **Generate** (left), **Print** (middle), **Delete** (right, red icon); **Quality** slider (Standard → Premium → Super Premium); **Content %** slider (100/75/50/25/10/5). Console toggleable to the right.
+3. **Documents** — list; action bar: icon-only **Generate** (left), **Print** (middle), **Delete** (right, red icon); **Quality** slider (Standard → Premium → Super Premium); **Content %** slider (**5% left → 100% right**). Console toggleable to the right.
 4. **Playlists** — nested structure (document → version/Legacy → tracks).
 
 ### UI polish (2026-09-04)
 
 - **Upload** modality controls are **icon-only** (file / text / spider for crawl).
 - **Documents:** no explanatory subtitle; per-row **delete** icon; **Console** is an icon button in the section header (top right); action bar has **Quality** + **Content %** sliders (defaults: **Premium**, **100%**) then **Print** + **Generate** icons on the **right** (no bulk delete in the bar).
+- **Content %** slider orientation: ticks **left → right** = **5% / 10% / 25% / 50% / 75% / 100%** (full content = thumb at the **right**). API value unchanged (`contentPercent` discrete set).
 - **HDS:** admin owner modal (admins) + **collapse/expand workspace** icon toggle (collapses all sections).
+- Section body max height **600px** + per-section Show more when overflowing.
+
+### Host deps — Super Premium PDF rasterize (locked)
+
+Super Premium PDF must **rasterize pages to images** before the first DeepSeek Vision call. That requires **PyMuPDF (`pymupdf` / `fitz`)** on the EC2 worker Python (preferred), or **`pdftoppm`** from `poppler-utils` on PATH.
+
+- Production deploy **must** ensure a worker venv at `backend/internal/evoice/worker/.venv` with `pip install -r requirements.txt` (includes `pymupdf`), and set systemd `EVOICE_PYTHON` to that venv’s `python`.
+- Also install `poppler-utils` when the package manager allows (fallback if pymupdf import fails).
+- Console `VISION … pct=5 detail=start` is **pipeline progress**, not `contentPercent` (content % is logged on `prepare:` / `STEP convert`).
 
 #### Playlist nesting & playback (locked)
 
@@ -179,3 +189,5 @@ Job snapshot stores `mode` + `contentPercent` for resume.
 - `frontend/src/lib/evoice.ts`
 - `backend/internal/evoice/**`
 - `backend/internal/evoice/worker/linux_sync.py`
+- `backend/internal/evoice/worker/requirements.txt`
+- `deploy/ec2/deploy-remote-production.sh` (worker venv + EVOICE_PYTHON)

@@ -1,6 +1,8 @@
-# Optional deps for the EC2 eVoice sandbox worker (spec 044).
+# Optional deps for the EC2 eVoice sandbox worker (spec 044 / 069).
 # System packages still required: ffmpeg, tesseract-ocr, espeak-ng (and/or piper).
-# For scanned/image PDFs: pymupdf (preferred) or poppler-utils (pdftoppm) on PATH.
+# Super Premium PDF: pymupdf (preferred) rasterizes pages → DeepSeek Vision.
+# Fallback: poppler-utils (pdftoppm) on PATH — install via deploy apt/dnf when missing.
+# Production: deploy/ec2/deploy-remote-production.sh creates worker/.venv and sets EVOICE_PYTHON.
 python-docx>=1.1.0
 pypdf>=4.0.0
 pytesseract>=0.3.10

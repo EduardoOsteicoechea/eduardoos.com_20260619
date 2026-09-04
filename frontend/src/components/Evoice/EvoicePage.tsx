@@ -44,7 +44,8 @@ import { useHeaderDynamicHost } from "../HeaderDynamicMenu/HeaderDynamicMenu";
 import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 import "./Evoice.css";
 
-const CONTENT_PERCENTS = [100, 75, 50, 25, 10, 5] as const;
+/** Left → right: 5% … 100% (full content = slider right). */
+const CONTENT_PERCENTS = [5, 10, 25, 50, 75, 100] as const;
 const QUALITY_MODES: { id: EvoiceGenerateMode; label: string }[] = [
   { id: "standard", label: "Standard" },
   { id: "premium", label: "Premium" },

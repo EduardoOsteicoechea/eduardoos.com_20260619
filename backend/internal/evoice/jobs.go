@@ -379,7 +379,11 @@ func resolveDefaultRunner() JobRunner {
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("EVOICE_FAKE_TTS")), "1") {
 		return FakeRunner{}
 	}
-	return PythonRunner{}
+	py := strings.TrimSpace(os.Getenv("EVOICE_PYTHON"))
+	if py == "" {
+		py = "python3"
+	}
+	return PythonRunner{Python: py}
 }
 
 func evoiceJobsBase() string {

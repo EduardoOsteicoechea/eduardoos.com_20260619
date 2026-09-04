@@ -85,6 +85,7 @@ EnvironmentFile=-${APP_DIR}/.env
 # PORT wins over ADDR in server main (belt-and-suspenders vs leaked ADDR).
 Environment=PORT=3000
 Environment=ADDR=${BACKEND_ADDR}
+Environment=EVOICE_PYTHON=${APP_DIR}/backend/internal/evoice/worker/.venv/bin/python
 ExecStart=${APP_DIR}/backend/bin/eduardoos-next
 Restart=on-failure
 RestartSec=5
@@ -99,7 +100,47 @@ EOF
   wait_health
 }
 
+ensure_evoice_worker_deps() {
+  # Super Premium PDF → page images needs pymupdf (preferred) or pdftoppm.
+  local worker_dir="${APP_DIR}/backend/internal/evoice/worker"
+  local req="${worker_dir}/requirements.txt"
+  local venv="${worker_dir}/.venv"
+  echo "==> Ensuring eVoice worker Python deps (pymupdf for PDF→PNG)"
+  if [[ ! -f "${req}" ]]; then
+    echo "ERROR: missing ${req}"
+    exit 1
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 required for eVoice worker"
+    exit 1
+  fi
+  if [[ ! -x "${venv}/bin/python" ]]; then
+    echo "==> Creating ${venv}"
+    python3 -m venv "${venv}"
+  fi
+  "${venv}/bin/pip" install -U pip
+  "${venv}/bin/pip" install -r "${req}"
+  if ! "${venv}/bin/python" -c "import fitz" >/dev/null 2>&1; then
+    echo "ERROR: pymupdf (fitz) failed to import in ${venv}"
+    exit 1
+  fi
+  if ! command -v pdftoppm >/dev/null 2>&1; then
+    echo "==> Installing poppler-utils (pdftoppm fallback)"
+    if command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update && sudo apt-get install -y poppler-utils || true
+    elif command -v dnf >/dev/null 2>&1; then
+      sudo dnf install -y poppler-utils || true
+    elif command -v yum >/dev/null 2>&1; then
+      sudo yum install -y poppler-utils || true
+    fi
+  fi
+  echo "==> eVoice worker python: ${venv}/bin/python"
+}
+
 # --- Backend ---
+# Always keep worker venv + systemd EVOICE_PYTHON in sync (Super Premium PDF rasterize).
+ensure_evoice_worker_deps
+
 if [[ "${DEPLOY_BACKEND}" == "1" ]]; then
   ensure_go
 
@@ -137,11 +178,10 @@ if [[ "${DEPLOY_BACKEND}" == "1" ]]; then
   install_and_restart_backend
 else
   echo "==> Skipping backend Go build (DEPLOY_BACKEND=0)"
-  # Still pick up a freshly uploaded .env without a full rebuild.
+  # Still pick up a freshly uploaded .env + EVOICE_PYTHON without a full rebuild.
   if systemctl is-active --quiet eduardoos.service 2>/dev/null; then
-    echo "==> Reloading eduardoos.service to pick up .env"
-    sudo systemctl restart eduardoos.service
-    wait_health
+    echo "==> Reloading eduardoos.service to pick up .env / EVOICE_PYTHON"
+    install_and_restart_backend
   elif [[ -x "${APP_DIR}/backend/bin/eduardoos-next" ]]; then
     echo "==> eduardoos.service inactive but binary present — installing/starting"
     install_and_restart_backend

@@ -492,6 +492,7 @@ def render_pdf_pages(path: Path, dpi: int = VISION_DPI) -> list[Path]:
     """Rasterize PDF pages to temp PNGs @ dpi. Caller must clean temp dir parent."""
     pages: list[Path] = []
     tmp = Path(tempfile.mkdtemp(prefix="evoice-vision-"))
+    log(f"VISION {path.name} pct=8 detail=rasterize_start dpi={dpi}")
     try:
         import fitz
 
@@ -506,14 +507,21 @@ def render_pdf_pages(path: Path, dpi: int = VISION_DPI) -> list[Path]:
                 pages.append(out)
         finally:
             doc.close()
+        log(
+            f"VISION {path.name} pct=15 detail=rasterize_pymupdf "
+            f"pages={len(pages)}"
+        )
         return pages
     except ImportError:
-        pass
+        log(f"VISION {path.name} detail=pymupdf_missing trying_pdftoppm")
     except Exception as exc:  # noqa: BLE001
         log(f"VISION {path.name} detail=pymupdf_failed {exc!s}")
     pdftoppm = shutil.which("pdftoppm")
     if not pdftoppm:
-        raise RuntimeError("PDF vision needs pymupdf or pdftoppm")
+        raise RuntimeError(
+            "PDF vision needs pymupdf or pdftoppm "
+            "(pip install pymupdf OR apt/dnf install poppler-utils)"
+        )
     prefix = tmp / "page"
     proc = subprocess.run(
         [pdftoppm, "-png", "-r", str(dpi), str(path), str(prefix)],
@@ -526,6 +534,10 @@ def render_pdf_pages(path: Path, dpi: int = VISION_DPI) -> list[Path]:
     found = sorted(tmp.glob("page*.png"))
     if not found:
         raise RuntimeError("pdftoppm produced no pages")
+    log(
+        f"VISION {path.name} pct=15 detail=rasterize_pdftoppm "
+        f"pages={len(found)}"
+    )
     return found
 
 
@@ -542,6 +554,12 @@ def extract_via_vision(path: Path) -> str:
             if pages:
                 tmp_dirs.append(pages[0].parent)
             total = len(pages)
+            if total == 0:
+                raise RuntimeError("PDF vision rasterize produced 0 pages")
+            log(
+                f"VISION {name} pct=18 detail=sending_pages "
+                f"pages={total} (1 image per DeepSeek Vision request)"
+            )
             for i, pg in enumerate(pages, start=1):
                 text = vision_image_to_text(pg, name, page_label=f"page={i}/{total}")
                 if text:
