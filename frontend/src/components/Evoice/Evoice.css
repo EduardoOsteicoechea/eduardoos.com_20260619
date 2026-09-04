@@ -111,22 +111,6 @@
   background: color-mix(in srgb, var(--site-surface, var(--site-body-bg)) 92%, var(--site-body-fg) 8%);
 }
 
-.evoice__section--project {
-  background: color-mix(in srgb, var(--site-accent) 8%, var(--site-body-bg));
-}
-
-.evoice__section--upload {
-  background: color-mix(in srgb, var(--site-body-fg) 5%, var(--site-body-bg));
-}
-
-.evoice__section--docs {
-  background: color-mix(in srgb, var(--site-surface, var(--site-body-bg)) 88%, var(--site-accent) 12%);
-}
-
-.evoice__section--playlists {
-  background: color-mix(in srgb, var(--site-body-fg) 3.5%, var(--site-body-bg));
-}
-
 .evoice__section-head-row {
   display: flex;
   align-items: center;
