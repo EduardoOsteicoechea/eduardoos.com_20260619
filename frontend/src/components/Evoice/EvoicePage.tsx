@@ -254,9 +254,64 @@ function CollapsibleSection({
   children: React.ReactNode;
   className?: string;
 }) {
+  const [bodyExpanded, setBodyExpanded] = useState(false);
+  const [needsMore, setNeedsMore] = useState(false);
+  const clipRef = useRef<HTMLDivElement | null>(null);
+
+  const sectionBodyMaxPx = useCallback(() => {
+    const raw =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--evoice-section-body-max")
+        .trim() || "40vh";
+    if (raw.endsWith("vh")) {
+      return (parseFloat(raw) / 100) * window.innerHeight;
+    }
+    if (raw.endsWith("rem")) {
+      const root = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      return parseFloat(raw) * root;
+    }
+    if (raw.endsWith("px")) return parseFloat(raw);
+    return window.innerHeight * 0.4;
+  }, []);
+
+  const measureOverflow = useCallback(() => {
+    const el = clipRef.current;
+    if (!el || !open) {
+      setNeedsMore(false);
+      return;
+    }
+    const full = el.scrollHeight;
+    const maxPx = sectionBodyMaxPx();
+    setNeedsMore(full > maxPx + 2);
+  }, [open, sectionBodyMaxPx]);
+
+  useEffect(() => {
+    if (!open) {
+      setBodyExpanded(false);
+      setNeedsMore(false);
+      return;
+    }
+    const el = clipRef.current;
+    if (!el) return;
+    const run = () => {
+      requestAnimationFrame(measureOverflow);
+    };
+    run();
+    const ro = new ResizeObserver(run);
+    ro.observe(el);
+    for (const child of Array.from(el.children)) {
+      ro.observe(child);
+    }
+    window.addEventListener("resize", run);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", run);
+    };
+  }, [open, children, measureOverflow]);
+
   return (
     <section
-      className={`evoice__section${className ? ` ${className}` : ""}${open ? " evoice__section--open" : " evoice__section--closed"}`}
+      className={`evoice__section${className ? ` ${className}` : ""}${open ? " evoice__section--open" : " evoice__section--closed"}${bodyExpanded ? " evoice__section--body-expanded" : ""}`}
     >
       <button
         type="button"
@@ -275,7 +330,27 @@ function CollapsibleSection({
       </button>
       {open ? (
         <div id={`${id}-body`} className="evoice__section-body">
-          {children}
+          <div
+            ref={clipRef}
+            className={
+              bodyExpanded
+                ? "evoice__section-clip evoice__section-clip--expanded"
+                : "evoice__section-clip"
+            }
+          >
+            {children}
+          </div>
+          {needsMore ? (
+            <div className="evoice__section-more">
+              <button
+                type="button"
+                className="btn evoice__section-more-btn"
+                onClick={() => setBodyExpanded((v) => !v)}
+              >
+                {bodyExpanded ? "Show less" : "Show more"}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>
@@ -399,7 +474,6 @@ function EvoiceWorkspace() {
   const [playlistsOpen, setPlaylistsOpen] = useState(true);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
-  const [expandedHeight, setExpandedHeight] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [steps, setSteps] = useState<EvoiceJobStep[]>([]);
   const [fileProgress, setFileProgress] = useState<EvoiceJobFile[]>([]);
@@ -1226,13 +1300,7 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
         </div>
       ) : null}
 
-      <div
-        className={
-          expandedHeight
-            ? "evoice__sections evoice__sections--expanded"
-            : "evoice__sections"
-        }
-      >
+      <div className="evoice__sections">
         <CollapsibleSection
           id="evoice-project"
           title="Project"
@@ -1780,16 +1848,6 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
             </CollapsibleSection>
           </>
         ) : null}
-      </div>
-
-      <div className="evoice__expand-row">
-        <button
-          type="button"
-          className="btn"
-          onClick={() => setExpandedHeight((v) => !v)}
-        >
-          {expandedHeight ? "Collapse workspace" : "Show more"}
-        </button>
       </div>
     </div>
   );

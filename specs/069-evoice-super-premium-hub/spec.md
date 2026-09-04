@@ -92,9 +92,7 @@ Naming:
 3. **Documents** — list; action bar: icon-only **Generate** (left), **Print** (middle), **Delete** (right, red icon); **Quality** slider (Standard → Premium → Super Premium); **Content %** slider (100/75/50/25/10/5). Console toggleable to the right.
 4. **Playlists** — nested structure (document → version/Legacy → tracks).
 
-Viewport: sections area ≈ **80vh**, `overflow-y: auto`; **Show more** expands to full content height.
-
-Label: generate mode control is named **Quality** (not “Mode”).
+Viewport: each section body has a max height; if content overflows, that section alone shows **Show more** / **Show less**. No global workspace expand control.
 
 #### Playlist nesting & playback (locked)
 

@@ -9,6 +9,7 @@
   margin: 0;
   padding: 0;
   color: var(--site-body-fg);
+  --evoice-section-body-max: 40vh;
 }
 
 .evoice__toolbar {
@@ -68,25 +69,39 @@
   min-width: 5rem;
 }
 
-/* Scrollable workspace column */
+/* Stack of sections — page scrolls; each section clips itself */
 .evoice__sections {
   display: grid;
   gap: 0.75rem;
-  max-height: 80vh;
-  overflow-y: auto;
-  margin-bottom: 0.65rem;
-  padding-right: 0.15rem;
+  margin-bottom: 1rem;
 }
 
-.evoice__sections--expanded {
+.evoice__section-body {
+  padding: 0 0.85rem 0.65rem;
+}
+
+.evoice__section--closed .evoice__section-body {
+  display: none;
+}
+
+.evoice__section-clip {
+  max-height: var(--evoice-section-body-max, 40vh);
+  overflow: hidden;
+}
+
+.evoice__section-clip--expanded {
   max-height: none;
-  overflow-y: visible;
+  overflow: visible;
 }
 
-.evoice__expand-row {
+.evoice__section-more {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 1rem;
+  padding-top: 0.45rem;
+}
+
+.evoice__section-more-btn {
+  font-size: 0.85rem;
 }
 
 /* Collapsible sections */
@@ -146,14 +161,6 @@
 
 .evoice__section--closed .evoice__chevron {
   transform: rotate(-90deg);
-}
-
-.evoice__section-body {
-  padding: 0 0.85rem 0.9rem;
-}
-
-.evoice__section--closed .evoice__section-body {
-  display: none;
 }
 
 /* Upload row */
