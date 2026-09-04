@@ -2,7 +2,7 @@
 
 ## Status
 
-**Draft** — waiting on locked decisions below. Do not implement until questions are answered.
+**Mostly locked** (2026-09-04) — one open item: **HDS / header icons** (Q8). Do not implement until Q8 is answered.
 
 ## Problem
 
@@ -10,115 +10,160 @@
 2. Users want optional **length control** (summarize to a % of original word count) before TTS.
 3. The eVoice hub still uses the ProductDashboard card/views model; the product needs a single-page, **collapsible-section** workspace instead.
 
-## Goals (proposed — lock via questions)
+## Locked decisions
 
-### A. Super Premium modality (off by default)
+| # | Decision |
+|---|----------|
+| 1 | Mode UX: mutually exclusive radios **`Standard` \| `Premium` \| `Super Premium`**. Default = **Standard** (Super Premium off by default). |
+| 2 | **Content %** applies to **all** generate modes. |
+| 3 | **Super Premium** only for **PDF, images, and `.docx`**. Not for plain `.txt` (those use Standard/Premium only). |
+| 4 | Vision: **1 page per API request** (reliability over batching). |
+| 5 | Page render DPI for Vision: **200**. |
+| 6–7 | Playback selection rules — see Playlist below. |
+| 9 | All three sections **open** by default; workspace column max **80vh**, `overflow-y: auto`, with a **Show more** control that expands height to fit the playlist / content. |
+| 10 | **Delete doc does not delete audio** (and vice versa). Docs and audios are independent. |
+| 11 | Pre-version MP3s appear under a **Legacy** bucket (not auto-renamed to `v1`). |
+| 12 | Extend existing generate job API (see API). |
 
-New generate mode **Super Premium**, default **disabled** (unchecked / not selected).
+### Super Premium pipeline (PDF / images)
 
-Pipeline (API reality: DeepSeek has no PDF endpoint):
+1. Rasterize each page @ **200 DPI** → PNG/JPEG (Python; DeepSeek has no PDF endpoint).
+2. **DeepSeek Vision** (`deepseek-v4-flash-vision-exp`): **one page image per request** → page text.
+3. Concatenate → `docs/{stem}.v{N}.vision.txt` (or equivalent sidecar).
+4. DeepSeek **text** pass: format for TTS + content-% rule → chapters when Premium-style chapters apply → `docs/{stem}.v{N}.premium.txt`.
+5. Piper / espeak → ffmpeg → versioned MP3s.
 
-1. Worker still rasterizes PDF/image pages → PNG/JPEG (Python).
-2. **DeepSeek Vision** (`deepseek-v4-flash-vision-exp`) extracts text per page (or batched pages).
-3. Result is concatenated into a full transcript sidecar (e.g. `docs/{stem}.vision.txt`).
-4. Second DeepSeek **text** pass formats for TTS (existing chapter markers when chapters apply), optionally applying the **content %** rule (below).
-5. Piper / espeak → ffmpeg → MP3 as today (with versioning — below).
+### Super Premium for `.docx`
 
-When Super Premium is off, existing Standard / Premium behavior remains.
+No Vision (no page images). Extract text via python-docx, then same DeepSeek format/summarize pass + TTS + versioning. (If this is wrong and docx should be refused for Super, say so.)
 
-**Applies to:** PDF + image modalities at minimum. Plain `.txt` / `.docx` may skip Vision and only run the format/summarize pass (TBD in questions).
+### Content % (all modes)
 
-### B. Content length slider (Documents section)
+Discrete control: **100% / 75% / 50% / 25% / 10% / 5%**. Default **100%**.
 
-In the documents / generate controls area, a discrete slider (or stepped control):
+| Value | Behavior |
+|-------|----------|
+| **100%** | Do not ask to shorten. Faithful full text / spoken script. |
+| **75–5%** | DeepSeek must synthesize to about that **% of original word count**. |
 
-| Value | Prompt behavior |
-|-------|-----------------|
-| **100%** | Do **not** ask to shorten. Prompt asks for faithful full text / spoken script only. |
-| **75% / 50% / 25% / 10% / 5%** | Instruct DeepSeek to synthesize so output is about that **percentage of the original word count**. |
+Implications:
 
-Default: **100%**.
+- **Standard + 100%**: extract → TTS (no DeepSeek), same spirit as today.
+- **Standard + &lt;100%**: extract → DeepSeek summarize-only (no chapter requirement unless we keep chapters — **use chapter markers whenever DeepSeek runs**, for playlist consistency) → TTS.
+- **Premium / Super**: DeepSeek format (+ summarize if &lt;100%) → chapters → TTS.
 
-Slider is visible in the documents section (with generate actions). Exact coupling to Standard vs Premium vs Super Premium — see questions.
+### Audio versioning
 
-### C. Audio versioning on regenerate
+Each successful generate for a stem creates **`v{N+1}`** (N starts at 1 for first versioned generate). Does not overwrite prior versions.
 
-Generate / Regenerate does **not** overwrite blindly in a way that loses history. Each successful generate for a stem produces a new **version** `v1`, `v2`, `v3`, … indefinitely.
+Naming:
 
-Proposed S3 naming (TBD lock):
+- Mono: `audios/{stem}.v{N}.mp3`
+- Chapters: `audios/{stem}.v{N}.c{NN}-{slug}.mp3`
+- Sidecars: `docs/{stem}.v{N}.vision.txt`, `docs/{stem}.v{N}.premium.txt` as applicable
 
-- Chapters under a version: `audios/{stem}.v{N}.c{NN}-{slug}.mp3`
-- Mono (non-chapter): `audios/{stem}.v{N}.mp3`
-- Optional sidecar: `docs/{stem}.v{N}.premium.txt` / `.vision.txt`
+**Legacy** (no `.vN.` in name): `audios/{stem}.mp3`, `audios/{stem}.c*.mp3` — listed under playlist bucket **Legacy**, not migrated.
 
-Legacy `audios/{stem}.mp3` and `audios/{stem}.c*.mp3` remain readable; first Super/versioned generate may treat them as `v1` or leave as “unversioned” (TBD).
+### UI — three collapsible sections (no dashboard cards)
 
-### D. UI: leave dashboard model — one page, three collapsible sections
+Primary eVoice page is **not** ProductDashboard card grid. One workspace with independent collapsible sections:
 
-Remove reliance on dashboard cards / multi-`?view=` tool switching for the main workspace (HDS may shrink or only keep Admin / Crawl / Print if still needed — TBD).
+1. **Upload controls** — upload, paste, project chrome, mode radios, content % (also mirrored or primary in docs action bar — prefer **docs action bar** for % + mode + generate; Upload keeps file/paste only unless we co-locate — **lock: mode radios + content % live in section 2 action bar**; Upload section = files/paste/project only).
+2. **Uploaded documents** — list; below list after selection: **Delete**, **Generate MP3** (always next version). Console **toggleable to the right**.
+3. **Playlists** — nested structure below.
 
-Single scrollable page with **collapsible sections** (accordion or independent collapses):
+Viewport: sections area ≈ **80vh**, `overflow-y: auto`; **Show more** expands to full playlist height.
 
-#### 1. Upload controls
-- File upload, paste text, project picker chrome as needed, Premium / Super Premium toggles (placement TBD), crawl entry if kept here or elsewhere.
+#### Playlist nesting & playback (locked)
 
-#### 2. Uploaded documents list + action bar + console
-- List of uploaded source docs.
-- **After selection:** action bar **below** the list: Delete, Generate MP3 (regenerate creates next version).
-- **Console** toggleable **to the right** of this section (progress / job logs), not a separate dashboard view.
+```
+[ Global transport: play all effective selection / pause / stop / prev / next ]
 
-#### 3. Playlists (nested)
-- **Top controls:** play / pause / stop / prev / next for the **full playlist** (all document subsections in order).
-- Grouped by **document** (subsection).
-  - Per document subsection: controls at the **top** of that group (play that document’s audios).
-  - Under each document: **version** sub-subsections (`v1`, `v2`, …).
-  - Under each version: chapter/track rows with checkbox.
-- Playback rules:
-  - If one or more tracks **checked** → play only the selected track(s).
-  - If **none** selected in a document subsection → play the whole document subsection (all versions? or latest version only? — TBD).
-  - Top bar plays the full ordered playlist across documents.
+Document A
+  [ Document transport ]
+  Version v1
+    [ Version transport ]
+    ☐ track…
+  Version v2
+    …
+  Legacy
+    ☐ track…
 
-### Non-goals (proposed)
+Document B
+  …
+```
 
-- DeepSeek native PDF upload (does not exist on API).
-- Real-time mic STT (spec 054 remains separate).
-- Changing Music admin upload paths.
-- Keeping the old card dashboard as the primary eVoice UX.
+Selection / play rules:
 
-## Acceptance (draft — finalize after locks)
+- Checkboxes on **individual audio tracks**.
+- If **any** tracks are checked **anywhere** in scope → that scope’s Play (version / document / global) plays **only the checked tracks** (in list order).
+- If **no** tracks checked under a **version** and that version’s Play is used → play all tracks in that version.
+- If **no** tracks checked under a **document** and that document’s Play is used → play **all** tracks in **all** versions + Legacy under that document (in order: Legacy first or versions asc then Legacy — **Legacy last**, versions ascending).
+- Global Play with no checks → all documents, versions asc, Legacy last, chapters by name.
+- Global / document / version Play with checks → **only checked tracks** (even if they span multiple versions/docs for global).
 
-- [ ] Super Premium toggle exists, **default off**
-- [ ] Super Premium path: rasterize → Vision extract → format/summarize → TTS → upload versioned MP3s
-- [ ] Content % control: 100 / 75 / 50 / 25 / 10 / 5 with prompt rules above
-- [ ] Regenerate creates `vN+1` without deleting prior versions (unless user deletes)
-- [ ] Hub is collapsible sections (Upload / Docs+console / Playlists nested), not ProductDashboard cards
-- [ ] Playlist: full-bar + per-document controls + checkbox selection behavior
+### Delete independence (locked)
+
+- Delete **document** → removes source doc object(s) only; audios remain.
+- Delete **audio** (track / version bulk if UI offers) → removes audio only; doc remains.
+
+### API (existing — extend, not invent)
+
+eVoice **already** has `/api/evoice/*` including:
+
+`POST /api/evoice/projects/{ownerSafe}/{project}/generate`
+
+Extend generate body with:
+
+```json
+{
+  "files": ["a.pdf"],
+  "mode": "standard" | "premium" | "super_premium",
+  "contentPercent": 100 | 75 | 50 | 25 | 10 | 5
+}
+```
+
+Deprecate/replace boolean `premium` with `mode` (accept legacy `premium: true` as `mode: "premium"` during transition).
+
+Job snapshot stores `mode` + `contentPercent` for resume.
+
+## Open — Q8 HDS (needs your call)
+
+**What “HDS” means:** the **Header Dynamic Section** — the icon buttons in the site header (today: Dashboard, Admin, Upload, Docs, Audios, Playlist, Print, Crawl) that switch `?view=`.
+
+Because the main workspace becomes **one page with three sections**, the old view icons (Dashboard / Upload / Docs / Audios / Playlist) are redundant.
+
+**Choose one:**
+
+- **(A)** Remove those view icons; **no HDS** on eVoice except maybe nothing.
+- **(B)** Keep **Admin** (admin only), **Crawl**, **Print** as HDS icons that scroll/expand a dedicated subsection or small panel.
+- **(C)** Keep Admin only in HDS; put Crawl/Print inside Upload or Docs as secondary actions.
+
+## Non-goals
+
+- DeepSeek native PDF upload (does not exist).
+- Spec 054 STT / audio upload.
+- Music admin upload paths.
+- ProductDashboard cards as primary eVoice UX.
+
+## Acceptance (after Q8)
+
+- [ ] Radios Standard / Premium / Super Premium; default Standard
+- [ ] Super: PDF/images Vision@200dpi 1-page/req → format/% → TTS → `vN`; docx Super without Vision
+- [ ] Content % on all modes; 100% = no shorten instruction
+- [ ] Versioned MP3s; Legacy bucket for old names
+- [ ] Collapsible Upload / Docs+console / Playlists; 80vh + Show more
+- [ ] Playback selection rules as locked
+- [ ] Delete doc ≠ delete audio
+- [ ] Generate API `mode` + `contentPercent`
+- [ ] Q8 HDS choice implemented
 - [ ] Tests + FE build + commit/push
 
-## Affected paths (expected)
+## Affected paths
 
 - `specs/069-evoice-super-premium-hub/spec.md`
+- `specs/044-evoice/spec.md` (amend UI / premium)
 - `frontend/src/components/Evoice/**`
 - `frontend/src/lib/evoice.ts`
 - `backend/internal/evoice/**`
 - `backend/internal/evoice/worker/linux_sync.py`
-- Possibly `specs/044-evoice/spec.md` (amend / supersede UI + premium sections)
-
-## Open questions (must lock before Phase 1/2)
-
-1. **Mode control UX** — mutually exclusive radios `Standard | Premium | Super Premium`, or Premium checkbox + separate Super Premium checkbox (Super implies Premium)?
-2. **Content % applies when?** (A) Super Premium only (B) Premium + Super (C) all generate modes including Standard (Standard would need a DeepSeek pass just for summarize — confirm)
-3. **Super Premium for `.txt` / `.docx`?** Skip Vision and only run summarize/format, or hide Super for those types?
-4. **Vision batching** — one page per API call vs multiple images per request (max 600 images/request; cost/quality tradeoff)? Recommended: small batches (e.g. 5–10) or 1/page for reliability.
-5. **Page render DPI** for Vision — 150 (current OCR), 200, or 300?
-6. **Playlist “none selected”** — play all versions of that document, or **latest version only**?
-7. **Full playlist order** — by doc name, then version asc, then chapter; or latest version only per doc in the global bar?
-8. **HDS / `?view=`** — remove dashboard + docs/audios/playlists views entirely, or keep Admin / Crawl / Print as HDS icons only?
-9. **Default open sections** — all three expanded, or only Upload + Docs open and Playlists collapsed?
-10. **Delete behavior** — delete doc deletes all versions of its audio? Delete version? Delete single chapter?
-11. **Legacy audios** — map existing `stem.mp3` / `stem.c*.mp3` into playlist as `v1` (unlabeled) or a bucket “Legacy”?
-12. **Job API** — extend `POST .../generate` with `superPremium: bool` and `contentPercent: 100|75|50|25|10|5`?
-
-## Dependency note
-
-Spec 054 (audio upload + STT) stays separate and unimplemented until its own locks. This feature does not require 054.
