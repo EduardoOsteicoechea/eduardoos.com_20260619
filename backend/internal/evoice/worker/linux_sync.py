@@ -62,6 +62,9 @@ VISION_PAGE_PROMPT = (
 # Below this, treat PDF text-layer as sparse and fall back to page OCR.
 PDF_TEXT_MIN_CHARS = 40
 VISION_DPI = 200
+# JPEG keeps Vision payloads smaller than PNG and reduces OOM risk on long PDFs.
+VISION_JPEG_QUALITY = 85
+VISION_CHECKPOINT_EVERY = 5
 VERSION_AUDIO_RE = re.compile(
     r"^(?P<stem>.+)\.v(?P<ver>\d+)(?:\.c\d+-.*)?\.mp3$",
     re.IGNORECASE,
@@ -437,14 +440,19 @@ def vision_image_to_text(image_path: Path, name: str, page_label: str = "") -> s
     tag = f"{name}{(' ' + page_label) if page_label else ''}"
     log(f"VISION {tag} pct=10 detail=encode")
     import base64
+    import gc
 
     raw = image_path.read_bytes()
     b64 = base64.standard_b64encode(raw).decode("ascii")
-    mime = "image/png"
-    if image_path.suffix.lower() in {".jpg", ".jpeg"}:
-        mime = "image/jpeg"
-    elif image_path.suffix.lower() == ".webp":
+    del raw
+    mime = "image/jpeg"
+    suf = image_path.suffix.lower()
+    if suf == ".png":
+        mime = "image/png"
+    elif suf == ".webp":
         mime = "image/webp"
+    elif suf in {".jpg", ".jpeg"}:
+        mime = "image/jpeg"
     payload = {
         "model": model,
         "messages": [
@@ -462,15 +470,20 @@ def vision_image_to_text(image_path: Path, name: str, page_label: str = "") -> s
         "temperature": 0.1,
         "stream": False,
     }
+    # Drop b64 string once embedded so we do not keep two giant copies.
+    del b64
+    body_bytes = json.dumps(payload).encode("utf-8")
+    del payload
     req = urllib.request.Request(
         f"{base}/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
+        data=body_bytes,
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {key}",
         },
         method="POST",
     )
+    del body_bytes
     log(f"VISION {tag} pct=40 detail=request model={model}")
     try:
         with urllib.request.urlopen(req, timeout=180) as resp:
@@ -484,98 +497,213 @@ def vision_image_to_text(image_path: Path, name: str, page_label: str = "") -> s
         .get("content", "")
         or ""
     ).strip()
+    del body
+    gc.collect()
     log(f"VISION {tag} pct=100 detail=chars={len(text)}")
     return text
 
 
-def render_pdf_pages(path: Path, dpi: int = VISION_DPI) -> list[Path]:
-    """Rasterize PDF pages to temp PNGs @ dpi. Caller must clean temp dir parent."""
-    pages: list[Path] = []
-    tmp = Path(tempfile.mkdtemp(prefix="evoice-vision-"))
-    log(f"VISION {path.name} pct=8 detail=rasterize_start dpi={dpi}")
-    try:
-        import fitz
+def _render_one_pdf_page_pymupdf(
+    doc: object,
+    page_index: int,
+    out_path: Path,
+    dpi: int,
+) -> None:
+    """Render a single 0-based page to JPEG and free the pixmap immediately."""
+    import fitz
 
-        doc = fitz.open(str(path))
+    zoom = dpi / 72.0
+    mat = fitz.Matrix(zoom, zoom)
+    pix = doc.load_page(page_index).get_pixmap(matrix=mat, alpha=False)
+    try:
         try:
-            zoom = dpi / 72.0
-            mat = fitz.Matrix(zoom, zoom)
-            for i in range(doc.page_count):
-                pix = doc.load_page(i).get_pixmap(matrix=mat, alpha=False)
-                out = tmp / f"page-{i + 1:04d}.png"
-                pix.save(str(out))
-                pages.append(out)
-        finally:
-            doc.close()
-        log(
-            f"VISION {path.name} pct=15 detail=rasterize_pymupdf "
-            f"pages={len(pages)}"
-        )
-        return pages
-    except ImportError:
-        log(f"VISION {path.name} detail=pymupdf_missing trying_pdftoppm")
-    except Exception as exc:  # noqa: BLE001
-        log(f"VISION {path.name} detail=pymupdf_failed {exc!s}")
+            pix.save(str(out_path), jpg_quality=VISION_JPEG_QUALITY)
+        except TypeError:
+            # Older PyMuPDF: format inferred from .jpg extension
+            pix.save(str(out_path))
+    finally:
+        del pix
+        try:
+            fitz.TOOLS.store_shrink(100)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _render_one_pdf_page_pdftoppm(
+    pdf_path: Path,
+    page_num: int,
+    out_path: Path,
+    dpi: int,
+) -> None:
+    """Render one 1-based page via pdftoppm (JPEG)."""
     pdftoppm = shutil.which("pdftoppm")
     if not pdftoppm:
         raise RuntimeError(
             "PDF vision needs pymupdf or pdftoppm "
             "(pip install pymupdf OR apt/dnf install poppler-utils)"
         )
-    prefix = tmp / "page"
+    prefix = out_path.parent / f"page-{page_num:04d}"
     proc = subprocess.run(
-        [pdftoppm, "-png", "-r", str(dpi), str(path), str(prefix)],
+        [
+            pdftoppm,
+            "-jpeg",
+            "-r",
+            str(dpi),
+            "-f",
+            str(page_num),
+            "-l",
+            str(page_num),
+            "-singlefile",
+            str(pdf_path),
+            str(prefix),
+        ],
         capture_output=True,
         check=False,
     )
     if proc.returncode != 0:
         err = proc.stderr.decode("utf-8", errors="replace")[:300]
         raise RuntimeError(f"pdftoppm failed: {err}")
-    found = sorted(tmp.glob("page*.png"))
-    if not found:
-        raise RuntimeError("pdftoppm produced no pages")
-    log(
-        f"VISION {path.name} pct=15 detail=rasterize_pdftoppm "
-        f"pages={len(found)}"
-    )
-    return found
+    produced = prefix.with_suffix(".jpg")
+    if not produced.is_file():
+        # some builds omit -singlefile naming; glob once
+        found = sorted(out_path.parent.glob(f"page-{page_num:04d}*.jpg"))
+        if not found:
+            raise RuntimeError(f"pdftoppm produced no page {page_num}")
+        produced = found[0]
+    if produced.resolve() != out_path.resolve():
+        produced.replace(out_path)
 
 
-def extract_via_vision(path: Path) -> str:
-    """Super Premium extract: PDF/images → Vision one page at a time."""
+def extract_via_vision(
+    path: Path,
+    *,
+    checkpoint_path: Path | None = None,
+) -> str:
+    """Super Premium extract: stream page → Vision → delete (never hold all pages)."""
+    import gc
+
     name = path.name
     ext = path.suffix.lower()
     log(f"VISION {name} pct=5 detail=start ext={ext}")
     parts: list[str] = []
-    tmp_dirs: list[Path] = []
+    tmp = Path(tempfile.mkdtemp(prefix="evoice-vision-"))
     try:
         if ext == ".pdf":
-            pages = render_pdf_pages(path, VISION_DPI)
-            if pages:
-                tmp_dirs.append(pages[0].parent)
-            total = len(pages)
-            if total == 0:
-                raise RuntimeError("PDF vision rasterize produced 0 pages")
+            log(f"VISION {name} pct=8 detail=rasterize_stream dpi={VISION_DPI}")
+            use_pymupdf = False
+            fitz_doc = None
+            try:
+                import fitz
+
+                fitz_doc = fitz.open(str(path))
+                total = int(fitz_doc.page_count)
+                use_pymupdf = True
+            except ImportError:
+                log(f"VISION {name} detail=pymupdf_missing trying_pdftoppm")
+                # page count via pdfinfo if available; else probe with pdftoppm
+                total = _pdf_page_count_fallback(path)
+            except Exception as exc:  # noqa: BLE001
+                log(f"VISION {name} detail=pymupdf_failed {exc!s}; trying_pdftoppm")
+                if fitz_doc is not None:
+                    try:
+                        fitz_doc.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    fitz_doc = None
+                total = _pdf_page_count_fallback(path)
+                use_pymupdf = False
+
+            if total <= 0:
+                raise RuntimeError("PDF vision: could not determine page count")
             log(
-                f"VISION {name} pct=18 detail=sending_pages "
-                f"pages={total} (1 image per DeepSeek Vision request)"
+                f"VISION {name} pct=15 detail=stream_pages "
+                f"pages={total} engine={'pymupdf' if use_pymupdf else 'pdftoppm'} "
+                f"(1 page on disk at a time)"
             )
-            for i, pg in enumerate(pages, start=1):
-                text = vision_image_to_text(pg, name, page_label=f"page={i}/{total}")
-                if text:
-                    parts.append(text)
+            try:
+                for i in range(1, total + 1):
+                    page_file = tmp / f"page-{i:04d}.jpg"
+                    try:
+                        if use_pymupdf and fitz_doc is not None:
+                            _render_one_pdf_page_pymupdf(
+                                fitz_doc, i - 1, page_file, VISION_DPI
+                            )
+                        else:
+                            _render_one_pdf_page_pdftoppm(
+                                path, i, page_file, VISION_DPI
+                            )
+                        text = vision_image_to_text(
+                            page_file, name, page_label=f"page={i}/{total}"
+                        )
+                        if text:
+                            parts.append(text)
+                    finally:
+                        try:
+                            page_file.unlink(missing_ok=True)
+                        except TypeError:
+                            # py<3.8 compat — not expected on EC2
+                            if page_file.exists():
+                                page_file.unlink()
+                        # clear any leftover pdftoppm siblings
+                        for leftover in tmp.glob(f"page-{i:04d}*"):
+                            try:
+                                leftover.unlink()
+                            except OSError:
+                                pass
+                    if checkpoint_path is not None and (
+                        i % VISION_CHECKPOINT_EVERY == 0 or i == total
+                    ):
+                        checkpoint_path.write_text(
+                            "\n\n".join(parts), encoding="utf-8"
+                        )
+                        log(
+                            f"VISION {name} detail=checkpoint "
+                            f"pages={i}/{total} chars={sum(len(p) for p in parts)}"
+                        )
+                    if i % 5 == 0:
+                        gc.collect()
+            finally:
+                if fitz_doc is not None:
+                    fitz_doc.close()
         elif ext in IMAGE_EXTENSIONS:
             text = vision_image_to_text(path, name)
             if text:
                 parts.append(text)
+            if checkpoint_path is not None and parts:
+                checkpoint_path.write_text("\n\n".join(parts), encoding="utf-8")
         else:
             raise ValueError(f"vision unsupported: {ext}")
     finally:
-        for d in tmp_dirs:
-            shutil.rmtree(d, ignore_errors=True)
+        shutil.rmtree(tmp, ignore_errors=True)
+        gc.collect()
     joined = "\n\n".join(parts)
+    if checkpoint_path is not None:
+        checkpoint_path.write_text(joined, encoding="utf-8")
     log(f"VISION {name} pct=100 detail=chars={len(joined)}")
     return joined
+
+
+def _pdf_page_count_fallback(path: Path) -> int:
+    """Best-effort page count when PyMuPDF is unavailable."""
+    pdfinfo = shutil.which("pdfinfo")
+    if pdfinfo:
+        proc = subprocess.run(
+            [pdfinfo, str(path)], capture_output=True, check=False, text=True
+        )
+        if proc.returncode == 0:
+            for line in (proc.stdout or "").splitlines():
+                if line.lower().startswith("pages:"):
+                    try:
+                        return int(line.split(":", 1)[1].strip())
+                    except ValueError:
+                        break
+    # Last resort: pypdf
+    try:
+        from pypdf import PdfReader
+
+        return len(PdfReader(str(path)).pages)
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"PDF page count failed: {exc}") from exc
 
 
 def super_allowed(path: Path) -> bool:
@@ -761,9 +889,8 @@ def sync_project(
                 if doc.suffix.lower() == ".docx":
                     text = load_doc_text(doc)
                 else:
-                    text = extract_via_vision(doc)
                     vision_path = docs_dir / f"{stem}.v{ver}.vision.txt"
-                    vision_path.write_text(text, encoding="utf-8")
+                    text = extract_via_vision(doc, checkpoint_path=vision_path)
                     log(f"VISION {doc.name} detail=wrote {vision_path.name}")
             else:
                 text = load_doc_text(doc)

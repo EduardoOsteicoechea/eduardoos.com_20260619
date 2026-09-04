@@ -41,11 +41,13 @@
 
 ### Super Premium pipeline (PDF / images)
 
-1. Rasterize each page @ **200 DPI** → PNG/JPEG (Python; DeepSeek has no PDF endpoint).
+1. Rasterize each page @ **200 DPI** → JPEG (preferred) / PNG (Python; DeepSeek has no PDF endpoint).
 2. **DeepSeek Vision** (`deepseek-v4-flash-vision-exp`): **one page image per request** → page text.
 3. Concatenate → `docs/{stem}.v{N}.vision.txt` (or equivalent sidecar).
 4. DeepSeek **text** pass: format for TTS + content-% rule → chapters when Premium-style chapters apply → `docs/{stem}.v{N}.premium.txt`.
 5. Piper / espeak → ffmpeg → versioned MP3s.
+
+**Memory (locked):** Never rasterize the whole PDF into page images up front. For each page: render **one** image → Vision request → **delete** that image before the next page. Holding all pages (e.g. 200+ @ 200 DPI) OOMs small EC2 hosts (`signal: killed`). Flush partial `vision.txt` to disk every few pages so progress is visible / recoverable on local job dir.
 
 ### Super Premium for `.docx`
 
