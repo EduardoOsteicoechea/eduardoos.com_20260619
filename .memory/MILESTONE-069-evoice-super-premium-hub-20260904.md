@@ -7,5 +7,6 @@
 - Content % slider: left 5% → right 100%
 - EC2: worker `.venv` + `pymupdf` via deploy; systemd `EVOICE_PYTHON`; `VISION pct=N` is progress not content%
 - Vision memory: stream 1 page (JPEG) → Vision → delete; never rasterize whole PDF up front (avoids `signal: killed` OOM on long books)
+- Persist: convert timeout super=6h (was 15m); upload new MP3s+sidecars using before-convert snapshots; partial upload on fail/stop
 
 Spec: `specs/069-evoice-super-premium-hub/spec.md`

@@ -9,6 +9,7 @@
 - [x] Radios Standard / Premium / Super Premium; default Standard
 - [x] Super: PDF/images Vision@200dpi 1-page/req → format/% → TTS → `vN`; docx Super without Vision
 - [x] Vision streams one page image at a time (no full-PDF rasterize; avoids EC2 OOM `signal: killed`)
+- [x] Convert timeouts: standard 45m / premium 2h / super 6h (`EVOICE_JOB_TIMEOUT`); upload new MP3s+sidecars even on partial convert failure
 - [x] Content % on all modes; 100% = no shorten instruction
 - [x] Versioned MP3s; Legacy bucket for old names
 - [x] Collapsible Upload / Docs+console / Playlists; 80vh + Show more
@@ -49,6 +50,23 @@
 5. Piper / espeak → ffmpeg → versioned MP3s.
 
 **Memory (locked):** Never rasterize the whole PDF into page images up front. For each page: render **one** image → Vision request → **delete** that image before the next page. Holding all pages (e.g. 200+ @ 200 DPI) OOMs small EC2 hosts (`signal: killed`). Flush partial `vision.txt` to disk every few pages so progress is visible / recoverable on local job dir.
+
+### Job timeout + persist (locked)
+
+Convert (Python worker) used to hard-cap at **15 minutes**. That kills long Super Premium runs mid-Vision (`signal: killed` / deadline) **before** the S3 upload step — so the console can look “almost done” while **no audios** (and often no sidecars) land in the project.
+
+| Mode | Default convert timeout |
+|------|-------------------------|
+| `standard` | 45m |
+| `premium` | 2h |
+| `super_premium` | **6h** |
+
+Override with env `EVOICE_JOB_TIMEOUT` (Go duration, e.g. `8h`).
+
+**Upload rules:**
+- Snapshot local `audios/` and sidecar names **before** convert; upload only **new** files after convert.
+- Always run the upload pass for any new MP3s / `.vision.txt` / `.premium.txt` even when convert errors (partial save), then mark the job failed/partial as appropriate.
+- Do not wipe workdir until after that upload attempt.
 
 ### Super Premium for `.docx`
 
@@ -175,6 +193,7 @@ Job snapshot stores `mode` + `contentPercent` for resume.
 
 - [x] Radios Standard / Premium / Super Premium; default Standard
 - [x] Super: PDF/images Vision@200dpi 1-page/req → format/% → TTS → `vN`; docx Super without Vision
+- [x] Convert timeouts: standard 45m / premium 2h / super 6h (`EVOICE_JOB_TIMEOUT`); upload new MP3s+sidecars even on partial convert failure
 - [x] Content % on all modes; 100% = no shorten instruction
 - [x] Versioned MP3s; Legacy bucket for old names
 - [x] Collapsible Upload / Docs+console / Playlists; 80vh + Show more

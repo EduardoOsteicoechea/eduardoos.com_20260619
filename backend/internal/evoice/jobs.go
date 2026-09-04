@@ -885,7 +885,9 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	}
 	s.activateStep(ctx, objects, id, convertStep, cid)
 	s.appendLog(ctx, objects, id, "convert: starting TTS worker", cid)
-	jobCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+	timeout := convertJobTimeout(opts)
+	s.appendLog(ctx, objects, id, "convert: timeout="+timeout.String()+" mode="+opts.Mode, cid)
+	jobCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	docTotal := len(targets)
@@ -894,12 +896,15 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 	}
 	docDone := 0
 	beforeAudios := listMP3Names(audiosDir)
+	beforeDocs := listSidecarNames(docsDir)
 	stats, err := s.runner.Run(jobCtx, projectDir, onlyFiles, opts, func(line string) {
 		s.appendLog(ctx, objects, id, line, cid)
 		s.applyConvertLogLine(ctx, objects, id, line, &docDone, docTotal, cid, premium)
 	})
 	if ctx.Err() != nil {
 		s.appendLog(ctx, objects, id, "stopped: cancelled", cid)
+		// Still try to persist any MP3s / sidecars produced before stop.
+		_ = s.uploadNewOutputs(ctx, objects, id, ownerSafe, project, audiosDir, docsDir, beforeAudios, beforeDocs, onlyFiles, targets, cid)
 		s.mu.Lock()
 		if j, ok := s.jobs[id]; ok && j.State != "stopped" {
 			j.State = "stopped"
@@ -910,15 +915,22 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 		s.persistSnapshot(ctx, objects, id, cid)
 		return
 	}
-	usable := stats.Generated+stats.Skipped > 0 || countMP3(audiosDir) > 0
-	if err != nil && !usable {
-		s.appendLog(ctx, objects, id, "runner error: "+err.Error(), cid)
-		s.failStep(ctx, objects, id, convertStep, err.Error(), cid)
-		s.setState(ctx, objects, id, "failed", err.Error(), cid, &stats)
-		s.clearCancel(id)
-		return
+	if jobCtx.Err() == context.DeadlineExceeded {
+		s.appendLog(ctx, objects, id, "runner warning: convert timeout after "+timeout.String()+" (uploading any partial outputs)", cid)
 	}
+	usable := stats.Generated+stats.Skipped > 0 || len(listMP3NamesExcept(audiosDir, beforeAudios)) > 0
 	if err != nil {
+		s.appendLog(ctx, objects, id, "runner error: "+err.Error(), cid)
+		if !usable {
+			// Upload vision/premium sidecars even when no MP3 yet (long Vision runs).
+			if upErr := s.uploadNewOutputs(ctx, objects, id, ownerSafe, project, audiosDir, docsDir, beforeAudios, beforeDocs, onlyFiles, targets, cid); upErr != nil {
+				s.appendLog(ctx, objects, id, "partial upload error: "+upErr.Error(), cid)
+			}
+			s.failStep(ctx, objects, id, convertStep, err.Error(), cid)
+			s.setState(ctx, objects, id, "failed", err.Error(), cid, &stats)
+			s.clearCancel(id)
+			return
+		}
 		s.appendLog(ctx, objects, id, "runner warning: "+err.Error()+" (continuing with partial results)", cid)
 	}
 	if premium {
@@ -931,8 +943,58 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 
 	s.activateStep(ctx, objects, id, "upload", cid)
 	s.appendLog(ctx, objects, id, "upload: writing new audios/*.mp3 (+ versioned sidecars) to S3", cid)
+	if upErr := s.uploadNewOutputs(ctx, objects, id, ownerSafe, project, audiosDir, docsDir, beforeAudios, beforeDocs, onlyFiles, targets, cid); upErr != nil {
+		s.appendLog(ctx, objects, id, "upload failed: "+upErr.Error(), cid)
+		s.failStep(ctx, objects, id, "upload", upErr.Error(), cid)
+		s.setState(ctx, objects, id, "failed", upErr.Error(), cid, &stats)
+		s.clearCancel(id)
+		return
+	}
+	s.completeStep(ctx, objects, id, "upload", cid)
+
+	s.activateStep(ctx, objects, id, "finalize", cid)
+	s.appendLog(ctx, objects, id, "done", cid)
+	s.completeStep(ctx, objects, id, "finalize", cid)
+	errMsg := ""
+	if stats.Failed > 0 {
+		errMsg = strconv.Itoa(stats.Failed) + " file(s) failed conversion"
+	}
+	final := "done"
+	if stats.Failed > 0 && stats.Generated == 0 && stats.Skipped == 0 {
+		final = "failed"
+	}
+	s.setState(ctx, objects, id, final, errMsg, cid, &stats)
+	s.clearCancel(id)
+}
+
+// convertJobTimeout returns how long the Python convert step may run (spec 069).
+func convertJobTimeout(opts GenerateOpts) time.Duration {
+	if v := strings.TrimSpace(os.Getenv("EVOICE_JOB_TIMEOUT")); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+	}
+	switch opts.Mode {
+	case ModeSuperPremium:
+		return 6 * time.Hour
+	case ModePremium:
+		return 2 * time.Hour
+	default:
+		return 45 * time.Minute
+	}
+}
+
+// uploadNewOutputs puts newly created MP3s and vision/premium sidecars to S3.
+// before* maps must be captured before convert so new files are not skipped.
+func (s *JobStore) uploadNewOutputs(
+	ctx context.Context,
+	objects ObjectSpace,
+	id, ownerSafe, project, audiosDir, docsDir string,
+	beforeAudios, beforeDocs map[string]bool,
+	onlyFiles, targets []string,
+	cid string,
+) error {
 	uploadAllow := uploadAllowFrom(onlyFiles, targets)
-	// Spec 069: do not delete prior versions — upload only files created this run.
 	newAudios := listMP3NamesExcept(audiosDir, beforeAudios)
 	for _, name := range newAudios {
 		if len(uploadAllow) > 0 && !mp3UploadAllowed(name, uploadAllow) {
@@ -946,15 +1008,10 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 		key := AudioKey(ownerSafe, project, name)
 		s.appendLog(ctx, objects, id, "upload: "+name, cid)
 		if err := objects.PutBytes(ctx, key, body, "audio/mpeg", cid); err != nil {
-			s.appendLog(ctx, objects, id, "upload failed "+name+": "+err.Error(), cid)
-			s.failStep(ctx, objects, id, "upload", err.Error(), cid)
-			s.setState(ctx, objects, id, "failed", err.Error(), cid, &stats)
-			s.clearCancel(id)
-			return
+			return err
 		}
 		s.appendLog(ctx, objects, id, "uploaded audios/"+name, cid)
 	}
-	beforeDocs := listSidecarNames(docsDir)
 	docEntries, _ := os.ReadDir(docsDir)
 	for _, e := range docEntries {
 		if e.IsDir() {
@@ -973,23 +1030,13 @@ func (s *JobStore) runJob(ctx context.Context, objects ObjectSpace, id, ownerSaf
 		}
 		key := DocKey(ownerSafe, project, e.Name())
 		s.appendLog(ctx, objects, id, "upload: docs/"+e.Name(), cid)
-		_ = objects.PutBytes(ctx, key, body, "text/plain; charset=utf-8", cid)
+		if err := objects.PutBytes(ctx, key, body, "text/plain; charset=utf-8", cid); err != nil {
+			s.appendLog(ctx, objects, id, "upload sidecar failed "+e.Name()+": "+err.Error(), cid)
+			// Sidecar failure is non-fatal relative to MP3s; keep going.
+			continue
+		}
 	}
-	s.completeStep(ctx, objects, id, "upload", cid)
-
-	s.activateStep(ctx, objects, id, "finalize", cid)
-	s.appendLog(ctx, objects, id, "done", cid)
-	s.completeStep(ctx, objects, id, "finalize", cid)
-	errMsg := ""
-	if stats.Failed > 0 {
-		errMsg = strconv.Itoa(stats.Failed) + " file(s) failed conversion"
-	}
-	final := "done"
-	if stats.Failed > 0 && stats.Generated == 0 && stats.Skipped == 0 {
-		final = "failed"
-	}
-	s.setState(ctx, objects, id, final, errMsg, cid, &stats)
-	s.clearCancel(id)
+	return nil
 }
 
 func listMP3Names(audiosDir string) map[string]bool {

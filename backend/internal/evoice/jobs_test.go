@@ -169,3 +169,63 @@ func TestFakeRunnerPremiumAllModalities(t *testing.T) {
 		}
 	}
 }
+
+func TestConvertJobTimeoutByMode(t *testing.T) {
+	t.Setenv("EVOICE_JOB_TIMEOUT", "")
+	if d := convertJobTimeout(GenerateOpts{Mode: ModeStandard}); d != 45*time.Minute {
+		t.Fatalf("standard timeout=%v", d)
+	}
+	if d := convertJobTimeout(GenerateOpts{Mode: ModePremium}); d != 2*time.Hour {
+		t.Fatalf("premium timeout=%v", d)
+	}
+	if d := convertJobTimeout(GenerateOpts{Mode: ModeSuperPremium}); d != 6*time.Hour {
+		t.Fatalf("super timeout=%v", d)
+	}
+	t.Setenv("EVOICE_JOB_TIMEOUT", "90m")
+	if d := convertJobTimeout(GenerateOpts{Mode: ModeSuperPremium}); d != 90*time.Minute {
+		t.Fatalf("env override timeout=%v", d)
+	}
+}
+
+func TestUploadNewOutputsUsesBeforeMaps(t *testing.T) {
+	dir := t.TempDir()
+	docs := filepath.Join(dir, "docs")
+	audios := filepath.Join(dir, "audios")
+	_ = os.MkdirAll(docs, 0o755)
+	_ = os.MkdirAll(audios, 0o755)
+	_ = os.WriteFile(filepath.Join(docs, "book.premium.txt"), []byte("old"), 0o644)
+	_ = os.WriteFile(filepath.Join(audios, "book.mp3"), []byte("ID3old"), 0o644)
+	beforeAudios := listMP3Names(audios)
+	beforeDocs := listSidecarNames(docs)
+	_ = os.WriteFile(filepath.Join(docs, "book.v1.vision.txt"), []byte("vision"), 0o644)
+	_ = os.WriteFile(filepath.Join(docs, "book.v1.premium.txt"), []byte("prem"), 0o644)
+	_ = os.WriteFile(filepath.Join(audios, "book.v1.c01-intro.mp3"), []byte("ID3new"), 0o644)
+
+	store := NewJobStore(FakeRunner{})
+	mem := NewMemoryObjectSpace()
+	owner := "o_at_x.com"
+	project := "p"
+	err := store.uploadNewOutputs(
+		context.Background(), mem, "job1", owner, project, audios, docs,
+		beforeAudios, beforeDocs, []string{"book.pdf"}, []string{"book.pdf"}, "cid",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, ok, err := mem.GetBytes(context.Background(), AudioKey(owner, project, "book.v1.c01-intro.mp3"), "cid")
+	if err != nil || !ok || string(body) != "ID3new" {
+		t.Fatalf("new chapter not uploaded: ok=%v err=%v body=%q", ok, err, body)
+	}
+	body, ok, err = mem.GetBytes(context.Background(), DocKey(owner, project, "book.v1.vision.txt"), "cid")
+	if err != nil || !ok || string(body) != "vision" {
+		t.Fatalf("new vision sidecar not uploaded: ok=%v err=%v body=%q", ok, err, body)
+	}
+	// Pre-existing legacy names must not be re-uploaded as "new".
+	_, ok, err = mem.GetBytes(context.Background(), AudioKey(owner, project, "book.mp3"), "cid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("legacy book.mp3 should not be treated as new upload")
+	}
+}
