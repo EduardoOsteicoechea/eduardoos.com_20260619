@@ -246,6 +246,7 @@ function CollapsibleSection({
   onToggle,
   children,
   className,
+  headerActions,
 }: {
   id: string;
   title: string;
@@ -253,6 +254,7 @@ function CollapsibleSection({
   onToggle: () => void;
   children: React.ReactNode;
   className?: string;
+  headerActions?: React.ReactNode;
 }) {
   const [bodyExpanded, setBodyExpanded] = useState(false);
   const [needsMore, setNeedsMore] = useState(false);
@@ -313,21 +315,28 @@ function CollapsibleSection({
     <section
       className={`evoice__section${className ? ` ${className}` : ""}${open ? " evoice__section--open" : " evoice__section--closed"}${bodyExpanded ? " evoice__section--body-expanded" : ""}`}
     >
-      <button
-        type="button"
-        className="evoice__section-head"
-        aria-expanded={open}
-        aria-controls={`${id}-body`}
-        onClick={onToggle}
-      >
-        <span
-          className="material-symbols-outlined evoice__chevron"
-          aria-hidden="true"
+      <div className="evoice__section-head-row">
+        <button
+          type="button"
+          className="evoice__section-head"
+          aria-expanded={open}
+          aria-controls={`${id}-body`}
+          onClick={onToggle}
         >
-          expand_more
-        </span>
-        <h2>{title}</h2>
-      </button>
+          <span
+            className="material-symbols-outlined evoice__chevron"
+            aria-hidden="true"
+          >
+            expand_more
+          </span>
+          <h2>{title}</h2>
+        </button>
+        {headerActions ? (
+          <div className="evoice__section-head-actions" onClick={(e) => e.stopPropagation()}>
+            {headerActions}
+          </div>
+        ) : null}
+      </div>
       {open ? (
         <div id={`${id}-body`} className="evoice__section-body">
           <div
@@ -464,7 +473,7 @@ function EvoiceWorkspace() {
   const [pasteText, setPasteText] = useState("");
   const [uploadModality, setUploadModality] = useState<UploadModality>(null);
   const [crawlUrl, setCrawlUrl] = useState("");
-  const [generateMode, setGenerateMode] = useState<EvoiceGenerateMode>("standard");
+  const [generateMode, setGenerateMode] = useState<EvoiceGenerateMode>("premium");
   const [contentPercent, setContentPercent] = useState<number>(100);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [checkedTracks, setCheckedTracks] = useState<Set<string>>(new Set());
@@ -474,6 +483,13 @@ function EvoiceWorkspace() {
   const [playlistsOpen, setPlaylistsOpen] = useState(true);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [workspaceCollapsed, setWorkspaceCollapsed] = useState(false);
+  const sectionOpenBeforeCollapse = useRef<{
+    project: boolean;
+    upload: boolean;
+    docs: boolean;
+    playlists: boolean;
+  } | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [steps, setSteps] = useState<EvoiceJobStep[]>([]);
   const [fileProgress, setFileProgress] = useState<EvoiceJobFile[]>([]);
@@ -914,6 +930,23 @@ function EvoiceWorkspace() {
     await reloadDocsAudios(ownerSafe, project);
   }
 
+  async function onDeleteDoc(name: string) {
+    if (!ownerSafe || !project || busy) return;
+    if (!window.confirm(`Delete document ${name}? Audio files will remain.`)) {
+      return;
+    }
+    setBusy(true);
+    const res = await deleteEvoiceDoc(ownerSafe, project, name);
+    setBusy(false);
+    if (res.error) {
+      showError("eVoice", res.error);
+      return;
+    }
+    setSelectedDocs((prev) => prev.filter((n) => n !== name));
+    setFileProgress((prev) => prev.filter((f) => f.name !== name));
+    await reloadDocsAudios(ownerSafe, project);
+  }
+
   async function onDeleteSelectedDocs() {
     if (!ownerSafe || !project || busy || selectedDocs.length === 0) return;
     if (
@@ -1195,21 +1228,67 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
     setUploadModality((prev) => (prev === next ? null : next));
   }
 
-  const adminHeaderMenu =
-    isAdmin && hdsHost
-      ? createPortal(
+  function toggleWorkspaceCollapsed() {
+    setWorkspaceCollapsed((collapsed) => {
+      if (!collapsed) {
+        sectionOpenBeforeCollapse.current = {
+          project: projectOpen,
+          upload: uploadOpen,
+          docs: docsOpen,
+          playlists: playlistsOpen,
+        };
+        setProjectOpen(false);
+        setUploadOpen(false);
+        setDocsOpen(false);
+        setPlaylistsOpen(false);
+        return true;
+      }
+      const prev = sectionOpenBeforeCollapse.current;
+      setProjectOpen(prev?.project ?? true);
+      setUploadOpen(prev?.upload ?? true);
+      setDocsOpen(prev?.docs ?? true);
+      setPlaylistsOpen(prev?.playlists ?? true);
+      sectionOpenBeforeCollapse.current = null;
+      return false;
+    });
+  }
+
+  const evoiceHeaderMenu = hdsHost
+    ? createPortal(
+        <div
+          id="evoice-header-menu"
+          className="header-dynamic-menu"
+          ref={(node) => {
+            if (node) window.__eduardoosHeaderDynamicMenu = node;
+          }}
+        >
           <div
-            id="evoice-header-menu"
-            className="header-dynamic-menu"
-            ref={(node) => {
-              if (node) window.__eduardoosHeaderDynamicMenu = node;
-            }}
+            className="header-dynamic-menu__inner header-dynamic-menu__actions"
+            role="toolbar"
+            aria-label="eVoice tools"
           >
-            <div
-              className="header-dynamic-menu__inner header-dynamic-menu__actions"
-              role="toolbar"
-              aria-label="eVoice admin"
+            <button
+              type="button"
+              className={
+                workspaceCollapsed
+                  ? "header-dynamic-menu__btn header-dynamic-menu__btn--active is-active"
+                  : "header-dynamic-menu__btn"
+              }
+              title={workspaceCollapsed ? "Expand workspace" : "Collapse workspace"}
+              aria-label={
+                workspaceCollapsed ? "Expand workspace" : "Collapse workspace"
+              }
+              aria-pressed={workspaceCollapsed}
+              onClick={toggleWorkspaceCollapsed}
             >
+              <span
+                className="material-symbols-outlined header-dynamic-menu__icon"
+                aria-hidden="true"
+              >
+                {workspaceCollapsed ? "unfold_more" : "unfold_less"}
+              </span>
+            </button>
+            {isAdmin ? (
               <button
                 type="button"
                 className={
@@ -1229,15 +1308,16 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
                   admin_panel_settings
                 </span>
               </button>
-            </div>
-          </div>,
-          hdsHost,
-        )
-      : null;
+            ) : null}
+          </div>
+        </div>,
+        hdsHost,
+      )
+    : null;
 
   return (
     <div className="evoice">
-      {adminHeaderMenu}
+      {evoiceHeaderMenu}
 
       {isAdmin && adminModalOpen ? (
         <div
@@ -1361,36 +1441,52 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
                   type="button"
                   className={
                     uploadModality === "file"
-                      ? "btn btn--primary"
-                      : "btn"
+                      ? "evoice__icon-btn evoice__icon-btn--accent"
+                      : "evoice__icon-btn"
                   }
+                  title="Upload file"
+                  aria-label="Upload file"
                   aria-pressed={uploadModality === "file"}
                   onClick={() => toggleUploadModality("file")}
                   disabled={busy}
                 >
-                  Upload file
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    upload_file
+                  </span>
                 </button>
                 <button
                   type="button"
                   className={
-                    uploadModality === "paste" ? "btn btn--primary" : "btn"
+                    uploadModality === "paste"
+                      ? "evoice__icon-btn evoice__icon-btn--accent"
+                      : "evoice__icon-btn"
                   }
+                  title="Paste text"
+                  aria-label="Paste text"
                   aria-pressed={uploadModality === "paste"}
                   onClick={() => toggleUploadModality("paste")}
                   disabled={busy}
                 >
-                  Paste text
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    notes
+                  </span>
                 </button>
                 <button
                   type="button"
                   className={
-                    uploadModality === "crawl" ? "btn btn--primary" : "btn"
+                    uploadModality === "crawl"
+                      ? "evoice__icon-btn evoice__icon-btn--accent"
+                      : "evoice__icon-btn"
                   }
+                  title="Crawl URL"
+                  aria-label="Crawl URL"
                   aria-pressed={uploadModality === "crawl"}
                   onClick={() => toggleUploadModality("crawl")}
                   disabled={busy}
                 >
-                  Crawl
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    spider
+                  </span>
                 </button>
               </div>
 
@@ -1464,6 +1560,24 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
               open={docsOpen}
               onToggle={() => setDocsOpen((v) => !v)}
               className={`evoice__section--docs${consoleOpen ? " evoice__section--with-console" : ""}`}
+              headerActions={
+                <button
+                  type="button"
+                  className={
+                    consoleOpen
+                      ? "evoice__icon-btn evoice__icon-btn--accent"
+                      : "evoice__icon-btn"
+                  }
+                  title={consoleOpen ? "Hide console" : "Show console"}
+                  aria-label={consoleOpen ? "Hide console" : "Show console"}
+                  aria-pressed={consoleOpen}
+                  onClick={() => setConsoleOpen((v) => !v)}
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    terminal
+                  </span>
+                </button>
+              }
             >
               <div
                 className={
@@ -1486,17 +1600,7 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
                           : "Select all"}
                       </button>
                     ) : null}
-                    <button
-                      type="button"
-                      className={`btn${consoleOpen ? " btn--primary" : ""}`}
-                      onClick={() => setConsoleOpen((v) => !v)}
-                    >
-                      {consoleOpen ? "Hide console" : "Show console"}
-                    </button>
                   </div>
-                  <p className="evoice__hint">
-                    Select source documents, then generate MP3, print prepared speech, or delete.
-                  </p>
 
                   {sourceDocs.length === 0 ? (
                     <p className="evoice__empty">No source documents yet.</p>
@@ -1540,6 +1644,18 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
                                 </span>
                               ) : null}
                             </div>
+                            <button
+                              type="button"
+                              className="evoice__icon-btn evoice__icon-btn--danger"
+                              title={`Delete ${d.name}`}
+                              aria-label={`Delete ${d.name}`}
+                              onClick={() => void onDeleteDoc(d.name)}
+                              disabled={busy}
+                            >
+                              <span className="material-symbols-outlined" aria-hidden="true">
+                                delete
+                              </span>
+                            </button>
                           </li>
                         );
                       })}
@@ -1547,53 +1663,10 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
                   )}
 
                   <div className="evoice__action-bar">
-                    <div className="evoice__action-icons" role="group" aria-label="Document actions">
-                      <button
-                        type="button"
-                        className="evoice__icon-btn evoice__icon-btn--accent"
-                        title="Generate MP3"
-                        aria-label={
-                          selectedDocs.length > 0
-                            ? `Generate MP3 (${selectedDocs.length})`
-                            : "Generate MP3"
-                        }
-                        onClick={() => void onGenerate()}
-                        disabled={busy}
-                      >
-                        <span className="material-symbols-outlined" aria-hidden="true">
-                          graphic_eq
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="evoice__icon-btn"
-                        title="Print prepared speech"
-                        aria-label="Print prepared speech"
-                        onClick={() => void onPrintPreparedSpeech()}
-                        disabled={busy || selectedDocs.length === 0}
-                      >
-                        <span className="material-symbols-outlined" aria-hidden="true">
-                          print
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="evoice__icon-btn evoice__icon-btn--danger"
-                        title="Delete selected documents"
-                        aria-label="Delete selected documents"
-                        onClick={() => void onDeleteSelectedDocs()}
-                        disabled={busy || selectedDocs.length === 0}
-                      >
-                        <span className="material-symbols-outlined" aria-hidden="true">
-                          delete
-                        </span>
-                      </button>
-                    </div>
-
                     <label className="evoice__slider-field">
                       <span className="evoice__slider-label">
                         Quality
-                        <em>{QUALITY_MODES[qualityIndex]?.label ?? "Standard"}</em>
+                        <em>{QUALITY_MODES[qualityIndex]?.label ?? "Premium"}</em>
                       </span>
                       <input
                         type="range"
@@ -1644,33 +1717,63 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
                       </span>
                     </label>
 
-                    {busy ? (
+                    <div className="evoice__action-icons evoice__action-icons--end" role="group" aria-label="Document actions">
+                      {busy ? (
+                        <button
+                          type="button"
+                          className="evoice__icon-btn"
+                          title="Stop generate"
+                          aria-label="Stop generate"
+                          onClick={() => void onStopGenerate()}
+                          disabled={!activeJobId}
+                        >
+                          <span className="material-symbols-outlined" aria-hidden="true">
+                            stop
+                          </span>
+                        </button>
+                      ) : null}
+                      {!busy && jobStopped && activeJobId ? (
+                        <button
+                          type="button"
+                          className="evoice__icon-btn evoice__icon-btn--accent"
+                          title="Resume generate"
+                          aria-label="Resume generate"
+                          onClick={() => void onResumeGenerate()}
+                        >
+                          <span className="material-symbols-outlined" aria-hidden="true">
+                            play_arrow
+                          </span>
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="evoice__icon-btn"
-                        title="Stop generate"
-                        aria-label="Stop generate"
-                        onClick={() => void onStopGenerate()}
-                        disabled={!activeJobId}
+                        title="Print prepared speech"
+                        aria-label="Print prepared speech"
+                        onClick={() => void onPrintPreparedSpeech()}
+                        disabled={busy || selectedDocs.length === 0}
                       >
                         <span className="material-symbols-outlined" aria-hidden="true">
-                          stop
+                          print
                         </span>
                       </button>
-                    ) : null}
-                    {!busy && jobStopped && activeJobId ? (
                       <button
                         type="button"
                         className="evoice__icon-btn evoice__icon-btn--accent"
-                        title="Resume generate"
-                        aria-label="Resume generate"
-                        onClick={() => void onResumeGenerate()}
+                        title="Generate MP3"
+                        aria-label={
+                          selectedDocs.length > 0
+                            ? `Generate MP3 (${selectedDocs.length})`
+                            : "Generate MP3"
+                        }
+                        onClick={() => void onGenerate()}
+                        disabled={busy}
                       >
                         <span className="material-symbols-outlined" aria-hidden="true">
-                          play_arrow
+                          graphic_eq
                         </span>
                       </button>
-                    ) : null}
+                    </div>
                   </div>
                 </div>
 

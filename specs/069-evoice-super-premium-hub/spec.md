@@ -27,7 +27,7 @@
 
 | # | Decision |
 |---|----------|
-| 1 | Mode UX: mutually exclusive radios **`Standard` \| `Premium` \| `Super Premium`**. Default = **Standard** (Super Premium off by default). |
+  | 1 | Mode UX: mutually exclusive **Quality** slider **`Standard` \| `Premium` \| `Super Premium`**. Default = **Premium**. |
 | 2 | **Content %** applies to **all** generate modes. |
 | 3 | **Super Premium** only for **PDF, images, and `.docx`**. Not for plain `.txt` (those use Standard/Premium only). |
 | 4 | Vision: **1 page per API request** (reliability over batching). |
@@ -92,7 +92,11 @@ Naming:
 3. **Documents** — list; action bar: icon-only **Generate** (left), **Print** (middle), **Delete** (right, red icon); **Quality** slider (Standard → Premium → Super Premium); **Content %** slider (100/75/50/25/10/5). Console toggleable to the right.
 4. **Playlists** — nested structure (document → version/Legacy → tracks).
 
-Viewport: each section body has a max height; if content overflows, that section alone shows **Show more** / **Show less**. No global workspace expand control.
+### UI polish (2026-09-04)
+
+- **Upload** modality controls are **icon-only** (file / text / spider for crawl).
+- **Documents:** no explanatory subtitle; per-row **delete** icon; **Console** is an icon button in the section header (top right); action bar has **Quality** + **Content %** sliders (defaults: **Premium**, **100%**) then **Print** + **Generate** icons on the **right** (no bulk delete in the bar).
+- **HDS:** admin owner modal (admins) + **collapse/expand workspace** icon toggle (collapses all sections).
 
 #### Playlist nesting & playback (locked)
 
