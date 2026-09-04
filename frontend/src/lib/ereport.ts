@@ -7,13 +7,22 @@ import { apiRequest, formatApiError } from "./api";
 import { getAuthToken } from "./auth";
 import { createCorrelationId } from "./correlation";
 
+export type EreportItemStatus = "" | "aprobado" | "reprobado" | "no_aplica";
+
 export type EreportPayload = {
   reportDate?: string;
   reportNumber?: string;
+  reportName?: string;
+  orgName?: string;
   appTitle?: string;
+  /** Report-level validation criteria labels (e.g. RVT2025). Spec 068. */
+  validationCriteria?: string[];
   sections?: unknown[];
   [key: string]: unknown;
 };
+
+/** Per-issue criteria votes keyed by validationCriteria label (spec 068). */
+export type EreportCriteriaStatusMap = Record<string, EreportItemStatus>;
 
 export type ShareEntry = { email: string; userSafe: string };
 

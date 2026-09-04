@@ -230,6 +230,36 @@ body.sidebar-collapsed .sidebar {
 .howto ol { margin: 0.5rem 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.92rem; }
 .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 label.field { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; color: var(--muted); }
+label.field input[readonly] { opacity: 0.92; cursor: default; }
+.criteria-field { grid-column: 1 / -1; }
+.criteria-editor {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+  border: 0.0625rem solid var(--line); border-radius: var(--radius);
+  padding: 0.45rem 0.55rem; background: var(--card); min-height: 2.5rem;
+}
+.criteria-chip {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  padding: 0.2rem 0.4rem 0.2rem 0.55rem; border-radius: var(--radius);
+  border: 0.0625rem solid var(--line); background: var(--surface); color: var(--ink);
+  font-size: 0.85rem;
+}
+.criteria-chip button {
+  width: 1.25rem; height: 1.25rem; padding: 0; border: none; background: transparent;
+  color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius);
+}
+.criteria-chip button:hover { color: var(--danger); }
+.criteria-add-row { display: flex; gap: 0.35rem; flex: 1; min-width: 10rem; }
+.criteria-add-row input {
+  flex: 1; min-width: 0; font: inherit; font-size: 0.9rem; color: var(--ink);
+  border: 0.0625rem solid var(--line); border-radius: var(--radius);
+  padding: 0.35rem 0.5rem; background: var(--card);
+}
+.criteria-add-row button {
+  width: 2rem; min-width: 2rem; height: 2rem; padding: 0; border-radius: var(--radius);
+  border: 0.0625rem solid var(--line); background: var(--card); color: var(--ink);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
 label.field input, label.field textarea, .nombre-input,
 .inplace input, .inplace textarea,
 .group-title-input {
@@ -528,10 +558,16 @@ body:not(.theme-dark) .item-card.is-no_aplica {
   padding: 0;
   justify-content: stretch;
 }
-.col-status .status-box { min-height: 100%; }
-.status-box {
+.col-status .status-stack {
   flex: 1;
   min-height: 5.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+.status-box {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -541,6 +577,30 @@ body:not(.theme-dark) .item-card.is-no_aplica {
   background: transparent;
   padding: 0;
 }
+.status-box-main { min-height: 2.4rem; }
+.status-criteria {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.3rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+}
+.status-criteria-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+.status-criteria-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  max-width: 4.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .btn-status {
   width: 2.1rem; min-width: 2.1rem; height: 2.1rem; padding: 0; border-radius: var(--radius);
   background: var(--card); color: var(--ink); border: 0.0625rem solid var(--line);
@@ -548,6 +608,12 @@ body:not(.theme-dark) .item-card.is-no_aplica {
   display: inline-flex; align-items: center; justify-content: center;
   line-height: 1;
 }
+.btn-status-crit {
+  width: 1.55rem; min-width: 1.55rem; height: 1.55rem;
+  opacity: 0.78;
+}
+.btn-status-crit .material-icons,
+.btn-status-crit .btn-ico { font-size: 0.95rem; }
 .btn-status .material-icons,
 .btn-status .btn-ico {
   font-size: 1.15rem;
@@ -555,9 +621,9 @@ body:not(.theme-dark) .item-card.is-no_aplica {
   line-height: 1;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.btn-status.aprobado { background: var(--success); border-color: var(--success); color: #fff; }
-.btn-status.reprobado { background: var(--danger); border-color: var(--danger); color: #fff; }
-.btn-status.no_aplica { background: #757575; border-color: #757575; color: #fff; }
+.btn-status.aprobado { background: var(--success); border-color: var(--success); color: #fff; opacity: 1; }
+.btn-status.reprobado { background: var(--danger); border-color: var(--danger); color: #fff; opacity: 1; }
+.btn-status.no_aplica { background: #757575; border-color: #757575; color: #fff; opacity: 1; }
 .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(3.25rem, 1fr)); gap: 0.3rem; margin-top: 0.25rem; }
 .thumb-wrap {
   position: relative;
@@ -684,12 +750,16 @@ body:not(.theme-dark) .item-card.is-no_aplica {
         <label class="field">Report name
           <input type="text" id="report-name" placeholder="Report title" />
         </label>
-        <label class="field">Fecha de reporte
+        <label class="field">Report Date
           <input type="date" id="report-date" />
         </label>
-        <label class="field">Número de reporte
-          <input type="text" id="report-number" placeholder="ej. ISSUE-REPORT-001" />
+        <label class="field">Report Code
+          <input type="text" id="report-number" readonly tabindex="-1" placeholder="Auto from report name + timestamp" />
         </label>
+        <div class="field criteria-field">
+          <span>Validation criteria</span>
+          <div class="criteria-editor" id="criteria-editor" aria-label="Validation criteria"></div>
+        </div>
       </div>
     </section>
 
@@ -717,7 +787,7 @@ body:not(.theme-dark) .item-card.is-no_aplica {
     </div>
     <div class="howto-modal-body">
       <ol>
-        <li>Completá <strong>Organization</strong>, <strong>Report name</strong>, <strong>fecha</strong> y <strong>número</strong>.</li>
+        <li>Completá <strong>Organization</strong>, <strong>Report name</strong>, <strong>Report Date</strong>. <strong>Report Code</strong> is automatic. Optional <strong>Validation criteria</strong> add per-issue review rows.</li>
         <li>Usá los iconos del menú superior del sitio para tamaño de fuente, cargar <strong>.ereport</strong>, limpiar, ver progreso o <strong>guardar todo</strong>. El tema claro/oscuro sigue el interruptor del menú global del sitio.</li>
         <li>El sidebar derecho navega por cada incidencia (tooltip: subartículo + nombre).</li>
         <li>Al guardar se exportan <strong>.ereport + HTML + PDF</strong>. Las imágenes van en base64 dentro del .ereport.</li>
@@ -762,7 +832,7 @@ body:not(.theme-dark) .item-card.is-no_aplica {
 </div>
 <div class="toast" id="toast"></div>
 
-<script type="application/json" id="embedded-json">{"reportDate": "", "reportNumber": "", "reportName": "", "orgName": "", "appTitle": "Issue Tracker", "theme": "dark", "sections": [{"id": "section-a", "title": "1. Product / platform", "kind": "funcionalidades", "groups": [{"id": "group-1", "title": "General", "items": [{"id": "group-1-item-1", "nombre": "", "incidencia": "", "fechaIncidencia": "", "status": "", "solucion": "", "fechaSolucion": "", "imagesIncidencia": [], "imagesSolucion": [], "images": []}]}]}]}</script>
+<script type="application/json" id="embedded-json">{"reportDate": "", "reportNumber": "", "reportName": "", "orgName": "", "appTitle": "Issue Tracker", "validationCriteria": [], "theme": "dark", "sections": [{"id": "section-a", "title": "1. Product / platform", "kind": "funcionalidades", "groups": [{"id": "group-1", "title": "General", "items": [{"id": "group-1-item-1", "nombre": "", "incidencia": "", "fechaIncidencia": "", "status": "", "criteriaStatus": {}, "solucion": "", "fechaSolucion": "", "imagesIncidencia": [], "imagesSolucion": [], "images": []}]}]}]}</script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script>
@@ -866,12 +936,20 @@ function fromDateTimeLocalValue(raw) {
 
 function normalizeItem(it) {
   const sol = it.imagesSolucion != null ? it.imagesSolucion : (it.images || []);
+  const criteriaStatus = {};
+  if (it.criteriaStatus && typeof it.criteriaStatus === "object" && !Array.isArray(it.criteriaStatus)) {
+    Object.keys(it.criteriaStatus).forEach((k) => {
+      const v = it.criteriaStatus[k];
+      criteriaStatus[k] = (v === "aprobado" || v === "reprobado" || v === "no_aplica") ? v : "";
+    });
+  }
   return {
     id: it.id || uid("item"),
     nombre: it.nombre || "",
     incidencia: it.incidencia || it.queja || "",
     fechaIncidencia: it.fechaIncidencia || "",
     status: it.status || "",
+    criteriaStatus,
     solucion: it.solucion || "",
     fechaSolucion: it.fechaSolucion || "",
     imagesIncidencia: it.imagesIncidencia || it.imagesQueja || [],
@@ -885,6 +963,13 @@ function normalizeState(data) {
   if (data.reportName == null) data.reportName = data.appTitle || "";
   if (data.orgName == null) data.orgName = "";
   if (data.appTitle == null) data.appTitle = data.reportName || "Issue Tracker";
+  if (data.reportDate == null) data.reportDate = "";
+  if (data.reportNumber == null) data.reportNumber = "";
+  if (!Array.isArray(data.validationCriteria)) {
+    data.validationCriteria = [];
+  } else {
+    data.validationCriteria = data.validationCriteria.map((s) => String(s || "").trim()).filter(Boolean);
+  }
   if (!Object.prototype.hasOwnProperty.call(data, "collapse") || data.collapse == null) {
     data.collapse = null;
   } else {
@@ -924,23 +1009,134 @@ function toast(msg) {
   setTimeout(() => { el.style.display = "none"; }, 3200);
 }
 
+function sanitizeReportNamePart(raw) {
+  const s = String(raw || "").trim().replace(/[^\w.\-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+  return s || "Report";
+}
+
+function formatReportCodeStamp(d) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return (
+    d.getFullYear() +
+    pad(d.getMonth() + 1) +
+    pad(d.getDate()) +
+    "_" +
+    pad(d.getHours()) +
+    pad(d.getMinutes()) +
+    pad(d.getSeconds())
+  );
+}
+
+function buildReportCode() {
+  const name = state.reportName || state.appTitle || "";
+  return sanitizeReportNamePart(name) + "_" + formatReportCodeStamp(new Date());
+}
+
+function refreshReportCode(opts) {
+  const silent = opts && opts.silent;
+  const code = buildReportCode();
+  state.reportNumber = code;
+  const n = document.getElementById("report-number");
+  if (n) n.value = code;
+  if (!silent) updateStatus();
+}
+
+function effectiveStatus(item) {
+  const labels = Array.isArray(state.validationCriteria) ? state.validationCriteria : [];
+  if (!labels.length) return item.status || "";
+  const map = item.criteriaStatus || {};
+  const values = labels.map((label) => map[label] || "");
+  if (values.some((v) => !v)) return item.status || "";
+  if (values.every((v) => v === "no_aplica")) return "no_aplica";
+  if (values.some((v) => v === "reprobado")) return "reprobado";
+  const hasApproved = values.some((v) => v === "aprobado");
+  const onlyApprovedOrDisabled = values.every((v) => v === "aprobado" || v === "no_aplica");
+  if (hasApproved && onlyApprovedOrDisabled) return "aprobado";
+  return item.status || "";
+}
+
+function renderCriteriaEditor() {
+  const host = document.getElementById("criteria-editor");
+  if (!host) return;
+  if (!Array.isArray(state.validationCriteria)) state.validationCriteria = [];
+  const chips = state.validationCriteria.map((label, idx) => `
+    <span class="criteria-chip" data-idx="${idx}">
+      <span title="${escapeAttr(label)}">${escapeHtml(label)}</span>
+      <button type="button" data-act="crit-remove" data-idx="${idx}" title="Remove criterion" aria-label="Remove ${escapeAttr(label)}">${mi("close")}</button>
+    </span>
+  `).join("");
+  host.innerHTML = chips + `
+    <div class="criteria-add-row">
+      <input type="text" id="criteria-add-input" placeholder="e.g. RVT2025" maxlength="64" />
+      <button type="button" id="criteria-add-btn" title="Add criterion" aria-label="Add criterion">${mi("add")}</button>
+    </div>
+  `;
+  host.querySelectorAll('[data-act="crit-remove"]').forEach((btn) => {
+    btn.onclick = () => {
+      const i = Number(btn.dataset.idx);
+      const removed = state.validationCriteria[i];
+      state.validationCriteria.splice(i, 1);
+      (state.sections || []).forEach((sec) => {
+        (sec.groups || []).forEach((grp) => {
+          (grp.items || []).forEach((it) => {
+            if (it.criteriaStatus && removed in it.criteriaStatus) delete it.criteriaStatus[removed];
+          });
+        });
+      });
+      renderCriteriaEditor();
+      render();
+      updateStatus();
+    };
+  });
+  const addInput = host.querySelector("#criteria-add-input");
+  const addBtn = host.querySelector("#criteria-add-btn");
+  const add = () => {
+    const label = String(addInput.value || "").trim();
+    if (!label) return;
+    if (state.validationCriteria.includes(label)) {
+      addInput.value = "";
+      return;
+    }
+    state.validationCriteria.push(label);
+    addInput.value = "";
+    renderCriteriaEditor();
+    render();
+    updateStatus();
+  };
+  if (addBtn) addBtn.onclick = add;
+  if (addInput) addInput.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      add();
+    }
+  };
+}
+
 function bindMeta() {
   const d = document.getElementById("report-date");
   const n = document.getElementById("report-number");
   const rn = document.getElementById("report-name");
   const on = document.getElementById("org-name");
   d.value = state.reportDate || "";
-  n.value = state.reportNumber || "";
   if (rn) rn.value = state.reportName || state.appTitle || "";
   if (on) on.value = state.orgName || "";
+  refreshReportCode({ silent: true });
+  if (n) n.value = state.reportNumber || "";
   d.onchange = () => { state.reportDate = d.value; updateStatus(); };
-  n.oninput = () => { state.reportNumber = n.value; updateStatus(); };
   if (rn) rn.oninput = () => {
     state.reportName = rn.value;
     state.appTitle = rn.value;
+    refreshReportCode({ silent: true });
     updateStatus();
   };
   if (on) on.oninput = () => { state.orgName = on.value; updateStatus(); };
+  renderCriteriaEditor();
+}
+
+let reportCodeTimer = 0;
+if (!window.__ereportCodeTimerStarted) {
+  window.__ereportCodeTimerStarted = true;
+  reportCodeTimer = setInterval(() => refreshReportCode({ silent: true }), 1000);
 }
 
 function readInplace(el) {
@@ -1039,12 +1235,15 @@ function bindInplace(el, placeholder, onCommit) {
 
 function collectFromDom() {
   state.reportDate = document.getElementById("report-date").value || "";
-  state.reportNumber = document.getElementById("report-number").value || "";
+  const nEl = document.getElementById("report-number");
+  if (nEl && nEl.value) state.reportNumber = nEl.value;
+  else if (!state.reportNumber) state.reportNumber = buildReportCode();
   const rnEl = document.getElementById("report-name");
   const onEl = document.getElementById("org-name");
   state.reportName = rnEl ? (rnEl.value || "") : (state.reportName || "");
   state.orgName = onEl ? (onEl.value || "") : (state.orgName || "");
   if (state.reportName) state.appTitle = state.reportName;
+  if (!Array.isArray(state.validationCriteria)) state.validationCriteria = [];
   state.theme = document.body.classList.contains("theme-dark") ? "dark" : "light";
   syncCollapseToState();
   document.querySelectorAll(".group-block").forEach(block => {
@@ -1071,6 +1270,7 @@ function collectFromDom() {
     item.fechaIncidencia = fromDateTimeLocalValue(card.querySelector(".fecha-incidencia")?.value);
     item.solucion = readInplace(card.querySelector(".inplace-solucion"));
     item.fechaSolucion = fromDateTimeLocalValue(card.querySelector(".fecha-solucion")?.value);
+    if (!item.criteriaStatus || typeof item.criteriaStatus !== "object") item.criteriaStatus = {};
   });
 }
 
@@ -1078,6 +1278,14 @@ function setStatus(sid, gid, iid, status) {
   collectFromDom();
   const item = state.sections.find(s => s.id === sid).groups.find(g => g.id === gid).items.find(i => i.id === iid);
   item.status = item.status === status ? "" : status;
+  render();
+}
+
+function setCriteriaStatus(sid, gid, iid, label, status) {
+  collectFromDom();
+  const item = state.sections.find(s => s.id === sid).groups.find(g => g.id === gid).items.find(i => i.id === iid);
+  if (!item.criteriaStatus || typeof item.criteriaStatus !== "object") item.criteriaStatus = {};
+  item.criteriaStatus[label] = item.criteriaStatus[label] === status ? "" : status;
   render();
 }
 
@@ -1191,9 +1399,36 @@ function navDotClass(status) {
   return "is-none";
 }
 
+function renderStatusTrio(active, btnClass, dataActAttr) {
+  const acts = [
+    { act: "aprobado", icon: "check", title: "Aprobado" },
+    { act: "reprobado", icon: "close", title: "Reprobado" },
+    { act: "no_aplica", icon: "remove", title: "No aplica / fuera de entrega" }
+  ];
+  return acts.map((a) => `
+    <button type="button" class="btn-status ${btnClass} ${(active === a.act) ? a.act : ""}" ${dataActAttr}="${a.act}" title="${a.title}" aria-label="${a.title}">
+      ${mi(a.icon)}
+    </button>
+  `).join("");
+}
+
 function renderItem(sec, grp, item) {
-  const tone = statusToneClass(item.status);
+  const eff = effectiveStatus(item);
+  const tone = statusToneClass(eff);
   const collapsed = isCollapsed("items", item.id);
+  const labels = Array.isArray(state.validationCriteria) ? state.validationCriteria : [];
+  const critMap = item.criteriaStatus || {};
+  const criteriaBlock = labels.length ? `
+        <div class="status-criteria" aria-label="Validation criteria">
+          ${labels.map((label) => `
+            <div class="status-criteria-row" data-crit-label="${escapeAttr(label)}">
+              <span class="status-criteria-label" title="${escapeAttr(label)}">${escapeHtml(label)}</span>
+              <div class="status-box">
+                ${renderStatusTrio(critMap[label] || "", "btn-status-crit", "data-crit-act")}
+              </div>
+            </div>
+          `).join("")}
+        </div>` : "";
   return `
   <div class="item-card${tone}${collapsed ? " is-collapsed" : ""}" id="item-${item.id}" data-section="${sec.id}" data-group="${grp.id}" data-item="${item.id}">
     <div class="item-top">
@@ -1234,20 +1469,15 @@ function renderItem(sec, grp, item) {
         </div>
       </div>
       <div class="col col-status">
-        <div class="status-box">
-          <button type="button" class="btn-status ${(item.status === "aprobado") ? "aprobado" : ""}" data-act="aprobado" title="Aprobado" aria-label="Aprobado">
-            ${mi("check")}
-          </button>
-          <button type="button" class="btn-status ${(item.status === "reprobado") ? "reprobado" : ""}" data-act="reprobado" title="Reprobado" aria-label="Reprobado">
-            ${mi("close")}
-          </button>
-          <button type="button" class="btn-status ${(item.status === "no_aplica") ? "no_aplica" : ""}" data-act="no_aplica" title="No aplica / fuera de entrega" aria-label="No aplica">
-            ${mi("remove")}
-          </button>
+        <div class="status-stack">
+          ${criteriaBlock}
+          <div class="status-box status-box-main">
+            ${renderStatusTrio(item.status || "", "btn-status-main", "data-act")}
+          </div>
         </div>
       </div>
     </div>
-    </div>
+  </div>
   </div>`;
 }
 
@@ -1300,7 +1530,7 @@ function renderNavRail() {
       <div class="nav-dots">
       ${(sec.groups || []).flatMap(grp =>
         (grp.items || []).map(item => `
-          <button type="button" class="nav-dot ${navDotClass(item.status)}"
+          <button type="button" class="nav-dot ${navDotClass(effectiveStatus(item))}"
             data-target="item-${item.id}"
             data-group="${escapeAttr(grp.id)}"
             data-sub="${escapeAttr(grp.title)}"
@@ -1459,8 +1689,14 @@ function render() {
 
   root.querySelectorAll(".item-card").forEach(card => {
     const sid = card.dataset.section, gid = card.dataset.group, iid = card.dataset.item;
-    card.querySelectorAll(".btn-status").forEach(btn => {
+    card.querySelectorAll(".btn-status-main").forEach(btn => {
       btn.onclick = () => setStatus(sid, gid, iid, btn.dataset.act);
+    });
+    card.querySelectorAll(".status-criteria-row").forEach(row => {
+      const label = row.dataset.critLabel;
+      row.querySelectorAll(".btn-status-crit").forEach(btn => {
+        btn.onclick = () => setCriteriaStatus(sid, gid, iid, label, btn.dataset.critAct);
+      });
     });
     card.querySelector('[data-act="remove"]').onclick = () => removeItem(sid, gid, iid);
     card.querySelector(".img-incidencia").onchange = (e) => onImagesSelected(sid, gid, iid, "incidencia", e.target.files);
@@ -1542,12 +1778,14 @@ function escapeHtml(s) {
 function escapeAttr(s) { return escapeHtml(s).replace(/\n/g, " "); }
 
 function itemComplete(it) {
+  const eff = effectiveStatus(it);
   return !!(it.incidencia && it.incidencia.trim()) && !!(it.solucion && it.solucion.trim()) &&
-    (it.status === "aprobado" || it.status === "reprobado" || it.status === "no_aplica");
+    (eff === "aprobado" || eff === "reprobado" || eff === "no_aplica");
 }
 function itemStarted(it) {
+  const hasCrit = it.criteriaStatus && Object.keys(it.criteriaStatus).some((k) => !!it.criteriaStatus[k]);
   return !!(it.nombre && it.nombre.trim()) || !!(it.incidencia && it.incidencia.trim()) ||
-    !!(it.solucion && it.solucion.trim()) || !!it.status ||
+    !!(it.solucion && it.solucion.trim()) || !!it.status || hasCrit ||
     (it.imagesIncidencia && it.imagesIncidencia.length) || (it.imagesSolucion && it.imagesSolucion.length);
 }
 
@@ -1559,11 +1797,12 @@ function updateStatus() {
     sec.groups.forEach(grp => {
       (grp.items || []).forEach((it, idx) => {
         total += 1;
+        const eff = effectiveStatus(it);
         if (itemComplete(it)) {
           filled += 1;
-          if (it.status === "aprobado") approved += 1;
-          if (it.status === "reprobado") rejected += 1;
-          if (it.status === "no_aplica") na += 1;
+          if (eff === "aprobado") approved += 1;
+          if (eff === "reprobado") rejected += 1;
+          if (eff === "no_aplica") na += 1;
         } else {
           missing += 1;
           const label = (it.nombre && it.nombre.trim()) || `fila ${idx + 1}`;
@@ -1574,7 +1813,7 @@ function updateStatus() {
   });
   const metaOk = !!(state.reportDate && state.reportNumber && state.reportNumber.trim());
   document.getElementById("fill-status").innerHTML = `
-    <li>Meta reporte: ${metaOk ? "completa" : "falta fecha y/o número"}</li>
+    <li>Meta reporte: ${metaOk ? "completa" : "falta fecha y/o código"}</li>
     <li>Filas completas: <strong>${filled}</strong> / ${total}</li>
     <li>Aprobadas: ${approved} · Reprobadas: ${rejected} · No aplica: ${na}</li>
     <li>Pendientes: ${missing}${missingList.length ? " — " + missingList.slice(0, 8).join("; ") + (missingList.length > 8 ? "…" : "") : ""}</li>
@@ -1616,10 +1855,13 @@ function imgGrid(images) {
 function buildPdfReportElement(data) {
   const el = document.createElement("div");
   el.style.cssText = "width:900px;padding:24px;background:#ffffff;color:#000000;font-family:Segoe UI,sans-serif;";
+  const prevCriteria = state.validationCriteria;
+  state.validationCriteria = Array.isArray(data.validationCriteria) ? data.validationCriteria : [];
   let html = `<div style="background:#000000;color:#ffffff;padding:16px 18px;border-radius:3px;border-bottom:4px solid #f9a825">
       <h1 style="margin:0 0 6px;font-size:22px">${escapeHtml(data.reportName || data.appTitle || "Issue Tracker")}</h1>
-      <p style="margin:0;opacity:.9"><strong>Fecha:</strong> ${escapeHtml(data.reportDate || "—")}
-      &nbsp;·&nbsp; <strong>Número:</strong> ${escapeHtml(data.reportNumber || "—")}</p>
+      <p style="margin:0 0 4px;opacity:.9"><strong>Organization:</strong> ${escapeHtml(data.orgName || "—")}</p>
+      <p style="margin:0;opacity:.9"><strong>Report Date:</strong> ${escapeHtml(data.reportDate || "—")}
+      &nbsp;·&nbsp; <strong>Report Code:</strong> ${escapeHtml(data.reportNumber || "—")}</p>
     </div>`;
   data.sections.forEach(sec => {
     html += `<h2 style="margin:22px 0 8px;border-bottom:3px solid #000000;padding-bottom:4px;color:#000000">${escapeHtml(sec.title)}</h2>`;
@@ -1627,12 +1869,22 @@ function buildPdfReportElement(data) {
       html += `<h3 style="margin:14px 0 6px;color:#000000">${escapeHtml(grp.title)}</h3>`;
       (grp.items || []).forEach((it, idx) => {
         if (!itemStarted(it) && !(it.incidencia || "").trim() && !(it.solucion || "").trim()) return;
-        const st = it.status === "aprobado" ? "APROBADO" : it.status === "reprobado" ? "REPROBADO" : it.status === "no_aplica" ? "NO APLICA" : "SIN DEFINIR";
-        const stColor = it.status === "aprobado" ? "#2e7d32" : it.status === "reprobado" ? "#c62828" : it.status === "no_aplica" ? "#757575" : "#f9a825";
+        const eff = effectiveStatus(it);
+        const st = eff === "aprobado" ? "APROBADO" : eff === "reprobado" ? "REPROBADO" : eff === "no_aplica" ? "NO APLICA" : "SIN DEFINIR";
+        const stColor = eff === "aprobado" ? "#2e7d32" : eff === "reprobado" ? "#c62828" : eff === "no_aplica" ? "#757575" : "#f9a825";
         const name = (it.nombre && it.nombre.trim()) || `Fila ${idx + 1}`;
-        const cardBg = it.status === "no_aplica" ? "#ececec" : (!it.status ? "#fff8e1" : "#fff");
-        html += `<div style="border:1px solid #d7dee2;border-radius:3px;padding:12px;margin:8px 0;background:${cardBg};opacity:${it.status === "no_aplica" ? "0.75" : "1"}">
+        const cardBg = eff === "no_aplica" ? "#ececec" : (!eff ? "#fff8e1" : "#fff");
+        const critLabels = state.validationCriteria || [];
+        const critLine = critLabels.length
+          ? `<div style="font-size:11px;color:#5c6368;margin-top:4px">${critLabels.map((lab) => {
+              const v = (it.criteriaStatus && it.criteriaStatus[lab]) || "";
+              const labSt = v === "aprobado" ? "OK" : v === "reprobado" ? "FAIL" : v === "no_aplica" ? "N/A" : "—";
+              return `${escapeHtml(lab)}:${labSt}`;
+            }).join(" · ")}</div>`
+          : "";
+        html += `<div style="border:1px solid #d7dee2;border-radius:3px;padding:12px;margin:8px 0;background:${cardBg};opacity:${eff === "no_aplica" ? "0.75" : "1"}">
           <div style="font-size:12px;color:${stColor};font-weight:700">${escapeHtml(name)} · ${st}</div>
+          ${critLine}
           <p style="margin:8px 0 4px"><strong>Incidencia</strong>${it.fechaIncidencia ? ` <span style="color:#5c6368;font-weight:400">(${escapeHtml(it.fechaIncidencia.replace("T"," "))})</span>` : ""}<br>${escapeHtml(it.incidencia || "—").replace(/\n/g,"<br>")}</p>
           ${imgGrid(it.imagesIncidencia)}
           <p style="margin:8px 0 4px"><strong>Solución</strong>${it.fechaSolucion ? ` <span style="color:#5c6368;font-weight:400">(${escapeHtml(it.fechaSolucion.replace("T"," "))})</span>` : ""}<br>${escapeHtml(it.solucion || "—").replace(/\n/g,"<br>")}</p>
@@ -1641,6 +1893,7 @@ function buildPdfReportElement(data) {
       });
     });
   });
+  state.validationCriteria = prevCriteria;
   el.innerHTML = html;
   return el;
 }
@@ -1732,6 +1985,9 @@ function emptyLikeEmbedded() {
   const data = structuredClone(EMBEDDED_DATA);
   data.reportDate = "";
   data.reportNumber = "";
+  data.reportName = "";
+  data.orgName = "";
+  data.validationCriteria = [];
   data.theme = "dark";
   data.collapse = null;
   (data.sections || []).forEach(sec => {

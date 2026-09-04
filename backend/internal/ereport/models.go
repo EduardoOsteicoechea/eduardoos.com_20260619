@@ -107,11 +107,12 @@ type Invite struct {
 // EmptyPayload returns a minimal portable Issue Tracker document.
 func EmptyPayload() map[string]any {
 	return map[string]any{
-		"reportDate":   "",
-		"reportNumber": "",
-		"reportName":   "",
-		"orgName":      "",
-		"appTitle":     "Issue Tracker",
+		"reportDate":          "",
+		"reportNumber":        "",
+		"reportName":          "",
+		"orgName":             "",
+		"appTitle":            "Issue Tracker",
+		"validationCriteria":  []any{},
 		"sections": []any{
 			map[string]any{
 				"id":    "section-a",
@@ -138,6 +139,7 @@ func emptyItem(id string) map[string]any {
 		"incidencia":       "",
 		"fechaIncidencia":  "",
 		"status":           "",
+		"criteriaStatus":   map[string]any{},
 		"solucion":         "",
 		"fechaSolucion":    "",
 		"imagesIncidencia": []any{},

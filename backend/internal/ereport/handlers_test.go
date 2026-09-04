@@ -106,4 +106,19 @@ func TestEmptyPayload(t *testing.T) {
 	if _, ok := p["sections"]; !ok {
 		t.Fatal("missing sections")
 	}
+	if _, ok := p["validationCriteria"]; !ok {
+		t.Fatal("missing validationCriteria")
+	}
+	secs, _ := p["sections"].([]any)
+	if len(secs) < 1 {
+		t.Fatal("expected section")
+	}
+	sec, _ := secs[0].(map[string]any)
+	groups, _ := sec["groups"].([]any)
+	grp, _ := groups[0].(map[string]any)
+	items, _ := grp["items"].([]any)
+	item, _ := items[0].(map[string]any)
+	if _, ok := item["criteriaStatus"]; !ok {
+		t.Fatal("missing item criteriaStatus")
+	}
 }

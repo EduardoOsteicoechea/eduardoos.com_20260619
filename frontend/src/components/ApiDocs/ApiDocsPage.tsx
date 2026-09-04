@@ -16,7 +16,7 @@ export const EREPORT_SKILL_URL = `${EREPORT_SKILL_BASE}/SKILL.md`;
 export const EREPORT_SKILL_CAVEATS_URL = `${EREPORT_SKILL_BASE}/CAVEATS.md`;
 
 /**
- * Skill-first prompt: clone connector as silent `.ereport/` sidecar, then Modes A/B/C.
+ * Skill-first prompt: clone connector as silent `.ereport/` sidecar, then docs-driven Modes A/B/C.
  */
 export const EREPORT_API_CLIENT_AGENT_PROMPT = `You are working with Eduardo OS eReport via the public API.
 
@@ -34,16 +34,29 @@ Then wire the Cursor skill (installers do this):
 
 Read: .ereport/skill/eduardoos-ereport/CAVEATS.md
 Invoke skill name: eduardoos-ereport
-CLI: python .ereport/ereport_client.py <access|orgs|org-reports|get|put>
+
+## Docs-first (required)
+1. Put EDUARDOOS_API_KEY in .ereport/.env (never print it).
+2. Fetch the live catalog BEFORE crafting calls:
+     python .ereport/ereport_client.py docs
+   or GET https://eduardoos.com/api/v1/docs
+3. Follow catalog.routes + catalog.payloadSchema (do not invent endpoints or fields).
+4. Thin CLI helpers:
+     python .ereport/ereport_client.py request GET /api/v1/ereport/access
+     python .ereport/ereport_client.py request GET /api/v1/ereport/orgs
+     python .ereport/ereport_client.py request GET /api/v1/ereport/orgs/{orgId}/reports
+     python .ereport/ereport_client.py request GET /api/v1/ereport/orgs/{orgId}/reports/{reportId}
+     python .ereport/ereport_client.py request POST /api/v1/ereport/orgs/{orgId}/reports/{reportId} --file .ereport/report.payload.json
+   Convenience wrappers (access|orgs|org-reports|get|put) still exist but prefer docs + request.
 
 Add to host .gitignore: .ereport/.env and .ereport/report.payload.json
 
 ## Caveats (do not skip)
-- put is FULL payload replace (always get → merge → put). Not a patch API.
+- put/POST is FULL payload replace (always get → merge → put). Not a patch API.
 - API rate limit: 60 requests/minute/key (429 + Retry-After).
 - Create/revoke keys only in the UI (/auth/profile or /api-keys). Never print the key.
 - Writes: owned reports only; entitlements api + ereport.
-- Preserve fechaIncidencia / fechaSolucion and untouched items.
+- Preserve fechaIncidencia / fechaSolucion, validationCriteria, criteriaStatus, and untouched items.
 - End with: Ver reporte: <viewUrl>
   viewUrl = {BASE}/ereport/workspace?user={ownerSafe}&org={orgId}&report={reportId}
 

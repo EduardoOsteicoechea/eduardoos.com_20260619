@@ -8,27 +8,30 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// DocsCatalog is the public machine-readable API surface (specs 057 + 061).
+// DocsCatalog is the public machine-readable API surface (specs 057 + 061 + 068).
 // Key create/list/revoke is UI-only and is intentionally omitted (no keyManagement).
+// Agents must fetch this catalog first and craft requests from routes + payloadSchema.
 type DocsCatalog struct {
-	Version      string           `json:"version"`
-	Title        string           `json:"title"`
-	BaseHint     string           `json:"baseHint"`
-	Auth         DocsAuth         `json:"auth"`
-	RateLimit    DocsRateLimit    `json:"rateLimit"`
-	Entitlements DocsEntitlements `json:"entitlements"`
-	OwnerSafe    string           `json:"ownerSafe"`
-	KeyPolicy    string           `json:"keyPolicy"`
-	Skill        string           `json:"skill,omitempty"`
-	Routes       []DocsRoute      `json:"routes"`
+	Version       string              `json:"version"`
+	Title         string              `json:"title"`
+	BaseHint      string              `json:"baseHint"`
+	Auth          DocsAuth            `json:"auth"`
+	RateLimit     DocsRateLimit       `json:"rateLimit"`
+	Entitlements  DocsEntitlements    `json:"entitlements"`
+	OwnerSafe     string              `json:"ownerSafe"`
+	KeyPolicy     string              `json:"keyPolicy"`
+	Skill         string              `json:"skill,omitempty"`
+	AgentGuidance string              `json:"agentGuidance,omitempty"`
+	Routes        []DocsRoute         `json:"routes"`
+	PayloadSchema DocsPayloadSchema   `json:"payloadSchema"`
 }
 
 // DocsAuth describes Bearer API-key auth.
 type DocsAuth struct {
-	Header string `json:"header"`
-	Scheme string `json:"scheme"`
+	Header    string `json:"header"`
+	Scheme    string `json:"scheme"`
 	KeyPrefix string `json:"keyPrefix"`
-	Notes  string `json:"notes"`
+	Notes     string `json:"notes"`
 }
 
 // DocsRateLimit describes per-key throttling.
@@ -45,12 +48,26 @@ type DocsEntitlements struct {
 
 // DocsRoute is one documented HTTP route.
 type DocsRoute struct {
-	Method      string `json:"method"`
-	Path        string `json:"path"`
-	Auth        string `json:"auth"` // "api_key" | "jwt" | "none"
-	Summary     string `json:"summary"`
-	Body        string `json:"body,omitempty"`
+	Method       string `json:"method"`
+	Path         string `json:"path"`
+	Auth         string `json:"auth"` // "api_key" | "jwt" | "none"
+	Summary      string `json:"summary"`
+	Body         string `json:"body,omitempty"`
 	Requirements string `json:"requirements,omitempty"`
+}
+
+// DocsPayloadSchema documents the portable .ereport JSON for GET/POST (spec 068).
+type DocsPayloadSchema struct {
+	Description       string            `json:"description"`
+	WriteSemantics    string            `json:"writeSemantics"`
+	PostBody          string            `json:"postBody"`
+	RootFields        map[string]string `json:"rootFields"`
+	ItemFields        map[string]string `json:"itemFields"`
+	StatusValues      []string          `json:"statusValues"`
+	EffectiveStatus   string            `json:"effectiveStatus"`
+	ReportCodeRule    string            `json:"reportCodeRule"`
+	ViewURLTemplate   string            `json:"viewUrlTemplate"`
+	ExampleRootSketch map[string]any    `json:"exampleRootSketch"`
 }
 
 // BuildDocsCatalog returns the locked v1 external API catalog.
@@ -75,13 +92,14 @@ func BuildDocsCatalog() DocsCatalog {
 		},
 		OwnerSafe: "Lowercase email with @ replaced by _at_ (e.g. you@example.com → you_at_example.com)",
 		KeyPolicy: "API keys are created, listed, and revoked only in the Eduardo OS UI (Profile or API keys page). Key lifecycle is not part of the external API.",
-		Skill: "https://github.com/EduardoOsteicoechea/eduardoos-ereport-connector — clone as .ereport/ sidecar; skill + CLI. Caveats in skill/CAVEATS.md. API rate limit 60/min/key. Mirror: https://eduardoos.com/skills/eduardoos-ereport/",
+		Skill:     "https://github.com/EduardoOsteicoechea/eduardoos-ereport-connector — clone as .ereport/ sidecar; skill + thin CLI. Caveats in skill/CAVEATS.md. API rate limit 60/min/key. Mirror: https://eduardoos.com/skills/eduardoos-ereport/",
+		AgentGuidance: "1) Require EDUARDOOS_API_KEY. 2) GET /api/v1/docs and follow this catalog (do not invent endpoints or payload fields). 3) Ordered eReport flow: access → orgs → orgs/{orgId}/reports → GET report → merge → POST full payload with confirmOverwrite:true. 4) Always print viewUrl after write.",
 		Routes: []DocsRoute{
 			{
 				Method:  http.MethodGet,
 				Path:    "/api/v1/docs",
 				Auth:    "none",
-				Summary: "This catalog (public).",
+				Summary: "This catalog (public). Fetch first; includes payloadSchema for .ereport JSON.",
 			},
 			{
 				Method:       http.MethodGet,
@@ -109,21 +127,93 @@ func BuildDocsCatalog() DocsCatalog {
 				Path:         "/api/v1/ereport/orgs/{orgId}/reports/{reportId}",
 				Auth:         "api_key",
 				Summary:      "Step 4a — read one org report (meta + full payload + viewUrl).",
-				Requirements: "Response includes viewUrl, ownerSafe, orgId, reportId. Dates fechaIncidencia/fechaSolucion round-trip as sent.",
+				Requirements: "Response includes viewUrl, ownerSafe, orgId, reportId, payload. Dates fechaIncidencia/fechaSolucion round-trip as sent. See payloadSchema.",
 			},
 			{
 				Method:       http.MethodPost,
 				Path:         "/api/v1/ereport/orgs/{orgId}/reports/{reportId}",
 				Auth:         "api_key",
 				Summary:      "Step 4b — full-replace org report after snapshot.",
-				Body:         `{"confirmOverwrite":true,"tema":"optional","payload":{ /* full .ereport JSON */ }}`,
-				Requirements: "confirmOverwrite must be JSON true. payload required. Response includes viewUrl. Preserve item dates on replace.",
+				Body:         `{"confirmOverwrite":true,"tema":"optional","payload":{ /* full .ereport — see payloadSchema */ }}`,
+				Requirements: "confirmOverwrite must be JSON true. payload required and must be the FULL document from GET (merge in place). Response includes viewUrl. See payloadSchema.writeSemantics and payloadSchema.rootFields.",
 			},
 			{
 				Method:       http.MethodGet,
 				Path:         "/api/v1/ereport/library",
 				Auth:         "api_key",
 				Summary:      "Alias: orgs + legacyReports (prefer /orgs flow).",
+			},
+		},
+		PayloadSchema: DocsPayloadSchema{
+			Description:    "Portable Issue Tracker / .ereport JSON stored under the report. Opaque to the server except meta mirrors for reportDate + reportNumber + tema.",
+			WriteSemantics: "POST is a full payload replace (not PATCH). Always GET first, merge changes into the existing sections/groups/items tree, then POST. Never upload a thin payload of only new issues.",
+			PostBody:       `{"confirmOverwrite":true,"tema":"optional string used as library title","payload":{ /* entire .ereport object */ }}`,
+			RootFields: map[string]string{
+				"orgName":             "Organization display name (string).",
+				"reportName":          "Report title (string); usually synced with appTitle.",
+				"appTitle":            "Legacy/display title; keep in sync with reportName.",
+				"reportDate":          "Report Date (YYYY-MM-DD).",
+				"reportNumber":        "Report Code. UI auto: sanitize(reportName)_YYYYMMDD_HHMMSS; agents may set explicitly.",
+				"validationCriteria":  "string[] of criteria labels (e.g. RVT2025). Empty = only main status applies.",
+				"theme":               "light | dark.",
+				"collapse":            "optional { sections, groups, items } id lists.",
+				"sections":            "array of { id, title, kind, groups[] }.",
+				"sections[].groups":   "array of { id, title, items[] }.",
+				"sections[].groups[].items": "array of issue objects (see itemFields).",
+			},
+			ItemFields: map[string]string{
+				"id":               "stable item id",
+				"nombre":           "short issue name",
+				"incidencia":       "issue description",
+				"fechaIncidencia":  "issue datetime (preserve on merge)",
+				"solucion":         "resolution text",
+				"fechaSolucion":    "resolution datetime (preserve on merge)",
+				"status":           "main accept/reject/disable: aprobado | reprobado | no_aplica | \"\"",
+				"criteriaStatus":   "object map label → aprobado|reprobado|no_aplica|\"\" for each validationCriteria entry",
+				"imagesIncidencia": "array of { name, mime, dataUrl }",
+				"imagesSolucion":   "array of { name, mime, dataUrl }",
+				"images":           "alias of imagesSolucion (keep in sync)",
+			},
+			StatusValues: []string{"aprobado", "reprobado", "no_aplica", ""},
+			EffectiveStatus: "If validationCriteria is empty OR any criteriaStatus[label] is unset/\"\": effective = item.status. Else (all set): all no_aplica → no_aplica; any reprobado → reprobado; ≥1 aprobado and every other is no_aplica → aprobado; otherwise effective = item.status. Nav/PDF/progress use effective status.",
+			ReportCodeRule:  "UI: reportNumber = sanitize(reportName||appTitle||\"Report\") + \"_\" + YYYYMMDD_HHMMSS (local), updated every second, readonly. Persist reportNumber in payload; meta.json mirrors reportNumber + reportDate.",
+			ViewURLTemplate: "{BASE}/ereport/workspace?user={ownerSafe}&org={orgId}&report={reportId}",
+			ExampleRootSketch: map[string]any{
+				"orgName":            "Acme",
+				"reportName":         "Issue Tracker",
+				"appTitle":           "Issue Tracker",
+				"reportDate":         "2026-09-04",
+				"reportNumber":       "Issue_Tracker_20260904_120000",
+				"validationCriteria": []any{"RVT2025", "RVT2026"},
+				"theme":              "dark",
+				"sections": []any{
+					map[string]any{
+						"id":    "section-a",
+						"title": "1. Product / platform",
+						"kind":  "funcionalidades",
+						"groups": []any{
+							map[string]any{
+								"id":    "group-1",
+								"title": "General",
+								"items": []any{
+									map[string]any{
+										"id":              "group-1-item-1",
+										"nombre":          "",
+										"incidencia":      "",
+										"fechaIncidencia": "",
+										"status":          "",
+										"criteriaStatus":  map[string]any{"RVT2025": "", "RVT2026": ""},
+										"solucion":        "",
+										"fechaSolucion":   "",
+										"imagesIncidencia": []any{},
+										"imagesSolucion":   []any{},
+										"images":           []any{},
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 	}
