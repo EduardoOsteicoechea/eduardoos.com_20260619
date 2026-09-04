@@ -9,7 +9,7 @@
   margin: 0;
   padding: 0;
   color: var(--site-body-fg);
-  --evoice-section-body-max: 40vh;
+  --evoice-section-body-max: 600px;
 }
 
 .evoice__toolbar {
@@ -85,7 +85,7 @@
 }
 
 .evoice__section-clip {
-  max-height: var(--evoice-section-body-max, 40vh);
+  max-height: var(--evoice-section-body-max, 600px);
   overflow: hidden;
 }
 

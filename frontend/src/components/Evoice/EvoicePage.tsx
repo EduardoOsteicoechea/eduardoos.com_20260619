@@ -264,7 +264,7 @@ function CollapsibleSection({
     const raw =
       getComputedStyle(document.documentElement)
         .getPropertyValue("--evoice-section-body-max")
-        .trim() || "40vh";
+        .trim() || "600px";
     if (raw.endsWith("vh")) {
       return (parseFloat(raw) / 100) * window.innerHeight;
     }
@@ -273,7 +273,7 @@ function CollapsibleSection({
       return parseFloat(raw) * root;
     }
     if (raw.endsWith("px")) return parseFloat(raw);
-    return window.innerHeight * 0.4;
+    return 600;
   }, []);
 
   const measureOverflow = useCallback(() => {
