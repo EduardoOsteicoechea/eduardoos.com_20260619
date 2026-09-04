@@ -2,7 +2,7 @@
 
 ## Status
 
-**Mostly locked** (2026-09-04) — one open item: **HDS / header icons** (Q8). Do not implement until Q8 is answered.
+**Locked** (2026-09-04) — ready for Phase 1/2.
 
 ## Problem
 
@@ -24,6 +24,7 @@
 | 10 | **Delete doc does not delete audio** (and vice versa). Docs and audios are independent. |
 | 11 | Pre-version MP3s appear under a **Legacy** bucket (not auto-renamed to `v1`). |
 | 12 | Extend existing generate job API (see API). |
+| 8 | **No dashboard / no view-switching HDS** for Upload/Docs/Audios/Playlist/Crawl/Print. See UI chrome below. |
 
 ### Super Premium pipeline (PDF / images)
 
@@ -64,15 +65,20 @@ Naming:
 
 **Legacy** (no `.vN.` in name): `audios/{stem}.mp3`, `audios/{stem}.c*.mp3` — listed under playlist bucket **Legacy**, not migrated.
 
-### UI — three collapsible sections (no dashboard cards)
+### UI chrome (replaces HDS view icons)
 
-Primary eVoice page is **not** ProductDashboard card grid. One workspace with independent collapsible sections:
+- **No** ProductDashboard cards and **no** header icons to switch `?view=dashboard|upload|docs|…`.
+- **Admin:** only for admin users — **owner dropdown at the top** of the eVoice page (browse another user’s project tree). Same capability as today’s Admin view; not an HDS icon. Non-admins never see it.
+- **Crawl:** an **upload modality** inside Upload (with file upload and paste): URL → fetch/clean → save as project doc. Not a separate page/view.
+- **Print:** a **document action** on selected doc(s): print the **prepared speech** for audio generation (latest `*.v{N}.premium.txt` for that stem when present; otherwise a clear empty/unavailable state). Not a separate view.
 
-1. **Upload controls** — upload, paste, project chrome, mode radios, content % (also mirrored or primary in docs action bar — prefer **docs action bar** for % + mode + generate; Upload keeps file/paste only unless we co-locate — **lock: mode radios + content % live in section 2 action bar**; Upload section = files/paste/project only).
-2. **Uploaded documents** — list; below list after selection: **Delete**, **Generate MP3** (always next version). Console **toggleable to the right**.
-3. **Playlists** — nested structure below.
+### UI — three collapsible sections
 
-Viewport: sections area ≈ **80vh**, `overflow-y: auto`; **Show more** expands to full playlist height.
+1. **Upload controls** — project picker, file upload, paste text, **crawl URL**. Mode radios / content % are **not** here.
+2. **Uploaded documents** — list; action bar below after selection: **Delete**, **Generate MP3** (next version), **Print prepared speech**, **mode radios**, **content %**. Console toggleable to the right.
+3. **Playlists** — nested structure (document → version/Legacy → tracks).
+
+Viewport: sections area ≈ **80vh**, `overflow-y: auto`; **Show more** expands to full content height.
 
 #### Playlist nesting & playback (locked)
 
@@ -127,18 +133,6 @@ Deprecate/replace boolean `premium` with `mode` (accept legacy `premium: true` a
 
 Job snapshot stores `mode` + `contentPercent` for resume.
 
-## Open — Q8 HDS (needs your call)
-
-**What “HDS” means:** the **Header Dynamic Section** — the icon buttons in the site header (today: Dashboard, Admin, Upload, Docs, Audios, Playlist, Print, Crawl) that switch `?view=`.
-
-Because the main workspace becomes **one page with three sections**, the old view icons (Dashboard / Upload / Docs / Audios / Playlist) are redundant.
-
-**Choose one:**
-
-- **(A)** Remove those view icons; **no HDS** on eVoice except maybe nothing.
-- **(B)** Keep **Admin** (admin only), **Crawl**, **Print** as HDS icons that scroll/expand a dedicated subsection or small panel.
-- **(C)** Keep Admin only in HDS; put Crawl/Print inside Upload or Docs as secondary actions.
-
 ## Non-goals
 
 - DeepSeek native PDF upload (does not exist).
@@ -146,7 +140,7 @@ Because the main workspace becomes **one page with three sections**, the old vie
 - Music admin upload paths.
 - ProductDashboard cards as primary eVoice UX.
 
-## Acceptance (after Q8)
+## Acceptance
 
 - [ ] Radios Standard / Premium / Super Premium; default Standard
 - [ ] Super: PDF/images Vision@200dpi 1-page/req → format/% → TTS → `vN`; docx Super without Vision
@@ -156,7 +150,7 @@ Because the main workspace becomes **one page with three sections**, the old vie
 - [ ] Playback selection rules as locked
 - [ ] Delete doc ≠ delete audio
 - [ ] Generate API `mode` + `contentPercent`
-- [ ] Q8 HDS choice implemented
+- [ ] No view HDS; admin = top owner dropdown; crawl = upload modality; print = selected-doc prepared-speech action
 - [ ] Tests + FE build + commit/push
 
 ## Affected paths
