@@ -146,7 +146,7 @@ func (h *Handler) V1GetOrgReport(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// V1PostOrgReport full-replaces an org report after confirmOverwrite + snapshot.
+// V1PostOrgReport merges an additive API payload after confirmOverwrite + snapshot (spec 070).
 func (h *Handler) V1PostOrgReport(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	caller := auth.UserEmailFromRequest(r)
@@ -179,6 +179,12 @@ func (h *Handler) V1PostOrgReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	payload, mergeErr := MergeAPIPayload(current, body.Payload)
+	if mergeErr != nil {
+		httpx.WriteError(w, http.StatusBadRequest, mergeErr.Error())
+		return
+	}
+
 	var snapshotID string
 	if current != nil {
 		sid, snapErr := h.saveOrgSnapshotBeforeReplace(
@@ -200,7 +206,6 @@ func (h *Handler) V1PostOrgReport(w http.ResponseWriter, r *http.Request) {
 		}
 		meta.Tema = tema
 	}
-	payload := body.Payload
 	if n, ok := payload["reportNumber"].(string); ok {
 		meta.ReportNumber = n
 	}
@@ -260,7 +265,7 @@ func (h *Handler) V1GetReport(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"meta": meta, "payload": payload})
 }
 
-// V1PostReport full-replaces a legacy flat report after confirmOverwrite + snapshot.
+// V1PostReport merges an additive API payload for a legacy flat report (spec 070).
 func (h *Handler) V1PostReport(w http.ResponseWriter, r *http.Request) {
 	cid := httpx.CorrelationFromRequest(r)
 	caller := auth.UserEmailFromRequest(r)
@@ -293,6 +298,12 @@ func (h *Handler) V1PostReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	payload, mergeErr := MergeAPIPayload(current, body.Payload)
+	if mergeErr != nil {
+		httpx.WriteError(w, http.StatusBadRequest, mergeErr.Error())
+		return
+	}
+
 	var snapshotID string
 	if current != nil {
 		sid, snapErr := h.saveSnapshotBeforeReplace(
@@ -314,7 +325,6 @@ func (h *Handler) V1PostReport(w http.ResponseWriter, r *http.Request) {
 		}
 		meta.Tema = tema
 	}
-	payload := body.Payload
 	if n, ok := payload["reportNumber"].(string); ok {
 		meta.ReportNumber = n
 	}

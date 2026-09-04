@@ -52,7 +52,8 @@ Invoke skill name: eduardoos-ereport
 Add to host .gitignore: .ereport/.env and .ereport/report.payload.json
 
 ## Caveats (do not skip)
-- put/POST is FULL payload replace (always get → merge → put). Not a patch API.
+- Always fetch docs first (python .ereport/ereport_client.py docs or GET /api/v1/docs).
+- API POST is additive for issues: cannot modify/delete existing items (server 400). New items need non-empty incidencia + status reprobado.
 - API rate limit: 60 requests/minute/key (429 + Retry-After).
 - Create/revoke keys only in the UI (/auth/profile or /api-keys). Never print the key.
 - Writes: owned reports only; entitlements api + ereport.

@@ -109,8 +109,8 @@ func TestV1PostRequiresConfirmOverwriteAndSnapshots(t *testing.T) {
 		t.Fatalf("want 400 without confirmOverwrite got %d", badRec.Code)
 	}
 
-	// Full replace with confirm
-	goodBody := `{"confirmOverwrite":true,"tema":"API tema","payload":{"reportNumber":"99","sections":[{"id":"s1"}]}}`
+	// Additive post: update meta without wiping skeleton sections (spec 070)
+	goodBody := `{"confirmOverwrite":true,"tema":"API tema","payload":{"reportNumber":"99"}}`
 	good := httptest.NewRequest(http.MethodPost,
 		"/api/v1/ereport/reports/"+ownerSafe+"/"+id,
 		bytes.NewBufferString(goodBody))
@@ -245,8 +245,8 @@ func TestV1OrgAccessOrgsReportsEdit(t *testing.T) {
 		t.Fatalf("org reports=%#v", listOut)
 	}
 
-	// Step 4 — put with confirmOverwrite
-	putBody := `{"confirmOverwrite":true,"payload":{"reportNumber":"7","sections":[]}}`
+	// Step 4 — additive put (meta only; keep existing sections)
+	putBody := `{"confirmOverwrite":true,"payload":{"reportNumber":"7"}}`
 	putReq := httptest.NewRequest(http.MethodPost,
 		"/api/v1/ereport/orgs/"+orgID+"/reports/"+reportID,
 		bytes.NewBufferString(putBody))
@@ -267,7 +267,7 @@ func TestV1OrgAccessOrgsReportsEdit(t *testing.T) {
 	}
 }
 
-// TestV1OrgReportDateRoundTrip locks fechaIncidencia/fechaSolucion through API full-replace (spec 062).
+// TestV1OrgReportDateRoundTrip locks fechaIncidencia/fechaSolucion through additive API post (spec 062 + 070).
 func TestV1OrgReportDateRoundTrip(t *testing.T) {
 	users := auth.NewMemoryStore()
 	_ = users.PutUser(context.Background(), auth.User{
@@ -325,14 +325,18 @@ func TestV1OrgReportDateRoundTrip(t *testing.T) {
 	}
 	_ = json.Unmarshal(ckRec.Body.Bytes(), &keyOut)
 
+	// Additive: new section + new open issue (cannot replace skeleton items)
 	payload := map[string]any{
 		"reportNumber": "DATE-1",
 		"sections": []any{
 			map[string]any{
-				"id": "s1",
+				"id":    "s-dates",
+				"title": "Dates",
+				"kind":  "funcionalidades",
 				"groups": []any{
 					map[string]any{
-						"id": "g1",
+						"id":    "g-dates",
+						"title": "General",
 						"items": []any{
 							map[string]any{
 								"id":               "ce-3143-03",
@@ -389,11 +393,20 @@ func TestV1OrgReportDateRoundTrip(t *testing.T) {
 		t.Fatal("missing viewUrl on GET")
 	}
 	secs, _ := getOut.Payload["sections"].([]any)
-	sec0, _ := secs[0].(map[string]any)
-	grps, _ := sec0["groups"].([]any)
-	g0, _ := grps[0].(map[string]any)
-	items, _ := g0["items"].([]any)
-	it0, _ := items[0].(map[string]any)
+	var it0 map[string]any
+	for _, secAny := range secs {
+		sec0, _ := secAny.(map[string]any)
+		if sec0["id"] != "s-dates" {
+			continue
+		}
+		grps, _ := sec0["groups"].([]any)
+		g0, _ := grps[0].(map[string]any)
+		items, _ := g0["items"].([]any)
+		it0, _ = items[0].(map[string]any)
+	}
+	if it0 == nil {
+		t.Fatal("missing dated item section")
+	}
 	if it0["fechaIncidencia"] != "2026-08-31" || it0["fechaSolucion"] != "2026-09-01" {
 		t.Fatalf("dates stripped: %#v", it0)
 	}

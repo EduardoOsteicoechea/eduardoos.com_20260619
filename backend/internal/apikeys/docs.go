@@ -93,7 +93,7 @@ func BuildDocsCatalog() DocsCatalog {
 		OwnerSafe: "Lowercase email with @ replaced by _at_ (e.g. you@example.com → you_at_example.com)",
 		KeyPolicy: "API keys are created, listed, and revoked only in the Eduardo OS UI (Profile or API keys page). Key lifecycle is not part of the external API.",
 		Skill:     "https://github.com/EduardoOsteicoechea/eduardoos-ereport-connector — clone as .ereport/ sidecar; skill + thin CLI. Caveats in skill/CAVEATS.md. API rate limit 60/min/key. Mirror: https://eduardoos.com/skills/eduardoos-ereport/",
-		AgentGuidance: "1) Require EDUARDOOS_API_KEY. 2) GET /api/v1/docs and follow this catalog (do not invent endpoints or payload fields). 3) Ordered eReport flow: access → orgs → orgs/{orgId}/reports → GET report → merge → POST full payload with confirmOverwrite:true. 4) Always print viewUrl after write.",
+		AgentGuidance: "1) Require EDUARDOOS_API_KEY. 2) ALWAYS GET /api/v1/docs first and follow this catalog (do not invent endpoints or payload fields). 3) Ordered eReport flow: access → orgs → orgs/{orgId}/reports → GET report → add only new open issues → POST. 4) API POST is additive for issues (spec 070): cannot modify/delete existing items/sections; new items need non-empty incidencia + status reprobado. 5) Always print viewUrl after write.",
 		Routes: []DocsRoute{
 			{
 				Method:  http.MethodGet,
@@ -133,9 +133,9 @@ func BuildDocsCatalog() DocsCatalog {
 				Method:       http.MethodPost,
 				Path:         "/api/v1/ereport/orgs/{orgId}/reports/{reportId}",
 				Auth:         "api_key",
-				Summary:      "Step 4b — full-replace org report after snapshot.",
-				Body:         `{"confirmOverwrite":true,"tema":"optional","payload":{ /* full .ereport — see payloadSchema */ }}`,
-				Requirements: "confirmOverwrite must be JSON true. payload required and must be the FULL document from GET (merge in place). Response includes viewUrl. See payloadSchema.writeSemantics and payloadSchema.rootFields.",
+				Summary:      "Step 4b — additive write: append new open issues / new sections (server merges).",
+				Body:         `{"confirmOverwrite":true,"tema":"optional","payload":{ /* get payload + only new items/sections — see payloadSchema */ }}`,
+				Requirements: "confirmOverwrite must be JSON true. payload required. Server merges onto stored report: existing item ids cannot change; new items require non-empty incidencia and status reprobado. Response includes merged payload + viewUrl. See payloadSchema.writeSemantics.",
 			},
 			{
 				Method:       http.MethodGet,
@@ -145,9 +145,9 @@ func BuildDocsCatalog() DocsCatalog {
 			},
 		},
 		PayloadSchema: DocsPayloadSchema{
-			Description:    "Portable Issue Tracker / .ereport JSON stored under the report. Opaque to the server except meta mirrors for reportDate + reportNumber + tema.",
-			WriteSemantics: "POST is a full payload replace (not PATCH). Always GET first, merge changes into the existing sections/groups/items tree, then POST. Never upload a thin payload of only new issues.",
-			PostBody:       `{"confirmOverwrite":true,"tema":"optional string used as library title","payload":{ /* entire .ereport object */ }}`,
+			Description:    "Portable Issue Tracker / .ereport JSON stored under the report. Opaque to the server except meta mirrors for reportDate + reportNumber + tema, and additive merge rules on API-key POST (spec 070).",
+			WriteSemantics: "API-key POST is NOT a full client replace of issues. Server loads the stored report and merges: existing section/group/item ids cannot be modified or removed (400 if the client sends a changed copy of an existing item). Allowed: append new items to existing sections/groups; append new sections with new items. Every NEW item must have non-empty trimmed incidencia text and status exactly \"reprobado\". Root meta fields (orgName, reportName, reportDate, reportNumber, validationCriteria, theme, …) may update. JWT web editor remains full-edit. Always GET before POST. confirmOverwrite:true still required.",
+			PostBody:       `{"confirmOverwrite":true,"tema":"optional string used as library title","payload":{ /* stored report + new open issues only */ }}`,
 			RootFields: map[string]string{
 				"orgName":             "Organization display name (string).",
 				"reportName":          "Report title (string); usually synced with appTitle.",
