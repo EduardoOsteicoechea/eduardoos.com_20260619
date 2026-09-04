@@ -8,6 +8,7 @@
 
 - [x] Radios Standard / Premium / Super Premium; default Standard
 - [x] Super: PDF/images Vision@200dpi 1-page/req → format/% → TTS → `vN`; docx Super without Vision
+- [x] Vision streams one page image at a time (no full-PDF rasterize; avoids EC2 OOM `signal: killed`)
 - [x] Content % on all modes; 100% = no shorten instruction
 - [x] Versioned MP3s; Legacy bucket for old names
 - [x] Collapsible Upload / Docs+console / Playlists; 80vh + Show more
