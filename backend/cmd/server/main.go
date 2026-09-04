@@ -95,6 +95,7 @@ func main() {
 	evoiceHandler.Objects = evoice.OpenObjectSpace(ctx)
 	evoiceHandler.Entitlements = paymentsHandler.Store
 	evoiceHandler.Jobs = evoice.NewJobStore(nil) // Piper/espeak worker; EVOICE_FAKE_TTS=1 for stub
+	evoiceHandler.Mail = authHandler             // shared SMTP for playlist share invites (spec 071)
 	contactHandler := contact.NewHandler(authHandler)
 	adminHandler := admin.NewHandler(jwtSecret, userStore, paymentsHandler.Store)
 	adminHandler.UseAuth(authHandler) // SMTP + store for bulk-register OTP mail

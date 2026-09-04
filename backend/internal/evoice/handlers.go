@@ -30,6 +30,7 @@ type Handler struct {
 	Objects      ObjectSpace
 	Entitlements *payments.Store
 	Jobs         *JobStore
+	Mail         Mailer
 	auth         *auth.Handler
 }
 
@@ -44,8 +45,11 @@ func NewHandler(jwtSecret string, users auth.UserStore) *Handler {
 	}
 }
 
-// Routes mounts /api/evoice/* behind RequireJWT + evoice access.
+// Routes mounts /api/evoice/* — public invite preview; JWT + evoice for the rest.
 func (h *Handler) Routes(r chi.Router) {
+	// Public magic-link preview (no JWT) — accept still requires JWT.
+	r.Get("/api/evoice/invite/{token}", h.GetPlaylistShareInvite)
+
 	r.Group(func(pr chi.Router) {
 		pr.Use(h.auth.RequireJWT)
 		pr.Use(h.requireEvoiceAccess)
@@ -71,6 +75,8 @@ func (h *Handler) Routes(r chi.Router) {
 		pr.Get("/api/evoice/jobs/{jobId}", h.GetJob)
 		pr.Post("/api/evoice/jobs/{jobId}/stop", h.StopJob)
 		pr.Post("/api/evoice/jobs/{jobId}/resume", h.ResumeJob)
+		pr.Post("/api/evoice/projects/{ownerSafe}/{project}/shares", h.CreatePlaylistShare)
+		pr.Post("/api/evoice/invite/{token}/accept", h.AcceptPlaylistShareInvite)
 	})
 }
 

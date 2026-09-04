@@ -50,3 +50,20 @@ type JobStats struct {
 	Skipped   int `json:"skipped"`
 	Failed    int `json:"failed"`
 }
+
+// PlaylistShareFile is one audio basename included in a share invite (spec 071).
+type PlaylistShareFile struct {
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+}
+
+// PlaylistShareInvite is stored at evoice/invites/{token}.json.
+type PlaylistShareInvite struct {
+	Token     string              `json:"token"`
+	OwnerSafe string              `json:"ownerSafe"`
+	Project   string              `json:"project"`
+	Email     string              `json:"email"`
+	Files     []PlaylistShareFile `json:"files"`
+	ExpiresAt string              `json:"expiresAt"`
+	CreatedAt string              `json:"createdAt"`
+}

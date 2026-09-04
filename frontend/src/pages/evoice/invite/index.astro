@@ -1,0 +1,11 @@
+---
+/** Playlist share magic-link landing — ?token= (spec 071). */
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import EvoiceInvitePage from "../../../components/Evoice/EvoiceInvitePage";
+---
+
+<BaseLayout title="eVoice invite — Eduardo Osteicoechea" requireAuth={true}>
+  <div class="page-shell page-shell--product">
+    <EvoiceInvitePage client:only="react" />
+  </div>
+</BaseLayout>

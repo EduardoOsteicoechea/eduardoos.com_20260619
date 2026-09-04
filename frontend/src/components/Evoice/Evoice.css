@@ -679,6 +679,32 @@
   cursor: not-allowed;
 }
 
+.evoice__share-hint,
+.evoice__share-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--site-body-fg) 78%, transparent);
+}
+
+.evoice__share-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.evoice__invite {
+  display: grid;
+  gap: 1rem;
+  max-width: 40rem;
+}
+
+.evoice__invite-tracks {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+}
+
 /* Compact transport in nested playlist headers */
 .evoice__doc-group-head .evoice__transport,
 .evoice__version-head .evoice__transport {

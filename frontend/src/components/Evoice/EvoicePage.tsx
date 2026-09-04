@@ -33,6 +33,7 @@ import {
   startEvoiceGenerate,
   stopEvoiceJob,
   uploadEvoiceDoc,
+  createEvoicePlaylistShare,
   type EvoiceGenerateMode,
   type EvoiceJobFile,
   type EvoiceJobStep,
@@ -484,6 +485,11 @@ function EvoiceWorkspace() {
   const [playlistsOpen, setPlaylistsOpen] = useState(true);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareLink, setShareLink] = useState("");
+  const [shareNote, setShareNote] = useState("");
   const [workspaceCollapsed, setWorkspaceCollapsed] = useState(false);
   const sectionOpenBeforeCollapse = useRef<{
     project: boolean;
@@ -1228,6 +1234,47 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
     });
   }
 
+  function shareTrackNames(): string[] {
+    if (checkedTracks.size === 0) return [];
+    const names: string[] = [];
+    for (const t of globalTrackOrder) {
+      if (checkedTracks.has(trackId(t))) names.push(t.name);
+    }
+    return names;
+  }
+
+  async function onSharePlaylist(e: FormEvent) {
+    e.preventDefault();
+    if (!ownerSafe || !project || shareBusy) return;
+    const email = shareEmail.trim();
+    if (!email) return;
+    setShareBusy(true);
+    setShareLink("");
+    setShareNote("");
+    try {
+      const files = shareTrackNames();
+      const { link, invite } = await createEvoicePlaylistShare(
+        ownerSafe,
+        project,
+        email,
+        files.length > 0 ? files : undefined,
+      );
+      setShareLink(link);
+      setShareNote(
+        files.length > 0
+          ? `Shared ${invite.files?.length ?? files.length} checked track(s).`
+          : `Shared all ${invite.files?.length ?? 0} track(s) in this project.`,
+      );
+    } catch (err) {
+      showError(
+        "Share playlist",
+        err instanceof Error ? err.message : "Could not create share invite.",
+      );
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
   const evoiceHeaderMenu = hdsHost
     ? createPortal(
         <div
@@ -1351,6 +1398,77 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
                 ))}
               </select>
             </label>
+          </div>
+        </div>
+      ) : null}
+
+      {shareModalOpen ? (
+        <div
+          className="evoice__modal-backdrop"
+          role="presentation"
+          onClick={() => !shareBusy && setShareModalOpen(false)}
+        >
+          <div
+            className="evoice__modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="evoice-share-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="evoice__modal-head">
+              <h2 id="evoice-share-modal-title">Share playlist</h2>
+              <button
+                type="button"
+                className="evoice__icon-btn"
+                title="Close"
+                aria-label="Close"
+                onClick={() => setShareModalOpen(false)}
+                disabled={shareBusy}
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">
+                  close
+                </span>
+              </button>
+            </div>
+            <p className="evoice__share-hint">
+              {checkedTracks.size > 0
+                ? `Invite by email to copy ${checkedTracks.size} checked track(s) into their project.`
+                : "No tracks checked — invite will share every audio in this project."}
+            </p>
+            <form className="evoice__share-form" onSubmit={onSharePlaylist}>
+              <label className="evoice__field">
+                <span>Recipient email</span>
+                <input
+                  type="email"
+                  className="evoice__input"
+                  value={shareEmail}
+                  onChange={(e) => setShareEmail(e.target.value)}
+                  required
+                  disabled={shareBusy || !project}
+                  placeholder="friend@example.com"
+                  autoComplete="email"
+                />
+              </label>
+              <button
+                type="submit"
+                className="btn btn--blue"
+                disabled={shareBusy || !project || !shareEmail.trim()}
+              >
+                {shareBusy ? "Sending…" : "Send invite"}
+              </button>
+            </form>
+            {shareNote ? <p className="evoice__share-note">{shareNote}</p> : null}
+            {shareLink ? (
+              <label className="evoice__field">
+                <span>Invite link</span>
+                <input
+                  className="evoice__input"
+                  readOnly
+                  value={shareLink}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+              </label>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -1796,6 +1914,24 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
               open={playlistsOpen}
               onToggle={() => setPlaylistsOpen((v) => !v)}
               className="evoice__section--playlists"
+              headerActions={
+                <button
+                  type="button"
+                  className="evoice__icon-btn"
+                  title="Share playlist"
+                  aria-label="Share playlist"
+                  disabled={!project || globalTrackOrder.length === 0 || busy}
+                  onClick={() => {
+                    setShareLink("");
+                    setShareNote("");
+                    setShareModalOpen(true);
+                  }}
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">
+                    ios_share
+                  </span>
+                </button>
+              }
             >
               <TransportBar
                 label="Global playlist"

@@ -101,6 +101,11 @@ func JobSnapshotKey(jobID string) string {
 	return fmt.Sprintf("%s/_jobs/%s.json", RootPrefix, strings.TrimSpace(jobID))
 }
 
+// InviteKey is evoice/invites/{token}.json (playlist share magic link, spec 071).
+func InviteKey(token string) string {
+	return fmt.Sprintf("%s/invites/%s.json", RootPrefix, strings.TrimSpace(token))
+}
+
 // ValidFileName reports whether a docs/audios basename is safe for S3 keys/URLs.
 func ValidFileName(name string) bool {
 	name = sanitizeFileName(name)

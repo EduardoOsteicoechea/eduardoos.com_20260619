@@ -484,3 +484,99 @@ export async function downloadEvoiceAudio(
     URL.revokeObjectURL(url);
   }
 }
+
+export type EvoiceShareFile = { name: string; size: number };
+
+export type EvoiceShareInvite = {
+  token: string;
+  email: string;
+  ownerSafe: string;
+  project: string;
+  files: EvoiceShareFile[];
+  expiresAt: string;
+  createdAt?: string;
+};
+
+/** Create playlist share invite + email magic link (spec 071). */
+export async function createEvoicePlaylistShare(
+  ownerSafe: string,
+  project: string,
+  email: string,
+  files?: string[],
+  durationHours = 72,
+): Promise<{ invite: EvoiceShareInvite; link: string }> {
+  const result = await apiRequest<{ invite: EvoiceShareInvite; link: string }>(
+    EVOICE_ROUTES.shares(ownerSafe, project),
+    {
+      method: "POST",
+      authToken: requireToken(),
+      correlationId: createCorrelationId(),
+      body: {
+        email,
+        files: files ?? [],
+        durationHours,
+      },
+    },
+  );
+  if (result.error || !result.data?.invite || !result.data?.link) {
+    throw new Error(
+      (result.error ? formatApiError(result.error) : "") ||
+        "Could not create playlist share.",
+    );
+  }
+  return { invite: result.data.invite, link: result.data.link };
+}
+
+/** Public invite preview (no JWT). */
+export async function fetchEvoicePlaylistInvite(token: string): Promise<{
+  valid: boolean;
+  expired: boolean;
+  invite: EvoiceShareInvite;
+}> {
+  const result = await apiRequest<{
+    valid: boolean;
+    expired: boolean;
+    invite: EvoiceShareInvite;
+  }>(EVOICE_ROUTES.invite(token), {
+    method: "GET",
+    correlationId: createCorrelationId(),
+  });
+  if (result.error || !result.data?.invite) {
+    throw new Error(
+      (result.error ? formatApiError(result.error) : "") || "Invite not found.",
+    );
+  }
+  return result.data;
+}
+
+/** Copy shared tracks into caller's project (JWT + matching invite email). */
+export async function acceptEvoicePlaylistInvite(
+  token: string,
+  project: string,
+): Promise<{
+  project: string;
+  imported: string[];
+  renamed: Record<string, string>;
+}> {
+  const result = await apiRequest<{
+    project: string;
+    imported: string[];
+    renamed: Record<string, string>;
+  }>(EVOICE_ROUTES.inviteAccept(token), {
+    method: "POST",
+    authToken: requireToken(),
+    correlationId: createCorrelationId(),
+    body: { project },
+  });
+  if (result.error || !result.data?.project) {
+    throw new Error(
+      (result.error ? formatApiError(result.error) : "") ||
+        "Could not import playlist.",
+    );
+  }
+  return {
+    project: result.data.project,
+    imported: result.data.imported ?? [],
+    renamed: result.data.renamed ?? {},
+  };
+}

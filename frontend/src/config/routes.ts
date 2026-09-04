@@ -53,6 +53,7 @@ export const APP_ROUTES = {
   ereportWorkspace: "/ereport/workspace",
   /** eVoice text-to-audio projects (subscription / allowlist). */
   evoice: "/evoice",
+  evoiceInvite: "/evoice/invite/",
   /** Public Calvin’s Institutes reader (S3-backed). */
   calvinsInstitutes: "/dashboard/latin/calvins-institutes",
   adminUsers: "/admin/users",
@@ -256,6 +257,13 @@ export const EVOICE_ROUTES = {
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/audios?name=${encodeURIComponent(name)}`,
   generate: (ownerSafe: string, project: string) =>
     `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/generate`,
+  shares: (ownerSafe: string, project: string) =>
+    `/api/evoice/projects/${encodeURIComponent(ownerSafe)}/${encodeURIComponent(project)}/shares`,
+  /** Public playlist-share preview (no JWT). */
+  invite: (token: string) =>
+    `/api/evoice/invite/${encodeURIComponent(token)}`,
+  inviteAccept: (token: string) =>
+    `/api/evoice/invite/${encodeURIComponent(token)}/accept`,
   job: (jobId: string) => `/api/evoice/jobs/${encodeURIComponent(jobId)}`,
   jobStop: (jobId: string) =>
     `/api/evoice/jobs/${encodeURIComponent(jobId)}/stop`,
