@@ -12,6 +12,7 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import ServiceGate from "../ServiceGate/ServiceGate";
 import {
   createEvoiceProject,
@@ -39,14 +40,18 @@ import {
 } from "../../lib/evoice";
 import { getAuthToken } from "../../lib/auth";
 import { openServerErrorModal } from "../ServerErrorModal/ServerErrorModal";
+import { useHeaderDynamicHost } from "../HeaderDynamicMenu/HeaderDynamicMenu";
+import "../HeaderDynamicMenu/HeaderDynamicMenu.css";
 import "./Evoice.css";
 
 const CONTENT_PERCENTS = [100, 75, 50, 25, 10, 5] as const;
-const GENERATE_MODES: { id: EvoiceGenerateMode; label: string }[] = [
+const QUALITY_MODES: { id: EvoiceGenerateMode; label: string }[] = [
   { id: "standard", label: "Standard" },
   { id: "premium", label: "Premium" },
   { id: "super_premium", label: "Super Premium" },
 ];
+
+type UploadModality = "file" | "paste" | "crawl" | null;
 
 const SUPER_PREMIUM_EXT = /\.(pdf|png|jpe?g|webp|tiff?|bmp|gif|docx)$/i;
 
@@ -382,16 +387,18 @@ function EvoiceWorkspace() {
   const [docs, setDocs] = useState<EvoiceObjectMeta[]>([]);
   const [audios, setAudios] = useState<EvoiceObjectMeta[]>([]);
   const [pasteText, setPasteText] = useState("");
-  const [showPaste, setShowPaste] = useState(false);
+  const [uploadModality, setUploadModality] = useState<UploadModality>(null);
   const [crawlUrl, setCrawlUrl] = useState("");
   const [generateMode, setGenerateMode] = useState<EvoiceGenerateMode>("standard");
   const [contentPercent, setContentPercent] = useState<number>(100);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [checkedTracks, setCheckedTracks] = useState<Set<string>>(new Set());
+  const [projectOpen, setProjectOpen] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(true);
   const [docsOpen, setDocsOpen] = useState(true);
   const [playlistsOpen, setPlaylistsOpen] = useState(true);
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [expandedHeight, setExpandedHeight] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [steps, setSteps] = useState<EvoiceJobStep[]>([]);
@@ -411,6 +418,7 @@ function EvoiceWorkspace() {
   const stopRequestedRef = useRef(false);
   const projectRef = useRef(project);
   projectRef.current = project;
+  const hdsHost = useHeaderDynamicHost("evoice-header-menu");
 
   const sourceDocs = useMemo(
     () => docs.filter((d) => isSourceDoc(d.name)),
@@ -1098,111 +1106,242 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
   const canPrev = trackIndex > 0;
   const canNext = trackIndex < queue.length - 1;
 
-  return (
-    <div className="evoice">
-      {isAdmin ? (
-        <label className="evoice__field evoice__admin">
-          <span>Owner (admin)</span>
-          <select
-            className="evoice__select"
-            value={ownerSafe}
-            onChange={(e) => {
-              const nextOwner = e.target.value;
-              setOwnerSafe(nextOwner);
-              setProject("");
-              setDocs([]);
-              setAudios([]);
-              setSelectedDocs([]);
-              setCheckedTracks(new Set());
-              setQueue([]);
-              setTrackIndex(0);
-              setBlobUrl("");
-              if (blobUrlRef.current) {
-                URL.revokeObjectURL(blobUrlRef.current);
-                blobUrlRef.current = "";
-              }
-              void reloadProjects(nextOwner);
+  const qualityIndex = Math.max(
+    0,
+    QUALITY_MODES.findIndex((m) => m.id === generateMode),
+  );
+  const contentIndex = Math.max(
+    0,
+    CONTENT_PERCENTS.indexOf(
+      contentPercent as (typeof CONTENT_PERCENTS)[number],
+    ),
+  );
+
+  function toggleUploadModality(next: Exclude<UploadModality, null>) {
+    setUploadModality((prev) => (prev === next ? null : next));
+  }
+
+  const adminHeaderMenu =
+    isAdmin && hdsHost
+      ? createPortal(
+          <div
+            id="evoice-header-menu"
+            className="header-dynamic-menu"
+            ref={(node) => {
+              if (node) window.__eduardoosHeaderDynamicMenu = node;
             }}
           >
-            {(users.length ? users : [ownerSafe]).map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
-        </label>
+            <div
+              className="header-dynamic-menu__inner header-dynamic-menu__actions"
+              role="toolbar"
+              aria-label="eVoice admin"
+            >
+              <button
+                type="button"
+                className={
+                  adminModalOpen
+                    ? "header-dynamic-menu__btn header-dynamic-menu__btn--active is-active"
+                    : "header-dynamic-menu__btn"
+                }
+                title="Switch owner"
+                aria-label="Switch owner"
+                aria-pressed={adminModalOpen}
+                onClick={() => setAdminModalOpen((v) => !v)}
+              >
+                <span
+                  className="material-symbols-outlined header-dynamic-menu__icon"
+                  aria-hidden="true"
+                >
+                  admin_panel_settings
+                </span>
+              </button>
+            </div>
+          </div>,
+          hdsHost,
+        )
+      : null;
+
+  return (
+    <div className="evoice">
+      {adminHeaderMenu}
+
+      {isAdmin && adminModalOpen ? (
+        <div
+          className="evoice__modal-backdrop"
+          role="presentation"
+          onClick={() => setAdminModalOpen(false)}
+        >
+          <div
+            className="evoice__modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="evoice-admin-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="evoice__modal-head">
+              <h2 id="evoice-admin-modal-title">Owner</h2>
+              <button
+                type="button"
+                className="evoice__icon-btn"
+                title="Close"
+                aria-label="Close"
+                onClick={() => setAdminModalOpen(false)}
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">
+                  close
+                </span>
+              </button>
+            </div>
+            <label className="evoice__field">
+              <span>Browse another user’s projects</span>
+              <select
+                className="evoice__select"
+                value={ownerSafe}
+                onChange={(e) => {
+                  const nextOwner = e.target.value;
+                  setOwnerSafe(nextOwner);
+                  setProject("");
+                  setDocs([]);
+                  setAudios([]);
+                  setSelectedDocs([]);
+                  setCheckedTracks(new Set());
+                  setQueue([]);
+                  setTrackIndex(0);
+                  setBlobUrl("");
+                  if (blobUrlRef.current) {
+                    URL.revokeObjectURL(blobUrlRef.current);
+                    blobUrlRef.current = "";
+                  }
+                  void reloadProjects(nextOwner);
+                }}
+              >
+                {(users.length ? users : [ownerSafe]).map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
       ) : null}
 
-      <div className="evoice__toolbar">
-        <label className="evoice__field evoice__field--twin">
-          <span>Project</span>
-          <select
-            className="evoice__select"
-            value={project}
-            onChange={(e) => setProject(e.target.value)}
-            disabled={!projects.length}
-          >
-            {projects.length === 0 ? (
-              <option value="">No projects yet</option>
-            ) : (
-              projects.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))
-            )}
-          </select>
-        </label>
-        <form className="evoice__create" onSubmit={onCreateProject}>
-          <label className="evoice__field evoice__field--twin">
-            <span>New project</span>
-            <input
-              className="evoice__input"
-              value={newProject}
-              onChange={(e) => setNewProject(e.target.value)}
-              placeholder="project-name"
-              pattern="[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}"
-              required
-            />
-          </label>
-          <button type="submit" className="btn btn--primary" disabled={busy}>
-            Create
-          </button>
-        </form>
-      </div>
+      <div
+        className={
+          expandedHeight
+            ? "evoice__sections evoice__sections--expanded"
+            : "evoice__sections"
+        }
+      >
+        <CollapsibleSection
+          id="evoice-project"
+          title="Project"
+          open={projectOpen}
+          onToggle={() => setProjectOpen((v) => !v)}
+          className="evoice__section--project"
+        >
+          <div className="evoice__toolbar">
+            <label className="evoice__field evoice__field--twin">
+              <span>Project</span>
+              <select
+                className="evoice__select"
+                value={project}
+                onChange={(e) => setProject(e.target.value)}
+                disabled={!projects.length}
+              >
+                {projects.length === 0 ? (
+                  <option value="">No projects yet</option>
+                ) : (
+                  projects.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
+            <form className="evoice__create" onSubmit={onCreateProject}>
+              <label className="evoice__field evoice__field--twin">
+                <span>New project</span>
+                <input
+                  className="evoice__input"
+                  value={newProject}
+                  onChange={(e) => setNewProject(e.target.value)}
+                  placeholder="project-name"
+                  pattern="[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}"
+                  required
+                />
+              </label>
+              <button type="submit" className="btn btn--primary" disabled={busy}>
+                Create
+              </button>
+            </form>
+          </div>
+        </CollapsibleSection>
 
-      {project ? (
-        <>
-          <div
-            className={
-              expandedHeight
-                ? "evoice__sections evoice__sections--expanded"
-                : "evoice__sections"
-            }
-          >
+        {project ? (
+          <>
             <CollapsibleSection
               id="evoice-upload"
               title="Upload"
               open={uploadOpen}
               onToggle={() => setUploadOpen((v) => !v)}
+              className="evoice__section--upload"
             >
-              <div className="evoice__upload-row">
-                <label className="btn evoice__upload">
-                  Upload file
-                  <input type="file" hidden onChange={onUpload} disabled={busy} />
-                </label>
+              <div className="evoice__upload-row" role="toolbar" aria-label="Upload modality">
                 <button
                   type="button"
-                  className="btn"
-                  onClick={() => setShowPaste((v) => !v)}
+                  className={
+                    uploadModality === "file"
+                      ? "btn btn--primary"
+                      : "btn"
+                  }
+                  aria-pressed={uploadModality === "file"}
+                  onClick={() => toggleUploadModality("file")}
                   disabled={busy}
                 >
-                  {showPaste ? "Hide paste" : "Paste text"}
+                  Upload file
+                </button>
+                <button
+                  type="button"
+                  className={
+                    uploadModality === "paste" ? "btn btn--primary" : "btn"
+                  }
+                  aria-pressed={uploadModality === "paste"}
+                  onClick={() => toggleUploadModality("paste")}
+                  disabled={busy}
+                >
+                  Paste text
+                </button>
+                <button
+                  type="button"
+                  className={
+                    uploadModality === "crawl" ? "btn btn--primary" : "btn"
+                  }
+                  aria-pressed={uploadModality === "crawl"}
+                  onClick={() => toggleUploadModality("crawl")}
+                  disabled={busy}
+                >
+                  Crawl
                 </button>
               </div>
 
-              {showPaste ? (
-                <form className="evoice__paste" onSubmit={onPasteText}>
+              {uploadModality === "file" ? (
+                <div className="evoice__modality-panel">
+                  <label className="btn evoice__upload">
+                    Choose file
+                    <input
+                      type="file"
+                      hidden
+                      onChange={onUpload}
+                      disabled={busy}
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              {uploadModality === "paste" ? (
+                <form className="evoice__paste evoice__modality-panel" onSubmit={onPasteText}>
                   <label className="evoice__field evoice__field--grow">
                     <span>Paste text</span>
                     <textarea
@@ -1224,29 +1363,31 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
                 </form>
               ) : null}
 
-              <form className="evoice__paste evoice__crawl" onSubmit={(e) => void onCrawl(e)}>
-                <label className="evoice__field evoice__field--grow">
-                  <span>Crawl URL</span>
-                  <input
-                    className="evoice__input"
-                    type="url"
-                    value={crawlUrl}
-                    onChange={(e) => setCrawlUrl(e.target.value)}
-                    placeholder="https://…"
-                    disabled={busy}
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="btn btn--blue"
-                  disabled={busy || !crawlUrl.trim()}
+              {uploadModality === "crawl" ? (
+                <form
+                  className="evoice__paste evoice__crawl evoice__modality-panel"
+                  onSubmit={(e) => void onCrawl(e)}
                 >
-                  Crawl &amp; save
-                </button>
-              </form>
-              <p className="evoice__hint">
-                Upload files, paste text, or crawl a public URL into this project.
-              </p>
+                  <label className="evoice__field evoice__field--grow">
+                    <span>Crawl URL</span>
+                    <input
+                      className="evoice__input"
+                      type="url"
+                      value={crawlUrl}
+                      onChange={(e) => setCrawlUrl(e.target.value)}
+                      placeholder="https://…"
+                      disabled={busy}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="btn btn--blue"
+                    disabled={busy || !crawlUrl.trim()}
+                  >
+                    Crawl &amp; save
+                  </button>
+                </form>
+              ) : null}
             </CollapsibleSection>
 
             <CollapsibleSection
@@ -1254,7 +1395,7 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
               title="Documents"
               open={docsOpen}
               onToggle={() => setDocsOpen((v) => !v)}
-              className={consoleOpen ? "evoice__section--with-console" : undefined}
+              className={`evoice__section--docs${consoleOpen ? " evoice__section--with-console" : ""}`}
             >
               <div
                 className={
@@ -1338,86 +1479,128 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
                   )}
 
                   <div className="evoice__action-bar">
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => void onDeleteSelectedDocs()}
-                      disabled={busy || selectedDocs.length === 0}
-                    >
-                      Delete
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--primary"
-                      onClick={() => void onGenerate()}
-                      disabled={busy}
-                    >
-                      Generate MP3
-                      {selectedDocs.length > 0
-                        ? ` (${selectedDocs.length})`
-                        : ""}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => void onPrintPreparedSpeech()}
-                      disabled={busy || selectedDocs.length === 0}
-                    >
-                      Print prepared speech
-                    </button>
-
-                    <fieldset className="evoice__mode-fieldset">
-                      <legend>Mode</legend>
-                      {GENERATE_MODES.map((m) => (
-                        <label key={m.id} className="evoice__radio">
-                          <input
-                            type="radio"
-                            name="evoice-mode"
-                            value={m.id}
-                            checked={generateMode === m.id}
-                            onChange={() => setGenerateMode(m.id)}
-                            disabled={busy}
-                          />
-                          <span>{m.label}</span>
-                        </label>
-                      ))}
-                    </fieldset>
-
-                    <label className="evoice__field evoice__field--inline">
-                      <span>Content %</span>
-                      <select
-                        className="evoice__select evoice__select--compact"
-                        value={contentPercent}
-                        onChange={(e) =>
-                          setContentPercent(Number(e.target.value))
+                    <div className="evoice__action-icons" role="group" aria-label="Document actions">
+                      <button
+                        type="button"
+                        className="evoice__icon-btn evoice__icon-btn--accent"
+                        title="Generate MP3"
+                        aria-label={
+                          selectedDocs.length > 0
+                            ? `Generate MP3 (${selectedDocs.length})`
+                            : "Generate MP3"
                         }
+                        onClick={() => void onGenerate()}
                         disabled={busy}
                       >
-                        {CONTENT_PERCENTS.map((p) => (
-                          <option key={p} value={p}>
-                            {p}%
-                          </option>
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                          graphic_eq
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="evoice__icon-btn"
+                        title="Print prepared speech"
+                        aria-label="Print prepared speech"
+                        onClick={() => void onPrintPreparedSpeech()}
+                        disabled={busy || selectedDocs.length === 0}
+                      >
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                          print
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="evoice__icon-btn evoice__icon-btn--danger"
+                        title="Delete selected documents"
+                        aria-label="Delete selected documents"
+                        onClick={() => void onDeleteSelectedDocs()}
+                        disabled={busy || selectedDocs.length === 0}
+                      >
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                          delete
+                        </span>
+                      </button>
+                    </div>
+
+                    <label className="evoice__slider-field">
+                      <span className="evoice__slider-label">
+                        Quality
+                        <em>{QUALITY_MODES[qualityIndex]?.label ?? "Standard"}</em>
+                      </span>
+                      <input
+                        type="range"
+                        className="evoice__slider"
+                        min={0}
+                        max={QUALITY_MODES.length - 1}
+                        step={1}
+                        value={qualityIndex}
+                        disabled={busy}
+                        onChange={(e) => {
+                          const i = Number(e.target.value);
+                          const next = QUALITY_MODES[i];
+                          if (next) setGenerateMode(next.id);
+                        }}
+                        aria-valuetext={QUALITY_MODES[qualityIndex]?.label}
+                      />
+                      <span className="evoice__slider-ticks" aria-hidden="true">
+                        {QUALITY_MODES.map((m) => (
+                          <span key={m.id}>{m.label}</span>
                         ))}
-                      </select>
+                      </span>
+                    </label>
+
+                    <label className="evoice__slider-field">
+                      <span className="evoice__slider-label">
+                        Content %
+                        <em>{contentPercent}%</em>
+                      </span>
+                      <input
+                        type="range"
+                        className="evoice__slider"
+                        min={0}
+                        max={CONTENT_PERCENTS.length - 1}
+                        step={1}
+                        value={contentIndex}
+                        disabled={busy}
+                        onChange={(e) => {
+                          const i = Number(e.target.value);
+                          const next = CONTENT_PERCENTS[i];
+                          if (next != null) setContentPercent(next);
+                        }}
+                        aria-valuetext={`${contentPercent}%`}
+                      />
+                      <span className="evoice__slider-ticks" aria-hidden="true">
+                        {CONTENT_PERCENTS.map((p) => (
+                          <span key={p}>{p}%</span>
+                        ))}
+                      </span>
                     </label>
 
                     {busy ? (
                       <button
                         type="button"
-                        className="btn"
+                        className="evoice__icon-btn"
+                        title="Stop generate"
+                        aria-label="Stop generate"
                         onClick={() => void onStopGenerate()}
                         disabled={!activeJobId}
                       >
-                        Stop
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                          stop
+                        </span>
                       </button>
                     ) : null}
                     {!busy && jobStopped && activeJobId ? (
                       <button
                         type="button"
-                        className="btn btn--primary"
+                        className="evoice__icon-btn evoice__icon-btn--accent"
+                        title="Resume generate"
+                        aria-label="Resume generate"
                         onClick={() => void onResumeGenerate()}
                       >
-                        Resume
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                          play_arrow
+                        </span>
                       </button>
                     ) : null}
                   </div>
@@ -1466,6 +1649,7 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
               title="Playlists"
               open={playlistsOpen}
               onToggle={() => setPlaylistsOpen((v) => !v)}
+              className="evoice__section--playlists"
             >
               <TransportBar
                 label="Global playlist"
@@ -1594,19 +1778,19 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
                 onEnded={next}
               />
             </CollapsibleSection>
-          </div>
+          </>
+        ) : null}
+      </div>
 
-          <div className="evoice__expand-row">
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setExpandedHeight((v) => !v)}
-            >
-              {expandedHeight ? "Collapse workspace" : "Show more"}
-            </button>
-          </div>
-        </>
-      ) : null}
+      <div className="evoice__expand-row">
+        <button
+          type="button"
+          className="btn"
+          onClick={() => setExpandedHeight((v) => !v)}
+        >
+          {expandedHeight ? "Collapse workspace" : "Show more"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -78,20 +78,23 @@ Naming:
 
 **Legacy** (no `.vN.` in name): `audios/{stem}.mp3`, `audios/{stem}.c*.mp3` — listed under playlist bucket **Legacy**, not migrated.
 
-### UI chrome (replaces HDS view icons)
+### UI chrome
 
-- **No** ProductDashboard cards and **no** header icons to switch `?view=dashboard|upload|docs|…`.
-- **Admin:** only for admin users — **owner dropdown at the top** of the eVoice page (browse another user’s project tree). Same capability as today’s Admin view; not an HDS icon. Non-admins never see it.
-- **Crawl:** an **upload modality** inside Upload (with file upload and paste): URL → fetch/clean → save as project doc. Not a separate page/view.
-- **Print:** a **document action** on selected doc(s): print the **prepared speech** for audio generation (latest `*.v{N}.premium.txt` for that stem when present; otherwise a clear empty/unavailable state). Not a separate view.
+- **No** ProductDashboard cards and **no** view-switching HDS icons for Upload/Docs/etc.
+- **Admin:** HDS **icon-only** button (admin users only) opens a **modal** with the owner dropdown. Non-admins never see it. No inline “Owner (admin)” field on the page.
+- **Crawl / paste / file:** Upload section has three modality **buttons**. Each modality’s input UI is **hidden until** that button is pressed (mutually exclusive panels).
+- **Print:** document action — prepared speech for selected docs.
 
-### UI — three collapsible sections
+### UI — four collapsible sections (each with distinct section background)
 
-1. **Upload controls** — project picker, file upload, paste text, **crawl URL**. Mode radios / content % are **not** here.
-2. **Uploaded documents** — list; action bar below after selection: **Delete**, **Generate MP3** (next version), **Print prepared speech**, **mode radios**, **content %**. Console toggleable to the right.
-3. **Playlists** — nested structure (document → version/Legacy → tracks).
+1. **Project** — project select + new project create.
+2. **Upload** — modality buttons (Upload file / Paste text / Crawl); panel for the active modality only.
+3. **Documents** — list; action bar: icon-only **Generate** (left), **Print** (middle), **Delete** (right, red icon); **Quality** slider (Standard → Premium → Super Premium); **Content %** slider (100/75/50/25/10/5). Console toggleable to the right.
+4. **Playlists** — nested structure (document → version/Legacy → tracks).
 
 Viewport: sections area ≈ **80vh**, `overflow-y: auto`; **Show more** expands to full content height.
+
+Label: generate mode control is named **Quality** (not “Mode”).
 
 #### Playlist nesting & playback (locked)
 
