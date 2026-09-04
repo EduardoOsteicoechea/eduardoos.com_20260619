@@ -1459,7 +1459,7 @@ pre{white-space:pre-wrap;font-family:inherit;font-size:0.95rem}
                   disabled={busy}
                 >
                   <span className="material-symbols-outlined" aria-hidden="true">
-                    spider
+                    language
                   </span>
                 </button>
               </div>
