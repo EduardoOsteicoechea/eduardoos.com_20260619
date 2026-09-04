@@ -947,32 +947,6 @@ function EvoiceWorkspace() {
     await reloadDocsAudios(ownerSafe, project);
   }
 
-  async function onDeleteSelectedDocs() {
-    if (!ownerSafe || !project || busy || selectedDocs.length === 0) return;
-    if (
-      !window.confirm(
-        `Delete ${selectedDocs.length} document(s)? Audio files will remain.`,
-      )
-    ) {
-      return;
-    }
-    setBusy(true);
-    for (const name of selectedDocs) {
-      const res = await deleteEvoiceDoc(ownerSafe, project, name);
-      if (res.error) {
-        setBusy(false);
-        showError("eVoice", res.error);
-        return;
-      }
-    }
-    setBusy(false);
-    setFileProgress((prev) =>
-      prev.filter((f) => !selectedDocs.includes(f.name)),
-    );
-    setSelectedDocs([]);
-    await reloadDocsAudios(ownerSafe, project);
-  }
-
   async function onDeleteAudio(mp3Name: string) {
     if (!ownerSafe || !project || busy) return;
     if (!window.confirm(`Delete audio ${mp3Name}?`)) return;
