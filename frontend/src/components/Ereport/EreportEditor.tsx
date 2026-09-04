@@ -28,7 +28,7 @@ import { bumpUiScale, resolveUiScale } from "../../lib/uiScale";
 import { ViewLoading } from "../ViewLoading/ViewLoading";
 import "./Ereport.css";
 
-const TRACKER_SRC = "/ereport-tracker.html?v=063b";
+const TRACKER_SRC = "/ereport-tracker.html?v=068";
 
 function siteIsDark(): boolean {
   return (
