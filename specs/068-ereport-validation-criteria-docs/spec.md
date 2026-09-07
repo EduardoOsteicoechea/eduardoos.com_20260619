@@ -46,7 +46,7 @@ else:
 
 ## Non-goals
 
-- New S3 layout or backend interpretation of criteria (payload stays opaque).
+- New S3 layout or backend interpretation of criteria (payload stays opaque). **072:** report bytes are VPS files, not S3; criteria rules unchanged.
 - PATCH of individual items.
 - Changing auth model (API key for v1; JWT for site).
 

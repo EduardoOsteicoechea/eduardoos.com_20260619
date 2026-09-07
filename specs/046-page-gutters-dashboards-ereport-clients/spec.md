@@ -2,7 +2,9 @@
 
 ## Status
 
-**Ready** (2026-09-01) — open questions locked from user.
+**Shipped** (2026-09-01). **eReport storage/auth/invites amended 2026-09-07 by spec 072.**
+
+Org hub UX in this file remains. Invites are no longer capability-only: magic link **plus OTP on the invited email**, full tracker editor, files under `media/ereport/<userId>/…`, no S3, no admin cross-org. Flat-report non-migration stays (072 5B / 9A).
 
 ## Problem
 
@@ -13,11 +15,17 @@
 ## Locked decisions
 
 ### Invites
-1. **Magic link** — invitee opens without requiring a prior Eduardo OS account/login.
-2. **Edit window:** single-report invite → **edit for 1 hour** from first open (or from grant — implement as 1 hour from token issuance unless modal overrides). Org-list invite → duration **chosen in the invite modal**; during that window invitee may **edit**.
-3. **Org-list invite scope:** access to **all reports that exist in that org’s list** for the selected duration (reports under that org).
-4. **Dashboards:** every product initial route gets ProductDashboard-style cards/sections; **each route defines its own section structure and card set**.
-5. **Migration:** **no** migrate of legacy flat reports. eReport begins fresh with org dashboard. New reports only under orgs.
+1. **Magic link + email OTP (072 3B)** — invitee does **not** need an Eduardo OS account. They must verify the invited email via OTP (Mongo OTP store). Capability-only links without OTP are forbidden.
+2. **Editor:** full Issue Tracker (072 4A), not a raw JSON textarea.
+3. **Edit window:** single-report invite → **edit for 1 hour** from token issuance unless a later override is spec’d. Org-list invite → duration **chosen in the invite modal**; during that window invitee may **edit**.
+4. **Org-list invite scope:** access to **all reports that exist in that org’s list** for the selected duration (reports under that org).
+5. Invite JSON lives on the VPS filesystem under `/var/www/eduardoos.com/media/ereport/invites/` (hashed secret; `ownerUserId` inside). `/ereport/invite/` is a public page.
+
+### Dashboards
+Every product initial route gets ProductDashboard-style cards/sections; **each route defines its own section structure and card set**.
+
+### Migration
+**No** migrate of legacy flat reports or S3 (072 5B, 9A). New reports only under orgs on the VPS filesystem.
 
 ### eReport dashboard (initial)
 Cards/sections:
@@ -70,13 +78,10 @@ Canonical product page outer inset:
 - [x] Home: chat on top; 2 cards/row; direct first-person sections with AI enthusiasm
 - [x] Tests + FE build + commit/push
 
-## Status
-
-**Ready / shipped** (2026-09-01).
-
 ## Affected paths
 
 - `specs/046-page-gutters-dashboards-ereport-clients/spec.md` (this file; “clients” ≡ **orgs**)
+- `specs/072-ereport-vps-filesystem/spec.md` (storage/auth/invite OTP)
 - `specs/018-home-profile-scroll/spec.md` (home dossier amendments)
 - `frontend/src/styles/pages.css`, Homescool/Church/Scrib/eReport/Articles hubs
 - `frontend/src/components/ProductDashboard/**`, `Home/**`, `lib/eduardoProfile.ts`

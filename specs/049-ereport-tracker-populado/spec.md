@@ -28,7 +28,7 @@ Spec 046 claimed a site-token restyle; the live tracker still lacks the populado
 
 ## Non-goals
 
-- Changing hub/org dashboards, invites, or S3 API shapes.
+- Changing hub/org dashboards, invites, or storage shapes (S3 is obsolete; see 072).
 - Shipping the sample Model BA populado text as the default new-report body.
 - Re-applying Eduardo OS teal/045 “host theme” overrides that diverge from populado look (046 hybrid is superseded for the tracker canvas).
 

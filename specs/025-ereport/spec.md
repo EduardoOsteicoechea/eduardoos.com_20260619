@@ -1,12 +1,14 @@
-# Feature 025 — eReport (Issue Tracker + S3 + share)
+# Feature 025 — eReport (Issue Tracker + org hub + tracker)
 
 ## Status
 
-**Ready to implement** (2026-08-20) — defaults locked.
+**Shipped on S3/email keys (2026-08-20).** **New runtime is spec 072** (`specs/072-ereport-vps-filesystem/spec.md`), locked 2026-09-07.
+
+Do **not** implement further S3, `SafeEmailKey` ownership directories, flat reports, capability-only invites, or CDN jsPDF/html2canvas. Those are obsolete. Tracker/HDS/org UX in this file and 046/049 still apply where 072 does not contradict them.
 
 ## Problem
 
-Port the Issue Tracker into Eduardo OS as **eReport**: subscribed users store `.ereport` JSON under S3 `ereport/`, list/open by user, set a **tema**, load from disk or cloud, and share a report with other registered users so they can view it.
+Port the Issue Tracker into Eduardo OS as **eReport**: subscribed users store `.ereport` JSON, list/open by owner, set a **tema**, load from disk or cloud, and collaborate (org invites). **Storage and authz for new work: spec 072** (VPS filesystem under `media/ereport/<userId>/…`, no S3, no Mongo report blobs).
 
 **Canonical tracker UI:** `frontend/public/ereport-tracker.html` (alias `frontend/public/ereport/tracker.html`). UX/styles synced to populado Issue Tracker (spec 049): Material Icons topbar, sticky section/group heads, collapse, inplace editors, `no_aplica`, tutorial + progress/save modals. Host `postMessage` bridge preserved.
 
@@ -14,8 +16,8 @@ Port the Issue Tracker into Eduardo OS as **eReport**: subscribed users store `.
 
 ### 0. Subscription
 - Catalog id: **`ereport`** — label “eReport”, $1/mo.
-- Access: active entitlement **or** platform admin.
-- Shared viewers do **not** need the entitlement to **open a report shared with them**; creating/importing/owning still requires `ereport` (or admin).
+- Access: active entitlement **or** platform admin **on their own account**.
+- **072:** entitlement required only to **create org / create report / import**. Invitees and lapsed owners may still open/edit per 072. **No** admin cross-organization file access.
 
 ### 1. Routes
 | Path | UI |
@@ -23,7 +25,7 @@ Port the Issue Tracker into Eduardo OS as **eReport**: subscribed users store `.
 | `/ereport` | Redirect / gate → hub for current user |
 | `/ereport/hub?user=` | Hub static shell (works without nginx rewrite) |
 | `/ereport/{userSafe}` | Pretty hub URL (nginx → hub shell) |
-| `/ereport/workspace?user=&report=` | Editor static shell (create/open navigates here first) |
+| `/ereport/workspace?org=&report=` | Editor static shell (072: `user=` is **not** used for filesystem or authz) |
 | `/ereport/{userSafe}/{reportId}` | Pretty editor URL (nginx rewrite + client `replaceState`) |
 
 **Bugfix (2026-08-20):** Opening the pretty editor path before nginx rewrite is live served `/index.html` (home). Links and post-create navigation use `/ereport/workspace?…` first; nginx rewrite uses `rewrite … last` (not try_files→home).
@@ -32,25 +34,30 @@ Port the Issue Tracker into Eduardo OS as **eReport**: subscribed users store `.
 
 **Bugfix (2026-08-20 #3):** Tracker iframe moved to **`/ereport-tracker.html`** (outside `/ereport/…` pretty-URL rewrites) so a stale nginx config cannot 500 the iframe even before nginx redeploy.
 
-### 2. S3 (`eduardoos20260607`, prefix `ereport/`)
+### 2. Object layout — **superseded by 072**
+
+**Do not use S3 or email-safe path segments in new code.** Historical S3 layout (shipped, not migrated — 072 decision 9A):
+
 ```
+# LEGACY ONLY — not the target runtime
 ereport/{ownerSafe}/library.json
 ereport/{ownerSafe}/reports/{reportId}/meta.json
 ereport/{ownerSafe}/reports/{reportId}/report.ereport
-ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
+ereport/{viewerSafe}/shared-index.json
 ```
 
-`meta.json`: `{ id, tema, reportNumber, reportDate, ownerEmail, ownerSafe, sharedWith: [{ email, userSafe }], updatedAt, createdAt }`  
-`report.ereport`: Issue Tracker JSON (`reportDate`, `reportNumber`, `appTitle`, `sections…`) as produced/consumed by `ereport-tracker.html`.  
-`library.json`: `{ reports: [{ id, tema, reportNumber, updatedAt }] }`  
-`shared-index.json`: `{ items: [{ ownerSafe, reportId, tema, updatedAt }] }`
+**Target (072):**
+
+```
+/var/www/eduardoos.com/media/ereport/<owner-user-id>/orgs/<org-id>/reports/<report-id>/
+```
+
+Email/username in JSON are display-only. `ownerUserId` is the directory name. New images are files under `images/`; no new base64; no S3.
 
 ### 3. Hub behavior
-- Cards for owned reports (tema, number, updated).
-- Section “Compartidos conmigo”.
-- **Nuevo** — prompt tema → create empty skeleton report → open editor.
-- **Cargar .ereport** — file picker → import into cloud with tema (default from filename or “Sin tema”).
-- Click card → editor.
+- **072 / 046:** org dashboard (orgs, register, recent, manage). **No** flat “Compartidos conmigo” in the new runtime (5B). Collaboration is org/report **invites** with email OTP (072 3B), not registered-user share lists on flat reports.
+- Create/import reports **under an org**.
+- Click card → editor (`/ereport/workspace?org=&report=`).
 
 ### 4. Editor
 - **No host chrome above the iframe.** All editor tools live in the site **Header dynamic slot** (`#header-dynamic-menu-host`), same pattern as Scrib/Homescool/Pamphlet.
@@ -68,8 +75,8 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
      - **Hub** — CTA to leave to the owner hub
      - **Tema** — tema text field (blur/save writes meta)
      - **Guardar en nube** — confirm + status; runs collect → `PUT` cloud. **Only this HDS control is green** (class `ereport-hds-cloud-save`).
-     - **Compartir** — add/remove registered emails (owners only; hidden if `!canShare`)
-     - **Historial** — API overwrite snapshots (owners only when enabled)
+     - **Compartir** — **072:** org/report magic invite + OTP (not flat `sharedWith` emails). Invitees get the **full tracker**.
+     - **Historial** — overwrite snapshots on the **filesystem** under the org report directory (owners).
 - Body: Issue Tracker embedded via host-bridged static HTML at **`/ereport-tracker.html`** (alias `/ereport/tracker.html`).
 - **Viewport fill (locked):** Under `html.layout-editor-bleed` (spec 054), the host `.ereport-editor` + tracker iframe must occupy the full remaining window under the site Header/rail — not a short band at the top with empty page chrome below. Do **not** rely on `height: 100%` alone through Astro’s `astro-island` wrapper; use an explicit viewport height (`calc(100dvh - var(--header_offset, …))` and/or fixed inset like Scrib) so the iframe always stretches.
 - **Bug fix (2026-09-02):** Bleed CSS set `min-height: 0` / `height: 100%` on the editor and frame; the percentage chain broke at the island, so the iframe collapsed to a short strip. Restore explicit viewport sizing.
@@ -80,25 +87,19 @@ ereport/{viewerSafe}/shared-index.json   // soft index of reports shared with me
 - Cloud save also from header modal and when tracker `saveAll` completes (bridge).
 - **Auto cloud save (2026-09-03):** any edit in the tracker (meta, inplace fields, status, images, collapse state) debounces to `cloud-save` → host `PUT` without opening the Guardar modal.
 - **Global type scale (2026-09-03, spec 063):** tracker root `html` uses `calc(16px * var(--site-text-scale))`; internal sizes stay in **rem** so proportions are unchanged. Host pushes `text-scale` on boot and when A+/A− changes; HDS font up/down bumps site scale on the host.
-- Owner: full edit + share. Shared user: **view + edit body** (not delete report / not manage shares). Non-owner non-shared: 403.
+- Owner: full edit + invites. Invite collaborator (OTP-bound session): **view + edit body** in the tracker (not delete org/report / not manage invites). Non-owner without a valid invite: 403. **No** platform-admin bypass into another user’s tree (072 7B).
 
-### 5. API (JWT)
-| Method | Path | Notes |
-|--------|------|--------|
-| GET | `/api/ereport/library` | owned + shared |
-| POST | `/api/ereport/reports` | `{ tema }` create empty |
-| POST | `/api/ereport/reports/import` | `{ tema, payload }` from `.ereport` |
-| GET | `/api/ereport/reports/{ownerSafe}/{reportId}` | authz owner/shared/admin |
-| PUT | `/api/ereport/reports/{ownerSafe}/{reportId}` | `{ tema?, payload? }` |
-| DELETE | `/api/ereport/reports/{ownerSafe}/{reportId}` | owner/admin |
-| PUT | `/api/ereport/reports/{ownerSafe}/{reportId}/shares` | owner; `{ emails: string[] }` — must be registered users |
+### 5. API (JWT / cookies — **072**)
 
-IAM already allows Get/Put/Delete on `arn:aws:s3:::eduardoos20260607/ereport/*` **and** ListBucket prefixes `ereport/` / `ereport/*` via `deploy/aws/ec2-iam-s3-policy.json` (also `scrib/`). If create returns HTTP 502 `could not save meta`, the EC2 role is missing that statement — update the inline/managed S3 policy on `eduardoos-ec2-s3-role` and wait ~1 minute for credentials to refresh.
+Org-scoped routes under `/api/ereport/orgs/…` (046/060/072). **Drop** flat `/api/ereport/reports/{ownerSafe}/…` and `/shares` from the new runtime. Do **not** use email as a filesystem key.
+
+Historical S3 IAM (`eduardoos20260607/ereport/*`, `eduardoos-ec2-s3-role`) is **not** part of new eReport. Failures are filesystem permissions / `EREPORT_MEDIA_ROOT`.
 
 ## Non-goals
 - Real-time multi-cursor collaboration.
-- Moving images out of base64 into separate S3 objects (MVP keeps embedded base64 in `.ereport`).
-- Public unauthenticated links.
+- Public unauthenticated **file** URLs (invite **page** is public; files go through Go after OTP).
+- S3 or Mongo as the report blob store (072).
+- Migrating existing S3 eReport data (072 9A).
 
 ## Acceptance
 - [x] Catalog + Subscribe + Services menu “eReport”
@@ -113,8 +114,10 @@ IAM already allows Get/Put/Delete on `arn:aws:s3:::eduardoos20260607/ereport/*` 
 - [x] Meta panel (org / report name / date / number) remains in the edit body
 - [x] Tracker fields use site global type scale (16px × `--site-text-scale`); internal rem ratios preserved
 - [x] Tracker edits auto-save to cloud (debounced) without opening Guardar modal
+- [ ] **072 cutover** — VPS filesystem, userId paths, invite OTP + tracker, org-only, no S3 (see `specs/072-ereport-vps-filesystem/spec.md`)
 
 ## Affected paths
+- `specs/072-ereport-vps-filesystem/spec.md` (new runtime)
 - `specs/025-ereport/spec.md`
 - `backend/internal/ereport/**`, `payments/catalog.go`, `cmd/server/main.go`
 - `frontend/.../ereport/**`, `lib/ereport.ts`, Header, payments, routes, nginx
