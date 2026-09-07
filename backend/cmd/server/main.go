@@ -87,7 +87,7 @@ func main() {
 	scribHandler.Objects = scrib.OpenObjectSpace(ctx)
 	scribHandler.Entitlements = paymentsHandler.Store
 	ereportHandler := ereport.NewHandler(jwtSecret, userStore)
-	ereportHandler.Objects = ereport.OpenObjectSpace(ctx)
+	ereportHandler.Objects = ereport.OpenObjectSpace(ctx, userStore)
 	ereportHandler.Entitlements = paymentsHandler.Store
 	ereportHandler.Mail = authHandler // shared SMTP_USER / SMTP_PASS for magic-link invites
 	apikeysHandler := apikeys.NewHandler(jwtSecret, userStore, apikeys.OpenStore(ctx), paymentsHandler.Store)

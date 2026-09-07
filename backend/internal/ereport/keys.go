@@ -1,4 +1,7 @@
-// Package ereport stores Issue Tracker .ereport files under S3 prefix ereport/.
+// Package ereport stores Issue Tracker .ereport files on the VPS filesystem
+// under EREPORT_MEDIA_ROOT (072 §1). Keys below are logical addresses keyed by
+// the owner's safe email; FSObjectSpace maps them onto
+// <root>/<username>/<safe-email>/... on disk (072 §2).
 //
 // Legacy (flat, still served by older handlers — no migrate):
 //
@@ -22,10 +25,11 @@ import (
 	"strings"
 )
 
-// RootPrefix is the top-level S3 key prefix for all eReport objects.
+// RootPrefix is the top-level key prefix for all eReport objects.
 const RootPrefix = "ereport"
 
-// SafeEmailKey turns an email into a filesystem/S3/URL-safe segment.
+// SafeEmailKey turns an email into a filesystem- and URL-safe segment. This is
+// the authoritative part of an owner directory (072 §2).
 func SafeEmailKey(email string) string {
 	email = strings.ToLower(strings.TrimSpace(email))
 	email = strings.ReplaceAll(email, "@", "_at_")

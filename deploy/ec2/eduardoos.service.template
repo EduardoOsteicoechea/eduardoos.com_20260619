@@ -13,6 +13,8 @@ ExecStart=@APP_DIR@/backend/bin/eduardoos-next
 Restart=on-failure
 RestartSec=5
 Environment=PORT=3000
+# eReport writes report files under EREPORT_MEDIA_ROOT (spec 072 §9).
+UMask=0027
 
 [Install]
 WantedBy=multi-user.target
