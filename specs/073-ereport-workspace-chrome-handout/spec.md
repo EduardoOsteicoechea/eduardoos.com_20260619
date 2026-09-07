@@ -2,9 +2,9 @@
 
 ## Status
 
-**Handout locked 2026-09-07.** This file is the pixel / token / permission contract for eReport workspace chrome. It does **not** reopen storage (072) or invent new rail/HDS buttons.
+**Handout locked 2026-09-07.** This file is the pixel / token / permission contract. **Build recipe (every screen, every button, CSS recipes, postMessage, order):** [`playbook.md`](./playbook.md).
 
-Implementation of 072 (VPS filesystem, invite OTP, full-tracker invitees, vendor html2canvas/jsPDF) is a **later turn**. This spec only freezes **what already shipped** so another agent cannot “redesign” tokens or invent controls.
+Implementation of 072 (VPS filesystem, invite OTP, full-tracker invitees, vendor html2canvas/jsPDF) is a **later turn**. This spec freezes **what already shipped** so another agent cannot “redesign” tokens or invent controls.
 
 ## Problem
 
